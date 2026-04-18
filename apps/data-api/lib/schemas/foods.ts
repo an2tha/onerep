@@ -2,10 +2,10 @@ import mongoose, { Schema } from "mongoose";
 
 export const ProductSchema = new Schema(
   {
-    code: { type: String, required: true, unique: true, index: true },
+    code: { type: String, required: true },
     product_name: String,
     generic_name: String,
-    brands: { type: String, index: true },
+    brands: String,
     quantity: String,
     categories: String,
     main_category: String,

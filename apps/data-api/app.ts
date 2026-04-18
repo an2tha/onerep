@@ -57,7 +57,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || 500;
-  console.error(JSON.stringify({ status, message: err.message, stack: err.stack }));
+  if (status >= 500) {
+    console.error(JSON.stringify({ status, message: err.message, stack: err.stack }));
+  }
   res.status(status).json({ error: err.message });
 });
 

@@ -1,8 +1,8 @@
 import mongoose, { Schema } from "mongoose";
 
 export const exercisesSchema = new Schema({
-  id: { type: String, unique: true, index: true },
-  name: { type: String, index: true },
+  id: { type: String },
+  name: String,
   force: String,
   equipment: String,
   primaryMuscles: [String],
