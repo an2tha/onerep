@@ -14,7 +14,7 @@ export const ProductSchema = new Schema(
     nutriscore_score: Number,
     nova_group: Number,
     nutrition_data_per: { type: String, enum: ["100g", "serving"], default: "100g" },
-    nutriments: [{ name: String, value: Number, unit: String, "100g": Number, serving: Number }],
+    nutriments: Schema.Types.Mixed, // OpenFoodFacts flat dict: { "energy-kcal_100g": 530, ... }
     ingredients_text: String,
     ingredients_n: Number,
     allergens: String,

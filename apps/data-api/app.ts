@@ -23,6 +23,9 @@ createIndices();
 
 const app: Express = express();
 
+// Trust the first proxy hop (Nginx, load balancer, etc.) for correct IP-based rate limiting
+app.set("trust proxy", 1);
+
 const validateApiKey = (req: Request, res: Response, next: NextFunction) => {
   if (process.env.INDEV === "true") {
     return next();

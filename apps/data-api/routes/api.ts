@@ -20,6 +20,7 @@ router.use("/foods/search", searchLimiter);
 router.use("/foods/nutrients", searchLimiter);
 router.use("/exercises/search", searchLimiter);
 router.use("/exercises/advanced", searchLimiter);
+router.use("/exercises/lookup", apiLimiter);
 router.post("/foods", apiLimiter);
 router.post("/exercises", apiLimiter);
 
@@ -94,21 +95,44 @@ router.get("/exercises/search", async (req: Request, res: Response) => {
     });
   }
 
-  const query = req.query.q as string;
-  try {
-    const result = await esClient.search({
-      index: "exercises",
-      query: {
+  const q = (req.query.q as string | undefined)?.trim() ?? "";
+  const size = Math.min(Number(req.query.limit) || 25, 50);
+  const esQuery = q.length >= 2
+    ? {
         multi_match: {
-          query,
-          fields: ["name", "primaryMuscles", "equipment"],
+          query: q,
+          fields: ["name^3", "primaryMuscles^2", "secondaryMuscles", "equipment", "category"],
+          type: "best_fields" as const,
+          fuzziness: "AUTO" as const,
         },
-      },
-    });
+      }
+    : { match_all: {} };
+
+  try {
+    const result = await esClient.search({ index: "exercises", size, query: esQuery });
     res.json(result.hits.hits);
   } catch (err) {
     console.error("[ERR] Exercise search failed:", err);
     res.status(500).json({ error: "Search failed" });
+  }
+});
+
+router.get("/exercises/lookup", async (req: Request, res: Response) => {
+  const raw = req.query.ids as string | undefined;
+  if (!raw) return res.status(400).json({ error: "ids query param required" });
+  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+  if (ids.length === 0) return res.json([]);
+
+  try {
+    const result = await esClient.search({
+      index: "exercises",
+      size: ids.length,
+      query: { terms: { _id: ids } },
+    });
+    res.json(result.hits.hits);
+  } catch (err) {
+    console.error("[ERR] Exercise lookup failed:", err);
+    res.status(500).json({ error: "Lookup failed" });
   }
 });
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "node ./bin/www.js",
+    "start": "node ./dist/bin/www.js",
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only ./bin/www.ts"
   },

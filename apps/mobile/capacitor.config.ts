@@ -7,6 +7,16 @@ const config: CapacitorConfig = {
   appId: "com.ananthh.onerep",
   appName: "mobile",
   webDir: "dist",
+  server: undefined,
+}
+
+
+/*
+For hot refresh: 
+const config: CapacitorConfig = {
+  appId: "com.ananthh.onerep",
+  appName: "mobile",
+  webDir: "dist",
   server:
     process.env.IS_DEV === "true"
       ? {
@@ -15,5 +25,6 @@ const config: CapacitorConfig = {
         }
       : undefined,
 }
+*/
 
 export default config

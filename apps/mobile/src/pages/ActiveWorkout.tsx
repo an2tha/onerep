@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import {
   Barbell,
   CaretDown,
@@ -17,11 +17,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import {
-  getExerciseById,
-  type Exercise,
-  type ExerciseCategory,
-} from "@/lib/exercise-catalog"
+import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 import { todayIso, type CachedWorkoutLog } from "@/lib/workout-sync"
 import {
@@ -105,12 +101,6 @@ const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
 const SUPERSET_PALETTE = ["#f59e0b", "#ec4899", "#14b8a6", "#06b6d4", "#84cc16"]
 
 const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
-
-const DEFAULT_ITEMS: WorkoutItem[] = [
-  { kind: "solo", exerciseId: "e2" },
-  { kind: "solo", exerciseId: "e1" },
-  { kind: "superset", id: "ss1", color: "#f59e0b", exerciseIds: ["e4", "e8"] },
-]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -1028,7 +1018,7 @@ function AddExerciseSheet({
   onClose,
 }: {
   addedIds: string[]
-  onAdd: (id: string) => void
+  onAdd: (ex: Exercise) => void
   onClose: () => void
 }) {
   const [query, setQuery] = useState("")
@@ -1055,35 +1045,30 @@ function AddExerciseSheet({
     const q = query.trim()
     if (debounceRef.current) clearTimeout(debounceRef.current)
     searchSeqRef.current += 1
-    if (q.length < 2) {
-      setRemoteExercises([])
-      setSearchState("idle")
-      return
-    }
+    const delay = q.length === 0 ? 0 : 280
     debounceRef.current = setTimeout(async () => {
       const requestSeq = ++searchSeqRef.current
       setSearchState("loading")
       try {
-        const results = await convexClient.query(api.data.exercises.search, {
+        const results = await convexClient.action(api.data.exercises.search, {
           query: q,
           categories: activeFilters.size > 0 ? [...activeFilters] : undefined,
           limit: 25,
         })
         if (requestSeq !== searchSeqRef.current) return
-        setRemoteExercises(results as any)
+        setRemoteExercises(results as Exercise[])
         setSearchState("done")
       } catch {
         if (requestSeq !== searchSeqRef.current) return
         setRemoteExercises([])
         setSearchState("error")
       }
-    }, 280)
+    }, delay)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [activeFilters, query])
-  const localFiltered = [] as any[]
-  const filtered = query.trim().length >= 2 ? remoteExercises : localFiltered
+  const filtered = remoteExercises
   const FILTERS: { cat: Category; label: string }[] = [
     { cat: "strength", label: "Strength" },
     { cat: "cardio", label: "Cardio" },
@@ -1199,7 +1184,7 @@ function AddExerciseSheet({
                     <button
                       onClick={() => {
                         if (!already) {
-                          onAdd(ex.id)
+                          onAdd(ex)
                           onClose()
                         }
                       }}
@@ -1220,7 +1205,7 @@ function AddExerciseSheet({
                 )
               })}
             </div>
-          ) : (
+          ) : searchState === "done" ? (
             <div className="flex flex-col items-center gap-2 py-20">
               <p className="text-[13px] font-semibold text-muted-foreground">
                 No exercises found
@@ -1229,7 +1214,16 @@ function AddExerciseSheet({
                 Try a different search or filter
               </p>
             </div>
-          )}
+          ) : searchState === "error" ? (
+            <div className="flex flex-col items-center gap-2 py-20">
+              <p className="text-[13px] font-semibold text-muted-foreground">
+                Search failed
+              </p>
+              <p className="text-[11px] text-muted-foreground/50">
+                Check your connection and try again
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1455,7 +1449,7 @@ function renderSupersetItem(
       </div>
       <div className="flex flex-col">
         {item.exerciseIds.map((exId, idx) => {
-          const ex = getExerciseById(exId)
+          const ex = exerciseLookup[exId]
           if (!ex || !exData[exId]) return null
           return (
             <React.Fragment key={exId}>
@@ -1502,11 +1496,11 @@ export default function ActiveWorkout() {
 
   const presets = useQuery(api.logs.presets.list, {})
   const logCompletion = useMutation(api.logs.workouts.completion)
+  const resolveIds = useAction(api.data.exercises.resolveIds)
 
-  const [items, setItems] = useState<WorkoutItem[]>(() => DEFAULT_ITEMS)
-  const [exData, setExData] = useState<Record<string, ExerciseState>>(() =>
-    initExData(DEFAULT_ITEMS)
-  )
+  const [items, setItems] = useState<WorkoutItem[]>([])
+  const [exData, setExData] = useState<Record<string, ExerciseState>>({})
+  const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -1530,7 +1524,8 @@ export default function ActiveWorkout() {
     if (presetId && presets) {
       const match = presets.find((p) => (p.id ?? p._id) === presetId)
       if (match) {
-        setItems((match.items as WorkoutItem[]) ?? [])
+        const loadedItems = (match.items as WorkoutItem[]) ?? []
+        setItems(loadedItems)
         setExData(
           Object.fromEntries(
             Object.entries(
@@ -1541,6 +1536,14 @@ export default function ActiveWorkout() {
             ])
           )
         )
+        const ids = loadedItems.flatMap((i) =>
+          i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
+        )
+        if (ids.length > 0) {
+          void resolveIds({ ids }).then((lookup) => {
+            setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+          })
+        }
       }
     }
   }, [presetId, presets])
@@ -1549,7 +1552,9 @@ export default function ActiveWorkout() {
     posthog.capture("workout_started", { preset_id: presetId ?? null })
   }, [presetId, posthog])
 
-  function addExercise(id: string) {
+  function addExercise(ex: Exercise) {
+    const id = ex.id
+    setExerciseLookup((prev) => ({ ...prev, [id]: ex }))
     setItems((prev) => [...prev, { kind: "solo", exerciseId: id }])
     setExData((prev) => ({
       ...prev,
@@ -1720,7 +1725,7 @@ export default function ActiveWorkout() {
     const exercises = items.flatMap((item) => {
       const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       return ids.flatMap((id) => {
-        const ex = getExerciseById(id)
+        const ex = exerciseLookup[id]
         const data = exData[id]
         if (!ex || !data) return []
         return [
@@ -1864,7 +1869,7 @@ export default function ActiveWorkout() {
               item.kind === "solo" ? (
                 <ActiveExerciseCard
                   key={item.exerciseId}
-                  exercise={getExerciseById(item.exerciseId)!}
+                  exercise={exerciseLookup[item.exerciseId]!}
                   data={exData[item.exerciseId]}
                   unit={unit}
                   onUpdate={(d) => updateExData(item.exerciseId, d)}

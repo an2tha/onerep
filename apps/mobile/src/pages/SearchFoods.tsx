@@ -207,7 +207,7 @@ export default function SearchFoods() {
                   Search millions of foods
                 </p>
                 <p className="text-[11px] text-muted-foreground/25">
-                  Powered by USDA Database
+                  Powered by OneRep Foods
                 </p>
               </div>
             )}

@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 BATCH_SIZE = 5000
 
-# Fields indexed in Elasticsearch (must match the mapping in lib/elasticsearch.ts)
+# Scalar fields indexed in ES (must match the mapping in lib/elasticsearch.ts)
 ES_FIELDS = {
     "code", "product_name", "brands", "categories",
     "nutriscore_grade", "nutriscore_score", "nova_group",
@@ -22,8 +22,22 @@ def _extract_text(val) -> str | None:
     return str(val) or None
 
 
+def _extract_macros(nutriments) -> dict:
+    """Flatten key macros from the OpenFoodFacts nutriments dict for ES indexing."""
+    if not nutriments or not isinstance(nutriments, dict):
+        return {}
+    def n(key: str) -> float:
+        return round(float(nutriments.get(key) or 0), 1)
+    return {
+        "calories_100g": n("energy-kcal_100g"),
+        "protein_100g":  n("proteins_100g"),
+        "carbs_100g":    n("carbohydrates_100g"),
+        "fat_100g":      n("fat_100g"),
+    }
+
+
 def _coerce(doc: dict) -> dict:
-    """Normalize types to match the ES mapping."""
+    """Normalize types to match schema expectations."""
     for text_field in ("product_name", "generic_name", "ingredients_text"):
         doc[text_field] = _extract_text(doc.get(text_field))
 
@@ -58,18 +72,21 @@ def load(mongo_client: pymongo.MongoClient, es_client: Elasticsearch):
         batch = df.slice(i, BATCH_SIZE).to_dicts()
         processed = [_coerce(dict(doc)) for doc in batch]
 
-        # MongoDB: store full document
+        # MongoDB: store full document (includes nutriments for detail lookups)
         try:
             collection.insert_many(processed, ordered=False)
         except pymongo.errors.BulkWriteError:
-            pass  # duplicate codes are expected on re-runs
+            pass  # duplicate codes expected on re-runs
 
-        # Elasticsearch: only send mapped fields (no complex nested parquet structures)
+        # Elasticsearch: scalar fields + flattened macros for search results
         es_actions = [
             {
                 "_index": "foods",
                 "_id": str(doc["code"]),
-                "_source": {k: v for k, v in doc.items() if k in ES_FIELDS and v is not None},
+                "_source": {
+                    **{k: v for k, v in doc.items() if k in ES_FIELDS and v is not None},
+                    **_extract_macros(doc.get("nutriments")),
+                },
             }
             for doc in processed
             if doc.get("code")

@@ -23,6 +23,10 @@ export const foodsIndexMapping = {
       ingredients_text: { type: "text" as const },
       main_category: { type: "keyword" as const },
       countries: { type: "keyword" as const },
+      calories_100g: { type: "float" as const },
+      protein_100g: { type: "float" as const },
+      carbs_100g: { type: "float" as const },
+      fat_100g: { type: "float" as const },
     },
   },
   settings: {

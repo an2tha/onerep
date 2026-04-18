@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import {
   ArrowLeft,
   Barbell,
@@ -18,14 +18,9 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import {
-  getExerciseById,
-  type Exercise,
-  type ExerciseCategory,
-} from "@/lib/exercise-catalog"
+import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
-import { EXERCISES } from "@/lib/exercise-catalog"
 import {
   normalizePresetCard,
   type WorkoutFocus,
@@ -206,7 +201,8 @@ function removeExFromItems(items: PresetItem[], exId: string): PresetItem[] {
 function buildSummary(
   name: string,
   items: PresetItem[],
-  exData: Record<string, ExerciseState>
+  exData: Record<string, ExerciseState>,
+  exerciseLookup: Record<string, Exercise>
 ): {
   focus: "strength" | "cardio" | "mobility"
   duration: string
@@ -224,7 +220,7 @@ function buildSummary(
   const steps = items.flatMap((item) => {
     const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
     const resolved = ids
-      .map((id) => getExerciseById(id))
+      .map((id) => exerciseLookup[id])
       .filter((ex): ex is Exercise => Boolean(ex))
 
     for (const ex of resolved) {
@@ -799,7 +795,7 @@ function SearchSheet({
   onClose,
 }: {
   addedIds: string[]
-  onToggle: (id: string) => void
+  onToggle: (ex: Exercise) => void
   onBodyClick: (ex: Exercise) => void
   onClose: () => void
 }) {
@@ -832,48 +828,32 @@ function SearchSheet({
     if (debounceRef.current) clearTimeout(debounceRef.current)
     searchSeqRef.current += 1
 
-    if (q.length < 2) {
-      setRemoteExercises([])
-      setSearchState("idle")
-      return
-    }
-
+    const delay = q.length === 0 ? 0 : 280
     debounceRef.current = setTimeout(async () => {
       const requestSeq = ++searchSeqRef.current
       setSearchState("loading")
       try {
-        const results = await convexClient.query(api.data.exercises.search, {
+        const results = await convexClient.action(api.data.exercises.search, {
           query: q,
           categories: activeFilters.size > 0 ? [...activeFilters] : undefined,
           limit: 25,
         })
         if (requestSeq !== searchSeqRef.current) return
-        setRemoteExercises(results)
+        setRemoteExercises(results as Exercise[])
         setSearchState("done")
       } catch {
         if (requestSeq !== searchSeqRef.current) return
         setRemoteExercises([])
         setSearchState("error")
       }
-    }, 280)
+    }, delay)
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [activeFilters, query])
 
-  const localFiltered = EXERCISES.filter((e) => {
-    if (activeFilters.size > 0 && !activeFilters.has(e.category)) return false
-    if (!query.trim()) return true
-    const q = query.toLowerCase()
-    return (
-      e.name.toLowerCase().includes(q) ||
-      e.muscle.toLowerCase().includes(q) ||
-      e.category.includes(q)
-    )
-  })
-
-  const filtered = query.trim().length >= 2 ? remoteExercises : localFiltered
+  const filtered = remoteExercises
 
   const FILTERS: { cat: Category; label: string }[] = [
     { cat: "strength", label: "Strength" },
@@ -976,25 +956,12 @@ function SearchSheet({
                   key={ex.id}
                   exercise={ex}
                   added={addedIds.includes(ex.id)}
-                  onAdd={() => onToggle(ex.id)}
+                  onAdd={() => onToggle(ex)}
                   onBodyClick={() => onBodyClick(ex)}
                 />
               ))}
             </div>
-          ) : query.trim().length >= 2 ? (
-            <div className="flex flex-col items-center gap-2 py-20">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                {searchState === "error"
-                  ? "Search failed"
-                  : "No exercises found"}
-              </p>
-              <p className="text-[11px] text-muted-foreground/50">
-                {searchState === "error"
-                  ? "Check your connection and try again"
-                  : "Try a different search or filter"}
-              </p>
-            </div>
-          ) : (
+          ) : searchState === "done" ? (
             <div className="flex flex-col items-center gap-2 py-20">
               <p className="text-[13px] font-semibold text-muted-foreground">
                 No exercises found
@@ -1003,7 +970,16 @@ function SearchSheet({
                 Try a different search or filter
               </p>
             </div>
-          )}
+          ) : searchState === "error" ? (
+            <div className="flex flex-col items-center gap-2 py-20">
+              <p className="text-[13px] font-semibold text-muted-foreground">
+                Search failed
+              </p>
+              <p className="text-[11px] text-muted-foreground/50">
+                Check your connection and try again
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1163,6 +1139,7 @@ export default function NewPreset() {
   const presets = useQuery(api.logs.presets.list, {})
   const createPreset = useMutation(api.logs.presets.create)
   const updatePreset = useMutation(api.logs.presets.update)
+  const resolveIds = useAction(api.data.exercises.resolveIds)
 
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1170,6 +1147,7 @@ export default function NewPreset() {
   const [modalExercise, setModalExercise] = useState<Exercise | null>(null)
   const [items, setItems] = useState<PresetItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
+  const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
@@ -1198,8 +1176,9 @@ export default function NewPreset() {
     const match = presets.find((preset) => (preset.id ?? preset._id) === presetId)
 
     if (match) {
+      const loadedItems = (match.items as PresetItem[]) ?? []
       setPresetName(match.name)
-      setItems((match.items as PresetItem[]) ?? [])
+      setItems(loadedItems)
       setExData(
         Object.fromEntries(
           Object.entries(
@@ -1210,6 +1189,15 @@ export default function NewPreset() {
           ])
         )
       )
+      // Resolve exercise metadata for all IDs in this preset
+      const ids = loadedItems.flatMap((item) =>
+        item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
+      )
+      if (ids.length > 0) {
+        void resolveIds({ ids }).then((lookup) => {
+          setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+        })
+      }
     }
   }, [presetId, presets])
 
@@ -1221,7 +1209,8 @@ export default function NewPreset() {
     const summary = buildSummary(
       presetName.trim() || "Untitled Preset",
       items,
-      exData
+      exData,
+      exerciseLookup
     )
     const input = {
       name:
@@ -1255,15 +1244,21 @@ export default function NewPreset() {
 
   // ── Add / remove ──────────────────────────────────────────
 
-  function toggleAdd(id: string) {
+  function removeExercise(id: string) {
+    setItems((prev) => removeExFromItems(prev, id))
+    setExData((prev) => {
+      const n = { ...prev }
+      delete n[id]
+      return n
+    })
+  }
+
+  function toggleAdd(ex: Exercise) {
+    const id = ex.id
     if (addedIds.includes(id)) {
-      setItems((prev) => removeExFromItems(prev, id))
-      setExData((prev) => {
-        const n = { ...prev }
-        delete n[id]
-        return n
-      })
+      removeExercise(id)
     } else {
+      setExerciseLookup((prev) => ({ ...prev, [id]: ex }))
       setItems((prev) => [...prev, { kind: "solo", exerciseId: id }])
       setExData((prev) => ({
         ...prev,
@@ -1457,7 +1452,7 @@ export default function NewPreset() {
   }
 
   function renderSoloItem(exerciseId: string) {
-    const ex = getExerciseById(exerciseId)
+    const ex = exerciseLookup[exerciseId]
     if (!ex || !exData[exerciseId]) return null
     return (
       <PresetExerciseCard
@@ -1466,7 +1461,7 @@ export default function NewPreset() {
         data={exData[exerciseId]}
         unit={unit}
         onUpdate={(d) => updateExData(exerciseId, d)}
-        onRemove={() => toggleAdd(exerciseId)}
+        onRemove={() => removeExercise(exerciseId)}
         isDragging={drag?.exerciseId === exerciseId && drag.active}
         {...cardProps(exerciseId)}
         collapsed={Boolean(collapsed[exerciseId])}
@@ -1522,7 +1517,7 @@ export default function NewPreset() {
         {/* Exercises — no extra borders, cards have their own left stripes */}
         <div className="flex flex-col gap-px bg-border/20">
           {item.exerciseIds.map((exId) => {
-            const ex = getExerciseById(exId)
+            const ex = exerciseLookup[exId]
             if (!ex || !exData[exId]) return null
             return (
               <PresetExerciseCard
@@ -1531,7 +1526,7 @@ export default function NewPreset() {
                 data={exData[exId]}
                 unit={unit}
                 onUpdate={(d) => updateExData(exId, d)}
-                onRemove={() => toggleAdd(exId)}
+                onRemove={() => removeExercise(exId)}
                 isDragging={drag?.exerciseId === exId && drag.active}
                 {...cardProps(exId, true)}
                 inSuperset
@@ -1550,7 +1545,7 @@ export default function NewPreset() {
     )
   }
 
-  const ghostEx = drag?.active ? getExerciseById(drag.exerciseId) : null
+  const ghostEx = drag?.active ? (exerciseLookup[drag.exerciseId] ?? null) : null
 
   // ─────────────────────────────────────────────────────────
 
@@ -1737,7 +1732,7 @@ export default function NewPreset() {
         <ExerciseModal
           exercise={modalExercise}
           added={addedIds.includes(modalExercise.id)}
-          onAdd={() => toggleAdd(modalExercise.id)}
+          onAdd={() => toggleAdd(modalExercise)}
           onClose={() => setModalExercise(null)}
         />
       )}

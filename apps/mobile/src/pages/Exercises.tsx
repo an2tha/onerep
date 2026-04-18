@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useQuery } from "convex/react"
+import { useQuery, useAction } from "convex/react"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
-import {
-  getExerciseById,
-  type Exercise,
-  type ExerciseCategory,
-} from "@/lib/exercise-catalog"
+import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -227,7 +223,25 @@ function TopExerciseCard({ exercise }: { exercise: ExerciseCard | null }) {
 
 export default function Exercises() {
   const history = useQuery(api.logs.workouts.getHistory, {})
+  const resolveIds = useAction(api.data.exercises.resolveIds)
   const loading = history === undefined
+  const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
+
+  // Collect all exercise IDs from history and resolve them
+  useEffect(() => {
+    if (!history) return
+    const ids = [
+      ...new Set(
+        history.flatMap((log) =>
+          ((log as any).exercises ?? []).map((e: any) => e.exerciseId as string)
+        )
+      ),
+    ].filter(Boolean)
+    if (ids.length === 0) return
+    void resolveIds({ ids }).then((lookup) => {
+      setExerciseLookup(lookup as Record<string, Exercise>)
+    })
+  }, [history])
 
   const items = useMemo<ExerciseCard[]>(() => {
     if (!history) return []
@@ -247,12 +261,12 @@ export default function Exercises() {
     }
     return [...counts.entries()]
       .map(([id, count]) => {
-        const ex = getExerciseById(id)
+        const ex = exerciseLookup[id]
         return ex ? { ...(ex as Exercise), count } : null
       })
       .filter((ex): ex is ExerciseCard => Boolean(ex))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-  }, [history])
+  }, [history, exerciseLookup])
 
   const stats: Stats = useMemo(() => {
     const categoryBreakdown: Record<ExerciseCategory, number> = {

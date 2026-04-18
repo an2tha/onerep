@@ -1,74 +1,70 @@
 import { v } from "convex/values";
 import { action, internalMutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
-import { authComponent } from "../auth";
 
-const USDA_BASE = "https://api.nal.usda.gov/fdc/v1";
-const USDA_API_KEY = process.env.USDA_API_KEY;
+const DATA_API_URL = process.env.DATA_API_URL;
+const DATA_API_KEY = process.env.DATA_API_KEY;
 
-function mapUsdaDetailToFoodDetail(food: any): any {
-  const nutrients: any[] = food.foodNutrients ?? [];
+function apiHeaders(): HeadersInit {
+  return DATA_API_KEY ? { "x-api-key": DATA_API_KEY } : {};
+}
 
-  function get(name: string): number {
-    const n = nutrients.find((n: any) =>
-      (n.nutrient?.name ?? n.nutrientName ?? "")
-        .toLowerCase()
-        .includes(name.toLowerCase()),
-    );
-    return n ? (n.amount ?? n.value ?? 0) : 0;
+// Maps an ES hit (from /api/v1/foods/search) to the FoodResult shape
+function mapHitToResult(hit: any): any {
+  const src = hit._source ?? hit;
+  return {
+    id: String(src.code ?? hit._id ?? ""),
+    name: src.product_name || "Unknown",
+    brand: src.brands || "",
+    serving: "100 g",
+    calories: String(Math.round(Number(src.calories_100g ?? 0))),
+    protein: String(Math.round(Number(src.protein_100g ?? 0) * 10) / 10),
+    carbs: String(Math.round(Number(src.carbs_100g ?? 0) * 10) / 10),
+    fat: String(Math.round(Number(src.fat_100g ?? 0) * 10) / 10),
+  };
+}
+
+// Maps a full MongoDB doc (from /api/v1/foods/barcode/:code) to the FoodDetail shape
+function mapDocToDetail(doc: any): any {
+  // nutriments is a flat dict from OpenFoodFacts: { "energy-kcal_100g": 530, "proteins_100g": 6.3, ... }
+  const nm: Record<string, number> = doc.nutriments ?? {};
+
+  function get(key: string): number {
+    return Number(nm[`${key}_100g`] ?? nm[key] ?? 0);
   }
 
   const CORE = [
-    { key: "energy", name: "Calories", nutrient: "Energy", unit: "kcal" },
-    { key: "protein", name: "Protein", nutrient: "Protein", unit: "g" },
-    {
-      key: "carbs",
-      name: "Carbohydrates",
-      nutrient: "Carbohydrate",
-      unit: "g",
-    },
-    { key: "fat", name: "Total Fat", nutrient: "Total lipid", unit: "g" },
-    { key: "fiber", name: "Dietary Fiber", nutrient: "Fiber", unit: "g" },
-    { key: "sugar", name: "Total Sugars", nutrient: "Sugars", unit: "g" },
-    { key: "satFat", name: "Saturated Fat", nutrient: "Saturated", unit: "g" },
-    { key: "sodium", name: "Sodium", nutrient: "Sodium", unit: "mg" },
-    {
-      key: "cholesterol",
-      name: "Cholesterol",
-      nutrient: "Cholesterol",
-      unit: "mg",
-    },
+    { key: "energy",      name: "Calories",      nutrient: "energy-kcal",   unit: "kcal" },
+    { key: "protein",     name: "Protein",        nutrient: "proteins",      unit: "g"    },
+    { key: "carbs",       name: "Carbohydrates",  nutrient: "carbohydrates", unit: "g"    },
+    { key: "fat",         name: "Total Fat",      nutrient: "fat",           unit: "g"    },
+    { key: "fiber",       name: "Dietary Fiber",  nutrient: "fiber",         unit: "g"    },
+    { key: "sugar",       name: "Total Sugars",   nutrient: "sugars",        unit: "g"    },
+    { key: "satFat",      name: "Saturated Fat",  nutrient: "saturated-fat", unit: "g"    },
+    { key: "sodium",      name: "Sodium",         nutrient: "sodium",        unit: "mg"   },
+    { key: "cholesterol", name: "Cholesterol",    nutrient: "cholesterol",   unit: "mg"   },
   ];
 
   const EXTRA = [
-    { key: "calcium", name: "Calcium", nutrient: "Calcium", unit: "mg" },
-    { key: "iron", name: "Iron", nutrient: "Iron", unit: "mg" },
-    { key: "potassium", name: "Potassium", nutrient: "Potassium", unit: "mg" },
-    { key: "vitaminC", name: "Vitamin C", nutrient: "Vitamin C", unit: "mg" },
-    { key: "vitaminD", name: "Vitamin D", nutrient: "Vitamin D", unit: "µg" },
-    {
-      key: "vitaminB12",
-      name: "Vitamin B12",
-      nutrient: "Vitamin B-12",
-      unit: "µg",
-    },
+    { key: "calcium",   name: "Calcium",   nutrient: "calcium",   unit: "mg" },
+    { key: "iron",      name: "Iron",      nutrient: "iron",      unit: "mg" },
+    { key: "potassium", name: "Potassium", nutrient: "potassium", unit: "mg" },
+    { key: "vitaminC",  name: "Vitamin C", nutrient: "vitamin-c", unit: "mg" },
   ];
 
   return {
-    id: String(food.fdcId),
-    name: food.description,
-    brand: food.brandName || food.brandOwner || "",
-    serving: food.servingSize
-      ? `${food.servingSize} ${food.servingSizeUnit ?? "g"}`
-      : "100 g",
-    calories: Math.round(get("Energy")),
-    protein: get("Protein"),
-    carbs: get("Carbohydrate"),
-    fat: get("Total lipid"),
-    servingGrams: food.servingSize ?? null,
-    servingLabel: food.servingSize
-      ? `${food.servingSize} ${food.servingSizeUnit ?? "g"}`
-      : "100 g",
+    id: String(doc.code ?? ""),
+    name: doc.product_name || "Unknown",
+    brand: doc.brands || "",
+    serving: "100 g",
+    calories: Math.round(get("energy-kcal")),
+    protein: get("proteins"),
+    carbs: get("carbohydrates"),
+    fat: get("fat"),
+    servingGrams: null,
+    servingLabel: "100 g",
+    nutriscoreGrade: doc.nutriscore_grade?.toLowerCase() || undefined,
+    novaGroup: doc.nova_group || undefined,
     nutrients: CORE.map(({ key, name, nutrient, unit }) => ({
       key,
       name,
@@ -84,60 +80,29 @@ function mapUsdaDetailToFoodDetail(food: any): any {
   };
 }
 
-function getNutrientValue(nutrients: any[], name: string): number {
-  const n = nutrients.find(
-    (n: any) =>
-      n.nutrientName?.toLowerCase().includes(name.toLowerCase()) ||
-      n.name?.toLowerCase().includes(name.toLowerCase()),
-  );
-  return n ? n.value || n.amount || 0 : 0;
-}
-
-function mapUsdaToFoodResult(food: any): any {
-  const nutrients = food.foodNutrients ?? [];
-  return {
-    id: String(food.fdcId),
-    name: food.description,
-    brand: food.brandName || food.brandOwner || "",
-    serving: `${food.servingSize || 100} ${food.servingSizeUnit || "g"}`,
-    calories: String(Math.round(getNutrientValue(nutrients, "Energy"))),
-    protein: String(getNutrientValue(nutrients, "Protein")),
-    carbs: String(getNutrientValue(nutrients, "Carbohydrate")),
-    fat: String(getNutrientValue(nutrients, "Total lipid (fat)")),
-  };
-}
-
-async function getCachedResult(ctx: any, queryStr: string) {
-  return await ctx.db
-    .query("searchCache")
-    .withIndex("by_query", (q: any) => q.eq("query", queryStr.toLowerCase()))
-    .first();
-}
-
-export const internalGetCache = internalQuery({
+// Cache-only lookup: returns null on miss so the client knows to call fetchAndCache
+export const search = query({
   args: { query: v.string() },
   handler: async (ctx, args) => {
-    return await getCachedResult(ctx, args.query);
+    if (args.query.length < 2) return null;
+    const cache = await ctx.db
+      .query("searchCache")
+      .withIndex("by_query", (q) => q.eq("query", args.query.toLowerCase()))
+      .first();
+    return cache?.results ?? null;
   },
 });
 
-export const search = action({
-  args: { query: v.string() },
+// Fetches from the data-api, maps results, writes to cache — query re-runs reactively
+export const fetchAndCache = action({
+  args: { query: v.string(), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    if (!args.query) return [];
+    const url = `${DATA_API_URL}/api/v1/foods/search?q=${encodeURIComponent(args.query)}`;
+    const response = await fetch(url, { headers: apiHeaders() });
+    if (!response.ok) throw new Error(`Data API error: ${response.statusText}`);
 
-    const cache = await ctx.runQuery(internal.data.foods.internalGetCache, {
-      query: args.query,
-    });
-    if (cache) return cache.results;
-
-    const response = await fetch(
-      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${USDA_API_KEY}&query=${encodeURIComponent(args.query)}&pageSize=10`,
-    );
-    if (!response.ok) throw new Error(`USDA API error: ${response.statusText}`);
-
-    const data = await response.json();
-    const results = (data.foods ?? []).map(mapUsdaToFoodResult);
+    const hits = await response.json();
+    const results = (Array.isArray(hits) ? hits : []).map(mapHitToResult);
 
     await ctx.runMutation(internal.data.foods.writeCache, {
       query: args.query.toLowerCase(),
@@ -148,20 +113,25 @@ export const search = action({
   },
 });
 
-export const writeCache = internalMutation({
-  args: {
-    query: v.string(),
-    results: v.array(v.any()),
-  },
+export const internalGetCache = internalQuery({
+  args: { query: v.string() },
   handler: async (ctx, args) => {
-    const existing = await ctx.runQuery(internal.data.foods.internalGetCache, {
-      query: args.query,
-    });
+    return await ctx.db
+      .query("searchCache")
+      .withIndex("by_query", (q) => q.eq("query", args.query.toLowerCase()))
+      .first();
+  },
+});
+
+export const writeCache = internalMutation({
+  args: { query: v.string(), results: v.array(v.any()) },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("searchCache")
+      .withIndex("by_query", (q) => q.eq("query", args.query))
+      .first();
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        results: args.results,
-        updatedAt: Date.now(),
-      });
+      await ctx.db.patch(existing._id, { results: args.results, updatedAt: Date.now() });
     } else {
       await ctx.db.insert("searchCache", {
         query: args.query,
@@ -172,6 +142,7 @@ export const writeCache = internalMutation({
   },
 });
 
+// Detail cache lookup
 export const getDetail = query({
   args: { fdcId: v.string() },
   handler: async (ctx, { fdcId }) => {
@@ -193,36 +164,26 @@ export const writeDetailCache = internalMutation({
     if (existing) {
       await ctx.db.patch(existing._id, { detail, createdAt: Date.now() });
     } else {
-      await ctx.db.insert("foodDetailCache", {
-        fdcId,
-        detail,
-        createdAt: Date.now(),
-      });
+      await ctx.db.insert("foodDetailCache", { fdcId, detail, createdAt: Date.now() });
     }
   },
 });
 
+// Fetches full food detail by barcode (code) from data-api, caches it
 export const getById = action({
   args: { fdcId: v.string() },
   handler: async (ctx, { fdcId }) => {
     const cached = await ctx.runQuery(internal.data.foods.getDetail, { fdcId });
     if (cached) return cached;
 
-    const user = await authComponent.getAuthUser(ctx);
-    if (!user) throw new Error("Unauthorized");
+    const url = `${DATA_API_URL}/api/v1/foods/barcode/${encodeURIComponent(fdcId)}`;
+    const response = await fetch(url, { headers: apiHeaders() });
+    if (!response.ok) return null;
 
-    const response = await fetch(
-      `${USDA_BASE}/food/${encodeURIComponent(fdcId)}?api_key=${USDA_API_KEY}`,
-    );
-    if (!response.ok) throw new Error(`USDA API error: ${response.statusText}`);
+    const doc = await response.json();
+    const detail = mapDocToDetail(doc);
 
-    const food = await response.json();
-    const detail = mapUsdaDetailToFoodDetail(food);
-
-    await ctx.runMutation(internal.data.foods.writeDetailCache, {
-      fdcId,
-      detail,
-    });
+    await ctx.runMutation(internal.data.foods.writeDetailCache, { fdcId, detail });
     return detail;
   },
 });
