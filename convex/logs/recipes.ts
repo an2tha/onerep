@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { authComponent } from "../auth";
-import { Id } from "convex/dist/cjs-types/values/value";
 
 async function requireUser(ctx: any) {
   const user = await authComponent.getAuthUser(ctx);
@@ -66,6 +65,6 @@ export const remove = mutation({
   args: { id: v.string() },
   handler: async (ctx, args) => {
     await requireUser(ctx);
-    await ctx.db.delete(args.id as Id<"recipes">);
+    await ctx.db.delete(args.id as any);
   },
 });

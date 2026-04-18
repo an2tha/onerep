@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, internalMutation, query } from "../_generated/server";
+import { action, internalMutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { authComponent } from "../auth";
 
@@ -114,7 +114,7 @@ async function getCachedResult(ctx: any, queryStr: string) {
     .first();
 }
 
-export const internalGetCache = query({
+export const internalGetCache = internalQuery({
   args: { query: v.string() },
   handler: async (ctx, args) => {
     return await getCachedResult(ctx, args.query);
