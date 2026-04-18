@@ -356,7 +356,7 @@ function SearchOverlay({
     debounceRef.current = setTimeout(async () => {
       setSearchState("loading")
       try {
-        const items = await searchFoods(q)
+        const items = await searchFoods(q) ?? []
         setResults(items)
         setSearchState("done")
       } catch {
@@ -368,7 +368,14 @@ function SearchOverlay({
 
   function handleConfirmAdd() {
     if (!pending) return
-    onAdd(pending, pendingGrams)
+    const item = {
+      ...pending,
+      calories: Number(pending.calories) || 0,
+      protein: Number(pending.protein) || 0,
+      carbs: Number(pending.carbs) || 0,
+      fat: Number(pending.fat) || 0,
+    }
+    onAdd(item, pendingGrams)
     setPending(null)
     setPendingGrams(100)
     setQuery("")
@@ -591,11 +598,11 @@ export default function NewRecipe() {
     setSaved(true)
     try {
       await saveRecipeMutation({
-        id: id as any,
+        id: id ? { _id: id } : undefined,
         name: name.trim() || "My Recipe",
         ingredients,
       })
-      setTimeout(() => navigate(-1), 300)
+      navigate(-1)
     } catch (err) {
       console.error("Failed to save recipe:", err)
       setSaved(false)
@@ -610,10 +617,10 @@ export default function NewRecipe() {
         id:             Math.random().toString(36).slice(2),
         name:           item.name,
         grams,
-        caloriesPer100: item.calories,
-        proteinPer100:  r(item.protein),
-        carbsPer100:    r(item.carbs),
-        fatPer100:      r(item.fat),
+        caloriesPer100: Number(item.calories) || 0,
+        proteinPer100:  r(Number(item.protein) || 0),
+        carbsPer100:    r(Number(item.carbs) || 0),
+        fatPer100:      r(Number(item.fat) || 0),
       },
     ])
     setSearchOpen(false)

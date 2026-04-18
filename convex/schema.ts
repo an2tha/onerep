@@ -208,6 +208,7 @@ export default defineSchema({
       }),
     ),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_query", ["query"])
     .searchIndex("search_results", {

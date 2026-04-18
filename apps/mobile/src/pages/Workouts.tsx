@@ -104,28 +104,8 @@ const EMPTY_ROUTINE: Routine = {
 const SLOT_PRESS_MS = 450
 const PRESET_PRESS_MS = 3500
 
-// ─── Persistence helpers ──────────────────────────────────────────────────────
-
-// Write both halves of state to localStorage then sync to the server.
-// Returns immediately; server call is fire-and-forget (queued if offline).
-async function persist(presets: WorkoutPresetCard[], routine: Routine) {
-  writeStoredWorkouts(presets, routine)
-  const payload = {
-    routine: routine as Record<string, string | null>,
-    presetOrder: presets.map((p) => p.id),
-  }
-
-  if (!navigator.onLine) {
-    queueScheduleSnapshot(payload.routine, payload.presetOrder)
-    return
-  }
-
-  try {
-    await convexClient.mutation(api.users.schedules.set, payload)
-  } catch {
-    queueScheduleSnapshot(payload.routine, payload.presetOrder)
-  }
-}
+// ─── Persistence helper (defined inside component via closure, stub here) ─────
+// The real `persist` is created inside Workouts() using the useMutation hook.
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -449,35 +429,94 @@ type DragState = {
 export default function Workouts() {
   const navigate = useNavigate()
 
-  // Initialise from localStorage so the UI is instant on mount — no flicker
-  const [presets, setPresets] = useState<WorkoutPresetCard[]>(() =>
-    readStoredPresets(DEFAULT_PRESETS)
-  )
-  const [routine, setRoutine] = useState<Routine>(() =>
-    readStoredRoutine(DEFAULT_ROUTINE)
-  )
-  const [routine2, setRoutine2] = useState<Routine>(() =>
-    readStoredRoutine2(EMPTY_ROUTINE)
-  )
+  // ── Convex ────────────────────────────────────────────────────────────────
+  const serverPresets = useQuery(api.logs.presets.list)
+  const schedule = useQuery(api.users.schedules.get)
+  const todayLog = useQuery(api.logs.workouts.getLog, { date: todayIso() })
+  const setSchedule = useMutation(api.users.schedules.set)
+  const removePresetMutation = useMutation(api.logs.presets.remove)
+
+  function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
+    void setSchedule({
+      routine: nextRoutine as Record<string, string | null>,
+      presetOrder: nextPresets.map((p) => p.id),
+    })
+  }
+
+  // ── Preset ordering (local, synced once from server) ──────────────────────
+  const [localOrder, setLocalOrder] = useState<string[]>([])
+  const orderReady = useRef(false)
+
+  useEffect(() => {
+    if (orderReady.current || schedule === undefined || serverPresets === undefined) return
+    orderReady.current = true
+    const srv = schedule?.presetOrder ?? []
+    setLocalOrder(srv.length > 0 ? srv : serverPresets.map((p) => p._id as string))
+  }, [schedule, serverPresets])
+
+  // Merge new/deleted presets from server into local order
+  useEffect(() => {
+    if (!serverPresets || !orderReady.current) return
+    const ids = new Set(serverPresets.map((p) => p._id as string))
+    setLocalOrder((prev) => {
+      const next = prev.filter((id) => ids.has(id))
+      for (const p of serverPresets) {
+        if (!next.includes(p._id as string)) next.push(p._id as string)
+      }
+      return next
+    })
+  }, [serverPresets])
+
+  const presets: WorkoutPresetCard[] = useMemo(() => {
+    if (!serverPresets) return DEFAULT_PRESETS
+    const byId = new Map(
+      serverPresets.map((p) => [
+        p._id as string,
+        normalizePresetCard({ id: p._id as string, name: p.name, focus: p.focus, duration: p.duration, steps: p.steps }),
+      ])
+    )
+    const result: WorkoutPresetCard[] = []
+    for (const id of localOrder) {
+      const p = byId.get(id)
+      if (p) result.push(p)
+    }
+    for (const p of serverPresets) {
+      if (!localOrder.includes(p._id as string))
+        result.push(normalizePresetCard({ id: p._id as string, name: p.name, focus: p.focus, duration: p.duration, steps: p.steps }))
+    }
+    return result
+  }, [serverPresets, localOrder])
+
+  // ── Routine (local, synced once from server) ──────────────────────────────
+  const [routine, setRoutine] = useState<Routine>(EMPTY_ROUTINE)
+  const routineReady = useRef(false)
+
+  useEffect(() => {
+    // schedule === undefined means still loading; null means loaded but no data yet
+    if (routineReady.current || schedule === undefined) return
+    routineReady.current = true
+    if (schedule) {
+      setRoutine({
+        Mon: schedule.routine?.Mon ?? null,
+        Tue: schedule.routine?.Tue ?? null,
+        Wed: schedule.routine?.Wed ?? null,
+        Thu: schedule.routine?.Thu ?? null,
+        Fri: schedule.routine?.Fri ?? null,
+        Sat: schedule.routine?.Sat ?? null,
+        Sun: schedule.routine?.Sun ?? null,
+      } as Routine)
+    }
+  }, [schedule])
+
+  const [routine2, setRoutine2] = useState<Routine>(EMPTY_ROUTINE)
+
+  const syncing = serverPresets === undefined
+  const workoutLogs: CachedWorkoutLog[] = todayLog ? [todayLog as unknown as CachedWorkoutLog] : []
+
   const [locked, setLocked] = useState(false)
-  const [syncing, setSyncing] = useState(navigator.onLine)
-  const [workoutLogs, setWorkoutLogs] = useState<CachedWorkoutLog[]>(() =>
-    readWorkoutLogs(todayIso())
-  )
   const [showSecondWorkoutSheet, setShowSecondWorkoutSheet] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
-
-  // Re-read local logs whenever page becomes visible (returning from ActiveWorkout)
-  useEffect(() => {
-    function onVisibility() {
-      if (document.visibilityState === "visible") {
-        setWorkoutLogs(readWorkoutLogs(todayIso()))
-      }
-    }
-    document.addEventListener("visibilitychange", onVisibility)
-    return () => document.removeEventListener("visibilitychange", onVisibility)
-  }, [])
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const [overDay, setOverDay] = useState<Day | null>(null)
@@ -502,91 +541,6 @@ export default function Workouts() {
     drag !== null &&
     (Math.abs(drag.x - drag.originX) > 6 || Math.abs(drag.y - drag.originY) > 6)
 
-  // ── Server rehydration on mount ───────────────────────────────────────────
-  // Fetch the server's authoritative schedule and reconcile with local state.
-  // The server wins for routine assignments and ordering; local preset objects
-  // are kept because the server only stores IDs, not display data.
-
-  useEffect(() => {
-    if (!navigator.onLine) return
-    let alive = true
-
-    async function rehydrate() {
-      try {
-        const [serverPresets, schedule] = await Promise.all([
-          convexClient.query(api.logs.presets.list, {}),
-          convexClient.query(api.users.schedules.get, {}),
-        ])
-
-        if (!alive) return
-
-        const normalizedServer = serverPresets
-          .map((preset) =>
-            normalizePresetCard({
-              id: preset.id ?? preset._id ?? "",
-              name: preset.name,
-              focus: preset.focus,
-              duration: preset.duration,
-              steps: preset.steps,
-            })
-          )
-          .filter((preset) => preset.id.length > 0)
-
-        const byId = new Map(
-          normalizedServer.map((preset) => [preset.id, preset])
-        )
-        const orderedServer: WorkoutPresetCard[] = []
-        const serverOrder = schedule?.presetOrder ?? []
-        if (serverOrder.length > 0) {
-          for (const id of serverOrder) {
-            const preset = byId.get(id)
-            if (preset) orderedServer.push(preset)
-          }
-          for (const preset of normalizedServer) {
-            if (!serverOrder.includes(preset.id)) orderedServer.push(preset)
-          }
-        } else {
-          orderedServer.push(...normalizedServer)
-        }
-
-        const nextPresets: WorkoutPresetCard[] = [...orderedServer]
-        for (const preset of presets) {
-          if (!byId.has(preset.id)) {
-            nextPresets.push(preset)
-          }
-        }
-
-        const hasQueuedSchedule = readQueue().some(
-          (op) => op.procedure === "schedules.setSchedule"
-        )
-        const nextRoutine =
-          schedule && !hasQueuedSchedule
-            ? ({
-                Mon: schedule.routine.Mon ?? null,
-                Tue: schedule.routine.Tue ?? null,
-                Wed: schedule.routine.Wed ?? null,
-                Thu: schedule.routine.Thu ?? null,
-                Fri: schedule.routine.Fri ?? null,
-                Sat: schedule.routine.Sat ?? null,
-                Sun: schedule.routine.Sun ?? null,
-              } as Routine)
-            : routine
-
-        setPresets(nextPresets)
-        setRoutine(nextRoutine)
-        writeStoredWorkouts(nextPresets, nextRoutine)
-      } catch {
-        // Server unreachable — localStorage state is already loaded, nothing to do
-      } finally {
-        if (alive) setSyncing(false)
-      }
-    }
-
-    void rehydrate()
-    return () => {
-      alive = false
-    }
-  }, [])
 
   // ── Routine slot removal ──────────────────────────────────────────────────
 
@@ -595,11 +549,7 @@ export default function Workouts() {
     setTimeout(() => {
       // Remove slot 2 first if it has something; otherwise remove slot 1
       if (routine2[day]) {
-        setRoutine2((r) => {
-          const next = { ...r, [day]: null }
-          writeStoredRoutine2(next)
-          return next
-        })
+        setRoutine2((r) => ({ ...r, [day]: null }))
       } else {
         setRoutine((r) => {
           const next = { ...r, [day]: null }
@@ -718,23 +668,20 @@ export default function Workouts() {
           void persist(presets, nextRoutine)
         } else {
           // Slot 1 is taken — fill (or replace) slot 2
-          const nextRoutine2 = { ...routine2, [day]: drag.presetId }
-          setRoutine2(nextRoutine2)
-          writeStoredRoutine2(nextRoutine2)
+          setRoutine2((r) => ({ ...r, [day]: drag.presetId }))
         }
       } else {
         // Reorder within the presets list
         const toIdx = hitPresetIdx(e.clientY)
         if (toIdx !== null) {
-          setPresets((ps) => {
-            const from = ps.findIndex((p) => p.id === drag.presetId)
-            if (from === -1 || from === toIdx) return ps
-            const next = [...ps]
+          const from = presets.findIndex((p) => p.id === drag.presetId)
+          if (from !== -1 && from !== toIdx) {
+            const next = [...presets]
             const [item] = next.splice(from, 1)
             next.splice(toIdx, 0, item)
-            void persist(next, routine)
-            return next
-          })
+            setLocalOrder(next.map((p) => p.id))
+            persist(next, routine)
+          }
         }
       }
     }
@@ -755,26 +702,13 @@ export default function Workouts() {
       if (nextRoutine2[day] === id) nextRoutine2[day] = null
     }
 
-    setPresets(nextPresets)
+    setLocalOrder(nextPresets.map((p) => p.id))
     setRoutine(nextRoutine)
     setRoutine2(nextRoutine2)
-    writeStoredRoutine2(nextRoutine2)
     setConfirmDeleteId(null)
 
-    removeStoredPreset(id)
-    void persist(nextPresets, nextRoutine)
-
-    // Also remove from the server — only if the preset was actually synced there.
-    // Default presets ("p1"…) and unsynced client UUIDs are local-only.
-    if (isServerSyncedId(id)) {
-      if (navigator.onLine) {
-        convexClient.mutation(api.logs.presets.remove, { id }).catch(() => {
-          queuePresetDelete(id)
-        })
-      } else {
-        queuePresetDelete(id)
-      }
-    }
+    persist(nextPresets, nextRoutine)
+    void removePresetMutation({ id: id as any })
   }
 
   // ── Ghost ─────────────────────────────────────────────────────────────────

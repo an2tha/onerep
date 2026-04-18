@@ -1183,7 +1183,9 @@ export default function Foods() {
                     recipe={recipe}
                     onEdit={() => navigate(`/foods/recipe/${recipe._id}`)}
                     onDelete={() => {
-                      void removeRecipeMutation({ id: recipe._id as any })
+                      if (recipe._id) {
+                        void removeRecipeMutation({ id: recipe._id })
+                      }
                     }}
                     onLog={() => setLoggingRecipe(recipe)}
                   />

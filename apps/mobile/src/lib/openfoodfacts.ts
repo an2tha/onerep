@@ -6,7 +6,7 @@ export async function searchFoods(
   query: string,
   limit?: number
 ): Promise<FoodResult[]> {
-  return await convexClient.query(api.data.foods.search, {
+  return await convexClient.action(api.data.foods.search, {
     query,
   })
 }
