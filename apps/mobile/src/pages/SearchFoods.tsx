@@ -65,8 +65,8 @@ export default function SearchFoods() {
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
   const setDay = useMutation(api.logs.foodLogs.setDay)
   
-  const fetchAndCache = useAction(api.data.foods.fetchAndCache)
-  const searchResults = useQuery(api.data.foods.search, { query: debouncedQuery })
+  const search = useAction(api.data.foods.search)
+  const [searchResults, setSearchResults] = useState<any[]>([])
 
   // Debounce: update debouncedQuery 380ms after the user stops typing
   useEffect(() => {
@@ -74,25 +74,21 @@ export default function SearchFoods() {
     if (q.length < 2) {
       setDebouncedQuery("")
       setSearchState("idle")
+      setSearchResults([])
       return
     }
     if (debounceRef.current) clearTimeout(debounceRef.current)
     setSearchState("loading")
-    debounceRef.current = setTimeout(() => setDebouncedQuery(q), 380)
+    debounceRef.current = setTimeout(async () => {
+      setDebouncedQuery(q)
+      const results = await search({ query: q })
+      setSearchResults(results ?? [])
+      setSearchState("done")
+    }, 380)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [query])
-
-  // When cache miss (null), fetch from USDA and write to cache — query will re-run reactively
-  useEffect(() => {
-    if (!debouncedQuery || searchResults === undefined) return
-    if (searchResults === null) {
-      void fetchAndCache({ query: debouncedQuery, limit: 25 })
-    } else {
-      setSearchState("done")
-    }
-  }, [debouncedQuery, searchResults])
 
   const results: any[] = searchResults ?? []
 
