@@ -55,6 +55,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
+import Settings from "./pages/Settings"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1010,13 +1011,14 @@ function LoggedTodayCard({
 
 function ProfileButton({
   name,
+  onSettingsClick,
 }: {
   name?: string
+  onSettingsClick: () => void
 }) {
-  const navigate = useNavigate()
   return (
     <button
-      onClick={() => navigate("/settings")}
+      onClick={onSettingsClick}
       className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground transition-opacity active:opacity-70"
       aria-label="Settings"
     >
@@ -1215,6 +1217,7 @@ export default function App() {
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
 
   return (
@@ -1231,7 +1234,7 @@ export default function App() {
             </h1>
           </div>
           <div>
-            <ProfileButton name={session?.user?.name} />
+            <ProfileButton name={session?.user?.name} onSettingsClick={() => setSettingsOpen(true)} />
           </div>
         </header>
 
@@ -1447,6 +1450,10 @@ export default function App() {
             <div className="h-4" />
           </div>
         </div>
+      )}
+
+      {settingsOpen && (
+        <Settings onClose={() => setSettingsOpen(false)} />
       )}
     </div>
   )
