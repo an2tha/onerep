@@ -41,7 +41,28 @@ const validateApiKey = (req: Request, res: Response, next: NextFunction) => {
 };
 
 app.use(helmet());
-app.use(cors());
+
+const ALLOWED_ORIGINS = [
+  process.env.SITE_URL ?? "http://localhost:5173",
+  "http://localhost:5173",
+  "capacitor://localhost",
+  "http://localhost",
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-api-key"],
+  }),
+);
+
 app.use(logger(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(express.json({ limit: "256kb" }));
 app.use(express.urlencoded({ extended: false }));
