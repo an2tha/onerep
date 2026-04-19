@@ -33,6 +33,7 @@ import Foods from "./pages/Foods.tsx"
 import Water from "./pages/Water.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import Progress from "./pages/Progress.tsx"
+import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
@@ -278,6 +279,10 @@ const router = createBrowserRouter([
       {
         path: "/login",
         element: <Login />,
+      },
+      {
+        path: "/settings",
+        element: <Settings />,
       },
     ],
   },

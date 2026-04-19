@@ -24,9 +24,6 @@ type WaterLogEntry = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const WATER_GOAL_KEY = "onerep_water_goal_ml"
-const DEFAULT_GOAL_ML = 2000
-
 const QUICK_AMOUNTS = [
   { label: "150 ml", ml: 150 },
   { label: "250 ml", ml: 250 },
@@ -39,20 +36,6 @@ const WATER_COLOR = "#38bdf8"
 const WATER_BG    = "rgba(56,189,248,0.13)"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function readGoal(): number {
-  try {
-    const raw = localStorage.getItem(WATER_GOAL_KEY)
-    const n = raw ? parseInt(raw, 10) : NaN
-    return isNaN(n) ? DEFAULT_GOAL_ML : n
-  } catch {
-    return DEFAULT_GOAL_ML
-  }
-}
-
-function writeGoal(ml: number) {
-  localStorage.setItem(WATER_GOAL_KEY, String(ml))
-}
 
 function fmtMl(ml: number): string {
   if (ml >= 1000) {
@@ -443,7 +426,6 @@ export default function Water() {
   const [dateKey, setDateKey] = useState(todayKey)
   const [addOpen, setAddOpen] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
-  const [goalMl, setGoalMl] = useState(readGoal)
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useMutation(api.logs.water.setDay)
@@ -454,13 +436,9 @@ export default function Water() {
     [entries]
   )
 
+  const goalMl = preferences?.waterGoalMl ?? 2500
   const dateLabel = formatDateLabel(dateKey, todayKey)
   const isToday = dateKey === todayKey
-
-  function saveGoal(ml: number) {
-    setGoalMl(ml)
-    writeGoal(ml)
-  }
 
   function addEntry(amountMl: number) {
     const entry: WaterLogEntry = {
