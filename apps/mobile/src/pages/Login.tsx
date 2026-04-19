@@ -3,7 +3,6 @@ import { useNavigate } from "react-router"
 import { LoginForm, type LoginMode } from "@repo/ui"
 import { authClient } from "@/lib/auth-client"
 import { usePostHog } from "@posthog/react"
-import { api } from "../../../../convex/_generated/api"
 
 export default function Login() {
   const navigate = useNavigate()

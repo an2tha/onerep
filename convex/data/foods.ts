@@ -121,7 +121,7 @@ function mapDocToDetail(doc: any): any {
 
 export const search = action({
   args: { query: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     if (args.query.length < 2) return [];
     const url = `${DATA_API_URL}/api/v1/foods/search?q=${encodeURIComponent(args.query)}`;
     const response = await fetch(url, { headers: apiHeaders() });
@@ -133,7 +133,7 @@ export const search = action({
 
 export const fetchAndCache = action({
   args: { query: v.string(), limit: v.optional(v.number()) },
-  handler: async (ctx, args) => {
+  handler: async (_ctx, args) => {
     const url = `${DATA_API_URL}/api/v1/foods/search?q=${encodeURIComponent(args.query)}`;
     const response = await fetch(url, { headers: apiHeaders() });
     if (!response.ok) throw new Error(`Data API error: ${response.statusText}`);
@@ -144,7 +144,7 @@ export const fetchAndCache = action({
 
 export const getDetail = action({
   args: { fdcId: v.string() },
-  handler: async (ctx, { fdcId }) => {
+  handler: async (_ctx, { fdcId }) => {
     const url = `${DATA_API_URL}/api/v1/foods/barcode/${encodeURIComponent(fdcId)}`;
     const response = await fetch(url, { headers: apiHeaders() });
     if (!response.ok) return null;
@@ -155,7 +155,7 @@ export const getDetail = action({
 
 export const getById = action({
   args: { fdcId: v.string() },
-  handler: async (ctx, { fdcId }) => {
+  handler: async (_ctx, { fdcId }) => {
     const url = `${DATA_API_URL}/api/v1/foods/barcode/${encodeURIComponent(fdcId)}`;
     const response = await fetch(url, { headers: apiHeaders() });
     if (!response.ok) return null;

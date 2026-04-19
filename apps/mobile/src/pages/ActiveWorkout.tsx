@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
-import { todayIso, type CachedWorkoutLog } from "@/lib/workout-sync"
+import { todayIso } from "@/lib/workout-sync"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -166,23 +166,8 @@ function makeSet(): WorkoutSet {
   }
 }
 
-function initExData(items: WorkoutItem[]): Record<string, ExerciseState> {
-  const result: Record<string, ExerciseState> = {}
-  const ids = items.flatMap((i) =>
-    i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
-  )
-  for (const id of ids) {
-    result[id] = {
-      sets: [makeSet(), makeSet(), makeSet()],
-      trackRpe: false,
-      trackUnilateral: false,
-    }
-  }
-  return result
-}
-
 function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
-  return items.flatMap((item) => {
+  return items.flatMap((item): WorkoutItem[] => {
     if (item.kind === "solo") return item.exerciseId === exId ? [] : [item]
     const rest = item.exerciseIds.filter((id) => id !== exId)
     if (rest.length === 0) return []
@@ -1382,7 +1367,8 @@ function renderSupersetItem(
   makeDragHandlers: (id: string) => any,
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>,
   onStartRest: (s: number) => void,
-  cardProps: (id: string, inS: boolean) => any
+  cardProps: (id: string, inS: boolean) => any,
+  exerciseLookup: Record<string, Exercise>
 ) {
   const dt = dropTarget
   const containerIsTarget = dt && item.exerciseIds.includes(dt.targetExId)
@@ -1599,6 +1585,7 @@ export default function ActiveWorkout() {
   }
   useEffect(() => {
     if (!drag) return
+    const currentDrag = drag
     function handlePointerMove(event: PointerEvent) {
       setDrag((prev) => {
         if (!prev) return prev
@@ -1615,11 +1602,11 @@ export default function ActiveWorkout() {
       })
       const movedX = event.clientX
       const movedY = event.clientY
-      setDropTarget(calcDropTarget(movedX, movedY, drag.exerciseId))
+      setDropTarget(calcDropTarget(movedX, movedY, currentDrag.exerciseId))
     }
     function handlePointerEnd() {
-      if (drag.active && dropTarget) {
-        executeDrop(drag.exerciseId, dropTarget)
+      if (currentDrag.active && dropTarget) {
+        executeDrop(currentDrag.exerciseId, dropTarget)
       }
       setDrag(null)
       setDropTarget(null)
@@ -1899,7 +1886,8 @@ export default function ActiveWorkout() {
                     makeDragHandlers,
                     cardRefs,
                     rest.start,
-                    cardProps
+                    cardProps,
+                    exerciseLookup
                 )
               )
             )}

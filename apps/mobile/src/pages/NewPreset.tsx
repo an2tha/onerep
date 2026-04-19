@@ -22,11 +22,6 @@ import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import {
-  normalizePresetCard,
-  type WorkoutFocus,
-  type WorkoutPresetCard,
-} from "@/lib/workout-sync"
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -188,7 +183,7 @@ function normalizeExerciseState(
 }
 
 function removeExFromItems(items: PresetItem[], exId: string): PresetItem[] {
-  return items.flatMap((item) => {
+  return items.flatMap((item): PresetItem[] => {
     if (item.kind === "solo") return item.exerciseId === exId ? [] : [item]
     const rest = item.exerciseIds.filter((id) => id !== exId)
     if (rest.length === 0) return []
@@ -597,8 +592,6 @@ function PresetExerciseCard({
   dragHandlers: React.HTMLAttributes<HTMLDivElement>
   cardRef: (el: HTMLDivElement | null) => void
 }) {
-  const Icon = CATEGORY_ICON[exercise.category]
-
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
   }

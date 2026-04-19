@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import {
   ArrowLeft,
@@ -12,12 +12,11 @@ import {
 import { cn } from "@/lib/utils"
 import { searchFoods } from "@/lib/openfoodfacts"
 import {
-  currentDateKey,
-  type Recipe,
   type RecipeIngredient,
 } from "@/lib/food-log"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodResult } from "@repo/models"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -598,7 +597,7 @@ export default function NewRecipe() {
     setSaved(true)
     try {
       await saveRecipeMutation({
-        id: id ? { _id: id } : undefined,
+        id: id as Id<"recipes"> | undefined,
         name: name.trim() || "My Recipe",
         ingredients,
       })

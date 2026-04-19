@@ -104,7 +104,7 @@ export const snap = action({
     }> = [];
 
     for (const term of searchTerms) {
-      const hits = await ctx.runAction(api.foods.search, {
+      const hits = await ctx.runAction(api.data.foods.fetchAndCache, {
         query: term,
         limit: aiResult.foodName ? 5 : 2,
       });

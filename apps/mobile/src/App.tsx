@@ -6,15 +6,11 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
-  Coffee,
-  Cookie,
   ForkKnife,
   Aperture,
   MagnifyingGlass,
-  Moon,
   PencilSimple,
   PintGlass,
-  Plus,
   SignOut,
   Trash,
   X,
@@ -32,7 +28,6 @@ import {
 import {
   normalizePresetCard,
   type Routine,
-  todayIso,
   type CachedWorkoutLog,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
@@ -781,7 +776,7 @@ function WorkoutCard({
                   <>
                     <div className="mb-3 flex items-baseline justify-between pt-1">
                       <p className="text-[17px] font-semibold tracking-tight">
-                        {workout.title}
+                        {'title' in workout ? workout.title : workout.name}
                       </p>
                       <span className="text-[11px] text-muted-foreground/50">
                         {workout.duration}
@@ -824,15 +819,6 @@ function WorkoutCard({
       </div>
     </Card>
   )
-}
-
-// ─── Meal icon ────────────────────────────────────────────────────────────────
-
-const MEAL_ICON: Record<string, React.FC<any>> = {
-  breakfast: Coffee as React.FC<any>,
-  lunch: ForkKnife as React.FC<any>,
-  dinner: Moon as React.FC<any>,
-  snack: Cookie as React.FC<any>,
 }
 
 // ─── Swipe-to-delete row ─────────────────────────────────────────────────────
@@ -909,7 +895,7 @@ function SwipeRow({
 
 function LoggedTodayCard({
   dayOffset,
-  timeZone,
+  timeZone: _timeZone,
   entries,
   onEntriesChange,
 }: {
@@ -918,8 +904,6 @@ function LoggedTodayCard({
   entries: FoodLogEntry[]
   onEntriesChange: (entries: FoodLogEntry[]) => void
 }) {
-  const date = dateForOffset(dayOffset, timeZone)
-
   function handleRemove(id: string) {
     onEntriesChange(entries.filter((e) => e.id !== id))
   }
@@ -938,7 +922,6 @@ function LoggedTodayCard({
   )
 
   // Group by meal category
-  const cats = DEFAULT_MEAL_CATEGORIES
   const byMeal = new Map<string, FoodLogEntry[]>()
   for (const e of sorted) {
     if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
@@ -1274,7 +1257,7 @@ export default function App() {
     return (schedule?.routine as Routine) || EMPTY_WORKOUT_ROUTINE
   }, [schedule])
 
-  const workoutLogs = useMemo(() => workoutLogsQuery ? [workoutLogsQuery] as CachedWorkoutLog[] : [], [workoutLogsQuery])
+  const workoutLogs = useMemo(() => workoutLogsQuery ? [workoutLogsQuery] as unknown as CachedWorkoutLog[] : [], [workoutLogsQuery])
   const foodEntries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
 
   const loading = onboarding === undefined || goalsRes === undefined || preferences === undefined
@@ -1302,7 +1285,7 @@ export default function App() {
   }, [activeTimezone, selectedDate, storedPresets, storedRoutine])
 
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
-  const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
+  const [, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
 

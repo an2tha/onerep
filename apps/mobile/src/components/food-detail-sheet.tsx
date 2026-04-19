@@ -810,7 +810,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
                       }
                     >
                       <NutrRow
-                        label={n.label}
+                        label={n.name}
                         value={scale(n.per100g, grams)}
                         unit={n.unit}
                         indent={n.indent}
@@ -863,7 +863,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
                       }
                     >
                       <NutrRow
-                        label={n.label}
+                        label={n.name}
                         value={scale(n.per100g, grams)}
                         unit={n.unit}
                       />

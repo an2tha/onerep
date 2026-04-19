@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { useNavigate } from "react-router"
 import {
   Aperture,
@@ -24,9 +24,7 @@ import { api } from "../../../../convex/_generated/api"
 import {
   currentDateKey,
   defaultMeal,
-  offsetDateKey,
   type FoodLogEntry,
-  type MealType,
   type Recipe,
   type RecipeIngredient,
   DEFAULT_MEAL_CATEGORIES,
@@ -172,7 +170,7 @@ function SwipeRow({
 
 function DiaryEntries({
   entries,
-  dateKey,
+  dateKey: _dateKey,
   onDelete,
 }: {
   entries: FoodLogEntry[]
@@ -476,147 +474,6 @@ function StatsBar({
 }
 
 // ─── Goals card ───────────────────────────────────────────────────────────────
-
-function GoalsCard({
-  goals,
-  apiGoals,
-  onSave,
-}: {
-  goals: GoalOverride
-  apiGoals: CalorieInfo | null
-  onSave: (g: GoalOverride) => void
-}) {
-  const [editing, setEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState<GoalOverride>(goals)
-  React.useEffect(() => {
-    setDraft(goals)
-  }, [goals])
-
-  function adjust(key: GoalField, delta: number) {
-    const f = GOAL_FIELDS.find((f) => f.key === key)!
-    setDraft((prev) => ({ ...prev, [key]: Math.max(f.min, prev[key] + delta) }))
-  }
-
-  return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-          Daily goals
-        </p>
-        <button
-          onClick={() => setEditing((o) => !o)}
-          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
-        >
-          {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
-          {editing ? "Cancel" : "Edit"}
-        </button>
-      </div>
-
-      {/* Summary row */}
-      <div
-        className={cn(
-          "grid transition-all duration-200 ease-out",
-          editing
-            ? "mt-0 grid-rows-[0fr] opacity-0"
-            : "mt-2.5 grid-rows-[1fr] opacity-100"
-        )}
-      >
-        <div className="overflow-hidden">
-          <div className="flex items-baseline gap-4">
-            {GOAL_FIELDS.map(({ key, label }) => (
-              <div key={key} className="flex flex-col">
-                <span className="text-[14px] leading-none font-semibold tabular-nums">
-                  {goals[key]}
-                </span>
-                <span className="mt-0.5 text-[9px] font-medium tracking-[0.1em] text-muted-foreground/35 uppercase">
-                  {key === "calories" ? "kcal" : label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Edit form */}
-      <div
-        className={cn(
-          "grid transition-all duration-200 ease-out",
-          editing
-            ? "mt-3 grid-rows-[1fr] opacity-100"
-            : "grid-rows-[0fr] opacity-0"
-        )}
-      >
-        <div className="overflow-hidden">
-          <div className="flex flex-col gap-2">
-            {GOAL_FIELDS.map(({ key, label, unit, step, min }) => (
-              <div key={key} className="flex items-center justify-between">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-[13px] font-medium">{label}</span>
-                  <span className="text-[10px] text-muted-foreground/40">
-                    {unit}
-                  </span>
-                </div>
-                <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
-                  <button
-                    onClick={() => adjust(key, -step)}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
-                  >
-                    <span className="text-[15px] leading-none">−</span>
-                  </button>
-                  <input
-                    type="number"
-                    value={draft[key]}
-                    onChange={(e) => {
-                      const v = parseInt(e.target.value)
-                      if (!isNaN(v))
-                        setDraft((p) => ({ ...p, [key]: Math.max(min, v) }))
-                    }}
-                    className="w-14 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
-                  />
-                  <button
-                    onClick={() => adjust(key, step)}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
-                  >
-                    <span className="text-[15px] leading-none">+</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <button
-              onClick={() => {
-                onSave(draft)
-                setEditing(false)
-              }}
-              className="flex-1 rounded-lg bg-foreground py-2 text-[12.5px] font-semibold text-background active:opacity-75"
-            >
-              Save
-            </button>
-            {apiGoals && (
-              <button
-                onClick={() => {
-                  const r = {
-                    calories: apiGoals.target,
-                    protein: apiGoals.protein,
-                    carbs: apiGoals.carbs,
-                    fat: apiGoals.fat,
-                  }
-                  setDraft(r)
-                  onSave(r)
-                  setEditing(false)
-                }}
-                className="rounded-lg border border-border/50 px-3.5 py-2 text-[11.5px] font-medium text-muted-foreground/60 active:bg-muted/40"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── Micronutrients card ──────────────────────────────────────────────────────
 
@@ -1198,7 +1055,6 @@ export default function Foods() {
   const recipesQuery = useQuery(api.logs.recipes.list, {})
 
   const setDay = useMutation(api.logs.foodLogs.setDay)
-  const saveRecipeMutation = useMutation(api.logs.recipes.save)
   const removeRecipeMutation = useMutation(api.logs.recipes.remove)
 
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
@@ -1206,7 +1062,7 @@ export default function Foods() {
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: todayKey })
   const todayEntries = (foodLogs ?? []) as FoodLogEntry[]
-  const recipes = (recipesQuery ?? []) as Recipe[]
+  const recipes = (recipesQuery ?? []) as unknown as Recipe[]
 
   const [addOpen, setAddOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)

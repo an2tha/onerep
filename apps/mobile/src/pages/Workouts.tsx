@@ -81,16 +81,6 @@ const DEFAULT_PRESETS: WorkoutPresetCard[] = [
   },
 ]
 
-const DEFAULT_ROUTINE: Routine = {
-  Mon: "p1",
-  Tue: "p2",
-  Wed: "p1",
-  Thu: null,
-  Fri: "p1",
-  Sat: "p3",
-  Sun: null,
-}
-
 const EMPTY_ROUTINE: Routine = {
   Mon: null,
   Tue: null,

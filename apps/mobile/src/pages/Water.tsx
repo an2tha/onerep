@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useMemo, useState } from "react"
 import {
   CaretLeft,
   CaretRight,
@@ -8,12 +8,11 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
-import { currentDateKey, detectTimeZone, offsetDateKey } from "@/lib/food-log"
+import { currentDateKey, offsetDateKey } from "@/lib/food-log"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

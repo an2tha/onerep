@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react"
-import { useNavigate } from "react-router"
 import { Barbell, Fire, Heart, Medal, Minus, Plus } from "@phosphor-icons/react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
 import { convexClient } from "@/lib/convex"
 import { cn } from "@/lib/utils"
 import { api } from "../../../../convex/_generated/api"
@@ -335,13 +334,10 @@ function GoalsStep({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
-  const navigate = useNavigate()
-
   const [step, setStep] = useState(0)
   const [visible, setVisible] = useState(true)
 
   const profile = useQuery(api.users.onboarding.get, {})
-  const update = useMutation(api.users.onboarding.save)
   const [age, setAge] = useState(25)
   const [heightCm, setHeightCm] = useState(170)
   const [heightUnit, setHeightUnit] = useState<"cm" | "ft">("cm")

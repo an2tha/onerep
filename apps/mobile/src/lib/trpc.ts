@@ -1,6 +1,8 @@
 import { createTRPCClient, httpBatchLink } from "@trpc/client"
-import type { AppRouter } from "../../../server/src/routers/_app"
 import { authClient } from "./auth-client"
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AppRouter = any
 
 export const trpc = createTRPCClient<AppRouter>({
   links: [
