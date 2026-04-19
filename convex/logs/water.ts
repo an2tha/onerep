@@ -26,7 +26,13 @@ export const getDay = query({
 export const setDay = mutation({
   args: {
     date: v.string(),
-    entries: v.array(v.any()),
+    entries: v.array(
+      v.object({
+        id: v.string(),
+        amountMl: v.number(),
+        loggedAt: v.string(),
+      }),
+    ),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);

@@ -42,6 +42,10 @@ export const save = mutation({
 
     if (args.id) {
       // Update existing recipe
+      const existing = await ctx.db.get(args.id);
+      if (!existing || existing.userId !== user._id) {
+        throw new Error("Recipe not found or access denied");
+      }
       await ctx.db.patch(args.id, {
         name: args.name,
         ingredients: args.ingredients,
@@ -62,9 +66,13 @@ export const save = mutation({
 });
 
 export const remove = mutation({
-  args: { id: v.string() },
+  args: { id: v.id("recipes") },
   handler: async (ctx, args) => {
-    await requireUser(ctx);
-    await ctx.db.delete(args.id as any);
+    const user = await requireUser(ctx);
+    const existing = await ctx.db.get(args.id);
+    if (!existing || existing.userId !== user._id) {
+      throw new Error("Recipe not found or access denied");
+    }
+    await ctx.db.delete(args.id);
   },
 });
