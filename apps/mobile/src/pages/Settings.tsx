@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
-import { X, CaretRight } from "@phosphor-icons/react"
+import { X, CaretRight, Minus, Plus } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -136,43 +136,46 @@ export default function Settings({
       closeOnBackdrop={true}
     >
       <div className="px-4 pt-2 pb-12">
-        <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-[22px] font-semibold tracking-tight">Settings</h1>
+        {/* Header */}
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h1 className="text-[22px] font-bold tracking-tight">Settings</h1>
+          </div>
           <button
             onClick={() => onClose()}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
           >
-            <X size={18} />
+            <X size={16} weight="bold" />
           </button>
         </div>
 
-        <div className="space-y-3">
-          <Accordion type="multiple" defaultValue={["goals", "water", "workout"]} className="space-y-3">
+        <div className="space-y-2.5">
+          <Accordion type="multiple" defaultValue={["goals", "water", "workout"]} className="space-y-2.5">
             {/* Profile Section */}
             <AccordionItem value="profile" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Profile</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Profile</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
-                  <div className="flex items-center justify-between px-4 py-3.5">
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+                  <div className="flex items-center justify-between px-4 py-4">
                     <div>
-                      <p className="text-[15px] font-medium">
+                      <p className="text-[15px] font-semibold">
                         {session?.name || "User"}
                       </p>
                       {session?.email && (
-                        <p className="text-[12px] text-muted-foreground/60">
+                        <p className="mt-0.5 text-[12px] text-muted-foreground/50">
                           {session.email}
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="h-px bg-border/30" />
+                  <div className="h-px bg-border/20 mx-4" />
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center justify-between px-4 py-3.5 text-left text-destructive"
+                    className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
                   >
-                    <span className="text-[15px] font-medium">Sign out</span>
+                    <span className="text-[14px] font-medium">Sign out</span>
                   </button>
                 </div>
               </AccordionContent>
@@ -180,14 +183,13 @@ export default function Settings({
 
             {/* Goals Section */}
             <AccordionItem value="goals" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Goals</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Goals</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Calories</span>
-                    <NumberInput
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+                  <SettingsRow label="Calories">
+                    <NumberStepper
                       value={calories}
                       onChange={setCalories}
                       suffix="kcal"
@@ -195,11 +197,10 @@ export default function Settings({
                       max={5000}
                       step={50}
                     />
-                  </div>
-                  <div className="h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Protein</span>
-                    <NumberInput
+                  </SettingsRow>
+                  <RowDivider />
+                  <SettingsRow label="Protein">
+                    <NumberStepper
                       value={protein}
                       onChange={setProtein}
                       suffix="g"
@@ -207,11 +208,10 @@ export default function Settings({
                       max={400}
                       step={5}
                     />
-                  </div>
-                  <div className="h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Carbs</span>
-                    <NumberInput
+                  </SettingsRow>
+                  <RowDivider />
+                  <SettingsRow label="Carbs">
+                    <NumberStepper
                       value={carbs}
                       onChange={setCarbs}
                       suffix="g"
@@ -219,11 +219,10 @@ export default function Settings({
                       max={500}
                       step={10}
                     />
-                  </div>
-                  <div className="h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Fat</span>
-                    <NumberInput
+                  </SettingsRow>
+                  <RowDivider />
+                  <SettingsRow label="Fat">
+                    <NumberStepper
                       value={fat}
                       onChange={setFat}
                       suffix="g"
@@ -231,12 +230,11 @@ export default function Settings({
                       max={200}
                       step={5}
                     />
-                  </div>
+                  </SettingsRow>
                 </div>
                 {effectiveGoals?.health && (
-                  <p className="mt-2 text-center text-[11px] text-muted-foreground/40">
-                    Health-based: {effectiveGoals.health.calories} kcal •{" "}
-                    {effectiveGoals.health.protein}g protein
+                  <p className="mt-2 text-center text-[11px] text-muted-foreground/35">
+                    Health-based: {effectiveGoals.health.calories} kcal · {effectiveGoals.health.protein}g protein
                   </p>
                 )}
               </AccordionContent>
@@ -244,14 +242,13 @@ export default function Settings({
 
             {/* Water Goal Section */}
             <AccordionItem value="water" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Water</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Water</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Daily goal</span>
-                    <NumberInput
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+                  <SettingsRow label="Daily goal">
+                    <NumberStepper
                       value={waterGoal}
                       onChange={setWaterGoalState}
                       suffix="ml"
@@ -259,20 +256,19 @@ export default function Settings({
                       max={5000}
                       step={250}
                     />
-                  </div>
+                  </SettingsRow>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
             {/* Workout Section */}
             <AccordionItem value="workout" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Workout</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Workout</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Focus</span>
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+                  <SettingsRow label="Focus">
                     <SegmentedControl
                       value={workoutFocus}
                       onChange={(v) => setWorkoutFocus(v as WorkoutFocus)}
@@ -282,10 +278,9 @@ export default function Settings({
                         { value: "mobility", label: "Mobility" },
                       ]}
                     />
-                  </div>
-                  <div className="h-px bg-border/30" />
-                  <div className="flex items-center justify-between px-4 py-3.5">
-                    <span className="text-[14px]">Weight unit</span>
+                  </SettingsRow>
+                  <RowDivider />
+                  <SettingsRow label="Weight unit">
                     <SegmentedControl
                       value={weightUnit}
                       onChange={(v) => setWeightUnitState(v as WeightUnit)}
@@ -294,22 +289,22 @@ export default function Settings({
                         { value: "lbs", label: "lbs" },
                       ]}
                     />
-                  </div>
+                  </SettingsRow>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
             {/* Health Profile Section */}
             <AccordionItem value="health" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Health Profile</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Health Profile</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
                   {onboarding ? (
                     <button
                       onClick={handleResetOnboarding}
-                      className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+                      className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
                     >
                       <span className="text-[14px]">Recalculate from profile</span>
                       <CaretRight className="text-muted-foreground/30" size={16} />
@@ -317,7 +312,7 @@ export default function Settings({
                   ) : (
                     <button
                       onClick={() => navigate("/onboarding")}
-                      className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+                      className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
                     >
                       <span className="text-[14px]">Set up health profile</span>
                       <CaretRight className="text-muted-foreground/30" size={16} />
@@ -329,16 +324,16 @@ export default function Settings({
 
             {/* Data Section */}
             <AccordionItem value="data" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/50 bg-card px-4 py-3 hover:no-underline">
-                <span className="text-[13px] font-medium">Data</span>
+              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+                <span className="text-[13px] font-semibold uppercase tracking-widest text-muted-foreground/50">Data</span>
               </AccordionTrigger>
-              <AccordionContent className="px-0">
-                <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
+              <AccordionContent className="px-0 pt-1">
+                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
                   <button
                     onClick={handleResetOnboarding}
-                    className="flex w-full items-center justify-between px-4 py-3.5 text-left text-destructive"
+                    className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
                   >
-                    <span className="text-[14px]">Reset onboarding</span>
+                    <span className="text-[14px] font-medium">Reset onboarding</span>
                   </button>
                 </div>
               </AccordionContent>
@@ -350,19 +345,32 @@ export default function Settings({
           onClick={handleSave}
           disabled={saving}
           className={cn(
-            "mt-6 w-full rounded-xl py-3.5 text-[15px] font-semibold",
-            "bg-foreground text-background active:opacity-75",
+            "mt-6 w-full rounded-2xl py-4 text-[15px] font-semibold tracking-tight",
+            "bg-foreground text-background transition-opacity active:opacity-75",
             saving && "opacity-50"
           )}
         >
-          {saving ? "Saving..." : "Save"}
+          {saving ? "Saving…" : "Save changes"}
         </button>
       </div>
     </MobileSheet>
   )
 }
 
-function NumberInput({
+function SettingsRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3.5">
+      <span className="text-[14px] text-foreground/80">{label}</span>
+      {children}
+    </div>
+  )
+}
+
+function RowDivider() {
+  return <div className="mx-4 h-px bg-border/20" />
+}
+
+function NumberStepper({
   value,
   onChange,
   suffix,
@@ -377,53 +385,104 @@ function NumberInput({
   max: number
   step: number
 }) {
-  const [draft, setDraft] = useState(value)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(String(value))
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setDraft(value)
-  }, [value])
+    if (!editing) setDraft(String(value))
+  }, [value, editing])
 
-  function commit() {
-    const n = Math.max(min, Math.min(max, draft))
+  function decrement() {
+    const n = Math.max(min, value - step)
     onChange(n)
   }
 
+  function increment() {
+    const n = Math.min(max, value + step)
+    onChange(n)
+  }
+
+  function commit() {
+    const parsed = parseInt(draft, 10)
+    if (!isNaN(parsed)) {
+      onChange(Math.max(min, Math.min(max, parsed)))
+    } else {
+      setDraft(String(value))
+    }
+    setEditing(false)
+  }
+
   return (
-    <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+    <div className="flex items-center gap-1">
+      {/* Decrement */}
       <button
-        onClick={() => {
-          const n = Math.max(min, draft - step)
-          setDraft(n)
-          onChange(n)
-        }}
-        disabled={draft <= min}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 disabled:opacity-30"
-      >
-        <span className="text-[15px]">−</span>
-      </button>
-      <div className="flex min-w-[60px] items-center justify-center gap-1">
-        <input
-          type="number"
-          value={draft}
-          onChange={(e) => setDraft(parseInt(e.target.value) || 0)}
-          onBlur={commit}
-          onKeyDown={(e) => e.key === "Enter" && commit()}
-          className="w-12 bg-transparent text-center text-[13px] font-semibold tabular-nums focus:outline-none"
-        />
-        {suffix && (
-          <span className="text-[10px] text-muted-foreground/40">{suffix}</span>
+        onClick={decrement}
+        disabled={value <= min}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-xl",
+          "bg-muted/60 text-foreground/70 transition-all",
+          "active:scale-95 active:bg-muted",
+          "disabled:opacity-25 disabled:pointer-events-none"
         )}
-      </div>
+      >
+        <Minus size={13} weight="bold" />
+      </button>
+
+      {/* Value display / inline edit */}
       <button
         onClick={() => {
-          const n = Math.min(max, draft + step)
-          setDraft(n)
-          onChange(n)
+          setEditing(true)
+          setDraft(String(value))
+          setTimeout(() => {
+            inputRef.current?.focus()
+            inputRef.current?.select()
+          }, 0)
         }}
-        disabled={draft >= max}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 disabled:opacity-30"
+        className={cn(
+          "relative flex min-w-[62px] flex-col items-center justify-center rounded-xl px-2 py-1.5",
+          "bg-muted/60 transition-colors",
+          editing && "hidden"
+        )}
       >
-        <span className="text-[15px]">+</span>
+        <span className="text-[14px] font-semibold tabular-nums leading-none">{value}</span>
+        {suffix && (
+          <span className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground/45">{suffix}</span>
+        )}
+      </button>
+
+      {editing && (
+        <div className="flex min-w-[62px] flex-col items-center justify-center rounded-xl bg-muted/80 px-2 py-1.5 ring-1 ring-foreground/20">
+          <input
+            ref={inputRef}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={(e) => { if (e.key === "Enter") commit() }}
+            className="w-12 bg-transparent text-center text-[14px] font-semibold tabular-nums leading-none focus:outline-none"
+            style={{ WebkitAppearance: "none", MozAppearance: "textfield" } as React.CSSProperties}
+          />
+          {suffix && (
+            <span className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-muted-foreground/45">{suffix}</span>
+          )}
+        </div>
+      )}
+
+      {/* Increment */}
+      <button
+        onClick={increment}
+        disabled={value >= max}
+        className={cn(
+          "flex h-8 w-8 items-center justify-center rounded-xl",
+          "bg-muted/60 text-foreground/70 transition-all",
+          "active:scale-95 active:bg-muted",
+          "disabled:opacity-25 disabled:pointer-events-none"
+        )}
+      >
+        <Plus size={13} weight="bold" />
       </button>
     </div>
   )
@@ -439,16 +498,16 @@ function SegmentedControl({
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex rounded-lg bg-muted/50 p-0.5">
+    <div className="flex rounded-xl bg-muted/60 p-0.5 gap-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "px-3 py-1.5 text-[12px] font-medium transition-all",
+            "px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 rounded-[9px]",
             value === opt.value
-              ? "rounded-md bg-card text-foreground shadow-sm"
-              : "text-muted-foreground/50"
+              ? "bg-card text-foreground shadow-sm"
+              : "text-muted-foreground/45 active:text-foreground/60"
           )}
         >
           {opt.label}

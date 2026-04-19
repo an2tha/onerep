@@ -429,8 +429,36 @@ export default function Water() {
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useMutation(api.logs.water.setDay)
+  const addEntryMutation = useMutation(api.logs.water.addEntry)
+  const setWaterGoal = useMutation(api.users.users.setWaterGoal)
 
-  const entries: WaterLogEntry[] = (rawEntries ?? []) as WaterLogEntry[]
+  // Optimistic local entries — immediately reflects taps, gets replaced by
+  // server data once Convex round-trips back.
+  const [optimisticEntries, setOptimisticEntries] = useState<WaterLogEntry[]>([])
+  const syncedDateKey = React.useRef<string | null>(null)
+
+  // When server data arrives for the current dateKey, drop our optimistic layer.
+  React.useEffect(() => {
+    if (rawEntries !== undefined) {
+      setOptimisticEntries([])
+      syncedDateKey.current = dateKey
+    }
+  }, [rawEntries, dateKey])
+
+  // Reset optimistic state when navigating to a different day.
+  React.useEffect(() => {
+    setOptimisticEntries([])
+  }, [dateKey])
+
+  const serverEntries: WaterLogEntry[] = (rawEntries ?? []) as WaterLogEntry[]
+  // Merge: server entries are ground truth; optimistic ones are appended on top
+  // (they'll disappear once server round-trips and replaces rawEntries).
+  const entries = useMemo(() => {
+    const serverIds = new Set(serverEntries.map((e) => e.id))
+    const pending = optimisticEntries.filter((e) => !serverIds.has(e.id))
+    return [...serverEntries, ...pending]
+  }, [serverEntries, optimisticEntries])
+
   const totalMl = useMemo(
     () => entries.reduce((s, e) => s + e.amountMl, 0),
     [entries]
@@ -446,10 +474,19 @@ export default function Water() {
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    void setDay({ date: dateKey, entries: [...entries, entry] })
+    // Update UI instantly
+    setOptimisticEntries((prev) => [...prev, entry])
+    // Sync to server in background
+    void addEntryMutation({ date: dateKey, entry })
+  }
+
+  function saveGoal(ml: number) {
+    void setWaterGoal({ goalMl: ml })
   }
 
   function deleteEntry(id: string) {
+    // Optimistically remove from local state too
+    setOptimisticEntries((prev) => prev.filter((e) => e.id !== id))
     void setDay({
       date: dateKey,
       entries: entries.filter((e) => e.id !== id),
