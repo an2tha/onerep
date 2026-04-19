@@ -143,6 +143,7 @@ export default function Settings({
           </div>
           <button
             onClick={() => onClose()}
+            aria-label="Close settings"
             className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
           >
             <X size={16} weight="bold" />
@@ -196,6 +197,7 @@ export default function Settings({
                       min={800}
                       max={5000}
                       step={50}
+                      label="Calories"
                     />
                   </SettingsRow>
                   <RowDivider />
@@ -207,6 +209,7 @@ export default function Settings({
                       min={20}
                       max={400}
                       step={5}
+                      label="Protein"
                     />
                   </SettingsRow>
                   <RowDivider />
@@ -218,6 +221,7 @@ export default function Settings({
                       min={10}
                       max={500}
                       step={10}
+                      label="Carbs"
                     />
                   </SettingsRow>
                   <RowDivider />
@@ -229,6 +233,7 @@ export default function Settings({
                       min={10}
                       max={200}
                       step={5}
+                      label="Fat"
                     />
                   </SettingsRow>
                 </div>
@@ -255,6 +260,7 @@ export default function Settings({
                       min={500}
                       max={5000}
                       step={250}
+                      label="Daily goal"
                     />
                   </SettingsRow>
                 </div>
@@ -377,6 +383,7 @@ function NumberStepper({
   min,
   max,
   step,
+  label,
 }: {
   value: number
   onChange: (v: number) => void
@@ -384,6 +391,7 @@ function NumberStepper({
   min: number
   max: number
   step: number
+  label?: string
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(String(value))
@@ -404,8 +412,10 @@ function NumberStepper({
   }
 
   function commit() {
-    const parsed = parseInt(draft, 10)
-    if (!isNaN(parsed)) {
+    // Validate the entire string is a plain integer (no partial matches, no scientific notation)
+    const isValidInteger = /^[+-]?\d+$/.test(draft.trim())
+    if (isValidInteger) {
+      const parsed = Number(draft.trim())
       onChange(Math.max(min, Math.min(max, parsed)))
     } else {
       setDraft(String(value))
@@ -419,6 +429,7 @@ function NumberStepper({
       <button
         onClick={decrement}
         disabled={value <= min}
+        aria-label={label ? `Decrease ${label}` : "Decrease"}
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
@@ -439,6 +450,7 @@ function NumberStepper({
             inputRef.current?.select()
           }, 0)
         }}
+        aria-label={label ? `Edit ${label}, current value ${value}` : `Edit value ${value}`}
         className={cn(
           "relative flex min-w-[62px] flex-col items-center justify-center rounded-xl px-2 py-1.5",
           "bg-muted/60 transition-colors",
@@ -462,6 +474,7 @@ function NumberStepper({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => { if (e.key === "Enter") commit() }}
+            aria-label={label || "Value"}
             className="w-12 bg-transparent text-center text-[14px] font-semibold tabular-nums leading-none focus:outline-none"
             style={{ WebkitAppearance: "none", MozAppearance: "textfield" } as React.CSSProperties}
           />
@@ -475,6 +488,7 @@ function NumberStepper({
       <button
         onClick={increment}
         disabled={value >= max}
+        aria-label={label ? `Increase ${label}` : "Increase"}
         className={cn(
           "flex h-8 w-8 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
