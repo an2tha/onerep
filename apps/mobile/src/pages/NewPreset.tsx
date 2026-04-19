@@ -1141,7 +1141,10 @@ export default function NewPreset() {
   const [items, setItems] = useState<PresetItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
-  const [unit, setUnit] = useState<WeightUnit>("kg")
+  const preferences = useQuery(api.users.users.getPreferences)
+  const [unit, setUnit] = useState<WeightUnit>(
+    () => (preferences?.weightUnit as WeightUnit) || "kg"
+  )
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [saving, setSaving] = useState(false)

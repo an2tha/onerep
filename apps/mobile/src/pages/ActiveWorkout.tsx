@@ -1487,7 +1487,10 @@ export default function ActiveWorkout() {
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
-  const [unit, setUnit] = useState<WeightUnit>("kg")
+  const preferences = useQuery(api.users.users.getPreferences)
+  const [unit, setUnit] = useState<WeightUnit>(
+    () => (preferences?.weightUnit as WeightUnit) || "kg"
+  )
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
