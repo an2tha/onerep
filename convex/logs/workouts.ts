@@ -90,7 +90,8 @@ export const remove = mutation({
 // ── removeBySlot ────────────────────────────────────────────────────────────────
 
 export const removeBySlot = mutation({
-  args: { date: v.string(), slot: v.number() },
+export const removeBySlot = mutation({
+  args: { date: v.string(), slot: v.union(v.literal(1), v.literal(2)) },
   handler: async (ctx, { date, slot }) => {
     const user = await authComponent.getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
@@ -102,10 +103,11 @@ export const removeBySlot = mutation({
       )
       .collect();
 
-    if (slot === 1 && logs[0]) {
-      await ctx.db.delete(logs[0]._id);
-    } else if (slot === 2 && logs[1]) {
-      await ctx.db.delete(logs[1]._id);
-    }
+    const target = logs[slot - 1];
+    if (!target) throw new Error("Workout slot not found");
+    await ctx.db.delete(target._id);
+    return { ok: true };
+  },
+});
   },
 });
