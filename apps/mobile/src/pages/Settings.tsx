@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router"
-import { X } from "lucide-react"
+import { X } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "@/lib/convex"
-import { api } from "../convex/_generated/api"
+import { api } from "../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 
