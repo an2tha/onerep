@@ -7,7 +7,20 @@ import { authComponent } from "../auth";
 export const completion = mutation({
   args: {
     date: v.string(),
-    exercises: v.array(v.any()),
+    exercises: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        sets: v.array(
+          v.object({
+            type: v.string(), // "normal", "warmup", "dropset", "failure"
+            reps: v.number(),
+            weight: v.number(),
+            completed: v.boolean(),
+          }),
+        ),
+      }),
+    ),
     durationSeconds: v.number(),
   },
   handler: async (ctx, args) => {
