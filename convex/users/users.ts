@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { authComponent } from "../auth";
+import { calculateCalories } from "../lib/calculateCalories";
+import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -274,10 +276,8 @@ export const getEffectiveGoals = query({
     } | null = null
 
     if (healthProfile) {
-      const { calculateCalories } = await import("../lib/calculateCalories")
       healthGoals = calculateCalories(healthProfile)
     } else if (onboarding) {
-      const { estimateOnboardingCalories } = await import("../lib/estimateOnboardingCalories")
       healthGoals = estimateOnboardingCalories(onboarding)
     }
 

@@ -1,5 +1,6 @@
 export * from "./components/theme-provider"
 export * from "./components/ui/alert-dialog"
+export * from "./components/ui/accordion"
 export * from "./components/login-form"
 export * from "./components/ui/button"
 export * from "./components/ui/badge"
