@@ -1724,18 +1724,16 @@ export default function ActiveWorkout() {
         if (!ex || !data) return []
         return [
           {
-            exerciseId: id,
+            id,
             name: ex.name,
-            trackRpe: data.trackRpe,
-            trackUnilateral: data.trackUnilateral,
-            sets: data.sets.map((s) => ({
-              weight: s.weight,
-              reps: s.reps,
-              leftReps: s.leftReps,
-              rightReps: s.rightReps,
-              rpe: s.rpe,
-              completed: s.completed,
-            })),
+            sets: data.sets
+              .filter((s) => s.completed)
+              .map((s) => ({
+                type: "normal",
+                weight: parseFloat(String(s.weight)) || 0,
+                reps: parseFloat(String(s.reps)) || 0,
+                completed: s.completed,
+              })),
           },
         ]
       })
