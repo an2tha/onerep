@@ -25,30 +25,9 @@ import {
 } from "@/lib/body-progress"
 import { api } from "../../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
+import { SectionHeader } from "@repo/ui"
 
 type GoalId = "lose" | "build" | "health" | "performance"
-
-function SectionHeader({
-  title,
-  sub,
-  action,
-}: {
-  title: string
-  sub?: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-2.5 flex items-end justify-between gap-3">
-      <div>
-        <h2 className="text-[13px] font-semibold tracking-[0.01em]">{title}</h2>
-        {sub && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground/60">{sub}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 function fmtNumber(value?: number, digits = 1) {
   if (value == null || Number.isNaN(value)) return "—"
@@ -109,18 +88,18 @@ function MetricRow({
   Icon: React.ComponentType<{ size?: number; className?: string }>
 }) {
   return (
-    <div className="flex items-center justify-between border-t border-border/40 py-3 first:border-t-0 first:pt-0 last:pb-0">
+    <div className="flex items-center justify-between border-t border-border/20 py-2.5 first:border-t-0 first:pt-0 last:pb-0">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-full border border-border/50">
-          <Icon size={14} className="text-foreground/55" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/20">
+          <Icon size={12} className="text-foreground/40" />
         </div>
-        <span className="text-[12.5px] font-medium">{label}</span>
+        <span className="text-[12px] font-bold text-foreground/70">{label}</span>
       </div>
       <div className="text-right">
-        <span className="text-[15px] font-semibold tracking-[-0.03em] tabular-nums">
+        <span className="text-[14px] font-bold tracking-tight tabular-nums text-foreground/80">
           {value}
         </span>
-        <span className="ml-1 text-[10px] text-muted-foreground/45">
+        <span className="ml-1 text-[9px] font-bold text-muted-foreground/30 uppercase tracking-tight">
           {unit}
         </span>
       </div>
@@ -365,37 +344,37 @@ export default function Progress() {
               <div className="px-4 py-4">
                 {weightValues.length > 1 ? (
                   <>
-                    <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
+                    <div className="mb-3.5 flex items-start justify-between border-b border-border/20 pb-3">
                       <div>
-                        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/30 uppercase">
                           From / to
                         </p>
-                        <p className="mt-1 text-[13px] font-medium">
+                        <p className="mt-1 text-[12.5px] font-bold text-foreground/80 leading-none">
                           <span className="tabular-nums">
                             {fmtNumber(startWeight)}
                           </span>
-                          <span className="mx-1.5 text-muted-foreground/30">
+                          <span className="mx-1 text-muted-foreground/20">
                             →
                           </span>
                           <span className="tabular-nums">
                             {fmtNumber(endWeight)}
                           </span>
-                          <span className="ml-1 text-[10px] text-muted-foreground/45">
+                          <span className="ml-0.5 text-[8.5px] font-bold text-muted-foreground/35 uppercase">
                             kg
                           </span>
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                          Direction
+                        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/30 uppercase">
+                          Trend
                         </p>
-                        <p className="mt-1 text-[13px] font-medium">
+                        <p className="mt-1 text-[12.5px] font-bold text-foreground/80 leading-none">
                           {trend ?? "—"}
                         </p>
                       </div>
                     </div>
 
-                    <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 py-3">
+                    <div className="rounded-xl border border-border/30 bg-muted/[0.08] px-3 py-3">
                       <div
                         className="mb-3 grid"
                         style={{
@@ -500,17 +479,17 @@ export default function Progress() {
             />
             <Card>
               <div className="px-4 py-4">
-                <div className="mb-4 flex items-start justify-between gap-4 border-b border-border/45 pb-4">
+                <div className="mb-4 flex items-start justify-between gap-4 border-b border-border/20 pb-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-border/50">
-                      <Bell size={15} className="text-foreground/60" />
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/20">
+                      <Bell size={13} className="text-foreground/40" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-semibold">
+                      <p className="text-[12.5px] font-bold text-foreground/80 leading-none pt-1">
                         Check-in prompt
                       </p>
-                      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground/55">
-                        Keep one daily appointment with your own data.
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/40 font-medium">
+                        Keep one daily appointment with your data.
                       </p>
                     </div>
                   </div>
@@ -585,49 +564,47 @@ export default function Progress() {
                 </Card>
               ) : (
                 [...entries].reverse().map((entry) => (
-                  <Card key={entry.clientId}>
-                    <div className="px-4 py-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-                            <span className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                              {formatMeasurementDate(entry.loggedAt)}
+                  <Card key={entry.clientId} size="sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 border-b border-border/20 pb-1.5">
+                          <span className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/35 uppercase">
+                            {formatMeasurementDate(entry.loggedAt)}
+                          </span>
+                          {entry.weightKg != null && (
+                            <span className="text-[12px] font-bold tabular-nums text-foreground/80">
+                              {entry.weightKg.toFixed(1)} kg
                             </span>
-                            {entry.weightKg != null && (
-                              <span className="text-[13px] font-semibold tabular-nums">
-                                {entry.weightKg.toFixed(1)} kg
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground/62">
-                            <span>Body fat {fmtNumber(entry.bodyFatPct)}%</span>
-                            <span>Waist {fmtNumber(entry.waistCm)} cm</span>
-                            <span>Hips {fmtNumber(entry.hipsCm)} cm</span>
-                            <span>Chest {fmtNumber(entry.chestCm)} cm</span>
-                          </div>
-
-                          {entry.notes && (
-                            <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground/52">
-                              {entry.notes}
-                            </p>
                           )}
                         </div>
 
-                        <button
-                          onClick={async () => {
-                            try {
-                              await removeMeasurement({ clientId: entry.clientId })
-                            } catch (err) {
-                              console.error("Failed to remove measurement:", err)
-                            }
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
-                          aria-label="Delete measurement"
-                        >
-                          <Trash size={13} />
-                        </button>
+                        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10.5px] font-medium text-muted-foreground/50">
+                          <span>BF {fmtNumber(entry.bodyFatPct)}%</span>
+                          <span>Waist {fmtNumber(entry.waistCm)}cm</span>
+                          <span>Hips {fmtNumber(entry.hipsCm)}cm</span>
+                          <span>Chest {fmtNumber(entry.chestCm)}cm</span>
+                        </div>
+
+                        {entry.notes && (
+                          <p className="mt-1.5 text-[10.5px] leading-relaxed text-muted-foreground/40 font-medium italic">
+                            {entry.notes}
+                          </p>
+                        )}
                       </div>
+
+                      <button
+                        onClick={async () => {
+                          try {
+                            await removeMeasurement({ clientId: entry.clientId })
+                          } catch (err) {
+                            console.error("Failed to remove measurement:", err)
+                          }
+                        }}
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground/25 transition-colors active:bg-destructive/5 active:text-destructive/60"
+                        aria-label="Delete measurement"
+                      >
+                        <Trash size={12} />
+                      </button>
                     </div>
                   </Card>
                 ))

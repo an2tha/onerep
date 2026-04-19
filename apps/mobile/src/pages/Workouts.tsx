@@ -16,7 +16,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { Card } from "@repo/ui"
+import { Card, SectionHeader } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
@@ -104,29 +104,6 @@ function todayDay(): Day {
   return map[new Date().getDay()]
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-
-function SectionHeader({
-  title,
-  sub,
-  action,
-}: {
-  title: string
-  sub?: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-2.5 flex items-center justify-between">
-      <div className="flex items-baseline gap-1.5">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {sub && (
-          <span className="text-[11px] text-muted-foreground">{sub}</span>
-        )}
-      </div>
-      {action}
-    </div>
-  )
-}
 
 // ─── Confirm delete sheet ─────────────────────────────────────────────────────
 
@@ -202,41 +179,41 @@ function WorkoutLogSummary({
   )
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-green-600 uppercase dark:text-green-400">
+          <span className="rounded-full bg-green-500/10 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-green-600 uppercase dark:text-green-400">
             Done
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-[10px] font-medium text-muted-foreground/70">
             Workout {slot} · {fmtDuration(log.durationSeconds)}
           </span>
         </div>
         <button
           onClick={onEdit}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors active:bg-muted/50 active:text-foreground"
+          className="flex h-6 w-6 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors active:bg-muted/50 active:text-foreground"
           aria-label="Edit workout"
         >
-          <PencilSimple size={13} />
+          <PencilSimple size={12} />
         </button>
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-1">
         {completedExercises.map((ex) => {
           const done = ex.sets.filter((s) => s.completed).length
           const total = ex.sets.length
           return (
             <div
               key={ex.exerciseId}
-              className="flex items-center gap-3 rounded-xl bg-green-500/[0.07] px-3.5 py-2.5"
+              className="flex items-center gap-2.5 rounded-lg bg-green-500/[0.04] px-2.5 py-1.5"
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/25 text-[9px] font-bold text-green-600 dark:text-green-400">
+              <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-500/15 text-[8px] font-bold text-green-600 dark:text-green-400">
                 ✓
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-green-700 dark:text-green-300">
+              </div>
+              <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-green-700/90 dark:text-green-300/90">
                 {ex.name}
               </span>
-              <span className="shrink-0 text-[11px] text-green-600/60 tabular-nums dark:text-green-400/60">
+              <span className="shrink-0 text-[10px] text-green-600/50 tabular-nums dark:text-green-400/50">
                 {done}/{total}
               </span>
             </div>
@@ -244,7 +221,7 @@ function WorkoutLogSummary({
         })}
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
+      <div className="flex items-center justify-between text-[9px] text-muted-foreground/40">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
         </span>
@@ -735,7 +712,7 @@ export default function Workouts() {
             <Card>
               {workoutLogs.length === 2 ? (
                 /* ── Two workouts done — carousel ── */
-                <div className="px-4 py-4">
+                <div className="px-3 py-3">
                   <WorkoutLogCarousel
                     logs={workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]}
                     onEdit={(slot) => {
@@ -750,7 +727,7 @@ export default function Workouts() {
                 </div>
               ) : workoutLogs.length === 1 ? (
                 /* ── One workout done — show summary + 2nd workout ── */
-                <div className="flex flex-col gap-4 px-4 py-4">
+                <div className="flex flex-col gap-3 px-3 py-3">
                   <WorkoutLogSummary
                     log={workoutLogs[0]}
                     slot={1}
@@ -765,27 +742,27 @@ export default function Workouts() {
 
                   {todayPreset2 ? (
                     /* Scheduled 2nd preset from routine2 */
-                    <div className="flex animate-in flex-col gap-3 border-t border-border/30 pt-4 duration-300 fade-in-0 slide-in-from-bottom-2">
+                    <div className="flex animate-in flex-col gap-2.5 border-t border-border/20 pt-3.5 duration-300 fade-in-0 slide-in-from-bottom-2">
                       <div className="flex items-baseline justify-between">
                         <div>
-                          <p className="text-base font-semibold tracking-tight">
+                          <p className="text-[15px] font-semibold tracking-tight">
                             {todayPreset2.name}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 text-[10px] text-muted-foreground/60">
                             Workout 2 · {todayPreset2.duration}
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1.5">
                         {todayPreset2.steps.map((step, i) => (
                           <div
                             key={step}
-                            className="flex items-center gap-3 rounded-xl bg-muted/30 px-3.5 py-2.5 text-sm"
+                            className="flex items-center gap-2.5 rounded-lg bg-muted/20 px-3 py-2 text-[12.5px]"
                           >
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground">
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border/60 text-[9px] font-semibold text-muted-foreground/60">
                               {i + 1}
                             </span>
-                            <span className="font-medium">{step}</span>
+                            <span className="font-medium text-foreground/80">{step}</span>
                           </div>
                         ))}
                       </div>
@@ -801,45 +778,45 @@ export default function Workouts() {
                     /* Generic add — no preset assigned to slot 2 */
                     <button
                       onClick={() => setShowSecondWorkoutSheet(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border/60 py-3 text-[13px] font-medium text-muted-foreground transition-all active:bg-muted/20 active:text-foreground"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/40 py-2.5 text-[12px] font-medium text-muted-foreground/60 transition-all active:bg-muted/10 active:text-foreground"
                     >
-                      <Plus size={13} weight="bold" />
+                      <Plus size={12} weight="bold" />
                       Add second workout
                     </button>
                   )}
                 </div>
               ) : todayPreset ? (
                 /* ── No workout yet — show preset(s) ── */
-                <div className="px-4 py-4">
-                  <div className="mb-4 flex items-baseline justify-between">
+                <div className="px-3 py-3">
+                  <div className="mb-3 flex items-baseline justify-between">
                     <div>
-                      <p className="text-xl font-semibold tracking-tight">
+                      <p className="text-[18px] font-semibold tracking-tight leading-none">
                         {todayPreset.name}
                       </p>
                       {todayPreset2 && (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <p className="mt-1 text-[10px] text-muted-foreground/60">
                           + {todayPreset2.name} after
                         </p>
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-[10px] font-medium text-muted-foreground/50">
                       {todayPreset.duration}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5">
                     {todayPreset.steps.map((step, i) => (
                       <div
                         key={step}
-                        className="flex items-center gap-3 rounded-xl bg-muted/30 px-3.5 py-3 text-sm"
+                        className="flex items-center gap-2.5 rounded-lg bg-muted/20 px-3 py-2 text-[12.5px]"
                       >
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border/60 text-[9px] font-semibold text-muted-foreground/60">
                           {i + 1}
                         </span>
-                        <span className="font-medium">{step}</span>
+                        <span className="font-medium text-foreground/80">{step}</span>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-3.5">
                     <SwipeToStart
                       onComplete={() =>
                         navigate(`/workout/active/${todayPreset.id}`)
@@ -851,9 +828,9 @@ export default function Workouts() {
                 </div>
               ) : (
                 /* ── Rest day ── */
-                <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
-                  <p className="text-sm font-medium">Rest day</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="flex flex-col items-center gap-1.5 px-3 py-6 text-center">
+                  <p className="text-[13px] font-semibold text-foreground/70">Rest day</p>
+                  <p className="text-[11px] text-muted-foreground/40 leading-none">
                     No workout scheduled for today
                   </p>
                 </div>
@@ -916,16 +893,16 @@ export default function Workouts() {
                         slotRefs.current[day] = el
                       }}
                       className={cn(
-                        "relative flex w-[82px] shrink-0 flex-col items-center gap-2 overflow-hidden rounded-2xl border py-3 transition-all duration-200",
+                        "relative flex w-[78px] shrink-0 flex-col items-center gap-1.5 overflow-hidden rounded-xl border py-2.5 transition-all duration-200",
                         isToday &&
                           !isOver &&
-                          "border-foreground/30 bg-foreground/[0.04] ring-1 ring-foreground/10",
-                        !isToday && !isOver && "border-border",
+                          "border-foreground/30 bg-foreground/[0.03] ring-1 ring-foreground/5",
+                        !isToday && !isOver && "border-border/60",
                         isOver &&
                           !isSlot2Drop &&
-                          "scale-[1.04] border-foreground/40 bg-foreground/[0.07]",
+                          "scale-[1.03] border-foreground/40 bg-foreground/[0.06]",
                         isSlot2Drop &&
-                          "scale-[1.04] border-primary/50 bg-primary/[0.06]"
+                          "scale-[1.03] border-primary/40 bg-primary/[0.04]"
                       )}
                     >
                       {isPressing && (
@@ -966,16 +943,16 @@ export default function Workouts() {
                           )}
                         >
                           {/* Slot 1 */}
-                          <div className="flex w-full flex-col items-center gap-1 pb-1">
+                          <div className="flex w-full flex-col items-center gap-1 pb-0.5">
                             <FocusIcon
-                              size={preset2 ? 11 : 15}
+                              size={preset2 ? 10 : 13}
                               weight="duotone"
-                              className="text-foreground/50"
+                              className="text-foreground/40"
                             />
                             <span
                               className={cn(
-                                "max-w-[68px] truncate px-1 text-center leading-tight font-semibold text-foreground/70",
-                                preset2 ? "text-[8.5px]" : "text-[9.5px]"
+                                "max-w-[64px] truncate px-1 text-center leading-tight font-semibold text-foreground/70",
+                                preset2 ? "text-[8px]" : "text-[9px]"
                               )}
                             >
                               {preset.name}
@@ -1072,20 +1049,20 @@ export default function Workouts() {
                         />
                       )}
 
-                      <Card>
-                        <div className="flex items-center gap-2 px-3 py-2.5">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/50">
+                      <Card size="sm">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-lg bg-muted/40">
                             <FocusIcon
-                              size={13}
+                              size={12}
                               weight="duotone"
-                              className="text-foreground/60"
+                              className="text-foreground/50"
                             />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12.5px] leading-none font-semibold">
+                            <p className="text-[12px] leading-none font-semibold text-foreground/80">
                               {preset.name}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            <p className="mt-1 text-[9px] font-medium text-muted-foreground/50">
                               {preset.steps.length} exercises ·{" "}
                               {preset.duration}
                             </p>
@@ -1095,10 +1072,10 @@ export default function Workouts() {
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground/30 transition-colors active:bg-muted/50 active:text-foreground"
                             aria-label={`Edit ${preset.name}`}
                           >
-                            <PencilSimple size={12} />
+                            <PencilSimple size={11} />
                           </button>
                         </div>
                       </Card>
@@ -1109,9 +1086,9 @@ export default function Workouts() {
 
               <button
                 onClick={() => navigate("/workouts/new")}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-dashed border-border/60 py-3 text-[13px] font-medium text-muted-foreground transition-colors active:bg-muted/20 active:text-foreground"
+                className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border/40 py-2.5 text-[12px] font-medium text-muted-foreground/60 transition-colors active:bg-muted/10 active:text-foreground"
               >
-                <Plus size={13} />
+                <Plus size={12} />
                 New preset
               </button>
             </div>

@@ -17,6 +17,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { Card, SectionHeader } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
@@ -66,28 +67,6 @@ const MACRO_COLOR = {
   protein: { solid: "#f59e0b", bg: "rgba(245,158,11,0.13)" },
   carbs: { solid: "#38bdf8", bg: "rgba(56,189,248,0.13)" },
   fat: { solid: "#a78bfa", bg: "rgba(167,139,250,0.13)" },
-}
-
-function SectionHeader({
-  title,
-  sub,
-  action,
-}: {
-  title: string
-  sub?: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-2.5 flex items-end justify-between gap-3">
-      <div>
-        <h2 className="text-[13px] font-semibold tracking-[0.01em]">{title}</h2>
-        {sub && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground/60">{sub}</p>
-        )}
-      </div>
-      {action}
-    </div>
-  )
 }
 
 // ─── Swipeable entry row ──────────────────────────────────────────────────────
@@ -277,20 +256,20 @@ function TodayDiaryCard({
   onDelete: (id: string) => void
 }) {
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
-      <div className="mb-3 flex items-baseline justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+    <Card size="sm">
+      <div className="mb-2 flex items-baseline justify-between">
+        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase">
           Today
         </p>
-        <span className="text-[11px] text-muted-foreground/35 tabular-nums">
+        <span className="text-[10px] font-medium text-muted-foreground/30 tabular-nums uppercase tracking-tight">
           {entries.reduce((s, e) => s + e.calories, 0)} kcal
         </span>
       </div>
       {entries.length === 0 ? (
-        <div className="flex items-center gap-2 py-2">
-          <ForkKnife size={13} className="text-muted-foreground/20" />
-          <p className="text-[12px] text-muted-foreground/35">
-            Nothing logged yet — tap + to add
+        <div className="flex items-center gap-2 py-3">
+          <ForkKnife size={11} className="text-muted-foreground/20" />
+          <p className="text-[11px] font-medium text-muted-foreground/30">
+            Nothing logged yet
           </p>
         </div>
       ) : (
@@ -300,7 +279,7 @@ function TodayDiaryCard({
           onDelete={onDelete}
         />
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -376,91 +355,91 @@ function StatsBar({
 
   if (loading) {
     return (
-      <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+      <Card>
         <div className="flex gap-3">
-          <div className="h-12 w-20 animate-pulse rounded-lg bg-muted/50" />
-          <div className="flex flex-1 flex-col gap-1.5 pt-1">
-            {[60, 80, 50].map((w, i) => (
+          <div className="h-10 w-16 animate-pulse rounded-lg bg-muted/50" />
+          <div className="flex flex-1 flex-col gap-1 pt-1">
+            {[40, 70, 40].map((w, i) => (
               <div
                 key={i}
-                className="h-2 animate-pulse rounded bg-muted/40"
+                className="h-1.5 animate-pulse rounded bg-muted/40"
                 style={{ width: w }}
               />
             ))}
           </div>
         </div>
-      </div>
+      </Card>
     )
   }
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
-      <div className="flex items-start gap-4">
+    <Card>
+      <div className="flex items-start gap-3.5">
         {/* Calorie block */}
         <div className="min-w-0 shrink-0">
           <span
             className={cn(
-              "text-[2rem] leading-none font-bold tracking-tight tabular-nums",
-              over && "text-destructive/80"
+              "text-[1.75rem] leading-none font-bold tracking-tight tabular-nums",
+              over && "text-destructive/90"
             )}
           >
             {fmtKcal(consumed)}
           </span>
-          <p className="mt-0.5 text-[9.5px] text-muted-foreground/40">
+          <p className="mt-0.5 text-[9px] font-medium text-muted-foreground/50">
             <span className="tabular-nums">
               {fmtKcal(Math.abs(goals.calories - consumed))}
             </span>{" "}
             {over ? "over" : "left"}
           </p>
           {/* Calorie progress bar */}
-          <div className="relative mt-2 h-[2px] w-20 rounded-sm bg-muted/40">
+          <div className="relative mt-2 h-[1.5px] w-16 rounded-full bg-muted/30">
             <div
-              className="absolute inset-y-0 left-0 rounded-sm transition-all duration-700 ease-out"
+              className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-out"
               style={{
                 width: mounted ? `${calPct}%` : "0%",
                 backgroundColor: over ? "#ef4444" : "var(--foreground)",
-                opacity: 0.5,
+                opacity: 0.6,
               }}
             />
           </div>
-          <p className="mt-0.5 text-[9px] text-muted-foreground/30 tabular-nums">
+          <p className="mt-0.5 text-[8.5px] text-muted-foreground/30 tabular-nums">
             of {fmtKcal(goals.calories)}
           </p>
         </div>
 
         {/* Divider */}
-        <div className="w-px self-stretch bg-border/25" />
+        <div className="w-px self-stretch bg-border/20" />
 
         {/* Macro columns */}
-        <div className="flex flex-1 justify-between">
+        <div className="flex flex-1 justify-between gap-1 pt-0.5">
           {macros.map(({ key, val, target, label }) => {
             const pct = target > 0 ? Math.min(100, (val / target) * 100) : 0
             const macOver = val > target
             return (
               <div key={key} className="flex flex-col items-center">
-                <span className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground/40 uppercase">
+                <span className="text-[8.5px] font-bold tracking-wider text-muted-foreground/40 uppercase">
                   {label}
                 </span>
                 <span
-                  className="mt-0.5 text-[16px] leading-none font-semibold tabular-nums"
+                  className="mt-1 text-[15px] leading-none font-bold tabular-nums"
                   style={{
                     color: macOver ? "#ef4444" : MACRO_COLOR[key].solid,
                   }}
                 >
                   {Math.round(val)}
                 </span>
-                <span className="text-[8.5px] text-muted-foreground/30 tabular-nums">
-                  /{target}g
+                <span className="text-[8.5px] font-medium text-muted-foreground/30 tabular-nums">
+                  /{target}
                 </span>
-                <div className="relative mt-1.5 h-[2px] w-10 rounded-sm bg-muted/40">
+                <div className="relative mt-1.5 h-[1.5px] w-9 rounded-full bg-muted/30">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-sm transition-all duration-500 ease-out"
+                    className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
                     style={{
                       width: mounted ? `${pct}%` : "0%",
                       backgroundColor: macOver
                         ? "#ef4444"
                         : MACRO_COLOR[key].solid,
-                      opacity: 0.7,
+                      opacity: 0.8,
                     }}
                   />
                 </div>
@@ -469,7 +448,7 @@ function StatsBar({
           })}
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -507,19 +486,19 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
   if (keys.length === 0) return null
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+    <Card size="sm">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between"
       >
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase">
           Micronutrients
         </p>
         <CaretDown
-          size={9}
+          size={8}
           weight="bold"
           className={cn(
-            "text-muted-foreground/30 transition-transform duration-200",
+            "text-muted-foreground/25 transition-transform duration-200",
             open && "rotate-180"
           )}
         />
@@ -533,17 +512,17 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
             const pct = Math.min(100, Math.round((val / cfg.dv) * 100))
             return (
               <div key={k} className="shrink-0">
-                <span className="text-[9px] font-medium text-muted-foreground/35">
+                <span className="text-[8.5px] font-bold text-muted-foreground/30 uppercase">
                   {cfg.label}
                 </span>
-                <p className="mt-0.5 text-[13px] leading-none font-semibold tabular-nums">
+                <p className="mt-0.5 text-[12px] leading-none font-bold tabular-nums text-foreground/70">
                   {val < 10 ? val.toFixed(1) : Math.round(val)}
-                  <span className="ml-0.5 text-[8.5px] font-normal text-muted-foreground/35">
+                  <span className="ml-0.5 text-[8px] font-medium text-muted-foreground/35 uppercase">
                     {cfg.unit}
                   </span>
                 </p>
-                <span className="text-[9px] text-muted-foreground/30 tabular-nums">
-                  {pct}% DV
+                <span className="text-[8.5px] font-medium text-muted-foreground/25 tabular-nums">
+                  {pct}%
                 </span>
               </div>
             )
@@ -555,12 +534,12 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
         className={cn(
           "grid transition-all duration-200 ease-out",
           open
-            ? "mt-3 grid-rows-[1fr] opacity-100"
+            ? "mt-2.5 grid-rows-[1fr] opacity-100"
             : "grid-rows-[0fr] opacity-0"
         )}
       >
         <div className="overflow-hidden">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
             {keys.map((k) => {
               const cfg = MICRO_DV[k]
               const val = totals[k]
@@ -569,46 +548,46 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
               return (
                 <div key={k}>
                   <div className="flex items-baseline justify-between">
-                    <span className="text-[12px]">{cfg.label}</span>
+                    <span className="text-[11.5px] font-medium text-foreground/70">{cfg.label}</span>
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-[12px] font-semibold tabular-nums">
+                      <span className="text-[11.5px] font-bold tabular-nums">
                         {val < 10 ? val.toFixed(1) : Math.round(val)}
-                        <span className="ml-0.5 text-[9px] font-normal text-muted-foreground/35">
+                        <span className="ml-0.5 text-[8.5px] font-medium text-muted-foreground/35">
                           {cfg.unit}
                         </span>
                       </span>
                       <span
                         className={cn(
-                          "text-[9.5px] tabular-nums",
+                          "text-[9px] font-medium tabular-nums",
                           over
-                            ? "text-amber-500/70"
-                            : "text-muted-foreground/30"
+                            ? "text-amber-500/60"
+                            : "text-muted-foreground/25"
                         )}
                       >
                         {Math.round(pct)}%
                       </span>
                     </div>
                   </div>
-                  <div className="relative mt-1 h-[2px] rounded-sm bg-muted/40">
+                  <div className="relative mt-1 h-[1.5px] rounded-full bg-muted/30">
                     <div
-                      className="absolute inset-y-0 left-0 rounded-sm"
+                      className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
                       style={{
                         width: `${pct}%`,
                         backgroundColor: over ? "#f59e0b" : "var(--foreground)",
-                        opacity: over ? 0.5 : 0.22,
+                        opacity: over ? 0.6 : 0.2,
                       }}
                     />
                   </div>
                 </div>
               )
             })}
-            <p className="mt-0.5 text-[9px] text-muted-foreground/25">
+            <p className="mt-1 text-[8px] font-medium text-muted-foreground/20 leading-tight">
               % Daily Value based on FDA 2,000 kcal reference.
             </p>
           </div>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -709,51 +688,51 @@ function RecipeCard({
   const totals = recipeTotals(recipe.ingredients)
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+    <Card size="sm">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-semibold">{recipe.name}</p>
-          <p className="mt-0.5 text-[10.5px] text-muted-foreground/40">
+          <p className="truncate text-[13px] font-bold text-foreground/80">{recipe.name}</p>
+          <p className="mt-0.5 text-[9px] font-medium text-muted-foreground/40">
             {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? "s" : ""}
           </p>
-          <div className="mt-1.5 flex gap-2.5">
+          <div className="mt-2 flex gap-3">
             {RECIPE_MACRO_PILLS.map(({ label, key, color }) => (
-              <span key={label} className="flex items-baseline gap-0.5">
-                <span className="text-[9.5px] font-semibold" style={{ color, opacity: 0.75 }}>{label}</span>
-                <span className="text-[10.5px] text-muted-foreground/50">{totals[key]}g</span>
+              <span key={label} className="flex items-baseline gap-1">
+                <span className="text-[8.5px] font-bold tracking-tight" style={{ color, opacity: 0.8 }}>{label}</span>
+                <span className="text-[10px] font-bold tabular-nums text-muted-foreground/40">{totals[key]}</span>
               </span>
             ))}
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end">
-          <span className="text-[17px] leading-none font-bold tabular-nums">{totals.calories}</span>
-          <span className="mt-0.5 text-[8.5px] text-muted-foreground/35">kcal</span>
+        <div className="flex shrink-0 flex-col items-end pt-0.5">
+          <span className="text-[16px] leading-none font-bold tabular-nums text-foreground/90">{totals.calories}</span>
+          <span className="mt-1 text-[8px] font-bold text-muted-foreground/30 uppercase tracking-wider">kcal</span>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex gap-1.5">
         <button
           onClick={onEdit}
-          className="flex items-center gap-1.5 rounded-xl border border-border/50 px-3 py-1.5 text-[11.5px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/40"
+          className="flex items-center gap-1 rounded-lg border border-border/40 px-2 py-1 text-[10.5px] font-bold text-muted-foreground/40 transition-colors active:bg-muted/30 active:text-foreground/60"
         >
           <PencilSimple size={10} />
           Edit
         </button>
         <button
           onClick={onDelete}
-          className="flex items-center justify-center rounded-xl border border-border/50 px-3 py-1.5 text-[11.5px] text-muted-foreground/40 transition-colors active:bg-muted/40"
+          className="flex items-center justify-center rounded-lg border border-border/40 px-2 py-1 text-[10.5px] text-muted-foreground/30 transition-colors active:bg-muted/30 active:text-destructive/60"
         >
           <Trash size={11} />
         </button>
         <button
           onClick={onLog}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground/[0.07] py-1.5 text-[12px] font-semibold transition-colors active:bg-foreground/[0.12]"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-foreground/[0.05] py-1.5 text-[11px] font-bold text-foreground/70 transition-colors active:bg-foreground/[0.1] active:text-foreground"
         >
           Log to diary
-          <CaretRight size={10} weight="bold" className="text-muted-foreground/40" />
+          <CaretRight size={9} weight="bold" className="text-muted-foreground/30" />
         </button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -772,14 +751,14 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
     }
   
     return (
-      <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+    <Card size="sm">
         <div className="flex items-center justify-between">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase">
             Daily goals
           </p>
           <button
             onClick={() => setEditing((o) => !o)}
-            className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground/30 active:text-muted-foreground/60 transition-colors"
           >
             {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
             {editing ? "Cancel" : "Edit"}
@@ -796,13 +775,13 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
           )}
         >
           <div className="overflow-hidden">
-            <div className="flex items-baseline gap-4">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-3">
               {GOAL_FIELDS.map(({ key, label }) => (
                 <div key={key} className="flex flex-col">
-                  <span className="text-[14px] leading-none font-semibold tabular-nums">
+                  <span className="text-[12px] leading-none font-bold tabular-nums text-foreground/80">
                     {goals[key]}
                   </span>
-                  <span className="mt-0.5 text-[9px] font-medium tracking-[0.1em] text-muted-foreground/35 uppercase">
+                  <span className="mt-1 text-[8px] font-bold tracking-tight text-muted-foreground/35 uppercase">
                     {key === "calories" ? "kcal" : label}
                   </span>
                 </div>
@@ -821,21 +800,21 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
           )}
         >
           <div className="overflow-hidden">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-1.5">
               {GOAL_FIELDS.map(({ key, label, unit, step, min }) => (
                 <div key={key} className="flex items-center justify-between">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-[13px] font-medium">{label}</span>
-                    <span className="text-[10px] text-muted-foreground/40">
+                  <span className="text-[12.5px] font-semibold text-foreground/70">{label}</span>
+                  <span className="text-[9px] font-medium text-muted-foreground/40">
                       {unit}
                     </span>
                   </div>
-                  <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+                <div className="flex items-center rounded-lg bg-muted/40 p-0.5">
                     <button
                       onClick={() => adjust(key, -step)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                    className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
                     >
-                      <span className="text-[15px] leading-none">−</span>
+                    <span className="text-[14px] leading-none">−</span>
                     </button>
                     <input
                       type="number"
@@ -845,13 +824,13 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
                         if (!isNaN(v))
                           setDraft((p) => ({ ...p, [key]: Math.max(min, v) }))
                       }}
-                      className="w-14 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
+                    className="w-12 bg-transparent text-center text-[12px] font-bold tabular-nums outline-none"
                     />
                     <button
                       onClick={() => adjust(key, step)}
-                      className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                    className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
                     >
-                      <span className="text-[15px] leading-none">+</span>
+                    <span className="text-[14px] leading-none">+</span>
                     </button>
                   </div>
                 </div>
@@ -863,7 +842,7 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
                   onSave(draft)
                   setEditing(false)
                 }}
-                className="flex-1 rounded-lg bg-foreground py-2 text-[12.5px] font-semibold text-background active:opacity-75"
+              className="flex-1 rounded-lg bg-foreground py-1.5 text-[12px] font-bold text-background active:opacity-80 transition-opacity"
               >
                 Save
               </button>
@@ -880,7 +859,7 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
                     onSave(r)
                     setEditing(false)
                   }}
-                  className="rounded-lg border border-border/50 px-3.5 py-2 text-[11.5px] font-medium text-muted-foreground/60 active:bg-muted/40"
+                className="rounded-lg border border-border/40 px-3 py-1.5 text-[11px] font-semibold text-muted-foreground/50 active:bg-muted/30 transition-colors"
                 >
                   Reset
                 </button>
@@ -888,7 +867,7 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
             </div>
           </div>
         </div>
-      </div>
+    </Card>
     )
 }
 
@@ -949,15 +928,15 @@ function WaterCard({ dateKey }: { dateKey: string }) {
   }
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+    <Card size="sm">
       {/* Header */}
       <div className="mb-2.5 flex items-center justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="text-[9px] font-bold tracking-[0.12em] text-muted-foreground/40 uppercase">
           Hydration
         </p>
         <button
           onClick={() => { setGoalDraft(goalMl); setEditingGoal((o) => !o) }}
-          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground/30 active:text-muted-foreground/60 transition-colors"
         >
           {editingGoal ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
           {editingGoal ? "Cancel" : "Goal"}
@@ -973,31 +952,31 @@ function WaterCard({ dateKey }: { dateKey: string }) {
       >
         <div className="overflow-hidden">
           <div className="flex items-center justify-between">
-            <span className="text-[12px] font-medium">Daily goal</span>
-            <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+            <span className="text-[12.5px] font-semibold text-foreground/70">Daily goal</span>
+            <div className="flex items-center rounded-lg bg-muted/40 p-0.5">
               <button
                 onClick={() => setGoalDraft((v) => Math.max(250, v - 250))}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
               >
-                <span className="text-[15px] leading-none">−</span>
+                <span className="text-[14px] leading-none">−</span>
               </button>
               <input
                 type="number"
                 value={goalDraft}
                 onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n)) setGoalDraft(Math.max(250, n)) }}
-                className="w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
+                className="w-14 bg-transparent text-center text-[12px] font-bold tabular-nums outline-none"
               />
               <button
                 onClick={() => setGoalDraft((v) => v + 250)}
-                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
               >
-                <span className="text-[15px] leading-none">+</span>
+                <span className="text-[14px] leading-none">+</span>
               </button>
             </div>
           </div>
           <button
             onClick={saveGoal}
-            className="mt-2 w-full rounded-lg bg-foreground py-2 text-[12.5px] font-semibold text-background active:opacity-75"
+            className="mt-2.5 w-full rounded-lg bg-foreground py-1.5 text-[12px] font-bold text-background active:opacity-80 transition-opacity"
           >
             Save
           </button>
@@ -1005,7 +984,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
       </div>
 
       {/* Glass grid */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-8 gap-1.5">
         {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
           const filled = i < filledCount
           return (
@@ -1013,13 +992,13 @@ function WaterCard({ dateKey }: { dateKey: string }) {
               key={i}
               onClick={filled ? removeLastEntry : addGlass}
               className={cn(
-                "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95",
-                filled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+                "flex items-center justify-center rounded-lg py-2 transition-all active:scale-90",
+                filled ? "bg-[rgba(56,189,248,0.08)]" : "bg-muted/20"
               )}
               aria-label={filled ? "Remove last water entry" : `Add ${mlPerGlass} ml`}
             >
               <PintGlass
-                size={22}
+                size={16}
                 weight={filled ? "fill" : "regular"}
                 style={{ color: filled ? "#38bdf8" : undefined }}
                 className={filled ? undefined : "text-muted-foreground/20"}
@@ -1030,18 +1009,18 @@ function WaterCard({ dateKey }: { dateKey: string }) {
       </div>
 
       {/* Summary */}
-      <div className="mt-2 flex items-center justify-between">
-        <p className="text-[10px] text-muted-foreground/40 tabular-nums">
+      <div className="mt-2.5 flex items-center justify-between">
+        <p className="text-[9px] font-bold text-muted-foreground/30 tabular-nums uppercase tracking-wide">
           {fmtWater(totalMl)} / {fmtWater(goalMl)}
         </p>
         <button
           onClick={addGlass}
-          className="rounded-lg bg-muted/40 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+          className="rounded-lg bg-muted/40 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/50 active:bg-muted/70 active:text-foreground transition-colors uppercase tracking-tight"
         >
-          + More water
+          + Log glass
         </button>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -1131,25 +1110,24 @@ export default function Foods() {
         <div className="flex flex-col gap-4 px-4">
           <section>
             <SectionHeader title="Stats" />
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               <StatsBar
                 entries={todayEntries}
                 goals={goals}
                 loading={loading}
               />
-              <GoalsCardWrapper
-                goals={goals}
-                apiGoals={apiGoals}
-                onSave={(g) => {
-                  setCustomGoals(g)
-                }}
-              />
+              <div className="grid grid-cols-2 gap-2">
+                <GoalsCardWrapper
+                  goals={goals}
+                  apiGoals={apiGoals}
+                  onSave={(g) => {
+                    setCustomGoals(g)
+                  }}
+                />
+                <WaterCard dateKey={todayKey} />
+              </div>
               <MicronutrientsCard entries={todayEntries} />
             </div>
-          </section>
-
-          <section>
-            <WaterCard dateKey={todayKey} />
           </section>
 
           <section>
