@@ -11,6 +11,7 @@ import {
   ForkKnife,
   MagnifyingGlass,
   PencilSimple,
+  PintGlass,
   Plus,
   Trash,
   X,
@@ -1034,6 +1035,159 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
     )
 }
 
+// ─── Water card ───────────────────────────────────────────────────────────────
+
+const WATER_GOAL_KEY = "onerep_water_goal_ml"
+const WATER_GLASS_COUNT = 8
+
+function readWaterGoal(): number {
+  try {
+    const n = parseInt(localStorage.getItem(WATER_GOAL_KEY) ?? "", 10)
+    return isNaN(n) ? 2000 : n
+  } catch {
+    return 2000
+  }
+}
+
+function writeWaterGoal(ml: number) {
+  localStorage.setItem(WATER_GOAL_KEY, String(ml))
+}
+
+function fmtWater(ml: number): string {
+  if (ml >= 1000) {
+    const l = ml / 1000
+    return l % 1 === 0 ? `${l} L` : `${l.toFixed(1)} L`
+  }
+  return `${ml} ml`
+}
+
+function WaterCard({ dateKey }: { dateKey: string }) {
+  const [goalMl, setGoalMlState] = React.useState(readWaterGoal)
+  const [editingGoal, setEditingGoal] = React.useState(false)
+  const [goalDraft, setGoalDraft] = React.useState(goalMl)
+
+  const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
+  const setWaterDay = useMutation(api.logs.water.setDay)
+
+  const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
+  const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
+  const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
+  const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
+
+  function addGlass() {
+    const entry = { id: crypto.randomUUID(), amountMl: mlPerGlass, loggedAt: new Date().toISOString() }
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+  }
+
+  function removeLastEntry() {
+    if (entries.length === 0) return
+    const sorted = [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+  }
+
+  function saveGoal() {
+    setGoalMlState(goalDraft)
+    writeWaterGoal(goalDraft)
+    setEditingGoal(false)
+  }
+
+  return (
+    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+      {/* Header */}
+      <div className="mb-2.5 flex items-center justify-between">
+        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+          Hydration
+        </p>
+        <button
+          onClick={() => { setGoalDraft(goalMl); setEditingGoal((o) => !o) }}
+          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+        >
+          {editingGoal ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
+          {editingGoal ? "Cancel" : "Goal"}
+        </button>
+      </div>
+
+      {/* Goal edit */}
+      <div
+        className={cn(
+          "grid transition-all duration-200 ease-out",
+          editingGoal ? "mb-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-[12px] font-medium">Daily goal</span>
+            <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+              <button
+                onClick={() => setGoalDraft((v) => Math.max(250, v - 250))}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+              >
+                <span className="text-[15px] leading-none">−</span>
+              </button>
+              <input
+                type="number"
+                value={goalDraft}
+                onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n)) setGoalDraft(Math.max(250, n)) }}
+                className="w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
+              />
+              <button
+                onClick={() => setGoalDraft((v) => v + 250)}
+                className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+              >
+                <span className="text-[15px] leading-none">+</span>
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={saveGoal}
+            className="mt-2 w-full rounded-lg bg-foreground py-2 text-[12.5px] font-semibold text-background active:opacity-75"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
+      {/* Glass grid */}
+      <div className="grid grid-cols-4 gap-2">
+        {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
+          const filled = i < filledCount
+          return (
+            <button
+              key={i}
+              onClick={filled ? removeLastEntry : addGlass}
+              className={cn(
+                "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95",
+                filled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+              )}
+              aria-label={filled ? "Remove last water entry" : `Add ${mlPerGlass} ml`}
+            >
+              <PintGlass
+                size={22}
+                weight={filled ? "fill" : "regular"}
+                style={{ color: filled ? "#38bdf8" : undefined }}
+                className={filled ? undefined : "text-muted-foreground/20"}
+              />
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Summary */}
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-[10px] text-muted-foreground/40 tabular-nums">
+          {fmtWater(totalMl)} / {fmtWater(goalMl)}
+        </p>
+        <button
+          onClick={addGlass}
+          className="rounded-lg bg-muted/40 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+        >
+          + More water
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Foods() {
@@ -1139,8 +1293,12 @@ export default function Foods() {
           </section>
 
           <section>
+            <WaterCard dateKey={todayKey} />
+          </section>
+
+          <section>
             <SectionHeader title="Today's diary" />
-            <TodayDiaryCard 
+            <TodayDiaryCard
                 entries={todayEntries} 
                 dateKey={todayKey} 
                 onDelete={(id) => {

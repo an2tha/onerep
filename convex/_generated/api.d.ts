@@ -20,6 +20,7 @@ import type * as logs_foodLogs from "../logs/foodLogs.js";
 import type * as logs_presets from "../logs/presets.js";
 import type * as logs_recipes from "../logs/recipes.js";
 import type * as logs_snap from "../logs/snap.js";
+import type * as logs_water from "../logs/water.js";
 import type * as logs_workouts from "../logs/workouts.js";
 import type * as users_checkIn from "../users/checkIn.js";
 import type * as users_onboarding from "../users/onboarding.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   "logs/presets": typeof logs_presets;
   "logs/recipes": typeof logs_recipes;
   "logs/snap": typeof logs_snap;
+  "logs/water": typeof logs_water;
   "logs/workouts": typeof logs_workouts;
   "users/checkIn": typeof users_checkIn;
   "users/onboarding": typeof users_onboarding;

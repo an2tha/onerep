@@ -109,6 +109,14 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_date", ["userId", "date"]),
 
+  // ── Water logs (one doc per user+date) ────────────────────────────────────
+  waterLogs: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    entries: v.array(v.any()), // WaterLogEntry[]
+    updatedAt: v.number(),
+  }).index("by_userId_date", ["userId", "date"]),
+
   // ── Body measurements (one record per check-in) ────────────────────────────
   bodyMeasurements: defineTable({
     userId: v.string(),

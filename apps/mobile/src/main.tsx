@@ -30,6 +30,7 @@ import ActiveWorkout from "./pages/ActiveWorkout.tsx"
 import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import Foods from "./pages/Foods.tsx"
+import Water from "./pages/Water.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import Progress from "./pages/Progress.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
@@ -226,6 +227,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Foods">
               <Foods />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/water",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Water">
+              <Water />
             </ErrorBoundary>
           </AuthGuard>
         ),

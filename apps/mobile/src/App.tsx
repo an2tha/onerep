@@ -13,6 +13,7 @@ import {
   MagnifyingGlass,
   Moon,
   PencilSimple,
+  PintGlass,
   Plus,
   SignOut,
   Trash,
@@ -212,7 +213,7 @@ function ProgressCard() {
     <Card>
       <button
         onClick={() => navigate("/progress")}
-        className="flex w-full items-start justify-between gap-4 px-4 py-3.5 text-left transition-colors active:bg-muted/20"
+        className="flex w-full items-start justify-between gap-4 px-4 py-2.5 text-left transition-colors active:bg-muted/20"
       >
         <div className="min-w-0">
           <p className="text-sm font-semibold">Body progress</p>
@@ -381,9 +382,9 @@ function CalorieCard({
 
   return (
     <Card>
-      <div className="px-4 py-3.5">
+      <div className="px-4 py-2.5">
         {/* Header row */}
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-2 flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">
             {isToday ? "Calories" : "Calories"}
           </CardTitle>
@@ -404,7 +405,7 @@ function CalorieCard({
             {/* Hero row: consumed ← hairline → remaining */}
             <div className="flex items-end justify-between">
               <div>
-                <span className="text-[1.75rem] leading-none font-bold tracking-tight tabular-nums">
+                <span className="text-[1.5rem] leading-none font-bold tracking-tight tabular-nums">
                   {fmtKcal(consumed)}
                 </span>
                 <span className="ml-1 text-[11px] text-muted-foreground/50">
@@ -414,7 +415,7 @@ function CalorieCard({
               <div className="text-right">
                 <span
                   className={cn(
-                    "text-[1.1rem] leading-none font-semibold tabular-nums",
+                    "text-[1rem] leading-none font-semibold tabular-nums",
                     consumed > target
                       ? "text-destructive/70"
                       : "text-muted-foreground/40"
@@ -447,7 +448,7 @@ function CalorieCard({
             </p>
 
             {/* Macro pills row */}
-            <div className="mt-3 flex items-center gap-3 border-t border-border/20 pt-3">
+            <div className="mt-2.5 flex items-center gap-3 border-t border-border/20 pt-2.5">
               {[
                 {
                   key: "protein" as const,
@@ -650,7 +651,7 @@ function WorkoutCard({
 
   return (
     <Card>
-      <div className="px-4 py-3.5">
+      <div className="px-4 py-2.5">
         {/* ── Header ── */}
         <div className="mb-1 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -767,7 +768,7 @@ function WorkoutCard({
               /* ── Upcoming workout ── */
               <>
                 {isRestDay ? (
-                  <div className="flex flex-col items-center gap-2 py-7 text-center">
+                  <div className="flex flex-col items-center gap-2 py-5 text-center">
                     <Barbell size={28} className="text-muted-foreground/20" />
                     <p className="text-[16px] font-semibold tracking-tight">
                       Rest day
@@ -790,7 +791,7 @@ function WorkoutCard({
                       {workout.steps.map((step, i) => (
                         <div
                           key={step}
-                          className="flex items-center gap-2.5 rounded-lg bg-muted/30 px-3 py-2 text-[12.5px] active:bg-muted/60"
+                          className="flex items-center gap-2.5 rounded-lg bg-muted/30 px-3 py-1.5 text-[12.5px] active:bg-muted/60"
                         >
                           <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-border text-[9.5px] font-semibold text-muted-foreground/60">
                             {i + 1}
@@ -949,15 +950,15 @@ function LoggedTodayCard({
 
   return (
     <Card>
-      <div className="px-4 py-3.5">
-        <div className="mb-2.5">
+      <div className="px-4 py-2.5">
+        <div className="mb-2">
           <CardTitle className="text-sm font-semibold">
             {dayOffset === 0 ? "Logged today" : "Food log"}
           </CardTitle>
         </div>
 
         {sorted.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-7 text-center">
+          <div className="flex flex-col items-center gap-2 py-5 text-center">
             <ForkKnife
               size={28}
               style={{
@@ -1101,6 +1102,109 @@ function ProfileDropdown({
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+// ─── Water widget ─────────────────────────────────────────────────────────────
+
+const WATER_GOAL_KEY = "onerep_water_goal_ml"
+const DEFAULT_WATER_GOAL_ML = 2000
+const WATER_GLASS_COUNT = 8
+
+function readWaterGoal(): number {
+  try {
+    const n = parseInt(localStorage.getItem(WATER_GOAL_KEY) ?? "", 10)
+    return isNaN(n) ? DEFAULT_WATER_GOAL_ML : n
+  } catch {
+    return DEFAULT_WATER_GOAL_ML
+  }
+}
+
+function fmtWater(ml: number): string {
+  if (ml >= 1000) {
+    const l = ml / 1000
+    return l % 1 === 0 ? `${l} L` : `${l.toFixed(1)} L`
+  }
+  return `${ml} ml`
+}
+
+function WaterWidget({ dateKey }: { dateKey: string }) {
+  const navigate = useNavigate()
+  const [goalMl] = React.useState(readWaterGoal)
+
+  const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
+  const setWaterDay = useMutation(api.logs.water.setDay)
+
+  const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
+  const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
+  const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
+  const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
+
+  function addGlass() {
+    const entry = { id: crypto.randomUUID(), amountMl: mlPerGlass, loggedAt: new Date().toISOString() }
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+  }
+
+  function removeLastEntry() {
+    if (entries.length === 0) return
+    const sorted = [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+  }
+
+  return (
+    <Card>
+      <div className="px-4 py-2.5">
+        {/* Header */}
+        <div className="mb-2 flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold">Water</CardTitle>
+          <button
+            onClick={() => navigate("/water")}
+            className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          >
+            Open
+            <CaretRight size={9} weight="bold" />
+          </button>
+        </div>
+
+        {/* 2×4 glass grid */}
+        <div className="grid grid-cols-4 gap-2">
+          {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
+            const filled = i < filledCount
+            return (
+              <button
+                key={i}
+                onClick={filled ? removeLastEntry : addGlass}
+                className={cn(
+                  "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95",
+                  filled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+                )}
+                aria-label={filled ? "Remove last water entry" : `Add ${mlPerGlass} ml`}
+              >
+                <PintGlass
+                  size={22}
+                  weight={filled ? "fill" : "regular"}
+                  style={{ color: filled ? "#38bdf8" : undefined }}
+                  className={filled ? undefined : "text-muted-foreground/20"}
+                />
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Summary + more button */}
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground/40 tabular-nums">
+            {fmtWater(totalMl)} / {fmtWater(goalMl)}
+          </p>
+          <button
+            onClick={addGlass}
+            className="rounded-lg bg-muted/40 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+          >
+            + More water
+          </button>
+        </div>
+      </div>
+    </Card>
   )
 }
 
@@ -1250,6 +1354,7 @@ export default function App() {
             timeZone={activeTimezone}
             onDayOffsetChange={setDayOffset}
           />
+          <WaterWidget dateKey={selectedDate} />
           <WorkoutCard
             settings={settings}
             dayOffset={dayOffset}
