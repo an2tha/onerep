@@ -1218,6 +1218,7 @@ export default function App() {
   const clearOnboarding = useMutation(api.users.onboarding.clear)
   const setDashboardSettings = useMutation(api.users.users.setDashboardSettings)
   const setDay = useMutation(api.logs.foodLogs.setDay)
+  const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
 
   // ── Dashboard settings ───────────────────────────────────────────────────
 
@@ -1285,7 +1286,7 @@ export default function App() {
   }, [activeTimezone, selectedDate, storedPresets, storedRoutine])
 
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
-  const [, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
+  const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
 
@@ -1489,6 +1490,49 @@ export default function App() {
             </div>
           )}
         </MobileSheet>
+      )}
+
+      {confirmDeleteSlot && (
+        <div
+          className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[3px]"
+          onClick={() => setConfirmDeleteSlot(null)}
+        >
+          <div
+            className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+            style={{
+              paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
+            <div className="px-6">
+              <h2 className="text-[17px] font-bold tracking-tight">
+                Delete workout?
+              </h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+                This will remove the workout from your log. This cannot be undone.
+              </p>
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    void removeWorkoutBySlot({ date: selectedDate, slot: confirmDeleteSlot })
+                    setConfirmDeleteSlot(null)
+                  }}
+                  className="h-12 w-full rounded-xl bg-red-500/90 text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                >
+                  Delete
+                </button>
+                <button
+                  onClick={() => setConfirmDeleteSlot(null)}
+                  className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+            <div className="h-4" />
+          </div>
+        </div>
       )}
     </div>
   )

@@ -86,3 +86,26 @@ export const remove = mutation({
     await ctx.db.delete(id);
   },
 });
+
+// ── removeBySlot ────────────────────────────────────────────────────────────────
+
+export const removeBySlot = mutation({
+  args: { date: v.string(), slot: v.number() },
+  handler: async (ctx, { date, slot }) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const logs = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", date),
+      )
+      .collect();
+
+    if (slot === 1 && logs[0]) {
+      await ctx.db.delete(logs[0]._id);
+    } else if (slot === 2 && logs[1]) {
+      await ctx.db.delete(logs[1]._id);
+    }
+  },
+});
