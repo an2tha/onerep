@@ -1488,9 +1488,7 @@ export default function ActiveWorkout() {
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
   const preferences = useQuery(api.users.users.getPreferences)
-  const [unit, setUnit] = useState<WeightUnit>(
-    () => (preferences?.weightUnit as WeightUnit) || "kg"
-  )
+  const [unit, setUnit] = useState<WeightUnit>("kg")
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1536,6 +1534,12 @@ export default function ActiveWorkout() {
       }
     }
   }, [presetId, presets])
+
+  useEffect(() => {
+    if (preferences?.weightUnit) {
+      setUnit(preferences.weightUnit as WeightUnit)
+    }
+  }, [preferences])
 
   useEffect(() => {
     posthog.capture("workout_started", { preset_id: presetId ?? null })

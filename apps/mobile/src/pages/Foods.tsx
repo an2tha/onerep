@@ -905,6 +905,7 @@ function fmtWater(ml: number): string {
 }
 
 function WaterCard({ dateKey }: { dateKey: string }) {
+  const navigate = useNavigate()
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
 

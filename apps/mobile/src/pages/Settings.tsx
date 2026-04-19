@@ -3,7 +3,7 @@ import { useNavigate } from "react-router"
 import { X, CaretRight } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
-import { api } from "../../convex/_generated/api"
+import { api } from "../../../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@repo/ui"
@@ -95,11 +95,20 @@ export default function Settings({
       await setDashboardSettings({ workoutFocus })
       await setWeightUnit({ unit: weightUnit })
       await setWaterGoal({ goalMl: waterGoal })
+
+      const hasEdits = hasCustomGoals ||
+        (effectiveGoals && (
+          calories !== effectiveGoals.effective.calories ||
+          protein !== effectiveGoals.effective.protein ||
+          carbs !== effectiveGoals.effective.carbs ||
+          fat !== effectiveGoals.effective.fat
+        ))
+
       await setCustomGoals({
-        calories: hasCustomGoals ? calories : undefined,
-        protein: hasCustomGoals ? protein : undefined,
-        carbs: hasCustomGoals ? carbs : undefined,
-        fat: hasCustomGoals ? fat : undefined,
+        calories: hasEdits ? calories : undefined,
+        protein: hasEdits ? protein : undefined,
+        carbs: hasEdits ? carbs : undefined,
+        fat: hasEdits ? fat : undefined,
       })
       onClose()
     } finally {
@@ -448,4 +457,3 @@ function SegmentedControl({
     </div>
   )
 }
-
