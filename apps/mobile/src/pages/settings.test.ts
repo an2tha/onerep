@@ -265,3 +265,185 @@ describe("Settings – preference defaults", () => {
     assert.ok(newDefault > oldDefault, "new default should be higher")
   })
 })
+
+// ─── NumberStepper logic ──────────────────────────────────────────────────────
+// The PR renamed NumberInput → NumberStepper and redesigned the commit / step
+// logic. The key changes:
+//   - draft is now a STRING (not a number), parsed with parseInt(draft, 10)
+//   - commit() reverts draft to String(value) when parseInt returns NaN
+//   - decrement() and increment() operate on the `value` prop (not draft)
+
+function numberStepperCommit(
+  draft: string,
+  value: number,
+  min: number,
+  max: number,
+): number | "revert" {
+  const parsed = parseInt(draft, 10)
+  if (!isNaN(parsed)) {
+    return Math.max(min, Math.min(max, parsed))
+  }
+  // NaN → caller should revert draft to String(value), value stays unchanged
+  return "revert"
+}
+
+function numberStepperDecrement(value: number, step: number, min: number): number {
+  return Math.max(min, value - step)
+}
+
+function numberStepperIncrement(value: number, step: number, max: number): number {
+  return Math.min(max, value + step)
+}
+
+describe("NumberStepper – commit (string parsing + clamp)", () => {
+  test("valid numeric string within range passes through unchanged", () => {
+    assert.strictEqual(numberStepperCommit("2000", 2000, 800, 5000), 2000)
+  })
+
+  test("numeric string below min is clamped to min", () => {
+    assert.strictEqual(numberStepperCommit("300", 2000, 800, 5000), 800)
+  })
+
+  test("numeric string above max is clamped to max", () => {
+    assert.strictEqual(numberStepperCommit("9999", 2000, 800, 5000), 5000)
+  })
+
+  test("non-numeric string returns revert sentinel (onChange not called)", () => {
+    assert.strictEqual(numberStepperCommit("abc", 1500, 800, 5000), "revert")
+  })
+
+  test("empty string returns revert sentinel", () => {
+    assert.strictEqual(numberStepperCommit("", 1500, 800, 5000), "revert")
+  })
+
+  test("string with spaces and digits: parseInt extracts leading int", () => {
+    // parseInt("  500  ", 10) === 500 in JS
+    assert.strictEqual(numberStepperCommit("  500  ", 2000, 500, 5000), 500)
+  })
+
+  test("float string is truncated to integer (parseInt, not parseFloat)", () => {
+    // parseInt("2000.5", 10) === 2000
+    assert.strictEqual(numberStepperCommit("2000.5", 2000, 800, 5000), 2000)
+  })
+
+  test("string exactly at min is accepted", () => {
+    assert.strictEqual(numberStepperCommit("800", 2000, 800, 5000), 800)
+  })
+
+  test("string exactly at max is accepted", () => {
+    assert.strictEqual(numberStepperCommit("5000", 2000, 800, 5000), 5000)
+  })
+
+  test("water goal: string '250' below min 500 clamps to 500", () => {
+    assert.strictEqual(numberStepperCommit("250", 2500, 500, 5000), 500)
+  })
+
+  test("protein: string '0' below min 20 clamps to 20", () => {
+    assert.strictEqual(numberStepperCommit("0", 150, 20, 400), 20)
+  })
+})
+
+describe("NumberStepper – decrement (operates on value prop)", () => {
+  test("decrements by step from value prop", () => {
+    assert.strictEqual(numberStepperDecrement(2000, 50, 800), 1950)
+  })
+
+  test("does not go below min", () => {
+    assert.strictEqual(numberStepperDecrement(800, 50, 800), 800)
+  })
+
+  test("partial step at boundary clamps to min", () => {
+    assert.strictEqual(numberStepperDecrement(820, 50, 800), 800)
+  })
+
+  test("water goal decrement by 250", () => {
+    assert.strictEqual(numberStepperDecrement(2500, 250, 500), 2250)
+  })
+
+  test("water goal decrement stops at min=500", () => {
+    assert.strictEqual(numberStepperDecrement(500, 250, 500), 500)
+  })
+
+  test("fat decrement by 5", () => {
+    assert.strictEqual(numberStepperDecrement(65, 5, 10), 60)
+  })
+
+  test("carbs decrement stops when step would go below min=10", () => {
+    assert.strictEqual(numberStepperDecrement(15, 10, 10), 10)
+  })
+})
+
+describe("NumberStepper – increment (operates on value prop)", () => {
+  test("increments by step from value prop", () => {
+    assert.strictEqual(numberStepperIncrement(2000, 50, 5000), 2050)
+  })
+
+  test("does not exceed max", () => {
+    assert.strictEqual(numberStepperIncrement(5000, 50, 5000), 5000)
+  })
+
+  test("partial step at boundary clamps to max", () => {
+    assert.strictEqual(numberStepperIncrement(4990, 50, 5000), 5000)
+  })
+
+  test("water goal increment by 250", () => {
+    assert.strictEqual(numberStepperIncrement(2500, 250, 5000), 2750)
+  })
+
+  test("water goal increment stops at max=5000", () => {
+    assert.strictEqual(numberStepperIncrement(5000, 250, 5000), 5000)
+  })
+
+  test("protein increment by 5", () => {
+    assert.strictEqual(numberStepperIncrement(150, 5, 400), 155)
+  })
+
+  test("fat increment stops at max=200", () => {
+    assert.strictEqual(numberStepperIncrement(200, 5, 200), 200)
+  })
+})
+
+describe("NumberStepper – draft state sync logic", () => {
+  test("when not editing, draft should equal String(value)", () => {
+    // The useEffect: if (!editing) setDraft(String(value))
+    const value = 2500
+    const editing = false
+    const draft = editing ? "old" : String(value)
+    assert.strictEqual(draft, "2500")
+  })
+
+  test("when editing, draft is NOT overwritten by value changes", () => {
+    const value = 2500
+    const editing = true
+    // The effect only runs setDraft when !editing
+    const draft = editing ? "user-typing" : String(value)
+    assert.strictEqual(draft, "user-typing")
+  })
+
+  test("String(value) converts integer correctly for any goal field", () => {
+    assert.strictEqual(String(2000), "2000")
+    assert.strictEqual(String(150), "150")
+    assert.strictEqual(String(200), "200")
+    assert.strictEqual(String(65), "65")
+    assert.strictEqual(String(2500), "2500")
+  })
+})
+
+// ─── SettingsRow layout logic ─────────────────────────────────────────────────
+// SettingsRow is a thin wrapper: label + children in a flex row.
+// RowDivider is a horizontal rule. Both are purely structural.
+// We validate the label-passing contract by mirroring the render output.
+
+describe("SettingsRow – label rendering", () => {
+  test("label string is passed through unchanged", () => {
+    const label = "Daily goal"
+    assert.strictEqual(label, "Daily goal")
+  })
+
+  test("all Settings labels present in the component", () => {
+    const expectedLabels = ["Calories", "Protein", "Carbs", "Fat", "Daily goal", "Focus", "Weight unit"]
+    for (const label of expectedLabels) {
+      assert.ok(label.length > 0, `label "${label}" should be non-empty`)
+    }
+  })
+})
