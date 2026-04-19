@@ -476,8 +476,11 @@ export default function Water() {
     }
     // Update UI instantly
     setOptimisticEntries((prev) => [...prev, entry])
-    // Sync to server in background
-    void addEntryMutation({ date: dateKey, entry })
+    // Sync to server in background, with error rollback
+    addEntryMutation({ date: dateKey, entry }).catch(() => {
+      // Remove the optimistic entry on error
+      setOptimisticEntries((prev) => prev.filter((e) => e.id !== entry.id))
+    })
   }
 
   function saveGoal(ml: number) {
