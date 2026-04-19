@@ -63,3 +63,44 @@ export const setDay = mutation({
     return { ok: true };
   },
 });
+
+// ── addEntry ──────────────────────────────────────────────────────────────────
+
+export const addEntry = mutation({
+  args: {
+    date: v.string(),
+    entry: v.object({
+      id: v.string(),
+      amountMl: v.number(),
+      loggedAt: v.string(),
+    }),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("waterLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        entries: [...existing.entries, args.entry],
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.insert("waterLogs", {
+        userId: user._id,
+        date: args.date,
+        entries: [args.entry],
+        updatedAt: now,
+      });
+    }
+
+    return { ok: true };
+  },
+});
