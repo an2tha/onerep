@@ -8,9 +8,10 @@
     "format": "turbo run format --continue && prettier --write \"**/*.{md,json,yml,yaml}\"",
     "typecheck": "turbo run typecheck",
     "check-types": "bun run typecheck",
-    "test": "bun test",
-    "test:watch": "bun test --watch",
-    "test:coverage": "bun test --coverage"
+    "test": "bun test --path-ignore-patterns \"convex/__tests__\" --path-ignore-patterns \"apps/data-api/loaders/datasets\"",
+    "test:convex": "vitest run --config convex/vitest.config.ts",
+    "test:watch": "bun test --watch --path-ignore-patterns \"convex/__tests__\" --path-ignore-patterns \"apps/data-api/loaders/datasets\"",
+    "test:coverage": "bun test --coverage --path-ignore-patterns \"convex/__tests__\" --path-ignore-patterns \"apps/data-api/loaders/datasets\""
   },
   "devDependencies": {
     "@edge-runtime/vm": "^5.0.0",
