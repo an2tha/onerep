@@ -282,7 +282,13 @@ const router = createBrowserRouter([
       },
       {
         path: "/settings",
-        element: <Settings />,
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Settings">
+              <Settings onClose={() => window.history.back()} />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
       },
     ],
   },

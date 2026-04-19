@@ -47,6 +47,20 @@ export function MobileSheet({
   const startHeight = React.useRef(0)
   const closingRef = React.useRef(false)
 
+  const normalizedMinHeight = React.useMemo(() => {
+    if (typeof minHeight === 'string' && minHeight.endsWith('vh')) {
+      return (parseFloat(minHeight) * window.innerHeight) / 100
+    }
+    return parseFloat(minHeight) || 0
+  }, [minHeight])
+
+  const normalizedMaxHeight = React.useMemo(() => {
+    if (typeof maxHeight === 'string' && maxHeight.endsWith('vh')) {
+      return (parseFloat(maxHeight) * window.innerHeight) / 100
+    }
+    return parseFloat(maxHeight) || window.innerHeight
+  }, [maxHeight])
+
   const dismiss = React.useCallback(() => {
     if (closingRef.current) return
     closingRef.current = true
@@ -65,8 +79,8 @@ export function MobileSheet({
       setOffsetY(newOffset)
 
       const newHeight = Math.max(
-        parseFloat(minHeight),
-        Math.min(parseFloat(maxHeight), startHeight.current - delta)
+        normalizedMinHeight,
+        Math.min(normalizedMaxHeight, startHeight.current - delta)
       )
       setCurrentHeight(newHeight)
     }
@@ -78,8 +92,8 @@ export function MobileSheet({
 
       if (panel) {
         const newHeight = Math.max(
-          parseFloat(minHeight),
-          Math.min(parseFloat(maxHeight), startHeight.current - offsetY)
+          normalizedMinHeight,
+          Math.min(normalizedMaxHeight, startHeight.current - offsetY)
         )
         setCurrentHeight(newHeight)
 
@@ -109,7 +123,7 @@ export function MobileSheet({
       window.removeEventListener("pointerup", handlePointerEnd)
       window.removeEventListener("pointercancel", handlePointerEnd)
     }
-  }, [dragging, dragThreshold, dismiss, offsetY, maxHeight, minHeight, snapPoints])
+  }, [dragging, dragThreshold, dismiss, offsetY, normalizedMaxHeight, normalizedMinHeight, snapPoints])
 
   React.useEffect(() => {
     if (!settling) return

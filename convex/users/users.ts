@@ -189,6 +189,11 @@ export const setWaterGoal = mutation({
   args: { goalMl: v.number() },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+
+    if (args.goalMl <= 0) {
+      throw new Error("water goal must be a positive number");
+    }
+
     const existing = await ctx.db
       .query("userPreferences")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -276,9 +281,21 @@ export const getEffectiveGoals = query({
     } | null = null
 
     if (healthProfile) {
-      healthGoals = calculateCalories(healthProfile)
+      const result = calculateCalories(healthProfile)
+      healthGoals = {
+        calories: result.targetCalories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+      }
     } else if (onboarding) {
-      healthGoals = estimateOnboardingCalories(onboarding)
+      const result = estimateOnboardingCalories(onboarding)
+      healthGoals = {
+        calories: result.targetCalories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+      }
     }
 
     return {

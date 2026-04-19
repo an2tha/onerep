@@ -1142,9 +1142,7 @@ export default function NewPreset() {
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
   const preferences = useQuery(api.users.users.getPreferences)
-  const [unit, setUnit] = useState<WeightUnit>(
-    () => (preferences?.weightUnit as WeightUnit) || "kg"
-  )
+  const [unit, setUnit] = useState<WeightUnit>("kg")
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [saving, setSaving] = useState(false)
@@ -1157,6 +1155,12 @@ export default function NewPreset() {
     item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
   )
   const isDirty = addedIds.length > 0 || presetName.trim().length > 0
+
+  useEffect(() => {
+    if (preferences?.weightUnit) {
+      setUnit(preferences.weightUnit as WeightUnit)
+    }
+  }, [preferences])
 
   useEffect(() => {
     dragRef.current = drag

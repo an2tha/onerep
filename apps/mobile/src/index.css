@@ -204,9 +204,9 @@ body[data-nav="POP"] .page-enter {
   to { height: 0; }
 }
 
-.data-open.animate-accordion-down {
+[data-state="open"].animate-accordion-down {
   animation: accordion-down 0.2s ease-out;
 }
-.data-closed.animate-accordion-up {
+[data-state="closed"].animate-accordion-up {
   animation: accordion-up 0.2s ease-out;
 }
