@@ -7,13 +7,20 @@
     "lint": "turbo run lint",
     "format": "turbo run format --continue && prettier --write \"**/*.{md,json,yml,yaml}\"",
     "typecheck": "turbo run typecheck",
-    "check-types": "bun run typecheck"
+    "check-types": "bun run typecheck",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:coverage": "bun test --coverage"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@types/cors": "^2.8.19",
+    "@vitest/coverage-v8": "^4.1.4",
+    "convex-test": "^0.0.49",
     "prettier": "^3.7.4",
     "turbo": "^2.9.4",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.4"
   },
   "engines": {
     "node": ">=18"

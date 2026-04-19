@@ -873,21 +873,7 @@ function GoalsCardWrapper({ goals, apiGoals, onSave }: { goals: GoalOverride, ap
 
 // ─── Water card ───────────────────────────────────────────────────────────────
 
-const WATER_GOAL_KEY = "onerep_water_goal_ml"
 const WATER_GLASS_COUNT = 8
-
-function readWaterGoal(): number {
-  try {
-    const n = parseInt(localStorage.getItem(WATER_GOAL_KEY) ?? "", 10)
-    return isNaN(n) ? 2000 : n
-  } catch {
-    return 2000
-  }
-}
-
-function writeWaterGoal(ml: number) {
-  localStorage.setItem(WATER_GOAL_KEY, String(ml))
-}
 
 function fmtWater(ml: number): string {
   if (ml >= 1000) {
@@ -898,9 +884,9 @@ function fmtWater(ml: number): string {
 }
 
 function WaterCard({ dateKey }: { dateKey: string }) {
-  const [goalMl, setGoalMlState] = React.useState(readWaterGoal)
-  const [editingGoal, setEditingGoal] = React.useState(false)
-  const [goalDraft, setGoalDraft] = React.useState(goalMl)
+  const navigate = useNavigate()
+  const preferences = useQuery(api.users.users.getPreferences)
+  const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setWaterDay = useMutation(api.logs.water.setDay)
@@ -921,12 +907,6 @@ function WaterCard({ dateKey }: { dateKey: string }) {
     void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
   }
 
-  function saveGoal() {
-    setGoalMlState(goalDraft)
-    writeWaterGoal(goalDraft)
-    setEditingGoal(false)
-  }
-
   return (
     <Card size="sm">
       {/* Header */}
@@ -935,52 +915,12 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           Hydration
         </p>
         <button
-          onClick={() => { setGoalDraft(goalMl); setEditingGoal((o) => !o) }}
-          className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground/30 active:text-muted-foreground/60 transition-colors"
+          onClick={() => navigate("/settings")}
+          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
         >
-          {editingGoal ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
-          {editingGoal ? "Cancel" : "Goal"}
+          <PencilSimple size={10} />
+          Goal
         </button>
-      </div>
-
-      {/* Goal edit */}
-      <div
-        className={cn(
-          "grid transition-all duration-200 ease-out",
-          editingGoal ? "mb-3 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
-        )}
-      >
-        <div className="overflow-hidden">
-          <div className="flex items-center justify-between">
-            <span className="text-[12.5px] font-semibold text-foreground/70">Daily goal</span>
-            <div className="flex items-center rounded-lg bg-muted/40 p-0.5">
-              <button
-                onClick={() => setGoalDraft((v) => Math.max(250, v - 250))}
-                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
-              >
-                <span className="text-[14px] leading-none">−</span>
-              </button>
-              <input
-                type="number"
-                value={goalDraft}
-                onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n)) setGoalDraft(Math.max(250, n)) }}
-                className="w-14 bg-transparent text-center text-[12px] font-bold tabular-nums outline-none"
-              />
-              <button
-                onClick={() => setGoalDraft((v) => v + 250)}
-                className="flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/50 active:bg-background active:text-foreground transition-colors"
-              >
-                <span className="text-[14px] leading-none">+</span>
-              </button>
-            </div>
-          </div>
-          <button
-            onClick={saveGoal}
-            className="mt-2.5 w-full rounded-lg bg-foreground py-1.5 text-[12px] font-bold text-background active:opacity-80 transition-opacity"
-          >
-            Save
-          </button>
-        </div>
       </div>
 
       {/* Glass grid */}

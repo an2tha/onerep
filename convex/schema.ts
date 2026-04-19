@@ -28,6 +28,16 @@ export default defineSchema({
         workoutFocus: v.string(), // "strength" | "cardio" | "mobility"
       }),
     ),
+    weightUnit: v.optional(v.string()), // "kg" | "lbs"
+    waterGoalMl: v.optional(v.number()),
+    customGoals: v.optional(
+      v.object({
+        calories: v.optional(v.number()),
+        protein: v.optional(v.number()),
+        carbs: v.optional(v.number()),
+        fat: v.optional(v.number()),
+      }),
+    ),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 

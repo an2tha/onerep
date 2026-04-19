@@ -55,6 +55,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
+import Settings from "./pages/Settings"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1001,102 +1002,29 @@ function LoggedTodayCard({
   )
 }
 
-// ─── Profile dropdown ─────────────────────────────────────────────────────────
+// ─── Profile button ─────────────────────────────────────────────────────────
 
-function ProfileDropdown({
+function ProfileButton({
   name,
-  email,
-  settings,
-  onChange,
-  onResetOnboarding,
-  onLogout,
+  onSettingsClick,
 }: {
   name?: string
-  email?: string
-  settings: DashboardSettings
-  onChange: (s: DashboardSettings) => void
-  onResetOnboarding: () => void
-  onLogout: () => Promise<void>
+  onSettingsClick: () => void
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground transition-opacity active:opacity-70"
-          aria-label="Profile"
-        >
-          {getInitials(name)}
-        </button>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="end" className="w-64">
-        <div className="px-3 py-2.5">
-          <p className="text-sm leading-none font-semibold">{name ?? "User"}</p>
-          {email && (
-            <p className="mt-1 text-xs text-muted-foreground">{email}</p>
-          )}
-        </div>
-        <DropdownMenuSeparator />
-
-        <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">
-          Workout focus
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup
-          value={settings.workoutFocus}
-          onValueChange={(v) =>
-            onChange({
-              ...settings,
-              workoutFocus:
-                v === "cardio"
-                  ? "cardio"
-                  : v === "mobility"
-                    ? "mobility"
-                    : "strength",
-            })
-          }
-        >
-          <DropdownMenuRadioItem value="strength">
-            Strength
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="cardio">Cardio</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="mobility">
-            Mobility
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-
-        <DropdownMenuSeparator />
-
-        <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">
-          Dev tools
-        </DropdownMenuLabel>
-        <DropdownMenuItem onSelect={onResetOnboarding} variant="destructive">
-          <Trash size={14} /> Reset onboarding
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onSelect={() => void onLogout()}
-          variant="destructive"
-        >
-          <SignOut size={14} /> Log out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      onClick={onSettingsClick}
+      className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground transition-opacity active:opacity-70"
+      aria-label="Settings"
+    >
+      {getInitials(name)}
+    </button>
   )
 }
 
 // ─── Water widget ─────────────────────────────────────────────────────────────
 
-const WATER_GOAL_KEY = "onerep_water_goal_ml"
-const DEFAULT_WATER_GOAL_ML = 2000
 const WATER_GLASS_COUNT = 8
-
-function readWaterGoal(): number {
-  try {
-    const n = parseInt(localStorage.getItem(WATER_GOAL_KEY) ?? "", 10)
-    return isNaN(n) ? DEFAULT_WATER_GOAL_ML : n
-  } catch {
-    return DEFAULT_WATER_GOAL_ML
-  }
-}
 
 function fmtWater(ml: number): string {
   if (ml >= 1000) {
@@ -1108,7 +1036,8 @@ function fmtWater(ml: number): string {
 
 function WaterWidget({ dateKey }: { dateKey: string }) {
   const navigate = useNavigate()
-  const [goalMl] = React.useState(readWaterGoal)
+  const preferences = useQuery(api.users.users.getPreferences)
+  const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setWaterDay = useMutation(api.logs.water.setDay)
@@ -1283,6 +1212,7 @@ export default function App() {
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
 
   return (
@@ -1298,21 +1228,8 @@ export default function App() {
               {salutation},<br />{firstName}.
             </h1>
           </div>
-          <div className="self-start pt-2">
-            <ProfileDropdown
-              name={session?.user?.name}
-              email={session?.user?.email}
-              settings={settings}
-              onChange={(s) => void setDashboardSettings(s)}
-              onResetOnboarding={() => {
-                void clearOnboarding({})
-                navigate("/onboarding", { replace: true })
-              }}
-              onLogout={async () => {
-                await authClient.signOut()
-                navigate("/login", { replace: true })
-              }}
-            />
+          <div>
+            <ProfileButton name={session?.user?.name} onSettingsClick={() => setSettingsOpen(true)} />
           </div>
         </header>
 
@@ -1528,6 +1445,10 @@ export default function App() {
             <div className="h-4" />
           </div>
         </div>
+      )}
+
+      {settingsOpen && (
+        <Settings onClose={() => setSettingsOpen(false)} />
       )}
     </div>
   )
