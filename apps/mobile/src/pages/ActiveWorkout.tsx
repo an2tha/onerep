@@ -1852,45 +1852,48 @@ export default function ActiveWorkout() {
             </div>
           </div>
           <div className="flex flex-col gap-3">
-            {items.map((item) =>
-              item.kind === "solo" ? (
-                <ActiveExerciseCard
-                  key={item.exerciseId}
-                  exercise={exerciseLookup[item.exerciseId]!}
-                  data={exData[item.exerciseId]}
-                  unit={unit}
-                  onUpdate={(d) => updateExData(item.exerciseId, d)}
-                  onRemove={() => removeExercise(item.exerciseId)}
-                  isDragging={drag?.exerciseId === item.exerciseId && drag.active}
-                  {...cardProps(item.exerciseId)}
-                  collapsed={Boolean(collapsed[item.exerciseId])}
-                  onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
-                  dragHandlers={makeDragHandlers(item.exerciseId)}
-                  cardRef={(el) => {
-                    if (el) cardRefs.current.set(item.exerciseId, el)
-                    else cardRefs.current.delete(item.exerciseId)
-                  }}
-                  onStartRest={rest.start}
-                />
-              ) : (
-                renderSupersetItem(
-                    item,
-                    exData,
-                    unit,
-                    updateExData,
-                    removeExercise,
-                    drag,
-                    dropTarget,
-                    collapsed,
-                    toggleCollapsed,
-                    makeDragHandlers,
-                    cardRefs,
-                    rest.start,
-                    cardProps,
-                    exerciseLookup
+            {items.map((item) => {
+              if (item.kind === "solo") {
+                const ex = exerciseLookup[item.exerciseId]
+                if (!ex) return null
+                return (
+                  <ActiveExerciseCard
+                    key={item.exerciseId}
+                    exercise={ex}
+                    data={exData[item.exerciseId]}
+                    unit={unit}
+                    onUpdate={(d) => updateExData(item.exerciseId, d)}
+                    onRemove={() => removeExercise(item.exerciseId)}
+                    isDragging={drag?.exerciseId === item.exerciseId && drag.active}
+                    {...cardProps(item.exerciseId)}
+                    collapsed={Boolean(collapsed[item.exerciseId])}
+                    onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
+                    dragHandlers={makeDragHandlers(item.exerciseId)}
+                    cardRef={(el) => {
+                      if (el) cardRefs.current.set(item.exerciseId, el)
+                      else cardRefs.current.delete(item.exerciseId)
+                    }}
+                    onStartRest={rest.start}
+                  />
                 )
+              }
+              return renderSupersetItem(
+                item,
+                exData,
+                unit,
+                updateExData,
+                removeExercise,
+                drag,
+                dropTarget,
+                collapsed,
+                toggleCollapsed,
+                makeDragHandlers,
+                cardRefs,
+                rest.start,
+                cardProps,
+                exerciseLookup
               )
-            )}
+            })}
           </div>
           <button
             onClick={() => setSearchOpen(true)}
