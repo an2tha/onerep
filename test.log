@@ -1,0 +1,486 @@
+[0m[2m[35m$[0m [2m[1mbun test[0m
+[0m
+convex/__tests__/onboarding.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/onboarding.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/water.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/water.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/checkIn.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/checkIn.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/foodLogs.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/foodLogs.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/users.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/users.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/workouts.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/workouts.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/__tests__/calories.convex.test.ts:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[0m[1m1 |[0m [0m[35mimport[0m { describe, test, expect } [0m[35mfrom[0m [0m[32m"vitest"[0m[0m[2m;[0m
+[0m[1m2 |[0m [0m[35mimport[0m { convexTest } [0m[35mfrom[0m [0m[32m"convex-test"[0m[0m[2m;[0m
+[0m[1m3 |[0m [0m[35mimport[0m schema [0m[35mfrom[0m [0m[32m"../schema"[0m[0m[2m;[0m
+[0m[1m4 |[0m [0m[35mimport[0m { api } [0m[35mfrom[0m [0m[32m"../_generated/api"[0m[0m[2m;[0m
+[0m[1m5 |[0m 
+[0m[1m6 |[0m [0m[35mconst[0m modules = [0m[35mimport[0m.meta[0m[3m[1m.glob[0m([0m[32m"../**/*.ts"[0m)[0m[2m;[0m
+                                [31m[1m^[0m
+[0m[31mTypeError[0m[2m:[0m [1mimport.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)[0m
+[0m      [2mat [0m[0m[36m[2m/Users/ananth/Documents/Code/onerep/[0m[36mconvex/__tests__/calories.convex.test.ts[0m[2m:[0m[33m6[0m[2m:[33m29[0m
+[0m      [2mat [0m[0m[1m[3mloadAndEvaluateModule[0m[2m ([0m[0m[36m[0m[33m2[0m[2m:[33m1[0m[2m)[0m
+[0m[2m-------------------------------[0m
+
+[0m
+convex/lib/calculateCalories.test.ts:
+[0m[32m✓[0m [0mcalculateCalories – BMR[2m >[0m[1m male BMR uses +5 sex constant[0m [0m[2m[0.05ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – BMR[2m >[0m[1m female BMR uses -161 sex constant[0m
+[0m[32m✓[0m [0mcalculateCalories – BMR[2m >[0m[1m male BMR is greater than female BMR with equal stats (difference is 166)[0m [0m[2m[0.07ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – BMR[2m >[0m[1m BMR is a rounded integer[0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m sedentary uses 1.2 multiplier[0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m lightly_active uses 1.375 multiplier[0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m moderately_active uses 1.55 multiplier[0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m very_active uses 1.725 multiplier[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m extra_active uses 1.9 multiplier[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m unknown activity level falls back to 1.55 multiplier[0m
+[0m[32m✓[0m [0mcalculateCalories – TDEE / activity multipliers[2m >[0m[1m TDEE is a rounded integer[0m
+[0m[32m✓[0m [0mcalculateCalories – goal calorie delta[2m >[0m[1m maintain goal has 0 delta[0m
+[0m[32m✓[0m [0mcalculateCalories – goal calorie delta[2m >[0m[1m lose goal subtracts 500 kcal from TDEE[0m
+[0m[32m✓[0m [0mcalculateCalories – goal calorie delta[2m >[0m[1m gain goal adds 500 kcal to TDEE[0m
+[0m[32m✓[0m [0mcalculateCalories – goal calorie delta[2m >[0m[1m unknown goal falls back to 0 delta (same as maintain)[0m
+[0m[32m✓[0m [0mcalculateCalories – goal calorie delta[2m >[0m[1m targetCalories is a rounded integer[0m
+[0m[32m✓[0m [0mcalculateCalories – macros[2m >[0m[1m protein is 30% of targetCalories / 4 (rounded)[0m
+[0m[32m✓[0m [0mcalculateCalories – macros[2m >[0m[1m carbs is 40% of targetCalories / 4 (rounded)[0m
+[0m[32m✓[0m [0mcalculateCalories – macros[2m >[0m[1m fat is 30% of targetCalories / 9 (rounded)[0m [0m[2m[0.09ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – macros[2m >[0m[1m all macros are positive integers[0m
+[0m[32m✓[0m [0mcalculateCalories – integration scenarios[2m >[0m[1m sedentary male, 30yo, 80kg 180cm, maintain[0m
+[0m[32m✓[0m [0mcalculateCalories – integration scenarios[2m >[0m[1m very_active female, 25yo, 60kg 165cm, lose[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – integration scenarios[2m >[0m[1m extra_active male, 22yo, 90kg 190cm, gain[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories – integration scenarios[2m >[0m[1m returned object has all required fields[0m
+[0m[32m✓[0m [0mcalculateCalories – integration scenarios[2m >[0m[1m TDEE is always greater than BMR for any valid activity level[0m
+[0m
+convex/lib/estimateOnboardingCalories.test.ts:
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m "lose" goal subtracts 280 from base[0m [0m[2m[0.05ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m "build" goal adds 240 to base[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m "performance" goal adds 240 to base (same as build)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m "maintain" goal has 0 delta[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m unknown goal maps to maintain (0 delta)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – goal mapping[2m >[0m[1m "tone" goal maps to maintain (0 delta)[0m [0m[2m[0.09ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – BMR floor at 1200[2m >[0m[1m BMR is never below 1200[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – BMR floor at 1200[2m >[0m[1m BMR reaches floor of 1200 for extreme inputs[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – targetCalories floor at 1400[2m >[0m[1m targetCalories is never below 1400[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – targetCalories floor at 1400[2m >[0m[1m normal inputs don't hit the targetCalories floor[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – TDEE[2m >[0m[1m TDEE is max(base+120, bmr+400)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – TDEE[2m >[0m[1m TDEE is always greater than BMR[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – macros[2m >[0m[1m protein is 30% of targetCalories / 4 (rounded)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – macros[2m >[0m[1m carbs is 40% of targetCalories / 4 (rounded)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – macros[2m >[0m[1m fat is 30% of targetCalories / 9 (rounded)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – macros[2m >[0m[1m all macro values are positive integers[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – integration[2m >[0m[1m age 25, height 170cm, lose goal – full calculation[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – integration[2m >[0m[1m age 30, height 180cm, build goal – full calculation[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – integration[2m >[0m[1m returned object has all required fields[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – integration[2m >[0m[1m gain goal results in higher targetCalories than maintain[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories – integration[2m >[0m[1m lose goal results in lower targetCalories than maintain[0m
+[0m
+convex/lib/__tests__/calculateCalories.test.ts:
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mBMR calculation (Mifflin-St Jeor)[2m >[0m[1m calculates male BMR correctly[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mBMR calculation (Mifflin-St Jeor)[2m >[0m[1m calculates female BMR correctly[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mBMR calculation (Mifflin-St Jeor)[2m >[0m[1m BMR decreases with age[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mBMR calculation (Mifflin-St Jeor)[2m >[0m[1m BMR increases with height[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mBMR calculation (Mifflin-St Jeor)[2m >[0m[1m BMR increases with weight[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m sedentary multiplier (1.2)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m lightly_active multiplier (1.375)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m moderately_active multiplier (1.55)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m very_active multiplier (1.725)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m extra_active multiplier (1.9)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m unknown activity level falls back to moderately_active (1.55)[0m [0m[2m[0.05ms[0m[2m][0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mTDEE calculation[2m >[0m[1m TDEE is always greater than BMR[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mtarget calories by goal[2m >[0m[1m maintain goal: targetCalories equals TDEE[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mtarget calories by goal[2m >[0m[1m lose goal: targetCalories is 500 below TDEE[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mtarget calories by goal[2m >[0m[1m gain goal: targetCalories is 500 above TDEE[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mtarget calories by goal[2m >[0m[1m unknown goal falls back to maintain (0 delta)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mmacro calculations[2m >[0m[1m protein is 30% of targetCalories / 4 kcal per gram[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mmacro calculations[2m >[0m[1m carbs is 40% of targetCalories / 4 kcal per gram[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mmacro calculations[2m >[0m[1m fat is 30% of targetCalories / 9 kcal per gram[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mmacro calculations[2m >[0m[1m macros scale proportionally with target calories[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mreturn shape[2m >[0m[1m returns all required fields[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0mreturn shape[2m >[0m[1m all values are integers (rounded)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0medge cases[2m >[0m[1m very low weight (40 kg)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0medge cases[2m >[0m[1m very high weight (200 kg)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0medge cases[2m >[0m[1m very young person (18)[0m
+[0m[32m✓[0m [0mcalculateCalories[2m > [0medge cases[2m >[0m[1m elderly person (80)[0m
+[0m
+convex/lib/__tests__/estimateOnboardingCalories.test.ts:
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mgoal mapping to calorie delta[2m >[0m[1m 'lose' goal produces lower targetCalories than 'health'[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mgoal mapping to calorie delta[2m >[0m[1m 'build' goal produces higher targetCalories than 'health'[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mgoal mapping to calorie delta[2m >[0m[1m 'performance' goal produces higher targetCalories than 'health'[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mgoal mapping to calorie delta[2m >[0m[1m 'performance' and 'build' goals produce same calorie delta[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mgoal mapping to calorie delta[2m >[0m[1m unknown goal maps to 'maintain' (health-like)[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mBMR floor[2m >[0m[1m BMR never falls below 1200 kcal[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mBMR floor[2m >[0m[1m BMR minimum applies for extreme inputs[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mtargetCalories floor[2m >[0m[1m targetCalories never falls below 1400 kcal[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mTDEE floor[2m >[0m[1m TDEE is always at least BMR + 400[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0manthropometric scaling[2m >[0m[1m taller person has higher base calories[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0manthropometric scaling[2m >[0m[1m younger person has higher base calories[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mmacro calculations[2m >[0m[1m protein is 30% of targetCalories / 4 kcal per gram[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mmacro calculations[2m >[0m[1m carbs is 40% of targetCalories / 4 kcal per gram[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mmacro calculations[2m >[0m[1m fat is 30% of targetCalories / 9 kcal per gram[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mreturn shape[2m >[0m[1m returns all CaloricGoals fields[0m
+[0m[32m✓[0m [0mestimateOnboardingCalories[2m > [0mreturn shape[2m >[0m[1m all values are positive integers[0m
+[0m
+apps/mobile/src/formatting.test.ts:
+[0m[32m✓[0m [0mfmtWater / fmtMl – values below 1000ml[2m >[0m[1m 0 ml returns '0 ml'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values below 1000ml[2m >[0m[1m 250 ml returns '250 ml'[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values below 1000ml[2m >[0m[1m 500 ml returns '500 ml'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values below 1000ml[2m >[0m[1m 999 ml returns '999 ml'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 1000 ml returns '1 L' (not '1.0 L')[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 1500 ml returns '1.5 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 2000 ml returns '2 L' (not '2.0 L')[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 2500 ml returns '2.5 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 3000 ml returns '3 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 1100 ml returns '1.1 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – values at or above 1000ml[2m >[0m[1m 4000 ml returns '4 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – boundary at exactly 1000[2m >[0m[1m exactly 1000 is formatted as liters, not ml[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – boundary at exactly 1000[2m >[0m[1m 999 is formatted as ml, not liters[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – default water goal (PR changed from 2000 to 2500)[2m >[0m[1m 2500 ml (new default water goal) formats as '2.5 L'[0m
+[0m[32m✓[0m [0mfmtWater / fmtMl – default water goal (PR changed from 2000 to 2500)[2m >[0m[1m 2000 ml (old default water goal) formats as '2 L'[0m
+[0m[32m✓[0m [0mgetInitials – missing or empty name[2m >[0m[1m undefined returns '?'[0m
+[0m[32m✓[0m [0mgetInitials – missing or empty name[2m >[0m[1m empty string returns '?'[0m
+[0m[32m✓[0m [0mgetInitials – single name[2m >[0m[1m 'Alice' returns 'A'[0m [0m[2m[0.14ms[0m[2m][0m
+[0m[32m✓[0m [0mgetInitials – single name[2m >[0m[1m 'bob' returns 'B' (uppercased)[0m
+[0m[32m✓[0m [0mgetInitials – single name[2m >[0m[1m single lowercase letter returns uppercase[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mgetInitials – two-word names[2m >[0m[1m 'John Doe' returns 'JD'[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mgetInitials – two-word names[2m >[0m[1m 'alice smith' returns 'AS' (both uppercased)[0m
+[0m[32m✓[0m [0mgetInitials – two-word names[2m >[0m[1m 'Marie Curie' returns 'MC'[0m
+[0m[32m✓[0m [0mgetInitials – three or more words[2m >[0m[1m 'John Michael Doe' returns 'JD' (first + last)[0m
+[0m[32m✓[0m [0mgetInitials – three or more words[2m >[0m[1m 'a b c d' returns 'AD' (first + last)[0m
+[0m[32m✓[0m [0mgetInitials – extra whitespace[2m >[0m[1m leading/trailing spaces are trimmed[0m
+[0m[32m✓[0m [0mgetInitials – extra whitespace[2m >[0m[1m multiple internal spaces treated as single separator[0m
+[0m
+apps/data-api/lib/__tests__/validation.test.ts:
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m accepts a minimal valid food object[0m [0m[2m[0.47ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m accepts a full valid food object[0m [0m[2m[0.13ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m rejects missing product_name[0m [0m[2m[0.19ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m rejects empty product_name[0m [0m[2m[0.06ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m accepts all valid nutriscore_grade values[0m [0m[2m[0.06ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m rejects invalid nutriscore_grade[0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m rejects nutriscore_score below -15[0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m rejects nutriscore_score above 40[0m [0m[2m[0.12ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m accepts nutriscore_score at boundaries (-15, 40)[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mfoodSchema[2m >[0m[1m optional fields can be omitted[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m accepts minimal valid exercise[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m accepts full exercise object[0m [0m[2m[0.10ms[0m[2m][0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m rejects missing name[0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m rejects empty name[0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m primaryMuscles must be an array of strings[0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m accepts empty muscle arrays[0m
+[0m[32m✓[0m [0mexerciseSchema[2m >[0m[1m optional string fields can be omitted[0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m accepts empty search query[0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m accepts all optional filters[0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m accepts valid grade values[0m [0m[2m[0.22ms[0m[2m][0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m rejects invalid grade[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m coerces min_score from string to number[0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m rejects min_score below -15[0m [0m[2m[0.05ms[0m[2m][0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m rejects max_score above 40[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0msearchQuerySchema[2m >[0m[1m accepts score at boundaries[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m accepts valid numeric barcode[0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m accepts single digit barcode[0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m rejects alphabetic barcode[0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m rejects barcode with hyphens[0m [0m[2m[0.11ms[0m[2m][0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m rejects barcode with spaces[0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m rejects empty barcode[0m
+[0m[32m✓[0m [0mbarcodeSchema[2m >[0m[1m rejects missing code field[0m
+[0m[32m✓[0m [0mparseValidatedBody[2m >[0m[1m returns data on success[0m
+[0m[32m✓[0m [0mparseValidatedBody[2m >[0m[1m returns error on failure[0m
+[0m[32m✓[0m [0mparseValidatedBody[2m >[0m[1m returned ZodError has issues array[0m
+[0m[32m✓[0m [0mparseValidatedBody[2m >[0m[1m works with foodSchema[0m
+[0m[32m✓[0m [0mparseValidatedBody[2m >[0m[1m works with exerciseSchema on invalid data[0m
+[0m
+apps/mobile/src/components/mobile-sheet.test.ts:
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m snaps to exact match when height equals a snap point[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m snaps to lower point when closer[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m snaps to upper point when closer[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m midpoint between two snap points picks the first one (reduce keeps prev on tie)[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m below all snap points snaps to smallest[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m above all snap points snaps to largest[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m single snap point always returns that point[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m two snap points: value closer to first[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m two snap points: value closer to second[0m
+[0m[32m✓[0m [0mMobileSheet – snap point algorithm[2m >[0m[1m Settings.tsx default snap points [350, 450, 600]: defaultHeight=450 snaps to 450[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m no delta returns startHeight unchanged[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m positive delta (dragging down) decreases height[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m negative delta (dragging up to expand) increases height[0m [0m[2m[0.17ms[0m[2m][0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m clamped to maxHeight when drag would exceed it[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m clamped to minHeight when drag would go below it[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m exact minHeight boundary is not clamped further[0m
+[0m[32m✓[0m [0mMobileSheet – height clamping during drag[2m >[0m[1m exact maxHeight boundary is not clamped further[0m
+[0m[32m✓[0m [0mMobileSheet – drag offset formula (PR change: 0.18 → 0.3)[2m >[0m[1m positive delta (dragging down) passes through unchanged[0m
+[0m[32m✓[0m [0mMobileSheet – drag offset formula (PR change: 0.18 → 0.3)[2m >[0m[1m negative delta (dragging up past top) uses 0.3 resistance factor[0m
+[0m[32m✓[0m [0mMobileSheet – drag offset formula (PR change: 0.18 → 0.3)[2m >[0m[1m resistance factor produces less visual offset than the actual drag[0m
+[0m[32m✓[0m [0mMobileSheet – drag threshold (PR change: 120 → 100)[2m >[0m[1m offset above threshold triggers dismiss[0m
+[0m[32m✓[0m [0mMobileSheet – drag threshold (PR change: 120 → 100)[2m >[0m[1m offset at exactly threshold does NOT trigger dismiss (strict >)[0m
+[0m[32m✓[0m [0mMobileSheet – drag threshold (PR change: 120 → 100)[2m >[0m[1m offset below threshold does not trigger dismiss[0m
+[0m[32m✓[0m [0mMobileSheet – drag threshold (PR change: 120 → 100)[2m >[0m[1m zero offset does not trigger dismiss[0m
+[0m[32m✓[0m [0mMobileSheet – drag threshold (PR change: 120 → 100)[2m >[0m[1m old default (120) is no longer the threshold – 110 would now trigger dismiss[0m
+[0m[32m✓[0m [0mMobileSheet – new prop defaults[2m >[0m[1m all props have correct defaults when omitted[0m
+[0m[32m✓[0m [0mMobileSheet – new prop defaults[2m >[0m[1m Settings.tsx passes correct custom props[0m
+[0m[32m✓[0m [0mMobileSheet – new prop defaults[2m >[0m[1m custom dragThreshold overrides default[0m
+[0m[32m✓[0m [0mMobileSheet – new prop defaults[2m >[0m[1m defaultHeight 0 means no explicit height (sheet sizes to content)[0m
+[0m[32m✓[0m [0mMobileSheet – new prop defaults[2m >[0m[1m non-zero defaultHeight produces height style[0m
+[0m
+apps/mobile/src/pages/settings.test.ts:
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m value within range stays unchanged[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m value below min is clamped to min[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m value above max is clamped to max[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m value exactly at min is kept[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m value exactly at max is kept[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m calorie range: 800 floor is enforced[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m calorie range: 5000 ceiling is enforced[0m
+[0m[32m✓[0m [0mNumberInput – commit (clamp to [min, max])[2m >[0m[1m water goal range: 500 floor is enforced[0m
+[0m[32m✓[0m [0mNumberInput – decrement[2m >[0m[1m decrements by step[0m
+[0m[32m✓[0m [0mNumberInput – decrement[2m >[0m[1m does not go below min[0m
+[0m[32m✓[0m [0mNumberInput – decrement[2m >[0m[1m partial step at boundary clamps to min[0m
+[0m[32m✓[0m [0mNumberInput – decrement[2m >[0m[1m decrementing calories by 50 step[0m
+[0m[32m✓[0m [0mNumberInput – decrement[2m >[0m[1m decrementing protein by 5 step[0m
+[0m[32m✓[0m [0mNumberInput – increment[2m >[0m[1m increments by step[0m
+[0m[32m✓[0m [0mNumberInput – increment[2m >[0m[1m does not exceed max[0m
+[0m[32m✓[0m [0mNumberInput – increment[2m >[0m[1m partial step at boundary clamps to max[0m
+[0m[32m✓[0m [0mNumberInput – increment[2m >[0m[1m incrementing fat by 5 step[0m [0m[2m[0.13ms[0m[2m][0m
+[0m[32m✓[0m [0mSegmentedControl – selection[2m >[0m[1m only the current value is marked as selected[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mSegmentedControl – selection[2m >[0m[1m strength is selected when value is 'strength'[0m
+[0m[32m✓[0m [0mSegmentedControl – selection[2m >[0m[1m kg is selected when weight unit is 'kg'[0m
+[0m[32m✓[0m [0mSegmentedControl – selection[2m >[0m[1m lbs is selected when weight unit is 'lbs'[0m
+[0m[32m✓[0m [0mSegmentedControl – selection[2m >[0m[1m selection comparison is case-sensitive[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m when custom and health are null, returns hardcoded defaults[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m custom goals override health and defaults for all fields[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m health goals are used when custom is null[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m custom calories overrides health, health protein overrides default[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m defaults used for fields missing in both custom and health[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m undefined custom is treated same as null[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m all defaults are non-zero positive numbers[0m
+[0m[32m✓[0m [0mgetEffectiveGoals – priority: custom > health > default[2m >[0m[1m custom 0 is NOT treated as missing (0 ?? x → 0 since 0 is not null/undefined)[0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m waterGoalMl defaults to 2500 when preferences is null[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m waterGoalMl uses stored value when available[0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m weightUnit defaults to 'kg' when preferences is null[0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m weightUnit uses stored 'lbs' value when available[0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m workoutFocus defaults to 'strength' when dashboardSettings is absent[0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m workoutFocus uses stored 'cardio' value when available[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mSettings – preference defaults[2m >[0m[1m waterGoalMl: new PR default (2500) is higher than old localStorage default (2000)[0m
+[0m
+apps/mobile/src/lib/__tests__/utils.test.ts:
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m returns a single class name unchanged[0m [0m[2m[1.72ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m merges multiple class names[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles undefined and null values[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles false conditionals[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles true conditionals[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles object syntax[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles array syntax[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m merges conflicting Tailwind classes (twMerge behavior)[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m merges conflicting padding classes[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m preserves non-conflicting classes[0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m returns empty string for no arguments[0m [0m[2m[0.18ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m returns empty string for all falsy arguments[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (class name utility)[2m >[0m[1m handles nested arrays and objects[0m [0m[2m[0.03ms[0m[2m][0m
+[0m
+apps/mobile/src/lib/__tests__/body-progress.test.ts:
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m formats midnight correctly[0m [0m[2m[5.67ms[0m[2m][0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m formats noon correctly[0m [0m[2m[0.11ms[0m[2m][0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m formats morning time correctly[0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m formats afternoon time correctly[0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m formats evening time correctly[0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m pads single-digit minutes with leading zero[0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m always starts with 'Daily at'[0m [0m[2m[0.31ms[0m[2m][0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m works with reminder disabled (label is still formatted)[0m
+[0m[32m✓[0m [0mformatReminderLabel[2m >[0m[1m handles end of day (23:59)[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mBodyMeasurementEntry type shape[2m >[0m[1m can create a valid entry object[0m
+[0m[32m✓[0m [0mBodyMeasurementEntry type shape[2m >[0m[1m can create minimal entry with only required fields[0m [0m[2m[0.01ms[0m[2m][0m
+[0m
+apps/mobile/src/lib/__tests__/food-log.test.ts:
+[0m[32m✓[0m [0mDEFAULT_MEAL_CATEGORIES[2m >[0m[1m has 4 default categories[0m
+[0m[32m✓[0m [0mDEFAULT_MEAL_CATEGORIES[2m >[0m[1m contains breakfast, lunch, dinner, snack[0m
+[0m[32m✓[0m [0mDEFAULT_MEAL_CATEGORIES[2m >[0m[1m all default categories have isDefault: true[0m
+[0m[32m✓[0m [0mDEFAULT_MEAL_CATEGORIES[2m >[0m[1m all categories have id, label, color, bg[0m
+[0m[32m✓[0m [0mCUSTOM_CATEGORY_COLORS[2m >[0m[1m has multiple color options[0m
+[0m[32m✓[0m [0mCUSTOM_CATEGORY_COLORS[2m >[0m[1m each entry has color and bg[0m
+[0m[32m✓[0m [0mdefaultMeal[2m >[0m[1m returns a valid meal type string[0m [0m[2m[0.25ms[0m[2m][0m
+[0m[32m✓[0m [0mdetectTimeZone[2m >[0m[1m returns a non-empty string[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mdetectTimeZone[2m >[0m[1m returns a valid IANA timezone identifier[0m [0m[2m[0.23ms[0m[2m][0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m returns same date with offset 0[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m adds 1 day correctly[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m subtracts 1 day correctly[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles month boundary forward[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles month boundary backward[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles year boundary forward[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles year boundary backward[0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles leap year February[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m handles large positive offset[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0moffsetDateKey[2m >[0m[1m returns string in YYYY-MM-DD format[0m
+[0m[32m✓[0m [0mdateForOffset[2m >[0m[1m returns a string in YYYY-MM-DD format[0m [0m[2m[0.30ms[0m[2m][0m
+[0m[32m✓[0m [0mdateForOffset[2m >[0m[1m tomorrow is 1 day ahead of today[0m [0m[2m[0.29ms[0m[2m][0m
+[0m[32m✓[0m [0mdateForOffset[2m >[0m[1m yesterday is 1 day behind today[0m [0m[2m[0.16ms[0m[2m][0m
+[0m[32m✓[0m [0mcurrentDateKey[2m >[0m[1m returns a string in YYYY-MM-DD format[0m [0m[2m[0.15ms[0m[2m][0m
+[0m[32m✓[0m [0mcurrentDateKey[2m >[0m[1m equals dateForOffset(0)[0m [0m[2m[0.20ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m readAllMealCategories includes default categories[0m [0m[2m[0.05ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m readAllMealCategories returns only defaults when no custom ones[0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m addMealCategory adds a new category[0m [0m[2m[0.06ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m addMealCategory generates id from label[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m addMealCategory assigns a color from CUSTOM_CATEGORY_COLORS[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m removeMealCategory removes the correct category[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m removeMealCategory does not remove default categories[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mmeal category localStorage helpers[2m >[0m[1m multiple custom categories cycle through colors[0m [0m[2m[0.04ms[0m[2m][0m
+[0m
+apps/mobile/src/lib/__tests__/exercise-catalog.test.ts:
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m is a non-empty array[0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m every exercise has required fields[0m [0m[2m[0.09ms[0m[2m][0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m all exercise ids are unique[0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m all exercise names are unique[0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m category is one of the valid ExerciseCategory values[0m [0m[2m[0.06ms[0m[2m][0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m contains at least one of each category[0m
+[0m[32m✓[0m [0mEXERCISES[2m >[0m[1m color fields are valid hex colors[0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m returns exercise for valid id[0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m returns null for non-existent id[0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m returns null for empty string[0m [0m[2m[0.08ms[0m[2m][0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m returns correct exercise for each known id[0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m all exercises in EXERCISES are findable by id[0m [0m[2m[0.04ms[0m[2m][0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m returns full exercise object with all fields[0m
+[0m[32m✓[0m [0mgetExerciseById[2m >[0m[1m case-sensitive id matching[0m
+[0m[32m✓[0m [0mexercise category filtering[2m >[0m[1m can filter strength exercises[0m
+[0m[32m✓[0m [0mexercise category filtering[2m >[0m[1m can filter cardio exercises[0m
+[0m[32m✓[0m [0mexercise category filtering[2m >[0m[1m can filter mobility exercises[0m
+[0m[32m✓[0m [0mexercise category filtering[2m >[0m[1m can filter core exercises[0m
+[0m[32m✓[0m [0mexercise category filtering[2m >[0m[1m all category filters sum to total exercises[0m [0m[2m[0.03ms[0m[2m][0m
+[0m
+packages/ui/src/lib/__tests__/utils.test.ts:
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m returns single class unchanged[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m joins multiple classes[0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m resolves Tailwind conflicts: later wins[0m [0m[2m[0.11ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m handles conditional classes via boolean[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m omits falsy conditional classes[0m [0m[2m[0.01ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m handles object syntax for conditional classes[0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m handles array input[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m handles mixed input types[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m deduplicates conflicting margins[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m preserves non-conflicting utility classes[0m [0m[2m[0.02ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m empty call returns empty string[0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m all-falsy args return empty string[0m [0m[2m[0.03ms[0m[2m][0m
+[0m[32m✓[0m [0mcn (packages/ui)[2m >[0m[1m real-world shadcn pattern: variant merging[0m
+[0m
+apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/ExerciseInstructions.spec.js:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[31merror[0m[2m: [0m[1mCannot find module '@vue/test-utils' from '/Users/ananth/Documents/Code/onerep/apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/ExerciseInstructions.spec.js'[0m
+[0m[2m-------------------------------[0m
+
+[0m
+apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/SearchBar.spec.js:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[31merror[0m[2m: [0m[1mCannot find module '@vue/test-utils' from '/Users/ananth/Documents/Code/onerep/apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/SearchBar.spec.js'[0m
+[0m[2m-------------------------------[0m
+
+[0m
+apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/PhotoGallery.spec.js:
+[0m
+[1m[2m#[0m [31m[1mUnhandled error[0m[2m between tests[0m
+[2m-------------------------------[0m
+[31merror[0m[2m: [0m[1mCannot find module '@vue/test-utils' from '/Users/ananth/Documents/Code/onerep/apps/data-api/loaders/datasets/free-exercise-db/site/src/components/__tests__/PhotoGallery.spec.js'[0m
+[0m[2m-------------------------------[0m
+
+
+[0m[2m10 tests failed:[0m
+
+[0m[32m 307 pass[0m
+[0m[31m 10 fail[0m
+ [0m[31m10 errors[0m
+ 536 expect() calls
+Ran 317 tests across 23 files. [0m[2m[[1m132.00ms[0m[2m][0m
+[0m[31merror[0m[2m:[0m script [1m"test"[0m exited with code 1[0m
