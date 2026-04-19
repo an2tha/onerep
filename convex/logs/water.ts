@@ -30,7 +30,7 @@ export const setDay = mutation({
       v.object({
         id: v.string(),
         amountMl: v.number(),
-        timestamp: v.number(),
+        loggedAt: v.string(),
       }),
     ),
   },

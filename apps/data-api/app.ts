@@ -55,7 +55,7 @@ app.use(
       if (!origin || ALLOWED_ORIGINS.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(createError(403, "Not allowed by CORS"));
       }
     },
     methods: ["GET", "POST", "OPTIONS"],
