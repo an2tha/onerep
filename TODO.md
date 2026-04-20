@@ -9,7 +9,7 @@
 
 ## Strength & Performance
 
-- [ ] **1RM calculator** — estimate one-rep max from working sets (Epley/Brzycki)
+- [x] **1RM calculator** — estimate one-rep max from working sets (Epley/Brzycki)
 - [ ] **Volume analytics per muscle group** — weekly sets per muscle (uses existing primaryMuscles/secondaryMuscles data)
 - [ ] **Rest timer** — in-session countdown between sets
 - [ ] **Superset / circuit support** — group exercises that are performed back-to-back
@@ -17,8 +17,8 @@
 ## Body Composition
 
 - [ ] **Additional measurement sites** — arms, thighs, calves, neck (currently only waist/hips/chest)
-- [ ] **Trend graphs for body metrics** — weight, body fat %, and circumferences over time
-- [ ] **7-day rolling weight average** — smooth out daily water weight noise
+- [x] **Trend graphs for body metrics** — weight, body fat %, and circumferences over time
+- [x] **7-day rolling weight average** — smooth out daily water weight noise
 
 ## Nutrition
 
@@ -29,7 +29,7 @@
 
 ## Analytics & Insights
 
-- [ ] **Training consistency / streak** — workouts per week, routine adherence rate, consecutive-week streaks
+- [x] **Training consistency / streak** — workouts per week, routine adherence rate, consecutive-week streaks
 - [ ] **Muscle group heatmap** — visualise which muscles were trained this week and which are overdue
 
 ## Integrations

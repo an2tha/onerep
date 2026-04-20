@@ -6,6 +6,7 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
+  Fire,
   ForkKnife,
   Aperture,
   MagnifyingGlass,
@@ -24,6 +25,10 @@ import { SwipeToStart } from "@/components/swipe-to-start"
 import {
   formatReminderLabel,
 } from "@/lib/body-progress"
+import {
+  calcStreak,
+  calcWorkoutsThisWeek,
+} from "@/lib/training-consistency"
 import {
   normalizePresetCard,
   type Routine,
@@ -1111,6 +1116,114 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
   )
 }
 
+// ─── Streak card ─────────────────────────────────────────────────────────────
+
+const WEEK_LABELS = ["M", "T", "W", "T", "F", "S", "S"] as const
+
+function StreakCard({
+  streak,
+  workoutsThisWeek,
+  workoutDates,
+  today,
+}: {
+  streak: number
+  workoutsThisWeek: number
+  workoutDates: Set<string>
+  today: Date
+}) {
+  // Build Mon–Sun for the current week
+  const todayDow = today.getUTCDay() // 0=Sun … 6=Sat
+  const daysFromMon = todayDow === 0 ? 6 : todayDow - 1
+  const monday = new Date(today)
+  monday.setUTCDate(today.getUTCDate() - daysFromMon)
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday)
+    d.setUTCDate(monday.getUTCDate() + i)
+    return d.toISOString().slice(0, 10)
+  })
+
+  const active = streak > 0
+  const fireColor = active ? "#f97316" : "color-mix(in srgb, var(--foreground) 18%, transparent)"
+
+  return (
+    <Card>
+      <div className="px-4 py-2.5">
+        {/* Header */}
+        <div className="mb-3 flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold">Streak</CardTitle>
+          {streak > 1 && (
+            <span className="text-[10px] font-semibold text-orange-400/80 tabular-nums">
+              {streak} days
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Flame + count */}
+          <div className="flex shrink-0 flex-col items-center gap-0.5">
+            <Fire
+              size={32}
+              weight={active ? "fill" : "regular"}
+              style={{ color: fireColor }}
+            />
+            <span
+              className="text-[22px] leading-none font-bold tabular-nums tracking-tight"
+              style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 30%, transparent)" }}
+            >
+              {streak}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-10 w-px bg-border/30" />
+
+          {/* Week dots */}
+          <div className="flex flex-1 items-end justify-between gap-1">
+            {weekDays.map((iso, i) => {
+              const isToday = iso === today.toISOString().slice(0, 10)
+              const isFuture = iso > today.toISOString().slice(0, 10)
+              const done = workoutDates.has(iso)
+              return (
+                <div key={iso} className="flex flex-col items-center gap-1">
+                  <div
+                    className={cn(
+                      "h-5 w-5 rounded-full transition-colors",
+                      done
+                        ? "bg-orange-400"
+                        : isFuture
+                          ? "bg-muted/20"
+                          : "bg-muted/40"
+                    )}
+                    style={isToday && !done ? { boxShadow: "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)" } : undefined}
+                  />
+                  <span
+                    className={cn(
+                      "text-[8.5px] font-medium",
+                      isToday ? "text-foreground/60" : "text-muted-foreground/30"
+                    )}
+                  >
+                    {WEEK_LABELS[i]}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Footer label */}
+        <p className="mt-2.5 text-[10px] text-muted-foreground/35">
+          {workoutsThisWeek === 0
+            ? "No workouts logged this week yet"
+            : workoutsThisWeek === 1
+              ? "1 workout this week"
+              : `${workoutsThisWeek} workouts this week`}
+        </p>
+      </div>
+    </Card>
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1126,6 +1239,7 @@ export default function App() {
   const schedule = useQuery(api.users.schedules.get, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
   const bodyMeasurements = useQuery(api.bodyProgress.list, {})
+  const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
 
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(activeTimezone)
@@ -1181,13 +1295,20 @@ export default function App() {
 
   const loading = onboarding === undefined || goalsRes === undefined || preferences === undefined
 
+  const now = new Date()
+
+  const workoutDates = useMemo(
+    () => new Set((workoutHistory ?? []).map((log: { date: string }) => log.date)),
+    [workoutHistory]
+  )
+  const streak = useMemo(() => calcStreak(workoutDates, now), [workoutDates])
+  const workoutsThisWeek = useMemo(() => calcWorkoutsThisWeek(workoutDates, now), [workoutDates])
+
   // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
     void syncTimezone({ timeZone: detectTimeZone() })
   }, [syncTimezone])
-
-  const now = new Date()
   const firstName = session?.user?.name?.trim().split(/\s+/)[0] ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   const dateLabel = now.toLocaleDateString("en-US", {
@@ -1257,6 +1378,14 @@ export default function App() {
             }}
             onDeleteSlot={(slot) => setConfirmDeleteSlot(slot)}
           />
+          {workoutHistory !== undefined && (
+            <StreakCard
+              streak={streak}
+              workoutsThisWeek={workoutsThisWeek}
+              workoutDates={workoutDates}
+              today={now}
+            />
+          )}
           <LoggedTodayCard
             dayOffset={dayOffset}
             timeZone={activeTimezone}
