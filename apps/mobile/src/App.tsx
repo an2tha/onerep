@@ -1295,9 +1295,7 @@ function CalorieSmall({ consumed, target, onAdd }: { consumed: number; target: n
   )
 }
 
-function WaterSmall({ dateKey }: { dateKey: string }) {
-  const preferences = useQuery(api.users.users.getPreferences)
-  const goalMl = preferences?.waterGoalMl ?? 2500
+function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
   const setWaterDay = useMutation(api.logs.water.setDay)
@@ -1562,9 +1560,8 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
   )
 }
 
-function ProgressSmall() {
+function ProgressSmall({ measurements }: { measurements: Array<{ weightKg?: number; loggedAt: string }> | null | undefined }) {
   const navigate = useNavigate()
-  const measurements = useQuery(api.bodyProgress.list, {})
   const latest = measurements && measurements.length > 0
     ? measurements[measurements.length - 1]
     : null
@@ -1890,7 +1887,7 @@ export default function App() {
                   } else if (widget.id === "water") {
                     content = widget.size === "full"
                       ? <WaterWidget dateKey={selectedDate} />
-                      : <WaterSmall dateKey={selectedDate} />
+                      : <WaterSmall dateKey={selectedDate} goalMl={preferences?.waterGoalMl ?? 2500} />
                   } else if (widget.id === "workout") {
                     const done = workoutLogs.length > 0
                     const fallback = WORKOUTS[settings.workoutFocus]
@@ -1915,10 +1912,8 @@ export default function App() {
                           isRestDay={scheduledWorkout === null && dayOffset === 0}
                         />
                   } else if (widget.id === "streak") {
-                    content = widget.size === "full"
-                      ? (workoutHistory !== undefined
-                          ? <StreakCard streak={streak} workoutsThisWeek={workoutsThisWeek} workoutDates={workoutDates} today={now} />
-                          : null)
+                    content = widget.size === "full" && workoutHistory !== undefined
+                      ? <StreakCard streak={streak} workoutsThisWeek={workoutsThisWeek} workoutDates={workoutDates} today={now} />
                       : <StreakSmall streak={streak} />
                   } else if (widget.id === "food") {
                     content = widget.size === "full"
@@ -1932,7 +1927,7 @@ export default function App() {
                   } else {
                     content = widget.size === "full"
                       ? <ProgressCard />
-                      : <ProgressSmall />
+                      : <ProgressSmall measurements={bodyMeasurements} />
                   }
 
                   return (

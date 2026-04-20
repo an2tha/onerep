@@ -32,7 +32,7 @@ export default defineSchema({
       v.array(
         v.object({
           id: v.string(), // WidgetId
-          size: v.string(), // "full" | "small"
+          size: v.union(v.literal("full"), v.literal("small")),
         }),
       ),
     ),
