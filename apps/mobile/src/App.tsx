@@ -1341,10 +1341,9 @@ function CalorieSmall({
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerLeave}
-        onClick={(e) => {
+        onClick={() => {
           // Only trigger onClick if we didn't handle the press/release above
           // This prevents double-firing when tapping
-          e.currentTarget.setPointerCapture?.(e.pointerId)
         }}
         onContextMenu={(e) => e.preventDefault()}
         className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
