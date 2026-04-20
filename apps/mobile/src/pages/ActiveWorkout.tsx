@@ -1043,6 +1043,8 @@ function ActiveExerciseCard({
   )
 }
 
+import { epley1RM, brzycki1RM, estimate1RM } from "@/lib/one-rm"
+
 // ─── Sparkline helper ─────────────────────────────────────────────────────────
 
 function sparklinePoints(values: number[], width: number, height: number) {
@@ -1190,6 +1192,50 @@ function ExerciseHistorySheet({
                 </div>
               </div>
             )}
+
+            {/* ── Estimated 1RM ── */}
+            {(() => {
+              // Find the best working set across all sessions (highest estimated 1RM)
+              const bestSet = completedSessions
+                .flatMap((s) => s.sets.filter((set) => set.weight > 0 && set.reps > 0))
+                .reduce<{ weight: number; reps: number; est: number } | null>((best, set) => {
+                  const est = estimate1RM(set.weight, set.reps)
+                  return !best || est > best.est ? { weight: set.weight, reps: set.reps, est } : best
+                }, null)
+              if (!bestSet) return null
+              const orm = bestSet.est
+              const fmtW = (kg: number) => unit === "lbs" ? `${+(kg * 2.20462).toFixed(1)}` : `${+kg.toFixed(1)}`
+              const pcts = [
+                { pct: 100, label: "1RM (est.)", color: "#38bdf8" },
+                { pct: 90, label: "Training max", color: "color-mix(in srgb, var(--foreground) 55%, transparent)" },
+                { pct: 80, label: "Heavy work", color: "color-mix(in srgb, var(--foreground) 45%, transparent)" },
+                { pct: 70, label: "Moderate", color: "color-mix(in srgb, var(--foreground) 35%, transparent)" },
+              ]
+              return (
+                <div className="mx-5 mb-4 overflow-hidden rounded-2xl" style={{ border: "1px solid color-mix(in srgb, var(--foreground) 8%, transparent)", background: "color-mix(in srgb, #38bdf8 4%, var(--card))" }}>
+                  <div className="flex items-center justify-between px-4 pt-3 pb-2" style={{ borderBottom: "1px solid color-mix(in srgb, var(--foreground) 6%, transparent)" }}>
+                    <p className="text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">Estimated 1RM</p>
+                    <p className="text-[9px] text-muted-foreground/30">from {fmtW(bestSet.weight)} {unit} × {bestSet.reps} reps</p>
+                  </div>
+                  <div className="grid grid-cols-4 gap-0">
+                    {pcts.map(({ pct, label, color }) => {
+                      const val = (orm * pct) / 100
+                      return (
+                        <div key={pct} className="flex flex-col items-center gap-0.5 px-2 py-3">
+                          <span className="text-[16px] font-black tabular-nums leading-none tracking-tight" style={{ color }}>
+                            {fmtW(val)}
+                          </span>
+                          <span className="mt-0.5 text-[7.5px] font-medium tracking-widest text-muted-foreground/35 uppercase">{unit}</span>
+                          <span className="mt-1 text-[9px] font-semibold" style={{ color }}>{pct}%</span>
+                          <span className="text-center text-[8.5px] leading-tight text-muted-foreground/35">{label}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
+
             <div
               className="mx-5 overflow-hidden rounded-2xl"
               style={{ border: "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)" }}
