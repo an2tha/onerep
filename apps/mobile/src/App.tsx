@@ -1256,20 +1256,111 @@ function StreakCard({
 
 // ─── Small widget variants ────────────────────────────────────────────────────
 
-function CalorieSmall({ consumed, target, onAdd }: { consumed: number; target: number; onAdd: () => void }) {
+function CalorieSmall({
+  consumed,
+  target,
+  protein,
+  carbs,
+  fat,
+  onAdd,
+}: {
+  consumed: number
+  target: number
+  protein: number
+  carbs: number
+  fat: number
+  onAdd: () => void
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pressStartRef = useRef<number>(0)
+  const isPressingRef = useRef(false)
+  const expandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
   const over = consumed > target
+
+  function haptic(pattern: number | number[]) {
+    navigator.vibrate?.(pattern)
+  }
+
+  function handlePointerDown() {
+    isPressingRef.current = true
+    pressStartRef.current = Date.now()
+    haptic(8)
+  }
+
+  function handlePointerUp() {
+    if (!isPressingRef.current) return
+    isPressingRef.current = false
+    const pressDuration = Date.now() - pressStartRef.current
+
+    // Long press (> 300ms) triggers add
+    if (pressDuration >= 300) {
+      haptic(15)
+      onAdd()
+      return
+    }
+
+    // Short tap toggles expansion
+    haptic([12, 30, 18])
+    if (expanded) {
+      setExpanded(false)
+    } else {
+      setExpanded(true)
+      // Auto-collapse after showing overview
+      if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current)
+      expandTimeoutRef.current = setTimeout(() => {
+        setExpanded(false)
+      }, 1800)
+    }
+  }
+
+  function handlePointerLeave() {
+    isPressingRef.current = false
+  }
+
+  // Cleanup timers
+  useEffect(() => {
+    return () => {
+      if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current)
+      if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
+    }
+  }, [])
+
+  const MACRO_COLORS = {
+    protein: "#f59e0b",
+    carbs: "#38bdf8",
+    fat: "#a78bfa",
+  } as const
+
   return (
-    <Card className="h-full">
+    <Card className="h-full overflow-hidden">
       <button
-        onClick={onAdd}
-        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        onPointerCancel={handlePointerLeave}
+        onClick={(e) => {
+          // Only trigger onClick if we didn't handle the press/release above
+          // This prevents double-firing when tapping
+          e.currentTarget.setPointerCapture?.(e.pointerId)
+        }}
+        onContextMenu={(e) => e.preventDefault()}
+        className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
       >
-        <div className="flex w-full items-start justify-between">
+        {/* Base state */}
+        <div className={cn(
+          "flex w-full items-start justify-between transition-opacity duration-200",
+          expanded && "opacity-0"
+        )}>
           <p className="text-[10px] font-semibold text-muted-foreground/50">Calories</p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
-        <div className="w-full">
+        <div className={cn(
+          "w-full transition-opacity duration-200",
+          expanded && "opacity-0"
+        )}>
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
               {fmtKcal(consumed)}
@@ -1288,6 +1379,74 @@ function CalorieSmall({ consumed, target, onAdd }: { consumed: number; target: n
           </div>
           <p className="mt-1 text-[9px] text-muted-foreground/30 tabular-nums">
             {over ? `+${fmtKcal(consumed - target)} over` : `${fmtKcal(target - consumed)} left`}
+          </p>
+        </div>
+
+        {/* Expanded overview overlay */}
+        <div className={cn(
+          "absolute inset-0 flex flex-col justify-center px-3.5 py-3 transition-all duration-250 ease-out",
+          expanded
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-2 pointer-events-none"
+        )}>
+          {/* Calories hero */}
+          <div className="flex items-baseline gap-1">
+            <span className="text-[1.4rem] font-bold tabular-nums leading-none tracking-tight">
+              {fmtKcal(consumed)}
+            </span>
+            <span className="text-[10px] text-muted-foreground/50">kcal</span>
+          </div>
+
+          {/* Macro pills */}
+          <div className="mt-2.5 flex items-center gap-3">
+            <div className="flex items-baseline gap-0.5">
+              <span
+                className="text-[9px] font-semibold"
+                style={{ color: MACRO_COLORS.protein, opacity: 0.85 }}
+              >
+                P
+              </span>
+              <span className="text-[12px] font-semibold tabular-nums">
+                {Math.round(protein)}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-0.5">
+              <span
+                className="text-[9px] font-semibold"
+                style={{ color: MACRO_COLORS.carbs, opacity: 0.85 }}
+              >
+                C
+              </span>
+              <span className="text-[12px] font-semibold tabular-nums">
+                {Math.round(carbs)}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-0.5">
+              <span
+                className="text-[9px] font-semibold"
+                style={{ color: MACRO_COLORS.fat, opacity: 0.85 }}
+              >
+                F
+              </span>
+              <span className="text-[12px] font-semibold tabular-nums">
+                {Math.round(fat)}
+              </span>
+            </div>
+          </div>
+
+          {/* Progress indicator */}
+          <div className="mt-2 h-[2px] w-full rounded bg-muted/40">
+            <div
+              className="h-full rounded transition-all duration-700"
+              style={{
+                width: `${pct}%`,
+                backgroundColor: over ? "#ef4444" : "var(--foreground)",
+                opacity: 0.45,
+              }}
+            />
+          </div>
+          <p className="mt-1 text-[9px] text-muted-foreground/35 tabular-nums">
+            {pct}% of {fmtKcal(target)}
           </p>
         </div>
       </button>
@@ -1364,7 +1523,7 @@ function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
   const [progress, setProgress] = useState(0)
   const holdingRef = useRef(false)
   const startRef = useRef(0)
-  const rafRef = useRef<number>()
+  const rafRef = useRef<number>(0)
 
   function haptic(pattern: number | number[]) {
     navigator.vibrate?.(pattern)
@@ -1530,19 +1689,97 @@ function StreakSmall({ streak }: { streak: number }) {
 }
 
 function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const pressStartRef = useRef<number>(0)
+  const isPressingRef = useRef(false)
+  const expandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const total = entries.reduce((s, e) => s + e.calories, 0)
   const meals = new Set(entries.map((e) => e.meal)).size
+
+  function haptic(pattern: number | number[]) {
+    navigator.vibrate?.(pattern)
+  }
+
+  function handlePointerDown() {
+    isPressingRef.current = true
+    pressStartRef.current = Date.now()
+    haptic(8)
+  }
+
+  function handlePointerUp() {
+    if (!isPressingRef.current) return
+    isPressingRef.current = false
+    const pressDuration = Date.now() - pressStartRef.current
+
+    // Long press triggers add
+    if (pressDuration >= 300) {
+      haptic(15)
+      onAdd()
+      return
+    }
+
+    // Short tap toggles expansion
+    haptic([12, 30, 18])
+    if (expanded) {
+      setExpanded(false)
+    } else {
+      setExpanded(true)
+      if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current)
+      expandTimeoutRef.current = setTimeout(() => {
+        setExpanded(false)
+      }, 2200)
+    }
+  }
+
+  function handlePointerLeave() {
+    isPressingRef.current = false
+  }
+
+  useEffect(() => {
+    return () => {
+      if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current)
+    }
+  }, [])
+
+  // Group entries by meal category
+  const sorted = [...entries].sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+  const byMeal = new Map<string, FoodLogEntry[]>()
+  for (const e of sorted) {
+    if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
+    byMeal.get(e.meal)!.push(e)
+  }
+  const groups = DEFAULT_MEAL_CATEGORIES
+    .filter((c) => byMeal.has(c.id))
+    .map((c) => ({ cfg: c, entries: byMeal.get(c.id)! }))
+
+  const macroTotals = entries.reduce(
+    (acc, e) => ({ p: acc.p + e.protein, c: acc.c + e.carbs, f: acc.f + e.fat }),
+    { p: 0, c: 0, f: 0 }
+  )
+
   return (
-    <Card className="h-full">
+    <Card className="h-full overflow-hidden">
       <button
-        onClick={onAdd}
-        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        onPointerCancel={handlePointerLeave}
+        onContextMenu={(e) => e.preventDefault()}
+        className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
       >
-        <div className="flex w-full items-start justify-between">
+        {/* Base state */}
+        <div className={cn(
+          "flex w-full items-start justify-between transition-opacity duration-200",
+          expanded && "opacity-0"
+        )}>
           <p className="text-[10px] font-semibold text-muted-foreground/50">Food</p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
-        <div>
+        <div className={cn(
+          "transition-opacity duration-200",
+          expanded && "opacity-0"
+        )}>
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
               {fmtKcal(total)}
@@ -1554,6 +1791,87 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
               ? "Tap to log food"
               : `${entries.length} item${entries.length !== 1 ? "s" : ""} · ${meals} meal${meals !== 1 ? "s" : ""}`}
           </p>
+        </div>
+
+        {/* Expanded "Logged today" view */}
+        <div className={cn(
+          "absolute inset-0 flex flex-col overflow-hidden transition-all duration-250 ease-out",
+          expanded
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-2 pointer-events-none"
+        )}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-3.5 pt-3">
+            <p className="text-[10px] font-semibold text-muted-foreground/50">Logged today</p>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setExpanded(false)
+                haptic(8)
+              }}
+              className="flex h-4 w-4 items-center justify-center rounded-full bg-muted/40"
+              aria-label="Collapse"
+            >
+              <X size={8} weight="bold" className="text-muted-foreground/50" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-3.5 pb-3">
+            {entries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-4 text-center">
+                <ForkKnife size={20} className="text-muted-foreground/20" />
+                <p className="mt-1.5 text-[11px] text-muted-foreground/40">Nothing logged yet</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {groups.map(({ cfg, entries: ge }) => (
+                  <div key={cfg.label}>
+                    <div className="mb-0.5 flex items-center justify-between">
+                      <span
+                        className="text-[8.5px] font-semibold tracking-[0.1em] uppercase"
+                        style={{ color: cfg.color }}
+                      >
+                        {cfg.label}
+                      </span>
+                      <span className="text-[8.5px] text-muted-foreground/30 tabular-nums">
+                        {ge.reduce((s, e) => s + e.calories, 0)} kcal
+                      </span>
+                    </div>
+                    {ge.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="flex items-center justify-between py-0.5"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-[11px] text-foreground/70">
+                          {entry.name}
+                        </span>
+                        <span className="ml-2 shrink-0 text-[10.5px] font-medium text-foreground/50 tabular-nums">
+                          {entry.calories}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+
+                {/* Macro totals */}
+                <div className="mt-1 flex items-center gap-3 border-t border-border/25 pt-2">
+                  <span className="text-[8.5px] font-semibold text-muted-foreground/35">Total</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[12px] font-bold tabular-nums">
+                      {total}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/40">kcal</span>
+                  </div>
+                  {macroTotals.p > 0 && (
+                    <span className="text-[9px] text-muted-foreground/30 tabular-nums">
+                      P{Math.round(macroTotals.p)} C{Math.round(macroTotals.c)} F{Math.round(macroTotals.f)}g
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </button>
     </Card>
@@ -1873,7 +2191,7 @@ export default function App() {
                   let content: React.ReactNode
 
                   if (widget.id === "calories") {
-                    const consumed = totalsForEntries(foodEntries).calories
+                    const foodTotals = totalsForEntries(foodEntries)
                     content = widget.size === "full"
                       ? <CalorieCard
                           info={calorieInfo}
@@ -1883,7 +2201,14 @@ export default function App() {
                           timeZone={activeTimezone}
                           onDayOffsetChange={setDayOffset}
                         />
-                      : <CalorieSmall consumed={consumed} target={calorieInfo?.target ?? 0} onAdd={() => setHomeAddOpen(true)} />
+                      : <CalorieSmall
+                          consumed={foodTotals.calories}
+                          target={calorieInfo?.target ?? 0}
+                          protein={foodTotals.protein}
+                          carbs={foodTotals.carbs}
+                          fat={foodTotals.fat}
+                          onAdd={() => setHomeAddOpen(true)}
+                        />
                   } else if (widget.id === "water") {
                     content = widget.size === "full"
                       ? <WaterWidget dateKey={selectedDate} />
