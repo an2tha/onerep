@@ -16,6 +16,8 @@ import {
   MagnifyingGlass,
   PencilSimple,
   PintGlass,
+  Play,
+  Plus,
   Sliders,
   Trash,
   X,
@@ -1254,14 +1256,20 @@ function StreakCard({
 
 // ─── Small widget variants ────────────────────────────────────────────────────
 
-function CalorieSmall({ consumed, target }: { consumed: number; target: number }) {
+function CalorieSmall({ consumed, target, onAdd }: { consumed: number; target: number; onAdd: () => void }) {
   const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
   const over = consumed > target
   return (
     <Card className="h-full">
-      <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Calories</p>
-        <div>
+      <button
+        onClick={onAdd}
+        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+      >
+        <div className="flex w-full items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">Calories</p>
+          <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
+        </div>
+        <div className="w-full">
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
               {fmtKcal(consumed)}
@@ -1282,7 +1290,7 @@ function CalorieSmall({ consumed, target }: { consumed: number; target: number }
             {over ? `+${fmtKcal(consumed - target)} over` : `${fmtKcal(target - consumed)} left`}
           </p>
         </div>
-      </div>
+      </button>
     </Card>
   )
 }
@@ -1291,40 +1299,159 @@ function WaterSmall({ dateKey }: { dateKey: string }) {
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const entries = (rawEntries ?? []) as { id: string; amountMl: number }[]
+  const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
+  const setWaterDay = useMutation(api.logs.water.setDay)
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
   const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
 
+  function addGlass() {
+    const entry = { id: crypto.randomUUID(), amountMl: mlPerGlass, loggedAt: new Date().toISOString() }
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+  }
+
+  function removeLastGlass() {
+    if (entries.length === 0) return
+    const sorted = [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+  }
+
   return (
     <Card className="h-full">
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Water</p>
+        <div className="flex items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">Water</p>
+          <p className="text-[9px] text-muted-foreground/30 tabular-nums">
+            {filledCount}/{WATER_GLASS_COUNT}
+          </p>
+        </div>
         <div>
           <div className="grid grid-cols-4 gap-1">
-            {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex h-4 items-center justify-center rounded",
-                  i < filledCount ? "bg-[rgba(56,189,248,0.22)]" : "bg-muted/25"
-                )}
-              >
-                <div
+            {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
+              const filled = i < filledCount
+              return (
+                <button
+                  key={i}
+                  onClick={filled ? removeLastGlass : addGlass}
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    i < filledCount ? "bg-[#38bdf8]" : "bg-muted-foreground/15"
+                    "flex h-6 items-center justify-center rounded transition-all active:scale-90",
+                    filled ? "bg-[rgba(56,189,248,0.20)] active:bg-[rgba(56,189,248,0.32)]" : "bg-muted/25 active:bg-muted/50"
                   )}
-                />
-              </div>
-            ))}
+                  aria-label={filled ? "Remove glass" : "Add glass"}
+                >
+                  <PintGlass
+                    size={11}
+                    weight={filled ? "fill" : "regular"}
+                    style={{ color: filled ? "#38bdf8" : undefined }}
+                    className={filled ? undefined : "text-muted-foreground/20"}
+                  />
+                </button>
+              )
+            })}
           </div>
-          <p className="mt-1.5 text-[9px] text-muted-foreground/35 tabular-nums">
+          <p className="mt-1.5 text-[9px] text-muted-foreground/30 tabular-nums">
             {fmtWater(totalMl)} / {fmtWater(goalMl)}
           </p>
         </div>
       </div>
     </Card>
+  )
+}
+
+const HOLD_DURATION = 650 // ms to fill the ring
+const RING_R = 18
+const RING_C = 2 * Math.PI * RING_R
+
+function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
+  const [progress, setProgress] = useState(0)
+  const holdingRef = useRef(false)
+  const startRef = useRef(0)
+  const rafRef = useRef<number>()
+
+  function haptic(pattern: number | number[]) {
+    navigator.vibrate?.(pattern)
+  }
+
+  function startHold(e: React.PointerEvent) {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    holdingRef.current = true
+    startRef.current = Date.now()
+    haptic(8)
+
+    function tick() {
+      if (!holdingRef.current) return
+      const pct = Math.min(1, (Date.now() - startRef.current) / HOLD_DURATION)
+      setProgress(pct)
+      if (pct >= 1) {
+        haptic([15, 40, 25])
+        holdingRef.current = false
+        onComplete()
+      } else {
+        rafRef.current = requestAnimationFrame(tick)
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick)
+  }
+
+  function cancelHold() {
+    if (!holdingRef.current) return
+    holdingRef.current = false
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    setProgress(0)
+  }
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current)
+  }, [])
+
+  const offset = RING_C * (1 - progress)
+  const active = progress > 0
+
+  return (
+    <button
+      onPointerDown={startHold}
+      onPointerUp={cancelHold}
+      onPointerLeave={cancelHold}
+      onPointerCancel={cancelHold}
+      className="relative flex h-12 w-12 touch-none select-none items-center justify-center rounded-full transition-transform active:scale-95"
+      aria-label="Hold to start workout"
+    >
+      {/* ring */}
+      <svg
+        width="48" height="48"
+        viewBox="0 0 48 48"
+        className="absolute inset-0"
+        style={{ transform: "rotate(-90deg)" }}
+      >
+        {/* track */}
+        <circle
+          cx="24" cy="24" r={RING_R}
+          fill="none"
+          strokeWidth="2.5"
+          className="stroke-foreground/10"
+        />
+        {/* fill */}
+        <circle
+          cx="24" cy="24" r={RING_R}
+          fill="none"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeDasharray={RING_C}
+          strokeDashoffset={offset}
+          className="stroke-foreground/70"
+          style={{ transition: active ? "none" : "stroke-dashoffset 180ms ease-out" }}
+        />
+      </svg>
+      {/* play icon */}
+      <Play
+        size={14}
+        weight="fill"
+        className={cn(
+          "relative transition-opacity",
+          active ? "text-foreground/80" : "text-muted-foreground/40"
+        )}
+      />
+    </button>
   )
 }
 
@@ -1337,25 +1464,31 @@ function WorkoutSmall({
   workoutName: string
   isRestDay: boolean
 }) {
+  const navigate = useNavigate()
   return (
     <Card className="h-full">
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
         <p className="text-[10px] font-semibold text-muted-foreground/50">Workout</p>
-        <div>
-          <p className="truncate text-[13px] font-semibold leading-snug tracking-tight">
-            {isRestDay ? "Rest day" : workoutName}
-          </p>
-          <div className="mt-1.5 flex items-center gap-1">
-            <div
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                done ? "bg-green-500" : isRestDay ? "bg-muted-foreground/20" : "bg-amber-400/70"
-              )}
-            />
-            <span className="text-[9px] text-muted-foreground/40">
-              {done ? "Done" : isRestDay ? "Rest" : "Pending"}
-            </span>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold leading-snug tracking-tight">
+              {isRestDay ? "Rest day" : workoutName}
+            </p>
+            <div className="mt-1 flex items-center gap-1">
+              <div
+                className={cn(
+                  "h-1.5 w-1.5 rounded-full",
+                  done ? "bg-green-500" : isRestDay ? "bg-muted-foreground/20" : "bg-amber-400/70"
+                )}
+              />
+              <span className="text-[9px] text-muted-foreground/40">
+                {done ? "Done" : isRestDay ? "Rest" : "Hold to start"}
+              </span>
+            </div>
           </div>
+          {!done && !isRestDay && (
+            <HoldToStartRing onComplete={() => navigate("/workout/active")} />
+          )}
         </div>
       </div>
     </Card>
@@ -1363,11 +1496,18 @@ function WorkoutSmall({
 }
 
 function StreakSmall({ streak }: { streak: number }) {
+  const navigate = useNavigate()
   const active = streak > 0
   return (
     <Card className="h-full">
-      <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Streak</p>
+      <button
+        onClick={() => navigate("/workouts")}
+        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+      >
+        <div className="flex w-full items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">Streak</p>
+          <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
+        </div>
         <div className="flex items-end gap-2">
           <Fire
             size={22}
@@ -1386,18 +1526,24 @@ function StreakSmall({ streak }: { streak: number }) {
             </p>
           </div>
         </div>
-      </div>
+      </button>
     </Card>
   )
 }
 
-function FoodSmall({ entries }: { entries: FoodLogEntry[] }) {
+function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => void }) {
   const total = entries.reduce((s, e) => s + e.calories, 0)
   const meals = new Set(entries.map((e) => e.meal)).size
   return (
     <Card className="h-full">
-      <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Food</p>
+      <button
+        onClick={onAdd}
+        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+      >
+        <div className="flex w-full items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">Food</p>
+          <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
+        </div>
         <div>
           <div className="flex items-baseline gap-1">
             <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
@@ -1407,16 +1553,17 @@ function FoodSmall({ entries }: { entries: FoodLogEntry[] }) {
           </div>
           <p className="mt-0.5 text-[9px] text-muted-foreground/35">
             {entries.length === 0
-              ? "Nothing logged"
+              ? "Tap to log food"
               : `${entries.length} item${entries.length !== 1 ? "s" : ""} · ${meals} meal${meals !== 1 ? "s" : ""}`}
           </p>
         </div>
-      </div>
+      </button>
     </Card>
   )
 }
 
 function ProgressSmall() {
+  const navigate = useNavigate()
   const measurements = useQuery(api.bodyProgress.list, {})
   const latest = measurements && measurements.length > 0
     ? measurements[measurements.length - 1]
@@ -1424,8 +1571,14 @@ function ProgressSmall() {
 
   return (
     <Card className="h-full">
-      <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Progress</p>
+      <button
+        onClick={() => navigate("/progress")}
+        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+      >
+        <div className="flex w-full items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">Progress</p>
+          <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
+        </div>
         <div>
           {latest?.weightKg != null ? (
             <>
@@ -1443,10 +1596,10 @@ function ProgressSmall() {
               </p>
             </>
           ) : (
-            <p className="text-[11px] text-muted-foreground/40">No data yet</p>
+            <p className="text-[11px] text-muted-foreground/40">Tap to check in</p>
           )}
         </div>
-      </div>
+      </button>
     </Card>
   )
 }
@@ -1733,7 +1886,7 @@ export default function App() {
                           timeZone={activeTimezone}
                           onDayOffsetChange={setDayOffset}
                         />
-                      : <CalorieSmall consumed={consumed} target={calorieInfo?.target ?? 0} />
+                      : <CalorieSmall consumed={consumed} target={calorieInfo?.target ?? 0} onAdd={() => setHomeAddOpen(true)} />
                   } else if (widget.id === "water") {
                     content = widget.size === "full"
                       ? <WaterWidget dateKey={selectedDate} />
@@ -1775,7 +1928,7 @@ export default function App() {
                           entries={foodEntries}
                           onEntriesChange={(entries) => void setDay({ date: selectedDate, entries })}
                         />
-                      : <FoodSmall entries={foodEntries} />
+                      : <FoodSmall entries={foodEntries} onAdd={() => setHomeAddOpen(true)} />
                   } else {
                     content = widget.size === "full"
                       ? <ProgressCard />
