@@ -220,7 +220,7 @@ export const setWidgetLayout = mutation({
     layout: v.array(
       v.object({
         id: v.string(),
-        size: v.string(),
+        size: v.union(v.literal("full"), v.literal("small")),
       }),
     ),
   },
