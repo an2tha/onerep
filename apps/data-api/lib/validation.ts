@@ -46,6 +46,10 @@ export const barcodeSchema = z.object({
   code: z.string().regex(/^\d+$/, "Barcode must be numeric"),
 });
 
+export const idParamSchema = z.object({
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid ID format"),
+});
+
 export const parseValidatedBody = <T>(
   schema: z.ZodSchema<T>,
   data: unknown,
