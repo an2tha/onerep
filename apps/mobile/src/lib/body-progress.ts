@@ -11,6 +11,8 @@ export type BodyMeasurementEntry = {
   hipsCm?: number
   chestCm?: number
   notes?: string
+  photoDataUrl?: string // base64-encoded image
+  photoTakenAt?: number // timestamp when photo was taken
 }
 
 export type DailyCheckInReminder = {

@@ -138,6 +138,8 @@ export default defineSchema({
     hipsCm: v.optional(v.number()),
     chestCm: v.optional(v.number()),
     notes: v.optional(v.string()),
+    photoDataUrl: v.optional(v.string()), // base64-encoded image
+    photoTakenAt: v.optional(v.number()), // timestamp when photo was taken
     createdAt: v.number(),
     updatedAt: v.number(),
   })

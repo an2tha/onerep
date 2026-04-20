@@ -87,6 +87,27 @@ export const getHistory = query({
   },
 });
 
+// ── historyForExercise ────────────────────────────────────────────────────────
+
+export const historyForExercise = query({
+  args: { exerciseId: v.string() },
+  handler: async (ctx, { exerciseId }) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) return [];
+    const logs = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+      .order("asc")
+      .collect();
+    return logs
+      .filter((log) => log.exercises.some((e: any) => e.id === exerciseId))
+      .map((log) => {
+        const ex = log.exercises.find((e: any) => e.id === exerciseId)!;
+        return { date: log.date as string, sets: ex.sets as Array<{ weight: number; reps: number; completed: boolean; type: string }> };
+      });
+  },
+});
+
 // ── remove ────────────────────────────────────────────────────────────────────
 
 export const remove = mutation({
