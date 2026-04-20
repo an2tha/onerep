@@ -223,7 +223,7 @@ describe("getEffectiveGoals – priority: custom > health > default", () => {
 
 describe("Settings – preference defaults", () => {
   test("waterGoalMl defaults to 2500 when preferences is null", () => {
-    const preferences: { waterGoalMl?: number } | null = null
+    const preferences = null as { waterGoalMl?: number } | null
     const goalMl = preferences?.waterGoalMl ?? 2500
     assert.strictEqual(goalMl, 2500)
   })
@@ -235,7 +235,7 @@ describe("Settings – preference defaults", () => {
   })
 
   test("weightUnit defaults to 'kg' when preferences is null", () => {
-    const preferences: { weightUnit?: string } | null = null
+    const preferences = null as { weightUnit?: string } | null
     const unit = (preferences?.weightUnit as "kg" | "lbs") || "kg"
     assert.strictEqual(unit, "kg")
   })
@@ -247,7 +247,7 @@ describe("Settings – preference defaults", () => {
   })
 
   test("workoutFocus defaults to 'strength' when dashboardSettings is absent", () => {
-    const preferences: { dashboardSettings?: { workoutFocus?: string } } | null = null
+    const preferences = null as { dashboardSettings?: { workoutFocus?: string } } | null
     const focus = (preferences?.dashboardSettings?.workoutFocus as "strength" | "cardio" | "mobility") || "strength"
     assert.strictEqual(focus, "strength")
   })
@@ -275,7 +275,7 @@ describe("Settings – preference defaults", () => {
 
 function numberStepperCommit(
   draft: string,
-  value: number,
+  _value: number,
   min: number,
   max: number,
 ): number | "revert" {

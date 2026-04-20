@@ -13,7 +13,8 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "typeRoots": ["./node_modules/@types"]
+    "typeRoots": ["./node_modules/@types", "./node_modules"],
+    "types": ["bun-types"]
   },
   "include": ["**/*"],
   "exclude": ["node_modules", "dist"]

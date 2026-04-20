@@ -104,6 +104,98 @@ function todayDay(): Day {
   return map[new Date().getDay()]
 }
 
+import {
+  dateToIso,
+  subtractDays,
+  calcStreak,
+  calcWorkoutsThisWeek,
+  buildCalendarDays,
+} from "@/lib/training-consistency"
+
+// ─── Training streak helpers ──────────────────────────────────────────────────
+
+function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }) {
+  const today = new Date()
+  today.setUTCHours(12, 0, 0, 0)
+
+  const calendarDays = buildCalendarDays(today, 28)
+  const todayIso = dateToIso(today)
+  const streak = calcStreak(workoutDates, today)
+  const thisWeek = calcWorkoutsThisWeek(workoutDates, today)
+  const last28Count = calendarDays.filter((iso) => workoutDates.has(iso)).length
+
+  const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/50 bg-card px-4 pt-3.5 pb-4">
+      {/* Header row */}
+      <div className="mb-3 flex items-start justify-between">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Training</p>
+          <p className="mt-0.5 text-[15px] font-bold tracking-tight">Consistency</p>
+        </div>
+        <div className="flex gap-4">
+          <div className="text-right">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">Streak</p>
+            <p className="mt-0.5 text-[22px] font-black leading-none tabular-nums tracking-tight">
+              {streak}
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">days</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">This week</p>
+            <p className="mt-0.5 text-[22px] font-black leading-none tabular-nums tracking-tight">
+              {thisWeek}
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">/ 7</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Day-of-week labels */}
+      <div className="mb-1 grid grid-cols-7 gap-1 px-0.5">
+        {dayLabels.map((l, i) => (
+          <p key={i} className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase">{l}</p>
+        ))}
+      </div>
+
+      {/* 4 weeks × 7 days grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((iso) => {
+          const isToday = iso === todayIso
+          const hasWorkout = workoutDates.has(iso)
+          const isFuture = iso > todayIso
+          return (
+            <div
+              key={iso}
+              className="aspect-square rounded-md transition-colors"
+              style={{
+                background: isFuture
+                  ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
+                  : hasWorkout
+                  ? "color-mix(in srgb, #22c55e 70%, #16a34a)"
+                  : isToday
+                  ? "color-mix(in srgb, var(--foreground) 10%, transparent)"
+                  : "color-mix(in srgb, var(--foreground) 5%, transparent)",
+                boxShadow: isToday ? "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 25%, transparent)" : undefined,
+              }}
+            />
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground/35">
+        <span>{last28Count} workouts last 28 days</span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "color-mix(in srgb, #22c55e 70%, #16a34a)" }} />
+          Workout
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Section header ───────────────────────────────────────────────────────────
 
 function SectionHeader({
@@ -423,6 +515,7 @@ export default function Workouts() {
   const serverPresets = useQuery(api.logs.presets.list)
   const schedule = useQuery(api.users.schedules.get)
   const todayLog = useQuery(api.logs.workouts.getLog, { date: todayIso() })
+  const workoutHistory = useQuery(api.logs.workouts.getHistory)
   const setSchedule = useMutation(api.users.schedules.set)
   const removePresetMutation = useMutation(api.logs.presets.remove)
 
@@ -526,6 +619,11 @@ export default function Workouts() {
   const today = todayDay()
   const todayPreset = presets.find((p) => p.id === routine[today]) ?? null
   const todayPreset2 = presets.find((p) => p.id === routine2[today]) ?? null
+
+  const workoutDates = useMemo(() => {
+    if (!workoutHistory) return new Set<string>()
+    return new Set(workoutHistory.map((log) => log.date as string))
+  }, [workoutHistory])
 
   const hasMoved =
     drag !== null &&
@@ -1116,6 +1214,14 @@ export default function Workouts() {
               </button>
             </div>
           </section>
+
+          {/* ── Training consistency ─────────────────────────────────── */}
+          {workoutHistory !== undefined && workoutDates.size > 0 && (
+            <section>
+              <SectionHeader title="Consistency" sub="Last 28 days" />
+              <TrainingConsistencyCard workoutDates={workoutDates} />
+            </section>
+          )}
         </div>
       </div>
 

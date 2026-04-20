@@ -97,6 +97,74 @@ function sparklinePoints(values: number[], width: number, height: number) {
     .join(" ")
 }
 
+import { rollingAvg } from "@/lib/progress-metrics"
+
+type MetricSeries = {
+  values: number[]
+  color: string
+  strokeWidth?: number
+  opacity?: number
+  dashed?: boolean
+}
+
+function MultiLineChart({
+  series,
+  width = 240,
+  height = 96,
+  sharedScale = true,
+}: {
+  series: MetricSeries[]
+  width?: number
+  height?: number
+  sharedScale?: boolean
+}) {
+  if (series.every((s) => s.values.length === 0)) return null
+
+  function getPoints(values: number[], min: number, max: number): string {
+    const range = max - min || 1
+    return values
+      .map((v, i) => {
+        const x =
+          values.length === 1
+            ? width / 2
+            : (i / (values.length - 1)) * width
+        const y = height - ((v - min) / range) * (height * 0.85)
+        return `${x},${y}`
+      })
+      .join(" ")
+  }
+
+  const allValues = sharedScale ? series.flatMap((s) => s.values) : []
+  const globalMin = sharedScale ? Math.min(...allValues) : 0
+  const globalMax = sharedScale ? Math.max(...allValues) : 0
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full overflow-visible">
+      {series.map((s, i) => {
+        if (s.values.length < 2) return null
+        const min = sharedScale ? globalMin : Math.min(...s.values)
+        const max = sharedScale ? globalMax : Math.max(...s.values)
+        const pts = getPoints(s.values, min, max)
+        return (
+          <polyline
+            key={i}
+            fill="none"
+            stroke={s.color}
+            strokeWidth={s.strokeWidth ?? 2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={s.opacity ?? 1}
+            strokeDasharray={s.dashed ? "5 4" : undefined}
+            points={pts}
+          />
+        )
+      })}
+    </svg>
+  )
+}
+
+type MetricTab = "weight" | "bodyFat" | "circumference"
+
 function MetricRow({
   label,
   value,
@@ -301,11 +369,11 @@ export default function Progress() {
   const reminder = preferences?.bodyReminder || { enabled: false, hour: 19, minute: 0 }
 
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [metricTab, setMetricTab] = useState<MetricTab>("weight")
 
   const latest = entries[entries.length - 1] ?? null
   const weightEntries = entries.filter((entry) => entry.weightKg != null)
-  const weightValues = weightEntries.slice(-8).map((entry) => entry.weightKg!)
-  const trend = goalDelta(entries, goal)
+const trend = goalDelta(entries, goal)
   const startWeight = weightEntries[0]?.weightKg
   const endWeight = weightEntries[weightEntries.length - 1]?.weightKg
 
@@ -353,103 +421,228 @@ export default function Progress() {
 
         <div className="flex flex-col gap-4 px-4">
           <section>
-            <SectionHeader
-              title="Weight graph"
-              sub={
-                weightValues.length > 1
-                  ? `${weightValues.length} logged points`
-                  : "Add another check-in to start the line"
-              }
-            />
+            <SectionHeader title="Trends" />
             <Card>
-              <div className="px-4 py-4">
-                {weightValues.length > 1 ? (
-                  <>
-                    <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
-                      <div>
-                        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                          From / to
-                        </p>
-                        <p className="mt-1 text-[13px] font-medium">
-                          <span className="tabular-nums">
-                            {fmtNumber(startWeight)}
-                          </span>
-                          <span className="mx-1.5 text-muted-foreground/30">
-                            →
-                          </span>
-                          <span className="tabular-nums">
-                            {fmtNumber(endWeight)}
-                          </span>
-                          <span className="ml-1 text-[10px] text-muted-foreground/45">
-                            kg
-                          </span>
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                          Direction
-                        </p>
-                        <p className="mt-1 text-[13px] font-medium">
-                          {trend ?? "—"}
-                        </p>
-                      </div>
-                    </div>
+              <div className="px-4 pt-3 pb-4">
+                {/* ── Tab bar ── */}
+                <div className="mb-4 flex gap-1 rounded-xl bg-muted/40 p-1">
+                  {(
+                    [
+                      { id: "weight", label: "Weight" },
+                      { id: "bodyFat", label: "Body fat" },
+                      { id: "circumference", label: "Girth" },
+                    ] as { id: MetricTab; label: string }[]
+                  ).map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setMetricTab(tab.id)}
+                      className={cn(
+                        "flex-1 rounded-lg py-1.5 text-[11px] font-semibold tracking-tight transition-all duration-200",
+                        metricTab === tab.id
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground/55 active:text-foreground"
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-                    <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 py-3">
-                      <div
-                        className="mb-3 grid"
-                        style={{
-                          gridTemplateRows: "repeat(4, minmax(0, 1fr))",
-                        }}
-                      >
-                        {[0, 1, 2, 3].map((line) => (
-                          <div
-                            key={line}
-                            className="h-6 border-b border-dashed border-border/35 last:border-b-0"
+                {/* ── Weight tab ── */}
+                {metricTab === "weight" && (() => {
+                  const allWeightValues = weightEntries.map((e) => e.weightKg!)
+                  const rolling7 = allWeightValues.length >= 2 ? rollingAvg(allWeightValues, 7) : []
+                  const hasData = allWeightValues.length >= 2
+                  return hasData ? (
+                    <>
+                      <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
+                        <div>
+                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                            From / to
+                          </p>
+                          <p className="mt-1 text-[13px] font-medium">
+                            <span className="tabular-nums">{fmtNumber(startWeight)}</span>
+                            <span className="mx-1.5 text-muted-foreground/30">→</span>
+                            <span className="tabular-nums">{fmtNumber(endWeight)}</span>
+                            <span className="ml-1 text-[10px] text-muted-foreground/45">kg</span>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Direction</p>
+                          <p className="mt-1 text-[13px] font-medium">{trend ?? "—"}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
+                          {[0, 1, 2, 3].map((l) => (
+                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
+                          ))}
+                        </div>
+                        <div className="-mt-[6.1rem]">
+                          <MultiLineChart
+                            series={[
+                              { values: allWeightValues, color: "color-mix(in srgb, var(--foreground) 55%, transparent)", strokeWidth: 2.5 },
+                              ...(rolling7.length >= 2 ? [{ values: rolling7, color: "#38bdf8", strokeWidth: 2, opacity: 0.85 }] : []),
+                            ]}
+                            sharedScale
                           />
-                        ))}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground/45">
+                            {weightEntries.length > 0 && formatMeasurementDate(weightEntries[0].loggedAt)}
+                          </span>
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-1">
+                              <div className="h-[2px] w-4 rounded-full bg-foreground/40" />
+                              <span className="text-[9px] text-muted-foreground/40">Raw</span>
+                            </div>
+                            {rolling7.length >= 2 && (
+                              <div className="flex items-center gap-1">
+                                <div className="h-[2px] w-4 rounded-full bg-sky-400/80" />
+                                <span className="text-[9px] text-muted-foreground/40">7-day avg</span>
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground/45">
+                            {weightEntries.length > 0 && formatMeasurementDate(weightEntries[weightEntries.length - 1].loggedAt)}
+                          </span>
+                        </div>
                       </div>
-                      <svg
-                        viewBox="0 0 240 96"
-                        className="-mt-[6.1rem] h-28 w-full"
-                      >
-                        <polyline
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-foreground/80"
-                          points={sparklinePoints(weightValues, 240, 96)}
-                        />
-                      </svg>
-                      <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
-                        <span>
-                          {weightEntries.length >= weightValues.length && formatMeasurementDate(
-                            weightEntries[
-                              weightEntries.length - weightValues.length
-                            ].loggedAt
-                          )}
-                        </span>
-                        <span>
-                          {weightEntries.length > 0 && formatMeasurementDate(
-                            weightEntries[weightEntries.length - 1].loggedAt
-                          )}
-                        </span>
-                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <ChartLine size={28} className="text-muted-foreground/20" />
+                      <p className="text-[14px] font-medium">Graph appears after two measurements</p>
+                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">One point is a note. Two points are direction.</p>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex flex-col items-center gap-2 py-8 text-center">
-                    <ChartLine size={28} className="text-muted-foreground/20" />
-                    <p className="text-[14px] font-medium">
-                      The graph appears after the second measurement
-                    </p>
-                    <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">
-                      One point is a note. Two points are direction.
-                    </p>
-                  </div>
-                )}
+                  )
+                })()}
+
+                {/* ── Body fat tab ── */}
+                {metricTab === "bodyFat" && (() => {
+                  const bfEntries = entries.filter((e) => e.bodyFatPct != null)
+                  const bfValues = bfEntries.map((e) => e.bodyFatPct!)
+                  const hasData = bfValues.length >= 2
+                  const first = bfValues[0]
+                  const last = bfValues[bfValues.length - 1]
+                  const delta = hasData ? last - first : null
+                  return hasData ? (
+                    <>
+                      <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
+                        <div>
+                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">From / to</p>
+                          <p className="mt-1 text-[13px] font-medium">
+                            <span className="tabular-nums">{fmtNumber(first)}</span>
+                            <span className="mx-1.5 text-muted-foreground/30">→</span>
+                            <span className="tabular-nums">{fmtNumber(last)}</span>
+                            <span className="ml-1 text-[10px] text-muted-foreground/45">%</span>
+                          </p>
+                        </div>
+                        {delta !== null && (
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Change</p>
+                            <p className={cn("mt-1 text-[13px] font-medium", delta < 0 ? "text-emerald-500" : delta > 0 ? "text-rose-400" : "")}>
+                              {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
+                          {[0, 1, 2, 3].map((l) => (
+                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
+                          ))}
+                        </div>
+                        <div className="-mt-[6.1rem]">
+                          <MultiLineChart
+                            series={[{ values: bfValues, color: "#a78bfa", strokeWidth: 2.5 }]}
+                            sharedScale
+                          />
+                        </div>
+                        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
+                          <span>{formatMeasurementDate(bfEntries[0].loggedAt)}</span>
+                          <span>{formatMeasurementDate(bfEntries[bfEntries.length - 1].loggedAt)}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <ChartLine size={28} className="text-muted-foreground/20" />
+                      <p className="text-[14px] font-medium">No body fat data yet</p>
+                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">Add body fat % to two or more check-ins to see your trend.</p>
+                    </div>
+                  )
+                })()}
+
+                {/* ── Circumference tab ── */}
+                {metricTab === "circumference" && (() => {
+                  const waistEntries = entries.filter((e) => e.waistCm != null)
+                  const hipsEntries = entries.filter((e) => e.hipsCm != null)
+                  const chestEntries = entries.filter((e) => e.chestCm != null)
+                  const waistValues = waistEntries.map((e) => e.waistCm!)
+                  const hipsValues = hipsEntries.map((e) => e.hipsCm!)
+                  const chestValues = chestEntries.map((e) => e.chestCm!)
+                  const hasAny = waistValues.length >= 2 || hipsValues.length >= 2 || chestValues.length >= 2
+
+                  const CIRC_SERIES = [
+                    { label: "Waist", values: waistValues, color: "#38bdf8", unit: "cm" },
+                    { label: "Hips", values: hipsValues, color: "#a78bfa", unit: "cm" },
+                    { label: "Chest", values: chestValues, color: "#f59e0b", unit: "cm" },
+                  ].filter((s) => s.values.length >= 2)
+
+                  const firstDate = [...waistEntries, ...hipsEntries, ...chestEntries]
+                    .map((e) => e.loggedAt).sort()[0]
+                  const lastDate = [...waistEntries, ...hipsEntries, ...chestEntries]
+                    .map((e) => e.loggedAt).sort().reverse()[0]
+
+                  return hasAny ? (
+                    <>
+                      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-border/45 pb-3">
+                        {CIRC_SERIES.map((s) => {
+                          const first = s.values[0]
+                          const last = s.values[s.values.length - 1]
+                          const delta = last - first
+                          return (
+                            <div key={s.label} className="flex items-center gap-1.5">
+                              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
+                              <span className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/50 uppercase">{s.label}</span>
+                              <span className="text-[12px] font-semibold tabular-nums">{fmtNumber(last)}</span>
+                              <span className="text-[9.5px] text-muted-foreground/40">cm</span>
+                              {delta !== 0 && (
+                                <span className={cn("text-[10px] font-medium tabular-nums", delta < 0 ? "text-emerald-500" : "text-rose-400")}>
+                                  ({delta > 0 ? "+" : ""}{delta.toFixed(1)})
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
+                          {[0, 1, 2, 3].map((l) => (
+                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
+                          ))}
+                        </div>
+                        <div className="-mt-[6.1rem]">
+                          <MultiLineChart
+                            series={CIRC_SERIES.map((s) => ({ values: s.values, color: s.color, strokeWidth: 2 }))}
+                            sharedScale={false}
+                          />
+                        </div>
+                        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
+                          <span>{firstDate ? formatMeasurementDate(firstDate) : ""}</span>
+                          <span>{lastDate ? formatMeasurementDate(lastDate) : ""}</span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <ChartLine size={28} className="text-muted-foreground/20" />
+                      <p className="text-[14px] font-medium">No measurement data yet</p>
+                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">Add waist, hips, or chest measurements to two or more check-ins.</p>
+                    </div>
+                  )
+                })()}
               </div>
             </Card>
           </section>

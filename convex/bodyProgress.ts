@@ -36,6 +36,8 @@ export const save = mutation({
     hipsCm: v.optional(v.number()),
     chestCm: v.optional(v.number()),
     notes: v.optional(v.string()),
+    photoDataUrl: v.optional(v.string()),
+    photoTakenAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await authComponent.getAuthUser(ctx);
@@ -58,6 +60,8 @@ export const save = mutation({
         hipsCm: args.hipsCm,
         chestCm: args.chestCm,
         notes: args.notes,
+        photoDataUrl: args.photoDataUrl,
+        photoTakenAt: args.photoTakenAt,
         updatedAt: now,
       });
     } else {

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "types": ["bun-types"],
     "baseUrl": ".",
     "paths": {
       "@repo/ui": ["packages/ui/src/index.ts"],
