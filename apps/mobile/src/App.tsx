@@ -11,7 +11,6 @@ import {
   MagnifyingGlass,
   PencilSimple,
   PintGlass,
-  SignOut,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -43,14 +42,6 @@ import {
   Calendar,
   Card,
   CardTitle,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -1144,8 +1135,6 @@ export default function App() {
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, { date: selectedDate })
 
   const syncTimezone = useMutation(api.users.users.syncTimezone)
-  const clearOnboarding = useMutation(api.users.onboarding.clear)
-  const setDashboardSettings = useMutation(api.users.users.setDashboardSettings)
   const setDay = useMutation(api.logs.foodLogs.setDay)
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
 
