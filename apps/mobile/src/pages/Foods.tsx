@@ -21,6 +21,7 @@ import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   currentDateKey,
   defaultMeal,
@@ -1138,7 +1139,7 @@ export default function Foods() {
                     onEdit={() => navigate(`/foods/recipe/${recipe._id}`)}
                     onDelete={() => {
                       if (recipe._id) {
-                        void removeRecipeMutation({ id: recipe._id })
+                        void removeRecipeMutation({ id: recipe._id as Id<"recipes"> })
                       }
                     }}
                     onLog={() => setLoggingRecipe(recipe)}

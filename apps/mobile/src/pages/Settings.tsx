@@ -11,13 +11,6 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@r
 type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
 
-interface EffectiveGoals {
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-}
-
 export default function Settings({
   onClose,
 }: {
@@ -34,7 +27,6 @@ export default function Settings({
   const setWaterGoal = useMutation(api.users.users.setWaterGoal)
   const setCustomGoals = useMutation(api.users.users.setCustomGoals)
   const clearOnboarding = useMutation(api.users.onboarding.clear)
-  const setProfile = useMutation(api.logs.calories.setProfile)
 
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(
     (preferences?.dashboardSettings?.workoutFocus as WorkoutFocus) || "strength"

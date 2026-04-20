@@ -12,6 +12,6 @@
       "@repo/ui": ["../../packages/ui/src/index.ts"],
       "@repo/ui/*": ["../../packages/ui/src/*"],
     },
-    "types": ["node"],
+    "types": ["node", "bun-types"],
   },
 }

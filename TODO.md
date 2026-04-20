@@ -2,9 +2,9 @@
 
 ## High Priority
 
-- [ ] **Progressive overload reference** — show last session's weights/reps inline while logging a set
-- [ ] **Per-exercise history graph** — line chart of strength over time for any exercise
-- [ ] **Home dashboard** — today's calorie summary, water, scheduled workout, and body weight at a glance
+- [x] **Progressive overload reference** — show last session's weights/reps inline while logging a set
+- [x] **Per-exercise history graph** — line chart of strength over time for any exercise
+- [x] **Home dashboard** — today's calorie summary, water, scheduled workout, and body weight at a glance
 - [ ] **Progress photo logging** — attach photos to body measurement check-ins
 
 ## Strength & Performance
