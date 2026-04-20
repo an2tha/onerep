@@ -1,20 +1,48 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router"
 import {
+  ArrowsInSimple,
+  ArrowsOutSimple,
   Barbell,
   Barcode,
   CaretDown,
   CaretLeft,
   CaretRight,
+  Check,
+  DotsSixVertical,
   Fire,
   ForkKnife,
   Aperture,
   MagnifyingGlass,
   PencilSimple,
   PintGlass,
+  Sliders,
   Trash,
   X,
 } from "@phosphor-icons/react"
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
+  resolveLayout,
+  toggleWidgetSize,
+  type WidgetConfig,
+  type WidgetId,
+} from "@/lib/widget-layout"
 import { useQuery, useMutation } from "convex/react"
 import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
@@ -1224,6 +1252,272 @@ function StreakCard({
   )
 }
 
+// ─── Small widget variants ────────────────────────────────────────────────────
+
+function CalorieSmall({ consumed, target }: { consumed: number; target: number }) {
+  const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
+  const over = consumed > target
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Calories</p>
+        <div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+              {fmtKcal(consumed)}
+            </span>
+            <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
+          </div>
+          <div className="mt-2 h-[2px] w-full rounded bg-muted/40">
+            <div
+              className="h-full rounded transition-all duration-700"
+              style={{
+                width: `${pct}%`,
+                backgroundColor: over ? "#ef4444" : "var(--foreground)",
+                opacity: 0.45,
+              }}
+            />
+          </div>
+          <p className="mt-1 text-[9px] text-muted-foreground/30 tabular-nums">
+            {over ? `+${fmtKcal(consumed - target)} over` : `${fmtKcal(target - consumed)} left`}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function WaterSmall({ dateKey }: { dateKey: string }) {
+  const preferences = useQuery(api.users.users.getPreferences)
+  const goalMl = preferences?.waterGoalMl ?? 2500
+  const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
+  const entries = (rawEntries ?? []) as { id: string; amountMl: number }[]
+  const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
+  const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
+  const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
+
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Water</p>
+        <div>
+          <div className="grid grid-cols-4 gap-1">
+            {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex h-4 items-center justify-center rounded",
+                  i < filledCount ? "bg-[rgba(56,189,248,0.22)]" : "bg-muted/25"
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full",
+                    i < filledCount ? "bg-[#38bdf8]" : "bg-muted-foreground/15"
+                  )}
+                />
+              </div>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[9px] text-muted-foreground/35 tabular-nums">
+            {fmtWater(totalMl)} / {fmtWater(goalMl)}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function WorkoutSmall({
+  done,
+  workoutName,
+  isRestDay,
+}: {
+  done: boolean
+  workoutName: string
+  isRestDay: boolean
+}) {
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Workout</p>
+        <div>
+          <p className="truncate text-[13px] font-semibold leading-snug tracking-tight">
+            {isRestDay ? "Rest day" : workoutName}
+          </p>
+          <div className="mt-1.5 flex items-center gap-1">
+            <div
+              className={cn(
+                "h-1.5 w-1.5 rounded-full",
+                done ? "bg-green-500" : isRestDay ? "bg-muted-foreground/20" : "bg-amber-400/70"
+              )}
+            />
+            <span className="text-[9px] text-muted-foreground/40">
+              {done ? "Done" : isRestDay ? "Rest" : "Pending"}
+            </span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function StreakSmall({ streak }: { streak: number }) {
+  const active = streak > 0
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Streak</p>
+        <div className="flex items-end gap-2">
+          <Fire
+            size={22}
+            weight={active ? "fill" : "regular"}
+            style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 20%, transparent)" }}
+          />
+          <div>
+            <span
+              className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight"
+              style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 35%, transparent)" }}
+            >
+              {streak}
+            </span>
+            <p className="text-[9px] text-muted-foreground/35">
+              {streak === 1 ? "day" : "days"}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function FoodSmall({ entries }: { entries: FoodLogEntry[] }) {
+  const total = entries.reduce((s, e) => s + e.calories, 0)
+  const meals = new Set(entries.map((e) => e.meal)).size
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Food</p>
+        <div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+              {fmtKcal(total)}
+            </span>
+            <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
+          </div>
+          <p className="mt-0.5 text-[9px] text-muted-foreground/35">
+            {entries.length === 0
+              ? "Nothing logged"
+              : `${entries.length} item${entries.length !== 1 ? "s" : ""} · ${meals} meal${meals !== 1 ? "s" : ""}`}
+          </p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function ProgressSmall() {
+  const measurements = useQuery(api.bodyProgress.list, {})
+  const latest = measurements && measurements.length > 0
+    ? measurements[measurements.length - 1]
+    : null
+
+  return (
+    <Card className="h-full">
+      <div className="flex h-full flex-col justify-between px-3.5 py-3">
+        <p className="text-[10px] font-semibold text-muted-foreground/50">Progress</p>
+        <div>
+          {latest?.weightKg != null ? (
+            <>
+              <div className="flex items-baseline gap-1">
+                <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+                  {latest.weightKg.toFixed(1)}
+                </span>
+                <span className="text-[9.5px] text-muted-foreground/40">kg</span>
+              </div>
+              <p className="mt-0.5 text-[9px] text-muted-foreground/35">
+                {new Date(`${latest.loggedAt}T12:00:00Z`).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                })}
+              </p>
+            </>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/40">No data yet</p>
+          )}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// ─── Sortable widget wrapper ──────────────────────────────────────────────────
+
+function SortableWidget({
+  id,
+  editMode,
+  size,
+  onToggleSize,
+  children,
+}: {
+  id: WidgetId
+  editMode: boolean
+  size: "full" | "small"
+  onToggleSize: () => void
+  children: React.ReactNode
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.45 : 1,
+        zIndex: isDragging ? 50 : undefined,
+      }}
+      className={cn(
+        "relative",
+        size === "full" ? "col-span-2" : "col-span-1",
+      )}
+    >
+      {children}
+      {editMode && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex overflow-hidden rounded-[20px]">
+          {/* drag handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="pointer-events-auto flex w-10 shrink-0 touch-none items-center justify-center bg-foreground/[0.07] text-muted-foreground/50 transition-colors active:bg-foreground/[0.13]"
+            aria-label="Drag to reorder"
+          >
+            <DotsSixVertical size={15} weight="bold" />
+          </button>
+          <div className="flex-1" />
+          {/* size toggle */}
+          <button
+            onClick={onToggleSize}
+            className="pointer-events-auto flex w-10 shrink-0 items-center justify-center bg-foreground/[0.07] text-muted-foreground/50 transition-colors active:bg-foreground/[0.13]"
+            aria-label={size === "full" ? "Shrink to half" : "Expand to full"}
+          >
+            {size === "full"
+              ? <ArrowsInSimple size={13} weight="bold" />
+              : <ArrowsOutSimple size={13} weight="bold" />}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1251,12 +1545,51 @@ export default function App() {
   const syncTimezone = useMutation(api.users.users.syncTimezone)
   const setDay = useMutation(api.logs.foodLogs.setDay)
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
+  const saveWidgetLayout = useMutation(api.users.users.setWidgetLayout)
 
   // ── Dashboard settings ───────────────────────────────────────────────────
 
   const settings: DashboardSettings = useMemo(() => {
     return (preferences?.dashboardSettings as DashboardSettings) || { workoutFocus: "strength" }
   }, [preferences])
+
+  // ── Widget layout ─────────────────────────────────────────────────────────
+
+  const [widgetLayout, setWidgetLayout] = useState<WidgetConfig[]>(() =>
+    resolveLayout(null)
+  )
+  // Sync from Convex once loaded (only on initial load)
+  const layoutInitialized = useRef(false)
+  useEffect(() => {
+    if (!layoutInitialized.current && preferences !== undefined) {
+      layoutInitialized.current = true
+      const stored = preferences?.widgetLayout as WidgetConfig[] | undefined
+      setWidgetLayout(resolveLayout(stored))
+    }
+  }, [preferences])
+
+  const [editMode, setEditMode] = useState(false)
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = widgetLayout.findIndex((w) => w.id === active.id)
+    const newIndex = widgetLayout.findIndex((w) => w.id === over.id)
+    const next = arrayMove(widgetLayout, oldIndex, newIndex)
+    setWidgetLayout(next)
+    void saveWidgetLayout({ layout: next })
+  }
+
+  function handleToggleSize(id: WidgetId) {
+    const next = toggleWidgetSize(widgetLayout, id)
+    setWidgetLayout(next)
+    void saveWidgetLayout({ layout: next })
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   // ── Mappings ──────────────────────────────────────────────────────────────
 
@@ -1343,8 +1676,27 @@ export default function App() {
               {salutation}, {firstName}.
             </h1>
           </div>
-          <div>
-            <ProfileButton name={session?.user?.name} onSettingsClick={() => setSettingsOpen(true)} />
+          <div className="flex items-center gap-2">
+            {editMode ? (
+              <button
+                onClick={() => setEditMode(false)}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-opacity active:opacity-70"
+              >
+                <Check size={12} weight="bold" />
+                Done
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-opacity active:opacity-70"
+                  aria-label="Edit dashboard layout"
+                >
+                  <Sliders size={15} />
+                </button>
+                <ProfileButton name={session?.user?.name} onSettingsClick={() => setSettingsOpen(true)} />
+              </>
+            )}
           </div>
         </header>
 
@@ -1356,43 +1708,95 @@ export default function App() {
         )}
 
         {/* Cards */}
-        <main className="flex flex-col gap-3 px-4">
-          <CalorieCard
-            info={calorieInfo}
-            loading={loading}
-            entries={foodEntries}
-            dayOffset={dayOffset}
-            timeZone={activeTimezone}
-            onDayOffsetChange={setDayOffset}
-          />
-          <WaterWidget dateKey={selectedDate} />
-          <WorkoutCard
-            settings={settings}
-            dayOffset={dayOffset}
-            scheduledWorkout={scheduledWorkout}
-            timeZone={activeTimezone}
-            workoutLogs={dayOffset === 0 ? workoutLogs : []}
-            collapsed={dayOffset === 0 ? todayWorkoutCollapsed : false}
-            onToggleCollapse={() => {
-              if (dayOffset === 0) setTodayWorkoutCollapsed((value) => !value)
-            }}
-            onDeleteSlot={(slot) => setConfirmDeleteSlot(slot)}
-          />
-          {workoutHistory !== undefined && (
-            <StreakCard
-              streak={streak}
-              workoutsThisWeek={workoutsThisWeek}
-              workoutDates={workoutDates}
-              today={now}
-            />
-          )}
-          <LoggedTodayCard
-            dayOffset={dayOffset}
-            timeZone={activeTimezone}
-            entries={foodEntries}
-            onEntriesChange={(entries) => void setDay({ date: selectedDate, entries })}
-          />
-          <ProgressCard />
+        <main className="px-4">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={widgetLayout.map((w) => w.id)}
+              strategy={rectSortingStrategy}
+            >
+              <div className="grid grid-cols-2 gap-3">
+                {widgetLayout.map((widget) => {
+                  let content: React.ReactNode
+
+                  if (widget.id === "calories") {
+                    const consumed = totalsForEntries(foodEntries).calories
+                    content = widget.size === "full"
+                      ? <CalorieCard
+                          info={calorieInfo}
+                          loading={loading}
+                          entries={foodEntries}
+                          dayOffset={dayOffset}
+                          timeZone={activeTimezone}
+                          onDayOffsetChange={setDayOffset}
+                        />
+                      : <CalorieSmall consumed={consumed} target={calorieInfo?.target ?? 0} />
+                  } else if (widget.id === "water") {
+                    content = widget.size === "full"
+                      ? <WaterWidget dateKey={selectedDate} />
+                      : <WaterSmall dateKey={selectedDate} />
+                  } else if (widget.id === "workout") {
+                    const done = workoutLogs.length > 0
+                    const fallback = WORKOUTS[settings.workoutFocus]
+                    const w = scheduledWorkout ?? fallback
+                    const workoutName = "title" in w ? w.title : w.name
+                    content = widget.size === "full"
+                      ? <WorkoutCard
+                          settings={settings}
+                          dayOffset={dayOffset}
+                          scheduledWorkout={scheduledWorkout}
+                          timeZone={activeTimezone}
+                          workoutLogs={dayOffset === 0 ? workoutLogs : []}
+                          collapsed={dayOffset === 0 ? todayWorkoutCollapsed : false}
+                          onToggleCollapse={() => {
+                            if (dayOffset === 0) setTodayWorkoutCollapsed((v) => !v)
+                          }}
+                          onDeleteSlot={(slot) => setConfirmDeleteSlot(slot)}
+                        />
+                      : <WorkoutSmall
+                          done={dayOffset === 0 && done}
+                          workoutName={workoutName}
+                          isRestDay={scheduledWorkout === null && dayOffset === 0}
+                        />
+                  } else if (widget.id === "streak") {
+                    content = widget.size === "full"
+                      ? (workoutHistory !== undefined
+                          ? <StreakCard streak={streak} workoutsThisWeek={workoutsThisWeek} workoutDates={workoutDates} today={now} />
+                          : null)
+                      : <StreakSmall streak={streak} />
+                  } else if (widget.id === "food") {
+                    content = widget.size === "full"
+                      ? <LoggedTodayCard
+                          dayOffset={dayOffset}
+                          timeZone={activeTimezone}
+                          entries={foodEntries}
+                          onEntriesChange={(entries) => void setDay({ date: selectedDate, entries })}
+                        />
+                      : <FoodSmall entries={foodEntries} />
+                  } else {
+                    content = widget.size === "full"
+                      ? <ProgressCard />
+                      : <ProgressSmall />
+                  }
+
+                  return (
+                    <SortableWidget
+                      key={widget.id}
+                      id={widget.id}
+                      editMode={editMode}
+                      size={widget.size}
+                      onToggleSize={() => handleToggleSize(widget.id)}
+                    >
+                      {content}
+                    </SortableWidget>
+                  )
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         </main>
       </div>
 
