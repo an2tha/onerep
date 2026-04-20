@@ -28,6 +28,14 @@ export default defineSchema({
         workoutFocus: v.string(), // "strength" | "cardio" | "mobility"
       }),
     ),
+    widgetLayout: v.optional(
+      v.array(
+        v.object({
+          id: v.string(), // WidgetId
+          size: v.string(), // "full" | "small"
+        }),
+      ),
+    ),
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
     waterGoalMl: v.optional(v.number()),
     customGoals: v.optional(

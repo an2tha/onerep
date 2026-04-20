@@ -215,6 +215,38 @@ export const setWaterGoal = mutation({
   },
 });
 
+export const setWidgetLayout = mutation({
+  args: {
+    layout: v.array(
+      v.object({
+        id: v.string(),
+        size: v.string(),
+      }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        widgetLayout: args.layout,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        widgetLayout: args.layout,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setCustomGoals = mutation({
   args: {
     calories: v.optional(v.number()),
