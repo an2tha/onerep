@@ -1,0 +1,4 @@
+## 2025-05-14 - API Information Leakage and Missing ID Validation
+**Vulnerability:** The data-api was leaking raw error objects (including potential stack traces and internal details) in 500 and 400 responses. Additionally, MongoDB ObjectIDs in URL parameters were not being validated before being passed to `findById`.
+**Learning:** Returning raw error objects (`res.json({ error: err })`) is a common shortcut that compromises security by exposing internal system state. Missing input validation on database identifiers can lead to unexpected database behavior or reveal information about the database type.
+**Prevention:** Always use generic error messages for client-side responses and log detailed errors on the server. Use Zod or similar validation libraries to strictly validate all incoming parameters, including database IDs, before they reach the data access layer.

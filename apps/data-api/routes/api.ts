@@ -12,6 +12,7 @@ import {
   exerciseSchema,
   searchQuerySchema,
   barcodeSchema,
+  idParamSchema,
 } from "../lib/validation";
 
 const router: Router = express.Router();
@@ -178,7 +179,8 @@ router.get(
       if (!food) return res.status(404).json({ message: "Product not found" });
       res.json(food);
     } catch (err) {
-      res.status(500).json({ error: err });
+      console.error("[ERR] Food lookup by barcode failed:", err);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 );
@@ -187,12 +189,18 @@ router.get(
   "/foods/id/:id",
   strictLimiter,
   async (req: Request, res: Response) => {
+    const validation = idParamSchema.safeParse(req.params);
+    if (!validation.success) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+
     try {
       const food = await Foods.findById(req.params.id);
       if (!food) return res.status(404).json({ message: "Product not found" });
       res.json(food);
     } catch (err) {
-      res.status(500).json({ error: err });
+      console.error("[ERR] Food lookup by ID failed:", err);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 );
@@ -201,12 +209,18 @@ router.get(
   "/exercises/id/:id",
   strictLimiter,
   async (req: Request, res: Response) => {
+    const validation = idParamSchema.safeParse(req.params);
+    if (!validation.success) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+
     try {
       const exercise = await Exercises.findById(req.params.id);
       if (!exercise) return res.status(404).json({ message: "Exercise not found" });
       res.json(exercise);
     } catch (err) {
-      res.status(500).json({ error: err });
+      console.error("[ERR] Exercise lookup by ID failed:", err);
+      res.status(500).json({ error: "Internal server error" });
     }
   },
 );
@@ -216,7 +230,8 @@ router.get("/foods", apiLimiter, async (req: Request, res: Response) => {
     const foods = await Foods.find().limit(20);
     res.json(foods);
   } catch (err) {
-    res.status(500).json({ error: err });
+    console.error("[ERR] Fetching foods failed:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -225,7 +240,8 @@ router.get("/exercises", apiLimiter, async (req: Request, res: Response) => {
     const exercises = await Exercises.find().limit(20);
     res.json(exercises);
   } catch (err) {
-    res.status(500).json({ error: err });
+    console.error("[ERR] Fetching exercises failed:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -243,7 +259,8 @@ router.post("/foods", async (req: Request, res: Response) => {
     await food.save();
     res.status(201).json(food);
   } catch (err) {
-    res.status(400).json({ error: err });
+    console.error("[ERR] Creating food failed:", err);
+    res.status(400).json({ error: "Failed to create food" });
   }
 });
 
@@ -261,7 +278,8 @@ router.post("/exercises", async (req: Request, res: Response) => {
     await exercise.save();
     res.status(201).json(exercise);
   } catch (err) {
-    res.status(400).json({ error: err });
+    console.error("[ERR] Creating exercise failed:", err);
+    res.status(400).json({ error: "Failed to create exercise" });
   }
 });
 

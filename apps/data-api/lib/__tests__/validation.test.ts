@@ -4,6 +4,7 @@ import {
   exerciseSchema,
   searchQuerySchema,
   barcodeSchema,
+  idParamSchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -264,5 +265,36 @@ describe("parseValidatedBody", () => {
   test("works with exerciseSchema on invalid data", () => {
     const result = parseValidatedBody(exerciseSchema, { name: "" });
     expect(result.error).toBeDefined();
+  });
+});
+
+describe("idParamSchema", () => {
+  test("accepts valid 24-character hex ID", () => {
+    const validId = "507f1f77bcf86cd799439011";
+    const result = idParamSchema.safeParse({ id: validId });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects ID that is too short", () => {
+    const shortId = "507f1f77bcf86cd79943901";
+    const result = idParamSchema.safeParse({ id: shortId });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects ID that is too long", () => {
+    const longId = "507f1f77bcf86cd799439011a";
+    const result = idParamSchema.safeParse({ id: longId });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects ID with non-hex characters", () => {
+    const invalidId = "507f1f77bcf86cd79943901g";
+    const result = idParamSchema.safeParse({ id: invalidId });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects empty ID", () => {
+    const result = idParamSchema.safeParse({ id: "" });
+    expect(result.success).toBe(false);
   });
 });
