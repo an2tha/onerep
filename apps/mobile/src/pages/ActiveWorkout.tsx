@@ -181,6 +181,13 @@ function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
   })
 }
 
+/**
+ * Count total sets and completed sets across the given workout items.
+ *
+ * @param items - Array of workout items (solo exercises or supersets) to include in the count
+ * @param exData - Mapping from exercise ID to its state (including the `sets` array)
+ * @returns An object with `total` — the number of sets across all referenced exercises, and `done` — the number of sets whose `completed` flag is `true`
+ */
 function countSets(
   items: WorkoutItem[],
   exData: Record<string, ExerciseState>
@@ -205,6 +212,13 @@ type NextTarget = {
   setIndex: number
 } | null
 
+/**
+ * Locate the first incomplete set across the workout items, scanning items in order.
+ *
+ * @param items - Ordered list of workout items (solo exercises or supersets) to scan
+ * @param exData - Mapping from exercise ID to its corresponding ExerciseState
+ * @returns A `NextTarget` with `exerciseId` and `setIndex` for the first incomplete set, or `null` if none found
+ */
 function findNextTarget(
   items: WorkoutItem[],
   exData: Record<string, ExerciseState>
@@ -223,6 +237,17 @@ function findNextTarget(
   return null
 }
 
+/**
+ * Normalize persisted or partial exercise state into a complete ExerciseState with sensible defaults.
+ *
+ * Converts an incoming (possibly undefined or partial) state object into an ExerciseState:
+ * - Ensures `sets` is an array; each set is given an `id` if missing and defaults:
+ *   `type` = "working", `weight`/`reps`/`leftReps`/`rightReps`/`rpe` = `""`, `restSeconds` = `120`, `completed` coerced to boolean.
+ * - Ensures `trackRpe` and `trackUnilateral` are booleans.
+ *
+ * @param state - Partial or persisted exercise state (may be undefined or missing fields)
+ * @returns A normalized ExerciseState ready for UI usage and persistence
+ */
 function normalizeExerciseState(state: any): ExerciseState {
   return {
     sets: (state?.sets || []).map((s: any) => ({
@@ -280,13 +305,25 @@ function useRestCountdown() {
   return { remaining, start, dismiss }
 }
 
-// ─── Elapsed timer ────────────────────────────────────────────────────────────
+/**
+ * Tracks seconds elapsed since a given start timestamp.
+ *
+ * Recalculates every second and also when the document becomes visible again.
+ *
+ * @param startedAt - Unix epoch milliseconds timestamp marking the start, or `null` if not started
+ * @returns The number of whole seconds elapsed since `startedAt`; `0` if `startedAt` is `null`
+ */
 
 function useElapsedTimer(startedAt: number | null) {
   const [elapsed, setElapsed] = useState(0)
 
   useEffect(() => {
-    // Calculate elapsed from startedAt timestamp
+    /**
+     * Update the elapsed seconds state based on the `startedAt` timestamp.
+     *
+     * If `startedAt` is defined, computes the whole seconds elapsed since that timestamp
+     * (using floor) and updates the component state via `setElapsed`.
+     */
     function updateElapsed() {
       if (startedAt) {
         const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
@@ -300,7 +337,11 @@ function useElapsedTimer(startedAt: number | null) {
     // Update every second
     const id = setInterval(updateElapsed, 1000)
 
-    // Handle visibility changes - recalculate when tab becomes active
+    /**
+     * Recalculates the elapsed workout timer when the document becomes visible.
+     *
+     * This should be registered on the document's `visibilitychange` event so the elapsed time is updated when the tab or window regains focus.
+     */
     function handleVisibilityChange() {
       if (document.visibilityState === "visible") {
         updateElapsed()
@@ -503,7 +544,24 @@ function RestTimerSheet({
   )
 }
 
-// ─── Active set row ───────────────────────────────────────────────────────────
+/**
+ * Render a single active set row allowing the user to edit weight/reps/RPE, toggle completion, pick rest, cycle set type, and delete the set.
+ *
+ * The row visualizes completion state, optionally highlights the "next" set, and opens a rest-duration sheet when the timer button is tapped.
+ *
+ * @param set - The WorkoutSet data for this row (weights, reps, rpe, restSeconds, completed, etc.).
+ * @param index - Zero-based index of the set within its exercise.
+ * @param trackRpe - Whether the UI should show and allow editing of the RPE field.
+ * @param trackUnilateral - Whether reps are tracked per limb (shows left/right inputs) instead of a single reps field.
+ * @param unit - Display unit for weight (kg or lbs); inputs/outputs are converted via unit helpers.
+ * @param onUpdate - Called with an updated WorkoutSet when any editable field changes.
+ * @param onDelete - Called when the delete action is triggered for this set.
+ * @param canDelete - When true, shows the delete control (disabled/hidden when the set is completed).
+ * @param onComplete - Invoked with the set's restSeconds when the set is newly marked completed (used to start the rest countdown).
+ * @param isNext - When true and the set is not completed, the row receives visual emphasis indicating it's the next target.
+ *
+ * @returns A JSX element representing the interactive set row.
+ */
 
 function ActiveSetRow({
   set,
@@ -829,6 +887,34 @@ function ActiveSetRow({
   )
 }
 
+/**
+ * Render an exercise card containing its sets, controls, and compact history for the active workout UI.
+ *
+ * Displays exercise metadata, set rows (with editing, completion, and rest controls), tracking toggles (RPE / unilateral),
+ * drag handle, collapse toggle, remove button, and an optional last-session summary. Highlights the next incomplete set
+ * when `nextSetIndex` is provided.
+ *
+ * @param exercise - Exercise metadata (name, color, muscle, etc.).
+ * @param data - Per-exercise state including the list of sets and tracking flags.
+ * @param unit - Weight display unit (`"kg"` or `"lbs"`).
+ * @param onUpdate - Called with an updated `ExerciseState` when sets or tracking options change.
+ * @param onRemove - Called to remove this exercise from the workout.
+ * @param isDragging - Whether this card is currently being dragged (applies visual transform).
+ * @param showLineBefore - Render a decorative line above the card when true.
+ * @param showLineAfter - Render a decorative line below the card when true.
+ * @param showSupersetRing - Apply a colored ring accent to indicate superset grouping when true.
+ * @param inSuperset - True when the card is rendered inside a superset container.
+ * @param collapsed - Whether the card's set list is collapsed.
+ * @param onToggleCollapse - Toggle collapsed state for this card.
+ * @param dragHandlers - Pointer/drag event handlers to attach to the drag handle.
+ * @param cardRef - Ref callback for the card DOM element (used for hit-testing during drag).
+ * @param onStartRest - Called with rest seconds when a set is completed and a rest timer should start.
+ * @param lastSession - Optional recent session summary (date and sets) to render a compact history row.
+ * @param onShowHistory - Open the full history sheet for this exercise.
+ * @param nextSetIndex - Optional index of the next incomplete set to visually emphasize; pass `null` to disable.
+ *
+ * @returns The rendered React element for the exercise card.
+ */
 function ActiveExerciseCard({
   exercise,
   data,
@@ -1696,6 +1782,32 @@ function AbortSheet({
   )
 }
 
+/**
+ * Renders a superset container with its member exercises as ActiveExerciseCard entries.
+ *
+ * Renders visual superset chrome (colored side band, header, connecting lines), maps each exercise ID
+ * to an ActiveExerciseCard with drag handlers, collapse state, history link, rest control, and next-set highlighting.
+ *
+ * @param item - The superset workout item containing `exerciseIds`, `color`, and `id`.
+ * @param exData - Map of exercise state keyed by exercise ID.
+ * @param unit - Current weight unit (`kg` or `lbs`) for display/conversion.
+ * @param updateExData - Callback to replace an exercise's ExerciseState.
+ * @param removeExercise - Callback to remove an exercise from the workout.
+ * @param drag - Current drag state or null.
+ * @param dropTarget - Current drop target information used to render before/after indicators.
+ * @param collapsed - Map of exerciseId to collapsed boolean.
+ * @param toggleCollapsed - Toggles collapsed state for a given exercise ID.
+ * @param makeDragHandlers - Factory that returns pointer/drag handlers for a given exercise ID.
+ * @param cardRefs - Mutable ref map from exerciseId to the card DOM element (used for hit-testing).
+ * @param onStartRest - Invoked with rest seconds to start the rest countdown for a set.
+ * @param cardProps - Function returning shared props spread onto each ActiveExerciseCard; receives (exerciseId, inSuperset).
+ * @param exerciseLookup - Map of exercise metadata keyed by exercise ID.
+ * @param lastSessionMap - Map of exerciseId to last completed session summary (date and sets) or undefined.
+ * @param onShowHistory - Callback invoked to open the exercise history sheet (exerciseId, name).
+ * @param nextTarget - Optional next-set target identifying which exercise and set index should be highlighted.
+ *
+ * @returns A JSX element representing the superset block and its exercise cards.
+ */
 function renderSupersetItem(
   item: Extract<WorkoutItem, { kind: "superset" }>,
   exData: Record<string, ExerciseState>,
@@ -1821,6 +1933,13 @@ function renderSupersetItem(
   )
 }
 
+/**
+ * Renders and manages the Active Workout page, including UI for editing/performing sets and exercises, timers, drag-and-drop reordering/superset creation, and sheets for adding exercises, viewing history, finishing, or aborting a workout.
+ *
+ * This component initializes from a Convex active workout or a preset, maintains local workout state (items, per-exercise sets and tracking options, UI collapse/drag state, and elapsed/rest timers), and debounces syncing updates back to Convex. It also handles creating the active workout record, finishing (with Convex primary and legacy fallback logging), aborting, and analytics events.
+ *
+ * @returns The React element for the Active Workout page.
+ */
 export default function ActiveWorkout() {
   const { presetId } = useParams<{ presetId?: string }>()
   const navigate = useNavigate()

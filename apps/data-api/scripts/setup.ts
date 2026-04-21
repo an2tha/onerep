@@ -7,10 +7,22 @@ import { execSync } from "child_process";
 import { spawn } from "child_process";
 import { existsSync } from "fs";
 
+/**
+ * Pause execution for the specified number of milliseconds.
+ *
+ * @param ms - Number of milliseconds to wait
+ * @returns Resolves with no value after the specified delay
+ */
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Polls the local PostgreSQL server until it becomes available or the retry limit is reached.
+ *
+ * @param maxRetries - Maximum number of readiness checks to perform (default: 30).
+ * @returns `true` if PostgreSQL responded as ready within the given attempts, `false` otherwise.
+ */
 async function waitForPostgres(maxRetries = 30): Promise<boolean> {
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -25,6 +37,11 @@ async function waitForPostgres(maxRetries = 30): Promise<boolean> {
   return false;
 }
 
+/**
+ * Orchestrates the local data-api bootstrap: starts services, migrates the database, and launches the data loader.
+ *
+ * Performs four steps: starts Docker Compose for PostgreSQL, waits for PostgreSQL to become ready (exiting the process with code 1 if it never becomes ready), runs schema generation and migrations, and spawns the loader process while streaming its output; logs success or the loader's exit code when the loader finishes.
+ */
 async function main() {
   console.log("[SETUP] Starting OneRep data-api setup...\n");
 

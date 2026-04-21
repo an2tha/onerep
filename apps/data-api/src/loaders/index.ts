@@ -12,6 +12,11 @@ const PARQUET_PATH = path.join(DATASETS_DIR, "foods.parquet");
 
 const BATCH_SIZE = 10000;
 
+/**
+ * Load food records from the parquet dataset into the database's `foodfacts` table using DuckDB.
+ *
+ * Streams the parquet file in batches, transforms and normalizes each row to the target schema, and inserts records into `foodfacts`. If the table already contains rows the function returns early. Insert errors caused by duplicate-key conflicts are tolerated; other insert errors are logged. The DuckDB connection is closed when loading completes.
+ */
 async function loadFoodsWithDuckDB(): Promise<void> {
   console.log("[LOADER] Starting foods load with DuckDB...");
   
