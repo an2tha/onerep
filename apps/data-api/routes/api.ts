@@ -1,21 +1,23 @@
 import express, { Request, Response, type Router } from "express";
-import { Foods } from "../lib/schemas/foods";
-import { Exercises } from "../lib/schemas/exercises";
-import { esClient } from "../lib/elasticsearch";
-import {
-  apiLimiter,
-  searchLimiter,
-  strictLimiter,
-} from "../middleware/rateLimit";
-import {
-  foodSchema,
-  exerciseSchema,
-  searchQuerySchema,
-  barcodeSchema,
-  idParamSchema,
-} from "../lib/validation";
+import pg from "pg";
+import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
+import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
 
 const router: Router = express.Router();
+
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL || "postgresql://onerep:onerep_dev@localhost:5433/onerep_data",
+});
+
+async function query(sql: string, params: any[] = []): Promise<any[]> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(sql, params);
+    return result.rows;
+  } finally {
+    client.release();
+  }
+}
 
 router.use("/foods/search", searchLimiter);
 router.use("/foods/nutrients", searchLimiter);
@@ -25,282 +27,211 @@ router.use("/exercises/lookup", apiLimiter);
 router.post("/foods", apiLimiter);
 router.post("/exercises", apiLimiter);
 
+// Foods
 router.get("/foods/search", async (req: Request, res: Response) => {
-  const validation = searchQuerySchema.safeParse(req.query);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Invalid query parameters",
-      details: validation.error.flatten(),
-    });
-  }
-
-  const query = req.query.q as string;
+  const q = req.query.q as string || "";
   const limit = Math.min(Number(req.query.limit) || 25, 50);
-
   try {
-    const result = await esClient.search({
-      index: "foods",
-      size: limit,
-      query: {
-        multi_match: {
-          query,
-          fields: ["product_name", "brands", "categories", "ingredients_text"],
-        },
-      },
-    });
-
-    const hits = result.hits.hits;
-    if (hits.length === 0) return res.json([]);
-
-    // Enrich hits with full data from MongoDB to ensure nutriments and correct formatting
-    const codes = hits.map((h: any) => h._id);
-    const fullDocs = await Foods.find({ code: { $in: codes } }).lean();
-    
-    // Map back to maintain ES order
-    const enriched = hits.map((hit: any) => {
-      const doc = fullDocs.find((d) => d.code === hit._id);
-      return {
-        ...hit,
-        _source: doc || hit._source,
-      };
-    });
-
-    res.json(enriched);
+    const results = await query(
+      "SELECT * FROM foodfacts WHERE name ILIKE $1 OR brand ILIKE $1 LIMIT $2",
+      [`%${q}%`, limit]
+    );
+    // Return in format Convex expects
+    const formatted = results.map(row => ({
+      _id: row.code,
+      _source: {
+        code: row.code,
+        product_name: row.name,
+        brands: row.brand,
+        calories_100g: row.calories,
+        protein_100g: row.protein,
+        carbs_100g: row.carbs,
+        fat_100g: row.fat,
+        nutriscore_grade: row.nutriscore_grade,
+        nova_group: row.nova_group,
+      }
+    }));
+    res.json(formatted);
   } catch (err) {
-    console.error("[ERR] Food search failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
 router.get("/foods/nutrients", async (req: Request, res: Response) => {
-  const validation = searchQuerySchema.safeParse(req.query);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Invalid query parameters",
-      details: validation.error.flatten(),
-    });
-  }
-
-  const { grade, min_score, max_score } = req.query;
-  const must: any[] = [];
-  if (grade) must.push({ term: { nutriscore_grade: (grade as string).toLowerCase() } });
-  if (min_score || max_score) {
-    must.push({
-      range: {
-        nutriscore_score: {
-          ...(min_score && { gte: Number(min_score) }),
-          ...(max_score && { lte: Number(max_score) }),
-        },
-      },
-    });
-  }
-
+  const { grade } = req.query;
   try {
-    const result = await esClient.search({
-      index: "foods",
-      query: { bool: { must } },
-    });
-    res.json(result.hits.hits.map((h: any) => h._source));
+    let results;
+    if (grade) {
+      results = await query("SELECT * FROM foodfacts WHERE nutriscore_grade = $1 LIMIT 100", [String(grade).toUpperCase()]);
+    } else {
+      results = await query("SELECT * FROM foodfacts LIMIT 100");
+    }
+    res.json(results);
   } catch (err) {
-    console.error("[ERR] Nutrient search failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
-router.get("/exercises/search", async (req: Request, res: Response) => {
-  const validation = searchQuerySchema.safeParse(req.query);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Invalid query parameters",
-      details: validation.error.flatten(),
-    });
-  }
-
-  const q = (req.query.q as string | undefined)?.trim() ?? "";
-  const size = Math.min(Number(req.query.limit) || 25, 50);
-  const esQuery = q.length >= 2
-    ? {
-        multi_match: {
-          query: q,
-          fields: ["name^3", "primaryMuscles^2", "secondaryMuscles", "equipment", "category"],
-          type: "best_fields" as const,
-          fuzziness: "AUTO" as const,
-        },
-      }
-    : { match_all: {} };
-
+router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Response) => {
   try {
-    const result = await esClient.search({ index: "exercises", size, query: esQuery });
-    res.json(result.hits.hits);
+    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [req.params.code]);
+    if (results.length === 0) return res.status(404).json({ message: "Product not found" });
+    const row = results[0];
+    // Return in format Convex expects
+    res.json({
+      code: row.code,
+      product_name: row.name,
+      brands: row.brand,
+      nutriments: {
+        "energy-kcal_100g": row.calories,
+        "proteins_100g": row.protein,
+        "carbohydrates_100g": row.carbs,
+        "fat_100g": row.fat,
+      },
+      nutriscore_grade: row.nutriscore_grade,
+      nova_group: row.nova_group,
+    });
   } catch (err) {
-    console.error("[ERR] Exercise search failed:", err);
+    console.error("[ERR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/foods/id/:id", strictLimiter, async (req: Request, res: Response) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+  try {
+    const results = await query("SELECT * FROM foodfacts WHERE id = $1 LIMIT 1", [id]);
+    if (results.length === 0) return res.status(404).json({ message: "Product not found" });
+    res.json(results[0]);
+  } catch (err) {
+    console.error("[ERR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/foods", apiLimiter, async (_req: Request, res: Response) => {
+  try {
+    const results = await query("SELECT * FROM foodfacts LIMIT 20");
+    res.json(results);
+  } catch (err) {
+    console.error("[ERR]", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Exercises
+router.get("/exercises/search", async (req: Request, res: Response) => {
+  const q = (req.query.q as string || "").trim();
+  const size = Math.min(Number(req.query.limit) || 25, 50);
+  try {
+    let results;
+    if (q.length < 2) {
+      results = await query("SELECT * FROM exercises LIMIT $1", [size]);
+    } else {
+      results = await query(
+        "SELECT * FROM exercises WHERE name ILIKE $1 OR equipment ILIKE $1 LIMIT $2",
+        [`%${q}%`, size]
+      );
+    }
+    // Return in format Convex expects
+    const formatted = results.map(row => ({
+      _id: row.exercise_id,
+      _source: {
+        id: row.exercise_id,
+        name: row.name,
+        category: row.category,
+        level: row.level,
+        equipment: row.equipment,
+        force: row.force,
+        primaryMuscles: typeof row.primary_muscles === 'string' ? JSON.parse(row.primary_muscles) : (row.primary_muscles || []),
+        secondaryMuscles: typeof row.secondary_muscles === 'string' ? JSON.parse(row.secondary_muscles) : (row.secondary_muscles || []),
+        instructions: typeof row.instructions === 'string' ? JSON.parse(row.instructions) : (row.instructions || []),
+      }
+    }));
+    res.json(formatted);
+  } catch (err) {
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
 router.get("/exercises/lookup", async (req: Request, res: Response) => {
-  const raw = req.query.ids as string | undefined;
+  const raw = req.query.ids as string;
   if (!raw) return res.status(400).json({ error: "ids query param required" });
-  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+  const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 100);
   if (ids.length === 0) return res.json([]);
-
   try {
-    const result = await esClient.search({
-      index: "exercises",
-      size: ids.length,
-      query: { terms: { _id: ids } },
-    });
-    res.json(result.hits.hits);
+    const results = await query("SELECT * FROM exercises WHERE exercise_id = ANY($1)", [ids]);
+    const formatted = results.map(row => ({
+      _id: row.exercise_id,
+      _source: {
+        id: row.exercise_id,
+        name: row.name,
+        category: row.category,
+        level: row.level,
+        equipment: row.equipment,
+        force: row.force,
+        primaryMuscles: typeof row.primary_muscles === 'string' ? JSON.parse(row.primary_muscles) : (row.primary_muscles || []),
+        secondaryMuscles: typeof row.secondary_muscles === 'string' ? JSON.parse(row.secondary_muscles) : (row.secondary_muscles || []),
+        instructions: typeof row.instructions === 'string' ? JSON.parse(row.instructions) : (row.instructions || []),
+      }
+    }));
+    res.json(formatted);
   } catch (err) {
-    console.error("[ERR] Exercise lookup failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Lookup failed" });
   }
 });
 
 router.get("/exercises/advanced", async (req: Request, res: Response) => {
-  const validation = searchQuerySchema.safeParse(req.query);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Invalid query parameters",
-      details: validation.error.flatten(),
-    });
-  }
-
   const { muscle, equipment, category, force } = req.query;
-  const must: any[] = [];
-  if (muscle) must.push({ match: { primaryMuscles: muscle } });
-  if (equipment) must.push({ term: { equipment: (equipment as string).toLowerCase() } });
-  if (category) must.push({ term: { category: (category as string).toLowerCase() } });
-  if (force) must.push({ term: { force: (force as string).toLowerCase() } });
-
+  const conditions: string[] = [];
+  const params: any[] = [];
+  let i = 1;
+  if (muscle) { conditions.push(`primary_muscles::text ILIKE $${i++}`); params.push(`%${muscle}%`); }
+  if (equipment) { conditions.push(`equipment ILIKE $${i++}`); params.push(`%${equipment}%`); }
+  if (category) { conditions.push(`category = $${i++}`); params.push(String(category).toLowerCase()); }
+  if (force) { conditions.push(`force = $${i++}`); params.push(String(force).toLowerCase()); }
+  const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
   try {
-    const result = await esClient.search({
-      index: "exercises",
-      query: { bool: { must } },
-    });
-    res.json(result.hits.hits.map((h: any) => h._source));
+    const results = await query(`SELECT * FROM exercises ${where} LIMIT 100`, params);
+    res.json(results);
   } catch (err) {
-    console.error("[ERR] Advanced exercise search failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Search failed" });
   }
 });
 
-router.get(
-  "/foods/barcode/:code",
-  strictLimiter,
-  async (req: Request, res: Response) => {
-    const validation = barcodeSchema.safeParse(req.params);
-    if (!validation.success) {
-      return res.status(400).json({ error: "Invalid barcode format" });
-    }
-
-    try {
-      const food = await Foods.findOne({ code: req.params.code });
-      if (!food) return res.status(404).json({ message: "Product not found" });
-      res.json(food);
-    } catch (err) {
-      console.error("[ERR] Food lookup by barcode failed:", err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.get(
-  "/foods/id/:id",
-  strictLimiter,
-  async (req: Request, res: Response) => {
-    const validation = idParamSchema.safeParse(req.params);
-    if (!validation.success) {
-      return res.status(400).json({ error: "Invalid ID format" });
-    }
-
-    try {
-      const food = await Foods.findById(req.params.id);
-      if (!food) return res.status(404).json({ message: "Product not found" });
-      res.json(food);
-    } catch (err) {
-      console.error("[ERR] Food lookup by ID failed:", err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.get(
-  "/exercises/id/:id",
-  strictLimiter,
-  async (req: Request, res: Response) => {
-    const validation = idParamSchema.safeParse(req.params);
-    if (!validation.success) {
-      return res.status(400).json({ error: "Invalid ID format" });
-    }
-
-    try {
-      const exercise = await Exercises.findById(req.params.id);
-      if (!exercise) return res.status(404).json({ message: "Exercise not found" });
-      res.json(exercise);
-    } catch (err) {
-      console.error("[ERR] Exercise lookup by ID failed:", err);
-      res.status(500).json({ error: "Internal server error" });
-    }
-  },
-);
-
-router.get("/foods", apiLimiter, async (req: Request, res: Response) => {
+router.get("/exercises/id/:id", strictLimiter, async (req: Request, res: Response) => {
   try {
-    const foods = await Foods.find().limit(20);
-    res.json(foods);
+    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [req.params.id]);
+    if (results.length === 0) return res.status(404).json({ message: "Exercise not found" });
+    res.json(results[0]);
   } catch (err) {
-    console.error("[ERR] Fetching foods failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get("/exercises", apiLimiter, async (req: Request, res: Response) => {
+router.get("/exercises", apiLimiter, async (_req: Request, res: Response) => {
   try {
-    const exercises = await Exercises.find().limit(20);
-    res.json(exercises);
+    const results = await query("SELECT * FROM exercises LIMIT 20");
+    res.json(results);
   } catch (err) {
-    console.error("[ERR] Fetching exercises failed:", err);
+    console.error("[ERR]", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.post("/foods", async (req: Request, res: Response) => {
-  const validation = foodSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Validation failed",
-      details: validation.error.flatten(),
-    });
-  }
-
-  try {
-    const food = new Foods(validation.data);
-    await food.save();
-    res.status(201).json(food);
-  } catch (err) {
-    console.error("[ERR] Creating food failed:", err);
-    res.status(400).json({ error: "Failed to create food" });
-  }
+router.post("/foods", async (_req: Request, res: Response) => {
+  res.status(501).json({ error: "Custom food creation not implemented" });
 });
 
-router.post("/exercises", async (req: Request, res: Response) => {
-  const validation = exerciseSchema.safeParse(req.body);
-  if (!validation.success) {
-    return res.status(400).json({
-      error: "Validation failed",
-      details: validation.error.flatten(),
-    });
-  }
-
-  try {
-    const exercise = new Exercises(validation.data);
-    await exercise.save();
-    res.status(201).json(exercise);
-  } catch (err) {
-    console.error("[ERR] Creating exercise failed:", err);
-    res.status(400).json({ error: "Failed to create exercise" });
-  }
+router.post("/exercises", async (_req: Request, res: Response) => {
+  res.status(501).json({ error: "Custom exercise creation not implemented" });
 });
 
 export default router;

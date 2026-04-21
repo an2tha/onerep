@@ -1,13 +1,45 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
-import { X, CaretRight, Minus, Plus } from "@phosphor-icons/react"
+import { X, CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
-import { hapticTap, hapticSelection } from "@/lib/haptics"
+import { hapticTap, hapticSelection, hapticMedium } from "@/lib/haptics"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@repo/ui"
+
+// ─── Theme helper ─────────────────────────────────────────────────────────────
+
+type Theme = "light" | "dark"
+
+function getStoredTheme(): Theme {
+  if (typeof window === "undefined") return "light"
+  return (localStorage.getItem("theme") as Theme) ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+}
+
+function setTheme(theme: Theme) {
+  if (typeof document === "undefined") return
+  localStorage.setItem("theme", theme)
+  if (theme === "dark") {
+    document.documentElement.classList.add("dark")
+  } else {
+    document.documentElement.classList.remove("dark")
+  }
+}
+
+function toggleTheme() {
+  const current = getStoredTheme()
+  const next = current === "dark" ? "light" : "dark"
+  setTheme(next)
+  return next
+}
+
+// Initialize theme on load
+if (typeof window !== "undefined") {
+  setTheme(getStoredTheme())
+}
 
 type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
@@ -51,6 +83,12 @@ export default function Settings({
     effectiveGoals?.effective.fat ?? 65
   )
   const [saving, setSaving] = useState(false)
+  const [theme, setThemeState] = useState<Theme>("light")
+  
+  // Initialize theme
+  useEffect(() => {
+    setThemeState(getStoredTheme())
+  }, [])
 
   useEffect(() => {
     if (preferences?.dashboardSettings?.workoutFocus) {
@@ -80,6 +118,12 @@ export default function Settings({
   }, [effectiveGoals])
 
   const hasCustomGoals = preferences?.customGoals != null
+
+  function handleThemeToggle() {
+    hapticMedium()
+    const nextTheme = toggleTheme()
+    setThemeState(nextTheme)
+  }
 
   async function handleSave() {
     if (saving) return
@@ -116,6 +160,7 @@ export default function Settings({
   }
 
   async function handleResetOnboarding() {
+    hapticTap()
     await clearOnboarding({})
     navigate("/onboarding", { replace: true })
   }
@@ -135,13 +180,29 @@ export default function Settings({
           <div>
             <h1 className="text-[22px] font-bold tracking-tight">Settings</h1>
           </div>
-          <button
-            onClick={() => onClose()}
-            aria-label="Close settings"
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
-          >
-            <X size={16} weight="bold" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleThemeToggle}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-90"
+            >
+              {theme === "dark" ? (
+                <Sun size={16} weight="bold" />
+              ) : (
+                <Moon size={16} weight="bold" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                hapticTap()
+                onClose()
+              }}
+              aria-label="Close settings"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
+            >
+              <X size={16} weight="bold" />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-2.5">
@@ -167,7 +228,10 @@ export default function Settings({
                   </div>
                   <div className="h-px bg-border/20 mx-4" />
                   <button
-                    onClick={handleLogout}
+                    onClick={() => {
+                      hapticTap()
+                      handleLogout()
+                    }}
                     className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
                   >
                     <span className="text-[14px] font-medium">Sign out</span>
@@ -311,7 +375,10 @@ export default function Settings({
                     </button>
                   ) : (
                     <button
-                      onClick={() => navigate("/onboarding")}
+                      onClick={() => {
+                        hapticTap()
+                        navigate("/onboarding")
+                      }}
                       className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
                     >
                       <span className="text-[14px]">Set up health profile</span>

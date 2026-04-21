@@ -694,10 +694,10 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
     return r ? scale(r.per100g, grams) : 0
   }
 
-  const calories = s("energy-kcal") || item.calories
-  const protein = s("proteins") || item.protein
-  const carbs = s("carbohydrates") || item.carbs
-  const fat = s("fat") || item.fat
+  const calories = s("energy") || scale(Number(item.calories), grams)
+  const protein = s("protein") || scale(Number(item.protein), grams)
+  const carbs = s("carbs") || scale(Number(item.carbs), grams)
+  const fat = s("fat") || scale(Number(item.fat), grams)
 
   // ── Portion presets ───────────────────────────────────────────────────────
 
@@ -801,7 +801,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
                 </div>
 
                 {detail.nutrients
-                  .filter((n) => n.key !== "energy-kcal" && n.key !== "salt")
+                  .filter((n) => n.key !== "energy" && n.key !== "salt")
                   .map((n, i, arr) => (
                     <div
                       key={n.key}

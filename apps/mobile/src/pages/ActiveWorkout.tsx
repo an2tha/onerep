@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useQuery, useMutation, useAction } from "convex/react"
@@ -198,6 +198,31 @@ function countSets(
   return { total, done }
 }
 
+// ─── Next set indicator ───────────────────────────────────────────────────────
+
+type NextTarget = {
+  exerciseId: string
+  setIndex: number
+} | null
+
+function findNextTarget(
+  items: WorkoutItem[],
+  exData: Record<string, ExerciseState>
+): NextTarget {
+  for (const item of items) {
+    const exerciseIds = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
+    for (const exerciseId of exerciseIds) {
+      const data = exData[exerciseId]
+      if (!data) continue
+      const firstIncomplete = data.sets.findIndex((s) => !s.completed)
+      if (firstIncomplete !== -1) {
+        return { exerciseId, setIndex: firstIncomplete }
+      }
+    }
+  }
+  return null
+}
+
 function normalizeExerciseState(state: any): ExerciseState {
   return {
     sets: (state?.sets || []).map((s: any) => ({
@@ -257,12 +282,39 @@ function useRestCountdown() {
 
 // ─── Elapsed timer ────────────────────────────────────────────────────────────
 
-function useElapsedTimer() {
+function useElapsedTimer(startedAt: number | null) {
   const [elapsed, setElapsed] = useState(0)
+
   useEffect(() => {
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000)
-    return () => clearInterval(id)
-  }, [])
+    // Calculate elapsed from startedAt timestamp
+    function updateElapsed() {
+      if (startedAt) {
+        const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
+        setElapsed(elapsedSeconds)
+      }
+    }
+
+    // Initial calculation
+    updateElapsed()
+
+    // Update every second
+    const id = setInterval(updateElapsed, 1000)
+
+    // Handle visibility changes - recalculate when tab becomes active
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        updateElapsed()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [startedAt])
+
   return elapsed
 }
 
@@ -463,6 +515,7 @@ function ActiveSetRow({
   onDelete,
   canDelete,
   onComplete,
+  isNext,
 }: {
   set: WorkoutSet
   index: number
@@ -473,6 +526,7 @@ function ActiveSetRow({
   onDelete: () => void
   canDelete: boolean
   onComplete: (restSeconds: number) => void
+  isNext?: boolean
 }) {
   const [showRest, setShowRest] = useState(false)
   const [completionPulse, setCompletionPulse] = useState(false)
@@ -515,26 +569,48 @@ function ActiveSetRow({
         className={cn(
           "flex items-center gap-2 px-3 py-2 transition-[background-color,transform,box-shadow] duration-300",
           set.completed && "bg-green-500/[0.04]",
-          completionPulse && "scale-[1.01]"
+          completionPulse && "scale-[1.01]",
+          isNext && !set.completed && "relative"
         )}
         style={
           completionPulse
             ? { boxShadow: "inset 0 0 0 1px rgba(34,197,94,0.22)" }
-            : undefined
+            : isNext && !set.completed
+              ? { boxShadow: "inset 0 0 0 1.5px rgba(56,189,248,0.40)" }
+              : undefined
         }
       >
+        {/* Next indicator */}
+        {isNext && !set.completed && (
+          <div
+            className="absolute -left-1 top-1/2 -translate-y-1/2 flex h-2 w-2 items-center justify-center"
+          >
+            <div
+              className="h-1.5 w-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: "#38bdf8" }}
+            />
+          </div>
+        )}
         <span
-          className="w-4 shrink-0 text-center text-[11px] font-medium tabular-nums select-none"
-          style={{
-            color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-          }}
+          className={cn(
+            "w-4 shrink-0 text-center text-[11px] font-medium tabular-nums select-none transition-colors",
+            isNext && !set.completed && "text-sky-400"
+          )}
+          style={
+            isNext && !set.completed
+              ? { color: "#38bdf8" }
+              : { color: "color-mix(in srgb, var(--foreground) 18%, transparent)" }
+          }
         >
           {index + 1}
         </span>
         <button
           onClick={cycleType}
           disabled={set.completed}
-          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl transition-all select-none active:scale-[0.88] disabled:pointer-events-none"
+          className={cn(
+            "flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl transition-all select-none active:scale-[0.88] disabled:pointer-events-none",
+            isNext && !set.completed && "ring-1 ring-sky-400/30"
+          )}
           style={{
             backgroundColor: set.completed ? "rgba(34,197,94,0.10)" : cfg.bg,
           }}
@@ -771,6 +847,7 @@ function ActiveExerciseCard({
   onStartRest,
   lastSession,
   onShowHistory,
+  nextSetIndex,
 }: {
   exercise: Exercise
   data: ExerciseState
@@ -789,6 +866,7 @@ function ActiveExerciseCard({
   onStartRest: (seconds: number) => void
   lastSession?: { date: string; sets: Array<{ weight: number; reps: number; completed: boolean; type: string }> } | null
   onShowHistory: () => void
+  nextSetIndex?: number | null
 }) {
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
@@ -1007,6 +1085,7 @@ function ActiveExerciseCard({
                     onDelete={() => removeSet(i)}
                     canDelete={data.sets.length > 1}
                     onComplete={onStartRest}
+                    isNext={nextSetIndex === i}
                   />
                 </div>
               ))}
@@ -1633,7 +1712,8 @@ function renderSupersetItem(
   cardProps: (id: string, inS: boolean) => any,
   exerciseLookup: Record<string, Exercise>,
   lastSessionMap: Record<string, { date: string; sets: any[] }>,
-  onShowHistory: (exId: string, name: string) => void
+  onShowHistory: (exId: string, name: string) => void,
+  nextTarget: NextTarget
 ) {
   const dt = dropTarget
   const containerIsTarget = dt && item.exerciseIds.includes(dt.targetExId)
@@ -1731,6 +1811,7 @@ function renderSupersetItem(
                 onStartRest={onStartRest}
                 lastSession={lastSessionMap[exId] ?? null}
                 onShowHistory={() => onShowHistory(exId, ex.name)}
+                nextSetIndex={nextTarget?.exerciseId === exId ? nextTarget.setIndex : null}
               />
             </React.Fragment>
           )
@@ -1751,6 +1832,13 @@ export default function ActiveWorkout() {
   const logCompletion = useMutation(api.logs.workouts.completion)
   const resolveIds = useAction(api.data.exercises.resolveIds)
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
+  
+  // Active workout Convex sync
+  const activeWorkout = useQuery(api.logs.activeWorkout.getActive, { slot })
+  const createActive = useMutation(api.logs.activeWorkout.createActive)
+  const updateActive = useMutation(api.logs.activeWorkout.updateActive)
+  const abortActive = useMutation(api.logs.activeWorkout.abortActive)
+  const finishActive = useMutation(api.logs.activeWorkout.finishActive)
 
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
@@ -1765,8 +1853,25 @@ export default function ActiveWorkout() {
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const elapsed = useElapsedTimer()
+  const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? null)
   const rest = useRestCountdown()
+  
+  // Track if we've initialized from Convex to avoid overwriting user's workout data
+  const [isInitialized, setIsInitialized] = useState(false)
+  // Debounce sync to Convex
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isSyncingRef = useRef(false)
+  // Refs to capture current state for sync
+  const itemsRef = useRef(items)
+  const exDataRef = useRef(exData)
+  const elapsedRef = useRef(elapsed)
+  const slotRef = useRef(slot)
+
+  // Keep refs in sync with state
+  useEffect(() => { itemsRef.current = items }, [items])
+  useEffect(() => { exDataRef.current = exData }, [exData])
+  useEffect(() => { elapsedRef.current = elapsed }, [elapsed])
+  useEffect(() => { slotRef.current = slot }, [slot])
 
   const allExIds = items.flatMap((i) =>
     i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
@@ -1788,23 +1893,87 @@ export default function ActiveWorkout() {
   }, [workoutHistory])
   const progressPct =
     totalSets > 0 ? `${Math.round((doneSets / totalSets) * 100)}%` : "0%"
+  
+  // Find the next set to highlight
+  const nextTarget = useMemo(() => findNextTarget(items, exData), [items, exData])
 
+  // ── Sync state to Convex (debounced) ──────────────────────────────────────
+  const syncToConvex = useCallback(() => {
+    if (itemsRef.current.length === 0) return
+    if (isSyncingRef.current) return
+    
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+    }
+    
+    syncTimeoutRef.current = setTimeout(async () => {
+      if (itemsRef.current.length === 0) return
+      isSyncingRef.current = true
+      try {
+        await updateActive({
+          slot: slotRef.current,
+          items: itemsRef.current,
+          exerciseData: exDataRef.current,
+          elapsedSeconds: elapsedRef.current,
+        })
+      } catch (err) {
+        console.warn("Failed to sync workout to Convex:", err)
+      } finally {
+        isSyncingRef.current = false
+      }
+    }, 500) // Debounce 500ms
+  }, [updateActive])
+
+  // ── Load from Convex or preset on mount ────────────────────────────────────
   useEffect(() => {
+    if (isInitialized) return
+    
+    // If there's an active workout in Convex, load it
+    if (activeWorkout) {
+      setIsInitialized(true)
+      const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
+      const loadedExData = (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
+      
+      setItems(loadedItems)
+      setExData(
+        Object.fromEntries(
+          Object.entries(loadedExData).map(([exerciseId, state]) => [
+            exerciseId,
+            normalizeExerciseState(state),
+          ])
+        )
+      )
+      
+      // Load exercise details
+      const ids = loadedItems.flatMap((i) =>
+        i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
+      )
+      if (ids.length > 0) {
+        void resolveIds({ ids }).then((lookup) => {
+          setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+        })
+      }
+      return
+    }
+    
+    // If no Convex state, try to load from preset
     if (presetId && presets) {
       const match = presets.find((p) => (p.id ?? p._id) === presetId)
       if (match) {
+        setIsInitialized(true)
         const loadedItems = (match.items as WorkoutItem[]) ?? []
+        const loadedExData = (match.exerciseData as Record<string, ExerciseState>) ?? {}
+        
         setItems(loadedItems)
         setExData(
           Object.fromEntries(
-            Object.entries(
-              (match.exerciseData as Record<string, ExerciseState>) ?? {}
-            ).map(([exerciseId, state]) => [
+            Object.entries(loadedExData).map(([exerciseId, state]) => [
               exerciseId,
               normalizeExerciseState(state),
             ])
           )
         )
+        
         const ids = loadedItems.flatMap((i) =>
           i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
         )
@@ -1815,7 +1984,41 @@ export default function ActiveWorkout() {
         }
       }
     }
-  }, [presetId, presets])
+  }, [isInitialized, presetId, presets, activeWorkout, resolveIds])
+
+  // ── Create active workout in Convex when items are loaded ─────────────────
+  useEffect(() => {
+    if (!isInitialized) return
+    if (items.length === 0) return
+    if (activeWorkout) return // Already have an active workout
+    
+    const ids = items.flatMap((i) =>
+      i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
+    )
+    if (ids.length > 0) {
+      void createActive({
+        slot,
+        presetId: presetId ?? undefined,
+        items,
+        exerciseData: exData,
+      })
+    }
+  }, [isInitialized, items.length, activeWorkout, createActive, slot, presetId, items, exData])
+
+  // ── Sync to Convex when state changes ─────────────────────────────────────
+  useEffect(() => {
+    if (!isInitialized) return
+    if (items.length === 0) return
+    syncToConvex()
+  }, [isInitialized, items, exData])
+
+  // Sync elapsed time every 5 seconds
+  useEffect(() => {
+    if (!isInitialized) return
+    if (items.length === 0) return
+    if (elapsed % 5 !== 0) return // Only sync every 5 seconds for elapsed time
+    syncToConvex()
+  }, [isInitialized, elapsed, items.length, syncToConvex])
 
   useEffect(() => {
     if (preferences?.weightUnit) {
@@ -1824,8 +2027,10 @@ export default function ActiveWorkout() {
   }, [preferences])
 
   useEffect(() => {
-    posthog.capture("workout_started", { preset_id: presetId ?? null })
-  }, [presetId, posthog])
+    if (isInitialized) {
+      posthog.capture("workout_started", { preset_id: presetId ?? null })
+    }
+  }, [isInitialized, presetId, posthog])
 
   function addExercise(ex: Exercise) {
     const id = ex.id
@@ -1997,7 +2202,6 @@ export default function ActiveWorkout() {
   }
 
   async function handleFinish() {
-    const date = todayIso()
     const exercises = items.flatMap((item) => {
       const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       return ids.flatMap((id) => {
@@ -2021,7 +2225,12 @@ export default function ActiveWorkout() {
       })
     })
     try {
-      await logCompletion({ date, exercises, durationSeconds: elapsed })
+      // Finish the active workout in Convex (this also logs it)
+      await finishActive({
+        slot,
+        exercises,
+        durationSeconds: elapsed,
+      })
       posthog.capture("workout_completed", {
         preset_id: presetId ?? null,
         duration_seconds: elapsed,
@@ -2033,7 +2242,14 @@ export default function ActiveWorkout() {
       })
       navigate(-1)
     } catch (err) {
-      console.error("Failed to log workout:", err)
+      console.error("Failed to finish workout:", err)
+      // Fallback to old method if Convex fails
+      try {
+        await logCompletion({ date: todayIso(), exercises, durationSeconds: elapsed })
+        navigate(-1)
+      } catch (fallbackErr) {
+        console.error("Failed to log workout as fallback:", fallbackErr)
+      }
     }
   }
 
@@ -2163,6 +2379,7 @@ export default function ActiveWorkout() {
                     onStartRest={rest.start}
                     lastSession={lastSessionMap[item.exerciseId] ?? null}
                     onShowHistory={() => setHistorySheet({ exerciseId: item.exerciseId, name: ex.name })}
+                    nextSetIndex={nextTarget?.exerciseId === item.exerciseId ? nextTarget.setIndex : null}
                   />
                 )
               }
@@ -2182,7 +2399,8 @@ export default function ActiveWorkout() {
                 cardProps,
                 exerciseLookup,
                 lastSessionMap,
-                (exId, name) => setHistorySheet({ exerciseId: exId, name })
+                (exId, name) => setHistorySheet({ exerciseId: exId, name }),
+                nextTarget
               )
             })}
           </div>
@@ -2219,7 +2437,14 @@ export default function ActiveWorkout() {
       )}
       {confirmAbort && (
         <AbortSheet
-          onConfirm={() => navigate(-1)}
+          onConfirm={async () => {
+            try {
+              await abortActive({ slot })
+            } catch (err) {
+              console.warn("Failed to abort workout in Convex:", err)
+            }
+            navigate(-1)
+          }}
           onCancel={() => setConfirmAbort(false)}
         />
       )}
