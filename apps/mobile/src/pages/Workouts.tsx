@@ -20,7 +20,7 @@ import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery, useMutation, useAction } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
   normalizePresetCard,
@@ -30,6 +30,11 @@ import {
   type WorkoutFocus,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
+import {
+  computeWeeklyMuscleVolume,
+  buildCatalogMap,
+  type MuscleSets,
+} from "@/lib/muscle-volume"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -508,6 +513,74 @@ type DragState = {
   originY: number
 }
 
+// ─── Muscle volume card ──────────────────────────────────────────────────────
+
+const MUSCLE_COLORS: Record<string, string> = {
+  quadriceps: "#38bdf8",
+  glutes:     "#f59e0b",
+  hamstrings: "#a78bfa",
+  chest:      "#f87171",
+  back:       "#34d399",
+  shoulders:  "#fb923c",
+  biceps:     "#e879f9",
+  triceps:    "#818cf8",
+  core:       "#facc15",
+  calves:     "#6ee7b7",
+}
+
+function muscleColor(muscle: string): string {
+  return MUSCLE_COLORS[muscle.toLowerCase()] ?? "#94a3b8"
+}
+
+function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
+  if (muscleVolume.length === 0) {
+    return (
+      <Card>
+        <div className="px-4 py-5 text-center">
+          <p className="text-[12px] text-muted-foreground/40">No workouts logged this week yet</p>
+        </div>
+      </Card>
+    )
+  }
+
+  const maxSets = Math.max(...muscleVolume.map((m) => m.effectiveSets))
+
+  return (
+    <Card>
+      <div className="px-4 py-3.5">
+        <div className="flex flex-col gap-2.5">
+          {muscleVolume.map((item) => {
+            const pct = maxSets > 0 ? (item.effectiveSets / maxSets) * 100 : 0
+            const color = muscleColor(item.muscle)
+            return (
+              <div key={item.muscle}>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[12px] font-medium capitalize text-foreground/80">
+                    {item.muscle}
+                  </span>
+                  <span className="text-[11px] tabular-nums text-muted-foreground/50">
+                    {item.primarySets}p
+                    {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""} sets
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, backgroundColor: color, opacity: 0.7 }}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <p className="mt-3 text-[10px] text-muted-foreground/30">
+          p = primary sets · s = secondary sets (secondary counts 0.5×)
+        </p>
+      </div>
+    </Card>
+  )
+}
+
 export default function Workouts() {
   const navigate = useNavigate()
 
@@ -625,10 +698,65 @@ export default function Workouts() {
     return new Set(workoutHistory.map((log) => log.date as string))
   }, [workoutHistory])
 
+  // ── Muscle volume ────────────────────────────────────────────────────────
+  const resolveIds = useAction(api.data.exercises.resolveIds)
+  const [exerciseCatalog, setExerciseCatalog] = useState<Map<string, { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }>>(new Map())
+  const catalogFetched = useRef<string>("")
+
+  const thisWeekLogs = useMemo(() => {
+    if (!workoutHistory) return []
+    const now = new Date()
+    const todayStr = now.toISOString().slice(0, 10)
+    const dow = now.getUTCDay()
+    const daysFromMon = dow === 0 ? 6 : dow - 1
+    const mon = new Date(now)
+    mon.setUTCDate(now.getUTCDate() - daysFromMon)
+    const fromStr = mon.toISOString().slice(0, 10)
+    return (workoutHistory as any[]).filter(
+      (log) => log.date >= fromStr && log.date <= todayStr
+    )
+  }, [workoutHistory])
+
+  const thisWeekExerciseIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const log of thisWeekLogs) {
+      for (const ex of log.exercises) ids.add(ex.id)
+    }
+    return Array.from(ids)
+  }, [thisWeekLogs])
+
+  useEffect(() => {
+    const key = thisWeekExerciseIds.sort().join(",")
+    if (!key || key === catalogFetched.current) return
+    catalogFetched.current = key
+    void resolveIds({ ids: thisWeekExerciseIds }).then((result) => {
+      const map = new Map<string, { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }>()
+      for (const [id, ex] of Object.entries(result)) {
+        map.set(id, { id, primaryMuscles: (ex as any).primaryMuscles, secondaryMuscles: (ex as any).secondaryMuscles })
+      }
+      setExerciseCatalog(map)
+    })
+  }, [thisWeekExerciseIds])
+
+  const muscleVolume = useMemo(() => {
+    if (thisWeekLogs.length === 0 || exerciseCatalog.size === 0) return []
+    const catalog = buildCatalogMap(Array.from(exerciseCatalog.values()))
+    return computeWeeklyMuscleVolume(
+      thisWeekLogs.map((log) => ({
+        date: log.date as string,
+        exercises: log.exercises.map((ex: any) => ({
+          id: ex.id as string,
+          sets: ex.sets.map((s: any) => ({ completed: !!s.completed })),
+        })),
+      })),
+      catalog,
+      new Date(),
+    )
+  }, [thisWeekLogs, exerciseCatalog])
+
   const hasMoved =
     drag !== null &&
     (Math.abs(drag.x - drag.originX) > 6 || Math.abs(drag.y - drag.originY) > 6)
-
 
   // ── Routine slot removal ──────────────────────────────────────────────────
 
@@ -1220,6 +1348,14 @@ export default function Workouts() {
             <section>
               <SectionHeader title="Consistency" sub="Last 28 days" />
               <TrainingConsistencyCard workoutDates={workoutDates} />
+            </section>
+          )}
+
+          {/* ── Muscle volume ────────────────────────────────────────── */}
+          {thisWeekLogs.length > 0 && (
+            <section>
+              <SectionHeader title="Volume" sub="This week · sets per muscle" />
+              <MuscleVolumeCard muscleVolume={muscleVolume} />
             </section>
           )}
         </div>

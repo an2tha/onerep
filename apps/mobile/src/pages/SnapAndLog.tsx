@@ -332,10 +332,10 @@ export default function SnapAndLog() {
     const entry = {
       id: Math.random().toString(36).slice(2),
       name: item.name,
-      calories: item.calories,
-      protein: item.protein,
-      carbs: item.carbs,
-      fat: item.fat,
+      calories: Number(item.calories),
+      protein: Number(item.protein),
+      carbs: Number(item.carbs),
+      fat: Number(item.fat),
       loggedAt: new Date().toISOString(),
       meal,
     }
