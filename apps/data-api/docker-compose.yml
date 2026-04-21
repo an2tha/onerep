@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onerep-postgres
+    environment:
+      POSTGRES_USER: onerep
+      POSTGRES_PASSWORD: onerep_dev
+      POSTGRES_DB: onerep_data
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onerep -d onerep_data"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

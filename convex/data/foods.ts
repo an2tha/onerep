@@ -91,10 +91,10 @@ function mapHitToResult(hit: any): any {
     name: getMultilangText(src.product_name),
     brand: getMultilangText(src.brands),
     serving: "100 g",
-    calories: String(Math.round(Number(calories))),
-    protein: String(Math.round(Number(protein) * 10) / 10),
-    carbs: String(Math.round(Number(carbs) * 10) / 10),
-    fat: String(Math.round(Number(fat) * 10) / 10),
+    calories: Math.round(Number(calories)),
+    protein: Math.round(Number(protein) * 10) / 10,
+    carbs: Math.round(Number(carbs) * 10) / 10,
+    fat: Math.round(Number(fat) * 10) / 10,
   };
 }
 

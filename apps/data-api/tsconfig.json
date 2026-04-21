@@ -4,18 +4,17 @@
     "module": "commonjs",
     "lib": ["ES2020"],
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "declarationMap": true,
     "sourceMap": true,
-    "typeRoots": ["./node_modules/@types", "./node_modules"],
-    "types": ["bun-types"]
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["bin/**/*", "routes/**/*", "middleware/**/*", "src/db/**/*", "src/lib/**/*", "scripts/**/*", "app.ts"],
+  "exclude": ["node_modules", "dist", "loaders/.venv"]
 }
