@@ -5,6 +5,7 @@ import {
   Outlet,
   useNavigate,
   useNavigationType,
+  useLocation,
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
@@ -41,14 +42,65 @@ import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 
 // Writes the navigation type onto <body data-nav="…"> so CSS can switch
 // between the forward and back slide animations without touching every page.
+// Also snapshots the outgoing page into a frozen overlay so the user sees
+// a smooth cross-fade instead of a blank gap during the entrance animation.
 function NavSync() {
   const navType = useNavigationType()
+  const location = useLocation()
   const navigate = useNavigate()
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const snapshotRef = useRef<HTMLDivElement | null>(null)
+  const prevPathRef = useRef(location.pathname)
   const edge = 28
   const threshold = 72
+
+  // Snapshot the outgoing page when the route changes
+  useEffect(() => {
+    if (location.pathname === prevPathRef.current) return
+    prevPathRef.current = location.pathname
+
+    const container = containerRef.current
+    if (!container) return
+
+    // Remove any existing snapshot
+    if (snapshotRef.current) {
+      snapshotRef.current.remove()
+      snapshotRef.current = null
+    }
+
+    // Clone the current page content into a frozen overlay
+    const snapshot = document.createElement("div")
+    snapshot.setAttribute("aria-hidden", "true")
+    snapshot.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      background: var(--background);
+    `
+    // Copy all child nodes of the container
+    const clone = container.cloneNode(true) as HTMLElement
+    clone.style.cssText = ""
+    snapshot.appendChild(clone)
+    document.body.appendChild(snapshot)
+    snapshotRef.current = snapshot
+
+    // Add the exit class after a frame so the browser paints the snapshot first
+    requestAnimationFrame(() => {
+      snapshot.classList.add("page-snapshot-exit")
+      // Remove after animation completes
+      const cleanup = () => {
+        snapshot.remove()
+        if (snapshotRef.current === snapshot) snapshotRef.current = null
+      }
+      snapshot.addEventListener("animationend", cleanup, { once: true })
+      // Fallback timeout in case animationend doesn't fire
+      setTimeout(cleanup, 550)
+    })
+  }, [location.pathname])
 
   useEffect(() => {
     document.body.dataset.nav = navType
@@ -74,10 +126,10 @@ function NavSync() {
 
     function onPointerDown(event: PointerEvent) {
       if (!isInteractive(event.target)) return
-      void hapticTap()
+      hapticTap()
       clearHold()
       holdTimer.current = window.setTimeout(() => {
-        void hapticMedium()
+        hapticMedium()
         holdTimer.current = null
       }, 420)
     }
@@ -122,19 +174,19 @@ function NavSync() {
     if (Math.abs(deltaY) > 48 || Math.abs(deltaX) < threshold) return
 
     if (startedLeftEdge && deltaX > 0 && window.history.length > 1) {
-      void hapticSelection()
+      hapticSelection()
       navigate(-1)
       return
     }
 
     if (startedRightEdge && deltaX < 0) {
-      void hapticSelection()
+      hapticSelection()
       navigate(1)
     }
   }
 
   return (
-    <div onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div ref={containerRef} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       <Outlet />
     </div>
   )

@@ -66,6 +66,24 @@ body[data-nav="POP"] .page-enter {
   animation: page-in-back 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* ─── Page-transition snapshot (frozen outgoing page) ─────────────────────── */
+
+@keyframes snapshot-exit-forward {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-32px); }
+}
+@keyframes snapshot-exit-back {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(32px); }
+}
+
+.page-snapshot-exit {
+  animation: snapshot-exit-forward 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+body[data-nav="POP"] .page-snapshot-exit {
+  animation: snapshot-exit-back 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* ─── Bottom-sheet animations ─────────────────────────────────────────────── */
 
 /* Backdrop — fade only */
@@ -179,6 +197,13 @@ body[data-nav="POP"] .page-enter {
     @apply border-border outline-ring/50;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
   }
   *::-webkit-scrollbar {
     display: none;
