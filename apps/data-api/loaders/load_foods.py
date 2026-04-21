@@ -15,6 +15,17 @@ PARQUET_PATH = "datasets/foods.parquet"
 DB_URL = os.environ.get("DATABASE_URL", "postgresql://onerep:onerep_dev@localhost:5433/onerep_data")
 
 def extract_name(product_name):
+    """
+    Extract the best-available product name from a product_name structure.
+    
+    Tries to find a name in prioritized order: a dict with "lang" == "main", then a dict with "lang" == "en", then the first element if it is a dict, otherwise the string form of the first element. Returns None for falsy input.
+    
+    Parameters:
+        product_name: An iterable (commonly a list) containing name entries; entries may be dicts with "lang" and "text" keys or plain values.
+    
+    Returns:
+        The selected name string, or `None` if no name can be determined.
+    """
     if not product_name: return None
     for item in product_name:
         if isinstance(item, dict) and item.get("lang") == "main": return item.get("text")
@@ -24,6 +35,16 @@ def extract_name(product_name):
     return str(product_name[0]) if product_name else None
 
 def extract_nutrient(nutriments, name):
+    """
+    Extracts the per-100g value for a named nutrient from a collection of nutriment records.
+    
+    Parameters:
+        nutriments (iterable): Sequence (often list) of mappings where each mapping may contain a "name" key and a "100g" key holding the nutrient amount.
+        name (str): The nutrient name to locate (compared against each record's "name" value).
+    
+    Returns:
+        float: The nutrient amount per 100g rounded to one decimal place if found and convertible to float; `0.0` if `nutriments` is empty, the named nutrient is not present, or the value cannot be parsed.
+    """
     if not nutriments: return 0.0
     for n in nutriments:
         if isinstance(n, dict) and n.get("name") == name:
@@ -32,6 +53,15 @@ def extract_nutrient(nutriments, name):
     return 0.0
 
 def safe_int(val):
+    """
+    Convert a value to a 32-bit signed integer if it can be safely converted and fits within the range -2147483648 to 2147483647.
+    
+    Parameters:
+        val: The value to convert; any type that may be cast to int.
+    
+    Returns:
+        int or None: The converted integer if conversion succeeds and its absolute value is less than or equal to 2147483647, otherwise `None`.
+    """
     if val is None: return None
     try:
         v = int(val)
@@ -39,10 +69,26 @@ def safe_int(val):
     except: return None
 
 def clean(s):
+    """
+    Normalize a value into a cleaned, whitespace-normalized string.
+    
+    Converts the input to a string, replaces tabs/newlines/carriage returns with spaces, and trims leading/trailing whitespace. If the input is None, returns an empty string.
+    
+    Parameters:
+        s: The value to normalize; may be None or any type convertible to str.
+    
+    Returns:
+        str: The cleaned string, or an empty string if `s` is None.
+    """
     if s is None: return ""
     return str(s).replace("\t", " ").replace("\n", " ").replace("\r", " ").strip()
 
 def main():
+    """
+    Load food data from the configured Parquet dataset into the PostgreSQL `foodfacts` table.
+    
+    If `foodfacts` already contains rows the function exits without modifying the database. Otherwise it creates a temporary staging table, reads the Parquet dataset in batches via DuckDB while transforming and writing rows to a temporary tab-delimited CSV, bulk-loads that CSV into the staging table using PostgreSQL COPY, inserts distinct rows into `foodfacts` using `ON CONFLICT (code) DO NOTHING`, recreates indexes on `foodfacts(code)` and `foodfacts(name)`, removes the staging table and the temporary CSV, and closes the database connection.
+    """
     print("[PY] Connecting to PostgreSQL...", file=sys.stderr, flush=True)
     conn = psycopg2.connect(DB_URL)
     conn.autocommit = True

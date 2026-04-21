@@ -652,6 +652,19 @@ type Props = {
   added: boolean
 }
 
+/**
+ * Renders a mobile sheet UI for viewing food details, selecting a portion, and logging the food to a meal.
+ *
+ * Fetches detailed nutrition for the provided `item`, lets the user choose grams (with presets), shows macros,
+ * nutrition facts and extra nutrients (expandable), lets the user pick or create a meal category, and calls the
+ * provided `onAdd` callback when the user logs the food.
+ *
+ * @param item - The food item to display (used to fetch detail by `item.id` and as fallback macro/calorie sources).
+ * @param onClose - Callback invoked to close the sheet.
+ * @param onAdd - Callback invoked when the user logs the food. Called as `onAdd(item, grams, micros, meal)` where
+ *                `micros` is the micronutrient object scaled to the selected `grams` (empty object if no detail).
+ * @param added - When true, the log button shows a confirmed "Logged" state for the currently selected meal.
+ */
 export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
   const [detail, setDetail] = useState<Detail>(null)
   const [loading, setLoading] = useState(true)

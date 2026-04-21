@@ -22,6 +22,15 @@ interface ParquetRow {
   nutriments_list?: { name: string; value: string; unit: string }[];
 }
 
+/**
+ * Extracts a text string from a value or returns `null` when no text is present.
+ *
+ * Accepts a raw string or an object with a `text` property; empty strings, `null`, `undefined`,
+ * and values that are not strings or objects with a string `text` yield `null`.
+ *
+ * @param val - A candidate value (string, object with `text`, or other) to extract text from
+ * @returns The extracted text string, or `null` if no usable text is found
+ */
 function extractText(val: unknown): string | null {
   if (val === null || val === undefined) return null;
   if (typeof val === "string") return val || null;
@@ -32,6 +41,13 @@ function extractText(val: unknown): string | null {
   return null;
 }
 
+/**
+ * Retrieve a nutrient value from a nutriments map, preferring the per-100g variant and rounding to one decimal.
+ *
+ * @param nutriments - Object containing nutrient entries (e.g. `"fat_100g"` or `"fat"`)
+ * @param key - Nutrient key name without the `_100g` suffix
+ * @returns The nutrient value rounded to one decimal, or `0` if the value is missing or not a valid number
+ */
 function getNutrientValue(nutriments: Record<string, unknown>, key: string): number {
   const val = nutriments[`${key}_100g`] ?? nutriments[key];
   if (val === undefined || val === null) return 0;
@@ -39,6 +55,16 @@ function getNutrientValue(nutriments: Record<string, unknown>, key: string): num
   return isNaN(n) ? 0 : Math.round(n * 10) / 10;
 }
 
+/**
+ * Loads foods from a Parquet file into the `foodfacts` table.
+ *
+ * If the `foodfacts` table already contains any rows, the function logs and exits without performing work.
+ * Otherwise it logs notes about Parquet-to-CSV conversion and dynamically imports the `apache-arrow` helper
+ * required for Parquet/Arrow processing. This implementation does not perform the full Parquet parsing or
+ * database inserts; it expects an intermediate CSV conversion step in practice.
+ *
+ * @param parquetPath - filesystem path to the Parquet file (or intended source) for the food data
+ */
 async function loadFoods(parquetPath: string): Promise<void> {
   console.log("[LOADER] Starting foods load...");
   
@@ -69,6 +95,18 @@ async function loadFoods(parquetPath: string): Promise<void> {
   // In production CI/CD, pre-convert parquet to CSV
 }
 
+/**
+ * Loads OpenFoodFacts rows from a tab-separated CSV/TSV file into the `foodfacts` table.
+ *
+ * Reads the file at `csvPath`, parses the header to locate expected columns (e.g., `code`, `product_name`,
+ * `brands`, `serving_size`, `serving_quantity`, `nutriments`, `nutriscore_grade`, `nova_group`, `popularity_key`,
+ * `nutriments_list`), transforms each data row into the database shape (deriving calories, protein, carbs, fat,
+ * splitting core vs extra nutrients, normalizing grades/groups), and inserts records in batches.
+ *
+ * The function returns immediately without modifying the database if the `foodfacts` table already contains any rows.
+ *
+ * @param csvPath - Filesystem path to the input TSV (tab-separated) file whose first row is a header row matching the expected column names.
+ */
 export async function loadFoodsFromCSV(csvPath: string): Promise<void> {
   const existing = await db.select({ count: foodfacts }).from(foodfacts).limit(1);
   if (existing.length > 0) {

@@ -8,6 +8,12 @@ import { exercises } from "../db/schema";
 
 const EXERCISES_PATH = "./loaders/datasets/free-exercise-db/dist/exercises.json";
 
+/**
+ * Loads exercises from the local Free Exercise DB JSON file into the `exercises` database table.
+ *
+ * This operation is idempotent: it checks for existing rows and exits without modifying the table if any are present.
+ * When loading, it reads the bundled JSON, transforms entries into database rows, and inserts them in batches while logging progress.
+ */
 async function loadExercises(): Promise<void> {
   console.log("[LOADER] Starting exercises load...");
   

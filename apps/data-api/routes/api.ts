@@ -9,6 +9,13 @@ const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL || "postgresql://onerep:onerep_dev@localhost:5433/onerep_data",
 });
 
+/**
+ * Execute a SQL query against the module's PostgreSQL pool and return the resulting rows.
+ *
+ * @param sql - The SQL statement to execute; may contain positional placeholders like `$1`, `$2`, etc.
+ * @param params - Optional array of parameter values to substitute into the query placeholders.
+ * @returns The array of rows returned by the query.
+ */
 async function query(sql: string, params: any[] = []): Promise<any[]> {
   const client = await pool.connect();
   try {

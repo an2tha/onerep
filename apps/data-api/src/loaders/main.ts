@@ -13,6 +13,13 @@ import { loadExercises } from "./exercises";
 const LOADER_DIR = path.join(__dirname, "../../loaders");
 const DATASETS_DIR = path.join(LOADER_DIR, "datasets");
 
+/**
+ * Ensure required dataset artifacts exist under DATASETS_DIR.
+ *
+ * If the local copy of `free-exercise-db` is missing, clones it from
+ * https://github.com/yuhonas/free-exercise-db.git. If `foods.parquet` is missing,
+ * downloads it from the Hugging Face product-database URL into the datasets directory.
+ */
 async function ensureDatasets(): Promise<void> {
   // Clone free-exercise-db if not present
   const exerciseDbPath = path.join(DATASETS_DIR, "free-exercise-db");
@@ -35,6 +42,13 @@ async function ensureDatasets(): Promise<void> {
   }
 }
 
+/**
+ * Streams newline-delimited JSON from a spawned Python loader and inserts parsed food records into the `foodfacts` table in batches.
+ *
+ * Inserts are performed in batches of 5000; duplicate-key insertion errors are suppressed. The promise rejects if the Python process exits with a non-zero code or if the child process cannot be spawned.
+ *
+ * @returns `void` when the Python loader process completes successfully
+ */
 function loadFoodsFromPython(): Promise<void> {
   return new Promise((resolve, reject) => {
     const pythonExe = path.join(LOADER_DIR, ".venv", "bin", "python");
@@ -132,6 +146,13 @@ function loadFoodsFromPython(): Promise<void> {
   });
 }
 
+/**
+ * Orchestrates dataset preparation and ingestion into the PostgreSQL database, then logs final row counts.
+ *
+ * Performs a database connectivity check (exits the process with code 1 on failure), ensures required datasets
+ * are available locally, loads exercise data, streams and loads food data into the `foodfacts` table, and prints
+ * counts for both `foodfacts` and `exercises` upon completion.
+ */
 async function main(): Promise<void> {
   console.log("[LOADER] OneRep Data Loader Starting...\n");
 

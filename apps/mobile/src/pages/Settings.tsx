@@ -13,12 +13,26 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@r
 
 type Theme = "light" | "dark"
 
+/**
+ * Determine the current UI theme.
+ *
+ * Resolves to the persisted theme if available; otherwise infers the theme from the user's system preference. During server-side rendering (when `window` is undefined) this returns `"light"`.
+ *
+ * @returns `'light'` or `'dark'` — the resolved theme to apply
+ */
 function getStoredTheme(): Theme {
   if (typeof window === "undefined") return "light"
   return (localStorage.getItem("theme") as Theme) ||
     (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
 }
 
+/**
+ * Apply the given theme to the page and persist it for future visits.
+ *
+ * If `document` is undefined (server-side rendering) this function does nothing.
+ *
+ * @param theme - The theme to apply (`"light"` or `"dark"`)
+ */
 function setTheme(theme: Theme) {
   if (typeof document === "undefined") return
   localStorage.setItem("theme", theme)
@@ -29,6 +43,11 @@ function setTheme(theme: Theme) {
   }
 }
 
+/**
+ * Toggle the current theme between "light" and "dark" and apply the change.
+ *
+ * @returns The newly applied theme: `"dark"` or `"light"`.
+ */
 function toggleTheme() {
   const current = getStoredTheme()
   const next = current === "dark" ? "light" : "dark"
@@ -44,6 +63,15 @@ if (typeof window !== "undefined") {
 type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
 
+/**
+ * Renders the Settings sheet UI for viewing and editing user preferences, goals, theme, and account actions.
+ *
+ * The component loads current preferences and effective goals, exposes controls for calories/protein/carbs/fat,
+ * water goal, workout focus, and weight unit, and persists changes when the user saves.
+ *
+ * @param onClose - Callback invoked to close the settings sheet
+ * @returns The Settings React element
+ */
 export default function Settings({
   onClose,
 }: {
