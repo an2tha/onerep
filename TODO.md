@@ -10,7 +10,7 @@
 ## Strength & Performance
 
 - [x] **1RM calculator** — estimate one-rep max from working sets (Epley/Brzycki)
-- [ ] **Volume analytics per muscle group** — weekly sets per muscle (uses existing primaryMuscles/secondaryMuscles data)
+- [x] **Volume analytics per muscle group** — weekly sets per muscle (uses existing primaryMuscles/secondaryMuscles data)
 - [ ] **Rest timer** — in-session countdown between sets
 - [ ] **Superset / circuit support** — group exercises that are performed back-to-back
 
