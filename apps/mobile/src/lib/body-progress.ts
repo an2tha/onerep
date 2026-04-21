@@ -10,6 +10,10 @@ export type BodyMeasurementEntry = {
   waistCm?: number
   hipsCm?: number
   chestCm?: number
+  armsCm?: number
+  thighsCm?: number
+  calvesCm?: number
+  neckCm?: number
   notes?: string
   photoDataUrl?: string // base64-encoded image
   photoTakenAt?: number // timestamp when photo was taken

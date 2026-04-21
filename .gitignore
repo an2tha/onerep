@@ -41,3 +41,6 @@ yarn-error.log*
 apps/server/.env
 apps/server/.env.*
 apps/server/data/raw
+
+# AI Slop
+.ralph

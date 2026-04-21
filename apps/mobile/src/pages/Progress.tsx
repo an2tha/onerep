@@ -196,6 +196,36 @@ function MetricRow({
   )
 }
 
+function MeasurementField({
+  label,
+  unit,
+  value,
+  onChange,
+}: {
+  label: string
+  unit: string
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
+        {label}
+      </span>
+      <div className="flex items-center rounded-[18px] border border-border/55 bg-background px-3">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
+        />
+        <span className="text-[10px] text-muted-foreground/45">{unit}</span>
+      </div>
+    </label>
+  )
+}
+
 function MeasurementSheet({
   onClose,
   onSave,
@@ -210,7 +240,12 @@ function MeasurementSheet({
   const [waistCm, setWaistCm] = useState("")
   const [hipsCm, setHipsCm] = useState("")
   const [chestCm, setChestCm] = useState("")
+  const [armsCm, setArmsCm] = useState("")
+  const [thighsCm, setThighsCm] = useState("")
+  const [calvesCm, setCalvesCm] = useState("")
+  const [neckCm, setNeckCm] = useState("")
   const [notes, setNotes] = useState("")
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   function toNumber(value: string) {
     const trimmed = value.trim()
@@ -224,7 +259,11 @@ function MeasurementSheet({
     Boolean(toNumber(bodyFatPct)) ||
     Boolean(toNumber(waistCm)) ||
     Boolean(toNumber(hipsCm)) ||
-    Boolean(toNumber(chestCm))
+    Boolean(toNumber(chestCm)) ||
+    Boolean(toNumber(armsCm)) ||
+    Boolean(toNumber(thighsCm)) ||
+    Boolean(toNumber(calvesCm)) ||
+    Boolean(toNumber(neckCm))
 
   return (
     <MobileSheet
@@ -246,50 +285,35 @@ function MeasurementSheet({
         </div>
 
         <div className="grid grid-cols-2 gap-2.5">
+          {/* Core fields */}
           {[
-            {
-              label: "Weight",
-              unit: "kg",
-              value: weightKg,
-              onChange: setWeightKg,
-            },
-            {
-              label: "Body fat",
-              unit: "%",
-              value: bodyFatPct,
-              onChange: setBodyFatPct,
-            },
-            {
-              label: "Waist",
-              unit: "cm",
-              value: waistCm,
-              onChange: setWaistCm,
-            },
-            { label: "Hips", unit: "cm", value: hipsCm, onChange: setHipsCm },
-            {
-              label: "Chest",
-              unit: "cm",
-              value: chestCm,
-              onChange: setChestCm,
-            },
+            { label: "Weight",   unit: "kg", value: weightKg,   onChange: setWeightKg },
+            { label: "Body fat", unit: "%",  value: bodyFatPct, onChange: setBodyFatPct },
+            { label: "Waist",    unit: "cm", value: waistCm,    onChange: setWaistCm },
+            { label: "Hips",     unit: "cm", value: hipsCm,     onChange: setHipsCm },
+            { label: "Chest",    unit: "cm", value: chestCm,    onChange: setChestCm },
           ].map((field) => (
-            <label key={field.label} className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
-                {field.label}
-              </span>
-              <div className="flex items-center rounded-[18px] border border-border/55 bg-background px-3">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={field.value}
-                  onChange={(event) => field.onChange(event.target.value)}
-                  className="h-11 min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
-                />
-                <span className="text-[10px] text-muted-foreground/45">
-                  {field.unit}
-                </span>
-              </div>
-            </label>
+            <MeasurementField key={field.label} {...field} />
+          ))}
+
+          {/* Advanced sites toggle */}
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="col-span-2 flex items-center gap-1.5 py-1 text-[11px] font-medium text-muted-foreground/50 transition-colors active:text-foreground/60"
+          >
+            <span>{showAdvanced ? "▴" : "▾"}</span>
+            {showAdvanced ? "Fewer measurements" : "More measurements (arms, thighs, calves, neck)"}
+          </button>
+
+          {/* Advanced measurement sites */}
+          {showAdvanced && [
+            { label: "Arms",   unit: "cm", value: armsCm,   onChange: setArmsCm },
+            { label: "Thighs", unit: "cm", value: thighsCm, onChange: setThighsCm },
+            { label: "Calves", unit: "cm", value: calvesCm, onChange: setCalvesCm },
+            { label: "Neck",   unit: "cm", value: neckCm,   onChange: setNeckCm },
+          ].map((field) => (
+            <MeasurementField key={field.label} {...field} />
           ))}
 
           <label className="col-span-2 flex flex-col gap-1.5">
@@ -329,6 +353,10 @@ function MeasurementSheet({
                 waistCm: toNumber(waistCm),
                 hipsCm: toNumber(hipsCm),
                 chestCm: toNumber(chestCm),
+                armsCm: toNumber(armsCm),
+                thighsCm: toNumber(thighsCm),
+                calvesCm: toNumber(calvesCm),
+                neckCm: toNumber(neckCm),
                 notes: notes.trim() || undefined,
               })
             }}
@@ -682,6 +710,38 @@ const trend = goalDelta(entries, goal)
                   unit="cm"
                   Icon={Minus}
                 />
+                {latest?.armsCm != null && (
+                  <MetricRow
+                    label="Arms"
+                    value={fmtNumber(latest.armsCm)}
+                    unit="cm"
+                    Icon={Ruler}
+                  />
+                )}
+                {latest?.thighsCm != null && (
+                  <MetricRow
+                    label="Thighs"
+                    value={fmtNumber(latest.thighsCm)}
+                    unit="cm"
+                    Icon={Ruler}
+                  />
+                )}
+                {latest?.calvesCm != null && (
+                  <MetricRow
+                    label="Calves"
+                    value={fmtNumber(latest.calvesCm)}
+                    unit="cm"
+                    Icon={Ruler}
+                  />
+                )}
+                {latest?.neckCm != null && (
+                  <MetricRow
+                    label="Neck"
+                    value={fmtNumber(latest.neckCm)}
+                    unit="cm"
+                    Icon={Ruler}
+                  />
+                )}
               </div>
             </Card>
           </section>
