@@ -10,22 +10,8 @@ function apiHeaders(): HeadersInit {
 
 function getMultilangText(value: any): string {
   if (!value) return "Unknown";
-  if (typeof value === "string") {
-    if (value.startsWith("[")) {
-      try {
-        const fixed = value.replace(/'/g, '"');
-        const parsed = JSON.parse(fixed);
-        const main = parsed.find((v: any) => v.lang === "main");
-        if (main?.text) return main.text;
-        const en = parsed.find((v: any) => v.lang === "en");
-        if (en?.text) return en.text;
-        return parsed[0]?.text || "Unknown";
-      } catch {
-        return value;
-      }
-    }
-    return value;
-  }
+  
+  // If it's already an array, use it directly
   if (Array.isArray(value)) {
     const main = value.find((v: any) => v.lang === "main");
     if (main?.text) return main.text;
@@ -33,28 +19,95 @@ function getMultilangText(value: any): string {
     if (en?.text) return en.text;
     return value[0]?.text || "Unknown";
   }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    // Handle stringified Python-style lists: "[{'lang': 'main', 'text': '...'}, ...]"
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        // More robust JSON-like parsing for Python repr() output
+        // Replace ' with " but try not to break valid double quotes or contractions
+        // This is a heuristic: replace ' followed by {[, ]}, or : with "
+        // and replace {[, ]}, or : followed by ' with "
+        const fixed = trimmed
+          .replace(/([\{\[,: \t])'|'([\}\],: \t])/g, '$1"$2')
+          .replace(/^'|'$/g, '"');
+        
+        const parsed = JSON.parse(fixed);
+        if (Array.isArray(parsed)) {
+          const main = parsed.find((v: any) => v.lang === "main");
+          if (main?.text) return main.text;
+          const en = parsed.find((v: any) => v.lang === "en");
+          if (en?.text) return en.text;
+          return parsed[0]?.text || "Unknown";
+        }
+        if (typeof parsed === "object" && parsed !== null) {
+          if (parsed.text) return parsed.text;
+        }
+      } catch {
+        // Fallback for messy strings: try to extract text between 'text': '...'
+        const match = trimmed.match(/'text':\s*'([^']*)'/);
+        if (match) return match[1];
+        
+        // Strip common Python-style debris
+        return trimmed.replace(/[\[\]']/g, "").replace(/\{lang: [^,]+, text: /g, "").replace(/\}/g, "").trim() || "Unknown";
+      }
+    }
+    return value;
+  }
+  
   return String(value) || "Unknown";
 }
 
 function mapHitToResult(hit: any): any {
   const src = hit._source ?? hit;
+  
+  const getNutrient = (key: string): number => {
+    const nutriments = src.nutriments;
+    if (!nutriments) return 0;
+    
+    // If it's an array of {name, value, 100g, unit}
+    if (Array.isArray(nutriments)) {
+      const found = nutriments.find((n: any) => n.name === key);
+      if (found) {
+        // Prefer 100g, then value
+        const val = found["100g"] !== undefined && found["100g"] !== null ? found["100g"] : found.value;
+        return Number(val ?? 0);
+      }
+      return 0;
+    }
+    
+    // If it's a flat object
+    return Number(nutriments[`${key}_100g`] ?? nutriments[key] ?? 0);
+  };
+
+  const calories = src.calories_100g || getNutrient("energy-kcal");
+  const protein = src.protein_100g || getNutrient("proteins");
+  const carbs = src.carbs_100g || getNutrient("carbohydrates");
+  const fat = src.fat_100g || getNutrient("fat");
+
   return {
-    id: String(src.code ?? hit._id ?? ""),
+    id: String(src.code ?? src._id ?? hit._id ?? ""),
     name: getMultilangText(src.product_name),
     brand: getMultilangText(src.brands),
     serving: "100 g",
-    calories: String(Math.round(Number(src.calories_100g ?? 0))),
-    protein: String(Math.round(Number(src.protein_100g ?? 0) * 10) / 10),
-    carbs: String(Math.round(Number(src.carbs_100g ?? 0) * 10) / 10),
-    fat: String(Math.round(Number(src.fat_100g ?? 0) * 10) / 10),
+    calories: String(Math.round(Number(calories))),
+    protein: String(Math.round(Number(protein) * 10) / 10),
+    carbs: String(Math.round(Number(carbs) * 10) / 10),
+    fat: String(Math.round(Number(fat) * 10) / 10),
   };
 }
 
 function mapDocToDetail(doc: any): any {
-  const nm: Record<string, number> = doc.nutriments ?? {};
+  const nutriments = doc.nutriments;
 
   function get(key: string): number {
-    return Number(nm[`${key}_100g`] ?? nm[key] ?? 0);
+    if (!nutriments) return 0;
+    if (Array.isArray(nutriments)) {
+      const found = nutriments.find((n: any) => n.name === key);
+      return Number(found?.["100g"] ?? found?.value ?? 0);
+    }
+    return Number(nutriments[`${key}_100g`] ?? nutriments[key] ?? 0);
   }
 
   const CORE = [
