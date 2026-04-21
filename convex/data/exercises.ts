@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { action, mutation, internalQuery } from "../_generated/server";
+import { action, mutation, internalQuery, query } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { authComponent } from "../auth";
 
@@ -134,6 +134,8 @@ function mapDocToExercise(doc: any) {
 // ─── Internal queries ─────────────────────────────────────────────────────────
 
 export const getUserExercises = internalQuery({
+// existing internal query
+
   args: { userId: v.string() },
   handler: async (ctx, args) => {
     return ctx.db
