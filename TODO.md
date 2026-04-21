@@ -5,13 +5,13 @@
 - [x] **Progressive overload reference** — show last session's weights/reps inline while logging a set
 - [x] **Per-exercise history graph** — line chart of strength over time for any exercise
 - [x] **Home dashboard** — today's calorie summary, water, scheduled workout, and body weight at a glance
-- [ ] **Progress photo logging** — attach photos to body measurement check-ins
+- [x] **Progress photo logging** — attach photos to body measurement check-ins
 
 ## Strength & Performance
 
 - [x] **1RM calculator** — estimate one-rep max from working sets (Epley/Brzycki)
 - [x] **Volume analytics per muscle group** — weekly sets per muscle (uses existing primaryMuscles/secondaryMuscles data)
-- [ ] **Rest timer** — in-session countdown between sets
+- [x] **Rest timer** — in-session countdown between sets
 - [ ] **Superset / circuit support** — group exercises that are performed back-to-back
 
 ## Body Composition

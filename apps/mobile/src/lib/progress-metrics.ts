@@ -21,11 +21,13 @@ export function rollingAvg(values: number[], window: number): number[] {
 export function sparklinePoints(
   values: number[],
   width: number,
-  height: number
+  height: number,
+  customMin?: number,
+  customMax?: number
 ): string {
   if (values.length === 0) return ""
-  const min = Math.min(...values)
-  const max = Math.max(...values)
+  const min = customMin ?? Math.min(...values)
+  const max = customMax ?? Math.max(...values)
   const range = max - min || 1
   return values
     .map((value, index) => {

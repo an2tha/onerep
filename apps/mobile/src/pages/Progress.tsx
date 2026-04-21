@@ -3,6 +3,7 @@ import { useNavigate } from "react-router"
 import {
   ArrowLeft,
   Bell,
+  Camera,
   ChartLine,
   Clock,
   Minus,
@@ -11,6 +12,7 @@ import {
   Ruler,
   Target,
   Trash,
+  X,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { toast } from "sonner"
@@ -82,22 +84,7 @@ function goalDelta(entries: BodyMeasurementEntry[], goal: GoalId | null) {
   return `${delta > 0 ? "+" : ""}${delta.toFixed(1)} kg`
 }
 
-function sparklinePoints(values: number[], width: number, height: number) {
-  if (values.length === 0) return ""
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-  return values
-    .map((value, index) => {
-      const x =
-        values.length === 1 ? width / 2 : (index / (values.length - 1)) * width
-      const y = height - ((value - min) / range) * height
-      return `${x},${y}`
-    })
-    .join(" ")
-}
-
-import { rollingAvg } from "@/lib/progress-metrics"
+import { rollingAvg, sparklinePoints } from "@/lib/progress-metrics"
 
 type MetricSeries = {
   values: number[]
@@ -120,31 +107,15 @@ function MultiLineChart({
 }) {
   if (series.every((s) => s.values.length === 0)) return null
 
-  function getPoints(values: number[], min: number, max: number): string {
-    const range = max - min || 1
-    return values
-      .map((v, i) => {
-        const x =
-          values.length === 1
-            ? width / 2
-            : (i / (values.length - 1)) * width
-        const y = height - ((v - min) / range) * (height * 0.85)
-        return `${x},${y}`
-      })
-      .join(" ")
-  }
-
   const allValues = sharedScale ? series.flatMap((s) => s.values) : []
-  const globalMin = sharedScale ? Math.min(...allValues) : 0
-  const globalMax = sharedScale ? Math.max(...allValues) : 0
+  const globalMin = sharedScale ? Math.min(...allValues) : undefined
+  const globalMax = sharedScale ? Math.max(...allValues) : undefined
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full overflow-visible">
       {series.map((s, i) => {
         if (s.values.length < 2) return null
-        const min = sharedScale ? globalMin : Math.min(...s.values)
-        const max = sharedScale ? globalMax : Math.max(...s.values)
-        const pts = getPoints(s.values, min, max)
+        const pts = sparklinePoints(s.values, width, height, globalMin, globalMax)
         return (
           <polyline
             key={i}
@@ -245,13 +216,31 @@ function MeasurementSheet({
   const [calvesCm, setCalvesCm] = useState("")
   const [neckCm, setNeckCm] = useState("")
   const [notes, setNotes] = useState("")
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   function toNumber(value: string) {
     const trimmed = value.trim()
     if (!trimmed) return undefined
     const parsed = Number(trimmed)
     return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 1024 * 1024) {
+        toast.error("Image too large. Please choose an image under 1MB.")
+        return
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoDataUrl(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const canSave =
@@ -263,7 +252,8 @@ function MeasurementSheet({
     Boolean(toNumber(armsCm)) ||
     Boolean(toNumber(thighsCm)) ||
     Boolean(toNumber(calvesCm)) ||
-    Boolean(toNumber(neckCm))
+    Boolean(toNumber(neckCm)) ||
+    Boolean(photoDataUrl)
 
   return (
     <MobileSheet
@@ -316,6 +306,46 @@ function MeasurementSheet({
             <MeasurementField key={field.label} {...field} />
           ))}
 
+          {/* Photo upload section */}
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
+              Progress Photo
+            </span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handlePhotoChange}
+            />
+            {photoDataUrl ? (
+              <div className="relative aspect-square w-full overflow-hidden rounded-[18px] border border-border/55">
+                <img
+                  src={photoDataUrl}
+                  alt="Progress"
+                  className="h-full w-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPhotoDataUrl(undefined)}
+                  className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
+                >
+                  <X size={14} weight="bold" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-border/55 bg-background text-muted-foreground/45 transition-colors active:bg-muted/30 active:text-foreground/60"
+              >
+                <Camera size={24} />
+                <span className="text-[11px] font-medium">Add photo</span>
+              </button>
+            )}
+          </div>
+
           <label className="col-span-2 flex flex-col gap-1.5">
             <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
               Date
@@ -351,13 +381,15 @@ function MeasurementSheet({
                 weightKg: toNumber(weightKg),
                 bodyFatPct: toNumber(bodyFatPct),
                 waistCm: toNumber(waistCm),
-                hipsCm: toNumber(hipsCm),
-                chestCm: toNumber(chestCm),
-                armsCm: toNumber(armsCm),
-                thighsCm: toNumber(thighsCm),
-                calvesCm: toNumber(calvesCm),
-                neckCm: toNumber(neckCm),
+                hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
+                chestCm: chestCm ? toNumber(chestCm) : undefined,
+                armsCm: armsCm ? toNumber(armsCm) : undefined,
+                thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
+                calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
+                neckCm: neckCm ? toNumber(neckCm) : undefined,
                 notes: notes.trim() || undefined,
+                photoDataUrl,
+                photoTakenAt: photoDataUrl ? Date.now() : undefined,
               })
             }}
             className={cn(
@@ -685,63 +717,74 @@ const trend = goalDelta(entries, goal)
               }
             />
             <Card>
-              <div className="px-4 py-4">
-                <MetricRow
-                  label="Body fat"
-                  value={fmtNumber(latest?.bodyFatPct)}
-                  unit="%"
-                  Icon={Percent}
-                />
-                <MetricRow
-                  label="Waist"
-                  value={fmtNumber(latest?.waistCm)}
-                  unit="cm"
-                  Icon={Ruler}
-                />
-                <MetricRow
-                  label="Hips"
-                  value={fmtNumber(latest?.hipsCm)}
-                  unit="cm"
-                  Icon={Target}
-                />
-                <MetricRow
-                  label="Chest"
-                  value={fmtNumber(latest?.chestCm)}
-                  unit="cm"
-                  Icon={Minus}
-                />
-                {latest?.armsCm != null && (
+              <div className="flex flex-col">
+                {latest?.photoDataUrl && (
+                  <div className="aspect-[4/5] w-full overflow-hidden border-b border-border/40 first:rounded-t-3xl">
+                    <img
+                      src={latest.photoDataUrl}
+                      alt="Latest progress"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                )}
+                <div className="px-4 py-4">
                   <MetricRow
-                    label="Arms"
-                    value={fmtNumber(latest.armsCm)}
+                    label="Body fat"
+                    value={fmtNumber(latest?.bodyFatPct)}
+                    unit="%"
+                    Icon={Percent}
+                  />
+                  <MetricRow
+                    label="Waist"
+                    value={fmtNumber(latest?.waistCm)}
                     unit="cm"
                     Icon={Ruler}
                   />
-                )}
-                {latest?.thighsCm != null && (
                   <MetricRow
-                    label="Thighs"
-                    value={fmtNumber(latest.thighsCm)}
+                    label="Hips"
+                    value={fmtNumber(latest?.hipsCm)}
                     unit="cm"
-                    Icon={Ruler}
+                    Icon={Target}
                   />
-                )}
-                {latest?.calvesCm != null && (
                   <MetricRow
-                    label="Calves"
-                    value={fmtNumber(latest.calvesCm)}
+                    label="Chest"
+                    value={fmtNumber(latest?.chestCm)}
                     unit="cm"
-                    Icon={Ruler}
+                    Icon={Minus}
                   />
-                )}
-                {latest?.neckCm != null && (
-                  <MetricRow
-                    label="Neck"
-                    value={fmtNumber(latest.neckCm)}
-                    unit="cm"
-                    Icon={Ruler}
-                  />
-                )}
+                  {latest?.armsCm != null && (
+                    <MetricRow
+                      label="Arms"
+                      value={fmtNumber(latest.armsCm)}
+                      unit="cm"
+                      Icon={Ruler}
+                    />
+                  )}
+                  {latest?.thighsCm != null && (
+                    <MetricRow
+                      label="Thighs"
+                      value={fmtNumber(latest.thighsCm)}
+                      unit="cm"
+                      Icon={Ruler}
+                    />
+                  )}
+                  {latest?.calvesCm != null && (
+                    <MetricRow
+                      label="Calves"
+                      value={fmtNumber(latest.calvesCm)}
+                      unit="cm"
+                      Icon={Ruler}
+                    />
+                  )}
+                  {latest?.neckCm != null && (
+                    <MetricRow
+                      label="Neck"
+                      value={fmtNumber(latest.neckCm)}
+                      unit="cm"
+                      Icon={Ruler}
+                    />
+                  )}
+                </div>
               </div>
             </Card>
           </section>
@@ -839,47 +882,60 @@ const trend = goalDelta(entries, goal)
               ) : (
                 [...entries].reverse().map((entry) => (
                   <Card key={entry.clientId}>
-                    <div className="px-4 py-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-                            <span className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                              {formatMeasurementDate(entry.loggedAt)}
-                            </span>
-                            {entry.weightKg != null && (
-                              <span className="text-[13px] font-semibold tabular-nums">
-                                {entry.weightKg.toFixed(1)} kg
-                              </span>
-                            )}
+                    <div className="overflow-hidden">
+                      <div className="flex">
+                        {entry.photoDataUrl && (
+                          <div className="w-24 shrink-0 border-r border-border/40">
+                            <img
+                              src={entry.photoDataUrl}
+                              alt="Progress thumbnail"
+                              className="h-full w-full object-cover"
+                            />
                           </div>
+                        )}
+                        <div className="flex-1 px-4 py-3.5">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 border-b border-border/40 pb-2">
+                                <span className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                                  {formatMeasurementDate(entry.loggedAt)}
+                                </span>
+                                {entry.weightKg != null && (
+                                  <span className="text-[13px] font-semibold tabular-nums">
+                                    {entry.weightKg.toFixed(1)} kg
+                                  </span>
+                                )}
+                              </div>
 
-                          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground/62">
-                            <span>Body fat {fmtNumber(entry.bodyFatPct)}%</span>
-                            <span>Waist {fmtNumber(entry.waistCm)} cm</span>
-                            <span>Hips {fmtNumber(entry.hipsCm)} cm</span>
-                            <span>Chest {fmtNumber(entry.chestCm)} cm</span>
+                              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground/62">
+                                <span>Body fat {fmtNumber(entry.bodyFatPct)}%</span>
+                                <span>Waist {fmtNumber(entry.waistCm)} cm</span>
+                                <span>Hips {fmtNumber(entry.hipsCm)} cm</span>
+                                <span>Chest {fmtNumber(entry.chestCm)} cm</span>
+                              </div>
+
+                              {entry.notes && (
+                                <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground/52">
+                                  {entry.notes}
+                                </p>
+                              )}
+                            </div>
+
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await removeMeasurement({ clientId: entry.clientId })
+                                } catch (err) {
+                                  console.error("Failed to remove measurement:", err)
+                                }
+                              }}
+                              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
+                              aria-label="Delete measurement"
+                            >
+                              <Trash size={13} />
+                            </button>
                           </div>
-
-                          {entry.notes && (
-                            <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground/52">
-                              {entry.notes}
-                            </p>
-                          )}
                         </div>
-
-                        <button
-                          onClick={async () => {
-                            try {
-                              await removeMeasurement({ clientId: entry.clientId })
-                            } catch (err) {
-                              console.error("Failed to remove measurement:", err)
-                            }
-                          }}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
-                          aria-label="Delete measurement"
-                        >
-                          <Trash size={13} />
-                        </button>
                       </div>
                     </div>
                   </Card>
