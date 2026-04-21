@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
+import { hapticTap, hapticSelection } from "@/lib/haptics"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@repo/ui"
 
 type WorkoutFocus = "strength" | "cardio" | "mobility"
@@ -82,6 +83,7 @@ export default function Settings({
 
   async function handleSave() {
     if (saving) return
+    hapticTap()
     setSaving(true)
     try {
       await setDashboardSettings({ workoutFocus })
@@ -395,11 +397,13 @@ function NumberStepper({
 
   function decrement() {
     const n = Math.max(min, value - step)
+    hapticTap()
     onChange(n)
   }
 
   function increment() {
     const n = Math.min(max, value + step)
+    hapticTap()
     onChange(n)
   }
 
@@ -508,7 +512,10 @@ function SegmentedControl({
       {options.map((opt) => (
         <button
           key={opt.value}
-          onClick={() => onChange(opt.value)}
+          onClick={() => {
+            hapticSelection()
+            onChange(opt.value)
+          }}
           className={cn(
             "px-3 py-1.5 text-[12px] font-semibold transition-all duration-150 rounded-[9px]",
             value === opt.value
