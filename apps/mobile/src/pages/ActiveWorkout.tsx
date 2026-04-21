@@ -20,6 +20,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { sparklinePoints } from "@/lib/progress-metrics"
 import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 import { todayIso } from "@/lib/workout-sync"
@@ -1046,21 +1047,6 @@ function ActiveExerciseCard({
 import { epley1RM, brzycki1RM, estimate1RM } from "@/lib/one-rm"
 
 // ─── Sparkline helper ─────────────────────────────────────────────────────────
-
-function sparklinePoints(values: number[], width: number, height: number) {
-  if (values.length === 0) return ""
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
-  return values
-    .map((value, index) => {
-      const x =
-        values.length === 1 ? width / 2 : (index / (values.length - 1)) * width
-      const y = height - ((value - min) / range) * (height * 0.85)
-      return `${x},${y}`
-    })
-    .join(" ")
-}
 
 function formatSessionDate(date: string) {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {

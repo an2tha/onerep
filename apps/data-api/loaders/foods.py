@@ -19,20 +19,50 @@ def _extract_text(val) -> str | None:
         return None
     if isinstance(val, dict):
         return val.get("text") or None
+    if isinstance(val, list) and len(val) > 0:
+        # Try to find 'main' or 'en'
+        main = next((v for v in val if isinstance(v, dict) and v.get("lang") == "main"), None)
+        if main: return main.get("text")
+        en = next((v for v in val if isinstance(v, dict) and v.get("lang") == "en"), None)
+        if en: return en.get("text")
+        if isinstance(val[0], dict): return val[0].get("text")
+        return str(val[0])
     return str(val) or None
 
 
 def _extract_macros(nutriments) -> dict:
     """Flatten key macros from the OpenFoodFacts nutriments dict for ES indexing."""
-    if not nutriments or not isinstance(nutriments, dict):
+    if not nutriments:
         return {}
+    
+    data = {}
+    if isinstance(nutriments, dict):
+        data = nutriments
+    elif isinstance(nutriments, list):
+        for item in nutriments:
+            if isinstance(item, dict) and "name" in item:
+                val = item.get("100g")
+                if val is None: val = item.get("value")
+                data[item["name"]] = val
+                # Ensure we also have the _100g version for the n() helper
+                data[f"{item['name']}_100g"] = val
+    else:
+        return {}
+
     def n(key: str) -> float:
-        return round(float(nutriments.get(key) or 0), 1)
+        # Try both the name and name_100g
+        val = data.get(key)
+        if val is None: val = data.get(f"{key}_100g")
+        try:
+            return round(float(val or 0), 1)
+        except (ValueError, TypeError):
+            return 0.0
+
     return {
-        "calories_100g": n("energy-kcal_100g"),
-        "protein_100g":  n("proteins_100g"),
-        "carbs_100g":    n("carbohydrates_100g"),
-        "fat_100g":      n("fat_100g"),
+        "calories_100g": n("energy-kcal"),
+        "protein_100g":  n("proteins"),
+        "carbs_100g":    n("carbohydrates"),
+        "fat_100g":      n("fat"),
     }
 
 
