@@ -5,6 +5,7 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  idsArraySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -198,6 +199,18 @@ describe("searchQuerySchema", () => {
   test("accepts score at boundaries", () => {
     expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
   });
+
+  test("rejects search query longer than 500 characters", () => {
+    const longQuery = "a".repeat(501);
+    const result = searchQuerySchema.safeParse({ q: longQuery });
+    expect(result.success).toBe(false);
+  });
+
+  test("accepts search query of 500 characters", () => {
+    const validQuery = "a".repeat(500);
+    const result = searchQuerySchema.safeParse({ q: validQuery });
+    expect(result.success).toBe(true);
+  });
 });
 
 // ── barcodeSchema ─────────────────────────────────────────────────────────────
@@ -265,6 +278,44 @@ describe("parseValidatedBody", () => {
   test("works with exerciseSchema on invalid data", () => {
     const result = parseValidatedBody(exerciseSchema, { name: "" });
     expect(result.error).toBeDefined();
+  });
+});
+
+describe("idsArraySchema", () => {
+  test("accepts valid comma-separated 24-character hex IDs", () => {
+    const ids = "507f1f77bcf86cd799439011,507f1f77bcf86cd799439012";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual([
+        "507f1f77bcf86cd799439011",
+        "507f1f77bcf86cd799439012",
+      ]);
+    }
+  });
+
+  test("rejects if any ID in the list is invalid", () => {
+    const ids = "507f1f77bcf86cd799439011,invalid-id";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects empty string (if not allowed by schema)", () => {
+    const result = idsArraySchema.safeParse({ ids: "" });
+    // "" split becomes [""] which fails regex
+    expect(result.success).toBe(false);
+  });
+
+  test("handles spaces around commas", () => {
+    const ids = " 507f1f77bcf86cd799439011 , 507f1f77bcf86cd799439012 ";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual([
+        "507f1f77bcf86cd799439011",
+        "507f1f77bcf86cd799439012",
+      ]);
+    }
   });
 });
 

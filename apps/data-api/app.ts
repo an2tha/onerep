@@ -82,7 +82,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || 500;
   if (status >= 500) {
-    console.error(JSON.stringify({ status, message: err.message, stack: err.stack }));
+    console.error(
+      JSON.stringify({ status, message: err.message, stack: err.stack }),
+    );
+    // Do not leak internal error details to the client
+    return res.status(status).json({ error: "Internal server error" });
   }
   res.status(status).json({ error: err.message });
 });

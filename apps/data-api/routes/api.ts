@@ -13,6 +13,7 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  idsArraySchema,
 } from "../lib/validation";
 
 const router: Router = express.Router();
@@ -119,9 +120,15 @@ router.get("/exercises/search", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/lookup", async (req: Request, res: Response) => {
-  const raw = req.query.ids as string | undefined;
-  if (!raw) return res.status(400).json({ error: "ids query param required" });
-  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+  const validation = idsArraySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid ID format",
+      details: validation.error.flatten(),
+    });
+  }
+
+  const ids = validation.data.ids.slice(0, 100);
   if (ids.length === 0) return res.json([]);
 
   try {
