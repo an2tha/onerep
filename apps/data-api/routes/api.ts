@@ -35,9 +35,12 @@ router.get("/foods/search", async (req: Request, res: Response) => {
   }
 
   const query = req.query.q as string;
+  const limit = Math.min(Number(req.query.limit) || 25, 50);
+
   try {
     const result = await esClient.search({
       index: "foods",
+      size: limit,
       query: {
         multi_match: {
           query,
@@ -45,7 +48,24 @@ router.get("/foods/search", async (req: Request, res: Response) => {
         },
       },
     });
-    res.json(result.hits.hits);
+
+    const hits = result.hits.hits;
+    if (hits.length === 0) return res.json([]);
+
+    // Enrich hits with full data from MongoDB to ensure nutriments and correct formatting
+    const codes = hits.map((h: any) => h._id);
+    const fullDocs = await Foods.find({ code: { $in: codes } }).lean();
+    
+    // Map back to maintain ES order
+    const enriched = hits.map((hit: any) => {
+      const doc = fullDocs.find((d) => d.code === hit._id);
+      return {
+        ...hit,
+        _source: doc || hit._source,
+      };
+    });
+
+    res.json(enriched);
   } catch (err) {
     console.error("[ERR] Food search failed:", err);
     res.status(500).json({ error: "Search failed" });
