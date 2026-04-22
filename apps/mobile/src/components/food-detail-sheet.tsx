@@ -36,8 +36,8 @@ function extractMicros(detail: Detail, grams: number): LogMicros {
   }
   return {
     fiber: get("fiber"),
-    sugar: get("sugars"),
-    saturatedFat: get("saturated-fat"),
+    sugar: get("sugar"),
+    saturatedFat: get("satFat"),
     transFat: get("trans-fat"),
     cholesterol: get("cholesterol"),
     sodium: get("sodium"),
@@ -47,7 +47,7 @@ function extractMicros(detail: Detail, grams: number): LogMicros {
     magnesium: get("magnesium"),
     phosphorus: get("phosphorus"),
     zinc: get("zinc"),
-    vitaminC: get("vitamin-c"),
+    vitaminC: get("vitaminC"),
     vitaminA: get("vitamin-a"),
     vitaminD: get("vitamin-d"),
     vitaminB12: get("vitamin-b12"),
@@ -652,6 +652,19 @@ type Props = {
   added: boolean
 }
 
+/**
+ * Renders a mobile sheet UI for viewing food details, selecting a portion, and logging the food to a meal.
+ *
+ * Fetches detailed nutrition for the provided `item`, lets the user choose grams (with presets), shows macros,
+ * nutrition facts and extra nutrients (expandable), lets the user pick or create a meal category, and calls the
+ * provided `onAdd` callback when the user logs the food.
+ *
+ * @param item - The food item to display (used to fetch detail by `item.id` and as fallback macro/calorie sources).
+ * @param onClose - Callback invoked to close the sheet.
+ * @param onAdd - Callback invoked when the user logs the food. Called as `onAdd(item, grams, micros, meal)` where
+ *                `micros` is the micronutrient object scaled to the selected `grams` (empty object if no detail).
+ * @param added - When true, the log button shows a confirmed "Logged" state for the currently selected meal.
+ */
 export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
   const [detail, setDetail] = useState<Detail>(null)
   const [loading, setLoading] = useState(true)
@@ -694,10 +707,10 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
     return r ? scale(r.per100g, grams) : 0
   }
 
-  const calories = s("energy-kcal") || item.calories
-  const protein = s("proteins") || item.protein
-  const carbs = s("carbohydrates") || item.carbs
-  const fat = s("fat") || item.fat
+  const calories = s("energy") || scale(Number(item.calories), grams)
+  const protein = s("protein") || scale(Number(item.protein), grams)
+  const carbs = s("carbs") || scale(Number(item.carbs), grams)
+  const fat = s("fat") || scale(Number(item.fat), grams)
 
   // ── Portion presets ───────────────────────────────────────────────────────
 
@@ -801,7 +814,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
                 </div>
 
                 {detail.nutrients
-                  .filter((n) => n.key !== "energy-kcal" && n.key !== "salt")
+                  .filter((n) => n.key !== "energy" && n.key !== "salt")
                   .map((n, i, arr) => (
                     <div
                       key={n.key}

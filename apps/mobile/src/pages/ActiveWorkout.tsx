@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useQuery, useMutation, useAction } from "convex/react"
@@ -181,6 +181,13 @@ function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
   })
 }
 
+/**
+ * Count total sets and completed sets across the given workout items.
+ *
+ * @param items - Array of workout items (solo exercises or supersets) to include in the count
+ * @param exData - Mapping from exercise ID to its state (including the `sets` array)
+ * @returns An object with `total` — the number of sets across all referenced exercises, and `done` — the number of sets whose `completed` flag is `true`
+ */
 function countSets(
   items: WorkoutItem[],
   exData: Record<string, ExerciseState>
@@ -198,6 +205,49 @@ function countSets(
   return { total, done }
 }
 
+// ─── Next set indicator ───────────────────────────────────────────────────────
+
+type NextTarget = {
+  exerciseId: string
+  setIndex: number
+} | null
+
+/**
+ * Locate the first incomplete set across the workout items, scanning items in order.
+ *
+ * @param items - Ordered list of workout items (solo exercises or supersets) to scan
+ * @param exData - Mapping from exercise ID to its corresponding ExerciseState
+ * @returns A `NextTarget` with `exerciseId` and `setIndex` for the first incomplete set, or `null` if none found
+ */
+function findNextTarget(
+  items: WorkoutItem[],
+  exData: Record<string, ExerciseState>
+): NextTarget {
+  for (const item of items) {
+    const exerciseIds = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
+    for (const exerciseId of exerciseIds) {
+      const data = exData[exerciseId]
+      if (!data) continue
+      const firstIncomplete = data.sets.findIndex((s) => !s.completed)
+      if (firstIncomplete !== -1) {
+        return { exerciseId, setIndex: firstIncomplete }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Normalize persisted or partial exercise state into a complete ExerciseState with sensible defaults.
+ *
+ * Converts an incoming (possibly undefined or partial) state object into an ExerciseState:
+ * - Ensures `sets` is an array; each set is given an `id` if missing and defaults:
+ *   `type` = "working", `weight`/`reps`/`leftReps`/`rightReps`/`rpe` = `""`, `restSeconds` = `120`, `completed` coerced to boolean.
+ * - Ensures `trackRpe` and `trackUnilateral` are booleans.
+ *
+ * @param state - Partial or persisted exercise state (may be undefined or missing fields)
+ * @returns A normalized ExerciseState ready for UI usage and persistence
+ */
 function normalizeExerciseState(state: any): ExerciseState {
   return {
     sets: (state?.sets || []).map((s: any) => ({
@@ -255,14 +305,57 @@ function useRestCountdown() {
   return { remaining, start, dismiss }
 }
 
-// ─── Elapsed timer ────────────────────────────────────────────────────────────
+/**
+ * Tracks seconds elapsed since a given start timestamp.
+ *
+ * Recalculates every second and also when the document becomes visible again.
+ *
+ * @param startedAt - Unix epoch milliseconds timestamp marking the start, or `null` if not started
+ * @returns The number of whole seconds elapsed since `startedAt`; `0` if `startedAt` is `null`
+ */
 
-function useElapsedTimer() {
+function useElapsedTimer(startedAt: number | null) {
   const [elapsed, setElapsed] = useState(0)
+
   useEffect(() => {
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000)
-    return () => clearInterval(id)
-  }, [])
+    /**
+     * Update the elapsed seconds state based on the `startedAt` timestamp.
+     *
+     * If `startedAt` is defined, computes the whole seconds elapsed since that timestamp
+     * (using floor) and updates the component state via `setElapsed`.
+     */
+    function updateElapsed() {
+      if (startedAt) {
+        const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
+        setElapsed(elapsedSeconds)
+      }
+    }
+
+    // Initial calculation
+    updateElapsed()
+
+    // Update every second
+    const id = setInterval(updateElapsed, 1000)
+
+    /**
+     * Recalculates the elapsed workout timer when the document becomes visible.
+     *
+     * This should be registered on the document's `visibilitychange` event so the elapsed time is updated when the tab or window regains focus.
+     */
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        updateElapsed()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [startedAt])
+
   return elapsed
 }
 
@@ -451,7 +544,24 @@ function RestTimerSheet({
   )
 }
 
-// ─── Active set row ───────────────────────────────────────────────────────────
+/**
+ * Render a single active set row allowing the user to edit weight/reps/RPE, toggle completion, pick rest, cycle set type, and delete the set.
+ *
+ * The row visualizes completion state, optionally highlights the "next" set, and opens a rest-duration sheet when the timer button is tapped.
+ *
+ * @param set - The WorkoutSet data for this row (weights, reps, rpe, restSeconds, completed, etc.).
+ * @param index - Zero-based index of the set within its exercise.
+ * @param trackRpe - Whether the UI should show and allow editing of the RPE field.
+ * @param trackUnilateral - Whether reps are tracked per limb (shows left/right inputs) instead of a single reps field.
+ * @param unit - Display unit for weight (kg or lbs); inputs/outputs are converted via unit helpers.
+ * @param onUpdate - Called with an updated WorkoutSet when any editable field changes.
+ * @param onDelete - Called when the delete action is triggered for this set.
+ * @param canDelete - When true, shows the delete control (disabled/hidden when the set is completed).
+ * @param onComplete - Invoked with the set's restSeconds when the set is newly marked completed (used to start the rest countdown).
+ * @param isNext - When true and the set is not completed, the row receives visual emphasis indicating it's the next target.
+ *
+ * @returns A JSX element representing the interactive set row.
+ */
 
 function ActiveSetRow({
   set,
@@ -463,6 +573,7 @@ function ActiveSetRow({
   onDelete,
   canDelete,
   onComplete,
+  isNext,
 }: {
   set: WorkoutSet
   index: number
@@ -473,6 +584,7 @@ function ActiveSetRow({
   onDelete: () => void
   canDelete: boolean
   onComplete: (restSeconds: number) => void
+  isNext?: boolean
 }) {
   const [showRest, setShowRest] = useState(false)
   const [completionPulse, setCompletionPulse] = useState(false)
@@ -515,26 +627,48 @@ function ActiveSetRow({
         className={cn(
           "flex items-center gap-2 px-3 py-2 transition-[background-color,transform,box-shadow] duration-300",
           set.completed && "bg-green-500/[0.04]",
-          completionPulse && "scale-[1.01]"
+          completionPulse && "scale-[1.01]",
+          isNext && !set.completed && "relative"
         )}
         style={
           completionPulse
             ? { boxShadow: "inset 0 0 0 1px rgba(34,197,94,0.22)" }
-            : undefined
+            : isNext && !set.completed
+              ? { boxShadow: "inset 0 0 0 1.5px rgba(56,189,248,0.40)" }
+              : undefined
         }
       >
+        {/* Next indicator */}
+        {isNext && !set.completed && (
+          <div
+            className="absolute -left-1 top-1/2 -translate-y-1/2 flex h-2 w-2 items-center justify-center"
+          >
+            <div
+              className="h-1.5 w-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: "#38bdf8" }}
+            />
+          </div>
+        )}
         <span
-          className="w-4 shrink-0 text-center text-[11px] font-medium tabular-nums select-none"
-          style={{
-            color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-          }}
+          className={cn(
+            "w-4 shrink-0 text-center text-[11px] font-medium tabular-nums select-none transition-colors",
+            isNext && !set.completed && "text-sky-400"
+          )}
+          style={
+            isNext && !set.completed
+              ? { color: "#38bdf8" }
+              : { color: "color-mix(in srgb, var(--foreground) 18%, transparent)" }
+          }
         >
           {index + 1}
         </span>
         <button
           onClick={cycleType}
           disabled={set.completed}
-          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl transition-all select-none active:scale-[0.88] disabled:pointer-events-none"
+          className={cn(
+            "flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl transition-all select-none active:scale-[0.88] disabled:pointer-events-none",
+            isNext && !set.completed && "ring-1 ring-sky-400/30"
+          )}
           style={{
             backgroundColor: set.completed ? "rgba(34,197,94,0.10)" : cfg.bg,
           }}
@@ -753,6 +887,34 @@ function ActiveSetRow({
   )
 }
 
+/**
+ * Render an exercise card containing its sets, controls, and compact history for the active workout UI.
+ *
+ * Displays exercise metadata, set rows (with editing, completion, and rest controls), tracking toggles (RPE / unilateral),
+ * drag handle, collapse toggle, remove button, and an optional last-session summary. Highlights the next incomplete set
+ * when `nextSetIndex` is provided.
+ *
+ * @param exercise - Exercise metadata (name, color, muscle, etc.).
+ * @param data - Per-exercise state including the list of sets and tracking flags.
+ * @param unit - Weight display unit (`"kg"` or `"lbs"`).
+ * @param onUpdate - Called with an updated `ExerciseState` when sets or tracking options change.
+ * @param onRemove - Called to remove this exercise from the workout.
+ * @param isDragging - Whether this card is currently being dragged (applies visual transform).
+ * @param showLineBefore - Render a decorative line above the card when true.
+ * @param showLineAfter - Render a decorative line below the card when true.
+ * @param showSupersetRing - Apply a colored ring accent to indicate superset grouping when true.
+ * @param inSuperset - True when the card is rendered inside a superset container.
+ * @param collapsed - Whether the card's set list is collapsed.
+ * @param onToggleCollapse - Toggle collapsed state for this card.
+ * @param dragHandlers - Pointer/drag event handlers to attach to the drag handle.
+ * @param cardRef - Ref callback for the card DOM element (used for hit-testing during drag).
+ * @param onStartRest - Called with rest seconds when a set is completed and a rest timer should start.
+ * @param lastSession - Optional recent session summary (date and sets) to render a compact history row.
+ * @param onShowHistory - Open the full history sheet for this exercise.
+ * @param nextSetIndex - Optional index of the next incomplete set to visually emphasize; pass `null` to disable.
+ *
+ * @returns The rendered React element for the exercise card.
+ */
 function ActiveExerciseCard({
   exercise,
   data,
@@ -771,6 +933,7 @@ function ActiveExerciseCard({
   onStartRest,
   lastSession,
   onShowHistory,
+  nextSetIndex,
 }: {
   exercise: Exercise
   data: ExerciseState
@@ -789,6 +952,7 @@ function ActiveExerciseCard({
   onStartRest: (seconds: number) => void
   lastSession?: { date: string; sets: Array<{ weight: number; reps: number; completed: boolean; type: string }> } | null
   onShowHistory: () => void
+  nextSetIndex?: number | null
 }) {
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
@@ -1007,6 +1171,7 @@ function ActiveExerciseCard({
                     onDelete={() => removeSet(i)}
                     canDelete={data.sets.length > 1}
                     onComplete={onStartRest}
+                    isNext={nextSetIndex === i}
                   />
                 </div>
               ))}
@@ -1617,6 +1782,32 @@ function AbortSheet({
   )
 }
 
+/**
+ * Renders a superset container with its member exercises as ActiveExerciseCard entries.
+ *
+ * Renders visual superset chrome (colored side band, header, connecting lines), maps each exercise ID
+ * to an ActiveExerciseCard with drag handlers, collapse state, history link, rest control, and next-set highlighting.
+ *
+ * @param item - The superset workout item containing `exerciseIds`, `color`, and `id`.
+ * @param exData - Map of exercise state keyed by exercise ID.
+ * @param unit - Current weight unit (`kg` or `lbs`) for display/conversion.
+ * @param updateExData - Callback to replace an exercise's ExerciseState.
+ * @param removeExercise - Callback to remove an exercise from the workout.
+ * @param drag - Current drag state or null.
+ * @param dropTarget - Current drop target information used to render before/after indicators.
+ * @param collapsed - Map of exerciseId to collapsed boolean.
+ * @param toggleCollapsed - Toggles collapsed state for a given exercise ID.
+ * @param makeDragHandlers - Factory that returns pointer/drag handlers for a given exercise ID.
+ * @param cardRefs - Mutable ref map from exerciseId to the card DOM element (used for hit-testing).
+ * @param onStartRest - Invoked with rest seconds to start the rest countdown for a set.
+ * @param cardProps - Function returning shared props spread onto each ActiveExerciseCard; receives (exerciseId, inSuperset).
+ * @param exerciseLookup - Map of exercise metadata keyed by exercise ID.
+ * @param lastSessionMap - Map of exerciseId to last completed session summary (date and sets) or undefined.
+ * @param onShowHistory - Callback invoked to open the exercise history sheet (exerciseId, name).
+ * @param nextTarget - Optional next-set target identifying which exercise and set index should be highlighted.
+ *
+ * @returns A JSX element representing the superset block and its exercise cards.
+ */
 function renderSupersetItem(
   item: Extract<WorkoutItem, { kind: "superset" }>,
   exData: Record<string, ExerciseState>,
@@ -1633,7 +1824,8 @@ function renderSupersetItem(
   cardProps: (id: string, inS: boolean) => any,
   exerciseLookup: Record<string, Exercise>,
   lastSessionMap: Record<string, { date: string; sets: any[] }>,
-  onShowHistory: (exId: string, name: string) => void
+  onShowHistory: (exId: string, name: string) => void,
+  nextTarget: NextTarget
 ) {
   const dt = dropTarget
   const containerIsTarget = dt && item.exerciseIds.includes(dt.targetExId)
@@ -1731,6 +1923,7 @@ function renderSupersetItem(
                 onStartRest={onStartRest}
                 lastSession={lastSessionMap[exId] ?? null}
                 onShowHistory={() => onShowHistory(exId, ex.name)}
+                nextSetIndex={nextTarget?.exerciseId === exId ? nextTarget.setIndex : null}
               />
             </React.Fragment>
           )
@@ -1740,6 +1933,13 @@ function renderSupersetItem(
   )
 }
 
+/**
+ * Renders and manages the Active Workout page, including UI for editing/performing sets and exercises, timers, drag-and-drop reordering/superset creation, and sheets for adding exercises, viewing history, finishing, or aborting a workout.
+ *
+ * This component initializes from a Convex active workout or a preset, maintains local workout state (items, per-exercise sets and tracking options, UI collapse/drag state, and elapsed/rest timers), and debounces syncing updates back to Convex. It also handles creating the active workout record, finishing (with Convex primary and legacy fallback logging), aborting, and analytics events.
+ *
+ * @returns The React element for the Active Workout page.
+ */
 export default function ActiveWorkout() {
   const { presetId } = useParams<{ presetId?: string }>()
   const navigate = useNavigate()
@@ -1751,6 +1951,13 @@ export default function ActiveWorkout() {
   const logCompletion = useMutation(api.logs.workouts.completion)
   const resolveIds = useAction(api.data.exercises.resolveIds)
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
+  
+  // Active workout Convex sync
+  const activeWorkout = useQuery(api.logs.activeWorkout.getActive, { slot })
+  const createActive = useMutation(api.logs.activeWorkout.createActive)
+  const updateActive = useMutation(api.logs.activeWorkout.updateActive)
+  const abortActive = useMutation(api.logs.activeWorkout.abortActive)
+  const finishActive = useMutation(api.logs.activeWorkout.finishActive)
 
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
@@ -1765,8 +1972,32 @@ export default function ActiveWorkout() {
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const elapsed = useElapsedTimer()
+  const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? null)
   const rest = useRestCountdown()
+  
+  // Track if we've initialized from Convex to avoid overwriting user's workout data
+  const [isInitialized, setIsInitialized] = useState(false)
+  // Debounce sync to Convex
+  const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isSyncingRef = useRef(false)
+  const isDirtyRef = useRef(false)
+  // Refs to capture current state for sync
+  const itemsRef = useRef(items)
+  const exDataRef = useRef(exData)
+  const elapsedRef = useRef(elapsed)
+  const slotRef = useRef(slot)
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    itemsRef.current = items
+    isDirtyRef.current = true
+  }, [items])
+  useEffect(() => {
+    exDataRef.current = exData
+    isDirtyRef.current = true
+  }, [exData])
+  useEffect(() => { elapsedRef.current = elapsed }, [elapsed])
+  useEffect(() => { slotRef.current = slot }, [slot])
 
   const allExIds = items.flatMap((i) =>
     i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
@@ -1788,23 +2019,88 @@ export default function ActiveWorkout() {
   }, [workoutHistory])
   const progressPct =
     totalSets > 0 ? `${Math.round((doneSets / totalSets) * 100)}%` : "0%"
+  
+  // Find the next set to highlight
+  const nextTarget = useMemo(() => findNextTarget(items, exData), [items, exData])
 
+  // ── Sync state to Convex (debounced) ──────────────────────────────────────
+  const syncToConvex = useCallback(() => {
+    if (!isDirtyRef.current) return
+    if (isSyncingRef.current) return
+
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current)
+    }
+
+    syncTimeoutRef.current = setTimeout(async () => {
+      if (!isDirtyRef.current) return
+      isSyncingRef.current = true
+      try {
+        await updateActive({
+          slot: slotRef.current,
+          items: itemsRef.current,
+          exerciseData: exDataRef.current,
+          elapsedSeconds: elapsedRef.current,
+        })
+        isDirtyRef.current = false
+      } catch (err) {
+        console.warn("Failed to sync workout to Convex:", err)
+      } finally {
+        isSyncingRef.current = false
+      }
+    }, 500) // Debounce 500ms
+  }, [updateActive])
+
+  // ── Load from Convex or preset on mount ────────────────────────────────────
   useEffect(() => {
+    if (isInitialized) return
+    
+    // If there's an active workout in Convex, load it
+    if (activeWorkout) {
+      setIsInitialized(true)
+      const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
+      const loadedExData = (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
+      
+      setItems(loadedItems)
+      setExData(
+        Object.fromEntries(
+          Object.entries(loadedExData).map(([exerciseId, state]) => [
+            exerciseId,
+            normalizeExerciseState(state),
+          ])
+        )
+      )
+      
+      // Load exercise details
+      const ids = loadedItems.flatMap((i) =>
+        i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
+      )
+      if (ids.length > 0) {
+        void resolveIds({ ids }).then((lookup) => {
+          setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+        })
+      }
+      return
+    }
+    
+    // If no Convex state, try to load from preset
     if (presetId && presets) {
       const match = presets.find((p) => (p.id ?? p._id) === presetId)
       if (match) {
+        setIsInitialized(true)
         const loadedItems = (match.items as WorkoutItem[]) ?? []
+        const loadedExData = (match.exerciseData as Record<string, ExerciseState>) ?? {}
+        
         setItems(loadedItems)
         setExData(
           Object.fromEntries(
-            Object.entries(
-              (match.exerciseData as Record<string, ExerciseState>) ?? {}
-            ).map(([exerciseId, state]) => [
+            Object.entries(loadedExData).map(([exerciseId, state]) => [
               exerciseId,
               normalizeExerciseState(state),
             ])
           )
         )
+        
         const ids = loadedItems.flatMap((i) =>
           i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
         )
@@ -1815,7 +2111,39 @@ export default function ActiveWorkout() {
         }
       }
     }
-  }, [presetId, presets])
+  }, [isInitialized, presetId, presets, activeWorkout, resolveIds])
+
+  // ── Create active workout in Convex when items are loaded ─────────────────
+  useEffect(() => {
+    if (!isInitialized) return
+    if (items.length === 0) return
+    if (activeWorkout) return // Already have an active workout
+    
+    const ids = items.flatMap((i) =>
+      i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
+    )
+    if (ids.length > 0) {
+      void createActive({
+        slot,
+        presetId: presetId ?? undefined,
+        items,
+        exerciseData: exData,
+      })
+    }
+  }, [isInitialized, items.length, activeWorkout, createActive, slot, presetId, items, exData])
+
+  // ── Sync to Convex when state changes ─────────────────────────────────────
+  useEffect(() => {
+    if (!isInitialized) return
+    syncToConvex()
+  }, [isInitialized, items, exData])
+
+  // Sync elapsed time every 5 seconds
+  useEffect(() => {
+    if (!isInitialized) return
+    if (elapsed % 5 !== 0) return // Only sync every 5 seconds for elapsed time
+    syncToConvex()
+  }, [isInitialized, elapsed, syncToConvex])
 
   useEffect(() => {
     if (preferences?.weightUnit) {
@@ -1824,8 +2152,10 @@ export default function ActiveWorkout() {
   }, [preferences])
 
   useEffect(() => {
-    posthog.capture("workout_started", { preset_id: presetId ?? null })
-  }, [presetId, posthog])
+    if (isInitialized) {
+      posthog.capture("workout_started", { preset_id: presetId ?? null })
+    }
+  }, [isInitialized, presetId, posthog])
 
   function addExercise(ex: Exercise) {
     const id = ex.id
@@ -1997,7 +2327,6 @@ export default function ActiveWorkout() {
   }
 
   async function handleFinish() {
-    const date = todayIso()
     const exercises = items.flatMap((item) => {
       const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       return ids.flatMap((id) => {
@@ -2021,7 +2350,12 @@ export default function ActiveWorkout() {
       })
     })
     try {
-      await logCompletion({ date, exercises, durationSeconds: elapsed })
+      // Finish the active workout in Convex (this also logs it)
+      await finishActive({
+        slot,
+        exercises,
+        durationSeconds: elapsed,
+      })
       posthog.capture("workout_completed", {
         preset_id: presetId ?? null,
         duration_seconds: elapsed,
@@ -2033,7 +2367,14 @@ export default function ActiveWorkout() {
       })
       navigate(-1)
     } catch (err) {
-      console.error("Failed to log workout:", err)
+      console.error("Failed to finish workout:", err)
+      // Fallback to old method if Convex fails
+      try {
+        await logCompletion({ date: todayIso(), exercises, durationSeconds: elapsed })
+        navigate(-1)
+      } catch (fallbackErr) {
+        console.error("Failed to log workout as fallback:", fallbackErr)
+      }
     }
   }
 
@@ -2163,6 +2504,7 @@ export default function ActiveWorkout() {
                     onStartRest={rest.start}
                     lastSession={lastSessionMap[item.exerciseId] ?? null}
                     onShowHistory={() => setHistorySheet({ exerciseId: item.exerciseId, name: ex.name })}
+                    nextSetIndex={nextTarget?.exerciseId === item.exerciseId ? nextTarget.setIndex : null}
                   />
                 )
               }
@@ -2182,7 +2524,8 @@ export default function ActiveWorkout() {
                 cardProps,
                 exerciseLookup,
                 lastSessionMap,
-                (exId, name) => setHistorySheet({ exerciseId: exId, name })
+                (exId, name) => setHistorySheet({ exerciseId: exId, name }),
+                nextTarget
               )
             })}
           </div>
@@ -2219,7 +2562,21 @@ export default function ActiveWorkout() {
       )}
       {confirmAbort && (
         <AbortSheet
-          onConfirm={() => navigate(-1)}
+          onConfirm={async () => {
+            try {
+              await abortActive({ slot })
+              navigate(-1)
+            } catch (err) {
+              console.error("Failed to abort workout in Convex:", err)
+              // Clear pending sync timer on error
+              if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+                syncTimeoutRef.current = null
+              }
+              // Surface error to user (could show a toast here)
+              alert("Failed to abort workout. Please try again.")
+            }
+          }}
           onCancel={() => setConfirmAbort(false)}
         />
       )}

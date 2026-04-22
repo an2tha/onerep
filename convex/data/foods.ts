@@ -59,6 +59,20 @@ function getMultilangText(value: any): string {
   return String(value) || "Unknown";
 }
 
+/**
+ * Map a search hit or source document into a normalized product result suitable for UI consumption.
+ *
+ * @param hit - A search hit object (may be the raw document or an object with a `_source` property) containing product fields and `nutriments`.
+ * @returns An object with the following properties:
+ *  - `id`: string identifier (from `code`, `_id`, or hit metadata)
+ *  - `name`: localized product name
+ *  - `brand`: localized brand name
+ *  - `serving`: serving label (`"100 g"`)
+ *  - `calories`: calories per 100 g as an integer
+ *  - `protein`: protein per 100 g as a number rounded to one decimal place
+ *  - `carbs`: carbohydrates per 100 g as a number rounded to one decimal place
+ *  - `fat`: fat per 100 g as a number rounded to one decimal place
+ */
 function mapHitToResult(hit: any): any {
   const src = hit._source ?? hit;
   
@@ -91,10 +105,10 @@ function mapHitToResult(hit: any): any {
     name: getMultilangText(src.product_name),
     brand: getMultilangText(src.brands),
     serving: "100 g",
-    calories: String(Math.round(Number(calories))),
-    protein: String(Math.round(Number(protein) * 10) / 10),
-    carbs: String(Math.round(Number(carbs) * 10) / 10),
-    fat: String(Math.round(Number(fat) * 10) / 10),
+    calories: Math.round(Number(calories)),
+    protein: Math.round(Number(protein) * 10) / 10,
+    carbs: Math.round(Number(carbs) * 10) / 10,
+    fat: Math.round(Number(fat) * 10) / 10,
   };
 }
 
