@@ -1980,6 +1980,7 @@ export default function ActiveWorkout() {
   // Debounce sync to Convex
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSyncingRef = useRef(false)
+  const isDirtyRef = useRef(false)
   // Refs to capture current state for sync
   const itemsRef = useRef(items)
   const exDataRef = useRef(exData)
@@ -1987,8 +1988,14 @@ export default function ActiveWorkout() {
   const slotRef = useRef(slot)
 
   // Keep refs in sync with state
-  useEffect(() => { itemsRef.current = items }, [items])
-  useEffect(() => { exDataRef.current = exData }, [exData])
+  useEffect(() => {
+    itemsRef.current = items
+    isDirtyRef.current = true
+  }, [items])
+  useEffect(() => {
+    exDataRef.current = exData
+    isDirtyRef.current = true
+  }, [exData])
   useEffect(() => { elapsedRef.current = elapsed }, [elapsed])
   useEffect(() => { slotRef.current = slot }, [slot])
 
@@ -2018,15 +2025,15 @@ export default function ActiveWorkout() {
 
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
   const syncToConvex = useCallback(() => {
-    if (itemsRef.current.length === 0) return
+    if (!isDirtyRef.current) return
     if (isSyncingRef.current) return
-    
+
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current)
     }
-    
+
     syncTimeoutRef.current = setTimeout(async () => {
-      if (itemsRef.current.length === 0) return
+      if (!isDirtyRef.current) return
       isSyncingRef.current = true
       try {
         await updateActive({
@@ -2035,6 +2042,7 @@ export default function ActiveWorkout() {
           exerciseData: exDataRef.current,
           elapsedSeconds: elapsedRef.current,
         })
+        isDirtyRef.current = false
       } catch (err) {
         console.warn("Failed to sync workout to Convex:", err)
       } finally {
@@ -2127,17 +2135,15 @@ export default function ActiveWorkout() {
   // ── Sync to Convex when state changes ─────────────────────────────────────
   useEffect(() => {
     if (!isInitialized) return
-    if (items.length === 0) return
     syncToConvex()
   }, [isInitialized, items, exData])
 
   // Sync elapsed time every 5 seconds
   useEffect(() => {
     if (!isInitialized) return
-    if (items.length === 0) return
     if (elapsed % 5 !== 0) return // Only sync every 5 seconds for elapsed time
     syncToConvex()
-  }, [isInitialized, elapsed, items.length, syncToConvex])
+  }, [isInitialized, elapsed, syncToConvex])
 
   useEffect(() => {
     if (preferences?.weightUnit) {
@@ -2559,10 +2565,17 @@ export default function ActiveWorkout() {
           onConfirm={async () => {
             try {
               await abortActive({ slot })
+              navigate(-1)
             } catch (err) {
-              console.warn("Failed to abort workout in Convex:", err)
+              console.error("Failed to abort workout in Convex:", err)
+              // Clear pending sync timer on error
+              if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+                syncTimeoutRef.current = null
+              }
+              // Surface error to user (could show a toast here)
+              alert("Failed to abort workout. Please try again.")
             }
-            navigate(-1)
           }}
           onCancel={() => setConfirmAbort(false)}
         />

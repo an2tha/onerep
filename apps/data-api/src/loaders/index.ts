@@ -5,6 +5,7 @@
 import * as path from "path";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
+import { foodfacts } from "../db/schema";
 
 const LOADER_DIR = path.join(__dirname, "../../loaders");
 const DATASETS_DIR = path.join(LOADER_DIR, "datasets");
@@ -100,7 +101,7 @@ async function loadFoodsWithDuckDB(): Promise<void> {
 
     // Insert to PostgreSQL
     try {
-      await db.insert(sql`foodfacts`).values(transformed as any);
+      await db.insert(foodfacts).values(transformed as any).onConflictDoNothing();
     } catch (err) {
       // Ignore duplicate key errors (on conflict do nothing)
       const errMsg = String(err);

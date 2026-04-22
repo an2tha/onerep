@@ -28,7 +28,7 @@ CREATE TABLE "foodfacts" (
 	"serving_grams" real,
 	"nutriscore_grade" varchar(1),
 	"nova_group" integer,
-	"nututrients" jsonb,
+	"nutrients" jsonb,
 	"extra_nutrients" jsonb,
 	CONSTRAINT "foodfacts_code_unique" UNIQUE("code")
 );

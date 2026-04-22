@@ -1,12 +1,15 @@
 /**
  * Exercises loader - loads from free-exercise-db JSON
- * Run: npx tsx src/loaders/exercises.ts
+ * Run: bun src/loaders/exercises.ts
  */
-import * as fs from "fs";
 import { db } from "../db";
 import { exercises } from "../db/schema";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
-const EXERCISES_PATH = "./loaders/datasets/free-exercise-db/dist/exercises.json";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const EXERCISES_PATH = join(__dirname, "../../loaders/datasets/free-exercise-db/dist/exercises.json");
 
 /**
  * Loads exercises from the local Free Exercise DB JSON file into the `exercises` database table.
@@ -16,16 +19,16 @@ const EXERCISES_PATH = "./loaders/datasets/free-exercise-db/dist/exercises.json"
  */
 async function loadExercises(): Promise<void> {
   console.log("[LOADER] Starting exercises load...");
-  
+
   const existing = await db.select({ count: exercises }).from(exercises).limit(1);
   if (existing.length > 0) {
     console.log("[LOADER] Exercises already loaded, skipping...");
     return;
   }
 
-  const content = fs.readFileSync(EXERCISES_PATH, "utf-8");
+  const content = await Bun.file(EXERCISES_PATH).text();
   const data = JSON.parse(content);
-  
+
   console.log(`[LOADER] Processing ${data.length} exercises...`);
 
   const rows = data.map((ex: Record<string, unknown>) => ({
@@ -37,9 +40,9 @@ async function loadExercises(): Promise<void> {
     mechanic: ex.mechanic ? String(ex.mechanic) : null,
     equipment: ex.equipment ? String(ex.equipment) : null,
     force: ex.force ? String(ex.force) : null,
-    primaryMuscles: JSON.stringify(ex.primaryMuscles || []),
-    secondaryMuscles: JSON.stringify(ex.secondaryMuscles || []),
-    instructions: JSON.stringify(ex.instructions || []),
+    primaryMuscles: ex.primaryMuscles || [],
+    secondaryMuscles: ex.secondaryMuscles || [],
+    instructions: ex.instructions || [],
   })).filter((r: { exerciseId: string }) => r.exerciseId);
 
   // Insert in batches
