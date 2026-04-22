@@ -175,6 +175,11 @@ export const finishActive = mutation({
       throw new Error("No active workout found");
     }
 
+    // Check if already completed
+    if (active.completedAt) {
+      throw new Error("Workout already completed");
+    }
+
     // Mark as completed
     await ctx.db.patch(active._id, {
       completedAt: Date.now(),

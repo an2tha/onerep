@@ -39,6 +39,11 @@ router.get("/foods/search", async (req: Request, res: Response) => {
   const q = req.query.q as string || "";
   const limit = Math.min(Number(req.query.limit) || 25, 50);
   try {
+    // Enable pg_trgm extension and create GIN indexes on first run
+    await query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
+    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_name_trgm_idx ON foodfacts USING gin (name gin_trgm_ops)");
+    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_brand_trgm_idx ON foodfacts USING gin (brand gin_trgm_ops)");
+
     const results = await query(
       "SELECT * FROM foodfacts WHERE name ILIKE $1 OR brand ILIKE $1 LIMIT $2",
       [`%${q}%`, limit]

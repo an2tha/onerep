@@ -114,69 +114,93 @@ export async function loadFoodsFromCSV(csvPath: string): Promise<void> {
     return;
   }
 
-  const content = fs.readFileSync(csvPath, "utf-8");
-  const lines = content.split("\n").filter(l => l.trim());
-  const headers = lines[0].split("\t");
-  
-  // Map column indices
-  const codeIdx = headers.indexOf("code");
-  const nameIdx = headers.indexOf("product_name");
-  const brandsIdx = headers.indexOf("brands");
-  const servingIdx = headers.indexOf("serving_size");
-  const quantityIdx = headers.indexOf("serving_quantity");
-  const nutrimentsIdx = headers.indexOf("nutriments");
-  const nutriscoreIdx = headers.indexOf("nutriscore_grade");
-  const novaIdx = headers.indexOf("nova_group");
-  const popKeyIdx = headers.indexOf("popularity_key");
-  const extrasIdx = headers.indexOf("nutriments_list");
+  // Use streaming reader with readline
+  const readline = await import("readline");
+  const stream = fs.createReadStream(csvPath, { encoding: "utf-8" });
+  const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
 
-  console.log(`[LOADER] Processing ${lines.length - 1} foods...`);
+  let headers: string[] = [];
+  let codeIdx = -1, nameIdx = -1, brandsIdx = -1, servingIdx = -1, quantityIdx = -1;
+  let nutrimentsIdx = -1, nutriscoreIdx = -1, novaIdx = -1, popKeyIdx = -1, extrasIdx = -1;
+  let isFirstLine = true;
+  let batch: any[] = [];
+  let totalProcessed = 0;
 
-  for (let i = 1; i < lines.length; i += BATCH_SIZE) {
-    const batch = lines.slice(i, i + BATCH_SIZE);
-    const rows = batch.map(line => {
-      const cols = line.split("\t");
-      const code = cols[codeIdx] || "";
-      const name = extractText(cols[nameIdx]) || code;
-      const brand = cols[brandsIdx] || null;
-      const serving = cols[servingIdx] || "100 g";
-      const quantity = parseFloat(cols[quantityIdx]) || 100;
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+
+    if (isFirstLine) {
+      // Parse header row
+      headers = line.split("\t");
+      codeIdx = headers.indexOf("code");
+      nameIdx = headers.indexOf("product_name");
+      brandsIdx = headers.indexOf("brands");
+      servingIdx = headers.indexOf("serving_size");
+      quantityIdx = headers.indexOf("serving_quantity");
+      nutrimentsIdx = headers.indexOf("nutriments");
+      nutriscoreIdx = headers.indexOf("nutriscore_grade");
+      novaIdx = headers.indexOf("nova_group");
+      popKeyIdx = headers.indexOf("popularity_key");
+      extrasIdx = headers.indexOf("nutriments_list");
+      isFirstLine = false;
+      continue;
+    }
+
+    // Parse data row
+    const cols = line.split("\t");
+    if (!cols[codeIdx]) continue;
+
+    const row = {
+      code: cols[codeIdx] || "",
+      name: extractText(cols[nameIdx]) || cols[codeIdx] || "",
+      brand: cols[brandsIdx] || null,
+      serving: cols[servingIdx] || "100 g",
+      servingGrams: parseFloat(cols[quantityIdx]) || 100,
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+      nutriscoreGrade: cols[nutriscoreIdx]?.toUpperCase() || null,
+      novaGroup: parseInt(cols[novaIdx]) || null,
+      popularityKey: parseInt(cols[popKeyIdx]) || null,
+      nutrients: JSON.stringify([]),
+      extraNutrients: JSON.stringify([]),
+    };
+
+    try {
       const nutriments = cols[nutrimentsIdx] ? JSON.parse(cols[nutrimentsIdx]) : {};
-      const nutriscore = cols[nutriscoreIdx]?.toUpperCase() || null;
-      const nova = parseInt(cols[novaIdx]) || null;
-      const popKey = parseInt(cols[popKeyIdx]) || null;
+      row.calories = getNutrientValue(nutriments, "energy-kcal");
+      row.protein = getNutrientValue(nutriments, "proteins");
+      row.carbs = getNutrientValue(nutriments, "carbohydrates");
+      row.fat = getNutrientValue(nutriments, "fat");
+
       const extras = cols[extrasIdx] ? JSON.parse(cols[extrasIdx]) : [];
-
-      const calories = getNutrientValue(nutriments, "energy-kcal");
-      const protein = getNutrientValue(nutriments, "proteins");
-      const carbs = getNutrientValue(nutriments, "carbohydrates");
-      const fat = getNutrientValue(nutriments, "fat");
-
-      // Split nutrients into core and extra
       const coreNutrients = ["Energy", "Fat", "Saturated-fat", "Carbohydrates", "Sugars", "Fiber", "Proteins", "Salt", "Sodium"];
       const nutrients = extras.filter((n: { name: string }) => coreNutrients.includes(n.name));
       const extraNutrients = extras.filter((n: { name: string }) => !coreNutrients.includes(n.name));
+      row.nutrients = JSON.stringify(nutrients);
+      row.extraNutrients = JSON.stringify(extraNutrients);
+    } catch (e) {
+      // Skip invalid JSON
+    }
 
-      return {
-        code,
-        name,
-        brand,
-        serving: `${quantity}g`,
-        servingGrams: quantity,
-        calories,
-        protein,
-        carbs,
-        fat,
-        nutriscoreGrade: nutriscore,
-        novaGroup: nova,
-        popularityKey: popKey,
-        nutrients: JSON.stringify(nutrients),
-        extraNutrients: JSON.stringify(extraNutrients),
-      };
-    }).filter(r => r.code);
+    batch.push(row);
 
-    await db.insert(foodfacts).values(rows);
-    console.log(`[LOADER] Loaded ${Math.min(i + BATCH_SIZE, lines.length - 1)}/${lines.length - 1}`);
+    // Insert batch when it reaches the batch size
+    if (batch.length >= BATCH_SIZE) {
+      await db.insert(foodfacts).values(batch);
+      totalProcessed += batch.length;
+      console.log(`[LOADER] Loaded ${totalProcessed} foods...`);
+      batch = [];
+    }
   }
+
+  // Insert remaining batch
+  if (batch.length > 0) {
+    await db.insert(foodfacts).values(batch);
+    totalProcessed += batch.length;
+    console.log(`[LOADER] Loaded ${totalProcessed} foods...`);
+  }
+
   console.log("[LOADER] Foods load complete!");
 }

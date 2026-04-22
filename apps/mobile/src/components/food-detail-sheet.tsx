@@ -36,8 +36,8 @@ function extractMicros(detail: Detail, grams: number): LogMicros {
   }
   return {
     fiber: get("fiber"),
-    sugar: get("sugars"),
-    saturatedFat: get("saturated-fat"),
+    sugar: get("sugar"),
+    saturatedFat: get("satFat"),
     transFat: get("trans-fat"),
     cholesterol: get("cholesterol"),
     sodium: get("sodium"),
@@ -47,7 +47,7 @@ function extractMicros(detail: Detail, grams: number): LogMicros {
     magnesium: get("magnesium"),
     phosphorus: get("phosphorus"),
     zinc: get("zinc"),
-    vitaminC: get("vitamin-c"),
+    vitaminC: get("vitaminC"),
     vitaminA: get("vitamin-a"),
     vitaminD: get("vitamin-d"),
     vitaminB12: get("vitamin-b12"),

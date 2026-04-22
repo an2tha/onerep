@@ -9,6 +9,7 @@ import * as path from "path";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 import { loadExercises } from "./exercises";
+import { foodfacts } from "../db/schema";
 
 const LOADER_DIR = path.join(__dirname, "../../loaders");
 const DATASETS_DIR = path.join(LOADER_DIR, "datasets");
@@ -76,7 +77,7 @@ function loadFoodsFromPython(): Promise<void> {
         
         if (batch.length >= BATCH_SIZE) {
           try {
-            await db.insert(sql`foodfacts`).values(batch.map(f => ({
+            await db.insert(foodfacts).values(batch.map(f => ({
               code: String(f.code),
               name: String(f.name || f.code || ''),
               brand: f.brand || null,
@@ -117,7 +118,7 @@ function loadFoodsFromPython(): Promise<void> {
       // Flush remaining batch
       if (batch.length > 0) {
         try {
-          await db.insert(sql`foodfacts`).values(batch.map(f => ({
+          await db.insert(foodfacts).values(batch.map(f => ({
             code: String(f.code),
             name: String(f.name || f.code || ''),
             brand: f.brand || null,
@@ -186,8 +187,8 @@ async function main(): Promise<void> {
   const foodCount = await db.execute(sql<{count: number}>`SELECT COUNT(*) FROM foodfacts`);
   const exCount = await db.execute(sql<{count: number}>`SELECT COUNT(*) FROM exercises`);
   console.log(`\n[LOADER] ✓ Complete!`);
-  console.log(`  Foods: ${foodCount[0]?.count ?? 0}`);
-  console.log(`  Exercises: ${exCount[0]?.count ?? 0}`);
+  console.log(`  Foods: ${foodCount.rows[0]?.count ?? 0}`);
+  console.log(`  Exercises: ${exCount.rows[0]?.count ?? 0}`);
 }
 
 main().catch(err => {

@@ -15,6 +15,6 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true
   },
-  "include": ["bin/**/*", "routes/**/*", "middleware/**/*", "src/db/**/*", "src/lib/**/*", "scripts/**/*", "app.ts"],
+  "include": ["bin/**/*", "routes/**/*", "middleware/**/*", "src/db/**/*", "src/lib/**/*", "src/loaders/**/*", "scripts/**/*", "app.ts"],
   "exclude": ["node_modules", "dist", "loaders/.venv"]
 }

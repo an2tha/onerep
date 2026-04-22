@@ -3,9 +3,14 @@
 import sys
 import os
 import csv
+import glob
+import json
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ".venv/lib/python3.14/site-packages")
+# Dynamically find the site-packages directory for the installed Python version
+site_packages = glob.glob(".venv/lib/python*/site-packages")
+if site_packages:
+    sys.path.insert(0, site_packages[0])
 
 import duckdb
 import psycopg2
@@ -119,7 +124,9 @@ def main():
             fat REAL,
             nutriscore_grade VARCHAR(10),
             nova_group INTEGER,
-            popularity_key INTEGER
+            popularity_key INTEGER,
+            nutrients JSONB,
+            extra_nutrients JSONB
         )
     """)
     
@@ -143,7 +150,7 @@ def main():
         
         while True:
             result = duck.execute(f"""
-                SELECT code, product_name, brands, serving_quantity, serving_size, nutriments, nutriscore_grade, nova_group, popularity_key
+                SELECT code, product_name, brands, serving_quantity, serving_size, nutriments, nutriscore_grade, nova_group, popularity_key, nutriments_list
                 FROM '{PARQUET_PATH}'
                 WHERE code IS NOT NULL AND code != ''
                 LIMIT {BATCH_SIZE} OFFSET {offset}
@@ -154,11 +161,17 @@ def main():
             for row in result:
                 code = str(row[0]) if row[0] else ""
                 if not code: continue
-                
+
                 nutriments = row[5] or []
                 sqty = row[3] if row[3] else 100
                 ssize = str(row[4]) if row[4] else f"{sqty}g"
-                
+                nutriments_list = row[9] or []
+
+                # Split nutrients into core and extra
+                core_nutrients = ["Energy", "Fat", "Saturated-fat", "Carbohydrates", "Sugars", "Fiber", "Proteins", "Salt", "Sodium"]
+                nutrients = [n for n in nutriments_list if isinstance(n, dict) and n.get("name") in core_nutrients]
+                extra_nutrients = [n for n in nutriments_list if isinstance(n, dict) and n.get("name") not in core_nutrients]
+
                 writer.writerow([
                     clean(code),
                     clean(extract_name(row[1]) or code),
@@ -171,7 +184,9 @@ def main():
                     extract_nutrient(nutriments, "fat"),
                     clean(str(row[6]).lower()[:10] if row[6] else ""),
                     safe_int(row[7]),
-                    safe_int(row[8])
+                    safe_int(row[8]),
+                    json.dumps(nutrients) if nutrients else "",
+                    json.dumps(extra_nutrients) if extra_nutrients else ""
                 ])
             
             offset += len(result)
@@ -184,7 +199,7 @@ def main():
     print("[PY] Loading CSV into staging table...", file=sys.stderr, flush=True)
     with open(csv_path, "r", encoding="utf-8") as f:
         cur.copy_expert("""
-            COPY foodfacts_staging (code, name, brand, serving, serving_grams, calories, protein, carbs, fat, nutriscore_grade, nova_group, popularity_key)
+            COPY foodfacts_staging (code, name, brand, serving, serving_grams, calories, protein, carbs, fat, nutriscore_grade, nova_group, popularity_key, nutrients, extra_nutrients)
             FROM STDIN WITH (FORMAT CSV, DELIMITER E'\\t', NULL '')
         """, f)
     
@@ -193,8 +208,8 @@ def main():
     # Move unique rows to main table
     print("[PY] Inserting unique rows...", file=sys.stderr, flush=True)
     cur.execute("""
-        INSERT INTO foodfacts (code, name, brand, serving, serving_grams, calories, protein, carbs, fat, nutriscore_grade, nova_group, popularity_key)
-        SELECT DISTINCT code, name, brand, serving, serving_grams, calories, protein, carbs, fat, NULLIF(nutriscore_grade, '')::VARCHAR(10), nova_group, popularity_key
+        INSERT INTO foodfacts (code, name, brand, serving, serving_grams, calories, protein, carbs, fat, nutriscore_grade, nova_group, popularity_key, nutrients, extra_nutrients)
+        SELECT DISTINCT code, name, brand, serving, serving_grams, calories, protein, carbs, fat, NULLIF(nutriscore_grade, '')::VARCHAR(10), nova_group, popularity_key, nutrients, extra_nutrients
         FROM foodfacts_staging
         ON CONFLICT (code) DO NOTHING
     """)

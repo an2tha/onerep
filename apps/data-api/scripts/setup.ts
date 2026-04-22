@@ -67,8 +67,15 @@ async function main() {
     execSync("npx drizzle-kit generate", { stdio: "inherit", cwd: __dirname + "/.." });
     execSync("npx drizzle-kit migrate", { stdio: "inherit", cwd: __dirname + "/.." });
     console.log("[SETUP] Migrations complete!");
-  } catch {
-    console.log("[SETUP] Migration note - tables may already exist");
+  } catch (err) {
+    const errMsg = String(err);
+    // Only treat idempotent errors as benign
+    if (errMsg.includes("already exists") || errMsg.includes("duplicate") || errMsg.includes("relation") && errMsg.includes("exists")) {
+      console.log("[SETUP] Migration note - tables may already exist");
+    } else {
+      console.error("[SETUP] Migration failed:", err);
+      process.exit(1);
+    }
   }
 
   // 4. Load data

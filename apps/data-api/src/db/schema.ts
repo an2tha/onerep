@@ -16,7 +16,7 @@ export const foodfacts = pgTable("foodfacts", {
   servingGrams: real("serving_grams"),
   nutriscoreGrade: varchar("nutriscore_grade", { length: 10 }),
   novaGroup: integer("nova_group"),
-  nutrients: jsonb("nututrients").$type<{ name: string; value: string; unit: string }[]>(),
+  nutrients: jsonb("nutrients").$type<{ name: string; value: string; unit: string }[]>(),
   extraNutrients: jsonb("extra_nutrients").$type<{ name: string; value: string; unit: string }[]>(),
 }, (table) => ({
   codeIdx: index("foodfacts_code_idx").on(table.code),
