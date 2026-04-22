@@ -252,4 +252,18 @@ export default defineSchema({
     userId: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // ── Active workout (persisted during workout to prevent data loss on mobile) ──
+  activeWorkouts: defineTable({
+    userId: v.string(),
+    slot: v.union(v.literal(1), v.literal(2)),
+    presetId: v.optional(v.string()),
+    items: v.array(v.any()), // WorkoutItem[]
+    exerciseData: v.any(), // Record<string, ExerciseState>
+    startedAt: v.number(), // timestamp when workout started
+    elapsedSeconds: v.number(), // current elapsed time
+    completedAt: v.optional(v.number()), // when finished or aborted
+  })
+    .index("by_userId_slot", ["userId", "slot"])
+    .index("by_userId", ["userId"]),
 });

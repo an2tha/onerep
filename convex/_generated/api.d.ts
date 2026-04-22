@@ -15,6 +15,7 @@ import type * as data_foods from "../data/foods.js";
 import type * as http from "../http.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
 import type * as lib_estimateOnboardingCalories from "../lib/estimateOnboardingCalories.js";
+import type * as logs_activeWorkout from "../logs/activeWorkout.js";
 import type * as logs_calories from "../logs/calories.js";
 import type * as logs_foodLogs from "../logs/foodLogs.js";
 import type * as logs_presets from "../logs/presets.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/calculateCalories": typeof lib_calculateCalories;
   "lib/estimateOnboardingCalories": typeof lib_estimateOnboardingCalories;
+  "logs/activeWorkout": typeof logs_activeWorkout;
   "logs/calories": typeof logs_calories;
   "logs/foodLogs": typeof logs_foodLogs;
   "logs/presets": typeof logs_presets;
