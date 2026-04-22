@@ -5,6 +5,7 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  idsArraySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -198,6 +199,11 @@ describe("searchQuerySchema", () => {
   test("accepts score at boundaries", () => {
     expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
   });
+
+  test("rejects query longer than 500 characters", () => {
+    const longQuery = "a".repeat(501);
+    expect(() => searchQuerySchema.parse({ q: longQuery })).toThrow();
+  });
 });
 
 // ── barcodeSchema ─────────────────────────────────────────────────────────────
@@ -296,5 +302,52 @@ describe("idParamSchema", () => {
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("idsArraySchema", () => {
+  test("accepts a single valid ID", () => {
+    const ids = "507f1f77bcf86cd799439011";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["507f1f77bcf86cd799439011"]);
+    }
+  });
+
+  test("accepts multiple valid IDs", () => {
+    const ids = "507f1f77bcf86cd799439011,507f1f77bcf86cd799439012";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual([
+        "507f1f77bcf86cd799439011",
+        "507f1f77bcf86cd799439012",
+      ]);
+    }
+  });
+
+  test("rejects if any ID is invalid", () => {
+    const ids = "507f1f77bcf86cd799439011,invalidID";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects if more than 100 IDs are provided", () => {
+    const ids = Array(101).fill("507f1f77bcf86cd799439011").join(",");
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(false);
+  });
+
+  test("handles extra spaces and empty values", () => {
+    const ids = " 507f1f77bcf86cd799439011 , , 507f1f77bcf86cd799439012 ";
+    const result = idsArraySchema.safeParse({ ids });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual([
+        "507f1f77bcf86cd799439011",
+        "507f1f77bcf86cd799439012",
+      ]);
+    }
   });
 });

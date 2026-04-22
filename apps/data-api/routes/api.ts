@@ -13,6 +13,7 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  idsArraySchema,
 } from "../lib/validation";
 
 const router: Router = express.Router();
@@ -139,9 +140,15 @@ router.get("/exercises/search", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/lookup", async (req: Request, res: Response) => {
-  const raw = req.query.ids as string | undefined;
-  if (!raw) return res.status(400).json({ error: "ids query param required" });
-  const ids = raw.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 100);
+  const validation = idsArraySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({
+      error: "Invalid query parameters",
+      details: validation.error.flatten(),
+    });
+  }
+
+  const ids = validation.data.ids;
   if (ids.length === 0) return res.json([]);
 
   try {
@@ -153,7 +160,7 @@ router.get("/exercises/lookup", async (req: Request, res: Response) => {
     res.json(result.hits.hits);
   } catch (err) {
     console.error("[ERR] Exercise lookup failed:", err);
-    res.status(500).json({ error: "Lookup failed" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
