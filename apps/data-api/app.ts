@@ -4,10 +4,26 @@ import { sql } from "drizzle-orm";
 import express from "express";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
+import helmet from "helmet";
+import cors from "cors";
 import apiRouter from "./routes/api";
 import indexRouter from "./routes/index";
+import { validateApiKey } from "./middleware/auth";
 
 const app = express();
+
+app.use(helmet());
+app.use(
+  cors({
+    origin: [
+      process.env.SITE_URL || "http://localhost:5173",
+      "capacitor://localhost",
+      "http://localhost",
+    ],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-api-key"],
+  })
+);
 
 // Test PostgreSQL connection on startup
 import { db } from "./src/db/index";
@@ -22,7 +38,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.use("/", indexRouter);
-app.use("/api/v1", apiRouter);  // Convex expects /api/v1 prefix
+app.use("/api/v1", validateApiKey, apiRouter);  // Convex expects /api/v1 prefix
 
 // Catch 404
 app.use((_req, res) => {
