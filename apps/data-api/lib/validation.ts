@@ -47,7 +47,7 @@ export const barcodeSchema = z.object({
 });
 
 export const idParamSchema = z.object({
-  id: z.string().min(1, "ID is required"),
+  id: z.string().min(1, "ID is required").regex(/^[0-9a-fA-F]{24}$|^[0-9]+$/, "ID must be a 24-character hex string or a numeric ID"),
 });
 
 export const parseValidatedBody = <T>(

@@ -1,7 +1,7 @@
 import express, { Request, Response, type Router } from "express";
 import pg from "pg";
 import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
-import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
+import { searchQuerySchema, barcodeSchema, idParamSchema, parseValidatedBody } from "../lib/validation";
 
 const router: Router = express.Router();
 
@@ -36,7 +36,10 @@ router.post("/exercises", apiLimiter);
 
 // Foods
 router.get("/foods/search", async (req: Request, res: Response) => {
-  const q = req.query.q as string || "";
+  const { data, error } = parseValidatedBody(searchQuerySchema, req.query);
+  if (error) return res.status(400).json({ error: error.errors });
+
+  const q = (data.q || "").substring(0, 500); // Prevent DoS/ReDoS
   const limit = Math.min(Number(req.query.limit) || 25, 50);
   try {
     // Enable pg_trgm extension and create GIN indexes on first run
@@ -87,8 +90,11 @@ router.get("/foods/nutrients", async (req: Request, res: Response) => {
 });
 
 router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Response) => {
+  const { data, error } = parseValidatedBody(barcodeSchema, req.params);
+  if (error) return res.status(400).json({ error: error.errors });
+
   try {
-    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [req.params.code]);
+    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [data.code]);
     if (results.length === 0) return res.status(404).json({ message: "Product not found" });
     const row = results[0];
     // Return in format Convex expects
@@ -112,7 +118,10 @@ router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Resp
 });
 
 router.get("/foods/id/:id", strictLimiter, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
+  const { data, error } = parseValidatedBody(idParamSchema, req.params);
+  if (error) return res.status(400).json({ error: error.errors });
+
+  const id = parseInt(data.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
   try {
     const results = await query("SELECT * FROM foodfacts WHERE id = $1 LIMIT 1", [id]);
@@ -136,7 +145,10 @@ router.get("/foods", apiLimiter, async (_req: Request, res: Response) => {
 
 // Exercises
 router.get("/exercises/search", async (req: Request, res: Response) => {
-  const q = (req.query.q as string || "").trim();
+  const { data, error } = parseValidatedBody(searchQuerySchema, req.query);
+  if (error) return res.status(400).json({ error: error.errors });
+
+  const q = (data.q || "").trim().substring(0, 500); // Prevent DoS/ReDoS
   const size = Math.min(Number(req.query.limit) || 25, 50);
   try {
     let results;
@@ -218,8 +230,11 @@ router.get("/exercises/advanced", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/id/:id", strictLimiter, async (req: Request, res: Response) => {
+  const { data, error } = parseValidatedBody(idParamSchema, req.params);
+  if (error) return res.status(400).json({ error: error.errors });
+
   try {
-    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [req.params.id]);
+    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [data.id]);
     if (results.length === 0) return res.status(404).json({ message: "Exercise not found" });
     res.json(results[0]);
   } catch (err) {
