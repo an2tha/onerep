@@ -4,7 +4,10 @@ import { sql } from "drizzle-orm";
 import express from "express";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
+import helmet from "helmet";
+import cors from "cors";
 import apiRouter from "./routes/api";
+import { validateApiKey } from "./middleware/auth";
 import indexRouter from "./routes/index";
 
 const app = express();
@@ -16,13 +19,15 @@ db.execute(sql`SELECT 1`)
   .then(() => console.log("[INFO] PostgreSQL connected"))
   .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
 
+app.use(helmet());
+app.use(cors());
 app.use(logger("dev"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.use("/", indexRouter);
-app.use("/api/v1", apiRouter);  // Convex expects /api/v1 prefix
+app.use("/api/v1", validateApiKey, apiRouter);  // Convex expects /api/v1 prefix
 
 // Catch 404
 app.use((_req, res) => {

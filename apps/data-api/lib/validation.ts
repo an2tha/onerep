@@ -32,7 +32,8 @@ export const exerciseSchema = z.object({
 });
 
 export const searchQuerySchema = z.object({
-  q: z.string().optional(),
+  q: z.string().max(500).optional(),
+  limit: z.coerce.number().min(1).max(100).optional(),
   grade: z.enum(["a", "b", "c", "d", "e"]).optional(),
   min_score: z.coerce.number().min(-15).max(40).optional(),
   max_score: z.coerce.number().min(-15).max(40).optional(),
@@ -47,7 +48,7 @@ export const barcodeSchema = z.object({
 });
 
 export const idParamSchema = z.object({
-  id: z.string().min(1, "ID is required"),
+  id: z.string().min(1, "ID is required").regex(/^[a-zA-Z0-9\-_]+$/, "Invalid ID format"),
 });
 
 export const parseValidatedBody = <T>(

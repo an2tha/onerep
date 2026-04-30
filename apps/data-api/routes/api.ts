@@ -36,8 +36,12 @@ router.post("/exercises", apiLimiter);
 
 // Foods
 router.get("/foods/search", async (req: Request, res: Response) => {
-  const q = req.query.q as string || "";
-  const limit = Math.min(Number(req.query.limit) || 25, 50);
+  const validation = searchQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid search parameters", details: validation.error.format() });
+  }
+  const { q = "", limit: rawLimit } = validation.data;
+  const limit = Math.min(Number(rawLimit) || 25, 50);
   try {
     // Enable pg_trgm extension and create GIN indexes on first run
     await query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
