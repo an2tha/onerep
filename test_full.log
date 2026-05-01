@@ -1,0 +1,747 @@
+bun test v1.2.14 (6a363a38)
+
+convex/__tests__/onboarding.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/onboarding.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/schedules.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/schedules.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/water.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/water.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/foodLogs.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/foodLogs.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/workouts.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/workouts.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/calories.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/calories.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/presets.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/presets.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/checkIn.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/checkIn.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/recipes.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/recipes.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+convex/__tests__/users.convex.test.ts:
+
+# Unhandled error between tests
+-------------------------------
+1 | import { describe, test, expect } from "vitest";
+2 | import { convexTest } from "convex-test";
+3 | import schema from "../schema";
+4 | import { api } from "../_generated/api";
+5 |
+6 | const modules = import.meta.glob("../**/*.ts");
+                                ^
+TypeError: import.meta.glob is not a function. (In 'import.meta.glob("../**/*.ts")', 'import.meta.glob' is undefined)
+      at /app/convex/__tests__/users.convex.test.ts:6:29
+      at loadAndEvaluateModule (2:1)
+-------------------------------
+
+
+apps/mobile/src/formatting.test.ts:
+(pass) fmtWater / fmtMl – values below 1000ml > 0 ml returns '0 ml' [0.30ms]
+(pass) fmtWater / fmtMl – values below 1000ml > 250 ml returns '250 ml' [0.04ms]
+(pass) fmtWater / fmtMl – values below 1000ml > 500 ml returns '500 ml' [0.03ms]
+(pass) fmtWater / fmtMl – values below 1000ml > 999 ml returns '999 ml' [0.03ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 1000 ml returns '1 L' (not '1.0 L') [0.02ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 1500 ml returns '1.5 L' [0.03ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 2000 ml returns '2 L' (not '2.0 L') [0.02ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 2500 ml returns '2.5 L' [0.03ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 3000 ml returns '3 L' [0.02ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 1100 ml returns '1.1 L' [0.02ms]
+(pass) fmtWater / fmtMl – values at or above 1000ml > 4000 ml returns '4 L' [0.03ms]
+(pass) fmtWater / fmtMl – boundary at exactly 1000 > exactly 1000 is formatted as liters, not ml [0.12ms]
+(pass) fmtWater / fmtMl – boundary at exactly 1000 > 999 is formatted as ml, not liters [0.03ms]
+(pass) fmtWater / fmtMl – default water goal (PR changed from 2000 to 2500) > 2500 ml (new default water goal) formats as '2.5 L' [0.04ms]
+(pass) fmtWater / fmtMl – default water goal (PR changed from 2000 to 2500) > 2000 ml (old default water goal) formats as '2 L' [0.02ms]
+(pass) getInitials – missing or empty name > undefined returns '?' [0.08ms]
+(pass) getInitials – missing or empty name > empty string returns '?' [0.04ms]
+(pass) getInitials – single name > 'Alice' returns 'A' [0.34ms]
+(pass) getInitials – single name > 'bob' returns 'B' (uppercased) [0.04ms]
+(pass) getInitials – single name > single lowercase letter returns uppercase [0.02ms]
+(pass) getInitials – two-word names > 'John Doe' returns 'JD' [0.03ms]
+(pass) getInitials – two-word names > 'alice smith' returns 'AS' (both uppercased) [0.03ms]
+(pass) getInitials – two-word names > 'Marie Curie' returns 'MC' [0.03ms]
+(pass) getInitials – three or more words > 'John Michael Doe' returns 'JD' (first + last) [0.02ms]
+(pass) getInitials – three or more words > 'a b c d' returns 'AD' (first + last) [0.02ms]
+(pass) getInitials – extra whitespace > leading/trailing spaces are trimmed [0.02ms]
+(pass) getInitials – extra whitespace > multiple internal spaces treated as single separator [0.04ms]
+
+convex/lib/__tests__/estimateOnboardingCalories.test.ts:
+(pass) estimateOnboardingCalories > goal mapping to calorie delta > 'lose' goal produces lower targetCalories than 'health' [0.24ms]
+(pass) estimateOnboardingCalories > goal mapping to calorie delta > 'build' goal produces higher targetCalories than 'health' [0.06ms]
+(pass) estimateOnboardingCalories > goal mapping to calorie delta > 'performance' goal produces higher targetCalories than 'health' [0.03ms]
+(pass) estimateOnboardingCalories > goal mapping to calorie delta > 'performance' and 'build' goals produce same calorie delta [0.03ms]
+(pass) estimateOnboardingCalories > goal mapping to calorie delta > unknown goal maps to 'maintain' (health-like) [0.03ms]
+(pass) estimateOnboardingCalories > BMR floor > BMR never falls below 1200 kcal [0.03ms]
+(pass) estimateOnboardingCalories > BMR floor > BMR minimum applies for extreme inputs [0.03ms]
+(pass) estimateOnboardingCalories > targetCalories floor > targetCalories never falls below 1400 kcal [0.07ms]
+(pass) estimateOnboardingCalories > TDEE floor > TDEE is always at least BMR + 400 [0.03ms]
+(pass) estimateOnboardingCalories > anthropometric scaling > taller person has higher base calories [0.03ms]
+(pass) estimateOnboardingCalories > anthropometric scaling > younger person has higher base calories [0.03ms]
+(pass) estimateOnboardingCalories > macro calculations > protein is 30% of targetCalories / 4 kcal per gram [0.03ms]
+(pass) estimateOnboardingCalories > macro calculations > carbs is 40% of targetCalories / 4 kcal per gram [0.12ms]
+(pass) estimateOnboardingCalories > macro calculations > fat is 30% of targetCalories / 9 kcal per gram [0.03ms]
+(pass) estimateOnboardingCalories > return shape > returns all CaloricGoals fields [0.06ms]
+(pass) estimateOnboardingCalories > return shape > all values are positive integers [0.14ms]
+
+convex/lib/__tests__/calculateCalories.test.ts:
+(pass) calculateCalories > BMR calculation (Mifflin-St Jeor) > calculates male BMR correctly [0.15ms]
+(pass) calculateCalories > BMR calculation (Mifflin-St Jeor) > calculates female BMR correctly [0.04ms]
+(pass) calculateCalories > BMR calculation (Mifflin-St Jeor) > BMR decreases with age [0.03ms]
+(pass) calculateCalories > BMR calculation (Mifflin-St Jeor) > BMR increases with height [0.03ms]
+(pass) calculateCalories > BMR calculation (Mifflin-St Jeor) > BMR increases with weight [0.04ms]
+(pass) calculateCalories > TDEE calculation > sedentary multiplier (1.2) [0.13ms]
+(pass) calculateCalories > TDEE calculation > lightly_active multiplier (1.375) [0.04ms]
+(pass) calculateCalories > TDEE calculation > moderately_active multiplier (1.55) [0.04ms]
+(pass) calculateCalories > TDEE calculation > very_active multiplier (1.725) [0.03ms]
+(pass) calculateCalories > TDEE calculation > extra_active multiplier (1.9) [0.03ms]
+(pass) calculateCalories > TDEE calculation > unknown activity level falls back to moderately_active (1.55) [0.03ms]
+(pass) calculateCalories > TDEE calculation > TDEE is always greater than BMR [0.02ms]
+(pass) calculateCalories > target calories by goal > maintain goal: targetCalories equals TDEE [0.02ms]
+(pass) calculateCalories > target calories by goal > lose goal: targetCalories is 500 below TDEE [0.02ms]
+(pass) calculateCalories > target calories by goal > gain goal: targetCalories is 500 above TDEE [0.02ms]
+(pass) calculateCalories > target calories by goal > unknown goal falls back to maintain (0 delta) [0.03ms]
+(pass) calculateCalories > macro calculations > protein is 30% of targetCalories / 4 kcal per gram [0.03ms]
+(pass) calculateCalories > macro calculations > carbs is 40% of targetCalories / 4 kcal per gram [0.02ms]
+(pass) calculateCalories > macro calculations > fat is 30% of targetCalories / 9 kcal per gram [0.03ms]
+(pass) calculateCalories > macro calculations > macros scale proportionally with target calories [0.03ms]
+(pass) calculateCalories > return shape > returns all required fields [0.03ms]
+(pass) calculateCalories > return shape > all values are integers (rounded) [0.05ms]
+(pass) calculateCalories > edge cases > very low weight (40 kg) [0.02ms]
+(pass) calculateCalories > edge cases > very high weight (200 kg) [0.02ms]
+(pass) calculateCalories > edge cases > very young person (18) [0.03ms]
+(pass) calculateCalories > edge cases > elderly person (80) [0.03ms]
+
+apps/mobile/src/components/mobile-sheet.test.ts:
+
+apps/mobile/src/pages/active-workout.test.ts:
+(pass) MobileSheet – snap point algorithm > snaps to exact match when height equals a snap point [0.19ms]
+(pass) MobileSheet – snap point algorithm > snaps to lower point when closer [0.02ms]
+(pass) MobileSheet – snap point algorithm > snaps to upper point when closer [0.02ms]
+(pass) MobileSheet – snap point algorithm > midpoint between two snap points picks the first one (reduce keeps prev on tie) [0.02ms]
+(pass) MobileSheet – snap point algorithm > below all snap points snaps to smallest [0.02ms]
+(pass) MobileSheet – snap point algorithm > above all snap points snaps to largest [0.02ms]
+(pass) MobileSheet – snap point algorithm > single snap point always returns that point [0.17ms]
+(pass) MobileSheet – snap point algorithm > two snap points: value closer to first [0.06ms]
+(pass) MobileSheet – snap point algorithm > two snap points: value closer to second [0.04ms]
+(pass) MobileSheet – snap point algorithm > Settings.tsx default snap points [350, 450, 600]: defaultHeight=450 snaps to 450 [0.02ms]
+(pass) MobileSheet – height clamping during drag > no delta returns startHeight unchanged [0.09ms]
+(pass) MobileSheet – height clamping during drag > positive delta (dragging down) decreases height [0.02ms]
+(pass) MobileSheet – height clamping during drag > negative delta (dragging up to expand) increases height [0.02ms]
+(pass) MobileSheet – height clamping during drag > clamped to maxHeight when drag would exceed it [0.02ms]
+(pass) MobileSheet – height clamping during drag > clamped to minHeight when drag would go below it [0.02ms]
+(pass) MobileSheet – height clamping during drag > exact minHeight boundary is not clamped further [0.02ms]
+(pass) MobileSheet – height clamping during drag > exact maxHeight boundary is not clamped further [0.02ms]
+(pass) MobileSheet – drag offset formula (PR change: 0.18 → 0.3) > positive delta (dragging down) passes through unchanged [0.03ms]
+(pass) MobileSheet – drag offset formula (PR change: 0.18 → 0.3) > negative delta (dragging up past top) uses 0.3 resistance factor [0.02ms]
+(pass) MobileSheet – drag offset formula (PR change: 0.18 → 0.3) > resistance factor produces less visual offset than the actual drag [0.03ms]
+(pass) MobileSheet – drag threshold (PR change: 120 → 100) > offset above threshold triggers dismiss [0.02ms]
+(pass) MobileSheet – drag threshold (PR change: 120 → 100) > offset at exactly threshold does NOT trigger dismiss (strict >) [0.01ms]
+(pass) MobileSheet – drag threshold (PR change: 120 → 100) > offset below threshold does not trigger dismiss [0.02ms]
+(pass) MobileSheet – drag threshold (PR change: 120 → 100) > zero offset does not trigger dismiss [0.02ms]
+(pass) MobileSheet – drag threshold (PR change: 120 → 100) > old default (120) is no longer the threshold – 110 would now trigger dismiss [0.01ms]
+(pass) MobileSheet – new prop defaults > all props have correct defaults when omitted [0.07ms]
+(pass) MobileSheet – new prop defaults > Settings.tsx passes correct custom props [0.10ms]
+(pass) MobileSheet – new prop defaults > custom dragThreshold overrides default [0.03ms]
+(pass) MobileSheet – new prop defaults > defaultHeight 0 means no explicit height (sheet sizes to content) [0.05ms]
+(pass) MobileSheet – new prop defaults > non-zero defaultHeight produces height style [0.04ms]
+(pass) handleFinish – set filtering (only completed sets) > only completed sets are included [0.19ms]
+(pass) handleFinish – set filtering (only completed sets) > all completed sets are included [0.08ms]
+(pass) handleFinish – set filtering (only completed sets) > returns empty array when no sets are completed [0.03ms]
+(pass) handleFinish – set filtering (only completed sets) > returns empty array for an empty sets array [0.02ms]
+(pass) handleFinish – set filtering (only completed sets) > set with completed=undefined is excluded (falsy) [0.03ms]
+(pass) handleFinish – set filtering (only completed sets) > mixed completed and incomplete sets preserves correct ones [0.06ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > numeric weight is preserved [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > float weight is preserved [0.03ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > string weight is parsed as float [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > string float weight is parsed correctly [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > undefined weight falls back to 0 [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > empty string weight falls back to 0 [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > non-numeric string weight falls back to 0 [0.02ms]
+(pass) handleFinish – weight parsing (parseFloat(String(x)) || 0) > weight of 0 stays as 0 (0 || 0 = 0) [0.02ms]
+(pass) handleFinish – reps parsing (parseFloat(String(x)) || 0) > numeric reps is preserved [0.02ms]
+(pass) handleFinish – reps parsing (parseFloat(String(x)) || 0) > string reps is parsed as float [0.02ms]
+(pass) handleFinish – reps parsing (parseFloat(String(x)) || 0) > undefined reps falls back to 0 [0.02ms]
+(pass) handleFinish – reps parsing (parseFloat(String(x)) || 0) > empty string reps falls back to 0 [0.03ms]
+(pass) handleFinish – reps parsing (parseFloat(String(x)) || 0) > non-numeric string reps falls back to 0 [0.02ms]
+(pass) handleFinish – mapped set shape > each mapped set has type: 'normal' [0.02ms]
+(pass) handleFinish – mapped set shape > mapped set does NOT include rpe field [0.08ms]
+(pass) handleFinish – mapped set shape > mapped set does NOT include leftReps field [0.13ms]
+(pass) handleFinish – mapped set shape > mapped set does NOT include rightReps field [0.08ms]
+(pass) handleFinish – mapped set shape > mapped set includes completed field [0.05ms]
+(pass) handleFinish – mapped set shape > mapped set has exactly: type, weight, reps, completed [0.10ms]
+(pass) handleFinish – exercise log shape > exercise log uses 'id' field (not 'exerciseId') [0.07ms]
+(pass) handleFinish – exercise log shape > exercise log does NOT include trackRpe field [0.02ms]
+(pass) handleFinish – exercise log shape > exercise log does NOT include trackUnilateral field [0.02ms]
+(pass) handleFinish – exercise log shape > exercise name is preserved in the log [0.02ms]
+(pass) handleFinish – exercise log shape > exercise with no completed sets has empty sets array [0.06ms]
+(pass) handleFinish – exercise log shape > full exercise log with multiple completed sets [0.11ms]
+(pass) parseFloat(String(x)) regression cases > parseFloat handles typical bodybuilding weights correctly [0.04ms]
+(pass) parseFloat(String(x)) regression cases > String() conversion allows parseFloat to handle non-strings [0.04ms]
+(pass) parseFloat(String(x)) regression cases > || 0 fallback ensures weight is always a valid number [0.08ms]
+
+apps/mobile/src/pages/water.test.ts:
+(pass) fmtMl – millilitre formatting > values below 1000 are shown as ml [0.06ms]
+(pass) fmtMl – millilitre formatting > 0 ml is formatted correctly [0.02ms]
+(pass) fmtMl – millilitre formatting > 750 ml is formatted correctly [0.02ms]
+(pass) fmtMl – millilitre formatting > 999 ml stays in ml units [0.01ms]
+(pass) fmtMl – millilitre formatting > exactly 1000 ml becomes '1 L' (integer, no decimal) [0.02ms]
+(pass) fmtMl – millilitre formatting > 1500 ml becomes '1.5 L' (one decimal) [0.02ms]
+(pass) fmtMl – millilitre formatting > 2000 ml becomes '2 L' (integer, no decimal) [0.10ms]
+(pass) fmtMl – millilitre formatting > 2500 ml becomes '2.5 L' [0.02ms]
+(pass) fmtMl – millilitre formatting > 1200 ml becomes '1.2 L' [0.02ms]
+(pass) fmtMl – millilitre formatting > 3000 ml becomes '3 L' [0.01ms]
+(pass) fmtMl – millilitre formatting > 150 ml (quick-add amount) stays in ml [0.01ms]
+(pass) fmtMl – millilitre formatting > 500 ml (quick-add amount) stays in ml [0.02ms]
+(pass) fmtMl – millilitre formatting > 1000 ml (quick-add '1 L') is formatted as L [0.02ms]
+(pass) formatDateLabel – date navigation labels > same date as today returns 'Today' [0.10ms]
+(pass) formatDateLabel – date navigation labels > one day before today returns 'Yesterday' [0.08ms]
+(pass) formatDateLabel – date navigation labels > two days before today is NOT 'Today' or 'Yesterday' [19.16ms]
+(pass) formatDateLabel – date navigation labels > tomorrow is NOT 'Today' or 'Yesterday' [0.24ms]
+(pass) formatDateLabel – date navigation labels > offset of -1 from today is 'Yesterday' consistently [0.06ms]
+(pass) formatDateLabel – date navigation labels > offset of 0 from today is 'Today' consistently [0.03ms]
+(pass) formatDateLabel – date navigation labels > label for dates beyond yesterday contains a formatted day string (non-empty) [0.24ms]
+(pass) formatDateLabel – date navigation labels > month boundary: yesterday crosses into previous month [0.05ms]
+(pass) formatDateLabel – date navigation labels > year boundary: yesterday crosses into previous year [0.04ms]
+(pass) optimistic entry merge logic > when there are no optimistic entries, returns server entries [0.22ms]
+(pass) optimistic entry merge logic > when there are no server entries, returns all optimistic entries [0.07ms]
+(pass) optimistic entry merge logic > optimistic entry already in server is filtered out (dedup by id) [0.06ms]
+(pass) optimistic entry merge logic > optimistic entry NOT in server is appended after server entries [0.08ms]
+(pass) optimistic entry merge logic > server entries always appear before pending optimistic entries [0.08ms]
+(pass) optimistic entry merge logic > multiple optimistic entries, some already synced to server [0.08ms]
+(pass) optimistic entry merge logic > empty server and empty optimistic returns empty array [0.02ms]
+(pass) optimistic entry merge logic > totalMl calculated from merged entries is correct [0.06ms]
+(pass) deleteEntry filter logic > removes the entry with the matching id [0.08ms]
+(pass) deleteEntry filter logic > returns empty array when only entry is deleted [0.03ms]
+(pass) deleteEntry filter logic > non-existent id leaves entries unchanged [0.02ms]
+(pass) deleteEntry filter logic > deletes only the matching entry when multiple exist [0.10ms]
+(pass) deleteEntry filter logic > filter does not mutate the original array [0.03ms]
+(pass) deleteEntry filter logic > deleteEntry from optimistic only removes from optimistic list [0.03ms]
+(pass) addEntry construction logic > entry object has all required fields [0.04ms]
+(pass) addEntry construction logic > loggedAt is a valid ISO datetime string [0.03ms]
+(pass) addEntry construction logic > amountMl from quick amounts are all positive integers [0.09ms]
+
+apps/mobile/src/pages/settings.test.ts:
+
+apps/data-api/lib/__tests__/validation.test.ts:
+(pass) NumberInput – commit (clamp to [min, max]) > value within range stays unchanged [0.06ms]
+(pass) NumberInput – commit (clamp to [min, max]) > value below min is clamped to min [0.02ms]
+(pass) NumberInput – commit (clamp to [min, max]) > value above max is clamped to max [0.02ms]
+(pass) NumberInput – commit (clamp to [min, max]) > value exactly at min is kept [0.02ms]
+(pass) NumberInput – commit (clamp to [min, max]) > value exactly at max is kept [0.02ms]
+(pass) NumberInput – commit (clamp to [min, max]) > calorie range: 800 floor is enforced [0.02ms]
+(pass) NumberInput – commit (clamp to [min, max]) > calorie range: 5000 ceiling is enforced [0.01ms]
+(pass) NumberInput – commit (clamp to [min, max]) > water goal range: 500 floor is enforced [0.01ms]
+(pass) NumberInput – decrement > decrements by step [0.03ms]
+(pass) NumberInput – decrement > does not go below min [0.01ms]
+(pass) NumberInput – decrement > partial step at boundary clamps to min [0.01ms]
+(pass) NumberInput – decrement > decrementing calories by 50 step [0.01ms]
+(pass) NumberInput – decrement > decrementing protein by 5 step [0.02ms]
+(pass) NumberInput – increment > increments by step [0.03ms]
+(pass) NumberInput – increment > does not exceed max [0.02ms]
+(pass) NumberInput – increment > partial step at boundary clamps to max [0.01ms]
+(pass) NumberInput – increment > incrementing fat by 5 step [0.01ms]
+(pass) SegmentedControl – selection > only the current value is marked as selected [0.21ms]
+(pass) SegmentedControl – selection > strength is selected when value is 'strength' [0.05ms]
+(pass) SegmentedControl – selection > kg is selected when weight unit is 'kg' [0.03ms]
+(pass) SegmentedControl – selection > lbs is selected when weight unit is 'lbs' [0.02ms]
+(pass) SegmentedControl – selection > selection comparison is case-sensitive [0.01ms]
+(pass) getEffectiveGoals – priority: custom > health > default > when custom and health are null, returns hardcoded defaults [0.07ms]
+(pass) getEffectiveGoals – priority: custom > health > default > custom goals override health and defaults for all fields [0.04ms]
+(pass) getEffectiveGoals – priority: custom > health > default > health goals are used when custom is null [0.02ms]
+(pass) getEffectiveGoals – priority: custom > health > default > custom calories overrides health, health protein overrides default [0.03ms]
+(pass) getEffectiveGoals – priority: custom > health > default > defaults used for fields missing in both custom and health [0.04ms]
+(pass) getEffectiveGoals – priority: custom > health > default > undefined custom is treated same as null [0.02ms]
+(pass) getEffectiveGoals – priority: custom > health > default > all defaults are non-zero positive numbers [0.05ms]
+(pass) getEffectiveGoals – priority: custom > health > default > custom 0 is NOT treated as missing (0 ?? x → 0 since 0 is not null/undefined) [0.02ms]
+(pass) Settings – preference defaults > waterGoalMl defaults to 2500 when preferences is null [0.02ms]
+(pass) Settings – preference defaults > waterGoalMl uses stored value when available [0.02ms]
+(pass) Settings – preference defaults > weightUnit defaults to 'kg' when preferences is null [0.02ms]
+(pass) Settings – preference defaults > weightUnit uses stored 'lbs' value when available [0.03ms]
+(pass) Settings – preference defaults > workoutFocus defaults to 'strength' when dashboardSettings is absent [0.03ms]
+(pass) Settings – preference defaults > workoutFocus uses stored 'cardio' value when available [0.02ms]
+(pass) Settings – preference defaults > waterGoalMl: new PR default (2500) is higher than old localStorage default (2000) [0.02ms]
+(pass) NumberStepper – commit (string parsing + clamp) > valid numeric string within range passes through unchanged [0.05ms]
+(pass) NumberStepper – commit (string parsing + clamp) > numeric string below min is clamped to min [0.02ms]
+(pass) NumberStepper – commit (string parsing + clamp) > numeric string above max is clamped to max [0.11ms]
+(pass) NumberStepper – commit (string parsing + clamp) > non-numeric string returns revert sentinel (onChange not called) [0.03ms]
+(pass) NumberStepper – commit (string parsing + clamp) > empty string returns revert sentinel [0.03ms]
+(pass) NumberStepper – commit (string parsing + clamp) > string with spaces and digits: parseInt extracts leading int [0.01ms]
+(pass) NumberStepper – commit (string parsing + clamp) > float string is truncated to integer (parseInt, not parseFloat) [0.02ms]
+(pass) NumberStepper – commit (string parsing + clamp) > string exactly at min is accepted [0.06ms]
+(pass) NumberStepper – commit (string parsing + clamp) > string exactly at max is accepted [0.03ms]
+(pass) NumberStepper – commit (string parsing + clamp) > water goal: string '250' below min 500 clamps to 500 [0.02ms]
+(pass) NumberStepper – commit (string parsing + clamp) > protein: string '0' below min 20 clamps to 20 [0.02ms]
+(pass) NumberStepper – decrement (operates on value prop) > decrements by step from value prop [0.04ms]
+(pass) NumberStepper – decrement (operates on value prop) > does not go below min [0.02ms]
+(pass) NumberStepper – decrement (operates on value prop) > partial step at boundary clamps to min [0.01ms]
+(pass) NumberStepper – decrement (operates on value prop) > water goal decrement by 250 [0.03ms]
+(pass) NumberStepper – decrement (operates on value prop) > water goal decrement stops at min=500 [0.01ms]
+(pass) NumberStepper – decrement (operates on value prop) > fat decrement by 5 [0.02ms]
+(pass) NumberStepper – decrement (operates on value prop) > carbs decrement stops when step would go below min=10 [0.02ms]
+(pass) NumberStepper – increment (operates on value prop) > increments by step from value prop [0.02ms]
+(pass) NumberStepper – increment (operates on value prop) > does not exceed max [0.01ms]
+(pass) NumberStepper – increment (operates on value prop) > partial step at boundary clamps to max [0.01ms]
+(pass) NumberStepper – increment (operates on value prop) > water goal increment by 250 [0.01ms]
+(pass) NumberStepper – increment (operates on value prop) > water goal increment stops at max=5000 [0.01ms]
+(pass) NumberStepper – increment (operates on value prop) > protein increment by 5 [0.01ms]
+(pass) NumberStepper – increment (operates on value prop) > fat increment stops at max=200 [0.02ms]
+(pass) NumberStepper – draft state sync logic > when not editing, draft should equal String(value) [0.02ms]
+(pass) NumberStepper – draft state sync logic > when editing, draft is NOT overwritten by value changes [0.01ms]
+(pass) NumberStepper – draft state sync logic > String(value) converts integer correctly for any goal field [0.08ms]
+(pass) SettingsRow – label rendering > label string is passed through unchanged [0.02ms]
+(pass) SettingsRow – label rendering > all Settings labels present in the component [0.08ms]
+(pass) foodSchema > accepts a minimal valid food object [1.65ms]
+(pass) foodSchema > accepts a full valid food object [0.63ms]
+(pass) foodSchema > rejects missing product_name [1.03ms]
+(pass) foodSchema > rejects empty product_name [0.22ms]
+(pass) foodSchema > accepts all valid nutriscore_grade values [0.60ms]
+(pass) foodSchema > rejects invalid nutriscore_grade [0.28ms]
+(pass) foodSchema > rejects nutriscore_score below -15 [0.37ms]
+(pass) foodSchema > rejects nutriscore_score above 40 [0.13ms]
+(pass) foodSchema > accepts nutriscore_score at boundaries (-15, 40) [0.17ms]
+(pass) foodSchema > optional fields can be omitted [0.08ms]
+(pass) exerciseSchema > accepts minimal valid exercise [0.12ms]
+(pass) exerciseSchema > accepts full exercise object [0.71ms]
+(pass) exerciseSchema > rejects missing name [0.17ms]
+(pass) exerciseSchema > rejects empty name [0.16ms]
+(pass) exerciseSchema > primaryMuscles must be an array of strings [0.13ms]
+(pass) exerciseSchema > accepts empty muscle arrays [0.18ms]
+(pass) exerciseSchema > optional string fields can be omitted [0.16ms]
+(pass) searchQuerySchema > accepts empty search query [0.07ms]
+(pass) searchQuerySchema > accepts all optional filters [0.21ms]
+(pass) searchQuerySchema > accepts valid grade values [0.25ms]
+(pass) searchQuerySchema > rejects invalid grade [0.22ms]
+(pass) searchQuerySchema > coerces min_score from string to number [0.11ms]
+(pass) searchQuerySchema > rejects min_score below -15 [0.31ms]
+(pass) searchQuerySchema > rejects max_score above 40 [0.10ms]
+(pass) searchQuerySchema > accepts score at boundaries [0.16ms]
+(pass) barcodeSchema > accepts valid numeric barcode [0.27ms]
+(pass) barcodeSchema > accepts single digit barcode [0.11ms]
+(pass) barcodeSchema > rejects alphabetic barcode [0.13ms]
+(pass) barcodeSchema > rejects barcode with hyphens [0.11ms]
+(pass) barcodeSchema > rejects barcode with spaces [0.06ms]
+(pass) barcodeSchema > rejects empty barcode [0.06ms]
+(pass) barcodeSchema > rejects missing code field [0.06ms]
+(pass) parseValidatedBody > returns data on success [0.08ms]
+(pass) parseValidatedBody > returns error on failure [0.06ms]
+(pass) parseValidatedBody > returned ZodError has issues array [0.07ms]
+(pass) parseValidatedBody > works with foodSchema [0.06ms]
+(pass) parseValidatedBody > works with exerciseSchema on invalid data [0.07ms]
+(pass) idParamSchema > accepts valid alphanumeric ID [0.11ms]
+(pass) idParamSchema > accepts numeric ID [0.04ms]
+(pass) idParamSchema > rejects ID with special characters [0.17ms]
+(pass) idParamSchema > rejects empty ID [0.09ms]
+
+apps/mobile/src/lib/__tests__/workout-sync.test.ts:
+(pass) todayIso > returns a string in YYYY-MM-DD format [0.24ms]
+(pass) todayIso > matches today's date [0.18ms]
+(pass) todayIso > month and day are zero-padded [0.08ms]
+(pass) normalizePresetCard > focus normalization > passes through 'strength' focus [0.09ms]
+(pass) normalizePresetCard > focus normalization > passes through 'cardio' focus [0.02ms]
+(pass) normalizePresetCard > focus normalization > passes through 'mobility' focus [0.02ms]
+(pass) normalizePresetCard > focus normalization > unknown focus falls back to 'strength' [0.02ms]
+(pass) normalizePresetCard > focus normalization > null focus falls back to 'strength' [0.02ms]
+(pass) normalizePresetCard > focus normalization > undefined focus falls back to 'strength' [0.02ms]
+(pass) normalizePresetCard > duration normalization > uses provided duration [0.02ms]
+(pass) normalizePresetCard > duration normalization > null duration falls back to '30 min' [0.02ms]
+(pass) normalizePresetCard > duration normalization > undefined duration falls back to '30 min' [0.02ms]
+(pass) normalizePresetCard > steps normalization > uses provided steps [0.03ms]
+(pass) normalizePresetCard > steps normalization > null steps falls back to default [0.03ms]
+(pass) normalizePresetCard > steps normalization > undefined steps falls back to default [0.03ms]
+(pass) normalizePresetCard > steps normalization > empty steps array falls back to default [0.02ms]
+(pass) normalizePresetCard > steps normalization > single step is kept as-is [0.09ms]
+(pass) normalizePresetCard > id and name passthrough > preserves id [0.03ms]
+(pass) normalizePresetCard > id and name passthrough > preserves name [0.02ms]
+(pass) normalizePresetCard > return shape > returns all required fields [0.04ms]
+(pass) normalizePresetCard > return shape > full preset with all fields [0.04ms]
+
+apps/mobile/src/lib/__tests__/exercise-catalog.test.ts:
+(pass) EXERCISES > is a non-empty array [0.04ms]
+(pass) EXERCISES > every exercise has required fields [0.14ms]
+(pass) EXERCISES > all exercise ids are unique [0.06ms]
+(pass) EXERCISES > all exercise names are unique [0.04ms]
+(pass) EXERCISES > category is one of the valid ExerciseCategory values [0.06ms]
+(pass) EXERCISES > contains at least one of each category [0.20ms]
+(pass) EXERCISES > color fields are valid hex colors [0.19ms]
+(pass) getExerciseById > returns exercise for valid id [0.16ms]
+(pass) getExerciseById > returns null for non-existent id [0.03ms]
+(pass) getExerciseById > returns null for empty string [0.10ms]
+(pass) getExerciseById > returns correct exercise for each known id [0.18ms]
+(pass) getExerciseById > all exercises in EXERCISES are findable by id [0.18ms]
+(pass) getExerciseById > returns full exercise object with all fields [0.05ms]
+(pass) getExerciseById > case-sensitive id matching [0.04ms]
+(pass) exercise category filtering > can filter strength exercises [0.17ms]
+(pass) exercise category filtering > can filter cardio exercises [0.11ms]
+(pass) exercise category filtering > can filter mobility exercises [0.04ms]
+(pass) exercise category filtering > can filter core exercises [0.04ms]
+(pass) exercise category filtering > all category filters sum to total exercises [0.15ms]
+
+apps/mobile/src/lib/__tests__/food-log.test.ts:
+(pass) DEFAULT_MEAL_CATEGORIES > has 4 default categories [0.04ms]
+(pass) DEFAULT_MEAL_CATEGORIES > contains breakfast, lunch, dinner, snack [0.06ms]
+(pass) DEFAULT_MEAL_CATEGORIES > all default categories have isDefault: true [0.05ms]
+(pass) DEFAULT_MEAL_CATEGORIES > all categories have id, label, color, bg [0.07ms]
+(pass) CUSTOM_CATEGORY_COLORS > has multiple color options [0.02ms]
+(pass) CUSTOM_CATEGORY_COLORS > each entry has color and bg [0.04ms]
+(pass) defaultMeal > returns a valid meal type string [0.20ms]
+(pass) detectTimeZone > returns a non-empty string [0.26ms]
+(pass) detectTimeZone > returns a valid IANA timezone identifier [1.11ms]
+(pass) offsetDateKey > returns same date with offset 0 [0.15ms]
+(pass) offsetDateKey > adds 1 day correctly [0.03ms]
+(pass) offsetDateKey > subtracts 1 day correctly [0.02ms]
+(pass) offsetDateKey > handles month boundary forward [0.03ms]
+(pass) offsetDateKey > handles month boundary backward [0.03ms]
+(pass) offsetDateKey > handles year boundary forward [0.02ms]
+(pass) offsetDateKey > handles year boundary backward [0.02ms]
+(pass) offsetDateKey > handles leap year February [0.04ms]
+(pass) offsetDateKey > handles large positive offset [0.03ms]
+(pass) offsetDateKey > returns string in YYYY-MM-DD format [0.03ms]
+(pass) dateForOffset > returns a string in YYYY-MM-DD format [1.43ms]
+(pass) dateForOffset > tomorrow is 1 day ahead of today [0.83ms]
+(pass) dateForOffset > yesterday is 1 day behind today [0.83ms]
+(pass) currentDateKey > returns a string in YYYY-MM-DD format [0.44ms]
+(pass) currentDateKey > equals dateForOffset(0) [0.83ms]
+(pass) meal category localStorage helpers > readAllMealCategories includes default categories [0.14ms]
+(pass) meal category localStorage helpers > readAllMealCategories returns only defaults when no custom ones [0.03ms]
+(pass) meal category localStorage helpers > addMealCategory adds a new category [0.45ms]
+(pass) meal category localStorage helpers > addMealCategory generates id from label [0.12ms]
+(pass) meal category localStorage helpers > addMealCategory assigns a color from CUSTOM_CATEGORY_COLORS [0.08ms]
+(pass) meal category localStorage helpers > removeMealCategory removes the correct category [0.12ms]
+(pass) meal category localStorage helpers > removeMealCategory does not remove default categories [0.04ms]
+(pass) meal category localStorage helpers > multiple custom categories cycle through colors [0.22ms]
+
+apps/mobile/src/lib/__tests__/widget-layout.test.ts:
+(pass) resolveLayout > null returns the default layout [0.13ms]
+(pass) resolveLayout > undefined returns the default layout [0.03ms]
+(pass) resolveLayout > empty array returns the default layout [0.08ms]
+(pass) resolveLayout > stored layout is preserved as-is when all IDs are valid [0.14ms]
+(pass) resolveLayout > new widgets not in stored layout are appended as full [0.14ms]
+(pass) resolveLayout > unknown widget IDs in stored layout are dropped [0.06ms]
+(pass) resolveLayout > stored sizes are preserved [0.07ms]
+(pass) buildRows > all full → each widget gets its own full row [0.12ms]
+(pass) buildRows > two consecutive small widgets → one pair row [0.06ms]
+(pass) buildRows > three consecutive small widgets → one pair + one solo-small [0.05ms]
+(pass) buildRows > small followed by full → solo-small then full [0.03ms]
+(pass) buildRows > full between two smalls → full row + pair [0.03ms]
+(pass) buildRows > empty layout → empty rows [0.02ms]
+(pass) buildRows > single full widget [0.03ms]
+(pass) buildRows > single small widget → solo-small [0.03ms]
+(pass) reorderLayout > moves item from index 0 to index 2 [0.16ms]
+(pass) reorderLayout > moves item from index 2 to index 0 [0.05ms]
+(pass) reorderLayout > same index returns original layout unchanged [0.03ms]
+(pass) reorderLayout > does not mutate the original array [0.08ms]
+(pass) reorderLayout > out-of-bounds fromIndex returns original layout [0.02ms]
+(pass) reorderLayout > out-of-bounds toIndex returns original layout [0.02ms]
+(pass) toggleWidgetSize > full → small [0.08ms]
+(pass) toggleWidgetSize > small → full [0.03ms]
+(pass) toggleWidgetSize > only the targeted widget changes [0.03ms]
+(pass) toggleWidgetSize > does not mutate the original array [0.02ms]
+(pass) toggleWidgetSize > unknown id leaves layout unchanged [0.02ms]
+(pass) toggleWidgetSize > toggle twice returns to original size [0.03ms]
+
+apps/mobile/src/lib/__tests__/workout-calories.test.ts:
+(pass) MET_BY_CATEGORY > has entries for all standard categories [0.04ms]
+(pass) MET_BY_CATEGORY > cardio MET is higher than strength MET [0.02ms]
+(pass) MET_BY_CATEGORY > mobility MET is lower than strength MET [0.02ms]
+(pass) estimateWorkoutCalories > returns 0 for zero duration [0.08ms]
+(pass) estimateWorkoutCalories > returns 0 for negative duration [0.02ms]
+(pass) estimateWorkoutCalories > uses default weight (75 kg) when weightKg is missing [0.03ms]
+(pass) estimateWorkoutCalories > uses default weight when weightKg is 0 [0.03ms]
+(pass) estimateWorkoutCalories > uses default MET when category is unknown [0.02ms]
+(pass) estimateWorkoutCalories > uses default MET when category is omitted [0.02ms]
+(pass) estimateWorkoutCalories > scales linearly with duration [0.05ms]
+(pass) estimateWorkoutCalories > scales linearly with body weight [0.03ms]
+(pass) estimateWorkoutCalories > cardio burns more than strength for same weight/duration [0.04ms]
+(pass) estimateWorkoutCalories > returns a positive integer (rounded) [0.03ms]
+(pass) estimateWorkoutCalories > 30-minute strength session at 80 kg is correct [0.03ms]
+(pass) totalDayWorkoutCalories > returns 0 for empty sessions [0.04ms]
+(pass) totalDayWorkoutCalories > sums calories from multiple sessions [0.05ms]
+(pass) totalDayWorkoutCalories > single session equals estimateWorkoutCalories [0.07ms]
+(pass) adjustedCalorieTarget > adds burned calories to base target [0.05ms]
+(pass) adjustedCalorieTarget > does not go below the default floor (1200) [0.02ms]
+(pass) adjustedCalorieTarget > respects custom floor [0.01ms]
+(pass) adjustedCalorieTarget > returns base + burned when result is above floor [0.01ms]
+(pass) adjustedCalorieTarget > exactly at floor returns floor [0.02ms]
+
+apps/mobile/src/lib/__tests__/training-consistency.test.ts:
+(pass) dateToIso > formats a date as YYYY-MM-DD [0.11ms]
+(pass) dateToIso > zero-pads month and day [0.03ms]
+(pass) dateToIso > handles year boundary [0.03ms]
+(pass) subtractDays > subtracting 0 returns the same date [0.06ms]
+(pass) subtractDays > subtracts positive days correctly [0.03ms]
+(pass) subtractDays > negative days move forward in time [0.03ms]
+(pass) subtractDays > crosses month boundaries correctly [0.03ms]
+(pass) subtractDays > does not mutate the original date [0.08ms]
+(pass) calcStreak > returns 0 when today has no workout [0.10ms]
+(pass) calcStreak > returns 1 for only today [0.03ms]
+(pass) calcStreak > counts consecutive days including today [0.03ms]
+(pass) calcStreak > stops at a gap [0.02ms]
+(pass) calcStreak > long streak of 10 days [0.21ms]
+(pass) calcStreak > empty set returns 0 [0.09ms]
+(pass) calcWorkoutsThisWeek > returns 0 with no workouts [0.19ms]
+(pass) calcWorkoutsThisWeek > counts only workouts in current week up to today [0.06ms]
+(pass) calcWorkoutsThisWeek > ignores days from last week [0.04ms]
+(pass) calcWorkoutsThisWeek > handles Sunday as the last day of the week [0.06ms]
+(pass) calcWorkoutsThisWeek > handles today being Monday (start of week) [0.07ms]
+(pass) buildCalendarDays > returns the correct number of days [0.21ms]
+(pass) buildCalendarDays > last element is today [0.09ms]
+(pass) buildCalendarDays > first element is (n-1) days before today [0.06ms]
+(pass) buildCalendarDays > days are in ascending order [0.06ms]
+(pass) buildCalendarDays > consecutive days differ by exactly one day [0.11ms]
+(pass) buildCalendarDays > n=1 returns only today [0.03ms]
+
+apps/mobile/src/lib/__tests__/body-progress.test.ts:
+(pass) formatReminderLabel > formats midnight correctly [1.17ms]
+(pass) formatReminderLabel > formats noon correctly [0.30ms]
+(pass) formatReminderLabel > formats morning time correctly [0.18ms]
+(pass) formatReminderLabel > formats afternoon time correctly [0.15ms]
+(pass) formatReminderLabel > formats evening time correctly [0.14ms]
+(pass) formatReminderLabel > pads single-digit minutes with leading zero [0.25ms]
+(pass) formatReminderLabel > always starts with 'Daily at' [0.54ms]
+(pass) formatReminderLabel > works with reminder disabled (label is still formatted) [0.18ms]
+(pass) formatReminderLabel > handles end of day (23:59) [0.18ms]
+(pass) BodyMeasurementEntry type shape > can create a valid entry object [0.06ms]
+(pass) BodyMeasurementEntry type shape > can create minimal entry with only required fields [0.03ms]
+
+apps/mobile/src/lib/__tests__/utils.test.ts:
+(pass) cn (class name utility) > returns a single class name unchanged [9.05ms]
+(pass) cn (class name utility) > merges multiple class names [0.19ms]
+(pass) cn (class name utility) > handles undefined and null values [0.07ms]
+(pass) cn (class name utility) > handles false conditionals [0.11ms]
+(pass) cn (class name utility) > handles true conditionals [0.06ms]
+(pass) cn (class name utility) > handles object syntax [0.06ms]
+(pass) cn (class name utility) > handles array syntax [0.03ms]
+(pass) cn (class name utility) > merges conflicting Tailwind classes (twMerge behavior) [0.06ms]
+(pass) cn (class name utility) > merges conflicting padding classes [0.17ms]
+(pass) cn (class name utility) > preserves non-conflicting classes [0.08ms]
+(pass) cn (class name utility) > returns empty string for no arguments [0.06ms]
+(pass) cn (class name utility) > returns empty string for all falsy arguments [0.04ms]
+(pass) cn (class name utility) > handles nested arrays and objects [0.20ms]
+
+apps/mobile/src/lib/__tests__/one-rm.test.ts:
+(pass) epley1RM > returns weight unchanged for 1 rep [0.06ms]
+(pass) epley1RM > calculates correctly for 5 reps [0.04ms]
+(pass) epley1RM > calculates correctly for 10 reps [0.02ms]
+(pass) epley1RM > increases as reps increase (same weight) [0.03ms]
+(pass) epley1RM > increases as weight increases (same reps) [0.02ms]
+(pass) epley1RM > result is always ≥ input weight [0.02ms]
+(pass) brzycki1RM > returns weight unchanged for 1 rep [0.03ms]
+(pass) brzycki1RM > calculates correctly for 5 reps [0.02ms]
+(pass) brzycki1RM > calculates correctly for 10 reps [0.01ms]
+(pass) brzycki1RM > falls back to Epley for reps ≥ 37 [0.02ms]
+(pass) brzycki1RM > increases as reps increase (same weight) [0.02ms]
+(pass) brzycki1RM > result is always ≥ input weight [0.02ms]
+(pass) estimate1RM > equals weight for 1 rep [0.03ms]
+(pass) estimate1RM > is the average of Epley and Brzycki [0.03ms]
+(pass) estimate1RM > is between Epley and Brzycki estimates [0.12ms]
+(pass) estimate1RM > increases with more reps at same weight [0.02ms]
+(pass) estimate1RM > increases with more weight at same reps [0.10ms]
+(pass) orm1RMBreakdown > returns entries for 100, 90, 80, 70, 60 percent [0.15ms]
+(pass) orm1RMBreakdown > 100% entry equals the input 1RM [0.03ms]
+(pass) orm1RMBreakdown > 90% entry is 90% of 1RM [0.03ms]
+(pass) orm1RMBreakdown > 60% entry is 60% of 1RM [0.02ms]
+(pass) orm1RMBreakdown > weights are in descending order [0.06ms]
+
+apps/mobile/src/lib/__tests__/progress-metrics.test.ts:
+(pass) rollingAvg > single element returns itself [0.19ms]
+(pass) rollingAvg > window of 1 returns the input unchanged [0.14ms]
+(pass) rollingAvg > window larger than array uses all available values [0.05ms]
+(pass) rollingAvg > window=2 computes pair-wise trailing average [0.05ms]
+(pass) rollingAvg > window=3 trailing average [0.04ms]
+(pass) rollingAvg > returns same length as input [0.11ms]
+(pass) rollingAvg > last value equals mean of last window elements [0.09ms]
+(pass) rollingAvg > throws for window < 1 [0.06ms]
+(pass) rollingAvg > handles flat series (all same value) [0.14ms]
+(pass) rollingAvg > smooths a noisy series (last value < spike) [0.05ms]
+(pass) sparklinePoints > returns empty string for empty array [0.12ms]
+(pass) sparklinePoints > single value is placed at horizontal center [0.09ms]
+(pass) sparklinePoints > two values span full width [0.07ms]
+(pass) sparklinePoints > minimum value is at the bottom (max y) [0.05ms]
+(pass) sparklinePoints > maximum value is at the top (min y) [0.05ms]
+(pass) sparklinePoints > all-equal values all share the same y [0.06ms]
+(pass) sparklinePoints > produces correct number of space-separated points [0.03ms]
+(pass) sparklinePoints > x coordinates are evenly spaced for uniform input [0.10ms]
+
+apps/mobile/src/lib/__tests__/muscle-volume.test.ts:
+(pass) weekStart > Monday returns itself [0.10ms]
+(pass) weekStart > Wednesday returns previous Monday [0.03ms]
+(pass) weekStart > Sunday returns the previous Monday [0.02ms]
+(pass) weekStart > crosses month boundary correctly [0.02ms]
+(pass) weekStart > year boundary [0.02ms]
+(pass) normaliseMuscle > lowercases the string [0.03ms]
+(pass) normaliseMuscle > trims whitespace [0.02ms]
+(pass) normaliseMuscle > handles already-lowercase [0.02ms]
+(pass) computeMuscleVolume > returns empty array when no logs [0.25ms]
+(pass) computeMuscleVolume > counts primary and secondary sets correctly [0.37ms]
+(pass) computeMuscleVolume > only counts completed sets [0.11ms]
+(pass) computeMuscleVolume > aggregates across multiple sessions [0.12ms]
+(pass) computeMuscleVolume > respects date range filter — excludes logs before fromIso [0.12ms]
+(pass) computeMuscleVolume > respects date range filter — excludes logs after toIso [0.13ms]
+(pass) computeMuscleVolume > skips exercises not in catalog [0.09ms]
+(pass) computeMuscleVolume > skips exercises with no completed sets [0.05ms]
+(pass) computeMuscleVolume > sorts result by effectiveSets descending [0.27ms]
+(pass) computeMuscleVolume > handles exercises with no muscle metadata gracefully [0.10ms]
+(pass) computeWeeklyMuscleVolume > includes workouts from Monday to today [0.22ms]
+(pass) computeWeeklyMuscleVolume > excludes workouts from the previous week [0.30ms]
+(pass) computeWeeklyMuscleVolume > excludes future workouts (after today) [0.17ms]
+(pass) computeWeeklyMuscleVolume > returns empty when no workouts this week [0.06ms]
+(pass) buildCatalogMap > builds a Map keyed by id [0.04ms]
+(pass) buildCatalogMap > returns empty Map for empty array [0.02ms]
+(pass) buildCatalogMap > last duplicate id wins [0.04ms]
+
+packages/ui/src/lib/__tests__/utils.test.ts:
+(pass) cn (packages/ui) > returns single class unchanged [0.12ms]
+(pass) cn (packages/ui) > joins multiple classes [0.17ms]
+(pass) cn (packages/ui) > resolves Tailwind conflicts: later wins [0.33ms]
+(pass) cn (packages/ui) > handles conditional classes via boolean [0.06ms]
+(pass) cn (packages/ui) > omits falsy conditional classes [0.03ms]
+(pass) cn (packages/ui) > handles object syntax for conditional classes [0.10ms]
+(pass) cn (packages/ui) > handles array input [0.13ms]
+(pass) cn (packages/ui) > handles mixed input types [0.12ms]
+(pass) cn (packages/ui) > deduplicates conflicting margins [0.16ms]
+(pass) cn (packages/ui) > preserves non-conflicting utility classes [0.22ms]
+(pass) cn (packages/ui) > empty call returns empty string [0.05ms]
+(pass) cn (packages/ui) > all-falsy args return empty string [0.09ms]
+(pass) cn (packages/ui) > real-world shadcn pattern: variant merging [0.11ms]
+
+10 tests failed:
+
+ 528 pass
+ 10 fail
+ 10 errors
+ 897 expect() calls
+Ran 538 tests across 30 files. [256.00ms]

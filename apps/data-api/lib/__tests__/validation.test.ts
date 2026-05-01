@@ -269,26 +269,20 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
+  test("accepts valid alphanumeric ID", () => {
+    const validId = "exercise-123_abc";
     const result = idParamSchema.safeParse({ id: validId });
     expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
+  test("accepts numeric ID", () => {
+    const validId = "12345";
+    const result = idParamSchema.safeParse({ id: validId });
+    expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
+  test("rejects ID with special characters", () => {
+    const invalidId = "id with spaces!";
     const result = idParamSchema.safeParse({ id: invalidId });
     expect(result.success).toBe(false);
   });

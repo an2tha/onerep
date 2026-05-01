@@ -1,0 +1,4 @@
+## 2025-05-01 - [HIGH] Missing Authentication and Security Headers in Data API
+**Vulnerability:** The Express-based Data API (`apps/data-api`) was exposed without any authentication mechanism, and lacked basic security headers (CSP, XSS protection, etc.). It also had permissive input validation on ID parameters.
+**Learning:** Legacy or internal-facing APIs often skip standard security middleware like `helmet` or `cors`, or fail to implement the same level of authentication as the main backend (Convex in this case), creating a weak link in the infrastructure.
+**Prevention:** Always apply a base security layer (e.g., `helmet`) and an authentication middleware (e.g., API key validation with `timingSafeEqual`) to all production-facing routes. Use strict Zod regex validation for all route parameters to prevent injection or traversal.
