@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import logger from "morgan";
 import apiRouter from "./routes/api";
 import indexRouter from "./routes/index";
+import { validateApiKey } from "./middleware/auth";
 
 const app = express();
 
@@ -22,7 +23,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
 app.use("/", indexRouter);
-app.use("/api/v1", apiRouter);  // Convex expects /api/v1 prefix
+app.use("/api/v1", validateApiKey, apiRouter);  // Convex expects /api/v1 prefix
 
 // Catch 404
 app.use((_req, res) => {

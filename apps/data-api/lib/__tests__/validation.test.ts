@@ -275,20 +275,14 @@ describe("idParamSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
+  test("accepts slug ID", () => {
+    const slug = "bench-press";
+    const result = idParamSchema.safeParse({ id: slug });
+    expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
+  test("rejects ID with special characters", () => {
+    const invalidId = "bench@press";
     const result = idParamSchema.safeParse({ id: invalidId });
     expect(result.success).toBe(false);
   });
