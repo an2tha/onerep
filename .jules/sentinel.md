@@ -1,0 +1,4 @@
+## 2025-05-14 - Hardcoded Secrets and Missing API Authentication
+**Vulnerability:** Core database connection strings with default credentials were hardcoded in multiple route files and the database configuration. Additionally, the data API lacked authentication, allowing unauthorized access to the nutrition and exercise datasets.
+**Learning:** Hardcoded fallbacks in `pg.Pool` configuration are a common source of secret leakage. The API was designed for internal use by Convex but lacked the necessary middleware to enforce the `x-api-key` requirement.
+**Prevention:** Never use hardcoded fallbacks for sensitive environment variables like `DATABASE_URL`. Implement centralized authentication middleware early in the development of internal APIs and use timing-safe comparison for secret validation.

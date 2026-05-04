@@ -4,7 +4,7 @@ import pg from "pg";
 const router: Router = Router();
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://onerep:onerep_dev@localhost:5433/onerep_data",
+  connectionString: process.env.DATABASE_URL,
 });
 
 router.get("/", async (_req: Request, res: Response) => {
