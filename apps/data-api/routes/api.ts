@@ -6,7 +6,7 @@ import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validati
 const router: Router = express.Router();
 
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL || "postgresql://onerep:onerep_dev@localhost:5433/onerep_data",
+  connectionString: process.env.DATABASE_URL,
 });
 
 /**
