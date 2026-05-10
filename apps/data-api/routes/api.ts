@@ -1,17 +1,9 @@
 import express, { Request, Response, type Router } from "express";
-import pg from "pg";
+import { pool } from "../src/db/index";
 import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
 import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
 
 const router: Router = express.Router();
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 /**
  * Execute a SQL query against the module's PostgreSQL pool and return the resulting rows.
@@ -40,8 +32,12 @@ router.post("/exercises", apiLimiter);
 
 // Foods
 router.get("/foods/search", async (req: Request, res: Response) => {
-  const q = req.query.q as string || "";
-  const limit = Math.min(Number(req.query.limit) || 25, 50);
+  const validation = searchQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid search parameters", details: validation.error.format() });
+  }
+  const { q = "", limit: rawLimit } = validation.data;
+  const limit = Math.min(rawLimit || 25, 50);
   try {
     // Enable pg_trgm extension and create GIN indexes on first run
     await query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
@@ -75,11 +71,15 @@ router.get("/foods/search", async (req: Request, res: Response) => {
 });
 
 router.get("/foods/nutrients", async (req: Request, res: Response) => {
-  const { grade } = req.query;
+  const validation = searchQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid parameters", details: validation.error.format() });
+  }
+  const { grade } = validation.data;
   try {
     let results;
     if (grade) {
-      results = await query("SELECT * FROM foodfacts WHERE nutriscore_grade = $1 LIMIT 100", [String(grade).toUpperCase()]);
+      results = await query("SELECT * FROM foodfacts WHERE nutriscore_grade = $1 LIMIT 100", [grade.toUpperCase()]);
     } else {
       results = await query("SELECT * FROM foodfacts LIMIT 100");
     }
@@ -91,8 +91,13 @@ router.get("/foods/nutrients", async (req: Request, res: Response) => {
 });
 
 router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Response) => {
+  const validation = barcodeSchema.safeParse(req.params);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid barcode" });
+  }
+  const { code } = validation.data;
   try {
-    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [req.params.code]);
+    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [code]);
     if (results.length === 0) return res.status(404).json({ message: "Product not found" });
     const row = results[0];
     // Return in format Convex expects
@@ -116,7 +121,11 @@ router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Resp
 });
 
 router.get("/foods/id/:id", strictLimiter, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
+  const validation = idParamSchema.safeParse(req.params);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+  const id = parseInt(validation.data.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
   try {
     const results = await query("SELECT * FROM foodfacts WHERE id = $1 LIMIT 1", [id]);
@@ -140,8 +149,13 @@ router.get("/foods", apiLimiter, async (_req: Request, res: Response) => {
 
 // Exercises
 router.get("/exercises/search", async (req: Request, res: Response) => {
-  const q = (req.query.q as string || "").trim();
-  const size = Math.min(Number(req.query.limit) || 25, 50);
+  const validation = searchQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid search parameters", details: validation.error.format() });
+  }
+  const { q: rawQ = "", limit: rawLimit } = validation.data;
+  const q = rawQ.trim();
+  const size = Math.min(rawLimit || 25, 50);
   try {
     let results;
     if (q.length < 2) {
@@ -203,14 +217,18 @@ router.get("/exercises/lookup", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/advanced", async (req: Request, res: Response) => {
-  const { muscle, equipment, category, force } = req.query;
+  const validation = searchQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid parameters", details: validation.error.format() });
+  }
+  const { muscle, equipment, category, force } = validation.data;
   const conditions: string[] = [];
   const params: any[] = [];
   let i = 1;
   if (muscle) { conditions.push(`primary_muscles::text ILIKE $${i++}`); params.push(`%${muscle}%`); }
   if (equipment) { conditions.push(`equipment ILIKE $${i++}`); params.push(`%${equipment}%`); }
-  if (category) { conditions.push(`category = $${i++}`); params.push(String(category).toLowerCase()); }
-  if (force) { conditions.push(`force = $${i++}`); params.push(String(force).toLowerCase()); }
+  if (category) { conditions.push(`category = $${i++}`); params.push(category.toLowerCase()); }
+  if (force) { conditions.push(`force = $${i++}`); params.push(force.toLowerCase()); }
   const where = conditions.length > 0 ? "WHERE " + conditions.join(" AND ") : "";
   try {
     const results = await query(`SELECT * FROM exercises ${where} LIMIT 100`, params);
@@ -222,8 +240,12 @@ router.get("/exercises/advanced", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/id/:id", strictLimiter, async (req: Request, res: Response) => {
+  const validation = idParamSchema.safeParse(req.params);
+  if (!validation.success) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
   try {
-    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [req.params.id]);
+    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [validation.data.id]);
     if (results.length === 0) return res.status(404).json({ message: "Exercise not found" });
     res.json(results[0]);
   } catch (err) {

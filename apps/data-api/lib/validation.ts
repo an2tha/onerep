@@ -33,6 +33,7 @@ export const exerciseSchema = z.object({
 
 export const searchQuerySchema = z.object({
   q: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).optional(),
   grade: z.enum(["a", "b", "c", "d", "e"]).optional(),
   min_score: z.coerce.number().min(-15).max(40).optional(),
   max_score: z.coerce.number().min(-15).max(40).optional(),
