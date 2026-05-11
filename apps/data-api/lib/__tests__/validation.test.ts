@@ -5,6 +5,7 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -269,32 +270,53 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
-    const result = idParamSchema.safeParse({ id: validId });
+  test("accepts numeric string ID", () => {
+    const result = idParamSchema.safeParse({ id: "123" });
     expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
+  test("accepts exercise ID format like e1", () => {
+    const result = idParamSchema.safeParse({ id: "e1" });
+    expect(result.success).toBe(true);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("idsQuerySchema", () => {
+  test("accepts comma-separated IDs", () => {
+    const result = idsQuerySchema.safeParse({ ids: "1,2,3" });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects empty ids param", () => {
+    const result = idsQuerySchema.safeParse({ ids: "" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects missing ids param", () => {
+    const result = idsQuerySchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("searchQuerySchema extensions", () => {
+  test("accepts valid limit", () => {
+    const result = searchQuerySchema.safeParse({ limit: "50" });
+    expect(result.success).toBe(true);
+    expect(result.data?.limit).toBe(50);
+  });
+
+  test("rejects limit below 1", () => {
+    const result = searchQuerySchema.safeParse({ limit: "0" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects limit above 100", () => {
+    const result = searchQuerySchema.safeParse({ limit: "101" });
     expect(result.success).toBe(false);
   });
 });

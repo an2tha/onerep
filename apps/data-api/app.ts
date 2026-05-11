@@ -15,7 +15,19 @@ const app = express();
 import { db } from "./src/db/index";
 
 db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
+  .then(async () => {
+    console.log("[INFO] PostgreSQL connected");
+    // Ensure trigram extension and indexes exist on startup
+    try {
+      await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+      // Note: CREATE INDEX CONCURRENTLY cannot be run in a transaction, but db.execute should be fine here.
+      // However, if it fails, we just log it and continue.
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS foodfacts_name_trgm_idx ON foodfacts USING gin (name gin_trgm_ops)`);
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS foodfacts_brand_trgm_idx ON foodfacts USING gin (brand gin_trgm_ops)`);
+    } catch (err: any) {
+      console.warn("[WARN] Failed to create search indexes:", err.message);
+    }
+  })
   .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
 
 app.use(helmet());

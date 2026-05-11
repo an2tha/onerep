@@ -40,6 +40,7 @@ export const searchQuerySchema = z.object({
   equipment: z.string().optional(),
   category: z.string().optional(),
   force: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).optional(),
 });
 
 export const barcodeSchema = z.object({
@@ -48,6 +49,10 @@ export const barcodeSchema = z.object({
 
 export const idParamSchema = z.object({
   id: z.string().min(1, "ID is required"),
+});
+
+export const idsQuerySchema = z.object({
+  ids: z.string().min(1, "ids query param required"),
 });
 
 export const parseValidatedBody = <T>(

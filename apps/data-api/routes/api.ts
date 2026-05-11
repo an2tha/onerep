@@ -1,17 +1,9 @@
 import express, { Request, Response, type Router } from "express";
-import pg from "pg";
+import { pool } from "../src/db/index";
 import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
-import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
+import { searchQuerySchema, barcodeSchema, idParamSchema, idsQuerySchema } from "../lib/validation";
 
 const router: Router = express.Router();
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 /**
  * Execute a SQL query against the module's PostgreSQL pool and return the resulting rows.
@@ -40,14 +32,12 @@ router.post("/exercises", apiLimiter);
 
 // Foods
 router.get("/foods/search", async (req: Request, res: Response) => {
-  const q = req.query.q as string || "";
-  const limit = Math.min(Number(req.query.limit) || 25, 50);
-  try {
-    // Enable pg_trgm extension and create GIN indexes on first run
-    await query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_name_trgm_idx ON foodfacts USING gin (name gin_trgm_ops)");
-    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_brand_trgm_idx ON foodfacts USING gin (brand gin_trgm_ops)");
+  const validated = searchQuerySchema.safeParse(req.query);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
 
+  const q = validated.data.q || "";
+  const limit = validated.data.limit || 25;
+  try {
     const results = await query(
       "SELECT * FROM foodfacts WHERE name ILIKE $1 OR brand ILIKE $1 LIMIT $2",
       [`%${q}%`, limit]
@@ -91,8 +81,11 @@ router.get("/foods/nutrients", async (req: Request, res: Response) => {
 });
 
 router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Response) => {
+  const validated = barcodeSchema.safeParse(req.params);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
   try {
-    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [req.params.code]);
+    const results = await query("SELECT * FROM foodfacts WHERE code = $1 LIMIT 1", [validated.data.code]);
     if (results.length === 0) return res.status(404).json({ message: "Product not found" });
     const row = results[0];
     // Return in format Convex expects
@@ -116,8 +109,12 @@ router.get("/foods/barcode/:code", strictLimiter, async (req: Request, res: Resp
 });
 
 router.get("/foods/id/:id", strictLimiter, async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
+  const validated = idParamSchema.safeParse(req.params);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
+  const id = parseInt(validated.data.id);
   if (isNaN(id)) return res.status(400).json({ error: "Invalid ID" });
+
   try {
     const results = await query("SELECT * FROM foodfacts WHERE id = $1 LIMIT 1", [id]);
     if (results.length === 0) return res.status(404).json({ message: "Product not found" });
@@ -140,8 +137,11 @@ router.get("/foods", apiLimiter, async (_req: Request, res: Response) => {
 
 // Exercises
 router.get("/exercises/search", async (req: Request, res: Response) => {
-  const q = (req.query.q as string || "").trim();
-  const size = Math.min(Number(req.query.limit) || 25, 50);
+  const validated = searchQuerySchema.safeParse(req.query);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
+  const q = (validated.data.q || "").trim();
+  const size = validated.data.limit || 25;
   try {
     let results;
     if (q.length < 2) {
@@ -175,9 +175,10 @@ router.get("/exercises/search", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/lookup", async (req: Request, res: Response) => {
-  const raw = req.query.ids as string;
-  if (!raw) return res.status(400).json({ error: "ids query param required" });
-  const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 100);
+  const validated = idsQuerySchema.safeParse(req.query);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
+  const ids = validated.data.ids.split(",").map(s => s.trim()).filter(Boolean).slice(0, 100);
   if (ids.length === 0) return res.json([]);
   try {
     const results = await query("SELECT * FROM exercises WHERE exercise_id = ANY($1)", [ids]);
@@ -203,7 +204,10 @@ router.get("/exercises/lookup", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/advanced", async (req: Request, res: Response) => {
-  const { muscle, equipment, category, force } = req.query;
+  const validated = searchQuerySchema.safeParse(req.query);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
+  const { muscle, equipment, category, force } = validated.data;
   const conditions: string[] = [];
   const params: any[] = [];
   let i = 1;
@@ -222,8 +226,11 @@ router.get("/exercises/advanced", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/id/:id", strictLimiter, async (req: Request, res: Response) => {
+  const validated = idParamSchema.safeParse(req.params);
+  if (!validated.success) return res.status(400).json({ error: validated.error.errors[0].message });
+
   try {
-    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [req.params.id]);
+    const results = await query("SELECT * FROM exercises WHERE exercise_id = $1 LIMIT 1", [validated.data.id]);
     if (results.length === 0) return res.status(404).json({ message: "Exercise not found" });
     res.json(results[0]);
   } catch (err) {
