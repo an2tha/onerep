@@ -11,12 +11,25 @@ import indexRouter from "./routes/index";
 
 const app = express();
 
-// Test PostgreSQL connection on startup
+// Database initialization on startup
 import { db } from "./src/db/index";
 
-db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
-  .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
+const initDb = async () => {
+  try {
+    await db.execute(sql`SELECT 1`);
+    console.log("[INFO] PostgreSQL connected");
+
+    // Enable pg_trgm extension and create GIN indexes
+    await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+    await db.execute(sql`CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_name_trgm_idx ON foodfacts USING gin (name gin_trgm_ops)`);
+    await db.execute(sql`CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_brand_trgm_idx ON foodfacts USING gin (brand gin_trgm_ops)`);
+    console.log("[INFO] Database extensions and indexes verified");
+  } catch (err: any) {
+    console.error("[WARN] Database initialization failed:", err.message);
+  }
+};
+
+initDb();
 
 app.use(helmet());
 app.use(logger("dev"));
