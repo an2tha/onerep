@@ -275,22 +275,16 @@ describe("idParamSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
+  test("accepts shorter numeric ID", () => {
+    const numericId = "123";
+    const result = idParamSchema.safeParse({ id: numericId });
+    expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
+  test("accepts exercise ID format", () => {
+    const exerciseId = "e1";
+    const result = idParamSchema.safeParse({ id: exerciseId });
+    expect(result.success).toBe(true);
   });
 
   test("rejects empty ID", () => {

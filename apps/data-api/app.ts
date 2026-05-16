@@ -1,6 +1,5 @@
 require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 
-import { sql } from "drizzle-orm";
 import express from "express";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
@@ -11,11 +10,11 @@ import indexRouter from "./routes/index";
 
 const app = express();
 
-// Test PostgreSQL connection on startup
-import { db } from "./src/db/index";
+// Initialize database on startup
+import { initDb } from "./src/db/index";
 
-db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
+initDb()
+  .then(() => console.log("[INFO] PostgreSQL connected and initialized"))
   .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
 
 app.use(helmet());
