@@ -11,12 +11,19 @@ import indexRouter from "./routes/index";
 
 const app = express();
 
-// Test PostgreSQL connection on startup
-import { db } from "./src/db/index";
+// Test PostgreSQL connection and initialize DB on startup
+import { db, initDb } from "./src/db/index";
+
+if (!process.env.DATA_API_KEY && process.env.NODE_ENV === "production") {
+  throw new Error("DATA_API_KEY environment variable is required in production");
+}
 
 db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
-  .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
+  .then(async () => {
+    console.log("[INFO] PostgreSQL connected");
+    await initDb();
+  })
+  .catch((err: Error) => console.error("[WARN] PostgreSQL initialization failed:", err.message));
 
 app.use(helmet());
 app.use(logger("dev"));

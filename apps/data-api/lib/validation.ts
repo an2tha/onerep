@@ -40,6 +40,17 @@ export const searchQuerySchema = z.object({
   equipment: z.string().optional(),
   category: z.string().optional(),
   force: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).optional(),
+});
+
+export const idsQuerySchema = z.object({
+  ids: z.string().transform((val) =>
+    val
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 100),
+  ),
 });
 
 export const barcodeSchema = z.object({
