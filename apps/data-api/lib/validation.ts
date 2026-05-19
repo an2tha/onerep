@@ -32,7 +32,7 @@ export const exerciseSchema = z.object({
 });
 
 export const searchQuerySchema = z.object({
-  q: z.string().optional(),
+  q: z.string().optional().default(""),
   grade: z.enum(["a", "b", "c", "d", "e"]).optional(),
   min_score: z.coerce.number().min(-15).max(40).optional(),
   max_score: z.coerce.number().min(-15).max(40).optional(),
@@ -40,6 +40,7 @@ export const searchQuerySchema = z.object({
   equipment: z.string().optional(),
   category: z.string().optional(),
   force: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).optional().default(25),
 });
 
 export const barcodeSchema = z.object({
@@ -48,6 +49,23 @@ export const barcodeSchema = z.object({
 
 export const idParamSchema = z.object({
   id: z.string().min(1, "ID is required"),
+});
+
+export const numericIdParamSchema = z.object({
+  id: z.coerce.number().int().positive("ID must be a positive integer"),
+});
+
+export const idsQuerySchema = z.object({
+  ids: z
+    .string()
+    .min(1)
+    .transform((val) =>
+      val
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 100),
+    ),
 });
 
 export const parseValidatedBody = <T>(

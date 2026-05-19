@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -53,35 +55,35 @@ describe("foodSchema", () => {
     const grades = ["a", "b", "c", "d", "e"] as const;
     for (const grade of grades) {
       expect(() =>
-        foodSchema.parse({ product_name: "Test", nutriscore_grade: grade })
+        foodSchema.parse({ product_name: "Test", nutriscore_grade: grade }),
       ).not.toThrow();
     }
   });
 
   test("rejects invalid nutriscore_grade", () => {
     expect(() =>
-      foodSchema.parse({ product_name: "Test", nutriscore_grade: "f" })
+      foodSchema.parse({ product_name: "Test", nutriscore_grade: "f" }),
     ).toThrow();
   });
 
   test("rejects nutriscore_score below -15", () => {
     expect(() =>
-      foodSchema.parse({ product_name: "Test", nutriscore_score: -16 })
+      foodSchema.parse({ product_name: "Test", nutriscore_score: -16 }),
     ).toThrow();
   });
 
   test("rejects nutriscore_score above 40", () => {
     expect(() =>
-      foodSchema.parse({ product_name: "Test", nutriscore_score: 41 })
+      foodSchema.parse({ product_name: "Test", nutriscore_score: 41 }),
     ).toThrow();
   });
 
   test("accepts nutriscore_score at boundaries (-15, 40)", () => {
     expect(() =>
-      foodSchema.parse({ product_name: "Test", nutriscore_score: -15 })
+      foodSchema.parse({ product_name: "Test", nutriscore_score: -15 }),
     ).not.toThrow();
     expect(() =>
-      foodSchema.parse({ product_name: "Test", nutriscore_score: 40 })
+      foodSchema.parse({ product_name: "Test", nutriscore_score: 40 }),
     ).not.toThrow();
   });
 
@@ -127,13 +129,17 @@ describe("exerciseSchema", () => {
 
   test("primaryMuscles must be an array of strings", () => {
     expect(() =>
-      exerciseSchema.parse({ name: "Squat", primaryMuscles: "Quads" })
+      exerciseSchema.parse({ name: "Squat", primaryMuscles: "Quads" }),
     ).toThrow();
   });
 
   test("accepts empty muscle arrays", () => {
     expect(() =>
-      exerciseSchema.parse({ name: "Squat", primaryMuscles: [], secondaryMuscles: [] })
+      exerciseSchema.parse({
+        name: "Squat",
+        primaryMuscles: [],
+        secondaryMuscles: [],
+      }),
     ).not.toThrow();
   });
 
@@ -196,7 +202,54 @@ describe("searchQuerySchema", () => {
   });
 
   test("accepts score at boundaries", () => {
-    expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
+    expect(() =>
+      searchQuerySchema.parse({ min_score: -15, max_score: 40 }),
+    ).not.toThrow();
+  });
+
+  test("coerces limit and respects boundaries", () => {
+    const result = searchQuerySchema.parse({ limit: "10" });
+    expect(result.limit).toBe(10);
+    expect(() => searchQuerySchema.parse({ limit: 0 })).toThrow();
+    expect(() => searchQuerySchema.parse({ limit: 101 })).toThrow();
+    expect(searchQuerySchema.parse({ limit: 100 }).limit).toBe(100);
+  });
+
+  test("has default limit of 25", () => {
+    const result = searchQuerySchema.parse({});
+    expect(result.limit).toBe(25);
+  });
+
+  test("has default empty string for q", () => {
+    const result = searchQuerySchema.parse({});
+    expect(result.q).toBe("");
+  });
+});
+
+// ── idsQuerySchema ────────────────────────────────────────────────────────────
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated string into trimmed array", () => {
+    const result = idsQuerySchema.parse({ ids: " e1, e2 ,e3 " });
+    expect(result.ids).toEqual(["e1", "e2", "e3"]);
+  });
+
+  test("filters out empty entries", () => {
+    const result = idsQuerySchema.parse({ ids: "e1,,e2," });
+    expect(result.ids).toEqual(["e1", "e2"]);
+  });
+
+  test("caps array at 100 entries", () => {
+    const longList = Array.from({ length: 110 }, (_, i) => `e${i}`).join(",");
+    const result = idsQuerySchema.parse({ ids: longList });
+    expect(result.ids.length).toBe(100);
+    expect(result.ids[0]).toBe("e0");
+    expect(result.ids[99]).toBe("e99");
+  });
+
+  test("rejects empty string or missing field", () => {
+    expect(() => idsQuerySchema.parse({ ids: "" })).toThrow();
+    expect(() => idsQuerySchema.parse({})).toThrow();
   });
 });
 
@@ -269,32 +322,34 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
+  test("accepts valid string ID", () => {
+    const validId = "e1";
     const result = idParamSchema.safeParse({ id: validId });
     expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("numericIdParamSchema", () => {
+  test("accepts valid positive integer", () => {
+    expect(numericIdParamSchema.safeParse({ id: "123" }).success).toBe(true);
+    expect(numericIdParamSchema.safeParse({ id: 123 }).success).toBe(true);
+  });
+
+  test("rejects non-numeric string", () => {
+    expect(numericIdParamSchema.safeParse({ id: "abc" }).success).toBe(false);
+  });
+
+  test("rejects non-integer", () => {
+    expect(numericIdParamSchema.safeParse({ id: "1.2" }).success).toBe(false);
+  });
+
+  test("rejects non-positive integer", () => {
+    expect(numericIdParamSchema.safeParse({ id: "0" }).success).toBe(false);
+    expect(numericIdParamSchema.safeParse({ id: "-1" }).success).toBe(false);
   });
 });

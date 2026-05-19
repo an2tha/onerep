@@ -1,6 +1,5 @@
 require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 
-import { sql } from "drizzle-orm";
 import express from "express";
 import cookieParser from "cookie-parser";
 import logger from "morgan";
@@ -11,12 +10,14 @@ import indexRouter from "./routes/index";
 
 const app = express();
 
-// Test PostgreSQL connection on startup
-import { db } from "./src/db/index";
+// Initialize database (extensions, indexes, etc.)
+import { initDb } from "./src/db/index";
 
-db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
-  .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
+initDb()
+  .then(() => console.log("[INFO] PostgreSQL initialized"))
+  .catch((err: Error) =>
+    console.error("[FATAL] Database initialization failed:", err.message),
+  );
 
 app.use(helmet());
 app.use(logger("dev"));
@@ -33,9 +34,16 @@ app.use((_req, res) => {
 });
 
 // Error handler
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("[ERR]", err);
-  res.status(err.status || 500).json({ error: "Internal server error" });
-});
+app.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    console.error("[ERR]", err);
+    res.status(err.status || 500).json({ error: "Internal server error" });
+  },
+);
 
 module.exports = app;
