@@ -2,3 +2,8 @@
 **Vulnerability:** The application contained hardcoded PostgreSQL connection strings in multiple files, which included plaintext usernames and passwords.
 **Learning:** Hardcoded credentials provide a single point of failure and risk exposure in source control. Relying on fallback values for environment variables can lead to the application running in an insecure or unintended state if the environment is misconfigured.
 **Prevention:** Remove all hardcoded credentials. Enforce the presence of critical security environment variables (like `DATABASE_URL` and `DATA_API_KEY`) at startup and throw an error if they are missing, ensuring the application "fails securely" rather than defaulting to insecure configurations.
+
+## 2025-05-15 - Just-in-time DDL as a DoS Vector
+**Vulnerability:** Database extensions (`pg_trgm`) and indexes were being checked/created on every search request within the route handler.
+**Learning:** Performing DDL operations or extension checks during request processing introduces significant overhead and potential locking issues. Under high load, this can lead to connection exhaustion and database contention, effectively creating a Denial of Service (DoS) vector. Additionally, `CREATE INDEX CONCURRENTLY` in PostgreSQL cannot be executed within a transaction block.
+**Prevention:** Centralize database initialization (extensions, indexes, schema checks) into a dedicated startup sequence (`initDb`). Ensure DDL operations like `CREATE INDEX CONCURRENTLY` are executed via a direct database client outside of any implicit transactions.

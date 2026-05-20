@@ -1,20 +1,12 @@
 import express, { Request, Response, type Router } from "express";
-import pg from "pg";
 import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
+import { pool } from "../src/db/index";
 import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
 
 const router: Router = express.Router();
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
 /**
- * Execute a SQL query against the module's PostgreSQL pool and return the resulting rows.
+ * Execute a SQL query against the shared PostgreSQL pool and return the resulting rows.
  *
  * @param sql - The SQL statement to execute; may contain positional placeholders like `$1`, `$2`, etc.
  * @param params - Optional array of parameter values to substitute into the query placeholders.
@@ -43,11 +35,6 @@ router.get("/foods/search", async (req: Request, res: Response) => {
   const q = req.query.q as string || "";
   const limit = Math.min(Number(req.query.limit) || 25, 50);
   try {
-    // Enable pg_trgm extension and create GIN indexes on first run
-    await query("CREATE EXTENSION IF NOT EXISTS pg_trgm");
-    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_name_trgm_idx ON foodfacts USING gin (name gin_trgm_ops)");
-    await query("CREATE INDEX CONCURRENTLY IF NOT EXISTS foodfacts_brand_trgm_idx ON foodfacts USING gin (brand gin_trgm_ops)");
-
     const results = await query(
       "SELECT * FROM foodfacts WHERE name ILIKE $1 OR brand ILIKE $1 LIMIT $2",
       [`%${q}%`, limit]

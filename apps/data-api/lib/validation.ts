@@ -50,6 +50,14 @@ export const idParamSchema = z.object({
   id: z.string().min(1, "ID is required"),
 });
 
+export const idsQuerySchema = z.string()
+  .transform((val) => val.split(",").map((s) => s.trim()).filter(Boolean))
+  .pipe(z.array(z.string()).max(100));
+
+/**
+ * Validates the request body against a Zod schema.
+ * Returns the parsed data or a ZodError if validation fails.
+ */
 export const parseValidatedBody = <T>(
   schema: z.ZodSchema<T>,
   data: unknown,
