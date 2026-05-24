@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -269,32 +271,50 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
+  test("accepts a string ID", () => {
+    const validId = "e1";
     const result = idParamSchema.safeParse({ id: validId });
     expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("numericIdParamSchema", () => {
+  test("accepts a numeric string", () => {
+    const result = numericIdParamSchema.safeParse({ id: "123" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe(123);
+  });
+
+  test("rejects non-numeric string", () => {
+    const result = numericIdParamSchema.safeParse({ id: "abc" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects zero or negative", () => {
+    expect(numericIdParamSchema.safeParse({ id: "0" }).success).toBe(false);
+    expect(numericIdParamSchema.safeParse({ id: "-1" }).success).toBe(false);
+  });
+});
+
+describe("idsQuerySchema", () => {
+  test("transforms comma separated IDs", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1, e2,e3 " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2", "e3"]);
+    }
+  });
+
+  test("caps at 100 IDs", () => {
+    const manyIds = Array.from({ length: 150 }, (_, i) => `id${i}`).join(",");
+    const result = idsQuerySchema.safeParse({ ids: manyIds });
+    if (result.success) {
+      expect(result.data.ids.length).toBe(100);
+    }
   });
 });
