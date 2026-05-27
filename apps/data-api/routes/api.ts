@@ -1,7 +1,7 @@
 import express, { Request, Response, type Router } from "express";
 import pg from "pg";
 import { apiLimiter, searchLimiter, strictLimiter } from "../middleware/rateLimit";
-import { searchQuerySchema, barcodeSchema, idParamSchema } from "../lib/validation";
+import { searchQuerySchema, exerciseSearchSchema, barcodeSchema, idParamSchema, idsQuerySchema } from "../lib/validation";
 
 const router: Router = express.Router();
 
@@ -175,9 +175,9 @@ router.get("/exercises/search", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/lookup", async (req: Request, res: Response) => {
-  const raw = req.query.ids as string;
-  if (!raw) return res.status(400).json({ error: "ids query param required" });
-  const ids = raw.split(",").map(s => s.trim()).filter(Boolean).slice(0, 100);
+  const validation = idsQuerySchema.safeParse(req.query);
+  if (!validation.success) return res.status(400).json({ error: validation.error.format() });
+  const { ids } = validation.data;
   if (ids.length === 0) return res.json([]);
   try {
     const results = await query("SELECT * FROM exercises WHERE exercise_id = ANY($1)", [ids]);
@@ -203,7 +203,9 @@ router.get("/exercises/lookup", async (req: Request, res: Response) => {
 });
 
 router.get("/exercises/advanced", async (req: Request, res: Response) => {
-  const { muscle, equipment, category, force } = req.query;
+  const validation = exerciseSearchSchema.safeParse(req.query);
+  if (!validation.success) return res.status(400).json({ error: validation.error.format() });
+  const { muscle, equipment, category, force } = validation.data;
   const conditions: string[] = [];
   const params: any[] = [];
   let i = 1;
