@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -198,6 +200,13 @@ describe("searchQuerySchema", () => {
   test("accepts score at boundaries", () => {
     expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
   });
+
+  test("coerces limit and has default", () => {
+    const res1 = searchQuerySchema.parse({});
+    expect(res1.limit).toBe(25);
+    const res2 = searchQuerySchema.parse({ limit: "50" });
+    expect(res2.limit).toBe(50);
+  });
 });
 
 // ── barcodeSchema ─────────────────────────────────────────────────────────────
@@ -269,32 +278,48 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
+  test("accepts valid string ID", () => {
+    const validId = "e1";
     const result = idParamSchema.safeParse({ id: validId });
     expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("numericIdParamSchema", () => {
+  test("accepts valid numeric ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "123" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe(123);
+  });
+
+  test("rejects non-numeric ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "abc" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects negative ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "-5" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated string to array", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1, e2 , e3" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2", "e3"]);
+    }
+  });
+
+  test("caps at 100 entries", () => {
+    const longStr = Array(150).fill("e1").join(",");
+    const result = idsQuerySchema.parse({ ids: longStr });
+    expect(result.ids.length).toBe(100);
   });
 });
