@@ -5,6 +5,9 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
+  exerciseSearchSchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -164,8 +167,13 @@ describe("searchQuerySchema", () => {
       equipment: "barbell",
       category: "strength",
       force: "push",
+      limit: "50"
     };
-    expect(() => searchQuerySchema.parse(query)).not.toThrow();
+    const result = searchQuerySchema.safeParse(query);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.limit).toBe(50);
+    }
   });
 
   test("accepts valid grade values", () => {
@@ -269,32 +277,88 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
-    const result = idParamSchema.safeParse({ id: validId });
-    expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
+  test("accepts any non-empty string ID", () => {
+    expect(idParamSchema.safeParse({ id: "e1" }).success).toBe(true);
+    expect(idParamSchema.safeParse({ id: "123" }).success).toBe(true);
+    expect(idParamSchema.safeParse({ id: "507f1f77bcf86cd799439011" }).success).toBe(true);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("numericIdParamSchema", () => {
+  test("accepts positive integer ID", () => {
+    expect(numericIdParamSchema.safeParse({ id: "123" }).success).toBe(true);
+    expect(numericIdParamSchema.safeParse({ id: 1 }).success).toBe(true);
+  });
+
+  test("rejects non-integer ID", () => {
+    expect(numericIdParamSchema.safeParse({ id: "abc" }).success).toBe(false);
+    expect(numericIdParamSchema.safeParse({ id: "1.2" }).success).toBe(false);
+  });
+
+  test("rejects non-positive ID", () => {
+    expect(numericIdParamSchema.safeParse({ id: "0" }).success).toBe(false);
+    expect(numericIdParamSchema.safeParse({ id: "-1" }).success).toBe(false);
+  });
+});
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated string into array", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1, e2,e3 " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2", "e3"]);
+    }
+  });
+
+  test("filters out empty entries", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1,, e2," });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2"]);
+    }
+  });
+
+  test("limits to 100 entries", () => {
+    const manyIds = Array(150).fill("id").join(",");
+    const result = idsQuerySchema.safeParse({ ids: manyIds });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids.length).toBe(100);
+    }
+  });
+});
+
+describe("exerciseSearchSchema", () => {
+  test("accepts valid search parameters", () => {
+    const valid = {
+      muscle: "chest",
+      equipment: "barbell",
+      category: "strength",
+      force: "push",
+      limit: "50"
+    };
+    const result = exerciseSearchSchema.safeParse(valid);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.limit).toBe(50);
+    }
+  });
+
+  test("provides default limit", () => {
+    const result = exerciseSearchSchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.limit).toBe(25);
+    }
+  });
+
+  test("validates limit range", () => {
+    expect(exerciseSearchSchema.safeParse({ limit: "0" }).success).toBe(false);
+    expect(exerciseSearchSchema.safeParse({ limit: "101" }).success).toBe(false);
   });
 });
