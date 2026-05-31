@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -198,6 +200,29 @@ describe("searchQuerySchema", () => {
   test("accepts score at boundaries", () => {
     expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
   });
+
+  test("defaults limit to 25", () => {
+    const result = searchQuerySchema.parse({});
+    expect(result.limit).toBe(25);
+  });
+
+  test("accepts valid limit", () => {
+    const result = searchQuerySchema.parse({ limit: 50 });
+    expect(result.limit).toBe(50);
+  });
+
+  test("rejects limit below 1", () => {
+    expect(() => searchQuerySchema.parse({ limit: 0 })).toThrow();
+  });
+
+  test("rejects limit above 100", () => {
+    expect(() => searchQuerySchema.parse({ limit: 101 })).toThrow();
+  });
+
+  test("coerces limit from string", () => {
+    const result = searchQuerySchema.parse({ limit: "75" });
+    expect(result.limit).toBe(75);
+  });
 });
 
 // ── barcodeSchema ─────────────────────────────────────────────────────────────
@@ -269,32 +294,85 @@ describe("parseValidatedBody", () => {
 });
 
 describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
+  test("accepts valid alphanumeric ID", () => {
+    const validId = "e1";
     const result = idParamSchema.safeParse({ id: validId });
     expect(result.success).toBe(true);
   });
 
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
+  test("accepts numeric ID", () => {
+    const validId = "12345";
+    const result = idParamSchema.safeParse({ id: validId });
+    expect(result.success).toBe(true);
   });
 
   test("rejects empty ID", () => {
     const result = idParamSchema.safeParse({ id: "" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated IDs into array", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1,e2, e3 " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2", "e3"]);
+    }
+  });
+
+  test("handles empty IDs and filtering", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1,, e2, " });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2"]);
+    }
+  });
+
+  test("limits to 100 entries", () => {
+    const longInput = Array.from({ length: 150 }, (_, i) => `id${i}`).join(",");
+    const result = idsQuerySchema.safeParse({ ids: longInput });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids.length).toBe(100);
+    }
+  });
+
+  test("rejects missing ids field", () => {
+    const result = idsQuerySchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("numericIdParamSchema", () => {
+  test("accepts valid numeric ID string", () => {
+    const result = numericIdParamSchema.safeParse({ id: "123" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe(123);
+  });
+
+  test("accepts number ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: 456 });
+    expect(result.success).toBe(true);
+  });
+
+  test("rejects non-numeric string", () => {
+    const result = numericIdParamSchema.safeParse({ id: "abc" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects negative ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "-1" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects float ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "1.5" });
+    expect(result.success).toBe(false);
+  });
+
+  test("rejects zero ID", () => {
+    const result = numericIdParamSchema.safeParse({ id: "0" });
     expect(result.success).toBe(false);
   });
 });

@@ -11,11 +11,14 @@ import indexRouter from "./routes/index";
 
 const app = express();
 
-// Test PostgreSQL connection on startup
-import { db } from "./src/db/index";
+// Test PostgreSQL connection and initialize on startup
+import { db, initializeDatabase } from "./src/db/index";
 
 db.execute(sql`SELECT 1`)
-  .then(() => console.log("[INFO] PostgreSQL connected"))
+  .then(async () => {
+    console.log("[INFO] PostgreSQL connected");
+    await initializeDatabase();
+  })
   .catch((err: Error) => console.error("[WARN] PostgreSQL connection failed:", err.message));
 
 app.use(helmet());
