@@ -1,4 +1,4 @@
-## 2025-05-14 - Hardcoded Database Credentials and Fail-Secure Enforcement
-**Vulnerability:** The application contained hardcoded PostgreSQL connection strings in multiple files, which included plaintext usernames and passwords.
-**Learning:** Hardcoded credentials provide a single point of failure and risk exposure in source control. Relying on fallback values for environment variables can lead to the application running in an insecure or unintended state if the environment is misconfigured.
-**Prevention:** Remove all hardcoded credentials. Enforce the presence of critical security environment variables (like `DATABASE_URL` and `DATA_API_KEY`) at startup and throw an error if they are missing, ensuring the application "fails securely" rather than defaulting to insecure configurations.
+## 2025-05-14 - [Centralized DB Init & Input Validation]
+**Vulnerability:** Redundant database initialization in request handlers (DoS risk) and missing/weak input validation on search and lookup endpoints. Hardcoded DB credentials in config.
+**Learning:** Performing `CREATE INDEX CONCURRENTLY` in Express request handlers can lead to resource exhaustion and transaction errors. Lack of `LIMIT` validation allows for large data extraction via API.
+**Prevention:** Centralize DB initialization (extensions/indexes) to application startup. Enforce strict Zod schemas for all query and path parameters, specifically capping `limit` and `ANY()` array sizes. Use environment variables exclusively for database connection strings.

@@ -1,15 +1,7 @@
 import { Router, Request, Response } from "express";
-import pg from "pg";
+import { pool } from "../src/db/index";
 
 const router: Router = Router();
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
-}
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-});
 
 router.get("/", async (_req: Request, res: Response) => {
   try {
@@ -32,8 +24,8 @@ router.get("/", async (_req: Request, res: Response) => {
     res.json({
       status: "ok",
       endpoints: {
-        foods: ["/api/foods", "/api/foods/search", "/api/foods/barcode/:code", "/api/foods/nutrients"],
-        exercises: ["/api/exercises", "/api/exercises/search", "/api/exercises/id/:id", "/api/exercises/advanced", "/api/exercises/lookup"]
+        foods: ["/api/v1/foods", "/api/v1/foods/search", "/api/v1/foods/barcode/:code", "/api/v1/foods/nutrients"],
+        exercises: ["/api/v1/exercises", "/api/v1/exercises/search", "/api/v1/exercises/id/:id", "/api/v1/exercises/advanced", "/api/v1/exercises/lookup"]
       }
     });
   } catch (err) {

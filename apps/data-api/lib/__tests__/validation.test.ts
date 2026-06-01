@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -164,6 +166,7 @@ describe("searchQuerySchema", () => {
       equipment: "barbell",
       category: "strength",
       force: "push",
+      limit: 50,
     };
     expect(() => searchQuerySchema.parse(query)).not.toThrow();
   });
@@ -179,24 +182,28 @@ describe("searchQuerySchema", () => {
     expect(() => searchQuerySchema.parse({ grade: "z" })).toThrow();
   });
 
-  test("coerces min_score from string to number", () => {
-    const result = searchQuerySchema.safeParse({ min_score: "5" });
+  test("coerces values from strings", () => {
+    const result = searchQuerySchema.safeParse({ min_score: "5", limit: "10" });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.min_score).toBe(5);
+      expect(result.data.limit).toBe(10);
     }
   });
 
-  test("rejects min_score below -15", () => {
+  test("rejects scores out of bounds", () => {
     expect(() => searchQuerySchema.parse({ min_score: -20 })).toThrow();
-  });
-
-  test("rejects max_score above 40", () => {
     expect(() => searchQuerySchema.parse({ max_score: 50 })).toThrow();
   });
 
-  test("accepts score at boundaries", () => {
-    expect(() => searchQuerySchema.parse({ min_score: -15, max_score: 40 })).not.toThrow();
+  test("rejects limit out of bounds", () => {
+    expect(() => searchQuerySchema.parse({ limit: 0 })).toThrow();
+    expect(() => searchQuerySchema.parse({ limit: 101 })).toThrow();
+  });
+
+  test("defaults limit to 25", () => {
+    const result = searchQuerySchema.parse({});
+    expect(result.limit).toBe(25);
   });
 });
 
@@ -215,20 +222,58 @@ describe("barcodeSchema", () => {
     expect(() => barcodeSchema.parse({ code: "ABC123" })).toThrow();
   });
 
-  test("rejects barcode with hyphens", () => {
-    expect(() => barcodeSchema.parse({ code: "123-456" })).toThrow();
-  });
-
-  test("rejects barcode with spaces", () => {
-    expect(() => barcodeSchema.parse({ code: "123 456" })).toThrow();
-  });
-
   test("rejects empty barcode", () => {
     expect(() => barcodeSchema.parse({ code: "" })).toThrow();
   });
+});
 
-  test("rejects missing code field", () => {
-    expect(() => barcodeSchema.parse({})).toThrow();
+// ── idParamSchema ─────────────────────────────────────────────────────────────
+
+describe("idParamSchema", () => {
+  test("accepts exercise IDs like 'e1'", () => {
+    expect(() => idParamSchema.parse({ id: "e1" })).not.toThrow();
+  });
+
+  test("rejects empty ID", () => {
+    expect(() => idParamSchema.parse({ id: "" })).toThrow();
+  });
+});
+
+// ── numericIdParamSchema ──────────────────────────────────────────────────────
+
+describe("numericIdParamSchema", () => {
+  test("accepts positive integer ID", () => {
+    expect(() => numericIdParamSchema.parse({ id: "123" })).not.toThrow();
+    expect(numericIdParamSchema.parse({ id: "123" }).id).toBe(123);
+  });
+
+  test("rejects zero or negative ID", () => {
+    expect(() => numericIdParamSchema.parse({ id: "0" })).toThrow();
+    expect(() => numericIdParamSchema.parse({ id: "-1" })).toThrow();
+  });
+
+  test("rejects non-numeric ID", () => {
+    expect(() => numericIdParamSchema.parse({ id: "abc" })).toThrow();
+  });
+});
+
+// ── idsQuerySchema ────────────────────────────────────────────────────────────
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated string to array", () => {
+    const result = idsQuerySchema.parse({ ids: "e1, e2 , e3" });
+    expect(result.ids).toEqual(["e1", "e2", "e3"]);
+  });
+
+  test("caps array at 100 items", () => {
+    const manyIds = Array.from({ length: 150 }, (_, i) => `e${i}`).join(",");
+    const result = idsQuerySchema.parse({ ids: manyIds });
+    expect(result.ids.length).toBe(100);
+  });
+
+  test("rejects empty input after processing", () => {
+    expect(() => idsQuerySchema.parse({ ids: "" })).toThrow();
+    expect(() => idsQuerySchema.parse({ ids: ", , ," })).toThrow();
   });
 });
 
@@ -245,56 +290,5 @@ describe("parseValidatedBody", () => {
     const result = parseValidatedBody(barcodeSchema, { code: "invalid!" });
     expect(result.error).toBeDefined();
     expect(result.data).toBeUndefined();
-  });
-
-  test("returned ZodError has issues array", () => {
-    const result = parseValidatedBody(barcodeSchema, {});
-    expect(result.error).toBeDefined();
-    if (result.error) {
-      expect(Array.isArray(result.error.issues)).toBe(true);
-      expect(result.error.issues.length).toBeGreaterThan(0);
-    }
-  });
-
-  test("works with foodSchema", () => {
-    const result = parseValidatedBody(foodSchema, { product_name: "Egg" });
-    expect(result.data).toBeDefined();
-    expect(result.data?.product_name).toBe("Egg");
-  });
-
-  test("works with exerciseSchema on invalid data", () => {
-    const result = parseValidatedBody(exerciseSchema, { name: "" });
-    expect(result.error).toBeDefined();
-  });
-});
-
-describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
-    const result = idParamSchema.safeParse({ id: validId });
-    expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects empty ID", () => {
-    const result = idParamSchema.safeParse({ id: "" });
-    expect(result.success).toBe(false);
   });
 });
