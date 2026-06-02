@@ -40,6 +40,7 @@ export const searchQuerySchema = z.object({
   equipment: z.string().optional(),
   category: z.string().optional(),
   force: z.string().optional(),
+  limit: z.coerce.number().min(1).max(100).default(25),
 });
 
 export const barcodeSchema = z.object({
@@ -48,6 +49,16 @@ export const barcodeSchema = z.object({
 
 export const idParamSchema = z.object({
   id: z.string().min(1, "ID is required"),
+});
+
+export const numericIdParamSchema = z.object({
+  id: z.coerce.number().int().positive("ID must be a positive integer"),
+});
+
+export const idsQuerySchema = z.object({
+  ids: z.string()
+    .transform((val) => val.split(",").map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(z.string()).max(100, "Maximum 100 IDs allowed")),
 });
 
 export const parseValidatedBody = <T>(

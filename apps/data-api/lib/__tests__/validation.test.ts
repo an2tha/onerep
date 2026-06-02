@@ -5,6 +5,8 @@ import {
   searchQuerySchema,
   barcodeSchema,
   idParamSchema,
+  numericIdParamSchema,
+  idsQuerySchema,
   parseValidatedBody,
 } from "../validation";
 
@@ -150,8 +152,12 @@ describe("exerciseSchema", () => {
 // ── searchQuerySchema ─────────────────────────────────────────────────────────
 
 describe("searchQuerySchema", () => {
-  test("accepts empty search query", () => {
-    expect(() => searchQuerySchema.parse({})).not.toThrow();
+  test("accepts empty search query and provides defaults", () => {
+    const result = searchQuerySchema.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.limit).toBe(25);
+    }
   });
 
   test("accepts all optional filters", () => {
@@ -164,6 +170,7 @@ describe("searchQuerySchema", () => {
       equipment: "barbell",
       category: "strength",
       force: "push",
+      limit: 50,
     };
     expect(() => searchQuerySchema.parse(query)).not.toThrow();
   });
@@ -179,12 +186,18 @@ describe("searchQuerySchema", () => {
     expect(() => searchQuerySchema.parse({ grade: "z" })).toThrow();
   });
 
-  test("coerces min_score from string to number", () => {
-    const result = searchQuerySchema.safeParse({ min_score: "5" });
+  test("coerces numeric fields from strings", () => {
+    const result = searchQuerySchema.safeParse({ min_score: "5", limit: "10" });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.min_score).toBe(5);
+      expect(result.data.limit).toBe(10);
     }
+  });
+
+  test("rejects limit below 1 or above 100", () => {
+    expect(() => searchQuerySchema.parse({ limit: 0 })).toThrow();
+    expect(() => searchQuerySchema.parse({ limit: 101 })).toThrow();
   });
 
   test("rejects min_score below -15", () => {
@@ -232,6 +245,73 @@ describe("barcodeSchema", () => {
   });
 });
 
+// ── idParamSchema ─────────────────────────────────────────────────────────────
+
+describe("idParamSchema", () => {
+  test("accepts exercise IDs like e1", () => {
+    expect(() => idParamSchema.parse({ id: "e1" })).not.toThrow();
+  });
+
+  test("accepts numeric strings", () => {
+    expect(() => idParamSchema.parse({ id: "123" })).not.toThrow();
+  });
+
+  test("rejects empty ID", () => {
+    expect(() => idParamSchema.parse({ id: "" })).toThrow();
+  });
+});
+
+// ── numericIdParamSchema ──────────────────────────────────────────────────────
+
+describe("numericIdParamSchema", () => {
+  test("accepts positive integer", () => {
+    const result = numericIdParamSchema.safeParse({ id: 123 });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe(123);
+  });
+
+  test("coerces string to number", () => {
+    const result = numericIdParamSchema.safeParse({ id: "456" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.id).toBe(456);
+  });
+
+  test("rejects zero or negative", () => {
+    expect(numericIdParamSchema.safeParse({ id: 0 }).success).toBe(false);
+    expect(numericIdParamSchema.safeParse({ id: -1 }).success).toBe(false);
+  });
+
+  test("rejects non-numeric string", () => {
+    expect(numericIdParamSchema.safeParse({ id: "abc" }).success).toBe(false);
+  });
+});
+
+// ── idsQuerySchema ─────────────────────────────────────────────────────────────
+
+describe("idsQuerySchema", () => {
+  test("transforms comma-separated string into array", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1,e2, e3" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2", "e3"]);
+    }
+  });
+
+  test("handles empty entries and only commas", () => {
+    const result = idsQuerySchema.safeParse({ ids: "e1,,e2," });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.ids).toEqual(["e1", "e2"]);
+    }
+  });
+
+  test("rejects more than 100 IDs", () => {
+    const manyIds = Array.from({ length: 101 }, (_, i) => `e${i}`).join(",");
+    const result = idsQuerySchema.safeParse({ ids: manyIds });
+    expect(result.success).toBe(false);
+  });
+});
+
 // ── parseValidatedBody ────────────────────────────────────────────────────────
 
 describe("parseValidatedBody", () => {
@@ -265,36 +345,5 @@ describe("parseValidatedBody", () => {
   test("works with exerciseSchema on invalid data", () => {
     const result = parseValidatedBody(exerciseSchema, { name: "" });
     expect(result.error).toBeDefined();
-  });
-});
-
-describe("idParamSchema", () => {
-  test("accepts valid 24-character hex ID", () => {
-    const validId = "507f1f77bcf86cd799439011";
-    const result = idParamSchema.safeParse({ id: validId });
-    expect(result.success).toBe(true);
-  });
-
-  test("rejects ID that is too short", () => {
-    const shortId = "507f1f77bcf86cd79943901";
-    const result = idParamSchema.safeParse({ id: shortId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID that is too long", () => {
-    const longId = "507f1f77bcf86cd799439011a";
-    const result = idParamSchema.safeParse({ id: longId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects ID with non-hex characters", () => {
-    const invalidId = "507f1f77bcf86cd79943901g";
-    const result = idParamSchema.safeParse({ id: invalidId });
-    expect(result.success).toBe(false);
-  });
-
-  test("rejects empty ID", () => {
-    const result = idParamSchema.safeParse({ id: "" });
-    expect(result.success).toBe(false);
   });
 });
