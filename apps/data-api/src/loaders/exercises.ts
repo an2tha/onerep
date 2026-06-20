@@ -4,11 +4,9 @@
  */
 import { db } from "../db";
 import { exercises } from "../db/schema";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const EXERCISES_PATH = join(__dirname, "../../loaders/datasets/free-exercise-db/dist/exercises.json");
 
 /**
@@ -26,7 +24,7 @@ async function loadExercises(): Promise<void> {
     return;
   }
 
-  const content = await Bun.file(EXERCISES_PATH).text();
+  const content = await readFile(EXERCISES_PATH, "utf-8");
   const data = JSON.parse(content);
 
   console.log(`[LOADER] Processing ${data.length} exercises...`);

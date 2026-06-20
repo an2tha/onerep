@@ -14,7 +14,8 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { toast } from "sonner"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
@@ -420,9 +421,9 @@ export default function Progress() {
   const measurementsQuery = useQuery(api.bodyProgress.list, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
 
-  const saveMeasurement = useMutation(api.bodyProgress.save)
-  const removeMeasurement = useMutation(api.bodyProgress.remove)
-  const setBodyReminder = useMutation(api.users.users.setBodyReminder)
+  const saveMeasurement = useOfflineMutation(api.bodyProgress.save, "bodyProgress.save")
+  const removeMeasurement = useOfflineMutation(api.bodyProgress.remove, "bodyProgress.remove")
+  const setBodyReminder = useOfflineMutation(api.users.users.setBodyReminder, "users.users.setBodyReminder")
 
   const goal = (onboarding?.goal as GoalId) ?? null
   const entries = (measurementsQuery ?? []) as BodyMeasurementEntry[]

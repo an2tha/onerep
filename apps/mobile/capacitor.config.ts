@@ -20,7 +20,7 @@ const config: CapacitorConfig = {
   server:
     process.env.IS_DEV === "true"
       ? {
-          url: "http://192.168.50.216:5173",
+          url: process.env.CAPACITOR_DEV_SERVER_URL ?? "http://localhost:5173",
           cleartext: true,
         }
       : undefined,

@@ -19,7 +19,8 @@ import {
 import { cn } from "@/lib/utils"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
@@ -911,7 +912,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
   const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setWaterDay = useMutation(api.logs.water.setDay)
+  const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
 
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
@@ -995,8 +996,8 @@ export default function Foods() {
   const preferences = useQuery(api.users.users.getPreferences, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
 
-  const setDay = useMutation(api.logs.foodLogs.setDay)
-  const removeRecipeMutation = useMutation(api.logs.recipes.remove)
+  const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
+  const removeRecipeMutation = useOfflineMutation(api.logs.recipes.remove, "logs.recipes.remove")
 
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(activeTimezone)

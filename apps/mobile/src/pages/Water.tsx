@@ -10,7 +10,8 @@ import {
 } from "@phosphor-icons/react"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey, offsetDateKey } from "@/lib/food-log"
 
@@ -428,9 +429,9 @@ export default function Water() {
   const [goalOpen, setGoalOpen] = useState(false)
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setDay = useMutation(api.logs.water.setDay)
-  const addEntryMutation = useMutation(api.logs.water.addEntry)
-  const setWaterGoal = useMutation(api.users.users.setWaterGoal)
+  const setDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
+  const addEntryMutation = useOfflineMutation(api.logs.water.addEntry, "logs.water.addEntry")
+  const setWaterGoal = useOfflineMutation(api.users.users.setWaterGoal, "users.users.setWaterGoal")
 
   // Optimistic local entries — immediately reflects taps, gets replaced by
   // server data once Convex round-trips back.

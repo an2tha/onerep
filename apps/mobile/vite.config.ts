@@ -24,6 +24,7 @@ function uiAliasPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  envDir: "../../",
   plugins: [uiAliasPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {

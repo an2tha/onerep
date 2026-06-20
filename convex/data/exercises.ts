@@ -9,11 +9,18 @@ type ExerciseCategory = "strength" | "cardio" | "mobility" | "core";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
-const DATA_API_URL = process.env.DATA_API_URL;
+const DATA_API_URL = process.env.DATA_API_URL?.replace(/\/+$/, "");
 const DATA_API_KEY = process.env.DATA_API_KEY;
 
 function apiHeaders(): HeadersInit {
   return DATA_API_KEY ? { "x-api-key": DATA_API_KEY } : {};
+}
+
+function apiUrl(path: string, params?: URLSearchParams): string | null {
+  if (!DATA_API_URL) return null;
+  const prefix = DATA_API_URL.endsWith("/api/v1") ? "" : "/api/v1";
+  const query = params ? `?${params}` : "";
+  return `${DATA_API_URL}${prefix}${path}${query}`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -85,30 +92,60 @@ function normalizeCategory(raw: string): ExerciseCategory {
   return "strength";
 }
 
+function normalizeNames(value: any): string[] {
+  if (!value) return [];
+  if (!Array.isArray(value)) return [String(value)].filter(Boolean);
+  return value
+    .map((item) => (typeof item === "string" ? item : item?.name))
+    .filter(Boolean)
+    .map(String);
+}
+
+function equipmentLabel(value: any): string | undefined {
+  const names = normalizeNames(value);
+  return names.length > 0 ? names.join(" · ") : undefined;
+}
+
 function mapHitToExercise(hit: any) {
   const src = hit._source ?? hit;
   const id = String(src.id ?? hit._id ?? "");
   const category = normalizeCategory(src.category ?? "strength");
-  const primaryMuscles: string[] = src.primaryMuscles ?? [];
-  const secondaryMuscles: string[] = src.secondaryMuscles ?? [];
-  const instructions: string[] = src.instructions ?? [];
+  const muscles = Array.isArray(src.muscles) ? src.muscles : [];
+  const legacyPrimaryMuscles = normalizeNames(src.primaryMuscles);
+  const legacySecondaryMuscles = normalizeNames(src.secondaryMuscles);
+  const primaryMuscles: string[] = legacyPrimaryMuscles.length > 0
+    ? legacyPrimaryMuscles
+    : muscles
+      .filter((m: any) => m.role !== "secondary")
+      .map((m: any) => m.name)
+      .filter(Boolean)
+      .map(String);
+  const secondaryMuscles: string[] = legacySecondaryMuscles.length > 0
+    ? legacySecondaryMuscles
+    : muscles
+      .filter((m: any) => m.role === "secondary")
+      .map((m: any) => m.name)
+      .filter(Boolean)
+      .map(String);
+  const descriptionText = typeof src.description === "string" ? src.description : undefined;
+  const instructions: string[] = normalizeNames(src.instructions);
   const level = src.level ?? "intermediate";
-  const mechanic = src.mechanic ?? null;
-  const equipment = src.equipment ?? null;
+  const mechanic = src.mechanic ?? undefined;
+  const equipment = equipmentLabel(src.equipment);
   return {
     id,
     name: src.name || "Unknown",
     category,
     muscle: buildMuscleLabel(primaryMuscles, secondaryMuscles),
-    description: buildDescription(instructions, equipment, mechanic, level),
+    description: descriptionText || buildDescription(instructions, equipment, mechanic, level),
     sets: buildSuggestedSets(category, mechanic, level),
     color: categoryColor(category),
     level,
-    mechanic,
-    equipment,
+    mechanic: mechanic ?? null,
+    equipment: equipment ?? null,
     primaryMuscles,
     secondaryMuscles,
-    instructions,
+    instructions: instructions.length > 0 ? instructions : descriptionText ? [descriptionText] : [],
   };
 }
 
@@ -194,12 +231,13 @@ export const search = action({
 
     if (!DATA_API_URL) return [];
 
-    // Fetch from data-api Elasticsearch (empty query → browse/match_all)
+    // Fetch from Open Fitness API (empty query → browse all)
     let apiResults: ReturnType<typeof mapHitToExercise>[] = [];
     try {
       const params = new URLSearchParams({ limit: String(limit) });
       if (q.length >= 2) params.set("q", q);
-      const url = `${DATA_API_URL}/api/v1/exercises/search?${params}`;
+      const url = apiUrl("/exercises/search", params);
+      if (!url) return [];
       const response = await fetch(url, { headers: apiHeaders() });
       if (response.ok) {
         const hits = await response.json();
@@ -262,19 +300,31 @@ export const resolveIds = action({
       }
     }
 
-    // Resolve data-api exercises via ES lookup
+    // Resolve Open Fitness API exercises. Legacy data-api supports bulk lookup;
+    // Open Fitness API resolves individual IDs with /exercises/:id.
     if (apiIds.length > 0 && DATA_API_URL) {
       try {
-        const idsParam = apiIds.map(encodeURIComponent).join(",");
-        const url = `${DATA_API_URL}/api/v1/exercises/lookup?ids=${idsParam}`;
-        const response = await fetch(url, { headers: apiHeaders() });
-        if (response.ok) {
-          const hits = await response.json();
-          for (const hit of Array.isArray(hits) ? hits : []) {
-            const ex = mapHitToExercise(hit);
-            if (ex.id) result[ex.id] = ex;
+        const lookupUrl = apiUrl("/exercises/lookup", new URLSearchParams({ ids: apiIds.join(",") }));
+        if (lookupUrl) {
+          const response = await fetch(lookupUrl, { headers: apiHeaders() });
+          if (response.ok) {
+            const hits = await response.json();
+            for (const hit of Array.isArray(hits) ? hits : []) {
+              const ex = mapHitToExercise(hit);
+              if (ex.id) result[ex.id] = ex;
+            }
           }
         }
+
+        const missingIds = apiIds.filter((id) => !result[id]);
+        await Promise.all(missingIds.map(async (id) => {
+          const url = apiUrl(`/exercises/${encodeURIComponent(id)}`);
+          if (!url) return;
+          const response = await fetch(url, { headers: apiHeaders() });
+          if (!response.ok) return;
+          const ex = mapHitToExercise(await response.json());
+          if (ex.id) result[ex.id] = ex;
+        }));
       } catch {}
     }
 

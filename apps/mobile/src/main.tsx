@@ -21,6 +21,9 @@ posthog.init(import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN ?? "", {
   api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
   defaults: "2026-01-30",
 })
+if (localStorage.getItem("onerep:analytics-enabled") === "false") {
+  posthog.opt_out_capturing()
+}
 import App from "./App.tsx"
 import Exercises from "./pages/Exercises.tsx"
 import Login from "./pages/Login.tsx"
@@ -39,6 +42,7 @@ import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
+import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 
 // Writes the navigation type onto <body data-nav="…"> so CSS can switch
 // between the forward and back slide animations without touching every page.
@@ -353,6 +357,7 @@ createRoot(document.getElementById("root")!).render(
         <PostHogProvider client={posthog}>
           <ThemeProvider>
             <ErrorBoundary label="the app">
+              <OfflineSyncIndicator />
               <RouterProvider router={router} />
               <Toaster position="top-center" richColors />
             </ErrorBoundary>

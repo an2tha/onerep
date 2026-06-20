@@ -17,7 +17,9 @@ import psycopg2
 
 BATCH_SIZE = 100000
 PARQUET_PATH = "datasets/foods.parquet"
-DB_URL = os.environ.get("DATABASE_URL", "postgresql://onerep:onerep_dev@localhost:5433/onerep_data")
+DB_URL = os.environ.get("DATABASE_URL")
+if not DB_URL:
+    raise RuntimeError("DATABASE_URL environment variable is required")
 
 def extract_name(product_name):
     """
@@ -78,15 +80,9 @@ def clean(s):
     Normalize a value into a cleaned, whitespace-normalized string.
     
     Converts the input to a string, replaces tabs/newlines/carriage returns with spaces, and trims leading/trailing whitespace. If the input is None, returns an empty string.
-    
-    Parameters:
-        s: The value to normalize; may be None or any type convertible to str.
-    
-    Returns:
-        str: The cleaned string, or an empty string if `s` is None.
     """
     if s is None: return ""
-    return str(s).replace("\t", " ").replace("\n", " ").replace("\r", " ").strip()
+    return str(s).replace("\t", " ").replace("\n", " ").replace("\r", " ").replace("\x00", "").strip()
 
 def main():
     """
@@ -150,7 +146,7 @@ def main():
         
         while True:
             result = duck.execute(f"""
-                SELECT code, product_name, brands, serving_quantity, serving_size, nutriments, nutriscore_grade, nova_group, popularity_key, nutriments_list
+                SELECT code, product_name, brands, serving_quantity, serving_size, nutriments, nutriscore_grade, nova_group, popularity_key
                 FROM '{PARQUET_PATH}'
                 WHERE code IS NOT NULL AND code != ''
                 LIMIT {BATCH_SIZE} OFFSET {offset}
@@ -165,12 +161,12 @@ def main():
                 nutriments = row[5] or []
                 sqty = row[3] if row[3] else 100
                 ssize = str(row[4]) if row[4] else f"{sqty}g"
-                nutriments_list = row[9] or []
+                nutriments_list = []
 
-                # Split nutrients into core and extra
+                # Split nutrients into core and extra (empty since nutriments_list not available)
                 core_nutrients = ["Energy", "Fat", "Saturated-fat", "Carbohydrates", "Sugars", "Fiber", "Proteins", "Salt", "Sodium"]
-                nutrients = [n for n in nutriments_list if isinstance(n, dict) and n.get("name") in core_nutrients]
-                extra_nutrients = [n for n in nutriments_list if isinstance(n, dict) and n.get("name") not in core_nutrients]
+                nutrients = []
+                extra_nutrients = []
 
                 writer.writerow([
                     clean(code),

@@ -2,15 +2,13 @@
 
 # Dependencies
 node_modules
+package-lock.json
 .pnp
 .pnp.js
 
 # Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env*
+!.env.example
 
 # Testing
 coverage
@@ -41,6 +39,10 @@ yarn-error.log*
 apps/server/.env
 apps/server/.env.*
 apps/server/data/raw
+apps/data-api/data/
+apps/data-api/loaders/datasets/
 
-# AI Slop
+# AI/tooling scratch files
 .ralph
+.agents/
+.claude/

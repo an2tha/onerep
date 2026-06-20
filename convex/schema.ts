@@ -46,6 +46,38 @@ export default defineSchema({
         fat: v.optional(v.number()),
       }),
     ),
+    macroCyclingEnabled: v.optional(v.boolean()),
+    macroCyclingTargets: v.optional(
+      v.object({
+        restDay: v.object({
+          calories: v.number(),
+          protein: v.number(),
+          carbs: v.number(),
+          fat: v.number(),
+        }),
+        trainingDay: v.object({
+          calories: v.number(),
+          protein: v.number(),
+          carbs: v.number(),
+          fat: v.number(),
+        }),
+      }),
+    ),
+    workoutAdjustmentEnabled: v.optional(v.boolean()),
+    pushReminders: v.optional(
+      v.object({
+        water: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
+        meal: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
+        workout: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
+        body: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
+      }),
+    ),
+    privacySettings: v.optional(
+      v.object({
+        analyticsEnabled: v.boolean(),
+        personalizedInsightsEnabled: v.boolean(),
+      }),
+    ),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 

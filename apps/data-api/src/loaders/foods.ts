@@ -84,9 +84,8 @@ async function loadFoods(parquetPath: string): Promise<void> {
   console.log("[LOADER] Note: Parquet parsing requires apache-arrow");
   console.log("[LOADER] Converting to intermediate format...");
 
-  // Read parquet using apache-arrow
-  const { tableFromIPC } = await import("apache-arrow");
-  
+  void parquetPath;
+
   // Parquet files need to be read via IPC/Arrow format
   // Convert first: parquet-tools cat datasets/foods.parquet --to csv > foods.csv
   // Or use: duckdb -c "COPY (SELECT * FROM 'datasets/foods.parquet') TO 'foods.csv' (HEADER, DELIMITER ',')"

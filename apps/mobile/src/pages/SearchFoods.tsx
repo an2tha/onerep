@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router"
 import {
   ArrowLeft,
@@ -7,18 +7,152 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react"
-import { useQuery, useMutation, useAction } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
-import {
-  currentDateKey,
-  defaultMeal,
-  type LogMicros,
-} from "@/lib/food-log"
+import { currentDateKey, defaultMeal, type LogMicros } from "@/lib/food-log"
+import { searchFoods } from "@/lib/openfoodfacts"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
+
+type FoodSearchItem = {
+  id: string
+  name: string
+  brand?: string
+  serving: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  imageUrl?: string
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+function singularizeToken(token: string): string {
+  if (token.length <= 3) return token
+  if (token.endsWith("ies")) return `${token.slice(0, -3)}y`
+  if (/(?:ches|shes|sses|xes|zes|oes)$/.test(token)) return token.slice(0, -2)
+  if (token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1)
+  return token
+}
+
+function normalizedTokens(value: string): string[] {
+  return normalizeSearchText(value)
+    .split(" ")
+    .filter(Boolean)
+    .map(singularizeToken)
+}
+
+function resultReferenceKey(item: FoodSearchItem): string {
+  return normalizedTokens(item.name).join(" ")
+}
+
+function isUnknownBrand(brand?: string): boolean {
+  const normalized = normalizeSearchText(brand ?? "")
+  return normalized === "" || normalized === "unknown"
+}
+
+function relevanceScore(item: FoodSearchItem, query: string, index: number) {
+  const queryTokens = normalizedTokens(query)
+  if (queryTokens.length === 0) return -index
+
+  const nameTokens = normalizedTokens(item.name)
+  const brandTokens = normalizedTokens(item.brand ?? "")
+  const queryKey = queryTokens.join(" ")
+  const nameKey = nameTokens.join(" ")
+
+  let score = 0
+  if (nameKey === queryKey) score += 1000
+  if (nameKey.startsWith(queryKey)) score += 650
+  if (nameKey.includes(queryKey)) score += 350
+
+  let nameMatches = 0
+  let anyMatches = 0
+  for (const token of queryTokens) {
+    if (nameTokens.includes(token)) {
+      score += 140
+      nameMatches += 1
+      anyMatches += 1
+    } else if (nameTokens.some((nameToken) => nameToken.startsWith(token))) {
+      score += 90
+      nameMatches += 1
+      anyMatches += 1
+    } else if (brandTokens.includes(token)) {
+      score += 35
+      anyMatches += 1
+    }
+  }
+
+  if (nameMatches === queryTokens.length) score += 280
+  else if (anyMatches === queryTokens.length) score += 90
+  if (!isUnknownBrand(item.brand)) score += 35
+  if (item.imageUrl) score += 8
+
+  score -= Math.min(nameTokens.length, 12) * 2
+  return score - index * 0.001
+}
+
+function rankAndFilterResults(
+  items: FoodSearchItem[],
+  query: string
+): FoodSearchItem[] {
+  const knownReferenceKeys = new Set(
+    items
+      .filter((item) => !isUnknownBrand(item.brand))
+      .map(resultReferenceKey)
+      .filter(Boolean)
+  )
+
+  return items
+    .filter((item) => {
+      if (!isUnknownBrand(item.brand)) return true
+      const key = resultReferenceKey(item)
+      return !key || !knownReferenceKeys.has(key)
+    })
+    .map((item, index) => ({
+      item,
+      score: relevanceScore(item, query, index),
+      index,
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(({ item }) => item)
+}
+
+function openFoodFactsImageUrls(item: FoodSearchItem): string[] {
+  const urls = new Set<string>()
+  if (item.imageUrl) urls.add(item.imageUrl)
+
+  const digits = String(item.id ?? "").replace(/\D/g, "")
+  if (digits.length > 0) {
+    const barcode = digits.padStart(13, "0")
+    const path = [
+      barcode.slice(0, 3),
+      barcode.slice(3, 6),
+      barcode.slice(6, 9),
+      barcode.slice(9),
+    ].join("/")
+
+    urls.add(
+      `https://images.openfoodfacts.org/images/products/${path}/front_en.400.jpg`
+    )
+    urls.add(
+      `https://images.openfoodfacts.org/images/products/${path}/front.400.jpg`
+    )
+  }
+
+  return [...urls]
+}
 
 const MEAL_CATEGORIES = [
   {
@@ -58,15 +192,17 @@ export default function SearchFoods() {
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [searchState, setSearchState] = useState<SearchState>("idle")
   const [added, setAdded] = useState<AddedState | null>(null)
-  const [detailItem, setDetailItem] = useState<any>(null)
-  const [pendingItem, setPendingItem] = useState<any>(null)
+  const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
+  const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
 
   const date = currentDateKey()
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useMutation(api.logs.foodLogs.setDay)
-  
-  const search = useAction(api.data.foods.search)
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const setDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
+  )
+
+  const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
 
   // Debounce: update debouncedQuery 380ms after the user stops typing
   useEffect(() => {
@@ -81,16 +217,24 @@ export default function SearchFoods() {
     setSearchState("loading")
     debounceRef.current = setTimeout(async () => {
       setDebouncedQuery(q)
-      const results = await search({ query: q })
-      setSearchResults(results ?? [])
-      setSearchState("done")
+      try {
+        const results = await searchFoods(q, 50)
+        setSearchResults(results ?? [])
+        setSearchState("done")
+      } catch {
+        setSearchResults([])
+        setSearchState("error")
+      }
     }, 380)
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [query])
 
-  const results: any[] = searchResults ?? []
+  const results = useMemo(
+    () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
+    [searchResults, debouncedQuery, query]
+  )
 
   useEffect(() => {
     const t = setTimeout(() => inputRef.current?.focus(), 350)
@@ -98,14 +242,14 @@ export default function SearchFoods() {
   }, [])
 
   async function handleAdd(
-    item: any,
+    item: FoodSearchItem,
     grams = 100,
     micros: LogMicros = {},
     meal = "breakfast"
   ) {
     const factor = grams / 100
     const round = (v: number) => Math.round(v * factor * 10) / 10
-    
+
     const entry = {
       id: Math.random().toString(36).slice(2),
       name: grams === 100 ? item.name : `${item.name} (${grams} g)`,
@@ -133,7 +277,8 @@ export default function SearchFoods() {
     setTimeout(() => setAdded(null), 1800)
   }
 
-  const showEmpty = searchState === "done" && results.length === 0 && debouncedQuery !== ""
+  const showEmpty =
+    searchState === "done" && results.length === 0 && debouncedQuery !== ""
   const showResults = results.length > 0
 
   return (
@@ -239,16 +384,7 @@ export default function SearchFoods() {
                         onClick={() => setDetailItem(item)}
                         className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30"
                       >
-                        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-muted/50">
-                          <Fire
-                            size={11}
-                            weight="fill"
-                            className="text-orange-400/70"
-                          />
-                          <span className="mt-0.5 text-[10px] leading-none font-semibold text-foreground/70">
-                            {item.calories}
-                          </span>
-                        </div>
+                        <FoodImage item={item} />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13.5px] leading-snug font-medium">
@@ -340,6 +476,50 @@ export default function SearchFoods() {
   )
 }
 
+function FoodImage({ item }: { item: FoodSearchItem }) {
+  const imageKey = `${item.id}|${item.name}|${item.brand ?? ""}`
+  const candidates = openFoodFactsImageUrls(item)
+  const [candidateIndex, setCandidateIndex] = useState(0)
+  const [imageFailed, setImageFailed] = useState(candidates.length === 0)
+
+  useEffect(() => {
+    setCandidateIndex(0)
+    setImageFailed(candidates.length === 0)
+  }, [imageKey, candidates.length])
+
+  const src = imageFailed ? null : candidates[candidateIndex]
+
+  function handleImageError() {
+    if (candidateIndex < candidates.length - 1) {
+      setCandidateIndex((index) => index + 1)
+      return
+    }
+
+    setImageFailed(true)
+  }
+
+  return (
+    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-muted/50">
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          loading="lazy"
+          onError={handleImageError}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-muted/50">
+          <Fire size={16} weight="fill" className="text-orange-400/55" />
+        </div>
+      )}
+      <div className="absolute right-1 bottom-1 rounded-full bg-background/90 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground/75 shadow-sm backdrop-blur-sm">
+        {item.calories}
+      </div>
+    </div>
+  )
+}
+
 function MacroPill({
   label,
   value,
@@ -367,7 +547,7 @@ function MealSelectSheet({
   onSelect,
   onClose,
 }: {
-  item: any
+  item: FoodSearchItem
   onSelect: (meal: string) => void
   onClose: () => void
 }) {

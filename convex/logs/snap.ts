@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { authComponent } from "../auth";
-import { api } from "../_generated/api";
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY!;
 
@@ -87,34 +86,6 @@ export const snap = action({
 
     const aiResult = await analyzeImageWithOpenAI(imageData);
 
-    const searchTerms = aiResult.foodName
-      ? [aiResult.foodName]
-      : (aiResult.ingredients ?? []).map((i) => i.name).slice(0, 5);
-
-    const seen = new Set<string>();
-    const foods: Array<{
-      id: string;
-      name: string;
-      brand?: string;
-      serving: string;
-      calories: number;
-      protein: number;
-      carbs: number;
-      fat: number;
-    }> = [];
-
-    for (const term of searchTerms) {
-      const hits = await ctx.runAction(api.data.foods.fetchAndCache, {
-        query: term,
-        limit: aiResult.foodName ? 5 : 2,
-      });
-      for (const hit of hits) {
-        if (seen.has(hit.id)) continue;
-        seen.add(hit.id);
-        foods.push(hit);
-      }
-    }
-
-    return { aiResult, foods };
+    return { aiResult, foods: [] };
   },
 });
