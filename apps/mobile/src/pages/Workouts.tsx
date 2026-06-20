@@ -20,7 +20,8 @@ import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import { useQuery, useMutation, useAction } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import {
   normalizePresetCard,
@@ -35,6 +36,7 @@ import {
   buildCatalogMap,
   type MuscleSets,
 } from "@/lib/muscle-volume"
+import { resolveExerciseIds } from "@/lib/exercise-catalog"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -589,8 +591,8 @@ export default function Workouts() {
   const schedule = useQuery(api.users.schedules.get)
   const todayLog = useQuery(api.logs.workouts.getLog, { date: todayIso() })
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
-  const setSchedule = useMutation(api.users.schedules.set)
-  const removePresetMutation = useMutation(api.logs.presets.remove)
+  const setSchedule = useOfflineMutation(api.users.schedules.set, "users.schedules.set")
+  const removePresetMutation = useOfflineMutation(api.logs.presets.remove, "logs.presets.remove")
 
   function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
     void setSchedule({
@@ -699,7 +701,6 @@ export default function Workouts() {
   }, [workoutHistory])
 
   // ── Muscle volume ────────────────────────────────────────────────────────
-  const resolveIds = useAction(api.data.exercises.resolveIds)
   const [exerciseCatalog, setExerciseCatalog] = useState<Map<string, { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }>>(new Map())
   const catalogFetched = useRef<string>("")
 
@@ -729,7 +730,7 @@ export default function Workouts() {
     const key = thisWeekExerciseIds.sort().join(",")
     if (!key || key === catalogFetched.current) return
     catalogFetched.current = key
-    void resolveIds({ ids: thisWeekExerciseIds }).then((result) => {
+    void resolveExerciseIds(thisWeekExerciseIds).then((result) => {
       const map = new Map<string, { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }>()
       for (const [id, ex] of Object.entries(result)) {
         map.set(id, { id, primaryMuscles: (ex as any).primaryMuscles, secondaryMuscles: (ex as any).secondaryMuscles })

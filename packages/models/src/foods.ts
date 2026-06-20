@@ -10,6 +10,7 @@ export type FoodResult = {
   protein: number;
   carbs: number;
   fat: number;
+  imageUrl?: string;
 };
 
 export type FoodDetail = FoodResult & {

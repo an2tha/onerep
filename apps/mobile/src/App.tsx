@@ -46,6 +46,7 @@ import {
   type WidgetId,
 } from "@/lib/widget-layout"
 import { useQuery, useMutation } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
@@ -95,6 +96,8 @@ type CalorieInfo = {
   protein: number
   carbs: number
   fat: number
+  isTrainingDay?: boolean
+  burnedCalories?: number
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -407,9 +410,16 @@ function CalorieCard({
       <div className="px-4 py-2.5">
         {/* Header row */}
         <div className="mb-2 flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold">
-            {isToday ? "Calories" : "Calories"}
-          </CardTitle>
+          <div className="flex items-center gap-1.5">
+            <CardTitle className="text-sm font-semibold">
+              Calories
+            </CardTitle>
+            {info?.isTrainingDay && (
+              <div className="rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[8px] font-bold text-orange-500 uppercase tracking-wider">
+                Training Day
+              </div>
+            )}
+          </div>
           <DateNav
             offset={dayOffset}
             timeZone={timeZone}
@@ -449,6 +459,11 @@ function CalorieCard({
                 </span>
                 <p className="text-[9.5px] text-muted-foreground/35">
                   {consumed > target ? "over" : "left"}
+                  {info?.burnedCalories ? (
+                    <span className="ml-1 text-green-500/60">
+                      (+{info.burnedCalories} activity)
+                    </span>
+                  ) : null}
                 </p>
               </div>
             </div>
@@ -1071,7 +1086,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
   const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setWaterDay = useMutation(api.logs.water.setDay)
+  const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
 
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
@@ -1456,7 +1471,7 @@ function CalorieSmall({
 function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
-  const setWaterDay = useMutation(api.logs.water.setDay)
+  const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
   const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
@@ -1995,24 +2010,31 @@ export default function App() {
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const onboarding = useQuery(api.users.onboarding.get, {})
-  const goalsRes = useQuery(api.logs.calories.getGoals, {})
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const activeTimezone = preferences?.lastActiveTimezone || "UTC"
+  const todayKey = currentDateKey(activeTimezone)
+  const selectedDate = useMemo(
+    () => offsetDateKey(todayKey, dayOffset),
+    [dayOffset, todayKey]
+  )
+
+  const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {
+    date: selectedDate,
+  })
   const serverPresets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
-  const preferences = useQuery(api.users.users.getPreferences, {})
   const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
 
-  const activeTimezone = preferences?.lastActiveTimezone || "UTC"
-  const todayKey = currentDateKey(activeTimezone)
-  const selectedDate = useMemo(() => offsetDateKey(todayKey, dayOffset), [dayOffset, todayKey])
-
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
-  const workoutLogsQuery = useQuery(api.logs.workouts.getLog, { date: selectedDate })
+  const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
+    date: selectedDate,
+  })
 
-  const syncTimezone = useMutation(api.users.users.syncTimezone)
-  const setDay = useMutation(api.logs.foodLogs.setDay)
+  const syncTimezone = useOfflineMutation(api.users.users.syncTimezone, "users.users.syncTimezone")
+  const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
-  const saveWidgetLayout = useMutation(api.users.users.setWidgetLayout)
+  const saveWidgetLayout = useOfflineMutation(api.users.users.setWidgetLayout, "users.users.setWidgetLayout")
 
   // ── Dashboard settings ───────────────────────────────────────────────────
 
@@ -2061,16 +2083,19 @@ export default function App() {
   // ── Mappings ──────────────────────────────────────────────────────────────
 
   const calorieInfo = useMemo(() => {
-    if (!goalsRes) return null
+    if (!effectiveGoals) return null
+    const { effective } = effectiveGoals
     return {
-      target: Math.round(goalsRes.targetCalories),
-      bmr: Math.round(goalsRes.bmr),
-      tdee: Math.round(goalsRes.tdee),
-      protein: Math.round(goalsRes.protein),
-      carbs: Math.round(goalsRes.carbs),
-      fat: Math.round(goalsRes.fat),
+      target: Math.round(effective.calories),
+      bmr: 0,
+      tdee: 0,
+      protein: Math.round(effective.protein),
+      carbs: Math.round(effective.carbs),
+      fat: Math.round(effective.fat),
+      isTrainingDay: effectiveGoals.isTrainingDay,
+      burnedCalories: effectiveGoals.burnedCalories,
     }
-  }, [goalsRes])
+  }, [effectiveGoals])
 
   const storedPresets = useMemo(() => {
     return (serverPresets ?? [])
@@ -2093,7 +2118,10 @@ export default function App() {
   const workoutLogs = useMemo(() => workoutLogsQuery ? [workoutLogsQuery] as unknown as CachedWorkoutLog[] : [], [workoutLogsQuery])
   const foodEntries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
 
-  const loading = onboarding === undefined || goalsRes === undefined || preferences === undefined
+  const loading =
+    onboarding === undefined ||
+    effectiveGoals === undefined ||
+    preferences === undefined
 
   const now = new Date()
 

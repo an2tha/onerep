@@ -14,7 +14,8 @@ import { searchFoods } from "@/lib/openfoodfacts"
 import {
   type RecipeIngredient,
 } from "@/lib/food-log"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodResult } from "@repo/models"
@@ -574,7 +575,7 @@ export default function NewRecipe() {
   const { id } = useParams<{ id?: string }>()
 
   const recipesQuery = useQuery(api.logs.recipes.list, {})
-  const saveRecipeMutation = useMutation(api.logs.recipes.save)
+  const saveRecipeMutation = useOfflineMutation(api.logs.recipes.save, "logs.recipes.save")
 
   const initial = id && recipesQuery ? recipesQuery.find((r) => (r._id as any) === id) : undefined
 

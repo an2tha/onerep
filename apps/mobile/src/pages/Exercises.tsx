@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useQuery, useAction } from "convex/react"
+import { useQuery } from "convex/react"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
-import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
+import {
+  resolveExerciseIds,
+  type Exercise,
+  type ExerciseCategory,
+} from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -223,7 +227,6 @@ function TopExerciseCard({ exercise }: { exercise: ExerciseCard | null }) {
 
 export default function Exercises() {
   const history = useQuery(api.logs.workouts.getHistory, {})
-  const resolveIds = useAction(api.data.exercises.resolveIds)
   const loading = history === undefined
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
 
@@ -238,7 +241,7 @@ export default function Exercises() {
       ),
     ].filter(Boolean)
     if (ids.length === 0) return
-    void resolveIds({ ids }).then((lookup) => {
+    void resolveExerciseIds(ids).then((lookup) => {
       setExerciseLookup(lookup as Record<string, Exercise>)
     })
   }, [history])

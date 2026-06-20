@@ -17,7 +17,8 @@ import {
   Fire,
   X,
 } from "@phosphor-icons/react"
-import { useQuery, useMutation } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { BrowserMultiFormatReader } from "@zxing/browser"
 import {
   ChecksumException,
@@ -35,7 +36,7 @@ import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import type { FoodResult } from "@repo/models"
-import { getFoodByBarcode } from "@/lib/openfoodfacts"
+import { getFoodByBarcode, searchFoods } from "@/lib/openfoodfacts"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +54,7 @@ export default function SnapAndLog() {
 
   const date = currentDateKey()
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useMutation(api.logs.foodLogs.setDay)
+  const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -251,8 +252,28 @@ export default function SnapAndLog() {
         mimeType: blob.type || "image/jpeg",
       }) as any
 
-      setSnapResults(result.foods ?? [])
-      setSnapRaw(result.aiResult?.foodName ?? null)
+      const aiResult = result.aiResult ?? {}
+      const searchTerms = aiResult.foodName
+        ? [aiResult.foodName]
+        : (aiResult.ingredients ?? [])
+            .map((ingredient: any) => ingredient.name)
+            .filter(Boolean)
+            .map(String)
+            .slice(0, 5)
+      const seen = new Set<string>()
+      const foods: FoodResult[] = []
+
+      for (const term of searchTerms) {
+        const hits = await searchFoods(term, aiResult.foodName ? 5 : 2)
+        for (const hit of hits) {
+          if (seen.has(hit.id)) continue
+          seen.add(hit.id)
+          foods.push(hit)
+        }
+      }
+
+      setSnapResults(foods)
+      setSnapRaw(aiResult.foodName ?? null)
       setSnapPhase("results")
     } catch {
       setSnapPhase("error")

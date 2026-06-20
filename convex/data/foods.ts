@@ -1,11 +1,34 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 
-const DATA_API_URL = process.env.DATA_API_URL;
+const DATA_API_URL = process.env.DATA_API_URL?.replace(/\/+$/, "");
 const DATA_API_KEY = process.env.DATA_API_KEY;
 
 function apiHeaders(): HeadersInit {
   return DATA_API_KEY ? { "x-api-key": DATA_API_KEY } : {};
+}
+
+function apiUrl(path: string, params?: URLSearchParams): string | null {
+  if (!DATA_API_URL) return null;
+  const prefix = DATA_API_URL.endsWith("/api/v1") ? "" : "/api/v1";
+  const query = params ? `?${params}` : "";
+  return `${DATA_API_URL}${prefix}${path}${query}`;
+}
+
+function toNumber(value: any): number {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const normalized = String(value).replace(",", ".").replace(/[^0-9.-]/g, "");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function firstNumber(...values: any[]): number {
+  for (const value of values) {
+    const parsed = toNumber(value);
+    if (parsed !== 0) return parsed;
+  }
+  return 0;
 }
 
 function getMultilangText(value: any): string {
@@ -75,53 +98,65 @@ function getMultilangText(value: any): string {
  */
 function mapHitToResult(hit: any): any {
   const src = hit._source ?? hit;
-  
+
   const getNutrient = (key: string): number => {
-    const nutriments = src.nutriments;
+    const nutriments = src.nutriments ?? src.other_nutrients;
     if (!nutriments) return 0;
-    
-    // If it's an array of {name, value, 100g, unit}
+
     if (Array.isArray(nutriments)) {
-      const found = nutriments.find((n: any) => n.name === key);
+      const normalizedKey = key.toLowerCase();
+      const found = nutriments.find((n: any) => String(n.name ?? "").toLowerCase() === normalizedKey);
       if (found) {
-        // Prefer 100g, then value
         const val = found["100g"] !== undefined && found["100g"] !== null ? found["100g"] : found.value;
-        return Number(val ?? 0);
+        return toNumber(val);
       }
       return 0;
     }
-    
-    // If it's a flat object
-    return Number(nutriments[`${key}_100g`] ?? nutriments[key] ?? 0);
+
+    return toNumber(nutriments[`${key}_100g`] ?? nutriments[key]);
   };
 
-  const calories = src.calories_100g || getNutrient("energy-kcal");
-  const protein = src.protein_100g || getNutrient("proteins");
-  const carbs = src.carbs_100g || getNutrient("carbohydrates");
-  const fat = src.fat_100g || getNutrient("fat");
+  const serving = [src.servingSize, src.servingUnit].filter(Boolean).join(" ") || "100 g";
+  const calories = firstNumber(src.calories, src.calories_100g, getNutrient("energy-kcal"));
+  const protein = firstNumber(src.protein, src.protein_100g, getNutrient("proteins"));
+  const carbs = firstNumber(src.carbohydrates, src.carbs, src.carbs_100g, getNutrient("carbohydrates"));
+  const fat = firstNumber(src.fat, src.fat_100g, getNutrient("fat"));
 
   return {
-    id: String(src.code ?? src._id ?? hit._id ?? ""),
-    name: getMultilangText(src.product_name),
-    brand: getMultilangText(src.brands),
-    serving: "100 g",
-    calories: Math.round(Number(calories)),
-    protein: Math.round(Number(protein) * 10) / 10,
-    carbs: Math.round(Number(carbs) * 10) / 10,
-    fat: Math.round(Number(fat) * 10) / 10,
+    id: String(src.code ?? src.id ?? src._id ?? hit._id ?? src.externalId ?? ""),
+    name: getMultilangText(src.product_name ?? src.name),
+    brand: getMultilangText(src.brands ?? src.brand),
+    serving,
+    calories: Math.round(calories),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
   };
 }
 
 function mapDocToDetail(doc: any): any {
-  const nutriments = doc.nutriments;
+  const nutriments = doc.nutriments ?? doc.other_nutrients;
 
   function get(key: string): number {
+    const columnAliases: Record<string, any> = {
+      "energy-kcal": doc.calories,
+      proteins: doc.protein,
+      carbohydrates: doc.carbohydrates ?? doc.carbs,
+      fat: doc.fat,
+      fiber: doc.fiber,
+      sugars: doc.sugar,
+      sodium: doc.sodium,
+    };
+    const columnValue = toNumber(columnAliases[key]);
+    if (columnValue !== 0) return columnValue;
+
     if (!nutriments) return 0;
     if (Array.isArray(nutriments)) {
-      const found = nutriments.find((n: any) => n.name === key);
-      return Number(found?.["100g"] ?? found?.value ?? 0);
+      const normalizedKey = key.toLowerCase();
+      const found = nutriments.find((n: any) => String(n.name ?? "").toLowerCase() === normalizedKey);
+      return toNumber(found?.["100g"] ?? found?.value);
     }
-    return Number(nutriments[`${key}_100g`] ?? nutriments[key] ?? 0);
+    return toNumber(nutriments[`${key}_100g`] ?? nutriments[key]);
   }
 
   const CORE = [
@@ -158,17 +193,19 @@ function mapDocToDetail(doc: any): any {
     { key: "vitaminC", name: "Vitamin C", nutrient: "vitamin-c", unit: "mg" },
   ];
 
+  const servingLabel = [doc.servingSize, doc.servingUnit].filter(Boolean).join(" ") || "100 g";
+
   return {
-    id: String(doc.code ?? ""),
-    name: getMultilangText(doc.product_name),
-    brand: getMultilangText(doc.brands),
-    serving: "100 g",
+    id: String(doc.code ?? doc.id ?? doc.externalId ?? ""),
+    name: getMultilangText(doc.product_name ?? doc.name),
+    brand: getMultilangText(doc.brands ?? doc.brand),
+    serving: servingLabel,
     calories: Math.round(get("energy-kcal")),
     protein: get("proteins"),
     carbs: get("carbohydrates"),
     fat: get("fat"),
-    servingGrams: null,
-    servingLabel: "100 g",
+    servingGrams: doc.servingUnit === "g" ? toNumber(doc.servingSize) || null : null,
+    servingLabel,
     nutriscoreGrade: doc.nutriscore_grade?.toLowerCase() || undefined,
     novaGroup: doc.nova_group || undefined,
     nutrients: CORE.map(({ key, name, nutrient, unit }) => ({
@@ -186,11 +223,29 @@ function mapDocToDetail(doc: any): any {
   };
 }
 
+async function fetchFoodDetail(fdcId: string): Promise<any | null> {
+  const encoded = encodeURIComponent(fdcId);
+  const paths = /^\d+$/.test(fdcId)
+    ? [`/foods/${encoded}`, `/foods/barcode/${encoded}`]
+    : [`/foods/barcode/${encoded}`];
+
+  for (const path of paths) {
+    const url = apiUrl(path);
+    if (!url) return null;
+    const response = await fetch(url, { headers: apiHeaders() });
+    if (response.ok) return response.json();
+  }
+
+  return null;
+}
+
 export const search = action({
   args: { query: v.string() },
   handler: async (_ctx, args) => {
     if (args.query.length < 2) return [];
-    const url = `${DATA_API_URL}/api/v1/foods/search?q=${encodeURIComponent(args.query)}`;
+    const params = new URLSearchParams({ q: args.query });
+    const url = apiUrl("/foods/search", params);
+    if (!url) return [];
     const response = await fetch(url, { headers: apiHeaders() });
     if (!response.ok) return [];
     const hits = await response.json();
@@ -201,7 +256,10 @@ export const search = action({
 export const fetchAndCache = action({
   args: { query: v.string(), limit: v.optional(v.number()) },
   handler: async (_ctx, args) => {
-    const url = `${DATA_API_URL}/api/v1/foods/search?q=${encodeURIComponent(args.query)}`;
+    const params = new URLSearchParams({ q: args.query });
+    if (args.limit) params.set("limit", String(Math.min(args.limit, 50)));
+    const url = apiUrl("/foods/search", params);
+    if (!url) throw new Error("DATA_API_URL environment variable is required");
     const response = await fetch(url, { headers: apiHeaders() });
     if (!response.ok) throw new Error(`Data API error: ${response.statusText}`);
     const hits = await response.json();
@@ -212,21 +270,15 @@ export const fetchAndCache = action({
 export const getDetail = action({
   args: { fdcId: v.string() },
   handler: async (_ctx, { fdcId }) => {
-    const url = `${DATA_API_URL}/api/v1/foods/barcode/${encodeURIComponent(fdcId)}`;
-    const response = await fetch(url, { headers: apiHeaders() });
-    if (!response.ok) return null;
-    const doc = await response.json();
-    return mapDocToDetail(doc);
+    const doc = await fetchFoodDetail(fdcId);
+    return doc ? mapDocToDetail(doc) : null;
   },
 });
 
 export const getById = action({
   args: { fdcId: v.string() },
   handler: async (_ctx, { fdcId }) => {
-    const url = `${DATA_API_URL}/api/v1/foods/barcode/${encodeURIComponent(fdcId)}`;
-    const response = await fetch(url, { headers: apiHeaders() });
-    if (!response.ok) return null;
-    const doc = await response.json();
-    return mapDocToDetail(doc);
+    const doc = await fetchFoodDetail(fdcId);
+    return doc ? mapDocToDetail(doc) : null;
   },
 });

@@ -23,14 +23,17 @@ async function loadFoodsWithDuckDB(): Promise<void> {
   
   // Check if already loaded
   const existing = await db.execute(sql`SELECT COUNT(*) FROM foodfacts`);
-  const count = existing.rows?.[0]?.count ?? existing[0]?.count ?? 0;
+  const count = existing.rows[0]?.count ?? 0;
   if (Number(count) > 0) {
     console.log(`[LOADER] ${count} foods already loaded, skipping...`);
     return;
   }
 
   // Use DuckDB to stream parquet
-  const duckdb = await import("duckdb");
+  const importOptional = new Function("specifier", "return import(specifier)") as (
+    specifier: string,
+  ) => Promise<any>;
+  const duckdb = await importOptional("duckdb");
   const conn = new duckdb.Connection(new duckdb.Database());
   
   // Check row count first

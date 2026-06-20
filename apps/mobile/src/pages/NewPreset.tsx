@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
-import { useQuery, useMutation, useAction } from "convex/react"
+import { useQuery } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ArrowLeft,
   Barbell,
@@ -18,9 +19,13 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
+import {
+  resolveExerciseIds,
+  searchExercises,
+  type Exercise,
+  type ExerciseCategory,
+} from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
-import { convexClient } from "@/lib/convex"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -826,7 +831,7 @@ function SearchSheet({
       const requestSeq = ++searchSeqRef.current
       setSearchState("loading")
       try {
-        const results = await convexClient.action(api.data.exercises.search, {
+        const results = await searchExercises({
           query: q,
           categories: activeFilters.size > 0 ? [...activeFilters] : undefined,
           limit: 25,
@@ -1130,9 +1135,8 @@ export default function NewPreset() {
   const posthog = usePostHog()
 
   const presets = useQuery(api.logs.presets.list, {})
-  const createPreset = useMutation(api.logs.presets.create)
-  const updatePreset = useMutation(api.logs.presets.update)
-  const resolveIds = useAction(api.data.exercises.resolveIds)
+  const createPreset = useOfflineMutation(api.logs.presets.create, "logs.presets.create")
+  const updatePreset = useOfflineMutation(api.logs.presets.update, "logs.presets.update")
 
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1194,7 +1198,7 @@ export default function NewPreset() {
         item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       )
       if (ids.length > 0) {
-        void resolveIds({ ids }).then((lookup) => {
+        void resolveExerciseIds(ids).then((lookup) => {
           setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
         })
       }

@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
-import { useQuery, useMutation, useAction } from "convex/react"
+import { useQuery, useMutation } from "convex/react"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ArrowLeft,
   Barbell,
@@ -21,7 +22,12 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { sparklinePoints } from "@/lib/progress-metrics"
-import { type Exercise, type ExerciseCategory } from "@/lib/exercise-catalog"
+import {
+  resolveExerciseIds,
+  searchExercises,
+  type Exercise,
+  type ExerciseCategory,
+} from "@/lib/exercise-catalog"
 import { api } from "../../../../convex/_generated/api"
 import { todayIso } from "@/lib/workout-sync"
 import {
@@ -32,7 +38,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui"
-import { convexClient } from "@/lib/convex"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -574,6 +579,7 @@ function ActiveSetRow({
   canDelete,
   onComplete,
   isNext,
+  lastSet,
 }: {
   set: WorkoutSet
   index: number
@@ -585,6 +591,7 @@ function ActiveSetRow({
   canDelete: boolean
   onComplete: (restSeconds: number) => void
   isNext?: boolean
+  lastSet?: { weight: number; reps: number } | null
 }) {
   const [showRest, setShowRest] = useState(false)
   const [completionPulse, setCompletionPulse] = useState(false)
@@ -692,7 +699,11 @@ function ActiveSetRow({
             onChange={(e) =>
               onUpdate({ ...set, weight: toKg(e.target.value, unit) })
             }
-            placeholder="–"
+            placeholder={
+              lastSet?.weight
+                ? toDisplay(String(lastSet.weight), unit)
+                : "–"
+            }
             disabled={set.completed}
             className={fieldCls}
           />
@@ -774,7 +785,7 @@ function ActiveSetRow({
                 inputMode="numeric"
                 value={set.reps}
                 onChange={(e) => onUpdate({ ...set, reps: e.target.value })}
-                placeholder="–"
+                placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
                 disabled={set.completed}
                 className={fieldCls}
               />
@@ -1172,6 +1183,7 @@ function ActiveExerciseCard({
                     canDelete={data.sets.length > 1}
                     onComplete={onStartRest}
                     isNext={nextSetIndex === i}
+                    lastSet={lastSession?.sets[i]}
                   />
                 </div>
               ))}
@@ -1463,7 +1475,7 @@ function AddExerciseSheet({
       const requestSeq = ++searchSeqRef.current
       setSearchState("loading")
       try {
-        const results = await convexClient.action(api.data.exercises.search, {
+        const results = await searchExercises({
           query: q,
           categories: activeFilters.size > 0 ? [...activeFilters] : undefined,
           limit: 25,
@@ -1948,8 +1960,7 @@ export default function ActiveWorkout() {
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
 
   const presets = useQuery(api.logs.presets.list, {})
-  const logCompletion = useMutation(api.logs.workouts.completion)
-  const resolveIds = useAction(api.data.exercises.resolveIds)
+  const logCompletion = useOfflineMutation(api.logs.workouts.completion, "logs.workouts.completion")
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
   
   // Active workout Convex sync
@@ -2076,7 +2087,7 @@ export default function ActiveWorkout() {
         i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
       )
       if (ids.length > 0) {
-        void resolveIds({ ids }).then((lookup) => {
+        void resolveExerciseIds(ids).then((lookup) => {
           setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
         })
       }
@@ -2105,13 +2116,13 @@ export default function ActiveWorkout() {
           i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
         )
         if (ids.length > 0) {
-          void resolveIds({ ids }).then((lookup) => {
+          void resolveExerciseIds(ids).then((lookup) => {
             setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
           })
         }
       }
     }
-  }, [isInitialized, presetId, presets, activeWorkout, resolveIds])
+  }, [isInitialized, presetId, presets, activeWorkout])
 
   // ── Create active workout in Convex when items are loaded ─────────────────
   useEffect(() => {

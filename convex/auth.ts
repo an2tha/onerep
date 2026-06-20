@@ -32,6 +32,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       enabled: true,
       requireEmailVerification: false,
     },
+    user: {
+      deleteUser: {
+        enabled: true,
+      },
+    },
     plugins: [crossDomain({ siteUrl }), convex({ authConfig })],
   });
 };
