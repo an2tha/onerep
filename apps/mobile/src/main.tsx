@@ -11,7 +11,10 @@ import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
 import { ConvexProvider } from "convex/react"
-import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
+import {
+  ConvexBetterAuthProvider,
+  type AuthClient,
+} from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { authClient } from "@/lib/auth-client"
 
@@ -169,8 +172,7 @@ function NavSync() {
     const deltaX = touch.clientX - touchStartX.current
     const deltaY = touch.clientY - touchStartY.current
     const startedLeftEdge = touchStartX.current <= edge
-    const startedRightEdge =
-      touchStartX.current >= window.innerWidth - edge
+    const startedRightEdge = touchStartX.current >= window.innerWidth - edge
 
     touchStartX.current = null
     touchStartY.current = null
@@ -190,7 +192,11 @@ function NavSync() {
   }
 
   return (
-    <div ref={containerRef} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <div
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <Outlet />
     </div>
   )
@@ -353,7 +359,10 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexProvider client={convexClient}>
-      <ConvexBetterAuthProvider client={convexClient} authClient={authClient}>
+      <ConvexBetterAuthProvider
+        client={convexClient}
+        authClient={authClient as unknown as AuthClient}
+      >
         <PostHogProvider client={posthog}>
           <ThemeProvider>
             <ErrorBoundary label="the app">
