@@ -23,8 +23,7 @@ A personal fitness and nutrition tracking mobile application built with React, C
 ```
 onerep/
 ├── apps/
-│   ├── mobile/          # React mobile app (Ionic/Capacitor)
-│   └── data-api/        # Local OpenFoodFacts data API
+│   └── mobile/          # React mobile app (Ionic/Capacitor)
 ├── packages/
 │   ├── models/          # TypeScript type definitions
 │   └── ui/              # Shared UI components
@@ -38,7 +37,7 @@ onerep/
 
 - [Bun](https://bun.sh/) (package manager)
 - Node.js 18+
-- Node.js 24+ for the local data API, or Docker
+- Docker Desktop (for the local Open Food Facts mirror)
 - Xcode (for iOS)
 - Android Studio (for Android)
 
@@ -61,11 +60,11 @@ cd apps/mobile && bun run dev
 # Run Convex backend
 npx convex dev
 
-# Build the local OpenFoodFacts index, then start the data API
-cd apps/data-api
-bun run food:download
-bun run food:index
-bun run dev
+# Start local dev requirements: Open Food Facts mirror
+bun run docker:dev:reqs
+
+# Seed the local Open Food Facts mirror once with bundled sample products
+bun run docker:dev:reqs:seed
 ```
 
 ### Building
@@ -99,31 +98,65 @@ VITE_CONVEX_URL=
 VITE_CONVEX_SITE_URL=
 ```
 
-Required for data API-backed food and exercise catalog search:
+Required for mobile food search:
 
 ```env
-DATA_API_URL=http://localhost:3001
-VITE_DATA_API_URL=http://localhost:3001
-DATA_API_KEY=
+VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
+VITE_OPENFOODFACTS_IMAGES_URL=http://world.openfoodfacts.localhost:8088
 ```
 
-`DATA_API_URL` is for server/Convex fallbacks, while `VITE_DATA_API_URL` is what the mobile app uses directly in the browser/native WebView. The data API downloads `food.parquet` from OpenFoodFacts and builds `apps/data-api/data/food-index.sqlite`, a local SQLite FTS index used by `/api/v1/foods/search` and barcode lookups. `FOOD_INDEX_PATH` can point the API at a custom index location.
+Food search and barcode lookups now use Open Food Facts Product Opener-compatible endpoints directly (`/cgi/search.pl` and `/api/v2/product/:code.json`). `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data. `VITE_OPENFOODFACTS_IMAGES_URL` is optional when images are served from a different host.
+
+### Importing the full Open Food Facts data
+
+Use the official Product Opener MongoDB dump. It is the native Product Opener format and populates the local MongoDB service used by the mirror. Expect a large download and a much larger Docker MongoDB volume after restore.
+
+```bash
+# Start the local mirror first
+bun run docker:dev:reqs
+
+# Download the nightly OFF MongoDB dump
+mkdir -p .cache/off
+curl -L --continue-at - --fail --retry 5 \
+  -o .cache/off/openfoodfacts-mongodbdump.gz \
+  https://static.openfoodfacts.org/data/openfoodfacts-mongodbdump.gz
+
+# Restore it into the compose MongoDB service
+docker compose -f docker-compose.dev-requirements.yml exec -T mongodb \
+  mongorestore \
+  --gzip \
+  --archive=/dev/stdin \
+  --nsInclude='off.products' \
+  --drop \
+  < .cache/off/openfoodfacts-mongodbdump.gz
+
+# Rebuild Product Opener indexes
+docker compose -f docker-compose.dev-requirements.yml exec backend \
+  perl /opt/product-opener/scripts/create_mongodb_indexes.pl
+
+# Optional: refresh Product Opener's Postgres cache; this can take a while
+docker compose -f docker-compose.dev-requirements.yml exec backend \
+  perl /opt/product-opener/scripts/refresh_postgres.pl
+
+# Restart after import
+docker compose -f docker-compose.dev-requirements.yml restart backend frontend
+```
 
 Optional integrations are listed in `.env.example`.
 
 ## Available Scripts
 
-| Command                   | Description                       |
-| ------------------------- | --------------------------------- |
-| `bun run dev`             | Run all apps in dev mode          |
-| `cd apps/data-api && bun run food:download` | Download OpenFoodFacts parquet |
-| `cd apps/data-api && bun run food:index` | Build local food search index |
-| `bun run docker:dev`      | Start local data API container       |
-| `bun run docker:dev:down` | Stop Open Fitness API containers  |
-| `bun run build`           | Build all apps                    |
-| `bun run lint`            | Lint all packages                 |
-| `bun run typecheck`       | Type-check all packages           |
-| `bun run format`          | Format code with Prettier         |
+| Command                        | Description                           |
+| ------------------------------ | ------------------------------------- |
+| `bun run dev`                  | Run all apps in dev mode              |
+| `bun run docker:dev:reqs`      | Start local OFF mirror                |
+| `bun run docker:dev:reqs:seed` | Seed local OFF mirror sample products |
+| `bun run docker:dev:reqs:logs` | Tail dev requirement service logs     |
+| `bun run docker:dev:reqs:down` | Stop dev requirement services         |
+| `bun run build`                | Build all apps                        |
+| `bun run lint`                 | Lint all packages                     |
+| `bun run typecheck`            | Type-check all packages               |
+| `bun run format`               | Format code with Prettier             |
 
 ## License
 

@@ -1,3 +1,5 @@
+import type { OpenFoodFactsProduct } from "@repo/models"
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /** Meal identifier — one of the 4 defaults or a custom user-defined string */
@@ -21,6 +23,13 @@ export type FoodLogEntry = {
   fat: number
   loggedAt: string // ISO datetime
   meal: MealType
+  // Open Food Facts source metadata
+  source?: "openfoodfacts"
+  foodCode?: string
+  servingGrams?: number
+  servingLabel?: string
+  imageUrl?: string
+  openFoodFacts?: OpenFoodFactsProduct
   // Optional micronutrients
   fiber?: number
   sugar?: number
@@ -44,22 +53,75 @@ export type FoodLogEntry = {
 
 export type LogMicros = Omit<
   FoodLogEntry,
-  "id" | "name" | "calories" | "protein" | "carbs" | "fat" | "loggedAt" | "meal"
+  | "id"
+  | "name"
+  | "calories"
+  | "protein"
+  | "carbs"
+  | "fat"
+  | "loggedAt"
+  | "meal"
+  | "source"
+  | "foodCode"
+  | "servingGrams"
+  | "servingLabel"
+  | "imageUrl"
+  | "openFoodFacts"
 >
+
+export function stripUndefined<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefined(item)) as T
+  }
+
+  if (value && typeof value === "object") {
+    const cleaned: Record<string, unknown> = {}
+    for (const [key, child] of Object.entries(value)) {
+      if (child !== undefined) cleaned[key] = stripUndefined(child)
+    }
+    return cleaned as T
+  }
+
+  return value
+}
 
 // ─── Meal categories ──────────────────────────────────────────────────────────
 
 export const DEFAULT_MEAL_CATEGORIES: MealCategory[] = [
-  { id: "breakfast", label: "Breakfast", color: "#f59e0b", bg: "rgba(245,158,11,0.12)", isDefault: true },
-  { id: "lunch",     label: "Lunch",     color: "#0ea5e9", bg: "rgba(14,165,233,0.12)", isDefault: true },
-  { id: "dinner",    label: "Dinner",    color: "#818cf8", bg: "rgba(129,140,248,0.12)", isDefault: true },
-  { id: "snack",     label: "Snack",     color: "#34d399", bg: "rgba(52,211,153,0.12)", isDefault: true },
+  {
+    id: "breakfast",
+    label: "Breakfast",
+    color: "#f59e0b",
+    bg: "rgba(245,158,11,0.12)",
+    isDefault: true,
+  },
+  {
+    id: "lunch",
+    label: "Lunch",
+    color: "#0ea5e9",
+    bg: "rgba(14,165,233,0.12)",
+    isDefault: true,
+  },
+  {
+    id: "dinner",
+    label: "Dinner",
+    color: "#818cf8",
+    bg: "rgba(129,140,248,0.12)",
+    isDefault: true,
+  },
+  {
+    id: "snack",
+    label: "Snack",
+    color: "#34d399",
+    bg: "rgba(52,211,153,0.12)",
+    isDefault: true,
+  },
 ]
 
 export const CUSTOM_CATEGORY_COLORS = [
-  { color: "#f43f5e", bg: "rgba(244,63,94,0.12)"  },
+  { color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
   { color: "#f97316", bg: "rgba(249,115,22,0.12)" },
-  { color: "#06b6d4", bg: "rgba(6,182,212,0.12)"  },
+  { color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
   { color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
   { color: "#ec4899", bg: "rgba(236,72,153,0.12)" },
   { color: "#84cc16", bg: "rgba(132,204,22,0.12)" },
@@ -134,10 +196,7 @@ export function detectTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
 }
 
-export function dateForOffset(
-  offset: number,
-  timeZone = "UTC"
-): string {
+export function dateForOffset(offset: number, timeZone = "UTC"): string {
   const { year, month, day } = readDatePartsInTimeZone(timeZone, new Date())
   const shifted = new Date(Date.UTC(year, month - 1, day + offset, 12))
   return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`

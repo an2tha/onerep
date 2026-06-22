@@ -1,5 +1,3 @@
-import { dataApiFetch } from "./trpc"
-
 export type ExerciseCategory = "strength" | "cardio" | "mobility" | "core"
 
 export type Exercise = {
@@ -225,124 +223,23 @@ export function getExerciseById(id: string) {
   return EXERCISES.find((e) => e.id === id) ?? null
 }
 
-function categoryColor(category: ExerciseCategory): string {
-  switch (category) {
-    case "strength": return "#57534e"
-    case "cardio": return "#ea580c"
-    case "mobility": return "#0d9488"
-    case "core": return "#0284c7"
-  }
-}
-
-function titleCase(value: string): string {
-  return value
-    .split(/\s+/)
+function exerciseMatchesQuery(exercise: Exercise, query: string): boolean {
+  if (!query) return true
+  const haystack = [
+    exercise.name,
+    exercise.category,
+    exercise.muscle,
+    exercise.description,
+    exercise.level,
+    exercise.mechanic,
+    exercise.equipment,
+    ...(exercise.primaryMuscles ?? []),
+    ...(exercise.secondaryMuscles ?? []),
+  ]
     .filter(Boolean)
-    .map((part) => part[0]!.toUpperCase() + part.slice(1))
     .join(" ")
-}
-
-function normalizeCategory(raw: unknown): ExerciseCategory {
-  const value = String(raw ?? "strength").toLowerCase()
-  if (value === "stretching" || value === "mobility") return "mobility"
-  if (value === "cardio") return "cardio"
-  if (value === "core" || value === "abdominals") return "core"
-  return "strength"
-}
-
-function normalizeNames(value: unknown): string[] {
-  if (!value) return []
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value)
-      return normalizeNames(parsed)
-    } catch {
-      return [value].filter(Boolean)
-    }
-  }
-  if (!Array.isArray(value)) return [String(value)].filter(Boolean)
-  return value
-    .map((item: any) => (typeof item === "string" ? item : item?.name))
-    .filter(Boolean)
-    .map(String)
-}
-
-function equipmentLabel(value: unknown): string | undefined {
-  const names = normalizeNames(value)
-  return names.length > 0 ? names.join(" · ") : undefined
-}
-
-function buildMuscleLabel(primaryMuscles: string[], secondaryMuscles: string[]): string {
-  const seen = new Set<string>()
-  const result: string[] = []
-  for (const muscle of [...primaryMuscles, ...secondaryMuscles]) {
-    const key = muscle.trim().toLowerCase()
-    if (!key || seen.has(key)) continue
-    seen.add(key)
-    result.push(titleCase(muscle.trim()))
-  }
-  return result.length > 0 ? result.join(" · ") : "Full body"
-}
-
-function buildDescription(
-  instructions: string[],
-  equipment: string | undefined,
-  mechanic: string | undefined,
-  level: string,
-): string {
-  const first = instructions.slice(0, 2).map((s) => s.trim()).filter(Boolean)
-  if (first.length > 0) {
-    const summary = first.join(" ")
-    return summary.length > 180 ? `${summary.slice(0, 177)}...` : summary
-  }
-  const parts = [
-    equipment ? titleCase(equipment) : null,
-    mechanic ? titleCase(mechanic) : null,
-    titleCase(level),
-  ].filter(Boolean)
-  return parts.length > 0 ? parts.join(" · ") : "Exercise details available"
-}
-
-function buildSuggestedSets(
-  category: ExerciseCategory,
-  mechanic: string | undefined,
-  level: string,
-): string {
-  if (category === "mobility") return "2 × 30 s / side"
-  if (category === "cardio") return "20–30 min"
-  if (mechanic === "isolation") return "3 × 12 reps"
-  if (level === "beginner") return "3 × 10 reps"
-  if (level === "intermediate") return "4 × 8 reps"
-  return "5 × 5 reps"
-}
-
-function mapApiExercise(hit: any): Exercise {
-  const src = hit?._source ?? hit ?? {}
-  const id = String(src.id ?? src.exercise_id ?? src.exerciseId ?? hit?._id ?? "")
-  const category = normalizeCategory(src.category)
-  const primaryMuscles = normalizeNames(src.primaryMuscles ?? src.primary_muscles)
-  const secondaryMuscles = normalizeNames(src.secondaryMuscles ?? src.secondary_muscles)
-  const instructions = normalizeNames(src.instructions)
-  const level = String(src.level ?? "intermediate")
-  const mechanic = src.mechanic ?? src.force ?? undefined
-  const equipment = equipmentLabel(src.equipment)
-  const description = typeof src.description === "string" ? src.description : undefined
-
-  return {
-    id,
-    name: String(src.name || "Unknown"),
-    category,
-    muscle: buildMuscleLabel(primaryMuscles, secondaryMuscles),
-    description: description || buildDescription(instructions, equipment, mechanic, level),
-    sets: buildSuggestedSets(category, mechanic, level),
-    color: categoryColor(category),
-    level,
-    mechanic: mechanic ?? null,
-    equipment: equipment ?? null,
-    primaryMuscles,
-    secondaryMuscles,
-    instructions: instructions.length > 0 ? instructions : description ? [description] : [],
-  }
+    .toLowerCase()
+  return haystack.includes(query)
 }
 
 export async function searchExercises({
@@ -354,51 +251,25 @@ export async function searchExercises({
   categories?: ExerciseCategory[]
   limit?: number
 } = {}): Promise<Exercise[]> {
-  const q = query.trim()
-  const params = new URLSearchParams({ limit: String(Math.min(limit, 50)) })
-  if (q.length >= 2) params.set("q", q)
-  const hits = await dataApiFetch<any[]>(`/exercises/search?${params}`)
-  const mapped = (Array.isArray(hits) ? hits : [])
-    .map(mapApiExercise)
-    .filter((exercise) => exercise.id)
-  const filtered = categories && categories.length > 0
-    ? mapped.filter((exercise) => categories.includes(exercise.category))
-    : mapped
-  return filtered.slice(0, limit)
+  const q = query.trim().toLowerCase()
+  const filtered = EXERCISES.filter((exercise) =>
+    exerciseMatchesQuery(exercise, q)
+  ).filter(
+    (exercise) =>
+      !categories ||
+      categories.length === 0 ||
+      categories.includes(exercise.category)
+  )
+  return filtered.slice(0, Math.min(limit, 50))
 }
 
-export async function resolveExerciseIds(ids: string[]): Promise<Record<string, Exercise>> {
+export async function resolveExerciseIds(
+  ids: string[]
+): Promise<Record<string, Exercise>> {
   const result: Record<string, Exercise> = {}
-  const uniqueIds = [...new Set(ids)].filter(Boolean)
-
-  for (const id of uniqueIds) {
-    const local = getExerciseById(id)
-    if (local) result[id] = local
+  for (const id of [...new Set(ids)].filter(Boolean)) {
+    const exercise = getExerciseById(id)
+    if (exercise) result[id] = exercise
   }
-
-  const apiIds = uniqueIds.filter((id) => !id.startsWith("u_"))
-  if (apiIds.length === 0) return result
-
-  try {
-    const params = new URLSearchParams({ ids: apiIds.join(",") })
-    const hits = await dataApiFetch<any[]>(`/exercises/lookup?${params}`)
-    for (const hit of Array.isArray(hits) ? hits : []) {
-      const exercise = mapApiExercise(hit)
-      if (exercise.id) result[exercise.id] = exercise
-    }
-  } catch {
-    // Keep local fallbacks if the data API is temporarily unavailable.
-  }
-
-  const missingIds = apiIds.filter((id) => !result[id])
-  await Promise.all(missingIds.map(async (id) => {
-    try {
-      const exercise = mapApiExercise(await dataApiFetch<any>(`/exercises/${encodeURIComponent(id)}`))
-      if (exercise.id) result[exercise.id] = exercise
-    } catch {
-      // Ignore missing individual catalog rows.
-    }
-  }))
-
   return result
 }

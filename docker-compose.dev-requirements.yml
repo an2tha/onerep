@@ -1,0 +1,445 @@
+# Development support services for OneRep.
+#
+# This intentionally uses published Open Food Facts Product Opener images so you
+# do not need to clone openfoodfacts/openfoodfacts-server locally. It starts a
+# tiny local Product Opener mirror.
+#
+# Start:
+#   docker compose -f docker-compose.dev-requirements.yml up -d
+#
+# Seed the OFF mirror with the small sample dataset once:
+#   docker compose -f docker-compose.dev-requirements.yml --profile seed up off-seed
+#
+# Point mobile food search at:
+#   VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
+#   VITE_OPENFOODFACTS_IMAGES_URL=http://world.openfoodfacts.localhost:8088
+#
+# Note: this is a dev mirror. The seed profile imports only OFF's bundled sample
+# products. A full production mirror requires importing the official OFF dumps.
+#
+# The upstream Product Opener images are currently amd64-only. On Apple Silicon,
+# Docker Desktop will run them through emulation via OFF_PLATFORM=linux/amd64.
+
+name: onerep-dev-requirements
+
+x-off-env: &off-env
+  PRODUCERS_PLATFORM: "0"
+  PRODUCT_OPENER_DOMAIN: openfoodfacts.localhost
+  PRODUCT_OPENER_PORT: ${OFF_PORT:-8088}
+  PRODUCT_OPENER_FLAVOR: openfoodfacts
+  PRODUCT_OPENER_FLAVOR_SHORT: off
+  OFF_LOG_EMAILS: "1"
+  MONGODB_HOST: mongodb
+  POSTGRES_HOST: postgres
+  POSTGRES_USER: productopener
+  POSTGRES_PASSWORD: productopener
+  ROBOTOFF_URL: ""
+  QUERY_URL: ""
+  EVENTS_URL: ""
+  FACETS_KP_URL: ""
+  REDIS_URL: ""
+  FOLKSONOMY_URL: ""
+  GOOGLE_CLOUD_VISION_API_KEY: ""
+  GOOGLE_CLOUD_VISION_API_URL: ""
+  CROWDIN_PROJECT_IDENTIFIER: ""
+  CROWDIN_PROJECT_KEY: ""
+  BREVO_API_KEY: ""
+  BREVO_LIST_ID: ""
+  GEOLITE2_PATH: ""
+  LOG_LEVEL_ROOT: WARN
+  LOG_LEVEL_MONGODB: WARN
+  LOG_LEVEL_RATE_LIMITER: WARN
+  NUTRIPATROL_URL: ""
+  INFLUXDB_HOST: ""
+  BUILD_CACHE_REPO: openfoodfacts/openfoodfacts-build-cache
+  RATE_LIMITER_BLOCKING_ENABLED: "0"
+  ODOO_CRM_URL: ""
+  ODOO_CRM_DB: ""
+  ODOO_CRM_USER: ""
+  ODOO_CRM_PASSWORD: ""
+  OIDC_IMPLEMENTATION_LEVEL: "5"
+  OIDC_DISCOVERY_URL: ""
+  OIDC_CLIENT_ID: OFF
+  OIDC_CLIENT_SECRET: dev-secret
+  RECIPE_ESTIMATOR_URL: ""
+  RECIPE_ESTIMATOR_SERVICE: product_opener
+  SERIALIZE_TO_JSON: "2"
+
+services:
+  memcached:
+    image: memcached:1.6-alpine
+    container_name: onerep-off-memcached
+
+  mongodb:
+    image: mongo:7
+    container_name: onerep-off-mongodb
+    command: ["mongod", "--wiredTigerCacheSizeGB", "1"]
+    ports:
+      - "127.0.0.1:${OFF_MONGO_PORT:-27027}:27017"
+    volumes:
+      - off_mongodb:/data/db
+    healthcheck:
+      test:
+        ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: onerep-off-postgres
+    environment:
+      POSTGRES_USER: productopener
+      POSTGRES_PASSWORD: productopener
+      POSTGRES_DB: minion
+    volumes:
+      - off_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U productopener -d minion"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    image: ghcr.io/openfoodfacts/openfoodfacts-server/backend:${OFF_TAG:-latest}
+    platform: ${OFF_PLATFORM:-linux/amd64}
+    container_name: onerep-off-backend
+    environment: *off-env
+    depends_on:
+      memcached:
+        condition: service_started
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    configs:
+      - source: off_apache_conf
+        target: /etc/apache2/sites-enabled/product-opener.conf
+      - source: off_apache_mpm_prefork
+        target: /etc/apache2/mods-enabled/mpm_prefork.conf
+      - source: off_modperl_conf
+        target: /etc/apache2/conf-enabled/modperl.conf
+    volumes:
+      - off_html_data:/opt/product-opener/html/data
+      - off_users:/mnt/podata/users
+      - off_products:/mnt/podata/products
+      - off_product_images:/opt/product-opener/html/images/products
+      - off_orgs:/mnt/podata/orgs
+      - off_export_files:/mnt/podata/export_files
+      - off_podata:/mnt/podata
+      - off_build_cache:/mnt/podata/build-cache
+      - off_other_servers:/srv
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        cd /opt/product-opener
+        if [ ! -d /mnt/podata/lang/en/texts ]; then
+          echo "Initializing Product Opener default language files"
+          rm -rf /mnt/podata/lang
+          cp -a /opt/product-opener/web-default/lang /mnt/podata/lang
+          chown -R www-data:www-data /mnt/podata/lang || true
+        fi
+        mkdir -p /mnt/podata/data /mnt/podata/build-cache /opt/product-opener/html/images/icons/dist
+        if [ ! -s /opt/product-opener/html/images/icons/dist/share.svg ]; then
+          printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>' > /opt/product-opener/html/images/icons/dist/share.svg
+        fi
+        if [ ! -s /mnt/podata/build-cache/taxonomies-result/languages.result.json ]; then
+          echo "Building Product Opener taxonomies; this can take a minute on first start"
+          scripts/taxonomies/build_tags_taxonomy.pl "*" -j "$${OFF_TAXONOMY_JOBS:-1}"
+        fi
+        lang_file="/mnt/podata/data/Lang.$${PRODUCT_OPENER_DOMAIN:-openfoodfacts.localhost}.sto"
+        if [ ! -s "$$lang_file" ]; then
+          echo "Building Product Opener language cache"
+          perl -I/opt/product-opener/lib -I/opt/perl/local/lib/perl5 scripts/build_lang.pl
+        fi
+        exec /usr/sbin/apache2ctl -D FOREGROUND
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'perl -MHTTP::Tiny -e ''my $$r = HTTP::Tiny->new(timeout => 5)->get("http://127.0.0.1/api/v2/product/0.json?fields=code"); exit((($$r->{status} || 0) >= 200 && ($$r->{status} || 0) < 500) ? 0 : 1)''',
+        ]
+      interval: 10s
+      timeout: 8s
+      retries: 30
+      start_period: 30s
+
+  frontend:
+    image: ghcr.io/openfoodfacts/openfoodfacts-server/frontend:${OFF_TAG:-latest}
+    platform: ${OFF_PLATFORM:-linux/amd64}
+    container_name: onerep-off-frontend
+    environment:
+      PRODUCT_OPENER_DOMAIN: openfoodfacts.localhost
+      PRODUCT_OPENER_PORT: ${OFF_PORT:-8088}
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${OFF_PORT:-8088}:80"
+    configs:
+      - source: off_nginx_template
+        target: /etc/nginx/templates/default.conf.template
+      - source: off_cors_headers
+        target: /etc/nginx/snippets/off.cors-headers.include
+      - source: off_expiry_headers
+        target: /etc/nginx/snippets/expiry-headers.include
+      - source: off_expires_no_json_xml
+        target: /etc/nginx/snippets/expires-no-json-xml.conf
+      - source: off_empty_redirects
+        target: /etc/nginx/snippets/off.locations-redirects.include
+    volumes:
+      - off_product_images:/opt/product-opener/html/images/products:ro
+      - off_html_data:/opt/product-opener/html/data:ro
+
+  # Run once with --profile seed to put OFF's bundled sample products into MongoDB.
+  off-seed:
+    image: ghcr.io/openfoodfacts/openfoodfacts-server/backend:${OFF_TAG:-latest}
+    platform: ${OFF_PLATFORM:-linux/amd64}
+    profiles: ["seed"]
+    environment:
+      <<: *off-env
+      SKIP_SAMPLE_IMAGES: ${OFF_SKIP_SAMPLE_IMAGES:-1}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    configs:
+      - source: off_apache_conf
+        target: /etc/apache2/sites-enabled/product-opener.conf
+      - source: off_apache_mpm_prefork
+        target: /etc/apache2/mods-enabled/mpm_prefork.conf
+      - source: off_modperl_conf
+        target: /etc/apache2/conf-enabled/modperl.conf
+    volumes:
+      - off_html_data:/opt/product-opener/html/data
+      - off_users:/mnt/podata/users
+      - off_products:/mnt/podata/products
+      - off_product_images:/opt/product-opener/html/images/products
+      - off_orgs:/mnt/podata/orgs
+      - off_export_files:/mnt/podata/export_files
+      - off_podata:/mnt/podata
+      - off_build_cache:/mnt/podata/build-cache
+      - off_other_servers:/srv
+    command:
+      - bash
+      - -lc
+      - |
+        set -e
+        cd /opt/product-opener
+        if [ ! -d /mnt/podata/lang/en/texts ]; then
+          echo "Initializing Product Opener default language files"
+          rm -rf /mnt/podata/lang
+          cp -a /opt/product-opener/web-default/lang /mnt/podata/lang
+          chown -R www-data:www-data /mnt/podata/lang || true
+        fi
+        mkdir -p /mnt/podata/data /mnt/podata/build-cache /opt/product-opener/html/images/icons/dist
+        if [ ! -s /opt/product-opener/html/images/icons/dist/share.svg ]; then
+          printf '%s\n' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>' > /opt/product-opener/html/images/icons/dist/share.svg
+        fi
+        if [ ! -s /mnt/podata/build-cache/taxonomies-result/languages.result.json ]; then
+          echo "Building Product Opener taxonomies; this can take a minute on first start"
+          scripts/taxonomies/build_tags_taxonomy.pl "*" -j "$${OFF_TAXONOMY_JOBS:-1}"
+        fi
+        lang_file="/mnt/podata/data/Lang.$${PRODUCT_OPENER_DOMAIN:-openfoodfacts.localhost}.sto"
+        if [ ! -s "$$lang_file" ]; then
+          echo "Building Product Opener language cache"
+          perl -I/opt/product-opener/lib -I/opt/perl/local/lib/perl5 scripts/build_lang.pl
+        fi
+        bash /opt/product-opener/scripts/import_sample_data.sh
+        perl /opt/product-opener/scripts/create_mongodb_indexes.pl
+        perl /opt/product-opener/scripts/refresh_postgres.pl || true
+
+configs:
+  off_nginx_template:
+    content: |
+      map $$host $$main_domain {
+        default openfoodfacts.localhost;
+        ~*.*\.(?<host_main_domain>[^.]+\.[^.]+) $$host_main_domain;
+      }
+
+      include /etc/nginx/snippets/expires-no-json-xml.conf;
+
+      server {
+        listen 80;
+        server_name $${PRODUCT_OPENER_DOMAIN} *.$${PRODUCT_OPENER_DOMAIN};
+        root /opt/product-opener/html/;
+        gzip on;
+        gzip_min_length 1000;
+        client_max_body_size 20M;
+
+        location ~ ^/images/products/ {
+          include /etc/nginx/snippets/off.cors-headers.include;
+          include /etc/nginx/snippets/expiry-headers.include;
+          add_header Link "<https://creativecommons.org/licenses/by-sa/3.0/>; rel='license'; title='CC-BY-SA 3.0'";
+          gzip_static always;
+          gunzip on;
+        }
+
+        location ~ ^/(images|fonts|css|js|data|resources)/ {
+          include /etc/nginx/snippets/off.cors-headers.include;
+          include /etc/nginx/snippets/expiry-headers.include;
+          try_files $$uri $$uri/ =404;
+          gzip_static always;
+          gunzip on;
+        }
+
+        resolver 127.0.0.11 valid=30s;
+
+        location /cgi/ {
+          proxy_set_header Host world.$${PRODUCT_OPENER_DOMAIN}:$${PRODUCT_OPENER_PORT};
+          proxy_set_header X-Real-IP $$remote_addr;
+          proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+          set $$backend backend;
+          proxy_pass http://$$backend;
+        }
+
+        location / {
+          proxy_set_header Host world.$${PRODUCT_OPENER_DOMAIN}:$${PRODUCT_OPENER_PORT};
+          proxy_set_header X-Real-IP $$remote_addr;
+          proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+          set $$backend backend;
+          proxy_pass http://$$backend/cgi/display.pl?$$request_uri;
+        }
+      }
+
+  off_cors_headers:
+    content: |
+      add_header Access-Control-Allow-Origin "*" always;
+      add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+      add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization" always;
+      if ($$request_method = OPTIONS) {
+        return 204;
+      }
+
+  off_expiry_headers:
+    content: |
+      expires 7d;
+      add_header Cache-Control "public";
+
+  off_expires_no_json_xml:
+    content: |
+      map $$sent_http_content_type $$expires {
+        default off;
+        ~image/ 7d;
+        ~font/ 7d;
+        ~text/css 7d;
+        ~application/javascript 7d;
+      }
+      expires $$expires;
+
+  off_empty_redirects:
+    content: |
+      # No redirects needed for the local OneRep Product Opener mirror.
+
+  off_apache_conf:
+    content: |
+      ServerAdmin contact@openfoodfacts.localhost
+      ServerName openfoodfacts.localhost
+      PerlSwitches -I/opt/product-opener/lib -I/opt/perl/local/lib/perl5
+      PerlWarn On
+      PerlPostConfigRequire /opt/product-opener/lib/startup_apache2.pl
+
+      LogFormat "%{X-Forwarded-For}i %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-Agent}i\"" proxy
+      ExtendedStatus On
+
+      <Location /server-status>
+        SetHandler server-status
+        Require ip 127.0.0.1
+        Require ip 172.16.0.0/12
+      </Location>
+
+      <Location /cgi>
+        SetHandler perl-script
+        PerlResponseHandler ModPerl::Registry
+        PerlOptions +ParseHeaders
+        Options +ExecCGI
+        Require all granted
+      </Location>
+
+      <VirtualHost *:80>
+        DocumentRoot /opt/product-opener/html
+        ServerName openfoodfacts.localhost
+        ServerAlias *.openfoodfacts.localhost
+        LogLevel warn
+        ScriptAlias /cgi/ "/opt/product-opener/cgi/"
+        <Directory /opt/product-opener/html>
+          Require all granted
+        </Directory>
+      </VirtualHost>
+
+      PerlPostReadRequestHandler get_remote_proxy_address
+
+  off_apache_mpm_prefork:
+    content: |
+      <IfModule mpm_prefork_module>
+        StartServers 2
+        MinSpareServers 1
+        MaxSpareServers 5
+        MaxRequestWorkers 10
+        MaxConnectionsPerChild 0
+      </IfModule>
+
+  off_modperl_conf:
+    content: |
+      PerlPassEnv PRODUCT_OPENER_DOMAIN
+      PerlPassEnv PRODUCT_OPENER_PORT
+      PerlPassEnv PRODUCT_OPENER_FLAVOR
+      PerlPassEnv PRODUCT_OPENER_FLAVOR_SHORT
+      PerlPassEnv PRODUCERS_PLATFORM
+      PerlPassEnv ROBOTOFF_URL
+      PerlPassEnv QUERY_URL
+      PerlPassEnv EVENTS_URL
+      PerlPassEnv FACETS_KP_URL
+      PerlPassEnv EVENTS_USERNAME
+      PerlPassEnv EVENTS_PASSWORD
+      PerlPassEnv REDIS_URL
+      PerlPassEnv FOLKSONOMY_URL
+      PerlPassEnv MONGODB_HOST
+      PerlPassEnv GOOGLE_CLOUD_VISION_API_KEY
+      PerlPassEnv GOOGLE_CLOUD_VISION_API_URL
+      PerlPassEnv CROWDIN_PROJECT_IDENTIFIER
+      PerlPassEnv CROWDIN_PROJECT_KEY
+      PerlPassEnv BREVO_API_KEY
+      PerlPassEnv BREVO_LIST_ID
+      PerlPassEnv GEOLITE2_PATH
+      PerlPassEnv POSTGRES_HOST
+      PerlPassEnv POSTGRES_USER
+      PerlPassEnv POSTGRES_PASSWORD
+      PerlPassEnv LOG4PERL_CONF
+      PerlPassEnv LOG_LEVEL_ROOT
+      PerlPassEnv LOG_LEVEL_MONGODB
+      PerlPassEnv LOG_LEVEL_RATE_LIMITER
+      PerlPassEnv NUTRIPATROL_URL
+      PerlPassEnv OFF_LOG_EMAILS
+      PerlPassEnv BUILD_CACHE_REPO
+      PerlPassEnv RATE_LIMITER_BLOCKING_ENABLED
+      PerlPassEnv ODOO_CRM_URL
+      PerlPassEnv ODOO_CRM_DB
+      PerlPassEnv ODOO_CRM_USER
+      PerlPassEnv ODOO_CRM_PASSWORD
+      PerlPassEnv OIDC_IMPLEMENTATION_LEVEL
+      PerlPassEnv OIDC_DISCOVERY_URL
+      PerlPassEnv OIDC_CLIENT_ID
+      PerlPassEnv OIDC_CLIENT_SECRET
+      PerlPassEnv RECIPE_ESTIMATOR_URL
+      PerlPassEnv RECIPE_ESTIMATOR_SERVICE
+      PerlPassEnv SLACK_HOOK_URLS
+      PerlPassEnv SERIALIZE_TO_JSON
+
+volumes:
+  off_mongodb:
+  off_pgdata:
+  off_html_data:
+  off_users:
+  off_products:
+  off_product_images:
+  off_orgs:
+  off_export_files:
+  off_podata:
+  off_build_cache:
+  off_other_servers:

@@ -28,6 +28,7 @@ import {
 import {
   currentDateKey,
   defaultMeal,
+  stripUndefined,
   type MealType,
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
@@ -54,7 +55,10 @@ export default function SnapAndLog() {
 
   const date = currentDateKey()
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
+  const setDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
+  )
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -244,13 +248,14 @@ export default function SnapAndLog() {
       const arrayBuffer = await blob.arrayBuffer()
       const bytes = new Uint8Array(arrayBuffer)
       let binary = ""
-      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+      for (let i = 0; i < bytes.byteLength; i++)
+        binary += String.fromCharCode(bytes[i])
       const base64Image = btoa(binary)
 
-      const result = await convexClient.action(api.logs.snap.snap, {
+      const result = (await convexClient.action(api.logs.snap.snap, {
         base64Image,
         mimeType: blob.type || "image/jpeg",
-      }) as any
+      })) as any
 
       const aiResult = result.aiResult ?? {}
       const searchTerms = aiResult.foodName
@@ -319,7 +324,12 @@ export default function SnapAndLog() {
   }
 
   function handleShutter() {
-    if (fired || (!useNativeCapture && cameraState !== "active") || snapPhase === "uploading") return
+    if (
+      fired ||
+      (!useNativeCapture && cameraState !== "active") ||
+      snapPhase === "uploading"
+    )
+      return
     void hapticMedium()
     setFired(true)
     setTimeout(() => setFired(false), 500)
@@ -338,19 +348,23 @@ export default function SnapAndLog() {
     canvas.getContext("2d")?.drawImage(video, 0, 0)
 
     posthog.capture("food_snap_captured")
-    canvas.toBlob(async (blob) => {
-      if (!blob) {
-        setSnapPhase("error")
-        return
-      }
-      await processSnapBlob(blob)
-    }, "image/jpeg", 0.85)
+    canvas.toBlob(
+      async (blob) => {
+        if (!blob) {
+          setSnapPhase("error")
+          return
+        }
+        await processSnapBlob(blob)
+      },
+      "image/jpeg",
+      0.85
+    )
   }
 
   // ── Log a food item ───────────────────────────────────────────────────────
 
   async function handleAdd(item: FoodResult) {
-    const entry = {
+    const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
       name: item.name,
       calories: Number(item.calories),
@@ -359,7 +373,12 @@ export default function SnapAndLog() {
       fat: Number(item.fat),
       loggedAt: new Date().toISOString(),
       meal,
-    }
+      source: "openfoodfacts" as const,
+      foodCode: item.code,
+      servingLabel: item.serving,
+      imageUrl: item.imageUrl,
+      openFoodFacts: item.openFoodFacts,
+    })
 
     const existingEntries = foodLogs ?? []
     await setDay({ date, entries: [...existingEntries, entry] })
@@ -525,8 +544,8 @@ export default function SnapAndLog() {
       <div
         className="absolute top-0 right-0 left-0 flex items-center justify-between px-5"
         style={{
-            paddingTop: "var(--app-safe-top)",
-          }}
+          paddingTop: "var(--app-safe-top)",
+        }}
       >
         <button
           onClick={() => navigate(-1)}
@@ -728,12 +747,16 @@ function ResultsSheet({
       {/* Error / empty states */}
       {hasError && (
         <p className="shrink-0 px-5 pb-4 text-[12px] text-white/40">
-          {mode === "barcode" ? barcodeError : "Couldn't analyse image. Try again."}
+          {mode === "barcode"
+            ? barcodeError
+            : "Couldn't analyse image. Try again."}
         </p>
       )}
       {isEmpty && (
         <p className="shrink-0 px-5 pb-4 text-[12px] text-white/40">
-          {mode === "barcode" ? "No product found for this barcode." : "No matching foods found."}
+          {mode === "barcode"
+            ? "No product found for this barcode."
+            : "No matching foods found."}
         </p>
       )}
 
@@ -749,7 +772,10 @@ function ResultsSheet({
                 style={
                   meal === m.id
                     ? { backgroundColor: m.bg, color: m.color }
-                    : { backgroundColor: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.35)" }
+                    : {
+                        backgroundColor: "rgba(255,255,255,0.07)",
+                        color: "rgba(255,255,255,0.35)",
+                      }
                 }
               >
                 {m.label}
@@ -762,11 +788,17 @@ function ResultsSheet({
             <div className="divide-y divide-white/[0.06]">
               {items.map((item) => {
                 const isAdded = added === item.id
-                const mealCfg = DEFAULT_MEAL_CATEGORIES.find((c) => c.id === meal) ?? DEFAULT_MEAL_CATEGORIES[0]
+                const mealCfg =
+                  DEFAULT_MEAL_CATEGORIES.find((c) => c.id === meal) ??
+                  DEFAULT_MEAL_CATEGORIES[0]
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-3">
                     <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-xl bg-white/[0.07]">
-                      <Fire size={11} weight="fill" className="text-orange-400/70" />
+                      <Fire
+                        size={11}
+                        weight="fill"
+                        className="text-orange-400/70"
+                      />
                       <span className="mt-0.5 text-[10px] leading-none font-semibold text-white/70">
                         {item.calories}
                       </span>
@@ -777,26 +809,55 @@ function ResultsSheet({
                       </p>
                       <div className="mt-0.5 flex items-center gap-1.5">
                         {item.brand && (
-                          <span className="truncate text-[10.5px] text-white/35">{item.brand}</span>
+                          <span className="truncate text-[10.5px] text-white/35">
+                            {item.brand}
+                          </span>
                         )}
                         {item.brand && <span className="text-white/20">·</span>}
-                        <span className="text-[10.5px] text-white/35">{item.serving}</span>
+                        <span className="text-[10.5px] text-white/35">
+                          {item.serving}
+                        </span>
                       </div>
                       <div className="mt-1 flex gap-2.5">
-                        <DarkMacroPill label="P" value={item.protein} color="#60a5fa" />
-                        <DarkMacroPill label="C" value={item.carbs} color="#a78bfa" />
-                        <DarkMacroPill label="F" value={item.fat} color="#f59e0b" />
+                        <DarkMacroPill
+                          label="P"
+                          value={item.protein}
+                          color="#60a5fa"
+                        />
+                        <DarkMacroPill
+                          label="C"
+                          value={item.carbs}
+                          color="#a78bfa"
+                        />
+                        <DarkMacroPill
+                          label="F"
+                          value={item.fat}
+                          color="#f59e0b"
+                        />
                       </div>
                     </div>
                     <button
                       onClick={() => onAdd(item)}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all active:scale-90"
-                      style={{ backgroundColor: isAdded ? mealCfg.bg : "rgba(255,255,255,0.1)" }}
+                      style={{
+                        backgroundColor: isAdded
+                          ? mealCfg.bg
+                          : "rgba(255,255,255,0.1)",
+                      }}
                     >
                       {isAdded ? (
-                        <span className="text-[11px]" style={{ color: mealCfg.color }}>✓</span>
+                        <span
+                          className="text-[11px]"
+                          style={{ color: mealCfg.color }}
+                        >
+                          ✓
+                        </span>
                       ) : (
-                        <Plus size={13} weight="bold" className="text-white/50" />
+                        <Plus
+                          size={13}
+                          weight="bold"
+                          className="text-white/50"
+                        />
                       )}
                     </button>
                   </div>

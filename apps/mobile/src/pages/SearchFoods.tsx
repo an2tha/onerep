@@ -12,23 +12,24 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
-import { currentDateKey, defaultMeal, type LogMicros } from "@/lib/food-log"
-import { searchFoods } from "@/lib/openfoodfacts"
+import {
+  currentDateKey,
+  defaultMeal,
+  stripUndefined,
+  type LogMicros,
+} from "@/lib/food-log"
+import { openFoodFactsBaseUrl, searchFoods } from "@/lib/openfoodfacts"
+import type { FoodDetail } from "@repo/models"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
 
-type FoodSearchItem = {
-  id: string
-  name: string
-  brand?: string
-  serving: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  imageUrl?: string
-}
+type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
+
+const rawOpenFoodFactsImagesUrl = import.meta.env
+  .VITE_OPENFOODFACTS_IMAGES_URL as string | undefined
+const openFoodFactsImagesUrl =
+  rawOpenFoodFactsImagesUrl?.replace(/\/+$/, "") ?? openFoodFactsBaseUrl
 
 function normalizeSearchText(value: string): string {
   return value
@@ -143,12 +144,14 @@ function openFoodFactsImageUrls(item: FoodSearchItem): string[] {
       barcode.slice(9),
     ].join("/")
 
-    urls.add(
-      `https://images.openfoodfacts.org/images/products/${path}/front_en.400.jpg`
-    )
-    urls.add(
-      `https://images.openfoodfacts.org/images/products/${path}/front.400.jpg`
-    )
+    if (openFoodFactsImagesUrl) {
+      urls.add(
+        `${openFoodFactsImagesUrl}/images/products/${path}/front_en.400.jpg`
+      )
+      urls.add(
+        `${openFoodFactsImagesUrl}/images/products/${path}/front.400.jpg`
+      )
+    }
   }
 
   return [...urls]
@@ -245,12 +248,14 @@ export default function SearchFoods() {
     item: FoodSearchItem,
     grams = 100,
     micros: LogMicros = {},
-    meal = "breakfast"
+    meal = "breakfast",
+    detail?: FoodDetail | null
   ) {
     const factor = grams / 100
     const round = (v: number) => Math.round(v * factor * 10) / 10
 
-    const entry = {
+    const product = detail?.openFoodFacts ?? item.openFoodFacts
+    const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
       name: grams === 100 ? item.name : `${item.name} (${grams} g)`,
       calories: Math.round(Number(item.calories) * factor),
@@ -259,8 +264,14 @@ export default function SearchFoods() {
       fat: round(Number(item.fat)),
       loggedAt: new Date().toISOString(),
       meal,
+      source: "openfoodfacts" as const,
+      foodCode: item.code,
+      servingGrams: detail?.servingGrams ?? undefined,
+      servingLabel: detail?.servingLabel ?? item.serving,
+      imageUrl: detail?.imageUrl ?? item.imageUrl,
+      openFoodFacts: product,
       ...micros,
-    }
+    })
 
     const existingEntries = foodLogs ?? []
     await setDay({ date, entries: [...existingEntries, entry] })
@@ -455,8 +466,8 @@ export default function SearchFoods() {
         <FoodDetailSheet
           item={detailItem}
           added={added?.itemId === detailItem.id}
-          onAdd={(item, grams, micros, meal) => {
-            void handleAdd(item, grams, micros, meal)
+          onAdd={(item, grams, micros, meal, detail) => {
+            void handleAdd(item, grams, micros, meal, detail)
           }}
           onClose={() => setDetailItem(null)}
         />

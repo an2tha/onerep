@@ -31,6 +31,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Local data/cache
+.cache/
+
 # Misc
 .DS_Store
 *.pem
@@ -39,8 +42,6 @@ yarn-error.log*
 apps/server/.env
 apps/server/.env.*
 apps/server/data/raw
-apps/data-api/data/
-apps/data-api/loaders/datasets/
 
 # AI/tooling scratch files
 .ralph
