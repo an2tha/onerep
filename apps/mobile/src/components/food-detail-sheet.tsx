@@ -647,7 +647,8 @@ type Props = {
     item: FoodResult,
     grams: number,
     micros: LogMicros,
-    meal: string
+    meal: string,
+    detail?: FoodDetail | null
   ) => void
   added: boolean
 }
@@ -661,7 +662,7 @@ type Props = {
  *
  * @param item - The food item to display (used to fetch detail by `item.id` and as fallback macro/calorie sources).
  * @param onClose - Callback invoked to close the sheet.
- * @param onAdd - Callback invoked when the user logs the food. Called as `onAdd(item, grams, micros, meal)` where
+ * @param onAdd - Callback invoked when the user logs the food. Called as `onAdd(item, grams, micros, meal, detail)` where
  *                `micros` is the micronutrient object scaled to the selected `grams` (empty object if no detail).
  * @param added - When true, the log button shows a confirmed "Logged" state for the currently selected meal.
  */
@@ -900,7 +901,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
           <div className="mx-4 mt-3">
             <button
               onClick={() =>
-                onAdd(item, grams, extractMicros(detail, grams), meal)
+                onAdd(item, grams, extractMicros(detail, grams), meal, detail)
               }
               className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold tracking-tight transition-all active:scale-[0.98]"
               style={{

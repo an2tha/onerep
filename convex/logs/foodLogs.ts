@@ -36,6 +36,13 @@ export const setDay = mutation({
         fat: v.number(),
         meal: v.string(),
         loggedAt: v.string(),
+        // Open Food Facts source metadata
+        source: v.optional(v.literal("openfoodfacts")),
+        foodCode: v.optional(v.string()),
+        servingGrams: v.optional(v.number()),
+        servingLabel: v.optional(v.string()),
+        imageUrl: v.optional(v.string()),
+        openFoodFacts: v.optional(v.any()),
         // Optional micronutrients
         fiber: v.optional(v.number()),
         sugar: v.optional(v.number()),

@@ -1,5 +1,71 @@
-import type { FoodDetail, FoodResult, NutrientRow } from "@repo/models"
-import { dataApiFetch } from "./trpc"
+import type {
+  FoodDetail,
+  FoodResult,
+  NutrientRow,
+  OpenFoodFactsImageSet,
+  OpenFoodFactsNutriments,
+  OpenFoodFactsProduct,
+} from "@repo/models"
+
+const rawOpenFoodFactsUrl = import.meta.env.VITE_OPENFOODFACTS_URL as
+  | string
+  | undefined
+
+export const openFoodFactsBaseUrl =
+  rawOpenFoodFactsUrl?.replace(/\/+$/, "") ?? null
+
+const PRODUCT_FIELDS = [
+  "code",
+  "product_name",
+  "product_name_en",
+  "generic_name",
+  "brands",
+  "quantity",
+  "serving_size",
+  "serving_quantity",
+  "image_url",
+  "image_front_url",
+  "image_front_small_url",
+  "image_front_thumb_url",
+  "selected_images",
+  "nutriments",
+  "nutriscore_grade",
+  "nova_group",
+].join(",")
+
+function openFoodFactsUrl(path: string, params?: URLSearchParams): string {
+  if (!openFoodFactsBaseUrl) {
+    throw new Error("VITE_OPENFOODFACTS_URL is required for food search")
+  }
+
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`
+  const query = params?.toString()
+  return `${openFoodFactsBaseUrl}${normalizedPath}${query ? `?${query}` : ""}`
+}
+
+async function openFoodFactsFetch<T>(
+  path: string,
+  params?: URLSearchParams
+): Promise<T> {
+  const response = await fetch(openFoodFactsUrl(path, params), {
+    credentials: "omit",
+    headers: { Accept: "application/json" },
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Open Food Facts request failed with status ${response.status}`
+    )
+  }
+
+  return (await response.json()) as T
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {}
+}
 
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === "") return 0
@@ -19,21 +85,11 @@ function firstNumber(...values: unknown[]): number {
   return 0
 }
 
-function getMultilangText(value: unknown): string {
-  if (!value) return "Unknown"
-  if (Array.isArray(value)) {
-    const main = value.find((v: any) => v.lang === "main")
-    if (main?.text) return main.text
-    const en = value.find((v: any) => v.lang === "en")
-    if (en?.text) return en.text
-    return value[0]?.text || "Unknown"
-  }
-  return String(value)
-}
-
 function firstString(...values: unknown[]): string | undefined {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) return value.trim()
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value)
   }
 }
 
@@ -43,73 +99,123 @@ function nestedString(value: unknown, path: string[]): string | undefined {
     if (!current || typeof current !== "object") return undefined
     current = (current as Record<string, unknown>)[key]
   }
-  return typeof current === "string" && current.trim()
-    ? current.trim()
-    : undefined
+  return firstString(current)
 }
 
-function foodImageUrl(src: Record<string, unknown>): string | undefined {
+function cleanUnknown(value?: string): string | undefined {
+  if (!value) return undefined
+  const normalized = value.trim()
+  if (!normalized || normalized.toLowerCase() === "unknown") return undefined
+  return normalized
+}
+
+function nutriments(product: OpenFoodFactsProduct): OpenFoodFactsNutriments {
+  return product.nutriments ?? {}
+}
+
+function nutrientValue(product: OpenFoodFactsProduct, key: string): number {
+  const n = nutriments(product)
+  return firstNumber(n[`${key}_100g`], n[key])
+}
+
+function nutrientUnit(
+  product: OpenFoodFactsProduct,
+  key: string,
+  fallback: string
+) {
+  return firstString(nutriments(product)[`${key}_unit`]) ?? fallback
+}
+
+function parseServingGrams(product: OpenFoodFactsProduct): number | null {
+  const quantity = toNumber(product.serving_quantity)
+  if (quantity > 0) return quantity
+
+  const servingSize = product.serving_size ?? product.quantity
+  if (!servingSize) return null
+
+  const match = servingSize.match(/([0-9]+(?:[.,][0-9]+)?)\s*g\b/i)
+  if (!match) return null
+  const parsed = toNumber(match[1])
+  return parsed > 0 ? parsed : null
+}
+
+function servingLabel(product: OpenFoodFactsProduct): string {
+  return firstString(product.serving_size, product.quantity) ?? "100 g"
+}
+
+function productImageUrl(product: OpenFoodFactsProduct): string | undefined {
   return firstString(
-    src.imageUrl,
-    src.image_url,
-    src.image_front_url,
-    src.image_front_thumb_url,
-    nestedString(src, ["selected_images", "front", "display", "en"]),
-    nestedString(src, ["selected_images", "front", "small", "en"])
+    product.image_front_url,
+    product.image_front_small_url,
+    product.image_front_thumb_url,
+    product.image_url,
+    nestedString(product.selected_images, ["front", "display", "en"]),
+    nestedString(product.selected_images, ["front", "small", "en"]),
+    nestedString(product.selected_images, ["front", "thumb", "en"])
   )
 }
 
-function nutrientValue(src: any, key: string): number {
-  const nutriments = src.nutriments ?? src.other_nutrients
-  if (!nutriments) return 0
+function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {
+  const src = asRecord(raw)
+  const code = firstString(src.code, src._id)
+  if (!code) return null
 
-  if (Array.isArray(nutriments)) {
-    const normalizedKey = key.toLowerCase()
-    const found = nutriments.find(
-      (n: any) => String(n.name ?? "").toLowerCase() === normalizedKey
-    )
-    return toNumber(found?.["100g"] ?? found?.value)
+  const selectedImages = src.selected_images
+  return {
+    code,
+    product_name: firstString(src.product_name),
+    product_name_en: firstString(src.product_name_en),
+    generic_name: firstString(src.generic_name),
+    brands: firstString(src.brands),
+    quantity: firstString(src.quantity),
+    serving_size: firstString(src.serving_size, src.serving),
+    serving_quantity: firstString(src.serving_quantity, src.servingQuantity),
+    image_url: firstString(src.image_url, src.imageUrl),
+    image_front_url: firstString(src.image_front_url),
+    image_front_small_url: firstString(src.image_front_small_url),
+    image_front_thumb_url: firstString(src.image_front_thumb_url),
+    selected_images:
+      selectedImages && typeof selectedImages === "object"
+        ? (selectedImages as OpenFoodFactsImageSet)
+        : undefined,
+    nutriments:
+      src.nutriments && typeof src.nutriments === "object"
+        ? (src.nutriments as OpenFoodFactsNutriments)
+        : undefined,
+    nutriscore_grade: firstString(src.nutriscore_grade),
+    nova_group: firstString(src.nova_group),
   }
-
-  return toNumber(nutriments[`${key}_100g`] ?? nutriments[key])
 }
 
-function mapHitToResult(hit: any): FoodResult {
-  const src = hit._source ?? hit
-  const serving =
-    [src.servingSize, src.servingUnit].filter(Boolean).join(" ") ||
-    src.serving ||
-    "100 g"
-  const calories = firstNumber(
-    src.calories,
-    src.calories_100g,
-    nutrientValue(src, "energy-kcal")
+function productName(product: OpenFoodFactsProduct): string {
+  return (
+    firstString(
+      product.product_name_en,
+      product.product_name,
+      product.generic_name
+    ) ?? product.code
   )
-  const protein = firstNumber(
-    src.protein,
-    src.protein_100g,
-    nutrientValue(src, "proteins")
-  )
-  const carbs = firstNumber(
-    src.carbohydrates,
-    src.carbs,
-    src.carbs_100g,
-    nutrientValue(src, "carbohydrates")
-  )
-  const fat = firstNumber(src.fat, src.fat_100g, nutrientValue(src, "fat"))
+}
+
+function productToResult(product: OpenFoodFactsProduct): FoodResult {
+  const calories = nutrientValue(product, "energy-kcal")
+  const protein = nutrientValue(product, "proteins")
+  const carbs = nutrientValue(product, "carbohydrates")
+  const fat = nutrientValue(product, "fat")
 
   return {
-    id: String(
-      src.code ?? src.id ?? src._id ?? hit._id ?? src.externalId ?? ""
-    ),
-    name: getMultilangText(src.product_name ?? src.name),
-    brand: getMultilangText(src.brands ?? src.brand),
-    serving,
+    id: product.code,
+    source: "openfoodfacts",
+    code: product.code,
+    name: productName(product),
+    brand: cleanUnknown(product.brands),
+    serving: servingLabel(product),
     calories: Math.round(calories),
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fat: Math.round(fat * 10) / 10,
-    imageUrl: foodImageUrl(src),
+    imageUrl: productImageUrl(product),
+    openFoodFacts: product,
   }
 }
 
@@ -122,103 +228,148 @@ function nutrientRow(
   return { key, name, per100g, unit }
 }
 
-function mapDocToDetail(doc: any): FoodDetail {
-  const get = (key: string) => {
-    const aliases: Record<string, unknown> = {
-      "energy-kcal": doc.calories,
-      proteins: doc.protein,
-      carbohydrates: doc.carbohydrates ?? doc.carbs,
-      fat: doc.fat,
-      fiber: doc.fiber,
-      sugars: doc.sugar,
-      sodium: doc.sodium,
-    }
-    return firstNumber(aliases[key], nutrientValue(doc, key))
-  }
-
-  const servingLabel =
-    [doc.servingSize, doc.servingUnit].filter(Boolean).join(" ") ||
-    doc.serving ||
-    "100 g"
+function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
+  const result = productToResult(product)
 
   return {
-    id: String(doc.code ?? doc.externalId ?? doc.id ?? ""),
-    name: getMultilangText(doc.product_name ?? doc.name),
-    brand: getMultilangText(doc.brands ?? doc.brand),
-    serving: servingLabel,
-    calories: Math.round(get("energy-kcal")),
-    protein: get("proteins"),
-    carbs: get("carbohydrates"),
-    fat: get("fat"),
-    servingGrams:
-      doc.servingUnit === "g" ? toNumber(doc.servingSize) || null : null,
-    servingLabel,
-    nutriscoreGrade: doc.nutriscore_grade?.toLowerCase() || undefined,
-    novaGroup: doc.nova_group || undefined,
-    imageUrl: foodImageUrl(doc),
+    ...result,
+    servingGrams: parseServingGrams(product),
+    servingLabel: servingLabel(product),
+    nutriscoreGrade: product.nutriscore_grade?.toLowerCase() || undefined,
+    novaGroup: product.nova_group
+      ? Number(product.nova_group) || undefined
+      : undefined,
     nutrients: [
-      nutrientRow("energy", "Calories", get("energy-kcal"), "kcal"),
-      nutrientRow("protein", "Protein", get("proteins"), "g"),
-      nutrientRow("carbs", "Carbohydrates", get("carbohydrates"), "g"),
-      nutrientRow("fat", "Total Fat", get("fat"), "g"),
-      nutrientRow("fiber", "Dietary Fiber", get("fiber"), "g"),
-      nutrientRow("sugar", "Total Sugars", get("sugars"), "g"),
-      nutrientRow("satFat", "Saturated Fat", get("saturated-fat"), "g"),
-      nutrientRow("sodium", "Sodium", get("sodium"), "mg"),
-      nutrientRow("cholesterol", "Cholesterol", get("cholesterol"), "mg"),
+      nutrientRow(
+        "energy",
+        "Calories",
+        nutrientValue(product, "energy-kcal"),
+        "kcal"
+      ),
+      nutrientRow(
+        "protein",
+        "Protein",
+        nutrientValue(product, "proteins"),
+        "g"
+      ),
+      nutrientRow(
+        "carbs",
+        "Carbohydrates",
+        nutrientValue(product, "carbohydrates"),
+        "g"
+      ),
+      nutrientRow("fat", "Total Fat", nutrientValue(product, "fat"), "g"),
+      nutrientRow(
+        "fiber",
+        "Dietary Fiber",
+        nutrientValue(product, "fiber"),
+        "g"
+      ),
+      nutrientRow(
+        "sugar",
+        "Total Sugars",
+        nutrientValue(product, "sugars"),
+        "g"
+      ),
+      nutrientRow(
+        "satFat",
+        "Saturated Fat",
+        nutrientValue(product, "saturated-fat"),
+        "g"
+      ),
+      nutrientRow(
+        "sodium",
+        "Sodium",
+        nutrientValue(product, "sodium"),
+        nutrientUnit(product, "sodium", "g")
+      ),
+      nutrientRow(
+        "cholesterol",
+        "Cholesterol",
+        nutrientValue(product, "cholesterol"),
+        nutrientUnit(product, "cholesterol", "mg")
+      ),
     ],
     extraNutrients: [
-      nutrientRow("calcium", "Calcium", get("calcium"), "mg"),
-      nutrientRow("iron", "Iron", get("iron"), "mg"),
-      nutrientRow("potassium", "Potassium", get("potassium"), "mg"),
-      nutrientRow("vitaminC", "Vitamin C", get("vitamin-c"), "mg"),
+      nutrientRow(
+        "calcium",
+        "Calcium",
+        nutrientValue(product, "calcium"),
+        nutrientUnit(product, "calcium", "mg")
+      ),
+      nutrientRow(
+        "iron",
+        "Iron",
+        nutrientValue(product, "iron"),
+        nutrientUnit(product, "iron", "mg")
+      ),
+      nutrientRow(
+        "potassium",
+        "Potassium",
+        nutrientValue(product, "potassium"),
+        nutrientUnit(product, "potassium", "mg")
+      ),
+      nutrientRow(
+        "vitaminC",
+        "Vitamin C",
+        nutrientValue(product, "vitamin-c"),
+        nutrientUnit(product, "vitamin-c", "mg")
+      ),
     ].filter((n) => n.per100g > 0),
   }
+}
+
+type OpenFoodFactsSearchResponse = {
+  products?: unknown[]
+}
+
+type OpenFoodFactsProductResponse = {
+  product?: unknown
+  status?: number
 }
 
 export async function searchFoods(
   query: string,
   limit?: number
 ): Promise<FoodResult[]> {
-  if (query.trim().length < 2) return []
-  const params = new URLSearchParams({ q: query.trim() })
-  if (limit) params.set("limit", String(Math.min(limit, 50)))
-  const hits = await dataApiFetch<any[]>(`/foods/search?${params}`)
-  return (Array.isArray(hits) ? hits : []).map(mapHitToResult)
+  const trimmed = query.trim()
+  if (trimmed.length < 2) return []
+
+  const params = new URLSearchParams({
+    search_terms: trimmed,
+    search_simple: "1",
+    action: "process",
+    json: "1",
+    page_size: String(Math.min(limit ?? 25, 100)),
+    fields: PRODUCT_FIELDS,
+  })
+
+  const data = await openFoodFactsFetch<OpenFoodFactsSearchResponse>(
+    "/cgi/search.pl",
+    params
+  )
+
+  return (data.products ?? [])
+    .map(normalizeProduct)
+    .filter((product): product is OpenFoodFactsProduct => product !== null)
+    .map(productToResult)
 }
 
 export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
   const encoded = encodeURIComponent(id)
-  const paths = /^\d+$/.test(id)
-    ? [`/foods/${encoded}`, `/foods/barcode/${encoded}`]
-    : [`/foods/barcode/${encoded}`]
+  const params = new URLSearchParams({ fields: PRODUCT_FIELDS })
+  const data = await openFoodFactsFetch<OpenFoodFactsProductResponse>(
+    `/api/v2/product/${encoded}.json`,
+    params
+  )
 
-  for (const path of paths) {
-    try {
-      const doc = await dataApiFetch<any>(path)
-      return mapDocToDetail(doc)
-    } catch {
-      // Try the next lookup shape.
-    }
-  }
-
-  return null
+  const product = normalizeProduct(data.product)
+  return product ? productToDetail(product) : null
 }
 
 export async function getFoodByBarcode(
   code: string
 ): Promise<FoodResult | null> {
   const detail = await getFoodDetail(code)
-  if (!detail) return null
-  return {
-    id: detail.id,
-    name: detail.name,
-    brand: detail.brand,
-    serving: detail.serving,
-    calories: detail.calories,
-    protein: detail.protein,
-    carbs: detail.carbs,
-    fat: detail.fat,
-    imageUrl: detail.imageUrl,
-  }
+  return detail ? productToResult(detail.openFoodFacts) : null
 }
