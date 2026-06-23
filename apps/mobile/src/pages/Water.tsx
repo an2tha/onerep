@@ -498,10 +498,10 @@ export default function Water() {
   }
 
   return (
-    <div className="min-h-svh bg-background">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24">
+    <div className="min-h-svh bg-background md:bg-muted/30">
+      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-4xl md:pb-10">
         {/* Header */}
-        <header className="flex items-end justify-between px-5 pt-14 pb-4">
+        <header className="flex items-end justify-between px-5 pt-14 pb-4 md:px-6 md:pt-10">
           <div>
             <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
               Hydration
@@ -533,7 +533,7 @@ export default function Water() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-col gap-3 px-4">
+        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-6">
           <ProgressCard
             totalMl={totalMl}
             goalMl={goalMl}

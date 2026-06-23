@@ -10,8 +10,8 @@
 # Seed the OFF mirror with the small sample dataset once:
 #   docker compose -f docker-compose.dev-requirements.yml --profile seed up off-seed
 #
-# Point mobile food search at:
-#   VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
+# Point Convex food search at:
+#   OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
 #
 # Note: this is a dev mirror. The seed profile imports only OFF's bundled sample
 # products. A full production mirror requires importing the official OFF dumps.

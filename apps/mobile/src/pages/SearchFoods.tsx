@@ -261,8 +261,8 @@ export default function SearchFoods() {
 
   return (
     <>
-      <div className="page-enter flex min-h-svh flex-col bg-background">
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col">
+      <div className="page-enter flex min-h-svh flex-col bg-background md:bg-muted/30">
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
           <div
             className="flex items-center gap-3 px-4 pb-3"
             style={{

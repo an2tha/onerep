@@ -2159,10 +2159,10 @@ export default function App() {
   const [snapOffline, setSnapOffline] = useState(false)
 
   return (
-    <div className="min-h-svh bg-background">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24">
+    <div className="min-h-svh bg-background md:bg-muted/30">
+      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="flex items-center justify-between px-5 pt-12 pb-4">
+        <header className="flex items-center justify-between px-5 pt-12 pb-4 md:px-6 md:pt-10">
           <div>
             <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">
               {dateLabel}
@@ -2203,7 +2203,7 @@ export default function App() {
         )}
 
         {/* Cards */}
-        <main className="px-4">
+        <main className="px-4 md:px-6">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -2213,7 +2213,7 @@ export default function App() {
               items={widgetLayout.map((w) => w.id)}
               strategy={rectSortingStrategy}
             >
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
                 {widgetLayout.map((widget) => {
                   let content: React.ReactNode
 

@@ -1554,8 +1554,8 @@ export default function NewPreset() {
   // ─────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-svh bg-background">
-      <div className="mx-auto max-w-lg pb-20">
+    <div className="min-h-svh bg-background md:bg-muted/30">
+      <div className="mx-auto max-w-lg pb-20 md:max-w-3xl md:pb-10">
         {/* ── Navigation bar ──────────────────────────── */}
         <div
           className="flex items-center px-5"

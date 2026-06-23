@@ -179,6 +179,7 @@ export function MobileSheet({
         className={cn(
           "relative flex flex-col w-full overflow-hidden rounded-3xl bg-card shadow-2xl sm:max-w-lg",
           panelClassName,
+          "md:rounded-3xl md:border md:border-border/50 md:shadow-2xl",
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         style={{

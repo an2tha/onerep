@@ -31,15 +31,12 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
   }, [pathname, activeIdx])
 
   return (
-    <div
-      className="fixed inset-x-0 z-40 flex items-center justify-center"
-      style={{ bottom: "var(--app-safe-bottom)" }}
-    >
+    <div className="fixed inset-x-0 bottom-[var(--app-safe-bottom)] z-40 flex items-center justify-center md:inset-x-auto md:top-1/2 md:right-6 md:bottom-auto md:-translate-y-1/2">
       {/* position:relative so offsetLeft on buttons is relative to this element */}
-      <div className="relative flex items-center gap-0.5 rounded-full border border-border/50 bg-background/75 px-1.5 py-1.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl">
+      <div className="relative flex items-center gap-0.5 rounded-full border border-border/50 bg-background/75 px-1.5 py-1.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl md:flex-col md:gap-1 md:rounded-[28px] md:px-2 md:py-2">
         {/* Sliding pill — always in DOM so the CSS transition has a start value */}
         <div
-          className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-full bg-foreground/[0.07]"
+          className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-full bg-foreground/[0.07] md:hidden"
           style={{
             left: pill?.left ?? 0,
             width: pill?.width ?? 0,
@@ -59,15 +56,16 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
               }}
               onClick={() => navigate(path)}
               className={cn(
-                "relative flex items-center gap-2 rounded-full px-4 py-2 transition-colors",
+                "relative flex items-center gap-2 rounded-full px-4 py-2 transition-colors md:h-11 md:w-11 md:justify-center md:px-0",
                 active
-                  ? "text-foreground"
+                  ? "text-foreground md:bg-foreground/[0.07]"
                   : "text-muted-foreground active:bg-foreground/[0.05]"
               )}
+              title={label}
             >
               <Icon size={17} weight={active ? "fill" : "regular"} />
               {active && (
-                <span className="text-[11px] font-medium">{label}</span>
+                <span className="text-[11px] font-medium md:hidden">{label}</span>
               )}
             </button>
           )
@@ -76,7 +74,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
         {/* Plus — visible on all tab pages */}
         {isTabPage && (
           <>
-            <div className="mx-1 h-4 w-px bg-border/60" />
+            <div className="mx-1 h-4 w-px bg-border/60 md:mx-0 md:my-1 md:h-px md:w-5" />
             <button
               onClick={onAdd}
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-foreground/[0.07] active:text-foreground"
