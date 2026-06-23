@@ -66,10 +66,26 @@ export default defineSchema({
     workoutAdjustmentEnabled: v.optional(v.boolean()),
     pushReminders: v.optional(
       v.object({
-        water: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
-        meal: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
-        workout: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
-        body: v.object({ enabled: v.boolean(), hour: v.number(), minute: v.number() }),
+        water: v.object({
+          enabled: v.boolean(),
+          hour: v.number(),
+          minute: v.number(),
+        }),
+        meal: v.object({
+          enabled: v.boolean(),
+          hour: v.number(),
+          minute: v.number(),
+        }),
+        workout: v.object({
+          enabled: v.boolean(),
+          hour: v.number(),
+          minute: v.number(),
+        }),
+        body: v.object({
+          enabled: v.boolean(),
+          hour: v.number(),
+          minute: v.number(),
+        }),
       }),
     ),
     privacySettings: v.optional(
@@ -229,25 +245,26 @@ export default defineSchema({
 
   // ── Exercise catalog ───────────────────────────────────────────────────────
   exercises: defineTable({
-    userId: v.optional(v.string()),          // null for global catalog
-    exerciseId: v.string(),                  // original dataset id or client UUID
+    userId: v.optional(v.string()), // "__global__" for bundled catalog
+    exerciseId: v.string(), // original dataset id or client UUID
     name: v.string(),
-    category: v.string(),                    // "strength" | "cardio" | "mobility" | "core"
-    level: v.string(),                       // "beginner" | "intermediate" | "expert"
-    mechanic: v.optional(v.string()),        // "isolation" | "compound"
+    category: v.string(), // "strength" | "cardio" | "mobility" | "core"
+    level: v.string(), // "beginner" | "intermediate" | "expert"
+    mechanic: v.optional(v.string()), // "isolation" | "compound"
     equipment: v.optional(v.string()),
-    force: v.optional(v.string()),           // "push" | "pull" | "static"
+    force: v.optional(v.string()), // "push" | "pull" | "static"
     primaryMuscles: v.array(v.string()),
     secondaryMuscles: v.array(v.string()),
     instructions: v.array(v.string()),
   })
     .index("by_userId", ["userId"])
+    .index("by_userId_and_category", ["userId", "category"])
+    .index("by_userId_and_exerciseId", ["userId", "exerciseId"])
     .index("by_exerciseId", ["exerciseId"])
     .searchIndex("search_name", {
       searchField: "name",
-      filterFields: ["category", "userId"],
+      filterFields: ["userId", "category"],
     }),
-
 
   // ── Food detail cache (USDA per-food nutrient lookup) ────────────────────────
   foodDetailCache: defineTable({
