@@ -242,7 +242,15 @@ function exerciseMatchesQuery(exercise: Exercise, query: string): boolean {
   return haystack.includes(query)
 }
 
-export async function searchExercises({
+async function remoteExerciseApi() {
+  const [{ convexClient }, { api }] = await Promise.all([
+    import("@/lib/convex"),
+    import("../../../../convex/_generated/api"),
+  ])
+  return { convexClient, api }
+}
+
+function fallbackSearchExercises({
   query = "",
   categories,
   limit = 25,
@@ -250,7 +258,7 @@ export async function searchExercises({
   query?: string
   categories?: ExerciseCategory[]
   limit?: number
-} = {}): Promise<Exercise[]> {
+} = {}): Exercise[] {
   const q = query.trim().toLowerCase()
   const filtered = EXERCISES.filter((exercise) =>
     exerciseMatchesQuery(exercise, q)
@@ -263,11 +271,53 @@ export async function searchExercises({
   return filtered.slice(0, Math.min(limit, 50))
 }
 
+export async function searchExercises({
+  query = "",
+  categories,
+  limit = 25,
+}: {
+  query?: string
+  categories?: ExerciseCategory[]
+  limit?: number
+} = {}): Promise<Exercise[]> {
+  try {
+    const { convexClient, api } = await remoteExerciseApi()
+    const results = (await convexClient.query(api.exercises.search, {
+      query,
+      categories,
+      limit,
+    })) as Exercise[]
+    if (results.length > 0 || query.trim().length > 0) return results
+  } catch {
+    // Fall back to the small bundled catalog when Convex is unavailable.
+  }
+
+  return fallbackSearchExercises({ query, categories, limit })
+}
+
 export async function resolveExerciseIds(
   ids: string[]
 ): Promise<Record<string, Exercise>> {
+  const uniqueIds = [...new Set(ids)].filter(Boolean)
+
+  try {
+    const { convexClient, api } = await remoteExerciseApi()
+    const remote = (await convexClient.query(api.exercises.resolve, {
+      ids: uniqueIds,
+    })) as Record<string, Exercise>
+    const missing = uniqueIds.filter((id) => !remote[id])
+    if (missing.length === 0) return remote
+
+    const fallback = fallbackResolveExerciseIds(missing)
+    return { ...remote, ...fallback }
+  } catch {
+    return fallbackResolveExerciseIds(uniqueIds)
+  }
+}
+
+function fallbackResolveExerciseIds(ids: string[]): Record<string, Exercise> {
   const result: Record<string, Exercise> = {}
-  for (const id of [...new Set(ids)].filter(Boolean)) {
+  for (const id of ids) {
     const exercise = getExerciseById(id)
     if (exercise) result[id] = exercise
   }

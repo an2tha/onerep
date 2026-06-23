@@ -8,6 +8,8 @@
     "docker:dev:reqs:seed": "docker compose -f docker-compose.dev-requirements.yml --profile seed up off-seed",
     "docker:dev:reqs:logs": "docker compose -f docker-compose.dev-requirements.yml logs -f",
     "docker:dev:reqs:down": "docker compose -f docker-compose.dev-requirements.yml down",
+    "exercises:prepare": "bun scripts/prepare-free-exercise-db.ts",
+    "exercises:import": "bun run exercises:prepare && bunx convex import --table exercises --replace --format jsonArray --yes .cache/exercises/free-exercise-db.compact.json",
     "lint": "turbo run lint",
     "format": "turbo run format --continue && prettier --write \"**/*.{md,json,yml,yaml}\"",
     "typecheck": "turbo run typecheck",
