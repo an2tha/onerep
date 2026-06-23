@@ -18,18 +18,13 @@ import {
   stripUndefined,
   type LogMicros,
 } from "@/lib/food-log"
-import { openFoodFactsBaseUrl, searchFoods } from "@/lib/openfoodfacts"
+import { searchFoods } from "@/lib/openfoodfacts"
 import type { FoodDetail } from "@repo/models"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
 
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
-
-const rawOpenFoodFactsImagesUrl = import.meta.env
-  .VITE_OPENFOODFACTS_IMAGES_URL as string | undefined
-const openFoodFactsImagesUrl =
-  rawOpenFoodFactsImagesUrl?.replace(/\/+$/, "") ?? openFoodFactsBaseUrl
 
 function normalizeSearchText(value: string): string {
   return value
@@ -98,7 +93,6 @@ function relevanceScore(item: FoodSearchItem, query: string, index: number) {
   if (nameMatches === queryTokens.length) score += 280
   else if (anyMatches === queryTokens.length) score += 90
   if (!isUnknownBrand(item.brand)) score += 35
-  if (item.imageUrl) score += 8
 
   score -= Math.min(nameTokens.length, 12) * 2
   return score - index * 0.001
@@ -128,33 +122,6 @@ function rankAndFilterResults(
     }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map(({ item }) => item)
-}
-
-function openFoodFactsImageUrls(item: FoodSearchItem): string[] {
-  const urls = new Set<string>()
-  if (item.imageUrl) urls.add(item.imageUrl)
-
-  const digits = String(item.id ?? "").replace(/\D/g, "")
-  if (digits.length > 0) {
-    const barcode = digits.padStart(13, "0")
-    const path = [
-      barcode.slice(0, 3),
-      barcode.slice(3, 6),
-      barcode.slice(6, 9),
-      barcode.slice(9),
-    ].join("/")
-
-    if (openFoodFactsImagesUrl) {
-      urls.add(
-        `${openFoodFactsImagesUrl}/images/products/${path}/front_en.400.jpg`
-      )
-      urls.add(
-        `${openFoodFactsImagesUrl}/images/products/${path}/front.400.jpg`
-      )
-    }
-  }
-
-  return [...urls]
 }
 
 const MEAL_CATEGORIES = [
@@ -395,7 +362,7 @@ export default function SearchFoods() {
                         onClick={() => setDetailItem(item)}
                         className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30"
                       >
-                        <FoodImage item={item} />
+                        <CalorieBadge calories={Number(item.calories)} />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13.5px] leading-snug font-medium">
@@ -487,46 +454,18 @@ export default function SearchFoods() {
   )
 }
 
-function FoodImage({ item }: { item: FoodSearchItem }) {
-  const imageKey = `${item.id}|${item.name}|${item.brand ?? ""}`
-  const candidates = openFoodFactsImageUrls(item)
-  const [candidateIndex, setCandidateIndex] = useState(0)
-  const [imageFailed, setImageFailed] = useState(candidates.length === 0)
-
-  useEffect(() => {
-    setCandidateIndex(0)
-    setImageFailed(candidates.length === 0)
-  }, [imageKey, candidates.length])
-
-  const src = imageFailed ? null : candidates[candidateIndex]
-
-  function handleImageError() {
-    if (candidateIndex < candidates.length - 1) {
-      setCandidateIndex((index) => index + 1)
-      return
-    }
-
-    setImageFailed(true)
-  }
-
+function CalorieBadge({ calories }: { calories: number }) {
   return (
-    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-muted/50">
-      {src ? (
-        <img
-          src={src}
-          alt=""
-          loading="lazy"
-          onError={handleImageError}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-muted/50">
-          <Fire size={16} weight="fill" className="text-orange-400/55" />
-        </div>
-      )}
-      <div className="absolute right-1 bottom-1 rounded-full bg-background/90 px-1.5 py-0.5 text-[9.5px] font-semibold text-foreground/75 shadow-sm backdrop-blur-sm">
-        {item.calories}
+    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-muted/60 text-center">
+      <div className="flex items-center gap-0.5 text-orange-400/80">
+        <Fire size={13} weight="fill" />
+        <span className="text-[13px] leading-none font-semibold tabular-nums">
+          {Math.round(calories)}
+        </span>
       </div>
+      <span className="mt-0.5 text-[8.5px] font-semibold tracking-[0.08em] text-muted-foreground/40 uppercase">
+        kcal
+      </span>
     </div>
   )
 }

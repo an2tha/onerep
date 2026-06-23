@@ -102,10 +102,9 @@ Required for mobile food search:
 
 ```env
 VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
-VITE_OPENFOODFACTS_IMAGES_URL=http://world.openfoodfacts.localhost:8088
 ```
 
-Food search and barcode lookups now use Open Food Facts Product Opener-compatible endpoints directly (`/cgi/search.pl` and `/api/v2/product/:code.json`). `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data. `VITE_OPENFOODFACTS_IMAGES_URL` is optional when images are served from a different host.
+Food search and barcode lookups now use Open Food Facts Product Opener-compatible endpoints directly (`/cgi/search.pl` and `/api/v2/product/:code.json`). `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
 
 ### Importing the full Open Food Facts data
 

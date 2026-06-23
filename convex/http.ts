@@ -9,8 +9,9 @@ const http = httpRouter();
 const ALLOWED_ORIGINS = [
   process.env.SITE_URL ?? "http://localhost:5173",
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "capacitor://localhost", // iOS Capacitor
-  "http://localhost",      // Android Capacitor
+  "http://localhost", // Android Capacitor
 ];
 
 // Better Auth routes (sign-in, sign-up, get-session, etc.)

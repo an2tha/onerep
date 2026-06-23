@@ -12,7 +12,6 @@
 #
 # Point mobile food search at:
 #   VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
-#   VITE_OPENFOODFACTS_IMAGES_URL=http://world.openfoodfacts.localhost:8088
 #
 # Note: this is a dev mirror. The seed profile imports only OFF's bundled sample
 # products. A full production mirror requires importing the official OFF dumps.
