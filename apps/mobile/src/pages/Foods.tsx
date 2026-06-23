@@ -1036,7 +1036,7 @@ export default function Foods() {
   }
 
   return (
-    <div className="min-h-svh bg-background md:bg-muted/30">
+    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
       <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-5xl md:pb-10">
         {/* Header */}
         <header className="flex items-end justify-between px-5 pt-14 pb-4 md:px-6 md:pt-10">

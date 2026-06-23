@@ -293,7 +293,7 @@ export default function Exercises() {
   }, [items])
 
   return (
-    <div className="min-h-svh bg-background md:bg-muted/30">
+    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
       <div className="page-enter mx-auto flex max-w-lg flex-col pb-28 md:max-w-5xl md:pb-10">
         <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10">
           <h1 className="text-[1.9rem] leading-tight font-semibold tracking-tight">
