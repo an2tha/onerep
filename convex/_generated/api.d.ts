@@ -10,8 +10,6 @@
 
 import type * as auth from "../auth.js";
 import type * as bodyProgress from "../bodyProgress.js";
-import type * as data_exercises from "../data/exercises.js";
-import type * as data_foods from "../data/foods.js";
 import type * as http from "../http.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
 import type * as lib_deleteUserData from "../lib/deleteUserData.js";
@@ -38,8 +36,6 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   bodyProgress: typeof bodyProgress;
-  "data/exercises": typeof data_exercises;
-  "data/foods": typeof data_foods;
   http: typeof http;
   "lib/calculateCalories": typeof lib_calculateCalories;
   "lib/deleteUserData": typeof lib_deleteUserData;

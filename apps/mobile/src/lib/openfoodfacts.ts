@@ -2,7 +2,6 @@ import type {
   FoodDetail,
   FoodResult,
   NutrientRow,
-  OpenFoodFactsImageSet,
   OpenFoodFactsNutriments,
   OpenFoodFactsProduct,
 } from "@repo/models"
@@ -23,11 +22,6 @@ const PRODUCT_FIELDS = [
   "quantity",
   "serving_size",
   "serving_quantity",
-  "image_url",
-  "image_front_url",
-  "image_front_small_url",
-  "image_front_thumb_url",
-  "selected_images",
   "nutriments",
   "nutriscore_grade",
   "nova_group",
@@ -93,15 +87,6 @@ function firstString(...values: unknown[]): string | undefined {
   }
 }
 
-function nestedString(value: unknown, path: string[]): string | undefined {
-  let current = value
-  for (const key of path) {
-    if (!current || typeof current !== "object") return undefined
-    current = (current as Record<string, unknown>)[key]
-  }
-  return firstString(current)
-}
-
 function cleanUnknown(value?: string): string | undefined {
   if (!value) return undefined
   const normalized = value.trim()
@@ -143,24 +128,11 @@ function servingLabel(product: OpenFoodFactsProduct): string {
   return firstString(product.serving_size, product.quantity) ?? "100 g"
 }
 
-function productImageUrl(product: OpenFoodFactsProduct): string | undefined {
-  return firstString(
-    product.image_front_url,
-    product.image_front_small_url,
-    product.image_front_thumb_url,
-    product.image_url,
-    nestedString(product.selected_images, ["front", "display", "en"]),
-    nestedString(product.selected_images, ["front", "small", "en"]),
-    nestedString(product.selected_images, ["front", "thumb", "en"])
-  )
-}
-
 function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {
   const src = asRecord(raw)
   const code = firstString(src.code, src._id)
   if (!code) return null
 
-  const selectedImages = src.selected_images
   return {
     code,
     product_name: firstString(src.product_name),
@@ -170,14 +142,6 @@ function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {
     quantity: firstString(src.quantity),
     serving_size: firstString(src.serving_size, src.serving),
     serving_quantity: firstString(src.serving_quantity, src.servingQuantity),
-    image_url: firstString(src.image_url, src.imageUrl),
-    image_front_url: firstString(src.image_front_url),
-    image_front_small_url: firstString(src.image_front_small_url),
-    image_front_thumb_url: firstString(src.image_front_thumb_url),
-    selected_images:
-      selectedImages && typeof selectedImages === "object"
-        ? (selectedImages as OpenFoodFactsImageSet)
-        : undefined,
     nutriments:
       src.nutriments && typeof src.nutriments === "object"
         ? (src.nutriments as OpenFoodFactsNutriments)
@@ -214,7 +178,6 @@ function productToResult(product: OpenFoodFactsProduct): FoodResult {
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fat: Math.round(fat * 10) / 10,
-    imageUrl: productImageUrl(product),
     openFoodFacts: product,
   }
 }
