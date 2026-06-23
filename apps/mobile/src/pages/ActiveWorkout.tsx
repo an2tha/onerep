@@ -2406,7 +2406,7 @@ export default function ActiveWorkout() {
   }
 
   return (
-    <div className="min-h-svh bg-background md:bg-muted/30">
+    <div className="desktop-canvas min-h-svh bg-background">
       <div className="page-enter mx-auto flex max-w-lg flex-col pb-40 md:max-w-4xl md:pb-10">
         <div
           className="flex items-center gap-3 px-4"

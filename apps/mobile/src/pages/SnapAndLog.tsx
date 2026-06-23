@@ -708,7 +708,7 @@ function ResultsSheet({
 
   return (
     <div
-      className="absolute right-0 bottom-0 left-0 flex max-h-[78vh] flex-col rounded-t-3xl border-t border-white/10 bg-black/85 backdrop-blur-md"
+      className="absolute right-0 bottom-0 left-0 flex max-h-[78vh] flex-col rounded-t-3xl border-t border-white/10 bg-black/85 backdrop-blur-md md:right-6 md:bottom-6 md:left-auto md:w-[420px] md:rounded-3xl md:border md:border-white/10 md:shadow-2xl"
       style={{ paddingBottom: "var(--app-safe-bottom)" }}
     >
       {/* Handle */}

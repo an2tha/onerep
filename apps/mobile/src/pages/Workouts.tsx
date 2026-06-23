@@ -934,7 +934,7 @@ export default function Workouts() {
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="min-h-svh bg-background md:bg-muted/30">
+    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
       <div className="page-enter mx-auto flex max-w-lg flex-col pb-28 md:max-w-6xl md:pb-10">
         <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10">
           <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">

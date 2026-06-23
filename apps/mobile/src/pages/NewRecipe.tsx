@@ -630,7 +630,7 @@ export default function NewRecipe() {
 
   return (
     <>
-      <div className="page-enter flex min-h-svh flex-col bg-background md:bg-muted/30">
+      <div className="desktop-canvas page-enter flex min-h-svh flex-col bg-background">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
 
           {/* ── Header ────────────────────────────────────────────────── */}

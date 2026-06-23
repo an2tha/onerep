@@ -261,8 +261,8 @@ export default function SearchFoods() {
 
   return (
     <>
-      <div className="page-enter flex min-h-svh flex-col bg-background md:bg-muted/30">
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
+      <div className="desktop-canvas page-enter flex min-h-svh flex-col bg-background">
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
           <div
             className="flex items-center gap-3 px-4 pb-3"
             style={{
@@ -353,14 +353,14 @@ export default function SearchFoods() {
                 <p className="mt-1 mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
                   {results.length} result{results.length !== 1 ? "s" : ""}
                 </p>
-                <div className="divide-y divide-border/30">
+                <div className="divide-y divide-border/30 md:grid md:grid-cols-2 md:gap-3 md:divide-y-0">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
                     return (
                       <button
                         key={item.id}
                         onClick={() => setDetailItem(item)}
-                        className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30"
+                        className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30 md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
                       >
                         <CalorieBadge calories={Number(item.calories)} />
 

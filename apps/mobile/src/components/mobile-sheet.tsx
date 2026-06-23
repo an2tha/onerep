@@ -41,7 +41,12 @@ export function MobileSheet({
   const [dragging, setDragging] = React.useState(false)
   const [settling, setSettling] = React.useState(false)
   const [isClosing, setIsClosing] = React.useState(false)
-  const [currentHeight, setCurrentHeight] = React.useState(defaultHeight ?? 0)
+  const [currentHeight, setCurrentHeight] = React.useState(() =>
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(min-width: 768px)").matches
+      ? 0
+      : defaultHeight ?? 0
+  )
   const panelRef = React.useRef<HTMLDivElement>(null)
   const startY = React.useRef(0)
   const startHeight = React.useRef(0)
@@ -179,7 +184,7 @@ export function MobileSheet({
         className={cn(
           "relative flex flex-col w-full overflow-hidden rounded-3xl bg-card shadow-2xl sm:max-w-lg",
           panelClassName,
-          "md:rounded-3xl md:border md:border-border/50 md:shadow-2xl",
+          "md:w-[min(92vw,46rem)] md:max-w-2xl md:rounded-3xl md:border md:border-border/50 md:shadow-2xl",
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         style={{
@@ -197,7 +202,7 @@ export function MobileSheet({
           <button
             type="button"
             onPointerDown={handlePointerDown}
-            className="flex w-full touch-none items-center justify-center pt-3 pb-2 shrink-0"
+            className="flex w-full touch-none items-center justify-center pt-3 pb-2 shrink-0 md:hidden"
             aria-label="Drag to resize"
           >
             <div
