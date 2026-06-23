@@ -98,13 +98,28 @@ VITE_CONVEX_URL=
 VITE_CONVEX_SITE_URL=
 ```
 
-Required for mobile food search:
+Required for mobile food search in Convex env:
 
 ```env
-VITE_OPENFOODFACTS_URL=http://world.openfoodfacts.localhost:8088
+OPENFOODFACTS_URL=https://world.openfoodfacts.org
+OPENFOODFACTS_AUTH_TOKEN=
 ```
 
-Food search and barcode lookups now use Open Food Facts Product Opener-compatible endpoints directly (`/cgi/search.pl` and `/api/v2/product/:code.json`). `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
+Set these with `bunx convex env set OPENFOODFACTS_URL <url>` and, for the auth-protected mirror, `bunx convex env set OPENFOODFACTS_AUTH_TOKEN <token>`. The mobile app talks only to Convex.
+
+Food search and barcode lookups use Open Food Facts Product Opener-compatible endpoints (`/cgi/search.pl` and `/api/v2/product/:code.json`) through a Convex proxy. `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
+
+### Importing the exercise catalog
+
+The exercise catalog uses [free-exercise-db](https://github.com/yuhonas/free-exercise-db). The import stores compact metadata only: no image paths or image binaries, keeping Convex storage small.
+
+```bash
+# Build .cache/exercises/free-exercise-db.compact.json
+bun run exercises:prepare
+
+# Replace the Convex exercises table in the current deployment
+bun run exercises:import
+```
 
 ### Importing the full Open Food Facts data
 
@@ -152,6 +167,8 @@ Optional integrations are listed in `.env.example`.
 | `bun run docker:dev:reqs:seed` | Seed local OFF mirror sample products |
 | `bun run docker:dev:reqs:logs` | Tail dev requirement service logs     |
 | `bun run docker:dev:reqs:down` | Stop dev requirement services         |
+| `bun run exercises:prepare`    | Build compact free-exercise-db import |
+| `bun run exercises:import`     | Import exercise catalog into Convex   |
 | `bun run build`                | Build all apps                        |
 | `bun run lint`                 | Lint all packages                     |
 | `bun run typecheck`            | Type-check all packages               |

@@ -934,9 +934,9 @@ export default function Workouts() {
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="min-h-svh bg-background">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-28">
-        <header className="px-5 pt-14 pb-6">
+    <div className="min-h-svh bg-background md:bg-muted/30">
+      <div className="page-enter mx-auto flex max-w-lg flex-col pb-28 md:max-w-6xl md:pb-10">
+        <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10">
           <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">
             Diary
           </p>
@@ -945,7 +945,7 @@ export default function Workouts() {
           </h1>
         </header>
 
-        <div className="flex flex-col gap-6 px-4">
+        <div className="flex flex-col gap-6 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6">
           {/* ── Today's workout ─────────────────────────────────────── */}
           <section>
             <SectionHeader

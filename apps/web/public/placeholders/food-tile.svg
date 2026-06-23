@@ -1,0 +1,20 @@
+<svg width="720" height="420" viewBox="0 0 720 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="420" rx="28" fill="#f4f4f5"/>
+  <rect x="44" y="44" width="300" height="332" rx="28" fill="white" stroke="#e4e4e7"/>
+  <text x="76" y="100" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="27" font-weight="750">Calories</text>
+  <text x="76" y="172" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="-2">1,462</text>
+  <text x="222" y="171" fill="#a1a1aa" font-family="Instrument Sans, Arial, sans-serif" font-size="20">kcal</text>
+  <rect x="76" y="214" width="236" height="5" rx="2.5" fill="#f4f4f5"/>
+  <rect x="76" y="214" width="172" height="5" rx="2.5" fill="#18181b" opacity=".45"/>
+  <text x="76" y="270" fill="#f59e0b" font-family="Instrument Sans, Arial, sans-serif" font-size="18" font-weight="800">P 92</text>
+  <text x="164" y="270" fill="#38bdf8" font-family="Instrument Sans, Arial, sans-serif" font-size="18" font-weight="800">C 161</text>
+  <text x="262" y="270" fill="#a78bfa" font-family="Instrument Sans, Arial, sans-serif" font-size="18" font-weight="800">F 52</text>
+  <rect x="376" y="44" width="300" height="332" rx="28" fill="white" stroke="#e4e4e7"/>
+  <text x="408" y="100" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="27" font-weight="750">Logged today</text>
+  <g font-family="Instrument Sans, Arial, sans-serif">
+    <text x="408" y="158" fill="#f97316" font-size="15" font-weight="850" letter-spacing="1.8">BREAKFAST</text><text x="604" y="158" fill="#a1a1aa" font-size="15" text-anchor="end">420</text>
+    <text x="408" y="204" fill="#38bdf8" font-size="15" font-weight="850" letter-spacing="1.8">LUNCH</text><text x="604" y="204" fill="#a1a1aa" font-size="15" text-anchor="end">610</text>
+    <text x="408" y="250" fill="#a78bfa" font-size="15" font-weight="850" letter-spacing="1.8">DINNER</text><text x="604" y="250" fill="#a1a1aa" font-size="15" text-anchor="end">432</text>
+  </g>
+  <rect x="408" y="302" width="82" height="34" rx="17" fill="#f4f4f5"/><text x="449" y="324" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Scan</text>
+</svg>

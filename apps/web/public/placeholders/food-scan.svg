@@ -1,0 +1,39 @@
+<svg width="720" height="1460" viewBox="0 0 720 1460" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="1460" fill="#fff"/>
+  <rect x="286" y="32" width="148" height="18" rx="9" fill="#18181b" opacity=".9"/>
+  <text x="48" y="124" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="4">DIARY</text>
+  <text x="48" y="174" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="-2">Foods.</text>
+  <circle cx="560" cy="136" r="28" fill="#f4f4f5"/><circle cx="630" cy="136" r="28" fill="#f4f4f5"/>
+
+  <text x="48" y="250" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="24" font-weight="700">Stats</text>
+  <rect x="34" y="278" width="652" height="220" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <text x="64" y="338" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="54" font-weight="800" letter-spacing="-2">1,462</text>
+  <text x="226" y="338" fill="#a1a1aa" font-family="Instrument Sans, Arial, sans-serif" font-size="21">kcal</text>
+  <rect x="64" y="382" width="592" height="5" rx="2.5" fill="#f4f4f5"/><rect x="64" y="382" width="432" height="5" rx="2.5" fill="#18181b" opacity=".45"/>
+  <g font-family="Instrument Sans, Arial, sans-serif" font-size="18" font-weight="700">
+    <text x="64" y="444" fill="#f59e0b">P 92</text><text x="232" y="444" fill="#38bdf8">C 161</text><text x="414" y="444" fill="#a78bfa">F 52</text>
+  </g>
+
+  <rect x="34" y="526" width="652" height="168" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <text x="64" y="584" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="24" font-weight="700">Water</text>
+  <g fill="#bae6fd"><rect x="64" y="620" width="62" height="44" rx="13"/><rect x="142" y="620" width="62" height="44" rx="13"/><rect x="220" y="620" width="62" height="44" rx="13"/><rect x="298" y="620" width="62" height="44" rx="13"/></g>
+  <text x="604" y="650" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="18" text-anchor="end">2.0L / 2.5L</text>
+
+  <text x="48" y="766" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="24" font-weight="700">Today's diary</text>
+  <rect x="34" y="794" width="652" height="370" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <g font-family="Instrument Sans, Arial, sans-serif">
+    <text x="64" y="854" fill="#f97316" font-size="17" font-weight="800" letter-spacing="2">BREAKFAST</text><text x="604" y="854" fill="#a1a1aa" font-size="17" text-anchor="end">420 kcal</text>
+    <text x="64" y="910" fill="#27272a" font-size="22" font-weight="600">Greek yogurt bowl</text><text x="604" y="910" fill="#71717a" font-size="20" font-weight="600" text-anchor="end">420</text>
+    <line x1="64" y1="952" x2="656" y2="952" stroke="#e4e4e7"/>
+    <text x="64" y="1006" fill="#38bdf8" font-size="17" font-weight="800" letter-spacing="2">LUNCH</text><text x="604" y="1006" fill="#a1a1aa" font-size="17" text-anchor="end">610 kcal</text>
+    <text x="64" y="1062" fill="#27272a" font-size="22" font-weight="600">Chicken rice bowl</text><text x="604" y="1062" fill="#71717a" font-size="20" font-weight="600" text-anchor="end">610</text>
+    <line x1="64" y1="1104" x2="656" y2="1104" stroke="#e4e4e7"/>
+    <text x="64" y="1158" fill="#a78bfa" font-size="17" font-weight="800" letter-spacing="2">DINNER</text><text x="604" y="1158" fill="#a1a1aa" font-size="17" text-anchor="end">432 kcal</text>
+  </g>
+
+  <rect x="112" y="1286" width="496" height="78" rx="39" fill="#fff" stroke="#e4e4e7"/>
+  <text x="178" y="1331" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="600">Home</text>
+  <rect x="282" y="1306" width="132" height="38" rx="19" fill="#f4f4f5"/>
+  <text x="320" y="1331" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="700">Foods</text>
+  <text x="452" y="1331" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="600">Workouts</text>
+</svg>

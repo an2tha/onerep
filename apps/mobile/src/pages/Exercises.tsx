@@ -293,15 +293,15 @@ export default function Exercises() {
   }, [items])
 
   return (
-    <div className="min-h-svh bg-background">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-28">
-        <header className="px-5 pt-14 pb-6">
+    <div className="min-h-svh bg-background md:bg-muted/30">
+      <div className="page-enter mx-auto flex max-w-lg flex-col pb-28 md:max-w-5xl md:pb-10">
+        <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10">
           <h1 className="text-[1.9rem] leading-tight font-semibold tracking-tight">
             Exercises
           </h1>
         </header>
 
-        <main className="flex flex-col gap-6 px-4">
+        <main className="flex flex-col gap-6 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6">
           {/* ── Your exercises ──────────────────────────────────────── */}
           <section>
             <SectionHeader title="Your exercises" />

@@ -1,0 +1,34 @@
+<svg width="720" height="1460" viewBox="0 0 720 1460" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="1460" fill="#fff"/>
+  <rect x="286" y="32" width="148" height="18" rx="9" fill="#18181b" opacity=".9"/>
+  <text x="48" y="124" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="20" font-weight="600" letter-spacing="4">CHECK-IN</text>
+  <text x="48" y="174" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="48" font-weight="700" letter-spacing="-2">Progress.</text>
+
+  <rect x="34" y="238" width="652" height="314" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <text x="64" y="298" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="26" font-weight="700">Body trend</text>
+  <text x="64" y="372" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="58" font-weight="800" letter-spacing="-2">82.4</text>
+  <text x="196" y="370" fill="#a1a1aa" font-family="Instrument Sans, Arial, sans-serif" font-size="21">kg</text>
+  <polyline points="72,490 160,464 248,472 336,428 424,440 512,392 630,406" fill="none" stroke="#0ea5e9" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="34" y="584" width="652" height="260" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <text x="64" y="644" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="26" font-weight="700">Measurements</text>
+  <g font-family="Instrument Sans, Arial, sans-serif" font-size="21">
+    <text x="64" y="712" fill="#27272a" font-weight="600">Waist</text><text x="604" y="712" fill="#18181b" font-weight="700" text-anchor="end">82.0 cm</text>
+    <line x1="64" y1="744" x2="656" y2="744" stroke="#e4e4e7"/>
+    <text x="64" y="796" fill="#27272a" font-weight="600">Body fat</text><text x="604" y="796" fill="#18181b" font-weight="700" text-anchor="end">17.8%</text>
+  </g>
+
+  <rect x="34" y="876" width="652" height="330" rx="24" fill="#fff" stroke="#e4e4e7"/>
+  <text x="64" y="936" fill="#18181b" font-family="Instrument Sans, Arial, sans-serif" font-size="26" font-weight="700">Progress photos</text>
+  <rect x="64" y="976" width="180" height="180" rx="24" fill="#f4f4f5"/>
+  <rect x="270" y="976" width="180" height="180" rx="24" fill="#f4f4f5"/>
+  <rect x="476" y="976" width="180" height="180" rx="24" fill="#f4f4f5"/>
+  <path d="M96 1124c28-42 58-52 91-24 24 20 43 15 64-11v67H96z" fill="#d4d4d8"/><circle cx="128" cy="1028" r="22" fill="#e4e4e7"/>
+  <path d="M302 1124c28-42 58-52 91-24 24 20 43 15 64-11v67H302z" fill="#d4d4d8"/><circle cx="334" cy="1028" r="22" fill="#e4e4e7"/>
+  <path d="M508 1124c28-42 58-52 91-24 24 20 43 15 64-11v67H508z" fill="#d4d4d8"/><circle cx="540" cy="1028" r="22" fill="#e4e4e7"/>
+
+  <rect x="112" y="1286" width="496" height="78" rx="39" fill="#fff" stroke="#e4e4e7"/>
+  <text x="178" y="1331" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="600">Home</text>
+  <text x="320" y="1331" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="600">Foods</text>
+  <text x="452" y="1331" fill="#71717a" font-family="Instrument Sans, Arial, sans-serif" font-size="17" font-weight="600">Workouts</text>
+</svg>

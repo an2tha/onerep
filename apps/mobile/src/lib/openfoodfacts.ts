@@ -1,3 +1,5 @@
+import { convexClient } from "@/lib/convex"
+import { api } from "../../../../convex/_generated/api"
 import type {
   FoodDetail,
   FoodResult,
@@ -5,13 +7,6 @@ import type {
   OpenFoodFactsNutriments,
   OpenFoodFactsProduct,
 } from "@repo/models"
-
-const rawOpenFoodFactsUrl = import.meta.env.VITE_OPENFOODFACTS_URL as
-  | string
-  | undefined
-
-export const openFoodFactsBaseUrl =
-  rawOpenFoodFactsUrl?.replace(/\/+$/, "") ?? null
 
 const PRODUCT_FIELDS = [
   "code",
@@ -27,32 +22,16 @@ const PRODUCT_FIELDS = [
   "nova_group",
 ].join(",")
 
-function openFoodFactsUrl(path: string, params?: URLSearchParams): string {
-  if (!openFoodFactsBaseUrl) {
-    throw new Error("VITE_OPENFOODFACTS_URL is required for food search")
-  }
-
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`
-  const query = params?.toString()
-  return `${openFoodFactsBaseUrl}${normalizedPath}${query ? `?${query}` : ""}`
-}
-
 async function openFoodFactsFetch<T>(
   path: string,
   params?: URLSearchParams
 ): Promise<T> {
-  const response = await fetch(openFoodFactsUrl(path, params), {
-    credentials: "omit",
-    headers: { Accept: "application/json" },
-  })
-
-  if (!response.ok) {
-    throw new Error(
-      `Open Food Facts request failed with status ${response.status}`
-    )
-  }
-
-  return (await response.json()) as T
+  return (await convexClient.action(api.food.openFoodFacts.proxy, {
+    path,
+    params: params
+      ? Array.from(params.entries()).map(([key, value]) => ({ key, value }))
+      : [],
+  })) as T
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
