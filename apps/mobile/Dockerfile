@@ -20,7 +20,8 @@ ENV VITE_PUBLIC_POSTHOG_HOST=$VITE_PUBLIC_POSTHOG_HOST
 
 RUN bunx turbo run build --filter=mobile
 
-FROM nginx:1.27-alpine
-COPY nginx-app.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /repo/apps/mobile/dist /usr/share/nginx/html
-EXPOSE 80
+FROM node:22-alpine
+WORKDIR /app
+COPY --from=build /repo/apps/mobile/dist ./dist
+EXPOSE 3000
+CMD ["sh", "-c", "npx --yes serve@latest -s dist -l tcp://0.0.0.0:3000"]
