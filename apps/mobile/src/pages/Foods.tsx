@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react"
-import { useNavigate } from "react-router"
 import {
   Aperture,
   Barbell,
@@ -17,6 +16,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery } from "convex/react"
@@ -1152,7 +1152,7 @@ function fmtWater(ml: number): string {
 }
 
 function WaterCard({ dateKey }: { dateKey: string }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
@@ -1279,7 +1279,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Foods() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})

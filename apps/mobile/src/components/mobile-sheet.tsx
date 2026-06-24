@@ -10,6 +10,7 @@ type MobileSheetProps = {
   panelStyle?: React.CSSProperties
   notchClassName?: string
   top?: React.ReactNode
+  bottom?: React.ReactNode
   showHandle?: boolean
   closeOnBackdrop?: boolean
   dragThreshold?: number
@@ -19,7 +20,7 @@ type MobileSheetProps = {
   defaultHeight?: number
 }
 
-const CLOSE_MS = 200
+const CLOSE_MS = 180
 
 export function MobileSheet({
   children,
@@ -29,6 +30,7 @@ export function MobileSheet({
   panelStyle,
   notchClassName,
   top,
+  bottom,
   showHandle = true,
   closeOnBackdrop = true,
   dragThreshold = 100,
@@ -45,7 +47,7 @@ export function MobileSheet({
     typeof window !== "undefined" &&
     window.matchMedia?.("(min-width: 768px)").matches
       ? 0
-      : defaultHeight ?? 0
+      : (defaultHeight ?? 0)
   )
   const panelRef = React.useRef<HTMLDivElement>(null)
   const startY = React.useRef(0)
@@ -53,14 +55,14 @@ export function MobileSheet({
   const closingRef = React.useRef(false)
 
   const normalizedMinHeight = React.useMemo(() => {
-    if (typeof minHeight === 'string' && minHeight.endsWith('vh')) {
+    if (typeof minHeight === "string" && minHeight.endsWith("vh")) {
       return (parseFloat(minHeight) * window.innerHeight) / 100
     }
     return parseFloat(minHeight) || 0
   }, [minHeight])
 
   const normalizedMaxHeight = React.useMemo(() => {
-    if (typeof maxHeight === 'string' && maxHeight.endsWith('vh')) {
+    if (typeof maxHeight === "string" && maxHeight.endsWith("vh")) {
       return (parseFloat(maxHeight) * window.innerHeight) / 100
     }
     return parseFloat(maxHeight) || window.innerHeight
@@ -104,7 +106,9 @@ export function MobileSheet({
 
         if (snapPoints) {
           const closest = snapPoints.reduce((prev, curr) =>
-            Math.abs(curr - newHeight) < Math.abs(prev - newHeight) ? curr : prev
+            Math.abs(curr - newHeight) < Math.abs(prev - newHeight)
+              ? curr
+              : prev
           )
           setCurrentHeight(closest)
         }
@@ -116,7 +120,7 @@ export function MobileSheet({
         return
       }
 
-      const id = window.setTimeout(() => setSettling(false), 380)
+      const id = window.setTimeout(() => setSettling(false), 300)
       return () => window.clearTimeout(id)
     }
 
@@ -128,11 +132,19 @@ export function MobileSheet({
       window.removeEventListener("pointerup", handlePointerEnd)
       window.removeEventListener("pointercancel", handlePointerEnd)
     }
-  }, [dragging, dragThreshold, dismiss, offsetY, normalizedMaxHeight, normalizedMinHeight, snapPoints])
+  }, [
+    dragging,
+    dragThreshold,
+    dismiss,
+    offsetY,
+    normalizedMaxHeight,
+    normalizedMinHeight,
+    snapPoints,
+  ])
 
   React.useEffect(() => {
     if (!settling) return
-    const id = window.setTimeout(() => setSettling(false), 380)
+    const id = window.setTimeout(() => setSettling(false), 300)
     return () => window.clearTimeout(id)
   }, [settling])
 
@@ -153,7 +165,7 @@ export function MobileSheet({
           transform: `translateY(${offsetY}px)`,
           transition: dragging
             ? "none"
-            : "transform 380ms cubic-bezier(0.22, 1, 0.36, 1)",
+            : "transform 300ms cubic-bezier(0.22, 1, 0.36, 1)",
         }
       : {}
 
@@ -169,7 +181,7 @@ export function MobileSheet({
       {/* Backdrop — blur effect */}
       <div
         className={cn(
-          "absolute inset-0 bg-background/60 backdrop-blur-md",
+          "absolute inset-0 bg-background/60 backdrop-blur-sm",
           overlayClassName,
           isClosing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
         )}
@@ -182,7 +194,7 @@ export function MobileSheet({
       <div
         ref={panelRef}
         className={cn(
-          "relative flex flex-col w-full overflow-hidden rounded-3xl bg-card shadow-2xl sm:max-w-lg",
+          "relative flex w-full flex-col overflow-hidden rounded-3xl bg-card shadow-2xl will-change-transform sm:max-w-lg",
           panelClassName,
           "md:w-[min(92vw,46rem)] md:max-w-2xl md:rounded-3xl md:border md:border-border/50 md:shadow-2xl",
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
@@ -202,7 +214,7 @@ export function MobileSheet({
           <button
             type="button"
             onPointerDown={handlePointerDown}
-            className="flex w-full touch-none items-center justify-center pt-3 pb-2 shrink-0 md:hidden"
+            className="flex w-full shrink-0 touch-none items-center justify-center pt-3 pb-2 md:hidden"
             aria-label="Drag to resize"
           >
             <div
@@ -213,9 +225,8 @@ export function MobileSheet({
             />
           </button>
         )}
-        <div className="flex-1 overflow-y-auto min-h-0 px-1">
-          {children}
-        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-1">{children}</div>
+        {bottom && <div className="shrink-0">{bottom}</div>}
       </div>
     </div>
   )

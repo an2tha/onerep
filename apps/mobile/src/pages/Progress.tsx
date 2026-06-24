@@ -1,5 +1,4 @@
 import React, { useState } from "react"
-import { useNavigate } from "react-router"
 import {
   ArrowLeft,
   Bell,
@@ -20,6 +19,7 @@ import { toast } from "sonner"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { useSmoothNavigate } from "@/lib/navigation"
 import {
   formatReminderLabel,
   syncDailyCheckInReminder,
@@ -113,10 +113,19 @@ function MultiLineChart({
   const globalMax = sharedScale ? Math.max(...allValues) : undefined
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full overflow-visible short-phone:h-24">
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="h-28 w-full overflow-visible short-phone:h-24"
+    >
       {series.map((s, i) => {
         if (s.values.length < 2) return null
-        const pts = sparklinePoints(s.values, width, height, globalMin, globalMax)
+        const pts = sparklinePoints(
+          s.values,
+          width,
+          height,
+          globalMin,
+          globalMax
+        )
         return (
           <polyline
             key={i}
@@ -285,11 +294,31 @@ function MeasurementSheet({
         <div className="grid grid-cols-2 gap-2.5 short-phone:gap-2">
           {/* Core fields */}
           {[
-            { label: "Weight",   unit: "kg", value: weightKg,   onChange: setWeightKg },
-            { label: "Body fat", unit: "%",  value: bodyFatPct, onChange: setBodyFatPct },
-            { label: "Waist",    unit: "cm", value: waistCm,    onChange: setWaistCm },
-            { label: "Hips",     unit: "cm", value: hipsCm,     onChange: setHipsCm },
-            { label: "Chest",    unit: "cm", value: chestCm,    onChange: setChestCm },
+            {
+              label: "Weight",
+              unit: "kg",
+              value: weightKg,
+              onChange: setWeightKg,
+            },
+            {
+              label: "Body fat",
+              unit: "%",
+              value: bodyFatPct,
+              onChange: setBodyFatPct,
+            },
+            {
+              label: "Waist",
+              unit: "cm",
+              value: waistCm,
+              onChange: setWaistCm,
+            },
+            { label: "Hips", unit: "cm", value: hipsCm, onChange: setHipsCm },
+            {
+              label: "Chest",
+              unit: "cm",
+              value: chestCm,
+              onChange: setChestCm,
+            },
           ].map((field) => (
             <MeasurementField key={field.label} {...field} />
           ))}
@@ -301,18 +330,29 @@ function MeasurementSheet({
             className="col-span-2 flex items-center gap-1.5 py-1 text-[11px] font-medium text-muted-foreground/50 transition-colors active:text-foreground/60"
           >
             <span>{showAdvanced ? "▴" : "▾"}</span>
-            {showAdvanced ? "Fewer measurements" : "More measurements (arms, thighs, calves, neck)"}
+            {showAdvanced
+              ? "Fewer measurements"
+              : "More measurements (arms, thighs, calves, neck)"}
           </button>
 
           {/* Advanced measurement sites */}
-          {showAdvanced && [
-            { label: "Arms",   unit: "cm", value: armsCm,   onChange: setArmsCm },
-            { label: "Thighs", unit: "cm", value: thighsCm, onChange: setThighsCm },
-            { label: "Calves", unit: "cm", value: calvesCm, onChange: setCalvesCm },
-            { label: "Neck",   unit: "cm", value: neckCm,   onChange: setNeckCm },
-          ].map((field) => (
-            <MeasurementField key={field.label} {...field} />
-          ))}
+          {showAdvanced &&
+            [
+              { label: "Arms", unit: "cm", value: armsCm, onChange: setArmsCm },
+              {
+                label: "Thighs",
+                unit: "cm",
+                value: thighsCm,
+                onChange: setThighsCm,
+              },
+              {
+                label: "Calves",
+                unit: "cm",
+                value: calvesCm,
+                onChange: setCalvesCm,
+              },
+              { label: "Neck", unit: "cm", value: neckCm, onChange: setNeckCm },
+            ].map((field) => <MeasurementField key={field.label} {...field} />)}
 
           {/* Photo upload section */}
           <div className="col-span-2 flex flex-col gap-1.5">
@@ -425,27 +465,40 @@ function MeasurementSheet({
 }
 
 export default function Progress() {
-  const navigate = useNavigate()
-  
+  const navigate = useSmoothNavigate()
+
   const onboarding = useQuery(api.users.onboarding.get, {})
   const measurementsQuery = useQuery(api.bodyProgress.list, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
 
   const generateUploadUrl = useMutation(api.bodyProgress.generateUploadUrl)
-  const saveMeasurement = useOfflineMutation(api.bodyProgress.save, "bodyProgress.save")
-  const removeMeasurement = useOfflineMutation(api.bodyProgress.remove, "bodyProgress.remove")
-  const setBodyReminder = useOfflineMutation(api.users.users.setBodyReminder, "users.users.setBodyReminder")
+  const saveMeasurement = useOfflineMutation(
+    api.bodyProgress.save,
+    "bodyProgress.save"
+  )
+  const removeMeasurement = useOfflineMutation(
+    api.bodyProgress.remove,
+    "bodyProgress.remove"
+  )
+  const setBodyReminder = useOfflineMutation(
+    api.users.users.setBodyReminder,
+    "users.users.setBodyReminder"
+  )
 
   const goal = (onboarding?.goal as GoalId) ?? null
   const entries = (measurementsQuery ?? []) as BodyMeasurementEntry[]
-  const reminder = preferences?.bodyReminder || { enabled: false, hour: 19, minute: 0 }
+  const reminder = preferences?.bodyReminder || {
+    enabled: false,
+    hour: 19,
+    minute: 0,
+  }
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [metricTab, setMetricTab] = useState<MetricTab>("weight")
 
   const latest = entries[entries.length - 1] ?? null
   const weightEntries = entries.filter((entry) => entry.weightKg != null)
-const trend = goalDelta(entries, goal)
+  const trend = goalDelta(entries, goal)
   const startWeight = weightEntries[0]?.weightKg
   const endWeight = weightEntries[weightEntries.length - 1]?.weightKg
 
@@ -470,7 +523,7 @@ const trend = goalDelta(entries, goal)
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
+    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         <header className="px-5 pt-[var(--app-safe-top)] pb-5 md:flex md:items-end md:justify-between md:px-6 md:pt-10 md:pb-4 short-phone:pb-3">
           <div className="mb-4 flex items-center justify-between md:hidden">
@@ -537,200 +590,391 @@ const trend = goalDelta(entries, goal)
                 </div>
 
                 {/* ── Weight tab ── */}
-                {metricTab === "weight" && (() => {
-                  const allWeightValues = weightEntries.map((e) => e.weightKg!)
-                  const rolling7 = allWeightValues.length >= 2 ? rollingAvg(allWeightValues, 7) : []
-                  const hasData = allWeightValues.length >= 2
-                  return hasData ? (
-                    <>
-                      <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
-                        <div>
-                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                            From / to
-                          </p>
-                          <p className="mt-1 text-[13px] font-medium">
-                            <span className="tabular-nums">{fmtNumber(startWeight)}</span>
-                            <span className="mx-1.5 text-muted-foreground/30">→</span>
-                            <span className="tabular-nums">{fmtNumber(endWeight)}</span>
-                            <span className="ml-1 text-[10px] text-muted-foreground/45">kg</span>
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Direction</p>
-                          <p className="mt-1 text-[13px] font-medium">{trend ?? "—"}</p>
-                        </div>
-                      </div>
-                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
-                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
-                          {[0, 1, 2, 3].map((l) => (
-                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
-                          ))}
-                        </div>
-                        <div className="-mt-[6.1rem]">
-                          <MultiLineChart
-                            series={[
-                              { values: allWeightValues, color: "color-mix(in srgb, var(--foreground) 55%, transparent)", strokeWidth: 2.5 },
-                              ...(rolling7.length >= 2 ? [{ values: rolling7, color: "#38bdf8", strokeWidth: 2, opacity: 0.85 }] : []),
-                            ]}
-                            sharedScale
-                          />
-                        </div>
-                        <div className="mt-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground/45">
-                            {weightEntries.length > 0 && formatMeasurementDate(weightEntries[0].loggedAt)}
-                          </span>
-                          <div className="flex items-center gap-2.5">
-                            <div className="flex items-center gap-1">
-                              <div className="h-[2px] w-4 rounded-full bg-foreground/40" />
-                              <span className="text-[9px] text-muted-foreground/40">Raw</span>
-                            </div>
-                            {rolling7.length >= 2 && (
-                              <div className="flex items-center gap-1">
-                                <div className="h-[2px] w-4 rounded-full bg-sky-400/80" />
-                                <span className="text-[9px] text-muted-foreground/40">7-day avg</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-[10px] text-muted-foreground/45">
-                            {weightEntries.length > 0 && formatMeasurementDate(weightEntries[weightEntries.length - 1].loggedAt)}
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-8 text-center">
-                      <ChartLine size={28} className="text-muted-foreground/20" />
-                      <p className="text-[14px] font-medium">Graph appears after two measurements</p>
-                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">One point is a note. Two points are direction.</p>
-                    </div>
-                  )
-                })()}
-
-                {/* ── Body fat tab ── */}
-                {metricTab === "bodyFat" && (() => {
-                  const bfEntries = entries.filter((e) => e.bodyFatPct != null)
-                  const bfValues = bfEntries.map((e) => e.bodyFatPct!)
-                  const hasData = bfValues.length >= 2
-                  const first = bfValues[0]
-                  const last = bfValues[bfValues.length - 1]
-                  const delta = hasData ? last - first : null
-                  return hasData ? (
-                    <>
-                      <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
-                        <div>
-                          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">From / to</p>
-                          <p className="mt-1 text-[13px] font-medium">
-                            <span className="tabular-nums">{fmtNumber(first)}</span>
-                            <span className="mx-1.5 text-muted-foreground/30">→</span>
-                            <span className="tabular-nums">{fmtNumber(last)}</span>
-                            <span className="ml-1 text-[10px] text-muted-foreground/45">%</span>
-                          </p>
-                        </div>
-                        {delta !== null && (
-                          <div className="text-right">
-                            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Change</p>
-                            <p className={cn("mt-1 text-[13px] font-medium", delta < 0 ? "text-emerald-500" : delta > 0 ? "text-rose-400" : "")}>
-                              {delta > 0 ? "+" : ""}{delta.toFixed(1)}%
+                {metricTab === "weight" &&
+                  (() => {
+                    const allWeightValues = weightEntries.map(
+                      (e) => e.weightKg!
+                    )
+                    const rolling7 =
+                      allWeightValues.length >= 2
+                        ? rollingAvg(allWeightValues, 7)
+                        : []
+                    const hasData = allWeightValues.length >= 2
+                    return hasData ? (
+                      <>
+                        <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
+                          <div>
+                            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                              From / to
+                            </p>
+                            <p className="mt-1 text-[13px] font-medium">
+                              <span className="tabular-nums">
+                                {fmtNumber(startWeight)}
+                              </span>
+                              <span className="mx-1.5 text-muted-foreground/30">
+                                →
+                              </span>
+                              <span className="tabular-nums">
+                                {fmtNumber(endWeight)}
+                              </span>
+                              <span className="ml-1 text-[10px] text-muted-foreground/45">
+                                kg
+                              </span>
                             </p>
                           </div>
-                        )}
-                      </div>
-                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
-                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
-                          {[0, 1, 2, 3].map((l) => (
-                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
-                          ))}
+                          <div className="text-right">
+                            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                              Direction
+                            </p>
+                            <p className="mt-1 text-[13px] font-medium">
+                              {trend ?? "—"}
+                            </p>
+                          </div>
                         </div>
-                        <div className="-mt-[6.1rem]">
-                          <MultiLineChart
-                            series={[{ values: bfValues, color: "#a78bfa", strokeWidth: 2.5 }]}
-                            sharedScale
-                          />
-                        </div>
-                        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
-                          <span>{formatMeasurementDate(bfEntries[0].loggedAt)}</span>
-                          <span>{formatMeasurementDate(bfEntries[bfEntries.length - 1].loggedAt)}</span>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-8 text-center">
-                      <ChartLine size={28} className="text-muted-foreground/20" />
-                      <p className="text-[14px] font-medium">No body fat data yet</p>
-                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">Add body fat % to two or more check-ins to see your trend.</p>
-                    </div>
-                  )
-                })()}
-
-                {/* ── Circumference tab ── */}
-                {metricTab === "circumference" && (() => {
-                  const waistEntries = entries.filter((e) => e.waistCm != null)
-                  const hipsEntries = entries.filter((e) => e.hipsCm != null)
-                  const chestEntries = entries.filter((e) => e.chestCm != null)
-                  const waistValues = waistEntries.map((e) => e.waistCm!)
-                  const hipsValues = hipsEntries.map((e) => e.hipsCm!)
-                  const chestValues = chestEntries.map((e) => e.chestCm!)
-                  const hasAny = waistValues.length >= 2 || hipsValues.length >= 2 || chestValues.length >= 2
-
-                  const CIRC_SERIES = [
-                    { label: "Waist", values: waistValues, color: "#38bdf8", unit: "cm" },
-                    { label: "Hips", values: hipsValues, color: "#a78bfa", unit: "cm" },
-                    { label: "Chest", values: chestValues, color: "#f59e0b", unit: "cm" },
-                  ].filter((s) => s.values.length >= 2)
-
-                  const firstDate = [...waistEntries, ...hipsEntries, ...chestEntries]
-                    .map((e) => e.loggedAt).sort()[0]
-                  const lastDate = [...waistEntries, ...hipsEntries, ...chestEntries]
-                    .map((e) => e.loggedAt).sort().reverse()[0]
-
-                  return hasAny ? (
-                    <>
-                      <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-border/45 pb-3">
-                        {CIRC_SERIES.map((s) => {
-                          const first = s.values[0]
-                          const last = s.values[s.values.length - 1]
-                          const delta = last - first
-                          return (
-                            <div key={s.label} className="flex items-center gap-1.5">
-                              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-                              <span className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/50 uppercase">{s.label}</span>
-                              <span className="text-[12px] font-semibold tabular-nums">{fmtNumber(last)}</span>
-                              <span className="text-[9.5px] text-muted-foreground/40">cm</span>
-                              {delta !== 0 && (
-                                <span className={cn("text-[10px] font-medium tabular-nums", delta < 0 ? "text-emerald-500" : "text-rose-400")}>
-                                  ({delta > 0 ? "+" : ""}{delta.toFixed(1)})
+                        <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                          <div
+                            className="mb-3 grid"
+                            style={{
+                              gridTemplateRows: "repeat(4, minmax(0, 1fr))",
+                            }}
+                          >
+                            {[0, 1, 2, 3].map((l) => (
+                              <div
+                                key={l}
+                                className="h-6 border-b border-dashed border-border/35 last:border-b-0"
+                              />
+                            ))}
+                          </div>
+                          <div className="-mt-[6.1rem]">
+                            <MultiLineChart
+                              series={[
+                                {
+                                  values: allWeightValues,
+                                  color:
+                                    "color-mix(in srgb, var(--foreground) 55%, transparent)",
+                                  strokeWidth: 2.5,
+                                },
+                                ...(rolling7.length >= 2
+                                  ? [
+                                      {
+                                        values: rolling7,
+                                        color: "#38bdf8",
+                                        strokeWidth: 2,
+                                        opacity: 0.85,
+                                      },
+                                    ]
+                                  : []),
+                              ]}
+                              sharedScale
+                            />
+                          </div>
+                          <div className="mt-1 flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground/45">
+                              {weightEntries.length > 0 &&
+                                formatMeasurementDate(
+                                  weightEntries[0].loggedAt
+                                )}
+                            </span>
+                            <div className="flex items-center gap-2.5">
+                              <div className="flex items-center gap-1">
+                                <div className="h-[2px] w-4 rounded-full bg-foreground/40" />
+                                <span className="text-[9px] text-muted-foreground/40">
+                                  Raw
                                 </span>
+                              </div>
+                              {rolling7.length >= 2 && (
+                                <div className="flex items-center gap-1">
+                                  <div className="h-[2px] w-4 rounded-full bg-sky-400/80" />
+                                  <span className="text-[9px] text-muted-foreground/40">
+                                    7-day avg
+                                  </span>
+                                </div>
                               )}
                             </div>
-                          )
-                        })}
+                            <span className="text-[10px] text-muted-foreground/45">
+                              {weightEntries.length > 0 &&
+                                formatMeasurementDate(
+                                  weightEntries[weightEntries.length - 1]
+                                    .loggedAt
+                                )}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-8 text-center">
+                        <ChartLine
+                          size={28}
+                          className="text-muted-foreground/20"
+                        />
+                        <p className="text-[14px] font-medium">
+                          Graph appears after two measurements
+                        </p>
+                        <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">
+                          One point is a note. Two points are direction.
+                        </p>
                       </div>
-                      <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
-                        <div className="mb-3 grid" style={{ gridTemplateRows: "repeat(4, minmax(0, 1fr))" }}>
-                          {[0, 1, 2, 3].map((l) => (
-                            <div key={l} className="h-6 border-b border-dashed border-border/35 last:border-b-0" />
-                          ))}
+                    )
+                  })()}
+
+                {/* ── Body fat tab ── */}
+                {metricTab === "bodyFat" &&
+                  (() => {
+                    const bfEntries = entries.filter(
+                      (e) => e.bodyFatPct != null
+                    )
+                    const bfValues = bfEntries.map((e) => e.bodyFatPct!)
+                    const hasData = bfValues.length >= 2
+                    const first = bfValues[0]
+                    const last = bfValues[bfValues.length - 1]
+                    const delta = hasData ? last - first : null
+                    return hasData ? (
+                      <>
+                        <div className="mb-3 flex items-start justify-between border-b border-border/45 pb-3">
+                          <div>
+                            <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                              From / to
+                            </p>
+                            <p className="mt-1 text-[13px] font-medium">
+                              <span className="tabular-nums">
+                                {fmtNumber(first)}
+                              </span>
+                              <span className="mx-1.5 text-muted-foreground/30">
+                                →
+                              </span>
+                              <span className="tabular-nums">
+                                {fmtNumber(last)}
+                              </span>
+                              <span className="ml-1 text-[10px] text-muted-foreground/45">
+                                %
+                              </span>
+                            </p>
+                          </div>
+                          {delta !== null && (
+                            <div className="text-right">
+                              <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+                                Change
+                              </p>
+                              <p
+                                className={cn(
+                                  "mt-1 text-[13px] font-medium",
+                                  delta < 0
+                                    ? "text-emerald-500"
+                                    : delta > 0
+                                      ? "text-rose-400"
+                                      : ""
+                                )}
+                              >
+                                {delta > 0 ? "+" : ""}
+                                {delta.toFixed(1)}%
+                              </p>
+                            </div>
+                          )}
                         </div>
-                        <div className="-mt-[6.1rem]">
-                          <MultiLineChart
-                            series={CIRC_SERIES.map((s) => ({ values: s.values, color: s.color, strokeWidth: 2 }))}
-                            sharedScale={false}
-                          />
+                        <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                          <div
+                            className="mb-3 grid"
+                            style={{
+                              gridTemplateRows: "repeat(4, minmax(0, 1fr))",
+                            }}
+                          >
+                            {[0, 1, 2, 3].map((l) => (
+                              <div
+                                key={l}
+                                className="h-6 border-b border-dashed border-border/35 last:border-b-0"
+                              />
+                            ))}
+                          </div>
+                          <div className="-mt-[6.1rem]">
+                            <MultiLineChart
+                              series={[
+                                {
+                                  values: bfValues,
+                                  color: "#a78bfa",
+                                  strokeWidth: 2.5,
+                                },
+                              ]}
+                              sharedScale
+                            />
+                          </div>
+                          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
+                            <span>
+                              {formatMeasurementDate(bfEntries[0].loggedAt)}
+                            </span>
+                            <span>
+                              {formatMeasurementDate(
+                                bfEntries[bfEntries.length - 1].loggedAt
+                              )}
+                            </span>
+                          </div>
                         </div>
-                        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
-                          <span>{firstDate ? formatMeasurementDate(firstDate) : ""}</span>
-                          <span>{lastDate ? formatMeasurementDate(lastDate) : ""}</span>
-                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-8 text-center">
+                        <ChartLine
+                          size={28}
+                          className="text-muted-foreground/20"
+                        />
+                        <p className="text-[14px] font-medium">
+                          No body fat data yet
+                        </p>
+                        <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">
+                          Add body fat % to two or more check-ins to see your
+                          trend.
+                        </p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 py-8 text-center">
-                      <ChartLine size={28} className="text-muted-foreground/20" />
-                      <p className="text-[14px] font-medium">No measurement data yet</p>
-                      <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">Add waist, hips, or chest measurements to two or more check-ins.</p>
-                    </div>
-                  )
-                })()}
+                    )
+                  })()}
+
+                {/* ── Circumference tab ── */}
+                {metricTab === "circumference" &&
+                  (() => {
+                    const waistEntries = entries.filter(
+                      (e) => e.waistCm != null
+                    )
+                    const hipsEntries = entries.filter((e) => e.hipsCm != null)
+                    const chestEntries = entries.filter(
+                      (e) => e.chestCm != null
+                    )
+                    const waistValues = waistEntries.map((e) => e.waistCm!)
+                    const hipsValues = hipsEntries.map((e) => e.hipsCm!)
+                    const chestValues = chestEntries.map((e) => e.chestCm!)
+                    const hasAny =
+                      waistValues.length >= 2 ||
+                      hipsValues.length >= 2 ||
+                      chestValues.length >= 2
+
+                    const CIRC_SERIES = [
+                      {
+                        label: "Waist",
+                        values: waistValues,
+                        color: "#38bdf8",
+                        unit: "cm",
+                      },
+                      {
+                        label: "Hips",
+                        values: hipsValues,
+                        color: "#a78bfa",
+                        unit: "cm",
+                      },
+                      {
+                        label: "Chest",
+                        values: chestValues,
+                        color: "#f59e0b",
+                        unit: "cm",
+                      },
+                    ].filter((s) => s.values.length >= 2)
+
+                    const firstDate = [
+                      ...waistEntries,
+                      ...hipsEntries,
+                      ...chestEntries,
+                    ]
+                      .map((e) => e.loggedAt)
+                      .sort()[0]
+                    const lastDate = [
+                      ...waistEntries,
+                      ...hipsEntries,
+                      ...chestEntries,
+                    ]
+                      .map((e) => e.loggedAt)
+                      .sort()
+                      .reverse()[0]
+
+                    return hasAny ? (
+                      <>
+                        <div className="mb-3 flex flex-wrap items-center gap-3 border-b border-border/45 pb-3">
+                          {CIRC_SERIES.map((s) => {
+                            const first = s.values[0]
+                            const last = s.values[s.values.length - 1]
+                            const delta = last - first
+                            return (
+                              <div
+                                key={s.label}
+                                className="flex items-center gap-1.5"
+                              >
+                                <div
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: s.color }}
+                                />
+                                <span className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground/50 uppercase">
+                                  {s.label}
+                                </span>
+                                <span className="text-[12px] font-semibold tabular-nums">
+                                  {fmtNumber(last)}
+                                </span>
+                                <span className="text-[9.5px] text-muted-foreground/40">
+                                  cm
+                                </span>
+                                {delta !== 0 && (
+                                  <span
+                                    className={cn(
+                                      "text-[10px] font-medium tabular-nums",
+                                      delta < 0
+                                        ? "text-emerald-500"
+                                        : "text-rose-400"
+                                    )}
+                                  >
+                                    ({delta > 0 ? "+" : ""}
+                                    {delta.toFixed(1)})
+                                  </span>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <div className="rounded-[24px] border border-border/50 bg-muted/[0.18] px-3 pt-3 pb-2">
+                          <div
+                            className="mb-3 grid"
+                            style={{
+                              gridTemplateRows: "repeat(4, minmax(0, 1fr))",
+                            }}
+                          >
+                            {[0, 1, 2, 3].map((l) => (
+                              <div
+                                key={l}
+                                className="h-6 border-b border-dashed border-border/35 last:border-b-0"
+                              />
+                            ))}
+                          </div>
+                          <div className="-mt-[6.1rem]">
+                            <MultiLineChart
+                              series={CIRC_SERIES.map((s) => ({
+                                values: s.values,
+                                color: s.color,
+                                strokeWidth: 2,
+                              }))}
+                              sharedScale={false}
+                            />
+                          </div>
+                          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground/45">
+                            <span>
+                              {firstDate
+                                ? formatMeasurementDate(firstDate)
+                                : ""}
+                            </span>
+                            <span>
+                              {lastDate ? formatMeasurementDate(lastDate) : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 py-8 text-center">
+                        <ChartLine
+                          size={28}
+                          className="text-muted-foreground/20"
+                        />
+                        <p className="text-[14px] font-medium">
+                          No measurement data yet
+                        </p>
+                        <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">
+                          Add waist, hips, or chest measurements to two or more
+                          check-ins.
+                        </p>
+                      </div>
+                    )
+                  })()}
               </div>
             </Card>
           </section>
@@ -903,7 +1147,8 @@ const trend = goalDelta(entries, goal)
                       No measurements logged
                     </p>
                     <p className="max-w-[18rem] text-[12px] text-muted-foreground/55">
-                      Add one check-in. Repeat it daily if you want tighter trend data.
+                      Add one check-in. Repeat it daily if you want tighter
+                      trend data.
                     </p>
                   </div>
                 </Card>
@@ -936,7 +1181,9 @@ const trend = goalDelta(entries, goal)
                               </div>
 
                               <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-[11.5px] text-muted-foreground/62">
-                                <span>Body fat {fmtNumber(entry.bodyFatPct)}%</span>
+                                <span>
+                                  Body fat {fmtNumber(entry.bodyFatPct)}%
+                                </span>
                                 <span>Waist {fmtNumber(entry.waistCm)} cm</span>
                                 <span>Hips {fmtNumber(entry.hipsCm)} cm</span>
                                 <span>Chest {fmtNumber(entry.chestCm)} cm</span>
@@ -952,9 +1199,14 @@ const trend = goalDelta(entries, goal)
                             <button
                               onClick={async () => {
                                 try {
-                                  await removeMeasurement({ clientId: entry.clientId })
+                                  await removeMeasurement({
+                                    clientId: entry.clientId,
+                                  })
                                 } catch (err) {
-                                  console.error("Failed to remove measurement:", err)
+                                  console.error(
+                                    "Failed to remove measurement:",
+                                    err
+                                  )
                                 }
                               }}
                               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
