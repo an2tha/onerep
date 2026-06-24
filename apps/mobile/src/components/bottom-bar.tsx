@@ -12,13 +12,16 @@ import {
 import { cn } from "@/lib/utils"
 
 const TABS = [
-  { path: "/", Icon: House, label: "Home" },
-  { path: "/foods", Icon: ForkKnife, label: "Foods" },
-  { path: "/workouts", Icon: Barbell, label: "Workouts" },
+  { path: "/", Icon: House, label: "Today" },
+  { path: "/foods", Icon: ForkKnife, label: "Food" },
+  { path: "/workouts", Icon: Barbell, label: "Workout" },
+  { path: "/progress", Icon: ChartLine, label: "Progress" },
 ] as const
 
 const DESKTOP_TABS = [
-  ...TABS,
+  { path: "/", Icon: House, label: "Today" },
+  { path: "/foods", Icon: ForkKnife, label: "Food" },
+  { path: "/workouts", Icon: Barbell, label: "Workout" },
   { path: "/water", Icon: PintGlass, label: "Water" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/exercises", Icon: ListChecks, label: "Exercises" },
@@ -38,7 +41,11 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
 
   const activeIdx = TABS.findIndex((t) => isActive(pathname, t.path))
-  const isTabPage = activeIdx >= 0
+  const showQuickAdd =
+    pathname === "/" ||
+    pathname.startsWith("/foods") ||
+    pathname.startsWith("/workouts") ||
+    pathname.startsWith("/workout")
 
   // useEffect (post-paint) so the browser renders the old pill position first,
   // giving the CSS transition a start value to animate from.
@@ -93,7 +100,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
           })}
 
           {/* Plus — visible on all tab pages */}
-          {isTabPage && (
+          {showQuickAdd && (
             <>
               <div className="mx-1 h-4 w-px bg-border/60" />
               <button
@@ -108,7 +115,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
         </div>
       </div>
 
-      <aside className="fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col rounded-[32px] border border-border/60 bg-background/85 p-3 shadow-2xl shadow-black/[0.08] backdrop-blur-2xl md:flex">
+      <aside className="fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden rounded-[32px] border border-border/60 bg-background/85 p-3 shadow-2xl shadow-black/[0.08] backdrop-blur-2xl md:flex">
         <button
           onClick={() => navigate("/")}
           className="mb-6 flex items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors active:bg-foreground/[0.05]"
@@ -116,13 +123,13 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
           <img src="/app-icon.svg" alt="" className="h-10 w-10 rounded-2xl" />
           <div>
             <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
-            <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground/45 uppercase">
-              Control room
+            <p className="text-[11px] font-medium text-muted-foreground/60">
+              Daily log
             </p>
           </div>
         </button>
 
-        <nav className="flex flex-1 flex-col gap-1.5">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
           {DESKTOP_TABS.map(({ path, Icon, label }) => {
             const active = isActive(pathname, path)
             return (
@@ -143,10 +150,10 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
           })}
         </nav>
 
-        {onAdd && (
+        {onAdd && showQuickAdd && (
           <button
             onClick={onAdd}
-            className="mt-3 flex h-12 items-center justify-center gap-2 rounded-[20px] bg-foreground text-[13px] font-bold text-background shadow-lg shadow-black/[0.08] transition-opacity active:opacity-75"
+            className="mt-3 flex h-12 shrink-0 items-center justify-center gap-2 rounded-[20px] bg-foreground text-[13px] font-bold text-background shadow-lg shadow-black/[0.08] transition-opacity active:opacity-75"
           >
             <Plus size={15} weight="bold" />
             Quick add
