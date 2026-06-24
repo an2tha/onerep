@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate } from "react-router"
 import {
   ArrowLeft,
   Fire,
@@ -21,6 +20,7 @@ import {
   type LogMicros,
 } from "@/lib/food-log"
 import { searchFoods } from "@/lib/openfoodfacts"
+import { useSmoothNavigate } from "@/lib/navigation"
 import type { FoodDetail } from "@repo/models"
 
 type SearchState = "idle" | "loading" | "done" | "error"
@@ -154,7 +154,7 @@ const MEAL_CATEGORIES = [
 ]
 
 export default function SearchFoods() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const posthog = usePostHog()
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -377,43 +377,43 @@ export default function SearchFoods() {
                         >
                           <CalorieBadge calories={Number(item.calories)} />
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13.5px] leading-snug font-medium">
-                            {item.name}
-                          </p>
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            {item.brand && (
-                              <span className="truncate text-[10.5px] text-muted-foreground/40">
-                                {item.brand}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13.5px] leading-snug font-medium">
+                              {item.name}
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                              {item.brand && (
+                                <span className="truncate text-[10.5px] text-muted-foreground/40">
+                                  {item.brand}
+                                </span>
+                              )}
+                              {item.brand && (
+                                <span className="text-[10px] text-muted-foreground/25">
+                                  ·
+                                </span>
+                              )}
+                              <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
+                                {item.serving}
                               </span>
-                            )}
-                            {item.brand && (
-                              <span className="text-[10px] text-muted-foreground/25">
-                                ·
-                              </span>
-                            )}
-                            <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
-                              {item.serving}
-                            </span>
+                            </div>
+                            <div className="mt-1 flex gap-2.5">
+                              <MacroPill
+                                label="P"
+                                value={Number(item.protein)}
+                                color="#60a5fa"
+                              />
+                              <MacroPill
+                                label="C"
+                                value={Number(item.carbs)}
+                                color="#a78bfa"
+                              />
+                              <MacroPill
+                                label="F"
+                                value={Number(item.fat)}
+                                color="#f59e0b"
+                              />
+                            </div>
                           </div>
-                          <div className="mt-1 flex gap-2.5">
-                            <MacroPill
-                              label="P"
-                              value={Number(item.protein)}
-                              color="#60a5fa"
-                            />
-                            <MacroPill
-                              label="C"
-                              value={Number(item.carbs)}
-                              color="#a78bfa"
-                            />
-                            <MacroPill
-                              label="F"
-                              value={Number(item.fat)}
-                              color="#f59e0b"
-                            />
-                          </div>
-                        </div>
                         </button>
 
                         <button

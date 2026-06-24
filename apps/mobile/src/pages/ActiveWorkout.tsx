@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate, useParams, useSearchParams } from "react-router"
+import { useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -22,6 +22,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { sparklinePoints } from "@/lib/progress-metrics"
 import {
   resolveExerciseIds,
@@ -66,8 +67,9 @@ type ExerciseState = {
   trackUnilateral: boolean
 }
 
-type PersistedExerciseState =
-  Partial<Omit<ExerciseState, "sets">> & { sets?: PersistedWorkoutSet[] }
+type PersistedExerciseState = Partial<Omit<ExerciseState, "sets">> & {
+  sets?: PersistedWorkoutSet[]
+}
 
 type LoggedWorkoutSet = {
   weight: number
@@ -2259,7 +2261,7 @@ function renderSupersetItem(
  */
 export default function ActiveWorkout() {
   const { presetId } = useParams<{ presetId?: string }>()
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const posthog = usePostHog()
   const [searchParams] = useSearchParams()
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2

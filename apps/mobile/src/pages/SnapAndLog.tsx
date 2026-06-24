@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useNavigate, useSearchParams } from "react-router"
+import { useSearchParams } from "react-router"
 import { Capacitor } from "@capacitor/core"
 import {
   Camera as NativeCamera,
@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { BrowserMultiFormatReader } from "@zxing/browser"
 import {
   ChecksumException,
@@ -48,7 +49,7 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function SnapAndLog() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const posthog = usePostHog()
   const [params] = useSearchParams()
   const initialMode = (params.get("mode") as ScreenMode | null) ?? "snap"

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useLocation, useNavigate } from "react-router"
+import { useLocation } from "react-router"
 import {
   Barbell,
   ChartLine,
@@ -10,6 +10,7 @@ import {
   Plus,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 
 const TABS = [
   { path: "/", Icon: House, label: "Today" },
@@ -34,7 +35,7 @@ function isActive(pathname: string, path: string) {
 }
 
 export function BottomBar({ onAdd }: { onAdd?: () => void }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const { pathname } = useLocation()
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -65,13 +66,13 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
         <div className="relative flex items-center gap-0.5 rounded-full border border-border/50 bg-background/75 px-1.5 py-1.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl">
           {/* Sliding pill — always in DOM so the CSS transition has a start value */}
           <div
-            className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-full bg-foreground/[0.07]"
+            className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-full bg-foreground/[0.07] will-change-[left,width]"
             style={{
               left: pill?.left ?? 0,
               width: pill?.width ?? 0,
               opacity: pill && activeIdx >= 0 ? 1 : 0,
               transition:
-                "left 450ms cubic-bezier(0.34, 1.4, 0.64, 1), width 450ms cubic-bezier(0.34, 1.4, 0.64, 1), opacity 200ms ease",
+                "left 220ms cubic-bezier(0.22, 1, 0.36, 1), width 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease",
             }}
           />
 
@@ -83,9 +84,11 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
                 ref={(el) => {
                   tabRefs.current[idx] = el
                 }}
-                onClick={() => navigate(path)}
+                onClick={() => {
+                  if (!active) navigate(path, { motion: "switch" })
+                }}
                 className={cn(
-                  "relative flex items-center gap-2 rounded-full px-4 py-2 transition-colors",
+                  "relative flex items-center gap-2 rounded-full px-4 py-2 transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]",
                   active
                     ? "text-foreground"
                     : "text-muted-foreground active:bg-foreground/[0.05]"
@@ -117,8 +120,10 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
       <aside className="fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden rounded-[32px] border border-border/60 bg-background/85 p-3 shadow-2xl shadow-black/[0.08] backdrop-blur-2xl md:flex">
         <button
-          onClick={() => navigate("/")}
-          className="mb-6 flex items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors active:bg-foreground/[0.05]"
+          onClick={() => {
+            if (pathname !== "/") navigate("/", { motion: "switch" })
+          }}
+          className="mb-6 flex items-center gap-3 rounded-2xl px-2 py-2 text-left transition-[background-color,transform] duration-150 ease-out active:scale-[0.985] active:bg-foreground/[0.05]"
         >
           <img src="/app-icon.svg" alt="" className="h-10 w-10 rounded-2xl" />
           <div>
@@ -135,9 +140,11 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
             return (
               <button
                 key={path}
-                onClick={() => navigate(path)}
+                onClick={() => {
+                  if (!active) navigate(path, { motion: "switch" })
+                }}
                 className={cn(
-                  "flex h-11 items-center gap-3 rounded-2xl px-3 text-[13px] font-semibold transition-colors",
+                  "flex h-11 items-center gap-3 rounded-2xl px-3 text-[13px] font-semibold transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.985]",
                   active
                     ? "bg-foreground text-background shadow-sm"
                     : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground"
