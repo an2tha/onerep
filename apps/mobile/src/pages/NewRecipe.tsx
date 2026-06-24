@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate, useParams } from "react-router"
+import { useParams } from "react-router"
 import {
   ArrowLeft,
   CaretDown,
@@ -13,6 +13,7 @@ import {
 } from "@phosphor-icons/react"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { searchFoods } from "@/lib/openfoodfacts"
+import { useSmoothNavigate } from "@/lib/navigation"
 import {
   FOOD_PORTION_UNITS,
   amountFromFoodPortionGrams,
@@ -1162,7 +1163,7 @@ function MacroPill({
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function NewRecipe() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const { id } = useParams<{ id?: string }>()
 
   const recipesQuery = useQuery(api.logs.recipes.list, {})

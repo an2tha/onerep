@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react"
-import { useNavigate } from "react-router"
 import { X, CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticTap, hapticSelection, hapticMedium } from "@/lib/haptics"
 import {
   Accordion,
@@ -103,7 +103,7 @@ const SETTINGS_PANEL_CLASS =
  * @returns The Settings React element
  */
 export default function Settings({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const session = useQuery(api.users.users.getCurrentUser)
@@ -460,12 +460,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background text-foreground md:pl-72 md:pr-8">
+    <div className="desktop-canvas min-h-svh bg-background text-foreground md:pr-8 md:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-3xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-6 md:pt-10 md:pb-12">
         {/* Header */}
         <div className="sticky top-0 z-20 -mx-4 mb-4 flex items-center justify-between border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur-xl md:static md:mx-0 md:border-b-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none short-phone:mb-3 short-phone:py-2.5">
           <div>
-            <h1 className="text-[21px] font-bold tracking-tight short-phone:text-[19px]">Settings</h1>
+            <h1 className="text-[21px] font-bold tracking-tight short-phone:text-[19px]">
+              Settings
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button
