@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client"
 import {
   createBrowserRouter,
   Outlet,
-  useNavigate,
+  useLocation,
+  useNavigationType,
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
@@ -47,14 +48,32 @@ import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
+import {
+  clearRouteMotion,
+  getRouteMotion,
+  hasNativeRouteTransition,
+  useSmoothNavigate,
+} from "./lib/navigation"
 
 function NavSync() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
+  const location = useLocation()
+  const navigationType = useNavigationType()
+  const initialRouteRef = useRef(true)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const edge = 28
   const threshold = 72
+  const routeMotion =
+    getRouteMotion() ??
+    (navigationType === "POP"
+      ? "back"
+      : navigationType === "REPLACE"
+        ? "replace"
+        : "forward")
+  const animateRoute = !initialRouteRef.current
+  const nativeRouteTransition = hasNativeRouteTransition()
 
   useEffect(() => {
     function clearHold() {
@@ -102,6 +121,14 @@ function NavSync() {
     }
   }, [])
 
+  useEffect(() => {
+    initialRouteRef.current = false
+    document.documentElement.dataset.routeMotion = routeMotion
+
+    const id = window.setTimeout(clearRouteMotion, 360)
+    return () => window.clearTimeout(id)
+  }, [location.key, routeMotion])
+
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
     touchStartX.current = touch.clientX
@@ -124,13 +151,13 @@ function NavSync() {
 
     if (startedLeftEdge && deltaX > 0 && window.history.length > 1) {
       hapticSelection()
-      navigate(-1)
+      navigate(-1, { motion: "back" })
       return
     }
 
     if (startedRightEdge && deltaX < 0) {
       hapticSelection()
-      navigate(1)
+      navigate(1, { motion: "forward" })
     }
   }
 
@@ -138,8 +165,20 @@ function NavSync() {
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      className="app-route-shell"
+      data-route-motion={routeMotion}
     >
-      <Outlet />
+      <div
+        key={location.key}
+        className={
+          animateRoute && !nativeRouteTransition
+            ? "app-route-frame app-route-frame-animated"
+            : "app-route-frame"
+        }
+        data-route-motion={routeMotion}
+      >
+        <Outlet />
+      </div>
     </div>
   )
 }

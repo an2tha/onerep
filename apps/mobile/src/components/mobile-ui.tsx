@@ -10,11 +10,14 @@ type IconComponent = ComponentType<{
 type Tone = "neutral" | "food" | "water" | "workout" | "progress"
 
 const toneVars: Record<Tone, string> = {
-  neutral: "[--tone:var(--foreground)] [--tone-bg:color-mix(in_srgb,var(--foreground)_7%,transparent)]",
+  neutral:
+    "[--tone:var(--foreground)] [--tone-bg:color-mix(in_srgb,var(--foreground)_7%,transparent)]",
   food: "[--tone:var(--accent-food)] [--tone-bg:var(--accent-food-bg)]",
   water: "[--tone:var(--accent-water)] [--tone-bg:var(--accent-water-bg)]",
-  workout: "[--tone:var(--accent-workout)] [--tone-bg:var(--accent-workout-bg)]",
-  progress: "[--tone:var(--accent-progress)] [--tone-bg:var(--accent-progress-bg)]",
+  workout:
+    "[--tone:var(--accent-workout)] [--tone-bg:var(--accent-workout-bg)]",
+  progress:
+    "[--tone:var(--accent-progress)] [--tone-bg:var(--accent-progress-bg)]",
 }
 
 export function MobilePage({
@@ -30,8 +33,10 @@ export function MobilePage({
     <main
       className={cn(
         "mx-auto min-h-svh w-full max-w-xl bg-background text-foreground md:max-w-5xl",
-        bottomInset === "nav" ? "pb-[calc(var(--app-safe-bottom-lg)+5.5rem)] md:pb-10" : "pb-[var(--app-safe-bottom-lg)]",
-        className,
+        bottomInset === "nav"
+          ? "pb-[calc(var(--app-safe-bottom-lg)+5.5rem)] md:pb-10"
+          : "pb-[var(--app-safe-bottom-lg)]",
+        className
       )}
     >
       {children}
@@ -56,7 +61,9 @@ export function PageHeader({
     <header
       className={cn(
         "flex items-center justify-between gap-3 px-4 md:px-6",
-        compact ? "pt-[var(--app-safe-top)] pb-2.5" : "pt-[calc(var(--app-safe-top)+0.25rem)] pb-3.5",
+        compact
+          ? "pt-[var(--app-safe-top)] pb-2.5"
+          : "pt-[calc(var(--app-safe-top)+0.25rem)] pb-3.5"
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -70,7 +77,9 @@ export function PageHeader({
           <h1
             className={cn(
               "truncate font-semibold tracking-tight",
-              compact ? "text-[1.22rem] leading-snug" : "text-[1.45rem] leading-tight",
+              compact
+                ? "text-[1.22rem] leading-snug"
+                : "text-[1.45rem] leading-tight"
             )}
           >
             {title}
@@ -94,9 +103,13 @@ export function SectionHeader({
   className?: string
 }) {
   return (
-    <div className={cn("mb-2.5 flex items-end justify-between gap-3", className)}>
+    <div
+      className={cn("mb-2.5 flex items-end justify-between gap-3", className)}
+    >
       <div className="min-w-0">
-        <h2 className="truncate text-[13px] font-bold tracking-tight">{title}</h2>
+        <h2 className="truncate text-[13px] font-bold tracking-tight">
+          {title}
+        </h2>
         {subtitle && (
           <p className="mt-0.5 truncate text-[11px] text-muted-foreground/60">
             {subtitle}
@@ -126,9 +139,9 @@ export function MetricTile({
   return (
     <div
       className={cn(
-        "min-h-[68px] rounded-[18px] border border-border/55 bg-card px-3 py-2.5",
+        "min-h-[68px] rounded-[18px] border border-border/55 bg-card px-3 py-2.5 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out",
         toneVars[tone],
-        className,
+        className
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -141,7 +154,7 @@ export function MetricTile({
           </span>
         )}
       </div>
-      <p className="mt-1 truncate text-[18px] font-bold leading-tight tracking-tight tabular-nums">
+      <p className="mt-1 truncate text-[18px] leading-tight font-bold tracking-tight tabular-nums">
         {value}
       </p>
       {detail && (
@@ -174,8 +187,8 @@ export function ActionDock({
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl gap-2 border-t border-border/50 bg-background/86 px-4 pt-3 pb-[var(--app-safe-bottom)] backdrop-blur-xl md:static md:max-w-none md:border-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0",
-        className,
+        "md:backdrop-blur-0 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl gap-2 border-t border-border/50 bg-background/86 px-4 pt-3 pb-[var(--app-safe-bottom)] backdrop-blur-xl md:static md:max-w-none md:border-0 md:bg-transparent md:px-0 md:py-0",
+        className
       )}
     >
       {danger && <DockButton action={danger} variant="danger" />}
@@ -201,11 +214,11 @@ function DockButton({
       onClick={action.onClick}
       disabled={action.disabled}
       className={cn(
-        "flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] px-4 text-[13px] font-bold transition-opacity active:opacity-80 disabled:opacity-45",
+        "flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] px-4 text-[13px] font-bold transition-[opacity,transform,background-color,color] duration-150 ease-out active:scale-[0.985] active:opacity-85 disabled:opacity-45",
         variant === "primary" && "bg-foreground text-background",
         variant === "secondary" && "bg-muted text-foreground",
         variant === "danger" && "bg-destructive/10 text-destructive",
-        className,
+        className
       )}
     >
       {Icon && <Icon size={15} weight="bold" />}
@@ -234,7 +247,7 @@ export function EmptyState({
       className={cn(
         "flex flex-col items-center rounded-[22px] border border-dashed border-border/60 bg-card/70 px-5 py-6 text-center",
         toneVars[tone],
-        className,
+        className
       )}
     >
       <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--tone-bg)] text-[var(--tone)]">
