@@ -225,9 +225,30 @@
       <a href="/privacy" class:active={route === 'privacy'} on:click={(event) => go(event, '/privacy')}>Privacy</a>
       <a href="/support" class:active={route === 'support'} on:click={(event) => go(event, '/support')}>Support</a>
     </nav>
-    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span>↗</span></a>
-    <button class="theme-toggle" type="button" on:click={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode">
-      ◐
+    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span aria-hidden="true">↗</span></a>
+    <button
+      class="theme-toggle"
+      type="button"
+      on:click={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {#if theme === 'dark'}
+        <svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path>
+          <path d="M12 20v2"></path>
+          <path d="m4.93 4.93 1.41 1.41"></path>
+          <path d="m17.66 17.66 1.41 1.41"></path>
+          <path d="M2 12h2"></path>
+          <path d="M20 12h2"></path>
+          <path d="m6.34 17.66-1.41 1.41"></path>
+          <path d="m19.07 4.93-1.41 1.41"></path>
+        </svg>
+      {:else}
+        <svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.5 14.2A7.6 7.6 0 0 1 9.8 3.5 8.4 8.4 0 1 0 20.5 14.2Z"></path>
+        </svg>
+      {/if}
     </button>
   </div>
 </header>
