@@ -44,6 +44,19 @@ export const getGoals = query({
   },
 });
 
+export const getProfile = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) return null;
+
+    return await ctx.db
+      .query("healthProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+  },
+});
+
 // ── setProfile ────────────────────────────────────────────────────────────────
 
 export const setProfile = mutation({

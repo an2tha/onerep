@@ -2,10 +2,18 @@ import { useEffect, useRef, useState } from "react"
 import { CaretDown, Check, Minus, Plus, X } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
 import {
+  FOOD_PORTION_UNITS,
+  amountFromFoodPortionGrams,
   defaultMeal,
+  defaultFoodPortion,
+  foodPortionLabel,
+  foodPortionUnitLabel,
+  gramsFromFoodPortion,
   readAllMealCategories,
   addMealCategory,
   removeMealCategory,
+  type FoodPortion,
+  type FoodPortionUnit,
   type MealCategory,
   type LogMicros,
 } from "@/lib/food-log"
@@ -24,35 +32,88 @@ function scale(per100g: number, grams: number): number {
   return Math.round(v * 100) / 100
 }
 
+const MICRO_TARGET_UNITS: Partial<Record<keyof LogMicros, "g" | "mg" | "mcg">> =
+  {
+    fiber: "g",
+    sugar: "g",
+    saturatedFat: "g",
+    transFat: "g",
+    cholesterol: "mg",
+    sodium: "mg",
+    potassium: "mg",
+    calcium: "mg",
+    iron: "mg",
+    magnesium: "mg",
+    phosphorus: "mg",
+    zinc: "mg",
+    vitaminC: "mg",
+    vitaminA: "mcg",
+    vitaminD: "mcg",
+    vitaminB12: "mcg",
+    caffeine: "mg",
+    alcohol: "g",
+  }
+
+function normalizeMass(
+  value: number,
+  fromUnit: string,
+  toUnit: "g" | "mg" | "mcg"
+) {
+  const normalized = fromUnit.toLowerCase().replace("µ", "u").trim()
+  const inMg =
+    normalized === "g"
+      ? value * 1000
+      : normalized === "ug" || normalized === "mcg"
+        ? value / 1000
+        : value
+
+  if (toUnit === "g") return inMg / 1000
+  if (toUnit === "mcg") return inMg * 1000
+  return inMg
+}
+
+function roundMicro(value: number) {
+  if (value >= 100) return Math.round(value)
+  if (value >= 10) return Math.round(value * 10) / 10
+  return Math.round(value * 100) / 100
+}
+
 /** Extract scaled micronutrients from the detail response for a given gram amount. */
 function extractMicros(detail: Detail, grams: number): LogMicros {
   if (!detail) return {}
   const all = [...(detail.nutrients ?? []), ...(detail.extraNutrients ?? [])]
-  const get = (key: string): number | undefined => {
-    const n = all.find((n) => n.key === key)
+  const get = (
+    sourceKey: string,
+    targetKey: keyof LogMicros
+  ): number | undefined => {
+    const n = all.find((n) => n.key === sourceKey)
     if (!n) return undefined
-    const v = scale(n.per100g, grams)
+    const targetUnit = MICRO_TARGET_UNITS[targetKey]
+    const scaled = scale(n.per100g, grams)
+    const v = targetUnit
+      ? roundMicro(normalizeMass(scaled, n.unit, targetUnit))
+      : scaled
     return v > 0 ? v : undefined
   }
   return {
-    fiber: get("fiber"),
-    sugar: get("sugar"),
-    saturatedFat: get("satFat"),
-    transFat: get("trans-fat"),
-    cholesterol: get("cholesterol"),
-    sodium: get("sodium"),
-    potassium: get("potassium"),
-    calcium: get("calcium"),
-    iron: get("iron"),
-    magnesium: get("magnesium"),
-    phosphorus: get("phosphorus"),
-    zinc: get("zinc"),
-    vitaminC: get("vitaminC"),
-    vitaminA: get("vitamin-a"),
-    vitaminD: get("vitamin-d"),
-    vitaminB12: get("vitamin-b12"),
-    caffeine: get("caffeine"),
-    alcohol: get("alcohol"),
+    fiber: get("fiber", "fiber"),
+    sugar: get("sugar", "sugar"),
+    saturatedFat: get("satFat", "saturatedFat"),
+    transFat: get("trans-fat", "transFat"),
+    cholesterol: get("cholesterol", "cholesterol"),
+    sodium: get("sodium", "sodium"),
+    potassium: get("potassium", "potassium"),
+    calcium: get("calcium", "calcium"),
+    iron: get("iron", "iron"),
+    magnesium: get("magnesium", "magnesium"),
+    phosphorus: get("phosphorus", "phosphorus"),
+    zinc: get("zinc", "zinc"),
+    vitaminC: get("vitaminC", "vitaminC"),
+    vitaminA: get("vitamin-a", "vitaminA"),
+    vitaminD: get("vitamin-d", "vitaminD"),
+    vitaminB12: get("vitamin-b12", "vitaminB12"),
+    caffeine: get("caffeine", "caffeine"),
+    alcohol: get("alcohol", "alcohol"),
   }
 }
 
@@ -204,9 +265,13 @@ function MacroStack({
 
 // ─── Portion picker ───────────────────────────────────────────────────────────
 
-type Preset = { label: string; grams: number; sub?: string }
+type Preset = {
+  label: string
+  grams: number
+  unit?: FoodPortionUnit
+  sub?: string
+}
 
-const STEP_SIZES = [1, 5, 10, 25, 50]
 function stepFor(g: number) {
   if (g < 10) return 1
   if (g < 50) return 5
@@ -216,46 +281,67 @@ function stepFor(g: number) {
 
 function PortionPicker({
   grams,
+  unit,
   onChange,
   presets,
 }: {
   grams: number
-  onChange: (g: number) => void
+  unit: FoodPortionUnit
+  onChange: (g: number, unit?: FoodPortionUnit) => void
   presets: Preset[]
 }) {
-  const [inputVal, setInputVal] = useState(String(grams))
+  const amount = amountFromFoodPortionGrams(grams, unit)
+  const unitLabel = foodPortionUnitLabel(unit)
+  const [inputVal, setInputVal] = useState(formatInputAmount(amount))
   const [focused, setFocused] = useState(false)
 
   useEffect(() => {
-    if (!focused) setInputVal(String(grams))
-  }, [grams, focused])
+    if (!focused) setInputVal(formatInputAmount(amount))
+  }, [amount, focused])
+
+  function formatInputAmount(value: number) {
+    if (Math.abs(value - Math.round(value)) < 0.01)
+      return String(Math.round(value))
+    return String(value)
+      .replace(/\.0+$/, "")
+      .replace(/(\.\d*?)0+$/, "$1")
+  }
 
   function commit(raw: string) {
-    // Accept "150g", "150 g", "150", "5.5" etc.
     const cleaned = raw.replace(/[^\d.]/g, "")
     const n = parseFloat(cleaned)
     if (!isNaN(n) && n > 0 && n <= 9999) {
-      onChange(Math.round(n * 10) / 10)
+      onChange(gramsFromFoodPortion(n, unit))
     } else {
-      setInputVal(String(grams))
+      setInputVal(formatInputAmount(amount))
     }
     setFocused(false)
   }
 
-  const step = stepFor(grams)
-  const oz = Math.round((grams / 28.35) * 10) / 10
+  function stepAmount(dir: 1 | -1) {
+    const configuredStep =
+      unit === "g" || unit === "ml"
+        ? stepFor(grams)
+        : (FOOD_PORTION_UNITS.find((option) => option.id === unit)?.step ?? 1)
+    const nextAmount = Math.max(configuredStep, amount + dir * configuredStep)
+    onChange(gramsFromFoodPortion(nextAmount, unit))
+  }
+
+  const secondaryHint =
+    unit === "g"
+      ? `${amountFromFoodPortionGrams(grams, "oz")} oz`
+      : `${Math.round(grams)} g`
 
   return (
     <div className="mt-4 px-4">
-      {/* ── Preset chips — scrollable row ─────────────────────────── */}
       <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
         {presets.map((p) => {
-          const active = grams === p.grams
+          const active = Math.abs(grams - p.grams) < 0.1
           return (
             <button
-              key={p.label}
-              onClick={() => onChange(p.grams)}
-              className="flex shrink-0 flex-col items-center rounded-2xl border px-3 py-2 transition-all active:scale-95"
+              key={`${p.label}-${p.grams}-${p.unit ?? ""}`}
+              onClick={() => onChange(p.grams, p.unit)}
+              className="flex shrink-0 flex-col items-center rounded-xl border px-3 py-2 transition-all active:scale-95"
               style={
                 active
                   ? {
@@ -286,79 +372,74 @@ function PortionPicker({
         })}
       </div>
 
-      {/* ── Custom stepper ────────────────────────────────────────── */}
+      <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+        {FOOD_PORTION_UNITS.map((option) => {
+          const active = option.id === unit
+          return (
+            <button
+              key={option.id}
+              onClick={() => onChange(grams, option.id)}
+              className="h-7 shrink-0 rounded-lg px-2.5 text-[11px] font-semibold transition-all active:scale-95"
+              style={
+                active
+                  ? {
+                      backgroundColor: "var(--foreground)",
+                      color: "var(--background)",
+                    }
+                  : {
+                      backgroundColor: "var(--muted)",
+                      color: "var(--muted-foreground)",
+                      opacity: 0.62,
+                    }
+              }
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="flex items-stretch gap-2">
-        {/* Decrement */}
         <button
           onPointerDown={(e) => {
             e.preventDefault()
-            onChange(Math.max(1, grams - step))
+            stepAmount(-1)
           }}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/50 text-foreground/60 transition-all active:scale-95 active:bg-muted"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground/60 transition-all active:scale-95 active:bg-muted"
         >
           <Minus size={14} weight="bold" />
         </button>
 
-        {/* Input */}
-        <div className="relative flex flex-1 items-center rounded-2xl bg-muted/50">
+        <div className="relative flex flex-1 items-center rounded-xl bg-muted/50">
           <input
             type="text"
             inputMode="decimal"
-            value={focused ? inputVal : `${grams} g`}
+            value={
+              focused ? inputVal : `${formatInputAmount(amount)} ${unitLabel}`
+            }
             onChange={(e) => setInputVal(e.target.value)}
             onFocus={() => {
               setFocused(true)
-              setInputVal(String(grams))
+              setInputVal(formatInputAmount(amount))
             }}
             onBlur={(e) => commit(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             className="h-11 w-full bg-transparent px-3 text-center text-[17px] font-semibold tabular-nums outline-none"
           />
-          {/* oz hint */}
           <span className="pointer-events-none absolute right-3 text-[10px] text-muted-foreground/30">
-            {oz} oz
+            {secondaryHint}
           </span>
         </div>
 
-        {/* Increment */}
         <button
           onPointerDown={(e) => {
             e.preventDefault()
-            onChange(Math.min(9999, grams + step))
+            stepAmount(1)
           }}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-muted/50 text-foreground/60 transition-all active:scale-95 active:bg-muted"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground/60 transition-all active:scale-95 active:bg-muted"
         >
           <Plus size={14} weight="bold" />
         </button>
-      </div>
-
-      {/* ── Step size selector ────────────────────────────────────── */}
-      <div className="mt-2 flex items-center gap-1.5">
-        <span className="text-[9.5px] tracking-wide text-muted-foreground/30 uppercase">
-          Step
-        </span>
-        {STEP_SIZES.map((s) => (
-          <button
-            key={s}
-            onClick={() => {
-              /* visual only — step is auto */
-            }}
-            className="rounded-md px-1.5 py-0.5 text-[9.5px] font-medium transition-colors"
-            style={
-              step === s
-                ? {
-                    backgroundColor: "var(--muted)",
-                    color: "var(--foreground)",
-                  }
-                : { color: "var(--muted-foreground)", opacity: 0.4 }
-            }
-          >
-            {s}g
-          </button>
-        ))}
-        <span className="ml-auto text-[9.5px] text-muted-foreground/30">
-          auto
-        </span>
       </div>
     </div>
   )
@@ -648,9 +729,17 @@ type Props = {
     grams: number,
     micros: LogMicros,
     meal: string,
-    detail?: FoodDetail | null
+    detail?: FoodDetail | null,
+    portion?: FoodPortion
   ) => void
   added: boolean
+  showMealPicker?: boolean
+  actionLabel?: (
+    grams: number,
+    mealLabel: string,
+    portion: FoodPortion
+  ) => string
+  addedLabel?: (mealLabel: string, portion: FoodPortion) => string
 }
 
 /**
@@ -666,10 +755,21 @@ type Props = {
  *                `micros` is the micronutrient object scaled to the selected `grams` (empty object if no detail).
  * @param added - When true, the log button shows a confirmed "Logged" state for the currently selected meal.
  */
-export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
+export function FoodDetailSheet({
+  item,
+  onClose,
+  onAdd,
+  added,
+  showMealPicker = true,
+  actionLabel,
+  addedLabel,
+}: Props) {
   const [detail, setDetail] = useState<Detail>(null)
   const [loading, setLoading] = useState(true)
   const [grams, setGrams] = useState(100)
+  const [unit, setUnit] = useState<FoodPortionUnit>(
+    () => defaultFoodPortion(item.serving, item.name).unit
+  )
   const [showExtra, setShowExtra] = useState(false)
   const [meal, setMeal] = useState<string>(() => defaultMeal())
   const extraRef = useRef<HTMLDivElement>(null)
@@ -685,13 +785,17 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
     getFoodDetail(item.id)
       .then((d) => {
         setDetail(d)
-        // Default to serving size if available, else 100g
-        if (d?.servingGrams) setGrams(Math.round(d.servingGrams))
-        else setGrams(100)
+        const nextPortion = defaultFoodPortion(
+          d?.servingLabel ?? item.serving,
+          item.name,
+          d?.servingGrams ?? 100
+        )
+        setUnit(nextPortion.unit)
+        setGrams(nextPortion.grams)
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [item.id])
+  }, [item.id, item.name, item.serving])
 
   useEffect(() => {
     const el = extraRef.current
@@ -712,35 +816,58 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
   const protein = s("protein") || scale(Number(item.protein), grams)
   const carbs = s("carbs") || scale(Number(item.carbs), grams)
   const fat = s("fat") || scale(Number(item.fat), grams)
+  const portion: FoodPortion = {
+    amount: amountFromFoodPortionGrams(grams, unit),
+    unit,
+    grams,
+  }
 
   // ── Portion presets ───────────────────────────────────────────────────────
 
   const presets: Preset[] = []
-
-  // Serving from DB first — most contextually relevant
-  if (detail?.servingGrams) {
-    const sg = Math.round(detail.servingGrams)
+  const seenPresets = new Set<string>()
+  const addPreset = (next: FoodPortion, label?: string, sub?: string) => {
+    const key = `${Math.round(next.grams * 10) / 10}-${next.unit}`
+    if (seenPresets.has(key)) return
+    seenPresets.add(key)
     presets.push({
-      label: detail.servingLabel ?? "1 serving",
-      sub: detail.servingLabel ? `${sg} g` : undefined,
-      grams: sg,
+      label: label ?? foodPortionLabel(next),
+      sub,
+      grams: next.grams,
+      unit: next.unit,
     })
   }
 
-  // Common gram options, skip any too close to a preset already added
-  for (const g of [25, 50, 100, 150, 200, 250, 300]) {
-    if (!presets.some((p) => Math.abs(p.grams - g) < 10))
-      presets.push({ label: `${g} g`, grams: g })
+  const servingPortion = defaultFoodPortion(
+    detail?.servingLabel ?? item.serving,
+    item.name,
+    detail?.servingGrams ?? 100
+  )
+  addPreset(servingPortion, detail?.servingLabel ?? item.serving)
+
+  for (const next of [
+    defaultFoodPortion("50 g", item.name),
+    defaultFoodPortion("100 g", item.name),
+    defaultFoodPortion("1 oz", item.name),
+    defaultFoodPortion("100 ml", item.name),
+    defaultFoodPortion("250 ml", item.name),
+    defaultFoodPortion("1 cup", item.name),
+    defaultFoodPortion("1 tbsp", item.name),
+  ]) {
+    addPreset(next)
   }
+
+  const ctaLabel = added
+    ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
+    : (actionLabel?.(grams, mealCfg.label, portion) ??
+      `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
 
   return (
     <MobileSheet
       onClose={onClose}
       overlayClassName="bg-black/25 backdrop-blur-[3px]"
-      panelClassName="w-full max-w-sm mx-auto max-h-[90svh] overflow-y-auto rounded-t-[28px] bg-card shadow-[0_-20px_60px_rgba(0,0,0,0.18)] [&::-webkit-scrollbar]:hidden"
-      panelStyle={{
-        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-      }}
+      panelClassName="mx-auto w-[calc(100vw-1rem)] max-w-sm overflow-hidden rounded-t-[28px] bg-card shadow-[0_-20px_60px_rgba(0,0,0,0.18)] md:!w-full md:!max-w-sm"
+      maxHeight="90vh"
     >
       {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="px-5 pt-1 pb-3">
@@ -767,7 +894,15 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
       ) : (
         <>
           {/* ── Portion picker ────────────────────────────────────────── */}
-          <PortionPicker grams={grams} onChange={setGrams} presets={presets} />
+          <PortionPicker
+            grams={grams}
+            unit={unit}
+            onChange={(nextGrams, nextUnit) => {
+              setGrams(nextGrams)
+              if (nextUnit) setUnit(nextUnit)
+            }}
+            presets={presets}
+          />
 
           {/* ── Donut + macros ────────────────────────────────────────── */}
           <div className="mt-4 flex items-center gap-3 px-4">
@@ -794,7 +929,7 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
                   Nutrition Facts
                 </p>
                 <p className="text-[10px] text-muted-foreground/50">
-                  Per {grams} g
+                  Per {foodPortionLabel(portion)}
                 </p>
               </div>
 
@@ -893,25 +1028,38 @@ export function FoodDetailSheet({ item, onClose, onAdd, added }: Props) {
           </p>
 
           {/* ── Meal picker ───────────────────────────────────────────── */}
-          <div className="mx-4 mt-3 rounded-2xl bg-muted/30 pb-3">
-            <MealPicker value={meal} onChange={setMeal} />
-          </div>
+          {showMealPicker && (
+            <div className="mx-4 mt-3 rounded-2xl bg-muted/30 pb-3">
+              <MealPicker value={meal} onChange={setMeal} />
+            </div>
+          )}
 
           {/* ── Log Food button ───────────────────────────────────────── */}
-          <div className="mx-4 mt-3">
+          <div
+            className="sticky bottom-0 z-10 mt-3 bg-card/95 px-4 pt-3 backdrop-blur-sm"
+            style={{
+              paddingBottom:
+                "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
+            }}
+          >
             <button
               onClick={() =>
-                onAdd(item, grams, extractMicros(detail, grams), meal, detail)
+                onAdd(
+                  item,
+                  grams,
+                  extractMicros(detail, grams),
+                  meal,
+                  detail,
+                  portion
+                )
               }
-              className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-[14px] font-semibold tracking-tight transition-all active:scale-[0.98]"
+              className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-[14px] font-semibold tracking-tight transition-all active:scale-[0.98]"
               style={{
                 backgroundColor: added ? mealCfg.bg : "var(--foreground)",
                 color: added ? mealCfg.color : "var(--background)",
               }}
             >
-              {added
-                ? `✓ Logged to ${mealCfg.label}`
-                : `Log ${grams} g to ${mealCfg.label}`}
+              <span className="min-w-0 truncate">{ctaLabel}</span>
             </button>
           </div>
         </>

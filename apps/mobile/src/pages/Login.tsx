@@ -12,7 +12,7 @@ import { usePostHog } from "@posthog/react"
 type LoginMode = "signin" | "signup"
 
 const FIELD_CLASS =
-  "block rounded-[22px] border border-border/60 bg-background px-4 py-3.5 transition-colors focus-within:border-foreground/25 focus-within:bg-card"
+  "block rounded-[20px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:rounded-[18px] short-phone:py-2.5"
 const LABEL_CLASS =
   "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
 const INPUT_CLASS =
@@ -39,8 +39,8 @@ const INTRO_SLIDES = [
 
 function IntroSvgShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative mx-auto flex h-56 w-full items-center justify-center rounded-[34px] border border-border/60 bg-card shadow-sm shadow-black/[0.03] dark:shadow-black/20">
-      <div className="pointer-events-none absolute inset-4 rounded-[26px] border border-border/35" />
+    <div className="relative mx-auto flex h-56 w-full items-center justify-center rounded-[30px] border border-border/60 bg-card shadow-sm shadow-black/[0.03] dark:shadow-black/20 short-phone:h-44 short-phone:rounded-[24px]">
+      <div className="pointer-events-none absolute inset-4 rounded-[22px] border border-border/35 short-phone:inset-3 short-phone:rounded-[18px]" />
       {children}
     </div>
   )
@@ -315,8 +315,8 @@ export default function Login() {
 
     return (
       <div className="min-h-svh bg-background text-foreground">
-        <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)]">
-          <header className="flex items-center justify-center pt-4">
+        <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem] short-phone:px-5">
+          <header className="flex items-center justify-center pt-4 short-phone:pt-1">
             <div className="flex items-center gap-2.5">
               <img
                 src="/app-icon.svg"
@@ -335,19 +335,19 @@ export default function Login() {
           >
             <IntroIllustration index={introIndex} />
 
-            <div className="mt-8 text-center">
+            <div className="mt-8 text-center short-phone:mt-5">
               <p className="text-[10px] font-semibold tracking-[0.24em] text-muted-foreground/60 uppercase">
                 {slide.kicker}
               </p>
-              <h1 className="mt-3 text-[2rem] leading-tight font-semibold tracking-[-0.04em]">
+              <h1 className="mt-3 text-[2rem] leading-tight font-semibold tracking-tight short-phone:mt-2 short-phone:text-[1.72rem]">
                 {slide.title}
               </h1>
-              <p className="mx-auto mt-3 max-w-[240px] text-[14px] leading-6 text-muted-foreground/70">
+              <p className="mx-auto mt-3 max-w-[240px] text-[14px] leading-6 text-muted-foreground/70 short-phone:mt-2 short-phone:text-[13px] short-phone:leading-5">
                 {slide.body}
               </p>
             </div>
 
-            <div className="mt-8 flex justify-center gap-2">
+            <div className="mt-8 flex justify-center gap-2 short-phone:mt-5">
               {INTRO_SLIDES.map((item, index) => (
                 <button
                   key={item.kicker}
@@ -365,18 +365,18 @@ export default function Login() {
             </div>
           </section>
 
-          <div className="space-y-3">
+          <div className="space-y-3 short-phone:space-y-2">
             <button
               type="button"
               onClick={handleIntroNext}
-              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75"
+              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 short-phone:h-12 short-phone:rounded-[20px]"
             >
               {isLastSlide ? "Get started" : "Next"}
             </button>
             <button
               type="button"
               onClick={() => finishIntro("signin")}
-              className="h-[48px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+              className="h-[48px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
             >
               Sign in
             </button>
@@ -388,16 +388,16 @@ export default function Login() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)]">
-        <header className="mb-8 flex flex-col items-center">
-          <img src="/app-icon.svg" alt="" className="h-11 w-11 rounded-full" />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight">
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+          <img src="/app-icon.svg" alt="" className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9" />
+          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="rounded-[30px] border border-border/70 bg-card p-3.5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
-          <div className="mb-3 grid grid-cols-2 rounded-full bg-muted/65 p-1">
+        <section className="rounded-[28px] border border-border/70 bg-card p-3.5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3">
+          <div className="mb-3 grid grid-cols-2 rounded-full bg-muted/65 p-1 short-phone:mb-2.5">
             {(["signin", "signup"] as LoginMode[]).map((item) => {
               const active = mode === item
               return (
@@ -407,7 +407,7 @@ export default function Login() {
                   aria-pressed={active}
                   onClick={() => switchMode(item)}
                   className={[
-                    "h-10 rounded-full text-[12px] font-semibold tracking-tight transition-all",
+                    "h-10 rounded-full text-[12px] font-semibold tracking-tight transition-all short-phone:h-9",
                     active
                       ? "bg-background text-foreground shadow-sm shadow-black/[0.04]"
                       : "text-muted-foreground active:text-foreground",
@@ -419,7 +419,7 @@ export default function Login() {
             })}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-2.5">
+          <form onSubmit={handleSubmit} className="space-y-2.5 short-phone:space-y-2">
             {mode === "signup" && (
               <label className={FIELD_CLASS}>
                 <span className={LABEL_CLASS}>Name</span>
@@ -495,7 +495,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50"
+              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12 short-phone:rounded-[20px]"
             >
               {loading
                 ? mode === "signin"
@@ -507,7 +507,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="mt-4 text-center text-[13px] text-muted-foreground/60">
+          <p className="mt-4 text-center text-[13px] text-muted-foreground/60 short-phone:mt-3">
             {mode === "signin" ? "New here?" : "Have an account?"}{" "}
             <button
               type="button"

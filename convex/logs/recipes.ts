@@ -1,12 +1,44 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { authComponent } from "../auth";
 
-async function requireUser(ctx: any) {
+async function requireUser(ctx: MutationCtx | QueryCtx) {
   const user = await authComponent.getAuthUser(ctx);
   if (!user) throw new Error("Not authenticated");
   return user;
 }
+
+const recipeIngredientValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  grams: v.number(),
+  displayAmount: v.optional(v.number()),
+  displayUnit: v.optional(v.string()),
+  servingLabel: v.optional(v.string()),
+  caloriesPer100: v.number(),
+  proteinPer100: v.number(),
+  carbsPer100: v.number(),
+  fatPer100: v.number(),
+  fiberPer100: v.optional(v.number()),
+  sugarPer100: v.optional(v.number()),
+  saturatedFatPer100: v.optional(v.number()),
+  transFatPer100: v.optional(v.number()),
+  cholesterolPer100: v.optional(v.number()),
+  sodiumPer100: v.optional(v.number()),
+  potassiumPer100: v.optional(v.number()),
+  calciumPer100: v.optional(v.number()),
+  ironPer100: v.optional(v.number()),
+  magnesiumPer100: v.optional(v.number()),
+  phosphorusPer100: v.optional(v.number()),
+  zincPer100: v.optional(v.number()),
+  vitaminCPer100: v.optional(v.number()),
+  vitaminAPer100: v.optional(v.number()),
+  vitaminDPer100: v.optional(v.number()),
+  vitaminB12Per100: v.optional(v.number()),
+  caffeinePer100: v.optional(v.number()),
+  alcoholPer100: v.optional(v.number()),
+});
 
 export const list = query({
   args: {},
@@ -24,17 +56,7 @@ export const save = mutation({
   args: {
     id: v.optional(v.id("recipes")),
     name: v.string(),
-    ingredients: v.array(
-      v.object({
-        id: v.string(),
-        name: v.string(),
-        grams: v.number(),
-        caloriesPer100: v.number(),
-        proteinPer100: v.number(),
-        carbsPer100: v.number(),
-        fatPer100: v.number(),
-      }),
-    ),
+    ingredients: v.array(recipeIngredientValidator),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);

@@ -520,6 +520,9 @@ export const getEffectiveGoals = query({
       protein: number;
       carbs: number;
       fat: number;
+      bmr: number;
+      tdee: number;
+      source: "healthProfile" | "onboarding";
     } | null = null;
 
     if (healthProfile) {
@@ -529,6 +532,9 @@ export const getEffectiveGoals = query({
         protein: result.protein,
         carbs: result.carbs,
         fat: result.fat,
+        bmr: result.bmr,
+        tdee: result.tdee,
+        source: "healthProfile",
       };
     } else if (onboarding) {
       const result = estimateOnboardingCalories(onboarding);
@@ -537,6 +543,9 @@ export const getEffectiveGoals = query({
         protein: result.protein,
         carbs: result.carbs,
         fat: result.fat,
+        bmr: result.bmr,
+        tdee: result.tdee,
+        source: "onboarding",
       };
     }
 

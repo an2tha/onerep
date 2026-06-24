@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
 import { X, CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
-import { MobileSheet } from "@/components/mobile-sheet"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { authClient } from "@/lib/auth-client"
@@ -88,6 +87,11 @@ if (typeof window !== "undefined") {
 
 type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
+
+const SETTINGS_SECTION_TRIGGER_CLASS =
+  "rounded-[20px] border border-border/50 bg-card/85 px-4 py-3 text-left hover:no-underline data-[state=open]:bg-card short-phone:rounded-[18px] short-phone:py-2.5"
+const SETTINGS_PANEL_CLASS =
+  "overflow-hidden rounded-[20px] border border-border/50 bg-card/85 short-phone:rounded-[18px]"
 
 /**
  * Renders the Settings sheet UI for viewing and editing user preferences, goals, theme, and account actions.
@@ -263,22 +267,52 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
-  const hasCustomGoals = preferences?.customGoals != null
-
   function handleThemeToggle() {
     hapticMedium()
     const nextTheme = toggleTheme()
     setThemeState(nextTheme)
   }
 
-  async function handleSave() {
+  async function runSectionSave(action: () => Promise<void>, success: string) {
     if (saving) return
     hapticTap()
     setSaving(true)
     try {
+      await action()
+      toast.success(success)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Save failed")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSaveGoals() {
+    await runSectionSave(async () => {
+      await setCustomGoals({
+        calories,
+        protein,
+        carbs,
+        fat,
+      })
+    }, "Goals saved")
+  }
+
+  async function handleSaveWaterGoal() {
+    await runSectionSave(async () => {
+      await setWaterGoal({ goalMl: waterGoal })
+    }, "Water goal saved")
+  }
+
+  async function handleSaveWorkout() {
+    await runSectionSave(async () => {
       await setDashboardSettings({ workoutFocus })
       await setWeightUnit({ unit: weightUnit })
-      await setWaterGoal({ goalMl: waterGoal })
+    }, "Workout settings saved")
+  }
+
+  async function handleSaveNutritionLogic() {
+    await runSectionSave(async () => {
       await setMacroCycling({
         enabled: macroCyclingEnabled,
         targets: macroCyclingEnabled
@@ -286,7 +320,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           : undefined,
       })
       await setWorkoutAdjustment({ enabled: workoutAdjustmentEnabled })
+    }, "Nutrition logic saved")
+  }
+
+  async function handleSaveNotifications() {
+    await runSectionSave(async () => {
       await setPushReminders({ reminders: pushReminders })
+      const reminderStatus = await syncPushReminders(pushReminders)
+      if (reminderStatus === "denied") {
+        throw new Error("Notifications permission is required for reminders")
+      }
+    }, "Notifications saved")
+  }
+
+  async function handleSavePrivacy() {
+    await runSectionSave(async () => {
       await setPrivacySettings({
         analyticsEnabled,
         personalizedInsightsEnabled,
@@ -295,30 +343,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       localStorage.setItem("onerep:analytics-enabled", String(analyticsEnabled))
       if (analyticsEnabled) posthog.opt_in_capturing()
       else posthog.opt_out_capturing()
-
-      const reminderStatus = await syncPushReminders(pushReminders)
-      if (reminderStatus === "denied") {
-        toast.error("Notifications permission is required for reminders")
-      }
-
-      const hasEdits =
-        hasCustomGoals ||
-        (effectiveGoals &&
-          (calories !== effectiveGoals.effective.calories ||
-            protein !== effectiveGoals.effective.protein ||
-            carbs !== effectiveGoals.effective.carbs ||
-            fat !== effectiveGoals.effective.fat))
-
-      await setCustomGoals({
-        calories: hasEdits ? calories : undefined,
-        protein: hasEdits ? protein : undefined,
-        carbs: hasEdits ? carbs : undefined,
-        fat: hasEdits ? fat : undefined,
-      })
-      onClose()
-    } finally {
-      setSaving(false)
-    }
+    }, "Privacy settings saved")
   }
 
   async function handleLogout() {
@@ -435,19 +460,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <MobileSheet
-      onClose={() => onClose()}
-      maxHeight="85vh"
-      minHeight="50vh"
-      snapPoints={[350, 450, 600]}
-      defaultHeight={450}
-      closeOnBackdrop={true}
-    >
-      <div className="px-4 pt-2 pb-12">
+    <div className="desktop-canvas min-h-svh bg-background text-foreground md:pl-72 md:pr-8">
+      <main className="mx-auto min-h-svh w-full max-w-3xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-6 md:pt-10 md:pb-12">
         {/* Header */}
-        <div className="mb-5 flex items-center justify-between">
+        <div className="sticky top-0 z-20 -mx-4 mb-4 flex items-center justify-between border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur-xl md:static md:mx-0 md:border-b-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none short-phone:mb-3 short-phone:py-2.5">
           <div>
-            <h1 className="text-[22px] font-bold tracking-tight">Settings</h1>
+            <h1 className="text-[21px] font-bold tracking-tight short-phone:text-[19px]">Settings</h1>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -478,21 +496,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2.5 short-phone:space-y-2">
           <Accordion
             type="multiple"
             defaultValue={["goals", "water", "workout"]}
-            className="space-y-2.5"
+            className="space-y-2.5 short-phone:space-y-2"
           >
-            {/* Profile Section */}
+            {/* Account Section */}
             <AccordionItem value="profile" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Profile
+                  Account
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <div className="flex items-center justify-between px-4 py-4">
                     <div>
                       <p className="text-[15px] font-semibold">
@@ -521,13 +539,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
             {/* Goals Section */}
             <AccordionItem value="goals" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Goals
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <SettingsRow label="Calories">
                     <NumberStepper
                       value={calories}
@@ -582,18 +600,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     {effectiveGoals.health.protein}g protein
                   </p>
                 )}
+                <SectionSaveButton
+                  label="Save goals"
+                  saving={saving}
+                  onClick={handleSaveGoals}
+                />
               </AccordionContent>
             </AccordionItem>
 
             {/* Water Goal Section */}
             <AccordionItem value="water" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Water
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <SettingsRow label="Daily goal">
                     <NumberStepper
                       value={waterGoal}
@@ -606,18 +629,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     />
                   </SettingsRow>
                 </div>
+                <SectionSaveButton
+                  label="Save water goal"
+                  saving={saving}
+                  onClick={handleSaveWaterGoal}
+                />
               </AccordionContent>
             </AccordionItem>
 
             {/* Workout Section */}
             <AccordionItem value="workout" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Workout
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <SettingsRow label="Focus">
                     <SegmentedControl
                       value={workoutFocus}
@@ -641,18 +669,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     />
                   </SettingsRow>
                 </div>
+                <SectionSaveButton
+                  label="Save workout settings"
+                  saving={saving}
+                  onClick={handleSaveWorkout}
+                />
               </AccordionContent>
             </AccordionItem>
 
             {/* Health Profile Section */}
             <AccordionItem value="health" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Health Profile
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   {onboarding ? (
                     <button
                       onClick={handleResetOnboarding}
@@ -687,13 +720,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
             {/* Nutrition Logic Section */}
             <AccordionItem value="nutrition-logic" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Nutrition Logic
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <SettingsRow label="Macro cycling">
                     <SegmentedControl
                       value={macroCyclingEnabled ? "on" : "off"}
@@ -800,18 +833,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   Workout adjust adds estimated burned calories to your daily
                   budget.
                 </p>
+                <SectionSaveButton
+                  label="Save nutrition logic"
+                  saving={saving}
+                  onClick={handleSaveNutritionLogic}
+                />
               </AccordionContent>
             </AccordionItem>
 
-            {/* Push Reminders Section */}
+            {/* Notifications Section */}
             <AccordionItem value="reminders" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Push Reminders
+                  Notifications
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <ReminderRow
                     label="Water"
                     reminder={pushReminders.water}
@@ -840,18 +878,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   Native local notifications are scheduled on installed iOS or
                   Android builds after saving.
                 </p>
+                <SectionSaveButton
+                  label="Save notifications"
+                  saving={saving}
+                  onClick={handleSaveNotifications}
+                />
               </AccordionContent>
             </AccordionItem>
 
             {/* Privacy Section */}
             <AccordionItem value="privacy" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Privacy & Offline
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <SettingsRow label="Analytics">
                     <SegmentedControl
                       value={analyticsEnabled ? "on" : "off"}
@@ -927,18 +970,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     </span>
                   </button>
                 </div>
+                <SectionSaveButton
+                  label="Save privacy settings"
+                  saving={saving}
+                  onClick={handleSavePrivacy}
+                />
               </AccordionContent>
             </AccordionItem>
 
             {/* Data Section */}
             <AccordionItem value="data" className="border-none">
-              <AccordionTrigger className="rounded-2xl border border-border/40 bg-card/80 px-4 py-3.5 hover:no-underline">
+              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                 <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                   Data
                 </span>
               </AccordionTrigger>
-              <AccordionContent className="px-0 pt-1">
-                <div className="overflow-hidden rounded-2xl border border-border/40 bg-card/80">
+              <AccordionContent className="!h-auto px-0 pt-1">
+                <div className={SETTINGS_PANEL_CLASS}>
                   <button
                     onClick={handleResetOnboarding}
                     className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
@@ -987,27 +1035,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </div>
 
         <button
-          onClick={handleSave}
-          disabled={saving || loggingOut}
-          className={cn(
-            "mt-6 w-full rounded-2xl py-4 text-[15px] font-semibold tracking-tight",
-            "bg-foreground text-background transition-opacity active:opacity-75",
-            (saving || loggingOut) && "opacity-50"
-          )}
-        >
-          {saving ? "Saving..." : "Save changes"}
-        </button>
-
-        <button
           type="button"
           onClick={handleLogout}
           disabled={loggingOut || saving}
-          className="mt-3 w-full rounded-2xl border border-border/60 bg-card py-4 text-[15px] font-semibold tracking-tight text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50"
+          className="mt-3 w-full rounded-[20px] border border-border/60 bg-card py-3.5 text-[15px] font-semibold tracking-tight text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:rounded-[18px]"
         >
           {loggingOut ? "Logging out..." : "Log out"}
         </button>
-      </div>
-    </MobileSheet>
+      </main>
+    </div>
   )
 }
 
@@ -1023,7 +1059,7 @@ function ReminderRow({
   const timeValue = `${String(reminder.hour).padStart(2, "0")}:${String(reminder.minute).padStart(2, "0")}`
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
       <div>
         <span className="block text-[14px] text-foreground/80">{label}</span>
         <span className="mt-0.5 block text-[10.5px] text-muted-foreground/45">
@@ -1072,7 +1108,7 @@ function SettingsRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between px-4 py-3.5">
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
       <span className="text-[14px] text-foreground/80">{label}</span>
       {children}
     </div>
@@ -1081,6 +1117,27 @@ function SettingsRow({
 
 function RowDivider() {
   return <div className="mx-4 h-px bg-border/20" />
+}
+
+function SectionSaveButton({
+  label,
+  saving,
+  onClick,
+}: {
+  label: string
+  saving: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={saving}
+      className="mt-3 min-h-11 w-full rounded-[20px] bg-foreground px-4 text-[14px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:rounded-[18px]"
+    >
+      {saving ? "Saving..." : label}
+    </button>
+  )
 }
 
 function NumberStepper({
