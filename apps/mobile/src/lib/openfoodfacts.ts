@@ -18,6 +18,11 @@ const PRODUCT_FIELDS = [
   "quantity",
   "serving_size",
   "serving_quantity",
+  "image_url",
+  "image_front_url",
+  "image_front_small_url",
+  "image_front_thumb_url",
+  "selected_images",
   "nutriments",
   "nutriscore_grade",
   "nova_group",
@@ -74,6 +79,24 @@ function cleanUnknown(value?: string): string | undefined {
   return normalized
 }
 
+function selectedImageUrl(product: OpenFoodFactsProduct): string | undefined {
+  const fronts = product.selected_images?.front
+  for (const group of [fronts?.display, fronts?.small, fronts?.thumb]) {
+    const url = firstString(...Object.values(group ?? {}))
+    if (url) return url
+  }
+}
+
+function productImageUrl(product: OpenFoodFactsProduct): string | undefined {
+  return firstString(
+    product.image_front_small_url,
+    product.image_front_thumb_url,
+    product.image_front_url,
+    product.image_url,
+    selectedImageUrl(product)
+  )
+}
+
 function nutriments(product: OpenFoodFactsProduct): OpenFoodFactsNutriments {
   return product.nutriments ?? {}
 }
@@ -125,6 +148,14 @@ function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {
     quantity: firstString(src.quantity),
     serving_size: firstString(src.serving_size, src.serving),
     serving_quantity: firstString(src.serving_quantity, src.servingQuantity),
+    image_url: firstString(src.image_url),
+    image_front_url: firstString(src.image_front_url),
+    image_front_small_url: firstString(src.image_front_small_url),
+    image_front_thumb_url: firstString(src.image_front_thumb_url),
+    selected_images:
+      src.selected_images && typeof src.selected_images === "object"
+        ? (src.selected_images as OpenFoodFactsProduct["selected_images"])
+        : undefined,
     nutriments:
       src.nutriments && typeof src.nutriments === "object"
         ? (src.nutriments as OpenFoodFactsNutriments)
@@ -161,6 +192,7 @@ function productToResult(product: OpenFoodFactsProduct): FoodResult {
     protein: Math.round(protein * 10) / 10,
     carbs: Math.round(carbs * 10) / 10,
     fat: Math.round(fat * 10) / 10,
+    imageUrl: productImageUrl(product),
     openFoodFacts: product,
   }
 }

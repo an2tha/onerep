@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { useNavigate, useParams } from "react-router"
+import { useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -19,6 +19,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import {
   resolveExerciseIds,
   searchExercises,
@@ -1131,12 +1132,18 @@ function ExerciseModal({
 
 export default function NewPreset() {
   const { id: presetId } = useParams<{ id?: string }>()
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const posthog = usePostHog()
 
   const presets = useQuery(api.logs.presets.list, {})
-  const createPreset = useOfflineMutation(api.logs.presets.create, "logs.presets.create")
-  const updatePreset = useOfflineMutation(api.logs.presets.update, "logs.presets.update")
+  const createPreset = useOfflineMutation(
+    api.logs.presets.create,
+    "logs.presets.create"
+  )
+  const updatePreset = useOfflineMutation(
+    api.logs.presets.update,
+    "logs.presets.update"
+  )
 
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -1144,7 +1151,9 @@ export default function NewPreset() {
   const [modalExercise, setModalExercise] = useState<Exercise | null>(null)
   const [items, setItems] = useState<PresetItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
-  const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
+  const [exerciseLookup, setExerciseLookup] = useState<
+    Record<string, Exercise>
+  >({})
   const preferences = useQuery(api.users.users.getPreferences)
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [drag, setDrag] = useState<DragInfo | null>(null)
@@ -1177,7 +1186,9 @@ export default function NewPreset() {
   useEffect(() => {
     if (!presetId || !presets) return
 
-    const match = presets.find((preset) => (preset.id ?? preset._id) === presetId)
+    const match = presets.find(
+      (preset) => (preset.id ?? preset._id) === presetId
+    )
 
     if (match) {
       const loadedItems = (match.items as PresetItem[]) ?? []
@@ -1199,7 +1210,10 @@ export default function NewPreset() {
       )
       if (ids.length > 0) {
         void resolveExerciseIds(ids).then((lookup) => {
-          setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+          setExerciseLookup((prev) => ({
+            ...prev,
+            ...(lookup as Record<string, Exercise>),
+          }))
         })
       }
     }
@@ -1549,7 +1563,9 @@ export default function NewPreset() {
     )
   }
 
-  const ghostEx = drag?.active ? (exerciseLookup[drag.exerciseId] ?? null) : null
+  const ghostEx = drag?.active
+    ? (exerciseLookup[drag.exerciseId] ?? null)
+    : null
 
   // ─────────────────────────────────────────────────────────
 

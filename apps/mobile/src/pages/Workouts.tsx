@@ -1,6 +1,5 @@
 import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate } from "react-router"
 import {
   Aperture,
   Barbell,
@@ -18,6 +17,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
@@ -125,7 +125,11 @@ import {
 
 // ─── Training streak helpers ──────────────────────────────────────────────────
 
-function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }) {
+function TrainingConsistencyCard({
+  workoutDates,
+}: {
+  workoutDates: Set<string>
+}) {
   const today = new Date()
   today.setUTCHours(12, 0, 0, 0)
 
@@ -142,22 +146,34 @@ function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">Training</p>
-          <p className="mt-0.5 text-[15px] font-bold tracking-tight">Consistency</p>
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+            Training
+          </p>
+          <p className="mt-0.5 text-[15px] font-bold tracking-tight">
+            Consistency
+          </p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">Streak</p>
-            <p className="mt-0.5 text-[22px] font-black leading-none tabular-nums tracking-tight">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+              Streak
+            </p>
+            <p className="mt-0.5 text-[22px] leading-none font-black tracking-tight tabular-nums">
               {streak}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">days</span>
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
+                days
+              </span>
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">This week</p>
-            <p className="mt-0.5 text-[22px] font-black leading-none tabular-nums tracking-tight">
+            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+              This week
+            </p>
+            <p className="mt-0.5 text-[22px] leading-none font-black tracking-tight tabular-nums">
               {thisWeek}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">/ 7</span>
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
+                / 7
+              </span>
             </p>
           </div>
         </div>
@@ -166,7 +182,12 @@ function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }
       {/* Day-of-week labels */}
       <div className="mb-1 grid grid-cols-7 gap-1 px-0.5">
         {dayLabels.map((l, i) => (
-          <p key={i} className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase">{l}</p>
+          <p
+            key={i}
+            className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase"
+          >
+            {l}
+          </p>
         ))}
       </div>
 
@@ -184,11 +205,13 @@ function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }
                 background: isFuture
                   ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
                   : hasWorkout
-                  ? "color-mix(in srgb, var(--accent-workout) 78%, transparent)"
-                  : isToday
-                  ? "color-mix(in srgb, var(--foreground) 10%, transparent)"
-                  : "color-mix(in srgb, var(--foreground) 5%, transparent)",
-                boxShadow: isToday ? "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 25%, transparent)" : undefined,
+                    ? "color-mix(in srgb, var(--accent-workout) 78%, transparent)"
+                    : isToday
+                      ? "color-mix(in srgb, var(--foreground) 10%, transparent)"
+                      : "color-mix(in srgb, var(--foreground) 5%, transparent)",
+                boxShadow: isToday
+                  ? "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 25%, transparent)"
+                  : undefined,
               }}
             />
           )
@@ -199,7 +222,10 @@ function TrainingConsistencyCard({ workoutDates }: { workoutDates: Set<string> }
       <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground/35">
         <span>{last28Count} workouts last 28 days</span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2 w-2 rounded-sm" style={{ background: "var(--accent-workout)" }} />
+          <span
+            className="inline-block h-2 w-2 rounded-sm"
+            style={{ background: "var(--accent-workout)" }}
+          />
           Workout
         </span>
       </div>
@@ -218,9 +244,7 @@ function SectionHeader({
   sub?: string
   action?: React.ReactNode
 }) {
-  return (
-    <MobileSectionHeader title={title} subtitle={sub} action={action} />
-  )
+  return <MobileSectionHeader title={title} subtitle={sub} action={action} />
 }
 
 // ─── Confirm delete sheet ─────────────────────────────────────────────────────
@@ -457,9 +481,7 @@ function PickSecondWorkoutSheet({
           <div className="h-1 w-10 rounded-full bg-foreground/[0.12]" />
         </div>
         <div className="flex items-center justify-between px-5 py-3">
-          <p className="text-[15px] font-semibold tracking-tight">
-            {title}
-          </p>
+          <p className="text-[15px] font-semibold tracking-tight">{title}</p>
           <button
             onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
@@ -513,15 +535,15 @@ type DragState = {
 
 const MUSCLE_COLORS: Record<string, string> = {
   quadriceps: "#38bdf8",
-  glutes:     "#f59e0b",
+  glutes: "#f59e0b",
   hamstrings: "#a78bfa",
-  chest:      "#f87171",
-  back:       "#34d399",
-  shoulders:  "#fb923c",
-  biceps:     "#e879f9",
-  triceps:    "#818cf8",
-  core:       "#facc15",
-  calves:     "#6ee7b7",
+  chest: "#f87171",
+  back: "#34d399",
+  shoulders: "#fb923c",
+  biceps: "#e879f9",
+  triceps: "#818cf8",
+  core: "#facc15",
+  calves: "#6ee7b7",
 }
 
 function muscleColor(muscle: string): string {
@@ -533,7 +555,9 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
     return (
       <Card>
         <div className="px-4 py-5 text-center">
-          <p className="text-[12px] text-muted-foreground/40">No workouts logged this week yet</p>
+          <p className="text-[12px] text-muted-foreground/40">
+            No workouts logged this week yet
+          </p>
         </div>
       </Card>
     )
@@ -551,18 +575,23 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
             return (
               <div key={item.muscle}>
                 <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[12px] font-medium capitalize text-foreground/80">
+                  <span className="text-[12px] font-medium text-foreground/80 capitalize">
                     {item.muscle}
                   </span>
-                  <span className="text-[11px] tabular-nums text-muted-foreground/50">
+                  <span className="text-[11px] text-muted-foreground/50 tabular-nums">
                     {item.primarySets}p
-                    {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""} sets
+                    {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
+                    sets
                   </span>
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                   <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%`, backgroundColor: color, opacity: 0.7 }}
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: color,
+                      opacity: 0.7,
+                    }}
                   />
                 </div>
               </div>
@@ -578,16 +607,25 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
 }
 
 export default function Workouts() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
 
   // ── Convex ────────────────────────────────────────────────────────────────
   const serverPresets = useQuery(api.logs.presets.list)
   const schedule = useQuery(api.users.schedules.get)
   const todayLog = useQuery(api.logs.workouts.getLog, { date: todayIso() })
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
-  const setSchedule = useOfflineMutation(api.users.schedules.set, "users.schedules.set")
-  const createPresetMutation = useOfflineMutation(api.logs.presets.create, "logs.presets.create")
-  const removePresetMutation = useOfflineMutation(api.logs.presets.remove, "logs.presets.remove")
+  const setSchedule = useOfflineMutation(
+    api.users.schedules.set,
+    "users.schedules.set"
+  )
+  const createPresetMutation = useOfflineMutation(
+    api.logs.presets.create,
+    "logs.presets.create"
+  )
+  const removePresetMutation = useOfflineMutation(
+    api.logs.presets.remove,
+    "logs.presets.remove"
+  )
 
   function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
     void setSchedule({
@@ -601,10 +639,17 @@ export default function Workouts() {
   const orderReady = useRef(false)
 
   useEffect(() => {
-    if (orderReady.current || schedule === undefined || serverPresets === undefined) return
+    if (
+      orderReady.current ||
+      schedule === undefined ||
+      serverPresets === undefined
+    )
+      return
     orderReady.current = true
     const srv = schedule?.presetOrder ?? []
-    setLocalOrder(srv.length > 0 ? srv : serverPresets.map((p) => p._id as string))
+    setLocalOrder(
+      srv.length > 0 ? srv : serverPresets.map((p) => p._id as string)
+    )
   }, [schedule, serverPresets])
 
   // Merge new/deleted presets from server into local order
@@ -625,7 +670,13 @@ export default function Workouts() {
     const byId = new Map(
       serverPresets.map((p) => [
         p._id as string,
-        normalizePresetCard({ id: p._id as string, name: p.name, focus: p.focus, duration: p.duration, steps: p.steps }),
+        normalizePresetCard({
+          id: p._id as string,
+          name: p.name,
+          focus: p.focus,
+          duration: p.duration,
+          steps: p.steps,
+        }),
       ])
     )
     const result: WorkoutPresetCard[] = []
@@ -635,7 +686,15 @@ export default function Workouts() {
     }
     for (const p of serverPresets) {
       if (!localOrder.includes(p._id as string))
-        result.push(normalizePresetCard({ id: p._id as string, name: p.name, focus: p.focus, duration: p.duration, steps: p.steps }))
+        result.push(
+          normalizePresetCard({
+            id: p._id as string,
+            name: p.name,
+            focus: p.focus,
+            duration: p.duration,
+            steps: p.steps,
+          })
+        )
     }
     return result
   }, [serverPresets, localOrder])
@@ -664,7 +723,9 @@ export default function Workouts() {
   const [routine2, setRoutine2] = useState<Routine>(EMPTY_ROUTINE)
 
   const syncing = serverPresets === undefined
-  const workoutLogs: CachedWorkoutLog[] = todayLog ? [todayLog as unknown as CachedWorkoutLog] : []
+  const workoutLogs: CachedWorkoutLog[] = todayLog
+    ? [todayLog as unknown as CachedWorkoutLog]
+    : []
 
   const [locked, setLocked] = useState(false)
   const [routineEditMode, setRoutineEditMode] = useState(false)
@@ -698,7 +759,12 @@ export default function Workouts() {
   }, [workoutHistory])
 
   // ── Muscle volume ────────────────────────────────────────────────────────
-  const [exerciseCatalog, setExerciseCatalog] = useState<Map<string, { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }>>(new Map())
+  const [exerciseCatalog, setExerciseCatalog] = useState<
+    Map<
+      string,
+      { id: string; primaryMuscles?: string[]; secondaryMuscles?: string[] }
+    >
+  >(new Map())
   const catalogFetched = useRef<string>("")
 
   const thisWeekLogs = useMemo(() => {
@@ -751,11 +817,7 @@ export default function Workouts() {
         sets: ex.sets.map((set) => ({ completed: Boolean(set.completed) })),
       })),
     }))
-    return computeWeeklyMuscleVolume(
-      logs,
-      catalog,
-      new Date(),
-    )
+    return computeWeeklyMuscleVolume(logs, catalog, new Date())
   }, [thisWeekLogs, exerciseCatalog])
 
   const hasMoved =
@@ -914,7 +976,9 @@ export default function Workouts() {
   // ── Delete confirmed ──────────────────────────────────────────────────────
 
   function duplicatePreset(preset: WorkoutPresetCard) {
-    const source = serverPresets?.find((item) => (item._id as string) === preset.id)
+    const source = serverPresets?.find(
+      (item) => (item._id as string) === preset.id
+    )
     void createPresetMutation({
       name: `${preset.name} copy`,
       items: (source?.items as unknown[]) ?? [],
@@ -949,7 +1013,7 @@ export default function Workouts() {
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
+    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         <header className="px-4 pt-[var(--app-safe-top)] pb-5 md:px-6 md:pt-10 short-phone:pb-3">
           <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">
@@ -1007,7 +1071,7 @@ export default function Workouts() {
 
                   {todayPreset2 ? (
                     /* Scheduled 2nd preset from routine2 */
-                      <div className="flex animate-in flex-col gap-3 border-t border-border/30 pt-3.5 duration-300 fade-in-0 slide-in-from-bottom-2">
+                    <div className="flex animate-in flex-col gap-3 border-t border-border/30 pt-3.5 duration-300 fade-in-0 slide-in-from-bottom-2">
                       <div className="flex items-baseline justify-between">
                         <div>
                           <p className="text-base font-semibold tracking-tight">
@@ -1111,8 +1175,8 @@ export default function Workouts() {
                 !routineEditMode
                   ? "Read-only"
                   : locked
-                  ? "Locked"
-                  : "Drag to assign · drop again for a 2nd workout"
+                    ? "Locked"
+                    : "Drag to assign · drop again for a 2nd workout"
               }
               action={
                 <div className="flex items-center gap-2">
@@ -1161,7 +1225,8 @@ export default function Workouts() {
                   const preset2 =
                     presets.find((p) => p.id === routine2[day]) ?? null
                   const isToday = day === today
-                  const isOver = overDay === day && hasMoved && !locked && routineEditMode
+                  const isOver =
+                    overDay === day && hasMoved && !locked && routineEditMode
                   // When hovering over a day that already has slot 1, indicate slot 2 will be filled
                   const isSlot2Drop = isOver && !!preset
                   const isRemoving = removingDays.has(day)
@@ -1176,7 +1241,7 @@ export default function Workouts() {
                         slotRefs.current[day] = el
                       }}
                       className={cn(
-                            "relative flex w-[80px] shrink-0 flex-col items-center gap-2 overflow-hidden rounded-[20px] border py-3 transition-all duration-200 short-phone:w-[72px] short-phone:rounded-[18px] short-phone:py-2.5",
+                        "relative flex w-[80px] shrink-0 flex-col items-center gap-2 overflow-hidden rounded-[20px] border py-3 transition-all duration-200 short-phone:w-[72px] short-phone:rounded-[18px] short-phone:py-2.5",
                         isToday &&
                           !isOver &&
                           "border-foreground/30 bg-foreground/[0.04] ring-1 ring-foreground/10",
@@ -1208,7 +1273,7 @@ export default function Workouts() {
                         <button
                           type="button"
                           onClick={() => removeSlot(day)}
-                          className="absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-sm"
+                          className="text-destructive-foreground absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-destructive shadow-sm"
                           aria-label={`Remove workout from ${day}`}
                         >
                           <X size={11} weight="bold" />
@@ -1268,21 +1333,19 @@ export default function Workouts() {
                             </div>
                           )}
                         </button>
+                      ) : routineEditMode && !locked ? (
+                        <button
+                          type="button"
+                          onClick={() => setPickRoutineDay(day)}
+                          className="flex min-h-10 flex-col items-center justify-center gap-1 px-2 text-[10px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+                        >
+                          <Plus size={14} weight="bold" />
+                          Add
+                        </button>
                       ) : (
-                        routineEditMode && !locked ? (
-                          <button
-                            type="button"
-                            onClick={() => setPickRoutineDay(day)}
-                            className="flex min-h-10 flex-col items-center justify-center gap-1 px-2 text-[10px] font-semibold text-muted-foreground transition-colors active:text-foreground"
-                          >
-                            <Plus size={14} weight="bold" />
-                            Add
-                          </button>
-                        ) : (
-                          <span className="py-1.5 text-[10px] text-muted-foreground/35">
-                            Rest
-                          </span>
-                        )
+                        <span className="py-1.5 text-[10px] text-muted-foreground/35">
+                          Rest
+                        </span>
                       )}
                     </div>
                   )
@@ -1305,8 +1368,11 @@ export default function Workouts() {
             <div className="flex flex-col gap-2">
               {syncing && presets.length === 0 && (
                 <>
-                  {[0, 1, 2].map(i => (
-                    <div key={i} className="h-[72px] animate-pulse rounded-[20px] bg-muted/50 short-phone:h-[66px] short-phone:rounded-[18px]" />
+                  {[0, 1, 2].map((i) => (
+                    <div
+                      key={i}
+                      className="h-[72px] animate-pulse rounded-[20px] bg-muted/50 short-phone:h-[66px] short-phone:rounded-[18px]"
+                    />
                   ))}
                 </>
               )}
@@ -1330,16 +1396,30 @@ export default function Workouts() {
                         presetRefs.current[idx] = el
                       }}
                       className={cn(
-                        "relative overflow-hidden rounded-[20px] transition-all duration-150 select-none touch-pan-y short-phone:rounded-[18px]",
+                        "relative touch-pan-y overflow-hidden rounded-[20px] transition-all duration-150 select-none short-phone:rounded-[18px]",
                         isDraggingThis && "scale-[0.98] opacity-40",
                         isDropTarget && "scale-[1.01]"
                       )}
                       onPointerDown={
-                        locked || !routineEditMode ? undefined : (e) => onPresetPointerDown(e, preset.id)
+                        locked || !routineEditMode
+                          ? undefined
+                          : (e) => onPresetPointerDown(e, preset.id)
                       }
-                      onPointerMove={locked || !routineEditMode ? undefined : onPresetPointerMove}
-                      onPointerUp={locked || !routineEditMode ? undefined : onPresetPointerUp}
-                      onPointerCancel={locked || !routineEditMode ? undefined : onPresetPointerUp}
+                      onPointerMove={
+                        locked || !routineEditMode
+                          ? undefined
+                          : onPresetPointerMove
+                      }
+                      onPointerUp={
+                        locked || !routineEditMode
+                          ? undefined
+                          : onPresetPointerUp
+                      }
+                      onPointerCancel={
+                        locked || !routineEditMode
+                          ? undefined
+                          : onPresetPointerUp
+                      }
                     >
                       {isPressing && (
                         <div
