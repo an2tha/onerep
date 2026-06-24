@@ -12,6 +12,19 @@ const { getFoodByBarcode, getFoodDetail, searchFoods } = await import(
   "../openfoodfacts"
 )
 
+function lastActionArgs() {
+  const calls = actionMock.mock.calls as unknown as Array<
+    [
+      unknown,
+      {
+        path: string
+        params: Array<{ key: string; value: string }>
+      },
+    ]
+  >
+  return calls.at(-1)![1]
+}
+
 describe("Open Food Facts client", () => {
   beforeEach(() => {
     actionMock.mockReset()
@@ -27,7 +40,7 @@ describe("Open Food Facts client", () => {
 
     await searchFoods("  greek yogurt  ", 250)
 
-    const args = actionMock.mock.calls[0][1]
+    const args = lastActionArgs()
     expect(args.path).toBe("/cgi/search.pl")
     expect(args.params).toContainEqual({ key: "search_terms", value: "greek yogurt" })
     expect(args.params).toContainEqual({ key: "page_size", value: "100" })
@@ -91,7 +104,7 @@ describe("Open Food Facts client", () => {
     })
 
     const detail = await getFoodDetail("abc/123")
-    const args = actionMock.mock.calls[0][1]
+    const args = lastActionArgs()
 
     expect(args.path).toBe("/api/v2/product/abc%2F123.json")
     expect(detail).toMatchObject({
