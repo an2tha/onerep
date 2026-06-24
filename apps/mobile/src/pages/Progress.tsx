@@ -14,7 +14,7 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { toast } from "sonner"
 import { Card } from "@repo/ui"
@@ -198,12 +198,17 @@ function MeasurementField({
   )
 }
 
+type MeasurementDraft = Omit<
+  BodyMeasurementEntry,
+  "_id" | "clientId" | "photoDataUrl" | "photoStorageId" | "photoUrl"
+> & { photoFile?: File }
+
 function MeasurementSheet({
   onClose,
   onSave,
 }: {
   onClose: () => void
-  onSave: (entry: Omit<BodyMeasurementEntry, "clientId">) => void
+  onSave: (entry: MeasurementDraft) => void
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const [loggedAt, setLoggedAt] = useState(today)
@@ -218,6 +223,7 @@ function MeasurementSheet({
   const [neckCm, setNeckCm] = useState("")
   const [notes, setNotes] = useState("")
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
+  const [photoFile, setPhotoFile] = useState<File | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
@@ -232,10 +238,11 @@ function MeasurementSheet({
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (file.size > 1024 * 1024) {
-        toast.error("Image too large. Please choose an image under 1MB.")
+      if (file.size > 4 * 1024 * 1024) {
+        toast.error("Image too large. Please choose an image under 4MB.")
         return
       }
+      setPhotoFile(file)
       const reader = new FileReader()
       reader.onloadend = () => {
         setPhotoDataUrl(reader.result as string)
@@ -329,7 +336,10 @@ function MeasurementSheet({
                 />
                 <button
                   type="button"
-                  onClick={() => setPhotoDataUrl(undefined)}
+                  onClick={() => {
+                    setPhotoDataUrl(undefined)
+                    setPhotoFile(undefined)
+                  }}
                   className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
                 >
                   <X size={14} weight="bold" />
@@ -389,8 +399,8 @@ function MeasurementSheet({
                 calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
                 neckCm: neckCm ? toNumber(neckCm) : undefined,
                 notes: notes.trim() || undefined,
-                photoDataUrl,
-                photoTakenAt: photoDataUrl ? Date.now() : undefined,
+                photoFile,
+                photoTakenAt: photoFile ? Date.now() : undefined,
               })
             }}
             className={cn(
@@ -421,6 +431,7 @@ export default function Progress() {
   const measurementsQuery = useQuery(api.bodyProgress.list, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
 
+  const generateUploadUrl = useMutation(api.bodyProgress.generateUploadUrl)
   const saveMeasurement = useOfflineMutation(api.bodyProgress.save, "bodyProgress.save")
   const removeMeasurement = useOfflineMutation(api.bodyProgress.remove, "bodyProgress.remove")
   const setBodyReminder = useOfflineMutation(api.users.users.setBodyReminder, "users.users.setBodyReminder")
@@ -719,10 +730,10 @@ const trend = goalDelta(entries, goal)
             />
             <Card>
               <div className="flex flex-col">
-                {latest?.photoDataUrl && (
+                {(latest?.photoUrl || latest?.photoDataUrl) && (
                   <div className="aspect-[4/5] w-full overflow-hidden border-b border-border/40 first:rounded-t-3xl">
                     <img
-                      src={latest.photoDataUrl}
+                      src={latest.photoUrl || latest.photoDataUrl}
                       alt="Latest progress"
                       className="h-full w-full object-cover"
                     />
@@ -885,10 +896,10 @@ const trend = goalDelta(entries, goal)
                   <Card key={entry.clientId}>
                     <div className="overflow-hidden">
                       <div className="flex">
-                        {entry.photoDataUrl && (
+                        {(entry.photoUrl || entry.photoDataUrl) && (
                           <div className="w-24 shrink-0 border-r border-border/40">
                             <img
-                              src={entry.photoDataUrl}
+                              src={entry.photoUrl || entry.photoDataUrl}
                               alt="Progress thumbnail"
                               className="h-full w-full object-cover"
                             />
@@ -952,14 +963,26 @@ const trend = goalDelta(entries, goal)
       {sheetOpen && (
         <MeasurementSheet
           onClose={() => setSheetOpen(false)}
-          onSave={async (entry) => {
+          onSave={async ({ photoFile, ...entry }) => {
             const clientId = crypto.randomUUID()
             setSheetOpen(false)
             try {
-              await saveMeasurement({ clientId, ...entry })
+              let photoStorageId: string | undefined
+              if (photoFile) {
+                const uploadUrl = await generateUploadUrl()
+                const response = await fetch(uploadUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": photoFile.type || "image/jpeg" },
+                  body: photoFile,
+                })
+                if (!response.ok) throw new Error("Photo upload failed")
+                photoStorageId = (await response.json()).storageId as string
+              }
+              await saveMeasurement({ clientId, ...entry, photoStorageId })
               toast.success("Measurement saved")
             } catch (err) {
               console.error("Failed to save measurement:", err)
+              toast.error("Could not save measurement")
             }
           }}
         />

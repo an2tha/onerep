@@ -214,6 +214,7 @@ export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | undefined>()
+  const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -244,9 +245,36 @@ export default function Login() {
     finishIntro("signup")
   }
 
+  async function handlePasswordReset() {
+    setError(undefined)
+    setMessage(undefined)
+    const trimmed = email.trim()
+    if (!trimmed) {
+      setError("Enter your email first")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const siteUrl = import.meta.env.VITE_SITE_URL || "https://onerep.life"
+      const { error } = await authClient.requestPasswordReset({
+        email: trimmed,
+        redirectTo: `${siteUrl}/reset-password`,
+      })
+      if (error) {
+        setError(error.message ?? "Could not send reset email")
+        return
+      }
+      setMessage("If that email has an account, a reset link is on the way.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(undefined)
+    setMessage(undefined)
     setLoading(true)
 
     try {
@@ -290,9 +318,11 @@ export default function Login() {
         <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)]">
           <header className="flex items-center justify-center pt-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-[11px] font-semibold tracking-tighter text-background">
-                1R
-              </div>
+              <img
+                src="/app-icon.svg"
+                alt=""
+                className="h-8 w-8 rounded-full"
+              />
               <span className="text-[13px] font-semibold tracking-tight">
                 OneRep
               </span>
@@ -360,9 +390,7 @@ export default function Login() {
     <div className="min-h-svh bg-background text-foreground">
       <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)]">
         <header className="mb-8 flex flex-col items-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-foreground text-[13px] font-semibold tracking-tighter text-background">
-            1R
-          </div>
+          <img src="/app-icon.svg" alt="" className="h-11 w-11 rounded-full" />
           <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight">
             OneRep
           </h1>
@@ -438,12 +466,29 @@ export default function Login() {
               />
             </label>
 
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={loading}
+                className="w-full px-1 text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            )}
+
             {error && (
               <p
                 role="alert"
                 className="rounded-[18px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
               >
                 {error}
+              </p>
+            )}
+
+            {message && (
+              <p className="rounded-[18px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+                {message}
               </p>
             )}
 

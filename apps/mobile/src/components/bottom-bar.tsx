@@ -25,7 +25,9 @@ const DESKTOP_TABS = [
 ] as const
 
 function isActive(pathname: string, path: string) {
-  return path === "/" ? pathname === "/" : pathname.startsWith(path)
+  return path === "/"
+    ? pathname === "/"
+    : pathname === path || pathname.startsWith(`${path}/`)
 }
 
 export function BottomBar({ onAdd }: { onAdd?: () => void }) {
@@ -111,9 +113,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
           onClick={() => navigate("/")}
           className="mb-6 flex items-center gap-3 rounded-2xl px-2 py-2 text-left transition-colors active:bg-foreground/[0.05]"
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-foreground text-[12px] font-black tracking-tighter text-background">
-            1R
-          </div>
+          <img src="/app-icon.svg" alt="" className="h-10 w-10 rounded-2xl" />
           <div>
             <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
             <p className="text-[10px] font-medium tracking-[0.18em] text-muted-foreground/45 uppercase">
