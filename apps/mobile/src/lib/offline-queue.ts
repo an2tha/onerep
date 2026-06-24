@@ -21,6 +21,7 @@ const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,
   "logs.water.setDay": api.logs.water.setDay,
   "logs.water.addEntry": api.logs.water.addEntry,
+  "logs.water.removeEntry": api.logs.water.removeEntry,
   "logs.workouts.completion": api.logs.workouts.completion,
   "bodyProgress.save": api.bodyProgress.save,
   "bodyProgress.remove": api.bodyProgress.remove,

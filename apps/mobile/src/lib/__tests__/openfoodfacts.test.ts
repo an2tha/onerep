@@ -8,9 +8,8 @@ mock.module("@/lib/convex", () => ({
   },
 }))
 
-const { getFoodByBarcode, getFoodDetail, searchFoods } = await import(
-  "../openfoodfacts"
-)
+const { getFoodByBarcode, getFoodDetail, searchFoods } =
+  await import("../openfoodfacts")
 
 function lastActionArgs() {
   const calls = actionMock.mock.calls as unknown as Array<
@@ -42,7 +41,10 @@ describe("Open Food Facts client", () => {
 
     const args = lastActionArgs()
     expect(args.path).toBe("/cgi/search.pl")
-    expect(args.params).toContainEqual({ key: "search_terms", value: "greek yogurt" })
+    expect(args.params).toContainEqual({
+      key: "search_terms",
+      value: "greek yogurt",
+    })
     expect(args.params).toContainEqual({ key: "page_size", value: "100" })
   })
 
@@ -99,6 +101,12 @@ describe("Open Food Facts client", () => {
           sodium_unit: "g",
           calcium_100g: "12",
           calcium_unit: "mg",
+          magnesium_100g: "8",
+          magnesium_unit: "mg",
+          "vitamin-d_100g": "1.5",
+          "vitamin-d_unit": "mcg",
+          caffeine_100g: "3",
+          caffeine_unit: "mg",
         },
       },
     })
@@ -124,6 +132,9 @@ describe("Open Food Facts client", () => {
     })
     expect(detail!.extraNutrients).toEqual([
       { key: "calcium", name: "Calcium", per100g: 12, unit: "mg" },
+      { key: "magnesium", name: "Magnesium", per100g: 8, unit: "mg" },
+      { key: "vitamin-d", name: "Vitamin D", per100g: 1.5, unit: "mcg" },
+      { key: "caffeine", name: "Caffeine", per100g: 3, unit: "mg" },
     ])
   })
 
@@ -141,6 +152,22 @@ describe("Open Food Facts client", () => {
 
     expect(detail!.servingGrams).toBe(42.5)
     expect(detail!.name).toBe("Oats")
+  })
+
+  test("getFoodDetail treats milliliter servings as backing grams", async () => {
+    actionMock.mockResolvedValueOnce({
+      product: {
+        code: "oj",
+        product_name: "Orange Juice",
+        serving_size: "250 ml",
+        nutriments: {},
+      },
+    })
+
+    const detail = await getFoodDetail("oj")
+
+    expect(detail!.servingGrams).toBe(250)
+    expect(detail!.servingLabel).toBe("250 ml")
   })
 
   test("getFoodDetail returns null when the proxy response has no valid product", async () => {

@@ -2,17 +2,17 @@
   import { onMount } from 'svelte';
   import { createAuthClient } from 'better-auth/client';
 
-  type Route = 'home' | 'download' | 'privacy' | 'support' | 'changelog' | 'about' | 'guides' | 'reset-password';
+  type Route = 'home' | 'privacy' | 'support' | 'changelog' | 'about' | 'guides' | 'terms' | 'reset-password';
 
   const routes: Record<string, Route> = {
     '/': 'home',
-    '/download': 'download',
     '/privacy': 'privacy',
     '/support': 'support',
     '/changelog': 'changelog',
     '/reset-password': 'reset-password',
     '/about': 'about',
     '/guides': 'guides',
+    '/terms': 'terms',
   };
 
   const authClient = createAuthClient({
@@ -69,7 +69,7 @@
     window.clearTimeout(appOpenTimer);
     appOpenTimer = window.setTimeout(() => {
       if (document.visibilityState === 'visible') {
-        appOpenMessage = 'If nothing opened, install OneRep on this phone when store links are live.';
+        appOpenMessage = 'If nothing opened, go to app.onerep.life in this browser or add it to your home screen.';
       }
     }, 1200);
   }
@@ -77,6 +77,11 @@
   onMount(() => {
     const saved = localStorage.getItem('theme') as 'light' | 'dark' | null;
     setTheme(saved ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+    if (window.location.pathname === '/download') {
+      history.replaceState(null, '', '/');
+      route = 'home';
+    }
 
     const onPop = () => {
       route = routeFromPath(window.location.pathname);
@@ -97,26 +102,26 @@
   });
 
   const receipt = [
-    { time: '7:12 AM', title: 'Greek yogurt bowl', meta: '420 calories · breakfast' },
+    { time: '7:12 AM', title: 'Greek yogurt bowl', meta: '420 kcal · 28g protein' },
     { time: '12:41 PM', title: 'Push day started', meta: 'Bench, incline, triceps' },
-    { time: '6:03 PM', title: 'Water checked off', meta: '2.0 L down · 0.5 L left' },
-    { time: 'Sunday', title: 'Progress photo added', meta: 'Week 08 comparison saved' },
+    { time: '6:03 PM', title: 'Water logged', meta: '2.0 L / 2.5 L goal' },
+    { time: 'Sunday', title: 'Progress photo added', meta: 'Weight, waist, and notes saved' },
   ];
 
-  const signals = ['lift', 'eat', 'hydrate', 'measure', 'repeat', 'sleep', 'adjust', 'show up'];
+  const signals = ['workouts', 'foods', 'water', 'macros', 'recipes', 'routines', 'measurements', 'photos', 'offline sync', 'export'];
 
   const principles = [
     {
       title: 'Simplicity by design',
-      text: 'Built like a pocket notebook: open it, add the thing, close it. No maze of menus.',
+      text: 'Built around the actions in the app: log the day, adjust the routine, close it, and come back later.',
     },
     {
       title: 'Privacy first',
-      text: 'Your meals, weight, body photos, and workouts are yours. No public feed. No performative sharing.',
+      text: 'Your meals, weight, body photos, and workouts are yours. There is no public feed, and Settings includes analytics controls, export, and deletion.',
     },
     {
       title: 'No fake hype',
-      text: 'OneRep helps you repeat the basics: lift, eat, hydrate, check in. It does not pretend badges build muscle.',
+      text: 'OneRep records workouts, food, water, and check-ins. It does not pretend a public leaderboard or cartoon trophy is the product.',
     },
   ];
 
@@ -124,28 +129,62 @@
     {
       title: 'Lift',
       image: '/placeholders/workout-tile.svg',
-      intro: 'A workout log that stays with the set you are on.',
-      bullets: ['Plan the week', 'Record weight, reps, and sets', 'Use rest timers', 'Save strength, cardio, or mobility days'],
+      intro: 'Build presets, place them on weekdays, and keep an active workout open while you train.',
+      bullets: ['Create workout presets', 'Assign routines to weekdays', 'Track weight, reps, sets, and rest', 'Use strength, cardio, or mobility focus'],
     },
     {
       title: 'Eat',
       image: '/placeholders/food-tile.svg',
-      intro: 'A food diary fast enough to use before the plate is gone.',
-      bullets: ['Search foods by name', 'Scan barcodes', 'Save repeat meals', 'Track calories, protein, carbs, and fat'],
+      intro: 'A food diary for meals, recipes, and packaged foods.',
+      bullets: ['Search foods by name', 'Scan barcodes', 'Build recipes from ingredients', 'Track calories, protein, carbs, and fat'],
     },
     {
       title: 'Check in',
       image: '/placeholders/progress-tile.svg',
-      intro: 'A progress log for the stuff the mirror forgets.',
-      bullets: ['Track weight and body fat', 'Measure waist, arms, legs, and more', 'Add progress photos', 'Set a check-in reminder'],
+      intro: 'A progress log for measurements, photos, notes, and trends.',
+      bullets: ['Track weight, body fat, waist, hips, and chest', 'Add arms, thighs, calves, neck, notes, and photos', 'Review weight, body fat, and circumference trends', 'Keep a dated check-in ledger'],
     },
+  ];
+
+  const workflow = [
+    {
+      step: '01',
+      title: 'Start with today',
+      text: 'Open the app, finish onboarding, and use the dashboard for the day you are actually logging.',
+    },
+    {
+      step: '02',
+      title: 'Log the basics',
+      text: 'Add the workout, meal, water, and check-in data that happened. No social feed. No performance theater.',
+    },
+    {
+      step: '03',
+      title: 'Use the history',
+      text: 'Come back to previous sets, weekly consistency, macro totals, water progress, and measurement trends.',
+    },
+  ];
+
+  const productFacts = [
+    'Private web app at app.onerep.life',
+    'Workout presets, routines, active sessions, and rest timers',
+    'Food search, barcode lookup, recipe builder, calories, protein, carbs, and fat',
+    'Water goal logging from the dashboard or water page',
+    'Progress photos, body measurements, notes, and charts',
+    'Settings for analytics, export, deletion, reminders, and offline queue sync',
+  ];
+
+  const limitations = [
+    'Barcode lookup depends on product databases and can miss foods.',
+    'Native reminders only run in supported installed iOS or Android builds.',
+    'OneRep is a fitness log, not medical, nutrition, or training advice.',
+    'Progress photos and body data are sensitive; do not email them to support.',
   ];
 
   const pages = [
     { path: '/', label: 'Home' },
-    { path: '/download', label: 'Download' },
     { path: '/privacy', label: 'Privacy' },
     { path: '/support', label: 'Support' },
+    { path: '/terms', label: 'Terms' },
     { path: '/changelog', label: 'Changelog' },
     { path: '/about', label: 'About' },
     { path: '/guides', label: 'Guides' },
@@ -160,7 +199,7 @@
     {
       label: 'May 2026',
       title: 'Progress tracking became more than a weight field.',
-      items: ['Progress photos', 'Weight and body-fat charts', 'Waist, hips, chest, arms, thighs, calves, and neck', 'Daily check-in reminders'],
+      items: ['Progress photos', 'Weight and body-fat charts', 'Waist, hips, chest, arms, thighs, calves, and neck', 'Body check-in reminder settings for supported device builds'],
     },
     {
       label: 'April 2026',
@@ -171,11 +210,11 @@
 
   const supportItems = [
     { title: 'I cannot log in', text: 'Check the email you used, then try again on a steady connection. If it loops, send the email on the account and the device you are using.' },
-    { title: 'Barcode scan misses', text: 'Clean lens. Hold still. Fill the box with the barcode. If the food is missing, search by name and save it as a repeat meal.' },
-    { title: 'Camera is black', text: 'Give OneRep camera permission in system settings. On iPhone, fully close the app once after changing permission.' },
-    { title: 'A log did not sync', text: 'Open the app on Wi‑Fi and leave it open for a minute. Offline logs queue up; they need a clean connection to leave the phone.' },
-    { title: 'Export my data', text: 'Go to Settings → Export. Do this before deleting your account or moving to a new phone.' },
-    { title: 'Delete my account', text: 'Go to Settings → Delete account. Export first if you want a copy. Deletion is meant to be final, not a dark pattern.' },
+    { title: 'Barcode scan misses', text: 'Clean the lens, hold still, and fill the box with the barcode. If the product is missing, search by name and log the closest match.' },
+    { title: 'Camera is black', text: 'Give the browser or installed app camera permission. If permission changed recently, fully close OneRep and open it again.' },
+    { title: 'A log did not sync', text: 'Open OneRep while online and leave it open for a minute. If changes are still pending, use Settings → Privacy & Offline → Sync offline queue.' },
+    { title: 'Export my data', text: 'Go to Settings → Privacy & Offline → Export my data. Do this before deleting your account or moving to a new setup.' },
+    { title: 'Delete my account', text: 'Go to Settings → Data → Delete account. Export first if you want a copy. Deletion is meant to be final, not a dark pattern.' },
   ];
 
   const bugChecklist = ['Your device and OS version', 'What you tapped right before it broke', 'The rough time it happened', 'A screenshot or screen recording if you have one', 'Whether you were offline, on Wi‑Fi, or on cellular'];
@@ -195,7 +234,7 @@
       deck: 'Food logging should answer one question: does the way you eat match the result you want?',
       sections: [
         { heading: 'Start with normal days', text: 'Do not begin on a vacation, a birthday dinner, or the Monday after deciding to become a new person. Log a plain Tuesday.' },
-        { heading: 'Save repeat meals', text: 'Most people eat the same ten meals in rotation. Save those first. Then the hard part becomes rare.' },
+        { heading: 'Use recipes for repeat foods', text: 'Most people cook the same handful of meals in rotation. Build recipes for those meals, then log them instead of rebuilding ingredients every time.' },
         { heading: 'Watch the week', text: 'One high-calorie dinner is not a personality flaw. Seven days tells the truth better than one dramatic night.' },
       ],
     },
@@ -221,13 +260,33 @@
   </a>
   <div class="header-actions">
     <nav aria-label="Primary navigation">
-      <a href="/download" class:active={route === 'download'} on:click={(event) => go(event, '/download')}>Download</a>
       <a href="/privacy" class:active={route === 'privacy'} on:click={(event) => go(event, '/privacy')}>Privacy</a>
       <a href="/support" class:active={route === 'support'} on:click={(event) => go(event, '/support')}>Support</a>
     </nav>
-    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span>↗</span></a>
-    <button class="theme-toggle" type="button" on:click={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode">
-      ◐
+    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span aria-hidden="true">↗</span></a>
+    <button
+      class="theme-toggle"
+      type="button"
+      on:click={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {#if theme === 'dark'}
+        <svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2"></path>
+          <path d="M12 20v2"></path>
+          <path d="m4.93 4.93 1.41 1.41"></path>
+          <path d="m17.66 17.66 1.41 1.41"></path>
+          <path d="M2 12h2"></path>
+          <path d="M20 12h2"></path>
+          <path d="m6.34 17.66-1.41 1.41"></path>
+          <path d="m19.07 4.93-1.41 1.41"></path>
+        </svg>
+      {:else}
+        <svg class="theme-toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M20.5 14.2A7.6 7.6 0 0 1 9.8 3.5 8.4 8.4 0 1 0 20.5 14.2Z"></path>
+        </svg>
+      {/if}
     </button>
   </div>
 </header>
@@ -243,11 +302,11 @@
         <p class="eyebrow">One private log for training, food, and progress</p>
         <h1 id="hero-title">Your body keeps receipts.</h1>
         <p class="hero-text">
-          OneRep keeps the receipts in one place: the workout you did, the food you ate, the water you drank, and the photos and measurements that show what changed.
+          OneRep keeps the receipts in one private web app: workouts, routines, meals, recipes, water, goals, measurements, and progress photos.
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="/download" on:click={(event) => go(event, '/download')}>Download / open</a>
-          <a class="button secondary" href="/privacy" on:click={(event) => go(event, '/privacy')}>Privacy first</a>
+          <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
+          <a class="button secondary" href="/privacy" on:click={(event) => go(event, '/privacy')}>Privacy</a>
         </div>
 
         <div class="receipt-card" aria-label="Example daily log">
@@ -332,12 +391,53 @@
       </div>
     </section>
 
+    <section class="workflow-section" aria-labelledby="workflow-title">
+      <div class="section-heading compact">
+        <p class="eyebrow">How it works</p>
+        <h2 id="workflow-title">A useful log starts small.</h2>
+      </div>
+      <div class="workflow-grid">
+        {#each workflow as item}
+          <article>
+            <span>{item.step}</span>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </article>
+        {/each}
+      </div>
+    </section>
+
+    <section class="truth-section" aria-labelledby="truth-title">
+      <div>
+        <p class="eyebrow">What is real today</p>
+        <h2 id="truth-title">Clear claims beat big claims.</h2>
+      </div>
+      <div class="truth-columns">
+        <article>
+          <h3>What the app offers</h3>
+          <ul>
+            {#each productFacts as fact}
+              <li>{fact}</li>
+            {/each}
+          </ul>
+        </article>
+        <article>
+          <h3>What to know</h3>
+          <ul>
+            {#each limitations as item}
+              <li>{item}</li>
+            {/each}
+          </ul>
+        </article>
+      </div>
+    </section>
+
     <section class="screen-row" aria-label="Daily check-in preview">
       <div class="screen-copy">
-        <p class="eyebrow">The daily check-in</p>
-        <h2>Know what needs attention.</h2>
+        <p class="eyebrow">Today’s dashboard</p>
+        <h2>Know what you logged.</h2>
         <p>
-          The day has a simple shape: train, eat, drink water, check progress. OneRep keeps those signals together so you do not have to reconstruct your week from memory.
+          The day has a simple shape: train, eat, drink water, and check progress. OneRep keeps those signals together so you do not have to reconstruct the week from memory.
         </p>
       </div>
       <div class="screen-cards">
@@ -356,46 +456,15 @@
     </section>
 
     <section id="waitlist" class="cta-panel" aria-labelledby="cta-title">
-      <p class="eyebrow">For your phone</p>
-      <h2 id="cta-title">Stop guessing what worked.</h2>
-      <p>Log the set. Log the meal. Add the check-in. Come back tomorrow with a clearer picture.</p>
-      <a class="button primary" href="/download" on:click={(event) => go(event, '/download')}>Download / open</a>
+      <p class="eyebrow">For today</p>
+      <h2 id="cta-title">Open OneRep and log the day.</h2>
+      <p>Log the set. Log the meal. Add water. Save the check-in. Come back tomorrow with a clearer picture.</p>
+      <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
     </section>
   </main>
 {:else}
   <main class="page-shell">
-    {#if route === 'download'}
-      <section class="page-hero split-page">
-        <div>
-          <p class="eyebrow">Download</p>
-          <h1>Get it on the phone you actually train with.</h1>
-          <p>If OneRep is already installed, open it from here. If not, send yourself the link and install it when the store links are live.</p>
-          <div class="page-actions">
-            <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
-            <a class="button secondary" href="mailto:?subject=Open OneRep&body=Open OneRep on your phone: https://app.onerep.life">Send link to myself</a>
-          </div>
-        </div>
-        <div class="qr-card" aria-label="OneRep QR-style mark">
-          <span>Phone handoff</span>
-          <div class="qr-grid">
-            {#each Array(49) as _, i}
-              <i class:filled={i % 2 === 0 || i % 7 === 3 || [5, 9, 11, 17, 23, 31, 37, 41].includes(i)}></i>
-            {/each}
-          </div>
-          <p>Desktop visitor? This spot becomes the QR code for the app once the public store pages are ready.</p>
-        </div>
-      </section>
-      <section class="copy-grid two-col">
-        <article>
-          <h2>If the button does nothing</h2>
-          <p>Your browser tried to open the OneRep app. If nothing happened, the app is probably not installed on this device yet.</p>
-        </article>
-        <article>
-          <h2>What to do first</h2>
-          <p>Start with one workout and one normal day of food. Do not rebuild your whole life on day one. Log the obvious stuff first.</p>
-        </article>
-      </section>
-    {:else if route === 'privacy'}
+    {#if route === 'privacy'}
       <section class="page-hero narrow-page">
         <p class="eyebrow">Privacy · last updated June 23, 2026</p>
         <h1>Your log is not content.</h1>
@@ -413,12 +482,12 @@
         </article>
         <article>
           <h2>What we collect</h2>
-          <p>Account details such as your email and sign-in information. The logs you create: workouts, exercises, sets, reps, weights, meals, recipes, water entries, body measurements, photos, reminders, and preferences.</p>
+          <p>Account details such as your email and sign-in information. The logs you create: workout presets, routines, active workouts, exercises, sets, reps, weights, meals, recipes, water entries, body measurements, progress photos, notes, goals, reminders, privacy settings, and preferences.</p>
           <p>We may also collect basic device and diagnostic data, like app version, crash information, and whether a sync failed. If analytics are enabled, we use product events to see which parts of the app are broken, confusing, or unused.</p>
         </article>
         <article>
           <h2>Camera, photos, and notifications</h2>
-          <p>Camera access is used when you scan a barcode or add a progress photo. Photo access is used only for photos you choose. Notifications are used only for reminders you turn on.</p>
+          <p>Camera access is used for food barcode scanning and progress photos. Photo access is used only for files you choose. Native notifications are used only for reminders you turn on in supported installed builds.</p>
         </article>
         <article>
           <h2>How we use data</h2>
@@ -443,7 +512,45 @@
         </article>
         <article>
           <h2>Export, delete, or ask</h2>
-          <p>Use Settings to export your data or delete your account. If something does not work, email <a href="mailto:support@onerep.life">support@onerep.life</a>. Tell us the email on the account so we can find the right record.</p>
+          <p>Use Settings → Privacy & Offline to export your data. Use Settings → Data to delete your account. If something does not work, email <a href="mailto:support@onerep.life">support@onerep.life</a>. Tell us the email on the account so we can find the right record.</p>
+        </article>
+      </section>
+    {:else if route === 'terms'}
+      <section class="page-hero narrow-page">
+        <p class="eyebrow">Terms · last updated June 24, 2026</p>
+        <h1>Use OneRep like a log, not a doctor.</h1>
+        <p>These terms explain the basic rules for using OneRep. They are written for the current web app at app.onerep.life.</p>
+      </section>
+      <section class="policy-stack">
+        <article>
+          <h2>The service</h2>
+          <p>OneRep is a private fitness logging app for workouts, food, water, body measurements, progress photos, goals, reminders, and related settings.</p>
+          <p>The app helps you record and review information. It does not provide medical, nutrition, mental health, or professional training advice.</p>
+        </article>
+        <article>
+          <h2>Your account</h2>
+          <p>You are responsible for the email, password, and data you add to OneRep. Do not share access to your account, and do not use someone else’s account.</p>
+          <p>If you believe your account was accessed without permission, email <a href="mailto:support@onerep.life">support@onerep.life</a>.</p>
+        </article>
+        <article>
+          <h2>Your data</h2>
+          <p>You keep responsibility for the logs, measurements, notes, and photos you add. You can export your data from Settings → Privacy & Offline and request account deletion from Settings → Data.</p>
+        </article>
+        <article>
+          <h2>Acceptable use</h2>
+          <ul>
+            <li>Do not abuse, attack, scrape, or attempt to bypass the app or its infrastructure.</li>
+            <li>Do not upload illegal content or content that violates another person’s rights.</li>
+            <li>Do not use OneRep in emergencies or as a substitute for professional advice.</li>
+          </ul>
+        </article>
+        <article>
+          <h2>Availability</h2>
+          <p>OneRep may change, break, or go offline. We try to keep the app useful, but no app can promise uninterrupted service or perfect data accuracy.</p>
+        </article>
+        <article>
+          <h2>Contact</h2>
+          <p>Questions about these terms can be sent to <a href="mailto:support@onerep.life">support@onerep.life</a>.</p>
         </article>
       </section>
     {:else if route === 'support'}
@@ -527,7 +634,7 @@
       <section class="copy-grid two-col">
         <article>
           <h2>What it is</h2>
-          <p>A place to record the boring things that move the needle: sets, meals, water, weight, measurements, photos, and notes.</p>
+          <p>A place to record the boring things that move the needle: routines, sets, meals, recipes, water, goals, weight, measurements, photos, and notes.</p>
         </article>
         <article>
           <h2>What it is not</h2>
@@ -574,7 +681,7 @@
 <footer class="site-footer">
   <div>
     <strong>OneRep</strong>
-    <p>Private fitness logging for workouts, food, water, and progress.</p>
+    <p>Private fitness logging for workouts, food, water, body measurements, and progress photos.</p>
   </div>
   <nav aria-label="Footer navigation">
     {#each pages as page}

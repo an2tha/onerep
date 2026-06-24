@@ -113,7 +113,7 @@ function MultiLineChart({
   const globalMax = sharedScale ? Math.max(...allValues) : undefined
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full overflow-visible">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full overflow-visible short-phone:h-24">
       {series.map((s, i) => {
         if (s.values.length < 2) return null
         const pts = sparklinePoints(s.values, width, height, globalMin, globalMax)
@@ -267,9 +267,9 @@ function MeasurementSheet({
     <MobileSheet
       onClose={onClose}
       overlayClassName="bg-black/45 backdrop-blur-[5px]"
-      panelClassName="sheet-panel mx-auto w-full max-w-sm rounded-t-[28px] border-t border-border/60 bg-card shadow-[0_-16px_48px_rgba(0,0,0,0.18)]"
+      panelClassName="sheet-panel mx-auto w-full max-w-sm rounded-t-[26px] border-t border-border/60 bg-card shadow-[0_-16px_48px_rgba(0,0,0,0.18)]"
       panelStyle={{
-        paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+        paddingBottom: "var(--app-safe-bottom-lg)",
       }}
     >
       <div className="px-4 pt-1">
@@ -282,7 +282,7 @@ function MeasurementSheet({
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 short-phone:gap-2">
           {/* Core fields */}
           {[
             { label: "Weight",   unit: "kg", value: weightKg,   onChange: setWeightKg },
@@ -349,7 +349,7 @@ function MeasurementSheet({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-border/55 bg-background text-muted-foreground/45 transition-colors active:bg-muted/30 active:text-foreground/60"
+                className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-[18px] border border-dashed border-border/55 bg-background text-muted-foreground/45 transition-colors active:bg-muted/30 active:text-foreground/60 short-phone:h-24"
               >
                 <Camera size={24} />
                 <span className="text-[11px] font-medium">Add photo</span>
@@ -471,9 +471,9 @@ const trend = goalDelta(entries, goal)
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-5xl md:pb-10">
-        <header className="px-5 pt-14 pb-5 md:px-6 md:pt-10">
-          <div className="mb-4 flex items-center justify-between">
+      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
+        <header className="px-5 pt-[var(--app-safe-top)] pb-5 md:flex md:items-end md:justify-between md:px-6 md:pt-10 md:pb-4 short-phone:pb-3">
+          <div className="mb-4 flex items-center justify-between md:hidden">
             <button
               onClick={() => navigate(-1)}
               className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-muted-foreground/70 transition-colors active:bg-muted"
@@ -489,9 +489,25 @@ const trend = goalDelta(entries, goal)
               Add check-in
             </button>
           </div>
+
+          <div className="hidden md:block">
+            <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
+              Body check-in
+            </p>
+            <h1 className="mt-1 text-[1.9rem] leading-[1.15] font-semibold tracking-tight">
+              Progress.
+            </h1>
+          </div>
+          <button
+            onClick={() => setSheetOpen(true)}
+            className="hidden h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[11px] font-semibold text-background transition-opacity active:opacity-80 md:flex"
+          >
+            <Plus size={11} weight="bold" />
+            Add check-in
+          </button>
         </header>
 
-        <div className="flex flex-col gap-4 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6">
+        <div className="flex flex-col gap-4 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6 short-phone:gap-3">
           <section>
             <SectionHeader title="Trends" />
             <Card>

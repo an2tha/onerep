@@ -104,3 +104,39 @@ export const addEntry = mutation({
     return { ok: true };
   },
 });
+
+// ── removeEntry ───────────────────────────────────────────────────────────────
+
+export const removeEntry = mutation({
+  args: {
+    date: v.string(),
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const existing = await ctx.db
+      .query("waterLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+
+    if (!existing) return { ok: true };
+
+    const nextEntries = existing.entries.filter((entry: unknown) => {
+      if (!entry || typeof entry !== "object") return true;
+      return (entry as { id?: unknown }).id !== args.id;
+    });
+
+    if (nextEntries.length === existing.entries.length) return { ok: true };
+
+    await ctx.db.patch(existing._id, {
+      entries: nextEntries,
+      updatedAt: Date.now(),
+    });
+
+    return { ok: true };
+  },
+});

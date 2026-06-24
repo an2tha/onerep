@@ -658,6 +658,14 @@ export default function SnapAndLog() {
           onMealChange={setMeal}
           added={added}
           onAdd={handleAdd}
+          onRetake={() => {
+            setSnapPhase("idle")
+            setSnapResults([])
+            setSnapRaw(null)
+            setBarcodeResult(null)
+            setBarcodeError(null)
+          }}
+          onSearchManually={() => navigate("/foods/search")}
           onDismiss={() => {
             setSnapPhase("idle")
             setSnapResults([])
@@ -684,6 +692,8 @@ type ResultsSheetProps = {
   onMealChange: (m: MealType) => void
   added: string | null
   onAdd: (item: FoodResult) => void
+  onRetake: () => void
+  onSearchManually: () => void
   onDismiss: () => void
 }
 
@@ -698,6 +708,8 @@ function ResultsSheet({
   onMealChange,
   added,
   onAdd,
+  onRetake,
+  onSearchManually,
   onDismiss,
 }: ResultsSheetProps) {
   const items: FoodResult[] =
@@ -746,18 +758,32 @@ function ResultsSheet({
 
       {/* Error / empty states */}
       {hasError && (
-        <p className="shrink-0 px-5 pb-4 text-[12px] text-white/40">
-          {mode === "barcode"
-            ? barcodeError
-            : "Couldn't analyse image. Try again."}
-        </p>
+        <div className="shrink-0 px-5 pb-4">
+          <p className="text-[12px] text-white/40">
+            {mode === "barcode"
+              ? barcodeError
+              : "Couldn't analyse image. Try again."}
+          </p>
+          <ResultFallbackActions
+            retakeLabel={mode === "barcode" ? "Scan again" : "Retake"}
+            onRetake={onRetake}
+            onSearchManually={onSearchManually}
+          />
+        </div>
       )}
       {isEmpty && (
-        <p className="shrink-0 px-5 pb-4 text-[12px] text-white/40">
-          {mode === "barcode"
-            ? "No product found for this barcode."
-            : "No matching foods found."}
-        </p>
+        <div className="shrink-0 px-5 pb-4">
+          <p className="text-[12px] text-white/40">
+            {mode === "barcode"
+              ? "No product found for this barcode."
+              : "No matching foods found."}
+          </p>
+          <ResultFallbackActions
+            retakeLabel={mode === "barcode" ? "Scan again" : "Retake"}
+            onRetake={onRetake}
+            onSearchManually={onSearchManually}
+          />
+        </div>
       )}
 
       {!hasError && !isEmpty && (
@@ -867,6 +893,35 @@ function ResultsSheet({
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function ResultFallbackActions({
+  retakeLabel,
+  onRetake,
+  onSearchManually,
+}: {
+  retakeLabel: string
+  onRetake: () => void
+  onSearchManually: () => void
+}) {
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <button
+        type="button"
+        onClick={onRetake}
+        className="min-h-10 rounded-xl bg-white/10 px-3 text-[12px] font-semibold text-white/75 transition-opacity active:opacity-70"
+      >
+        {retakeLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onSearchManually}
+        className="min-h-10 rounded-xl bg-white px-3 text-[12px] font-semibold text-black transition-opacity active:opacity-80"
+      >
+        Search manually
+      </button>
     </div>
   )
 }

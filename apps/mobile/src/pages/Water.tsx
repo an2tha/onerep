@@ -72,8 +72,14 @@ function SwipeRow({
 }) {
   const [tx, setTx] = React.useState(0)
   const startX = React.useRef(0)
+  const txRef = React.useRef(0)
   const dragging = React.useRef(false)
-  const THRESHOLD = 72
+  const ACTION_WIDTH = 72
+
+  function setTranslate(next: number) {
+    txRef.current = next
+    setTx(next)
+  }
 
   function onPointerDown(e: React.PointerEvent) {
     startX.current = e.clientX
@@ -83,26 +89,31 @@ function SwipeRow({
 
   function onPointerMove(e: React.PointerEvent) {
     if (!dragging.current) return
-    setTx(Math.min(0, e.clientX - startX.current))
+    setTranslate(Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current)))
   }
 
   function onPointerUp() {
     dragging.current = false
-    setTx(tx < -THRESHOLD ? -THRESHOLD : 0)
+    setTranslate(txRef.current <= -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0)
   }
 
-  const revealed = tx <= -THRESHOLD
+  const revealed = tx <= -ACTION_WIDTH
 
   return (
-    <div className="relative overflow-hidden">
-      <div
-        className="absolute inset-y-0 right-0 flex w-16 items-center justify-center bg-destructive/90"
-        style={{ borderRadius: "0 8px 8px 0" }}
+    <div className="relative overflow-hidden rounded-xl bg-foreground/[0.035] ring-1 ring-border/25">
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onDelete}
+        disabled={!revealed}
+        tabIndex={revealed ? 0 : -1}
+        aria-label={`Delete ${fmtMl(entry.amountMl)} water entry`}
+        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive/90 text-white transition-opacity disabled:pointer-events-none disabled:opacity-0 md:hidden"
       >
         <Trash size={14} weight="fill" className="text-white" />
-      </div>
+      </button>
       <div
-        className="relative flex touch-pan-y items-center gap-2 bg-background py-[5px] transition-transform duration-150 ease-out"
+        className="relative flex touch-pan-y items-center gap-3 bg-card px-3 py-2.5 transition-transform duration-150 ease-out md:translate-x-0"
         style={{ transform: `translateX(${tx}px)` }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -110,26 +121,33 @@ function SwipeRow({
         onPointerCancel={onPointerUp}
       >
         <span
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
           style={{ backgroundColor: WATER_BG }}
         >
-          <Drop size={9} weight="fill" style={{ color: WATER_COLOR }} />
+          <Drop size={12} weight="fill" style={{ color: WATER_COLOR }} />
         </span>
-        <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
-          {fmtMl(entry.amountMl)}
-        </p>
-        <span className="shrink-0 text-[11px] text-muted-foreground/40 tabular-nums">
-          {fmtTime(entry.loggedAt)}
-        </span>
-        {revealed && (
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-foreground/85">
+            {fmtMl(entry.amountMl)}
+          </p>
+          <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground/35 uppercase">
+            Water
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-[11px] text-muted-foreground/45 tabular-nums">
+            {fmtTime(entry.loggedAt)}
+          </span>
           <button
+            type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onDelete}
-            className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive transition-colors active:bg-destructive/30"
+            className="hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/35 transition-colors hover:bg-destructive/10 hover:text-destructive md:flex"
+            aria-label={`Delete ${fmtMl(entry.amountMl)} water entry`}
           >
-            <X size={9} weight="bold" />
+            <Trash size={12} weight="bold" />
           </button>
-        )}
+        </div>
       </div>
     </div>
   )
@@ -157,7 +175,7 @@ function ProgressCard({
   const remaining = Math.max(0, goalMl - totalMl)
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+    <div className="rounded-[22px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
           Today
@@ -204,7 +222,7 @@ function ProgressCard({
       </div>
 
       {/* Progress bar */}
-      <div className="mt-3 h-[5px] overflow-hidden rounded-full bg-muted/40">
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted/40 short-phone:mt-2.5">
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{
@@ -234,11 +252,21 @@ function EntryList({
   if (sorted.length === 0) return null
 
   return (
-    <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
-      <p className="mb-2.5 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-        Entries
-      </p>
-      <div className="flex flex-col divide-y divide-border/20">
+    <div className="rounded-[22px] bg-card p-4 ring-1 ring-border/40 md:col-span-2 short-phone:rounded-[18px] short-phone:p-3.5">
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+            Entries
+          </p>
+          <p className="mt-1 text-[12px] text-muted-foreground/45">
+            {sorted.length} logged today
+          </p>
+        </div>
+        <span className="text-[12px] font-semibold tabular-nums" style={{ color: WATER_COLOR }}>
+          {fmtMl(sorted.reduce((sum, entry) => sum + entry.amountMl, 0))}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2">
         {sorted.map((entry) => (
           <SwipeRow
             key={entry.id}
@@ -431,17 +459,42 @@ export default function Water() {
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
   const addEntryMutation = useOfflineMutation(api.logs.water.addEntry, "logs.water.addEntry")
+  const removeEntryMutation = useOfflineMutation(api.logs.water.removeEntry, "logs.water.removeEntry")
   const setWaterGoal = useOfflineMutation(api.users.users.setWaterGoal, "users.users.setWaterGoal")
 
   // Optimistic local entries — immediately reflects taps, gets replaced by
   // server data once Convex round-trips back.
   const [optimisticEntries, setOptimisticEntries] = useState<WaterLogEntry[]>([])
+  const [pendingDeletedIds, setPendingDeletedIds] = useState<Set<string>>(new Set())
+  const pendingDeletedIdsRef = React.useRef<Set<string>>(new Set())
   const syncedDateKey = React.useRef<string | null>(null)
+
+  function markDeleted(id: string) {
+    const next = new Set(pendingDeletedIdsRef.current)
+    next.add(id)
+    pendingDeletedIdsRef.current = next
+    setPendingDeletedIds(next)
+  }
+
+  function unmarkDeleted(id: string) {
+    const next = new Set(pendingDeletedIdsRef.current)
+    next.delete(id)
+    pendingDeletedIdsRef.current = next
+    setPendingDeletedIds(next)
+  }
 
   // When server data arrives for the current dateKey, drop our optimistic layer.
   React.useEffect(() => {
     if (rawEntries !== undefined) {
       setOptimisticEntries([])
+      const serverIds = new Set(
+        ((rawEntries ?? []) as WaterLogEntry[]).map((entry) => entry.id)
+      )
+      setPendingDeletedIds((prev) => {
+        const next = new Set([...prev].filter((id) => serverIds.has(id)))
+        pendingDeletedIdsRef.current = next
+        return next
+      })
       syncedDateKey.current = dateKey
     }
   }, [rawEntries, dateKey])
@@ -449,16 +502,31 @@ export default function Water() {
   // Reset optimistic state when navigating to a different day.
   React.useEffect(() => {
     setOptimisticEntries([])
+    pendingDeletedIdsRef.current = new Set()
+    setPendingDeletedIds(new Set())
   }, [dateKey])
 
-  const serverEntries: WaterLogEntry[] = (rawEntries ?? []) as WaterLogEntry[]
+  const serverEntries = useMemo(
+    () => (rawEntries ?? []) as WaterLogEntry[],
+    [rawEntries],
+  )
   // Merge: server entries are ground truth; optimistic ones are appended on top
   // (they'll disappear once server round-trips and replaces rawEntries).
   const entries = useMemo(() => {
+    const visibleServerEntries = serverEntries.filter(
+      (entry) => !pendingDeletedIds.has(entry.id)
+    )
     const serverIds = new Set(serverEntries.map((e) => e.id))
-    const pending = optimisticEntries.filter((e) => !serverIds.has(e.id))
-    return [...serverEntries, ...pending]
-  }, [serverEntries, optimisticEntries])
+    const pending = optimisticEntries.filter(
+      (entry) => !serverIds.has(entry.id) && !pendingDeletedIds.has(entry.id)
+    )
+    return [...visibleServerEntries, ...pending]
+  }, [serverEntries, optimisticEntries, pendingDeletedIds])
+  const entriesRef = React.useRef<WaterLogEntry[]>([])
+
+  React.useEffect(() => {
+    entriesRef.current = entries
+  }, [entries])
 
   const totalMl = useMemo(
     () => entries.reduce((s, e) => s + e.amountMl, 0),
@@ -470,6 +538,7 @@ export default function Water() {
   const isToday = dateKey === todayKey
 
   function addEntry(amountMl: number) {
+    const date = dateKey
     const entry: WaterLogEntry = {
       id: crypto.randomUUID(),
       amountMl,
@@ -478,36 +547,57 @@ export default function Water() {
     // Update UI instantly
     setOptimisticEntries((prev) => [...prev, entry])
     // Sync to server in background, with error rollback
-    addEntryMutation({ date: dateKey, entry }).catch(() => {
-      // Remove the optimistic entry on error
-      setOptimisticEntries((prev) => prev.filter((e) => e.id !== entry.id))
-    })
+    addEntryMutation({ date, entry })
+      .then(() => {
+        if (pendingDeletedIdsRef.current.has(entry.id)) {
+          void persistDelete(date, entry.id)
+        }
+      })
+      .catch(() => {
+        // Remove the optimistic entry on error
+        setOptimisticEntries((prev) => prev.filter((e) => e.id !== entry.id))
+        unmarkDeleted(entry.id)
+      })
   }
 
   function saveGoal(ml: number) {
     void setWaterGoal({ goalMl: ml })
   }
 
+  async function persistDelete(
+    date: string,
+    id: string,
+    fallbackEntries = entriesRef.current.filter((entry) => entry.id !== id)
+  ) {
+    try {
+      await removeEntryMutation({ date, id })
+    } catch {
+      await setDay({ date, entries: fallbackEntries })
+    }
+  }
+
   function deleteEntry(id: string) {
-    // Optimistically remove from local state too
+    const date = dateKey
+    const nextEntries = entriesRef.current.filter((entry) => entry.id !== id)
+    markDeleted(id)
     setOptimisticEntries((prev) => prev.filter((e) => e.id !== id))
-    void setDay({
-      date: dateKey,
-      entries: entries.filter((e) => e.id !== id),
-    })
+    persistDelete(date, id, nextEntries)
+      .catch(() => {
+        unmarkDeleted(id)
+      })
   }
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-4xl md:pb-10">
+      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="flex items-end justify-between px-5 pt-14 pb-4 md:px-6 md:pt-10">
+        <header className="flex items-end justify-between px-5 pt-[var(--app-safe-top)] pb-4 md:px-6 md:pt-10 short-phone:pb-3">
           <div>
             <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
               Hydration
             </p>
-            <h1 className="mt-1 text-[1.9rem] leading-[1.15] font-semibold tracking-tight">
-              Water.
+            <h1 className="mt-1 text-[1.65rem] leading-[1.15] font-semibold tracking-tight short-phone:text-[1.42rem]">
+              Water
             </h1>
           </div>
 
@@ -533,7 +623,7 @@ export default function Water() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-6">
+        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-6 short-phone:gap-2.5">
           <ProgressCard
             totalMl={totalMl}
             goalMl={goalMl}
@@ -541,7 +631,7 @@ export default function Water() {
           />
 
           {/* Quick-add row */}
-          <div className="rounded-2xl bg-card px-4 py-3.5 ring-1 ring-border/30">
+          <div className="rounded-[22px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
             <p className="mb-2.5 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
               Quick add
             </p>
