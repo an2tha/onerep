@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+
+FROM oven/bun:1.3.4-alpine AS build
+WORKDIR /repo
+
+COPY . .
+RUN bun install --frozen-lockfile
+
+ARG VITE_CONVEX_URL
+ARG VITE_CONVEX_SITE_URL
+ARG VITE_SITE_URL
+ARG VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
+ARG VITE_PUBLIC_POSTHOG_HOST
+
+ENV VITE_CONVEX_URL=$VITE_CONVEX_URL
+ENV VITE_CONVEX_SITE_URL=$VITE_CONVEX_SITE_URL
+ENV VITE_SITE_URL=$VITE_SITE_URL
+ENV VITE_PUBLIC_POSTHOG_PROJECT_TOKEN=$VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
+ENV VITE_PUBLIC_POSTHOG_HOST=$VITE_PUBLIC_POSTHOG_HOST
+
+RUN bunx turbo run build --filter=mobile
+
+FROM nginx:1.27-alpine
+COPY nginx-app.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /repo/apps/mobile/dist /usr/share/nginx/html
+EXPOSE 80

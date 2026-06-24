@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  build:
     runs-on: [self-hosted, onerep-prod]
     timeout-minutes: 30
     env:
@@ -38,6 +38,40 @@ jobs:
       - run: bun audit --audit-level high
       - run: bun run build
 
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onerep-web-dist
+          path: apps/web/dist
+          if-no-files-found: error
+
+      - name: Upload app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: onerep-app-dist
+          path: apps/mobile/dist
+          if-no-files-found: error
+
+  deploy:
+    runs-on: [self-hosted, onerep-prod]
+    needs: build
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: onerep-web-dist
+          path: /tmp/onerep-build/web
+
+      - name: Download app artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: onerep-app-dist
+          path: /tmp/onerep-build/app
+
       - name: Install Docker Compose
         run: |
           mkdir -p ~/.docker/cli-plugins
@@ -51,10 +85,12 @@ jobs:
           install -d /data/onerep/web /data/onerep/app
           find /data/onerep/web -mindepth 1 -maxdepth 1 -exec rm -rf {} +
           find /data/onerep/app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-          cp -a apps/web/dist/. /data/onerep/web/
-          cp -a apps/mobile/dist/. /data/onerep/app/
-          install -m 0644 deploy/onerep/nginx-spa.conf /data/onerep/nginx-spa.conf
-          install -m 0644 deploy/onerep/docker-compose.yml /data/onerep/docker-compose.yml
+          cp -a /tmp/onerep-build/web/. /data/onerep/web/
+          cp -a /tmp/onerep-build/app/. /data/onerep/app/
+          install -m 0644 nginx-web.conf /data/onerep/nginx-web.conf
+          install -m 0644 nginx-app.conf /data/onerep/nginx-app.conf
+          install -m 0644 docker-compose.yml /data/onerep/docker-compose.yml
+          docker compose -f /data/onerep/docker-compose.yml config >/dev/null
           docker compose -f /data/onerep/docker-compose.yml up -d --remove-orphans
           curl -fsS -H 'Host: onerep.life' http://coolify-proxy/health
           curl -fsS -H 'Host: app.onerep.life' http://coolify-proxy/health
