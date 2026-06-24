@@ -11,6 +11,7 @@
     "format": "prettier --write \"src/**/*.{svelte,ts,css}\" \"*.{html,json,ts,js}\""
   },
   "dependencies": {
+    "better-auth": "^1.6.13",
     "svelte": "^5.46.1"
   },
   "devDependencies": {

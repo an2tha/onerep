@@ -15,12 +15,28 @@ export const list = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
 
-    return docs
-      .sort((a, b) => {
-        const byDate = a.loggedAt.localeCompare(b.loggedAt);
-        return byDate !== 0 ? byDate : a.createdAt - b.createdAt;
-      })
-      .map(({ userId: _userId, ...rest }) => rest);
+    const sorted = docs.sort((a, b) => {
+      const byDate = a.loggedAt.localeCompare(b.loggedAt);
+      return byDate !== 0 ? byDate : a.createdAt - b.createdAt;
+    });
+
+    return await Promise.all(
+      sorted.map(async ({ userId: _userId, ...rest }) => ({
+        ...rest,
+        photoUrl: rest.photoStorageId
+          ? await ctx.storage.getUrl(rest.photoStorageId)
+          : undefined,
+      })),
+    );
+  },
+});
+
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+    return await ctx.storage.generateUploadUrl();
   },
 });
 
@@ -40,6 +56,7 @@ export const save = mutation({
     calvesCm: v.optional(v.number()),
     neckCm: v.optional(v.number()),
     notes: v.optional(v.string()),
+    photoStorageId: v.optional(v.id("_storage")),
     photoDataUrl: v.optional(v.string()),
     photoTakenAt: v.optional(v.number()),
   },
@@ -56,6 +73,13 @@ export const save = mutation({
 
     const now = Date.now();
     if (existing) {
+      if (
+        existing.photoStorageId &&
+        args.photoStorageId &&
+        existing.photoStorageId !== args.photoStorageId
+      ) {
+        await ctx.storage.delete(existing.photoStorageId);
+      }
       await ctx.db.patch(existing._id, {
         loggedAt: args.loggedAt,
         weightKg: args.weightKg,
@@ -68,6 +92,7 @@ export const save = mutation({
         calvesCm: args.calvesCm,
         neckCm: args.neckCm,
         notes: args.notes,
+        photoStorageId: args.photoStorageId,
         photoDataUrl: args.photoDataUrl,
         photoTakenAt: args.photoTakenAt,
         updatedAt: now,
@@ -98,7 +123,10 @@ export const remove = mutation({
       )
       .unique();
 
-    if (existing) await ctx.db.delete(existing._id);
+    if (existing) {
+      if (existing.photoStorageId) await ctx.storage.delete(existing.photoStorageId);
+      await ctx.db.delete(existing._id);
+    }
     return { ok: true };
   },
 });

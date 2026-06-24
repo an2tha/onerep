@@ -198,7 +198,8 @@ export default defineSchema({
     calvesCm: v.optional(v.number()),
     neckCm: v.optional(v.number()),
     notes: v.optional(v.string()),
-    photoDataUrl: v.optional(v.string()), // base64-encoded image
+    photoStorageId: v.optional(v.id("_storage")),
+    photoDataUrl: v.optional(v.string()), // legacy base64 image; new photos use storage
     photoTakenAt: v.optional(v.number()), // timestamp when photo was taken
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -301,6 +302,14 @@ export default defineSchema({
     userId: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // ── Food photo analysis quota ─────────────────────────────────────────────
+  snapUsage: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD UTC
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId_date", ["userId", "date"]),
 
   // ── Active workout (persisted during workout to prevent data loss on mobile) ──
   activeWorkouts: defineTable({

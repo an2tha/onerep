@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="OneRep icon">
+  <rect width="1024" height="1024" rx="220" fill="#f4f4f5"/>
+  <circle cx="512" cy="512" r="300" fill="none" stroke="#d4d4d8" stroke-width="36"/>
+  <text x="512" y="596" text-anchor="middle" font-family="Inter, SF Pro Display, Arial, sans-serif" font-size="300" font-weight="650" letter-spacing="-12" fill="#27272a">1</text>
+</svg>

@@ -90,6 +90,7 @@
       "name": "web",
       "version": "0.0.1",
       "dependencies": {
+        "better-auth": "^1.6.13",
         "svelte": "^5.46.1",
       },
       "devDependencies": {

@@ -7,7 +7,9 @@ const http = httpRouter();
 // These are passed explicitly so CORS works even if the staticAuth context
 // hasn't fully initialised when the first request arrives.
 const ALLOWED_ORIGINS = [
-  process.env.SITE_URL ?? "http://localhost:5173",
+  process.env.SITE_URL ?? "https://app.onerep.life",
+  "https://app.onerep.life",
+  "https://onerep.life",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "capacitor://localhost", // iOS Capacitor

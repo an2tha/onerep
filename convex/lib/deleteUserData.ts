@@ -15,6 +15,9 @@ async function deleteFromUserIndex(
     .take(batchSize);
 
   for (const doc of docs) {
+    if (table === "bodyMeasurements" && doc.photoStorageId) {
+      await ctx.storage.delete(doc.photoStorageId);
+    }
     await ctx.db.delete(doc._id);
   }
 
@@ -48,6 +51,7 @@ export async function deleteUserDataBatch(
     ["waterLogs", "by_userId_date"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
+    ["snapUsage", "by_userId_date"],
     ["activeWorkouts", "by_userId"],
     ["exercises", "by_userId"],
   ] as const;

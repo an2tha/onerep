@@ -1,21 +1,26 @@
 import type { CapacitorConfig } from "@capacitor/cli"
 import { config as dotenvConfig } from "dotenv"
 
-dotenvConfig()
+dotenvConfig({ quiet: true })
 
 const config: CapacitorConfig = {
   appId: "com.ananthh.onerep",
-  appName: "mobile",
+  appName: "OneRep",
   webDir: "dist",
+  ios: {
+    buildOptions: {
+      exportMethod: "debugging",
+    },
+  },
   server: undefined,
 }
 
 
 /*
-For hot refresh: 
+For hot refresh:
 const config: CapacitorConfig = {
   appId: "com.ananthh.onerep",
-  appName: "mobile",
+  appName: "OneRep",
   webDir: "dist",
   server:
     process.env.IS_DEV === "true"
