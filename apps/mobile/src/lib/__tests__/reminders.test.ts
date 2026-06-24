@@ -50,8 +50,8 @@ describe("reminder settings", () => {
   test("mergeReminderSettings preserves partial overrides within each reminder", () => {
     expect(
       mergeReminderSettings({
-        meal: { enabled: true } as Partial<typeof DEFAULT_REMINDERS.meal>,
-      }).meal
+        meal: { enabled: true },
+      } as never).meal
     ).toEqual({ enabled: true, hour: 12, minute: 30 })
   })
 
@@ -104,7 +104,20 @@ describe("reminder settings", () => {
     ).resolves.toBe("scheduled")
 
     expect(scheduleMock).toHaveBeenCalledTimes(1)
-    const payload = scheduleMock.mock.calls[0][0]
+    const scheduleCalls = scheduleMock.mock.calls as unknown as Array<
+      [
+        {
+          notifications: Array<{
+            id: number
+            schedule: {
+              on: { hour: number; minute: number }
+              allowWhileIdle: boolean
+            }
+          }>
+        },
+      ]
+    >
+    const payload = scheduleCalls[0][0]
     expect(payload.notifications).toHaveLength(2)
     expect(payload.notifications.map((n: { id: number }) => n.id)).toEqual([
       9201, 9203,
