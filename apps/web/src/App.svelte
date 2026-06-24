@@ -65,7 +65,7 @@
   function openApp(event: MouseEvent) {
     event.preventDefault();
     appOpenMessage = 'Trying to open OneRep…';
-    window.location.href = 'onerep://';
+    window.location.href = 'https://app.onerep.life';
     window.clearTimeout(appOpenTimer);
     appOpenTimer = window.setTimeout(() => {
       if (document.visibilityState === 'visible') {
@@ -225,7 +225,7 @@
       <a href="/privacy" class:active={route === 'privacy'} on:click={(event) => go(event, '/privacy')}>Privacy</a>
       <a href="/support" class:active={route === 'support'} on:click={(event) => go(event, '/support')}>Support</a>
     </nav>
-    <a class="header-open-app" href="onerep://" on:click={openApp}>Open app <span>↗</span></a>
+    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span>↗</span></a>
     <button class="theme-toggle" type="button" on:click={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle dark mode">
       ◐
     </button>
@@ -279,7 +279,7 @@
           <span>Next</span>
           <strong>Lift day · 45 min</strong>
         </div>
-        <a class="open-app-badge" href="onerep://" on:click={openApp} aria-label="Open OneRep app">
+        <a class="open-app-badge" href="https://app.onerep.life" on:click={openApp} aria-label="Open OneRep app">
           <span>Open app</span>
           <strong>↗</strong>
         </a>
@@ -371,8 +371,8 @@
           <h1>Get it on the phone you actually train with.</h1>
           <p>If OneRep is already installed, open it from here. If not, send yourself the link and install it when the store links are live.</p>
           <div class="page-actions">
-            <a class="button primary" href="onerep://" on:click={openApp}>Open app</a>
-            <a class="button secondary" href="mailto:?subject=Open OneRep&body=Open OneRep on your phone: onerep://">Send link to myself</a>
+            <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
+            <a class="button secondary" href="mailto:?subject=Open OneRep&body=Open OneRep on your phone: https://app.onerep.life">Send link to myself</a>
           </div>
         </div>
         <div class="qr-card" aria-label="OneRep QR-style mark">
@@ -453,7 +453,7 @@
         <p>Email us with the boring details. Boring details fix bugs faster than “it does not work.” We do not offer phone support; written reports keep the details from getting lost.</p>
         <div class="page-actions">
           <a class="button primary" href="mailto:support@onerep.life?subject=OneRep%20support">support@onerep.life</a>
-          <a class="button secondary" href="onerep://" on:click={openApp}>Open app</a>
+          <a class="button secondary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
         </div>
       </section>
       <section class="support-layout">
