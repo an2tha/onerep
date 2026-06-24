@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   Barbell,
@@ -57,10 +58,38 @@ type WorkoutSet = {
   completed: boolean
 }
 
+type PersistedWorkoutSet = Partial<WorkoutSet>
+
 type ExerciseState = {
   sets: WorkoutSet[]
   trackRpe: boolean
   trackUnilateral: boolean
+}
+
+type PersistedExerciseState =
+  Partial<Omit<ExerciseState, "sets">> & { sets?: PersistedWorkoutSet[] }
+
+type LoggedWorkoutSet = {
+  weight: number
+  reps: number
+  completed: boolean
+  type: string
+}
+
+type LastSession = {
+  date: string
+  sets: LoggedWorkoutSet[]
+}
+
+type LoggedWorkoutExercise = {
+  id: string
+  sets: LoggedWorkoutSet[]
+}
+
+type ExerciseCardDropProps = {
+  showLineBefore: boolean
+  showLineAfter: boolean
+  showSupersetRing: boolean
 }
 
 type WorkoutItem =
@@ -83,11 +112,14 @@ type DropTarget = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORY_ICON: Record<Category, React.FC<any>> = {
-  strength: Barbell as React.FC<any>,
-  cardio: Fire as React.FC<any>,
-  mobility: Wind as React.FC<any>,
-  core: Sparkle as React.FC<any>,
+const CATEGORY_ICON: Record<
+  Category,
+  React.ComponentType<React.ComponentProps<typeof Barbell>>
+> = {
+  strength: Barbell,
+  cardio: Fire,
+  mobility: Wind,
+  core: Sparkle,
 }
 
 const CATEGORY_COLOR: Record<Category, string> = {
@@ -100,14 +132,34 @@ const CATEGORY_COLOR: Record<Category, string> = {
 const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 
 const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
-  working: { label: "W", color: "#38bdf8", bg: "rgba(56,189,248,0.10)" },
-  warmup: { label: "WU", color: "#a8a29e", bg: "rgba(168,162,158,0.10)" },
-  failure: { label: "F", color: "#f87171", bg: "rgba(248,113,113,0.10)" },
-  myoreps: { label: "M", color: "#fb923c", bg: "rgba(251,146,60,0.10)" },
-  drop: { label: "DS", color: "#2dd4bf", bg: "rgba(45,212,191,0.10)" },
+  working: {
+    label: "W",
+    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
+    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
+  },
+  warmup: {
+    label: "WU",
+    color: "color-mix(in srgb, var(--foreground) 58%, var(--muted-foreground))",
+    bg: "color-mix(in srgb, var(--muted) 48%, transparent)",
+  },
+  failure: {
+    label: "F",
+    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
+    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
+  },
+  myoreps: {
+    label: "M",
+    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
+    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
+  },
+  drop: {
+    label: "DS",
+    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
+    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
+  },
 }
 
-const SUPERSET_PALETTE = ["#f59e0b", "#ec4899", "#14b8a6", "#06b6d4", "#84cc16"]
+const SUPERSET_PALETTE = ["#737373", "#6b7280", "#71717a", "#78716c", "#737373"]
 
 const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
 
@@ -217,6 +269,64 @@ type NextTarget = {
   setIndex: number
 } | null
 
+function SetNumberField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+  className,
+  inputMode = "numeric",
+  min,
+  max,
+  step,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  disabled?: boolean
+  className: string
+  inputMode?: React.InputHTMLAttributes<HTMLInputElement>["inputMode"]
+  min?: string
+  max?: string
+  step?: string
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1.5">
+      <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+        {label}
+      </span>
+      <input
+        type="number"
+        inputMode={inputMode}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        min={min}
+        max={max}
+        step={step}
+        aria-label={label}
+        className={className}
+      />
+    </label>
+  )
+}
+
+function setGridClass(trackUnilateral: boolean, trackRpe: boolean) {
+  if (trackUnilateral && trackRpe) {
+    return "md:grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
+  }
+  if (trackUnilateral) {
+    return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(4.5rem,1fr)_minmax(4.5rem,1fr)_5rem_2.75rem_2.25rem]"
+  }
+  if (trackRpe) {
+    return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(5rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
+  }
+  return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(5rem,1fr)_2.75rem]"
+}
+
 /**
  * Locate the first incomplete set across the workout items, scanning items in order.
  *
@@ -229,7 +339,8 @@ function findNextTarget(
   exData: Record<string, ExerciseState>
 ): NextTarget {
   for (const item of items) {
-    const exerciseIds = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
+    const exerciseIds =
+      item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
     for (const exerciseId of exerciseIds) {
       const data = exData[exerciseId]
       if (!data) continue
@@ -253,9 +364,9 @@ function findNextTarget(
  * @param state - Partial or persisted exercise state (may be undefined or missing fields)
  * @returns A normalized ExerciseState ready for UI usage and persistence
  */
-function normalizeExerciseState(state: any): ExerciseState {
+function normalizeExerciseState(state?: PersistedExerciseState): ExerciseState {
   return {
-    sets: (state?.sets || []).map((s: any) => ({
+    sets: (state?.sets || []).map((s) => ({
       id: s.id || uid(),
       type: s.type || "working",
       weight: s.weight || "",
@@ -374,23 +485,23 @@ function RestCountdownBanner({
   onDismiss: () => void
 }) {
   const pct = Math.min(remaining / 300, 1)
-  const trackColor = pct > 0.5 ? "#22c55e" : "#f59e0b"
+  const trackColor = "color-mix(in srgb, var(--primary) 58%, var(--foreground))"
   return (
     <div className="pointer-events-none fixed right-0 bottom-0 left-0 z-40 flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)]">
       <div
-        className="pointer-events-auto mx-4 w-full max-w-sm overflow-hidden rounded-2xl shadow-2xl"
+        className="pointer-events-auto mx-4 w-full max-w-sm overflow-hidden rounded-[24px] shadow-lg shadow-black/[0.08]"
         style={{
-          background: "color-mix(in srgb, var(--background) 88%, transparent)",
+          background: "color-mix(in srgb, var(--card) 92%, transparent)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
           border:
-            "1px solid color-mix(in srgb, var(--foreground) 10%, transparent)",
+            "1px solid color-mix(in srgb, var(--border) 70%, transparent)",
         }}
       >
         <div
           className="h-[3px] w-full"
           style={{
-            background: "color-mix(in srgb, var(--foreground) 6%, transparent)",
+            background: "color-mix(in srgb, var(--border) 45%, transparent)",
           }}
         >
           <div
@@ -423,7 +534,7 @@ function RestCountdownBanner({
           </span>
           <button
             onClick={onDismiss}
-            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors active:bg-foreground/10"
+            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 35%, transparent)",
             }}
@@ -469,7 +580,7 @@ function RestTimerSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.12]" />
+          <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-2">
@@ -491,10 +602,10 @@ function RestTimerSheet({
               key={s}
               onClick={() => onSelect(s)}
               className={cn(
-                "h-[52px] rounded-2xl text-[14px] font-black tracking-tight tabular-nums transition-all active:scale-[0.96]",
+                "h-[52px] rounded-[20px] text-[14px] font-black tracking-tight tabular-nums transition-all active:scale-[0.96]",
                 s === current
                   ? "bg-foreground text-background"
-                  : "bg-muted/50 text-foreground/70 active:bg-muted"
+                  : "bg-muted/50 text-muted-foreground/80 active:bg-muted"
               )}
             >
               {formatRest(s)}
@@ -516,7 +627,7 @@ function RestTimerSheet({
                 inputMode="numeric"
                 value={minutes}
                 onChange={(event) => setMinutes(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-xl border border-border/50 bg-background/80 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-foreground/30 [&::-webkit-inner-spin-button]:appearance-none"
+                className="h-12 [appearance:textfield] rounded-[18px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-primary/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
               />
             </label>
             <span className="mb-3 text-[18px] font-light text-muted-foreground/30">
@@ -533,12 +644,12 @@ function RestTimerSheet({
                 inputMode="numeric"
                 value={secs}
                 onChange={(event) => setSecs(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-xl border border-border/50 bg-background/80 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-foreground/30 [&::-webkit-inner-spin-button]:appearance-none"
+                className="h-12 [appearance:textfield] rounded-[18px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-primary/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
               />
             </label>
             <button
               onClick={() => onSelect(clampRestInput(minutes, secs))}
-              className="h-12 shrink-0 rounded-xl bg-foreground px-5 text-[13px] font-bold text-background transition-opacity active:opacity-80"
+              className="h-12 shrink-0 rounded-[18px] bg-foreground px-5 text-[13px] font-bold text-background transition-opacity active:opacity-80"
             >
               Set
             </button>
@@ -616,273 +727,342 @@ function ActiveSetRow({
   }
 
   const fieldCls = cn(
-    "h-12 w-full rounded-xl border text-center font-black tabular-nums transition-all outline-none",
-    "text-[17px] tracking-tight",
-    "placeholder:text-muted-foreground/15",
+    "h-12 w-full rounded-[20px] border px-3 text-center text-[17px] font-semibold tabular-nums transition-all outline-none",
+    "placeholder:text-muted-foreground/30",
     "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
     set.completed
-      ? "cursor-default border-green-500/20 bg-green-500/[0.06] text-green-600/60 dark:text-green-400/60"
-      : "border-border/40 bg-background/70 focus:border-foreground/35 focus:bg-background",
+      ? "cursor-default border-border/30 bg-muted/30 text-foreground/55"
+      : "border-border/45 bg-muted/20 focus:border-primary/30 focus:bg-card/80 focus:ring-2 focus:ring-primary/10",
+    "disabled:pointer-events-none"
+  )
+  const compactFieldCls = cn(
+    "h-10 w-full rounded-[18px] border px-2.5 text-center text-[14px] font-semibold tabular-nums transition-all outline-none",
+    "placeholder:text-muted-foreground/25",
+    "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+    set.completed
+      ? "cursor-default border-border/30 bg-muted/30 text-foreground/50"
+      : "border-border/40 bg-muted/20 focus:border-primary/30 focus:bg-card/80 focus:ring-2 focus:ring-primary/10",
     "disabled:pointer-events-none"
   )
   const repsModeKey = trackUnilateral ? "unilateral" : "bilateral"
   const trackingModeKey = `${repsModeKey}-${trackRpe ? "rpe" : "base"}`
+  const fullWidthComplete = trackUnilateral || trackRpe
+  const showSecondarySetControls = trackUnilateral || trackRpe
+  const desktopGridClass = setGridClass(trackUnilateral, trackRpe)
 
   return (
     <>
       <div
         className={cn(
-          "flex items-center gap-2 px-3 py-2 transition-[background-color,transform,box-shadow] duration-300",
-          set.completed && "bg-green-500/[0.04]",
-          completionPulse && "scale-[1.01]",
-          isNext && !set.completed && "relative"
+          "relative hidden items-center gap-2 px-3.5 py-2 transition-colors md:grid",
+          desktopGridClass,
+          set.completed && "bg-muted/15",
+          isNext && !set.completed && "bg-primary/[0.028]"
         )}
-        style={
-          completionPulse
-            ? { boxShadow: "inset 0 0 0 1px rgba(34,197,94,0.22)" }
-            : isNext && !set.completed
-              ? { boxShadow: "inset 0 0 0 1.5px rgba(56,189,248,0.40)" }
-              : undefined
-        }
       >
-        {/* Next indicator */}
         {isNext && !set.completed && (
-          <div
-            className="absolute -left-1 top-1/2 -translate-y-1/2 flex h-2 w-2 items-center justify-center"
-          >
-            <div
-              className="h-1.5 w-1.5 rounded-full animate-pulse"
-              style={{ backgroundColor: "#38bdf8" }}
-            />
-          </div>
+          <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-primary/35" />
         )}
-        <span
-          className={cn(
-            "w-4 shrink-0 text-center text-[11px] font-medium tabular-nums select-none transition-colors",
-            isNext && !set.completed && "text-sky-400"
-          )}
-          style={
-            isNext && !set.completed
-              ? { color: "#38bdf8" }
-              : { color: "color-mix(in srgb, var(--foreground) 18%, transparent)" }
-          }
-        >
+        <span className="text-center text-[12px] font-semibold text-muted-foreground/70 tabular-nums">
           {index + 1}
         </span>
         <button
           onClick={cycleType}
           disabled={set.completed}
-          className={cn(
-            "flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl transition-all select-none active:scale-[0.88] disabled:pointer-events-none",
-            isNext && !set.completed && "ring-1 ring-sky-400/30"
-          )}
+          aria-label="Change set type"
+          title="Change set type"
+          className="flex h-10 items-center justify-center rounded-[18px] px-2 text-[12px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
           style={{
-            backgroundColor: set.completed ? "rgba(34,197,94,0.10)" : cfg.bg,
+            backgroundColor: set.completed
+              ? "color-mix(in srgb, var(--muted) 70%, transparent)"
+              : cfg.bg,
+            color: cfg.color,
           }}
         >
-          {set.completed ? (
-            <Check size={15} weight="bold" className="text-green-500" />
-          ) : (
-            <span
-              className="text-[12px] font-bold"
-              style={{ color: cfg.color }}
-            >
-              {cfg.label}
-            </span>
-          )}
+          {set.completed ? <Check size={14} weight="bold" /> : cfg.label}
         </button>
-        <div className="flex flex-1 flex-col gap-0.5">
+        <input
+          type="number"
+          inputMode="decimal"
+          value={toDisplay(set.weight, unit)}
+          onChange={(event) =>
+            onUpdate({ ...set, weight: toKg(event.target.value, unit) })
+          }
+          placeholder={
+            lastSet?.weight ? toDisplay(String(lastSet.weight), unit) : "–"
+          }
+          disabled={set.completed}
+          aria-label={`Weight (${unit})`}
+          className={compactFieldCls}
+        />
+        {trackUnilateral ? (
+          <>
+            <input
+              type="number"
+              inputMode="numeric"
+              value={set.leftReps}
+              onChange={(event) =>
+                onUpdate({ ...set, leftReps: event.target.value })
+              }
+              placeholder="–"
+              disabled={set.completed}
+              aria-label="Left reps"
+              className={compactFieldCls}
+            />
+            <input
+              type="number"
+              inputMode="numeric"
+              value={set.rightReps}
+              onChange={(event) =>
+                onUpdate({ ...set, rightReps: event.target.value })
+              }
+              placeholder="–"
+              disabled={set.completed}
+              aria-label="Right reps"
+              className={compactFieldCls}
+            />
+          </>
+        ) : (
+          <input
+            type="number"
+            inputMode="numeric"
+            value={set.reps}
+            onChange={(event) => onUpdate({ ...set, reps: event.target.value })}
+            placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
+            disabled={set.completed}
+            aria-label="Reps"
+            className={compactFieldCls}
+          />
+        )}
+        {trackRpe && (
           <input
             type="number"
             inputMode="decimal"
+            value={set.rpe}
+            onChange={(event) => onUpdate({ ...set, rpe: event.target.value })}
+            placeholder="–"
+            min="1"
+            max="10"
+            step="0.5"
+            disabled={set.completed}
+            aria-label="RPE"
+            className={compactFieldCls}
+          />
+        )}
+        {showSecondarySetControls && (
+          <button
+            onClick={() => setShowRest(true)}
+            aria-label="Set rest timer"
+            className="flex h-10 items-center justify-center gap-1.5 rounded-[18px] border border-border/40 bg-muted/20 px-2 text-[12px] font-semibold text-muted-foreground/75 transition-colors active:bg-muted/50"
+          >
+            <Timer size={13} />
+            <span className="tabular-nums">{formatRest(set.restSeconds)}</span>
+          </button>
+        )}
+        <button
+          onClick={toggleDone}
+          aria-label={
+            set.completed ? "Mark set incomplete" : "Mark set complete"
+          }
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-[18px] border transition-colors active:bg-muted/60",
+            set.completed
+              ? "border-primary/25 bg-primary/[0.10] text-primary"
+              : "border-border/40 bg-muted/15 text-muted-foreground/60"
+          )}
+        >
+          <Check size={14} weight="bold" />
+        </button>
+        {showSecondarySetControls &&
+          (canDelete && !set.completed ? (
+            <button
+              onClick={onDelete}
+              aria-label="Delete set"
+              className="flex h-10 w-10 items-center justify-center rounded-[18px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          ) : (
+            <div />
+          ))}
+      </div>
+      <div
+        className={cn(
+          "relative px-3 py-3 transition-[background-color,transform,box-shadow] duration-300 md:hidden",
+          set.completed && "bg-muted/15",
+          isNext && !set.completed && "bg-primary/[0.028]",
+          completionPulse && "scale-[1.01]",
+          !set.completed && !isNext && "bg-background"
+        )}
+        style={
+          completionPulse
+            ? {
+                boxShadow:
+                  "inset 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent)",
+              }
+            : isNext && !set.completed
+              ? {
+                  boxShadow:
+                    "inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent)",
+                }
+              : undefined
+        }
+      >
+        {isNext && !set.completed && (
+          <div className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary/35" />
+        )}
+        <div className="mb-2 flex items-center gap-2">
+          <span
+            className={cn(
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold tabular-nums select-none",
+              set.completed
+                ? "bg-muted/60 text-foreground/65"
+                : isNext
+                  ? "bg-primary/[0.09] text-primary"
+                  : "bg-muted/45 text-muted-foreground/70"
+            )}
+          >
+            {index + 1}
+          </span>
+          <button
+            onClick={cycleType}
+            disabled={set.completed}
+            aria-label="Change set type"
+            title="Change set type"
+            className={cn(
+              "flex h-10 min-w-14 shrink-0 items-center justify-center rounded-[20px] px-3 transition-all select-none active:scale-[0.96] disabled:pointer-events-none",
+              isNext && !set.completed && "ring-1 ring-primary/15"
+            )}
+            style={{
+              backgroundColor: set.completed
+                ? "color-mix(in srgb, var(--muted) 70%, transparent)"
+                : cfg.bg,
+            }}
+          >
+            {set.completed ? (
+              <Check size={15} weight="bold" className="text-foreground/65" />
+            ) : (
+              <span
+                className="text-[12px] font-bold"
+                style={{ color: cfg.color }}
+              >
+                {cfg.label}
+              </span>
+            )}
+          </button>
+          {isNext && !set.completed && (
+            <span className="rounded-full bg-primary/[0.08] px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-primary/80 uppercase">
+              Next
+            </span>
+          )}
+          {showSecondarySetControls && (
+            <button
+              onClick={() => setShowRest(true)}
+              aria-label="Set rest timer"
+              className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border border-border/40 bg-muted/20 px-3 transition-all active:scale-[0.97] active:bg-muted/50"
+            >
+              <Timer size={13} className="text-muted-foreground/55" />
+              <span className="text-[12px] font-semibold text-foreground/70 tabular-nums">
+                {formatRest(set.restSeconds)}
+              </span>
+            </button>
+          )}
+          {showSecondarySetControls && canDelete && !set.completed && (
+            <button
+              onClick={onDelete}
+              aria-label="Delete set"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          )}
+        </div>
+        <div
+          key={trackingModeKey}
+          className={cn(
+            "grid animate-in gap-2 duration-200 fade-in-0 zoom-in-95 slide-in-from-bottom-1",
+            fullWidthComplete
+              ? "grid-cols-2"
+              : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem]"
+          )}
+        >
+          <SetNumberField
+            label={`Weight (${unit})`}
+            inputMode="decimal"
             value={toDisplay(set.weight, unit)}
-            onChange={(e) =>
-              onUpdate({ ...set, weight: toKg(e.target.value, unit) })
+            onChange={(value) =>
+              onUpdate({ ...set, weight: toKg(value, unit) })
             }
             placeholder={
-              lastSet?.weight
-                ? toDisplay(String(lastSet.weight), unit)
-                : "–"
+              lastSet?.weight ? toDisplay(String(lastSet.weight), unit) : "–"
             }
             disabled={set.completed}
             className={fieldCls}
           />
-          <span
-            className="text-center text-[8px] font-medium tracking-widest uppercase"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 28%, transparent)",
-            }}
-          >
-            {unit}
-          </span>
-        </div>
-        <span
-          className="shrink-0 text-[15px] font-thin select-none"
-          style={{
-            color: "color-mix(in srgb, var(--foreground) 15%, transparent)",
-          }}
-        >
-          ×
-        </span>
-        <div
-          key={trackingModeKey}
-          className={cn(
-            "flex min-w-0 flex-1 animate-in items-start gap-2 duration-200 fade-in-0 zoom-in-95 slide-in-from-bottom-1",
-            trackUnilateral && "flex-[1.8]"
-          )}
-        >
           {trackUnilateral ? (
-            <div className="grid min-w-0 flex-[1.5] grid-cols-2 gap-2">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={set.leftReps}
-                  onChange={(e) =>
-                    onUpdate({ ...set, leftReps: e.target.value })
-                  }
-                  placeholder="–"
-                  disabled={set.completed}
-                  className={fieldCls}
-                />
-                <span
-                  className="text-center text-[8px] font-medium tracking-widest uppercase"
-                  style={{
-                    color:
-                      "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                  }}
-                >
-                  left
-                </span>
-              </div>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={set.rightReps}
-                  onChange={(e) =>
-                    onUpdate({ ...set, rightReps: e.target.value })
-                  }
-                  placeholder="–"
-                  disabled={set.completed}
-                  className={fieldCls}
-                />
-                <span
-                  className="text-center text-[8px] font-medium tracking-widest uppercase"
-                  style={{
-                    color:
-                      "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                  }}
-                >
-                  right
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col gap-0.5">
-              <input
-                type="number"
-                inputMode="numeric"
-                value={set.reps}
-                onChange={(e) => onUpdate({ ...set, reps: e.target.value })}
-                placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
+            <>
+              <SetNumberField
+                label="Left reps"
+                value={set.leftReps}
+                onChange={(value) => onUpdate({ ...set, leftReps: value })}
+                placeholder="–"
                 disabled={set.completed}
                 className={fieldCls}
               />
-              <span
-                className="text-center text-[8px] font-medium tracking-widest uppercase"
-                style={{
-                  color:
-                    "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                }}
-              >
-                reps
-              </span>
-            </div>
+              <SetNumberField
+                label="Right reps"
+                value={set.rightReps}
+                onChange={(value) => onUpdate({ ...set, rightReps: value })}
+                placeholder="–"
+                disabled={set.completed}
+                className={fieldCls}
+              />
+            </>
+          ) : (
+            <SetNumberField
+              label="Reps"
+              value={set.reps}
+              onChange={(value) => onUpdate({ ...set, reps: value })}
+              placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
+              disabled={set.completed}
+              className={fieldCls}
+            />
           )}
           {trackRpe && (
-            <div className="flex flex-1 animate-in flex-col gap-0.5 duration-200 fade-in-0 slide-in-from-right-1">
-              <input
-                type="number"
-                inputMode="decimal"
-                value={set.rpe}
-                onChange={(e) => onUpdate({ ...set, rpe: e.target.value })}
-                placeholder="–"
-                min="1"
-                max="10"
-                step="0.5"
-                disabled={set.completed}
-                className={fieldCls}
-              />
-              <span
-                className="text-center text-[8px] font-medium tracking-widest uppercase"
-                style={{
-                  color:
-                    "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                }}
-              >
-                rpe
-              </span>
-            </div>
+            <SetNumberField
+              label="RPE"
+              inputMode="decimal"
+              value={set.rpe}
+              onChange={(value) => onUpdate({ ...set, rpe: value })}
+              placeholder="–"
+              min="1"
+              max="10"
+              step="0.5"
+              disabled={set.completed}
+              className={fieldCls}
+            />
           )}
-        </div>
-        <button
-          onClick={() => setShowRest(true)}
-          className="flex shrink-0 flex-col items-center gap-0.5 rounded-xl border border-border/40 bg-background/60 px-2.5 py-2.5 transition-all active:scale-95 active:bg-muted/60"
-        >
-          <Timer
-            size={10}
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 30%, transparent)",
-            }}
-          />
-          <span
-            className="text-[11px] font-semibold tabular-nums"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 55%, transparent)",
-            }}
-          >
-            {formatRest(set.restSeconds)}
-          </span>
-        </button>
-        {set.completed ? (
           <button
             onClick={toggleDone}
+            aria-label={
+              set.completed ? "Mark set incomplete" : "Mark set complete"
+            }
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all active:scale-90",
+              "flex h-12 items-center justify-center rounded-[20px] border text-[13px] font-bold transition-all active:scale-[0.97]",
+              fullWidthComplete ? "col-span-2 gap-2" : "w-full",
+              set.completed
+                ? "border-primary/25 bg-primary/[0.10] text-primary shadow-sm"
+                : "border-border/40 bg-muted/15 text-muted-foreground/55 active:border-primary/25 active:bg-primary/[0.05] active:text-primary",
               completionPulse &&
                 "animate-[set-complete_520ms_cubic-bezier(0.22,1,0.36,1)]"
             )}
-            style={{
-              background: "linear-gradient(135deg, #22c55e, #16a34a)",
-              color: "#fff",
-            }}
           >
             <Check size={14} weight="bold" />
+            {fullWidthComplete && (
+              <span>{set.completed ? "Undo" : "Done"}</span>
+            )}
           </button>
-        ) : (
-          <button
-            onClick={toggleDone}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-[2.5px] text-transparent transition-all active:scale-90 active:border-green-500 active:bg-green-500/15 active:text-green-500"
-            style={{
-              borderColor:
-                "color-mix(in srgb, var(--foreground) 18%, transparent)",
-            }}
-          >
-            <Check size={14} weight="bold" />
-          </button>
-        )}
-        {canDelete && !set.completed && (
-          <button
-            onClick={onDelete}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors active:text-red-400"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 15%, transparent)",
-            }}
-          >
-            <X size={11} weight="bold" />
-          </button>
-        )}
+        </div>
       </div>
       {showRest && (
         <RestTimerSheet
@@ -961,7 +1141,15 @@ function ActiveExerciseCard({
   dragHandlers: React.HTMLAttributes<HTMLDivElement>
   cardRef: (el: HTMLDivElement | null) => void
   onStartRest: (seconds: number) => void
-  lastSession?: { date: string; sets: Array<{ weight: number; reps: number; completed: boolean; type: string }> } | null
+  lastSession?: {
+    date: string
+    sets: Array<{
+      weight: number
+      reps: number
+      completed: boolean
+      type: string
+    }>
+  } | null
   onShowHistory: () => void
   nextSetIndex?: number | null
 }) {
@@ -984,8 +1172,10 @@ function ActiveExerciseCard({
       ref={cardRef}
       className={cn(
         "relative flex overflow-hidden transition-all duration-150",
-        inSuperset ? "bg-card" : "rounded-2xl border bg-card",
-        !inSuperset && (allDone ? "border-green-500/25" : "border-border/50"),
+        inSuperset
+          ? "bg-card"
+          : "rounded-[30px] border bg-card shadow-sm shadow-black/[0.018] md:rounded-[32px]",
+        !inSuperset && (allDone ? "border-primary/20" : "border-border/40"),
         isDragging && "scale-[0.97] opacity-20",
         showSupersetRing &&
           !inSuperset &&
@@ -994,126 +1184,119 @@ function ActiveExerciseCard({
       style={
         showSupersetRing && !inSuperset
           ? ({
-              "--tw-ring-color": exercise.color + "90",
+              "--tw-ring-color":
+                "color-mix(in srgb, var(--primary) 22%, transparent)",
             } as React.CSSProperties)
           : undefined
       }
     >
       {showLineBefore && (
-        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-foreground/50" />
+        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
       {showLineAfter && (
-        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-foreground/50" />
+        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
       <div
-        className="w-[5px] shrink-0 transition-all duration-500"
+        className="w-[3px] shrink-0 transition-all duration-500"
         style={{
           background: allDone
-            ? "linear-gradient(180deg, #22c55e, #16a34a)"
-            : exercise.color,
+            ? "color-mix(in srgb, var(--primary) 36%, transparent)"
+            : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
         }}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-2 py-3 pr-3 pl-3">
-          <div
-            {...dragHandlers}
-            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center transition-colors select-none active:cursor-grabbing"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-            }}
-          >
-            <DotsSixVertical size={14} weight="bold" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] leading-tight font-semibold tracking-tight">
-              {exercise.name}
-            </p>
-            <p
-              className="mt-0.5 truncate text-[11px]"
-              style={{
-                color: "color-mix(in srgb, var(--foreground) 38%, transparent)",
-              }}
+        <div className="px-3 py-3 sm:px-4 md:py-3">
+          <div className="flex items-start gap-2">
+            <div
+              {...dragHandlers}
+              role="button"
+              aria-label="Reorder exercise"
+              className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-[18px] text-muted-foreground/40 transition-colors select-none active:cursor-grabbing active:bg-muted/50 md:h-10 md:w-9"
             >
-              {collapsed
-                ? `${doneSets}/${data.sets.length} sets · ${formatRest(totalRest)} rest`
-                : exercise.muscle}
-            </p>
+              <DotsSixVertical size={16} weight="bold" />
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="truncate text-[16px] leading-tight font-semibold tracking-tight md:text-[15px]">
+                {exercise.name}
+              </p>
+              <p className="mt-1 truncate text-[12px] text-muted-foreground/55 md:text-[11px]">
+                {collapsed
+                  ? `${doneSets}/${data.sets.length} sets · ${formatRest(totalRest)} rest`
+                  : exercise.muscle}
+              </p>
+            </div>
+            <span
+              className={cn(
+                "mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold tracking-tight tabular-nums transition-all",
+                allDone
+                  ? "bg-primary/[0.10] text-primary"
+                  : "bg-muted/45 text-muted-foreground/75"
+              )}
+            >
+              {doneSets}/{data.sets.length}
+            </span>
           </div>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold tracking-tight tabular-nums transition-all",
-              allDone
-                ? "bg-green-500/15 text-green-500"
-                : "bg-foreground/[0.06] text-foreground/40"
-            )}
-          >
-            {doneSets}/{data.sets.length}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60">
-                Track
-                <span className="text-[9px] tracking-normal text-foreground/55">
-                  {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
-                    .filter(Boolean)
-                    .join(" · ") || "Off"}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase">
-                ADVANCED TRACKING
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={data.trackRpe}
-                onCheckedChange={(checked) =>
-                  onUpdate({ ...data, trackRpe: checked === true })
-                }
-              >
-                Track RPE
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={data.trackUnilateral}
-                onCheckedChange={(checked) =>
-                  onUpdate({ ...data, trackUnilateral: checked === true })
-                }
-              >
-                Track unilateral reps
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            onClick={onShowHistory}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors active:bg-muted/50"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 25%, transparent)",
-            }}
-          >
-            <ChartLine size={12} weight="bold" />
-          </button>
-          <button
-            onClick={onRemove}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors active:text-red-400"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
-            }}
-          >
-            <X size={12} weight="bold" />
-          </button>
-          <button
-            onClick={onToggleCollapse}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors active:bg-muted/50"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 30%, transparent)",
-            }}
-          >
-            {collapsed ? (
-              <CaretDown size={12} weight="bold" />
-            ) : (
-              <CaretUp size={12} weight="bold" />
-            )}
-          </button>
+          <div className="mt-3 flex items-center gap-2 md:mt-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-[20px] border border-border/40 bg-muted/20 px-3 text-[11px] font-bold tracking-[0.14em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:h-10 md:flex-none md:px-4">
+                  Track
+                  <span className="truncate text-[11px] tracking-normal text-foreground/60">
+                    {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
+                      .filter(Boolean)
+                      .join(" · ") || "Off"}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase">
+                  Advanced tracking
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={data.trackRpe}
+                  onCheckedChange={(checked) =>
+                    onUpdate({ ...data, trackRpe: checked === true })
+                  }
+                >
+                  Track RPE
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={data.trackUnilateral}
+                  onCheckedChange={(checked) =>
+                    onUpdate({ ...data, trackUnilateral: checked === true })
+                  }
+                >
+                  Track unilateral reps
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button
+              onClick={onShowHistory}
+              aria-label="Open exercise history"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/55 transition-colors active:bg-muted/50 active:text-foreground"
+            >
+              <ChartLine size={16} weight="bold" />
+            </button>
+            <button
+              onClick={onRemove}
+              aria-label="Remove exercise"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+            >
+              <X size={16} weight="bold" />
+            </button>
+            <button
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/60 transition-colors active:bg-muted/50 active:text-foreground"
+            >
+              {collapsed ? (
+                <CaretDown size={16} weight="bold" />
+              ) : (
+                <CaretUp size={16} weight="bold" />
+              )}
+            </button>
+          </div>
         </div>
         <div
           className={cn(
@@ -1124,42 +1307,77 @@ function ActiveExerciseCard({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            {lastSession && (() => {
-              const completedSets = lastSession.sets.filter((s) => s.completed !== false)
-              if (completedSets.length === 0) return null
-              const fmtW = (kg: number) =>
-                unit === "lbs" ? `${+(kg * 2.20462).toFixed(1)}` : `${kg}`
-              const summary = completedSets.map((s) => `${fmtW(s.weight)}×${s.reps}`).join("  ")
-              return (
-                <div
-                  className="flex items-center gap-2 px-4 py-1.5"
-                  style={{
-                    borderTop: "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)",
-                    background: "color-mix(in srgb, var(--foreground) 2%, transparent)",
-                  }}
-                >
-                  <ClockCounterClockwise
-                    size={10}
-                    style={{ color: "color-mix(in srgb, var(--foreground) 30%, transparent)", flexShrink: 0 }}
-                  />
-                  <span className="text-[10px] font-medium text-muted-foreground/40">
-                    {new Date(`${lastSession.date}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                  </span>
-                  <span
-                    className="min-w-0 truncate text-[10px] tabular-nums"
-                    style={{ color: "color-mix(in srgb, var(--foreground) 35%, transparent)" }}
+            {lastSession &&
+              (() => {
+                const completedSets = lastSession.sets.filter(
+                  (s) => s.completed !== false
+                )
+                if (completedSets.length === 0) return null
+                const fmtW = (kg: number) =>
+                  unit === "lbs" ? `${+(kg * 2.20462).toFixed(1)}` : `${kg}`
+                const summary = completedSets
+                  .map((s) => `${fmtW(s.weight)}×${s.reps}`)
+                  .join("  ")
+                return (
+                  <div
+                    className="flex items-center gap-2 px-4 py-2.5"
+                    style={{
+                      borderTop:
+                        "1px solid color-mix(in srgb, var(--border) 65%, transparent)",
+                      background:
+                        "color-mix(in srgb, var(--muted) 18%, transparent)",
+                    }}
                   >
-                    {summary}
-                  </span>
-                </div>
-              )
-            })()}
+                    <ClockCounterClockwise
+                      size={13}
+                      style={{
+                        color:
+                          "color-mix(in srgb, var(--muted-foreground) 62%, transparent)",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span className="text-[11px] font-medium text-muted-foreground/50">
+                      {new Date(
+                        `${lastSession.date}T12:00:00Z`
+                      ).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <span className="min-w-0 truncate text-[11px] text-muted-foreground/60 tabular-nums">
+                      {summary}
+                    </span>
+                  </div>
+                )
+              })()}
             <div
               style={{
                 borderTop:
-                  "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)",
+                  "1px solid color-mix(in srgb, var(--border) 65%, transparent)",
               }}
             >
+              <div
+                className={cn(
+                  "hidden items-center gap-2 border-b border-border/30 bg-muted/15 px-3.5 py-2 text-[10px] font-bold tracking-[0.12em] text-muted-foreground/55 uppercase md:grid",
+                  setGridClass(data.trackUnilateral, data.trackRpe)
+                )}
+              >
+                <span className="text-center">Set</span>
+                <span>Type</span>
+                <span>Weight</span>
+                {data.trackUnilateral ? (
+                  <>
+                    <span>Left</span>
+                    <span>Right</span>
+                  </>
+                ) : (
+                  <span>Reps</span>
+                )}
+                {data.trackRpe && <span>RPE</span>}
+                {(data.trackRpe || data.trackUnilateral) && <span>Rest</span>}
+                <span className="text-center">Done</span>
+                {(data.trackRpe || data.trackUnilateral) && <span />}
+              </div>
               {data.sets.map((s, i) => (
                 <div
                   key={s.id}
@@ -1167,7 +1385,7 @@ function ActiveExerciseCard({
                     i > 0
                       ? {
                           borderTop:
-                            "1px solid color-mix(in srgb, var(--foreground) 5%, transparent)",
+                            "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
                         }
                       : undefined
                   }
@@ -1190,27 +1408,14 @@ function ActiveExerciseCard({
             </div>
             <button
               onClick={addSet}
-              className="flex w-full items-center justify-center gap-2 py-3 transition-colors active:bg-foreground/[0.04]"
+              className="flex h-12 w-full items-center justify-center gap-2 text-muted-foreground/50 transition-colors active:bg-muted/30 active:text-foreground"
               style={{
                 borderTop:
-                  "1px solid color-mix(in srgb, var(--foreground) 6%, transparent)",
+                  "1px solid color-mix(in srgb, var(--border) 55%, transparent)",
               }}
             >
-              <Plus
-                size={10}
-                weight="bold"
-                style={{
-                  color:
-                    "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                }}
-              />
-              <span
-                className="text-[10px] font-semibold tracking-[0.18em] uppercase"
-                style={{
-                  color:
-                    "color-mix(in srgb, var(--foreground) 28%, transparent)",
-                }}
-              >
+              <Plus size={14} weight="bold" />
+              <span className="text-[11px] font-bold tracking-[0.14em] uppercase">
                 Add set
               </span>
             </button>
@@ -1221,7 +1426,7 @@ function ActiveExerciseCard({
   )
 }
 
-import { epley1RM, brzycki1RM, estimate1RM } from "@/lib/one-rm"
+import { estimate1RM } from "@/lib/one-rm"
 
 // ─── Sparkline helper ─────────────────────────────────────────────────────────
 
@@ -1236,7 +1441,12 @@ function formatSessionDate(date: string) {
 
 type HistorySession = {
   date: string
-  sets: Array<{ weight: number; reps: number; completed: boolean; type: string }>
+  sets: Array<{
+    weight: number
+    reps: number
+    completed: boolean
+    type: string
+  }>
 }
 
 function ExerciseHistorySheet({
@@ -1250,14 +1460,18 @@ function ExerciseHistorySheet({
   unit: WeightUnit
   onClose: () => void
 }) {
-  const history = useQuery(api.logs.workouts.historyForExercise, { exerciseId }) as HistorySession[] | undefined
+  const history = useQuery(api.logs.workouts.historyForExercise, {
+    exerciseId,
+  }) as HistorySession[] | undefined
 
   const completedSessions = useMemo(() => {
     if (!history) return []
-    return history.map((session) => ({
-      ...session,
-      sets: session.sets.filter((s) => s.completed !== false),
-    })).filter((s) => s.sets.length > 0)
+    return history
+      .map((session) => ({
+        ...session,
+        sets: session.sets.filter((s) => s.completed !== false),
+      }))
+      .filter((s) => s.sets.length > 0)
   }, [history])
 
   const maxWeights = completedSessions.map((s) =>
@@ -1274,9 +1488,7 @@ function ExerciseHistorySheet({
   }
 
   function fmtSets(sets: HistorySession["sets"]) {
-    return sets
-      .map((s) => `${fmtWeight(s.weight)}×${s.reps}`)
-      .join(", ")
+    return sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join(", ")
   }
 
   return (
@@ -1286,7 +1498,9 @@ function ExerciseHistorySheet({
     >
       <div
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))" }}
+        style={{
+          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3">
@@ -1296,25 +1510,42 @@ function ExerciseHistorySheet({
           <button
             onClick={onClose}
             className="flex h-7 w-7 items-center justify-center rounded-full transition-colors active:bg-muted/60"
-            style={{ color: "color-mix(in srgb, var(--foreground) 40%, transparent)" }}
+            style={{
+              color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
+            }}
           >
             <ArrowLeft size={14} weight="bold" />
           </button>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[17px] font-black tracking-tight">{exerciseName}</h2>
-            <p className="text-[11px] text-muted-foreground/50">Strength history</p>
+            <h2 className="truncate text-[17px] font-black tracking-tight">
+              {exerciseName}
+            </h2>
+            <p className="text-[11px] text-muted-foreground/50">
+              Strength history
+            </p>
           </div>
         </div>
 
         {history === undefined ? (
           <div className="flex items-center justify-center py-16">
-            <span className="text-[13px] text-muted-foreground/40">Loading…</span>
+            <span className="text-[13px] text-muted-foreground/40">
+              Loading…
+            </span>
           </div>
         ) : completedSessions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16">
-            <ChartLine size={28} style={{ color: "color-mix(in srgb, var(--foreground) 18%, transparent)" }} />
-            <p className="text-[13px] font-semibold text-muted-foreground/50">No history yet</p>
-            <p className="text-[11px] text-muted-foreground/30">Complete this exercise to start tracking</p>
+            <ChartLine
+              size={28}
+              style={{
+                color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
+              }}
+            />
+            <p className="text-[13px] font-semibold text-muted-foreground/50">
+              No history yet
+            </p>
+            <p className="text-[11px] text-muted-foreground/30">
+              Complete this exercise to start tracking
+            </p>
           </div>
         ) : (
           <>
@@ -1323,11 +1554,20 @@ function ExerciseHistorySheet({
                 <p className="mb-3 text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
                   Max weight · {unit}
                 </p>
-                <svg width={chartW} height={chartH} viewBox={`0 0 ${chartW} ${chartH}`} className="w-full overflow-visible">
+                <svg
+                  width={chartW}
+                  height={chartH}
+                  viewBox={`0 0 ${chartW} ${chartH}`}
+                  className="w-full overflow-visible text-foreground/60"
+                >
                   <defs>
                     <linearGradient id="chartGrad" x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.6" />
-                      <stop offset="100%" stopColor="#38bdf8" />
+                      <stop
+                        offset="0%"
+                        stopColor="currentColor"
+                        stopOpacity="0.45"
+                      />
+                      <stop offset="100%" stopColor="currentColor" />
                     </linearGradient>
                   </defs>
                   <polyline
@@ -1339,19 +1579,28 @@ function ExerciseHistorySheet({
                     strokeLinejoin="round"
                   />
                   {maxWeights.map((w, i) => {
-                    const x = maxWeights.length === 1 ? chartW / 2 : (i / (maxWeights.length - 1)) * chartW
+                    const x =
+                      maxWeights.length === 1
+                        ? chartW / 2
+                        : (i / (maxWeights.length - 1)) * chartW
                     const min = Math.min(...maxWeights)
                     const max = Math.max(...maxWeights)
                     const range = max - min || 1
                     const y = chartH - ((w - min) / range) * (chartH * 0.85)
                     return (
-                      <circle key={i} cx={x} cy={y} r="3" fill="#38bdf8" />
+                      <circle key={i} cx={x} cy={y} r="3" fill="currentColor" />
                     )
                   })}
                 </svg>
                 <div className="mt-2 flex justify-between">
-                  <span className="text-[10px] text-muted-foreground/35">{formatSessionDate(completedSessions[0].date)}</span>
-                  <span className="text-[10px] text-muted-foreground/35">{formatSessionDate(completedSessions[completedSessions.length - 1].date)}</span>
+                  <span className="text-[10px] text-muted-foreground/35">
+                    {formatSessionDate(completedSessions[0].date)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/35">
+                    {formatSessionDate(
+                      completedSessions[completedSessions.length - 1].date
+                    )}
+                  </span>
                 </div>
               </div>
             )}
@@ -1360,37 +1609,100 @@ function ExerciseHistorySheet({
             {(() => {
               // Find the best working set across all sessions (highest estimated 1RM)
               const bestSet = completedSessions
-                .flatMap((s) => s.sets.filter((set) => set.weight > 0 && set.reps > 0))
-                .reduce<{ weight: number; reps: number; est: number } | null>((best, set) => {
-                  const est = estimate1RM(set.weight, set.reps)
-                  return !best || est > best.est ? { weight: set.weight, reps: set.reps, est } : best
-                }, null)
+                .flatMap((s) =>
+                  s.sets.filter((set) => set.weight > 0 && set.reps > 0)
+                )
+                .reduce<{ weight: number; reps: number; est: number } | null>(
+                  (best, set) => {
+                    const est = estimate1RM(set.weight, set.reps)
+                    return !best || est > best.est
+                      ? { weight: set.weight, reps: set.reps, est }
+                      : best
+                  },
+                  null
+                )
               if (!bestSet) return null
               const orm = bestSet.est
-              const fmtW = (kg: number) => unit === "lbs" ? `${+(kg * 2.20462).toFixed(1)}` : `${+kg.toFixed(1)}`
+              const fmtW = (kg: number) =>
+                unit === "lbs"
+                  ? `${+(kg * 2.20462).toFixed(1)}`
+                  : `${+kg.toFixed(1)}`
               const pcts = [
-                { pct: 100, label: "1RM (est.)", color: "#38bdf8" },
-                { pct: 90, label: "Training max", color: "color-mix(in srgb, var(--foreground) 55%, transparent)" },
-                { pct: 80, label: "Heavy work", color: "color-mix(in srgb, var(--foreground) 45%, transparent)" },
-                { pct: 70, label: "Moderate", color: "color-mix(in srgb, var(--foreground) 35%, transparent)" },
+                {
+                  pct: 100,
+                  label: "1RM (est.)",
+                  color:
+                    "color-mix(in srgb, var(--foreground) 78%, transparent)",
+                },
+                {
+                  pct: 90,
+                  label: "Training max",
+                  color:
+                    "color-mix(in srgb, var(--foreground) 55%, transparent)",
+                },
+                {
+                  pct: 80,
+                  label: "Heavy work",
+                  color:
+                    "color-mix(in srgb, var(--foreground) 45%, transparent)",
+                },
+                {
+                  pct: 70,
+                  label: "Moderate",
+                  color:
+                    "color-mix(in srgb, var(--foreground) 35%, transparent)",
+                },
               ]
               return (
-                <div className="mx-5 mb-4 overflow-hidden rounded-2xl" style={{ border: "1px solid color-mix(in srgb, var(--foreground) 8%, transparent)", background: "color-mix(in srgb, #38bdf8 4%, var(--card))" }}>
-                  <div className="flex items-center justify-between px-4 pt-3 pb-2" style={{ borderBottom: "1px solid color-mix(in srgb, var(--foreground) 6%, transparent)" }}>
-                    <p className="text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">Estimated 1RM</p>
-                    <p className="text-[9px] text-muted-foreground/30">from {fmtW(bestSet.weight)} {unit} × {bestSet.reps} reps</p>
+                <div
+                  className="mx-5 mb-4 overflow-hidden rounded-2xl"
+                  style={{
+                    border:
+                      "1px solid color-mix(in srgb, var(--foreground) 8%, transparent)",
+                    background:
+                      "color-mix(in srgb, var(--foreground) 3%, var(--card))",
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-between px-4 pt-3 pb-2"
+                    style={{
+                      borderBottom:
+                        "1px solid color-mix(in srgb, var(--foreground) 6%, transparent)",
+                    }}
+                  >
+                    <p className="text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
+                      Estimated 1RM
+                    </p>
+                    <p className="text-[9px] text-muted-foreground/30">
+                      from {fmtW(bestSet.weight)} {unit} × {bestSet.reps} reps
+                    </p>
                   </div>
                   <div className="grid grid-cols-4 gap-0">
                     {pcts.map(({ pct, label, color }) => {
                       const val = (orm * pct) / 100
                       return (
-                        <div key={pct} className="flex flex-col items-center gap-0.5 px-2 py-3">
-                          <span className="text-[16px] font-black tabular-nums leading-none tracking-tight" style={{ color }}>
+                        <div
+                          key={pct}
+                          className="flex flex-col items-center gap-0.5 px-2 py-3"
+                        >
+                          <span
+                            className="text-[16px] leading-none font-black tracking-tight tabular-nums"
+                            style={{ color }}
+                          >
                             {fmtW(val)}
                           </span>
-                          <span className="mt-0.5 text-[7.5px] font-medium tracking-widest text-muted-foreground/35 uppercase">{unit}</span>
-                          <span className="mt-1 text-[9px] font-semibold" style={{ color }}>{pct}%</span>
-                          <span className="text-center text-[8.5px] leading-tight text-muted-foreground/35">{label}</span>
+                          <span className="mt-0.5 text-[7.5px] font-medium tracking-widest text-muted-foreground/35 uppercase">
+                            {unit}
+                          </span>
+                          <span
+                            className="mt-1 text-[9px] font-semibold"
+                            style={{ color }}
+                          >
+                            {pct}%
+                          </span>
+                          <span className="text-center text-[8.5px] leading-tight text-muted-foreground/35">
+                            {label}
+                          </span>
                         </div>
                       )
                     })}
@@ -1401,7 +1713,10 @@ function ExerciseHistorySheet({
 
             <div
               className="mx-5 overflow-hidden rounded-2xl"
-              style={{ border: "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)" }}
+              style={{
+                border:
+                  "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)",
+              }}
             >
               <p className="px-4 pt-3 pb-2 text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
                 Sessions
@@ -1413,7 +1728,10 @@ function ExerciseHistorySheet({
                     className="flex items-start gap-3 px-4 py-2.5"
                     style={
                       i > 0
-                        ? { borderTop: "1px solid color-mix(in srgb, var(--foreground) 5%, transparent)" }
+                        ? {
+                            borderTop:
+                              "1px solid color-mix(in srgb, var(--foreground) 5%, transparent)",
+                          }
                         : undefined
                     }
                   >
@@ -1423,8 +1741,11 @@ function ExerciseHistorySheet({
                     <span className="min-w-0 flex-1 text-[11px] leading-snug text-foreground/70">
                       {fmtSets(session.sets)}
                     </span>
-                    <span className="shrink-0 text-[10px] font-bold tabular-nums text-muted-foreground/40">
-                      {fmtWeight(Math.max(...session.sets.map((s) => s.weight || 0)))} {unit}
+                    <span className="shrink-0 text-[10px] font-bold text-muted-foreground/40 tabular-nums">
+                      {fmtWeight(
+                        Math.max(...session.sets.map((s) => s.weight || 0))
+                      )}{" "}
+                      {unit}
                     </span>
                   </div>
                 ))}
@@ -1462,7 +1783,11 @@ function AddExerciseSheet({
   function toggleFilter(cat: Category) {
     setActiveFilters((s) => {
       const next = new Set(s)
-      next.has(cat) ? next.delete(cat) : next.add(cat)
+      if (next.has(cat)) {
+        next.delete(cat)
+      } else {
+        next.add(cat)
+      }
       return next
     })
   }
@@ -1507,10 +1832,10 @@ function AddExerciseSheet({
       onClick={onClose}
     >
       <div
-        className="sheet-panel flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl"
+        className="sheet-panel flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-[28px] md:border md:border-border/45 md:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-3 border-b border-border/60 px-4 py-3">
+        <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3">
           <div className="relative flex-1">
             <MagnifyingGlass
               size={15}
@@ -1522,7 +1847,7 @@ function AddExerciseSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              className="h-11 w-full rounded-xl border border-border/60 bg-muted/40 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground/35 focus:border-foreground/20 focus:bg-background"
+              className="h-11 w-full rounded-[20px] border border-border/45 bg-muted/35 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground/35 focus:border-primary/30 focus:bg-background"
             />
             {query && (
               <button
@@ -1620,7 +1945,7 @@ function AddExerciseSheet({
                         <Check
                           size={14}
                           weight="bold"
-                          className="text-green-500/60"
+                          className="text-foreground/60"
                         />
                       ) : (
                         <Plus size={16} weight="bold" />
@@ -1685,16 +2010,16 @@ function FinishSheet({
           className="h-1 w-full transition-colors duration-500"
           style={{
             background: allDone
-              ? "linear-gradient(90deg, #22c55e, #16a34a)"
+              ? "color-mix(in srgb, var(--primary) 50%, transparent)"
               : "transparent",
           }}
         />
         <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
+          <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
           <h2 className="text-[20px] font-black tracking-tight">
-            {allDone ? "Workout complete 🎉" : "Finish early?"}
+            {allDone ? "Workout complete" : "Finish early?"}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
             {!allDone &&
@@ -1711,7 +2036,7 @@ function FinishSheet({
             ].map(({ label, value }) => (
               <div
                 key={label}
-                className="flex flex-1 flex-col gap-0.5 rounded-xl bg-foreground/[0.04] px-3 py-2.5"
+                className="flex flex-1 flex-col gap-0.5 rounded-[20px] bg-muted/40 px-3 py-2.5"
               >
                 <span className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/50 uppercase">
                   {label}
@@ -1726,16 +2051,13 @@ function FinishSheet({
         <div className="flex flex-col gap-2 px-6 pt-4">
           <button
             onClick={onFinish}
-            className="h-[52px] w-full rounded-2xl text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80"
-            style={{
-              background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-            }}
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80"
           >
             Finish workout
           </button>
           <button
             onClick={onCancel}
-            className="h-[52px] w-full rounded-2xl text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
           >
             Keep going
           </button>
@@ -1765,7 +2087,7 @@ function AbortSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-0">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
+          <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
           <h2 className="text-[20px] font-black tracking-tight">
@@ -1778,13 +2100,13 @@ function AbortSheet({
         <div className="flex flex-col gap-2 px-6 pt-4">
           <button
             onClick={onConfirm}
-            className="h-[52px] w-full rounded-2xl bg-destructive text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80"
+            className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80"
           >
             Abort workout
           </button>
           <button
             onClick={onCancel}
-            className="h-[52px] w-full rounded-2xl text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
           >
             Keep going
           </button>
@@ -1830,12 +2152,12 @@ function renderSupersetItem(
   dropTarget: DropTarget,
   collapsed: Record<string, boolean>,
   toggleCollapsed: (id: string) => void,
-  makeDragHandlers: (id: string) => any,
+  makeDragHandlers: (id: string) => React.HTMLAttributes<HTMLDivElement>,
   cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>,
   onStartRest: (s: number) => void,
-  cardProps: (id: string, inS: boolean) => any,
+  cardProps: (id: string, inS: boolean) => ExerciseCardDropProps,
   exerciseLookup: Record<string, Exercise>,
-  lastSessionMap: Record<string, { date: string; sets: any[] }>,
+  lastSessionMap: Record<string, LastSession>,
   onShowHistory: (exId: string, name: string) => void,
   nextTarget: NextTarget
 ) {
@@ -1849,55 +2171,35 @@ function renderSupersetItem(
   return (
     <div
       key={item.id}
-      className="relative overflow-hidden rounded-2xl transition-colors"
-      style={{
-        background: `color-mix(in srgb, ${item.color} 5%, var(--card))`,
-        border: allDone
-          ? "1.5px solid rgba(34,197,94,0.30)"
-          : `1.5px solid color-mix(in srgb, ${item.color} 30%, transparent)`,
-      }}
+      className="relative overflow-hidden rounded-[30px] border border-border/40 bg-card shadow-sm shadow-black/[0.018] transition-colors md:rounded-[32px]"
     >
       {showLineBefore && (
-        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-foreground/50" />
+        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
       {showLineAfter && (
-        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-foreground/50" />
+        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
       <div
-        className="absolute inset-y-0 left-0 w-[5px]"
+        className="absolute inset-y-0 left-0 w-1"
         style={{
           background: allDone
-            ? "linear-gradient(180deg,#22c55e,#16a34a)"
-            : item.color,
+            ? "color-mix(in srgb, var(--primary) 36%, transparent)"
+            : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
           opacity: 0.85,
         }}
       />
       <div
-        className="flex items-center justify-between px-4 py-3"
+        className="flex items-center justify-between border-b border-border/30 bg-muted/15 px-4 py-2.5"
         style={{
-          paddingLeft: "calc(1rem + 5px)",
-          background: `color-mix(in srgb, ${item.color} 10%, transparent)`,
-          borderBottom: `1px solid color-mix(in srgb, ${item.color} 18%, transparent)`,
+          paddingLeft: "calc(1rem + 4px)",
         }}
       >
         <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: item.color }}
-          />
-          <span
-            className="text-[11px] font-semibold tracking-wide"
-            style={{ color: item.color }}
-          >
+          <span className="h-2 w-2 rounded-full bg-primary/45" />
+          <span className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground/80 uppercase">
             Superset
           </span>
-          <span
-            className="rounded-full px-2 py-px text-[10px] font-medium"
-            style={{
-              background: `color-mix(in srgb, ${item.color} 18%, transparent)`,
-              color: item.color,
-            }}
-          >
+          <span className="rounded-full bg-muted/55 px-2 py-px text-[10px] font-semibold text-muted-foreground/70">
             {item.exerciseIds.length} exercises
           </span>
         </div>
@@ -1910,9 +2212,10 @@ function renderSupersetItem(
             <React.Fragment key={exId}>
               {idx > 0 && (
                 <div
-                  className="mx-auto h-3 w-[2px] rounded-full"
+                  className="mx-auto h-2 w-px rounded-full"
                   style={{
-                    background: `color-mix(in srgb, ${item.color} 45%, transparent)`,
+                    background:
+                      "color-mix(in srgb, var(--border) 70%, transparent)",
                   }}
                 />
               )}
@@ -1935,7 +2238,9 @@ function renderSupersetItem(
                 onStartRest={onStartRest}
                 lastSession={lastSessionMap[exId] ?? null}
                 onShowHistory={() => onShowHistory(exId, ex.name)}
-                nextSetIndex={nextTarget?.exerciseId === exId ? nextTarget.setIndex : null}
+                nextSetIndex={
+                  nextTarget?.exerciseId === exId ? nextTarget.setIndex : null
+                }
               />
             </React.Fragment>
           )
@@ -1960,9 +2265,12 @@ export default function ActiveWorkout() {
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
 
   const presets = useQuery(api.logs.presets.list, {})
-  const logCompletion = useOfflineMutation(api.logs.workouts.completion, "logs.workouts.completion")
+  const logCompletion = useOfflineMutation(
+    api.logs.workouts.completion,
+    "logs.workouts.completion"
+  )
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
-  
+
   // Active workout Convex sync
   const activeWorkout = useQuery(api.logs.activeWorkout.getActive, { slot })
   const createActive = useMutation(api.logs.activeWorkout.createActive)
@@ -1972,20 +2280,25 @@ export default function ActiveWorkout() {
 
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
-  const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
+  const [exerciseLookup, setExerciseLookup] = useState<
+    Record<string, Exercise>
+  >({})
   const preferences = useQuery(api.users.users.getPreferences)
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [historySheet, setHistorySheet] = useState<{ exerciseId: string; name: string } | null>(null)
+  const [historySheet, setHistorySheet] = useState<{
+    exerciseId: string
+    name: string
+  } | null>(null)
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? null)
   const rest = useRestCountdown()
-  
+
   // Track if we've initialized from Convex to avoid overwriting user's workout data
   const [isInitialized, setIsInitialized] = useState(false)
   // Debounce sync to Convex
@@ -2007,8 +2320,12 @@ export default function ActiveWorkout() {
     exDataRef.current = exData
     isDirtyRef.current = true
   }, [exData])
-  useEffect(() => { elapsedRef.current = elapsed }, [elapsed])
-  useEffect(() => { slotRef.current = slot }, [slot])
+  useEffect(() => {
+    elapsedRef.current = elapsed
+  }, [elapsed])
+  useEffect(() => {
+    slotRef.current = slot
+  }, [slot])
 
   const allExIds = items.flatMap((i) =>
     i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
@@ -2017,12 +2334,24 @@ export default function ActiveWorkout() {
   const { total: totalSets, done: doneSets } = countSets(items, exData)
 
   const lastSessionMap = useMemo(() => {
-    if (!workoutHistory) return {} as Record<string, { date: string; sets: Array<{ weight: number; reps: number; completed: boolean; type: string }> }>
+    if (!workoutHistory)
+      return {} as Record<
+        string,
+        {
+          date: string
+          sets: Array<{
+            weight: number
+            reps: number
+            completed: boolean
+            type: string
+          }>
+        }
+      >
     const today = todayIso()
-    const map: Record<string, { date: string; sets: Array<{ weight: number; reps: number; completed: boolean; type: string }> }> = {}
+    const map: Record<string, LastSession> = {}
     for (const log of workoutHistory) {
       if (log.date >= today) continue
-      for (const ex of log.exercises as Array<{ id: string; sets: any[] }>) {
+      for (const ex of log.exercises as unknown as LoggedWorkoutExercise[]) {
         if (!map[ex.id]) map[ex.id] = { date: log.date, sets: ex.sets }
       }
     }
@@ -2030,9 +2359,12 @@ export default function ActiveWorkout() {
   }, [workoutHistory])
   const progressPct =
     totalSets > 0 ? `${Math.round((doneSets / totalSets) * 100)}%` : "0%"
-  
+
   // Find the next set to highlight
-  const nextTarget = useMemo(() => findNextTarget(items, exData), [items, exData])
+  const nextTarget = useMemo(
+    () => findNextTarget(items, exData),
+    [items, exData]
+  )
 
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
   const syncToConvex = useCallback(() => {
@@ -2065,13 +2397,14 @@ export default function ActiveWorkout() {
   // ── Load from Convex or preset on mount ────────────────────────────────────
   useEffect(() => {
     if (isInitialized) return
-    
+
     // If there's an active workout in Convex, load it
     if (activeWorkout) {
       setIsInitialized(true)
       const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
-      const loadedExData = (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
-      
+      const loadedExData =
+        (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
+
       setItems(loadedItems)
       setExData(
         Object.fromEntries(
@@ -2081,27 +2414,31 @@ export default function ActiveWorkout() {
           ])
         )
       )
-      
+
       // Load exercise details
       const ids = loadedItems.flatMap((i) =>
         i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
       )
       if (ids.length > 0) {
         void resolveExerciseIds(ids).then((lookup) => {
-          setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+          setExerciseLookup((prev) => ({
+            ...prev,
+            ...(lookup as Record<string, Exercise>),
+          }))
         })
       }
       return
     }
-    
+
     // If no Convex state, try to load from preset
     if (presetId && presets) {
       const match = presets.find((p) => (p.id ?? p._id) === presetId)
       if (match) {
         setIsInitialized(true)
         const loadedItems = (match.items as WorkoutItem[]) ?? []
-        const loadedExData = (match.exerciseData as Record<string, ExerciseState>) ?? {}
-        
+        const loadedExData =
+          (match.exerciseData as Record<string, ExerciseState>) ?? {}
+
         setItems(loadedItems)
         setExData(
           Object.fromEntries(
@@ -2111,13 +2448,16 @@ export default function ActiveWorkout() {
             ])
           )
         )
-        
+
         const ids = loadedItems.flatMap((i) =>
           i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
         )
         if (ids.length > 0) {
           void resolveExerciseIds(ids).then((lookup) => {
-            setExerciseLookup((prev) => ({ ...prev, ...(lookup as Record<string, Exercise>) }))
+            setExerciseLookup((prev) => ({
+              ...prev,
+              ...(lookup as Record<string, Exercise>),
+            }))
           })
         }
       }
@@ -2129,7 +2469,7 @@ export default function ActiveWorkout() {
     if (!isInitialized) return
     if (items.length === 0) return
     if (activeWorkout) return // Already have an active workout
-    
+
     const ids = items.flatMap((i) =>
       i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
     )
@@ -2141,7 +2481,16 @@ export default function ActiveWorkout() {
         exerciseData: exData,
       })
     }
-  }, [isInitialized, items.length, activeWorkout, createActive, slot, presetId, items, exData])
+  }, [
+    isInitialized,
+    items.length,
+    activeWorkout,
+    createActive,
+    slot,
+    presetId,
+    items,
+    exData,
+  ])
 
   // ── Sync to Convex when state changes ─────────────────────────────────────
   useEffect(() => {
@@ -2381,7 +2730,11 @@ export default function ActiveWorkout() {
       console.error("Failed to finish workout:", err)
       // Fallback to old method if Convex fails
       try {
-        await logCompletion({ date: todayIso(), exercises, durationSeconds: elapsed })
+        await logCompletion({
+          date: todayIso(),
+          exercises,
+          durationSeconds: elapsed,
+        })
         navigate(-1)
       } catch (fallbackErr) {
         console.error("Failed to log workout as fallback:", fallbackErr)
@@ -2389,7 +2742,7 @@ export default function ActiveWorkout() {
     }
   }
 
-  function cardProps(exId: string, inSuperset = false) {
+  function cardProps(exId: string, inSuperset = false): ExerciseCardDropProps {
     const dt = dropTarget
     const isTarget = dt?.targetExId === exId
     if (inSuperset)
@@ -2406,82 +2759,70 @@ export default function ActiveWorkout() {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-40 md:max-w-4xl md:pb-10">
-        <div
-          className="flex items-center gap-3 px-4"
-          style={{
-            paddingTop: "max(3.5rem, env(safe-area-inset-top, 3.5rem))",
-            paddingBottom: "0.75rem",
-          }}
-        >
-          <button
-            onClick={() => setConfirmAbort(true)}
-            className="flex h-9 items-center gap-1.5 rounded-xl px-3 text-[13px] font-semibold transition-colors active:bg-foreground/[0.06]"
+    <div className="min-h-svh bg-background">
+      <div className="mx-auto flex max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
+        <div className="sticky top-0 z-30 border-b border-border/45 bg-background/95 backdrop-blur-xl">
+          <div
+            className="flex items-center gap-3 px-4 md:px-6"
             style={{
-              color: "color-mix(in srgb, var(--foreground) 45%, transparent)",
+              paddingTop:
+                "max(1rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))",
+              paddingBottom: "0.625rem",
             }}
           >
-            <X size={13} weight="bold" />
-            Abort
-          </button>
-          <div className="flex flex-1 flex-col items-center">
-            <span
-              className="leading-none font-black tracking-tight tabular-nums"
-              style={{
-                fontSize: "1.75rem",
-                letterSpacing: "-0.05em",
-                fontVariantNumeric: "tabular-nums",
-              }}
+            <button
+              onClick={() => setConfirmAbort(true)}
+              className="flex h-10 items-center gap-1.5 rounded-[18px] px-3 text-[13px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/50 active:text-foreground md:h-11 md:rounded-[20px]"
             >
-              {formatElapsed(elapsed)}
-            </span>
-            <span
-              className="mt-0.5 text-[9px] font-medium tracking-[0.18em] uppercase"
-              style={{
-                color: "color-mix(in srgb, var(--foreground) 35%, transparent)",
-              }}
-            >
-              elapsed
-            </span>
-          </div>
-          <button
-            onClick={() => setConfirmFinish(true)}
-            className="flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[13px] font-bold text-background transition-opacity active:opacity-85"
-          >
-            Finish
-            <Check size={14} weight="bold" />
-          </button>
-        </div>
-        <div className="relative mt-2 h-[2px] w-full bg-foreground/[0.06]">
-          <div
-            className="h-full bg-foreground/40 transition-all duration-500 ease-out"
-            style={{ width: progressPct }}
-          />
-        </div>
-        <div className="flex flex-col gap-4 px-4 pt-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold tracking-[0.18em] text-muted-foreground/45 uppercase">
-                Active Workout
+              <X size={15} weight="bold" />
+              Abort
+            </button>
+            <div className="flex flex-1 flex-col items-center">
+              <span
+                className="text-[27px] leading-none font-black tracking-tight tabular-nums md:text-[30px]"
+                style={{ fontVariantNumeric: "tabular-nums" }}
+              >
+                {formatElapsed(elapsed)}
               </span>
-              {slot === 2 && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary uppercase">
-                  Slot 2
-                </span>
-              )}
+              <span className="mt-1 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
+                elapsed
+              </span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="ml-auto flex items-center gap-0 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[10px] font-bold">
+            <button
+              onClick={() => setConfirmFinish(true)}
+              className="flex h-10 items-center gap-1.5 rounded-[18px] bg-foreground px-4 text-[14px] font-bold text-background shadow-sm shadow-black/[0.06] transition-opacity active:opacity-85 md:h-11 md:rounded-[20px]"
+            >
+              Finish
+              <Check size={16} weight="bold" />
+            </button>
+          </div>
+          <div className="px-4 pb-3 md:px-6 md:pb-2.5">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
+                    Active Workout
+                  </span>
+                  {slot === 2 && (
+                    <span className="rounded-full bg-muted/55 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/80 uppercase">
+                      Slot 2
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[12px] font-medium text-muted-foreground/60">
+                  {doneSets}/{totalSets} sets complete
+                </p>
+              </div>
+              <div className="ml-auto flex h-11 shrink-0 overflow-hidden rounded-[20px] border border-border/45 bg-muted/35 text-[11px] font-bold">
                 {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                   <button
                     key={u}
                     onClick={() => setUnit(u)}
                     className={cn(
-                      "rounded-md px-2.5 py-1 transition-all duration-150",
+                      "min-w-12 px-3 transition-all duration-150",
                       unit === u
                         ? "bg-foreground text-background shadow-sm"
-                        : "text-muted-foreground/60 active:text-foreground"
+                        : "text-muted-foreground/65 active:bg-muted/60 active:text-foreground"
                     )}
                   >
                     {u}
@@ -2489,8 +2830,16 @@ export default function ActiveWorkout() {
                 ))}
               </div>
             </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted/55">
+              <div
+                className="h-full rounded-full bg-primary/45 transition-all duration-500 ease-out"
+                style={{ width: progressPct }}
+              />
+            </div>
           </div>
-          <div className="flex flex-col gap-3">
+        </div>
+        <div className="flex flex-col gap-4 px-4 pt-4 md:px-6">
+          <div className="flex flex-col gap-3 md:gap-2.5">
             {items.map((item) => {
               if (item.kind === "solo") {
                 const ex = exerciseLookup[item.exerciseId]
@@ -2503,7 +2852,9 @@ export default function ActiveWorkout() {
                     unit={unit}
                     onUpdate={(d) => updateExData(item.exerciseId, d)}
                     onRemove={() => removeExercise(item.exerciseId)}
-                    isDragging={drag?.exerciseId === item.exerciseId && drag.active}
+                    isDragging={
+                      drag?.exerciseId === item.exerciseId && drag.active
+                    }
                     {...cardProps(item.exerciseId)}
                     collapsed={Boolean(collapsed[item.exerciseId])}
                     onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
@@ -2514,8 +2865,17 @@ export default function ActiveWorkout() {
                     }}
                     onStartRest={rest.start}
                     lastSession={lastSessionMap[item.exerciseId] ?? null}
-                    onShowHistory={() => setHistorySheet({ exerciseId: item.exerciseId, name: ex.name })}
-                    nextSetIndex={nextTarget?.exerciseId === item.exerciseId ? nextTarget.setIndex : null}
+                    onShowHistory={() =>
+                      setHistorySheet({
+                        exerciseId: item.exerciseId,
+                        name: ex.name,
+                      })
+                    }
+                    nextSetIndex={
+                      nextTarget?.exerciseId === item.exerciseId
+                        ? nextTarget.setIndex
+                        : null
+                    }
                   />
                 )
               }
@@ -2542,7 +2902,7 @@ export default function ActiveWorkout() {
           </div>
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border/60 text-[13px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/20 active:text-foreground"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-[24px] border border-dashed border-border/50 text-[13px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/25 active:text-foreground"
           >
             <Plus size={14} weight="bold" />
             Add exercise
@@ -2584,8 +2944,7 @@ export default function ActiveWorkout() {
                 clearTimeout(syncTimeoutRef.current)
                 syncTimeoutRef.current = null
               }
-              // Surface error to user (could show a toast here)
-              alert("Failed to abort workout. Please try again.")
+              toast.error("Failed to abort workout. Please try again.")
             }
           }}
           onCancel={() => setConfirmAbort(false)}
