@@ -1,0 +1,60 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, onerep-prod]
+    timeout-minutes: 30
+    env:
+      VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+      VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL }}
+      VITE_SITE_URL: https://onerep.life
+      VITE_PUBLIC_POSTHOG_PROJECT_TOKEN: ${{ secrets.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN }}
+      VITE_PUBLIC_POSTHOG_HOST: ${{ secrets.VITE_PUBLIC_POSTHOG_HOST }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.4
+
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run test:convex
+      - run: bun audit --audit-level high
+      - run: bun run build
+
+      - name: Install Docker Compose
+        run: |
+          mkdir -p ~/.docker/cli-plugins
+          curl -fsSL https://github.com/docker/compose/releases/download/v2.40.3/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+          chmod +x ~/.docker/cli-plugins/docker-compose
+          docker compose version
+
+      - name: Deploy static assets
+        run: |
+          set -euo pipefail
+          install -d /data/onerep/web /data/onerep/app
+          find /data/onerep/web -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          find /data/onerep/app -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+          cp -a apps/web/dist/. /data/onerep/web/
+          cp -a apps/mobile/dist/. /data/onerep/app/
+          install -m 0644 deploy/onerep/nginx-spa.conf /data/onerep/nginx-spa.conf
+          install -m 0644 deploy/onerep/docker-compose.yml /data/onerep/docker-compose.yml
+          docker compose -f /data/onerep/docker-compose.yml up -d --remove-orphans
+          curl -fsS -H 'Host: onerep.life' http://coolify-proxy/health
+          curl -fsS -H 'Host: app.onerep.life' http://coolify-proxy/health
