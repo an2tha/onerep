@@ -2,21 +2,23 @@ name: "OneRep Production"
 
 services:
   web:
-    image: nginx:1.27-alpine
+    image: node:22-alpine
     container_name: web
+    working_dir: /app
     volumes:
-      - ./web:/usr/share/nginx/html:ro
-      - ./nginx-web.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./web:/app/dist:ro
+    command: sh -c "npx --yes serve@latest -s dist -l tcp://0.0.0.0:3000"
     ports:
-      - "8082:80"
+      - "8082:3000"
     restart: unless-stopped
 
   webapp:
-    image: nginx:1.27-alpine
+    image: node:22-alpine
     container_name: web-app
+    working_dir: /app
     volumes:
-      - ./app:/usr/share/nginx/html:ro
-      - ./nginx-app.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./app:/app/dist:ro
+    command: sh -c "npx --yes serve@latest -s dist -l tcp://0.0.0.0:3000"
     ports:
-      - "8081:80"
+      - "8081:3000"
     restart: unless-stopped
