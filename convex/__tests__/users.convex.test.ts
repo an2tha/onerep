@@ -139,4 +139,104 @@ describe("users Convex functions", () => {
     expect(profile!.weightKg).toBe(80);
     expect(profile!.goal).toBe("maintain");
   });
+
+  test("getEffectiveGoals includes BMR, TDEE, and source for a health profile", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "health-goals-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "male",
+        age: 30,
+        weightKg: 80,
+        heightCm: 175,
+        activityLevel: "moderately_active",
+        goal: "maintain",
+      });
+
+      const goals = await t.query(api.users.users.getEffectiveGoals, {});
+
+      expect(goals!.health).toMatchObject({
+        calories: 2711,
+        protein: 203,
+        carbs: 271,
+        fat: 90,
+        bmr: 1749,
+        tdee: 2711,
+        source: "healthProfile",
+      });
+      expect(goals!.effective).toMatchObject({
+        calories: 2711,
+        protein: 203,
+        carbs: 271,
+        fat: 90,
+      });
+    });
+  });
+
+  test("getEffectiveGoals estimates BMR and TDEE for onboarding-only users", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "onboarding-goals-user" }, async () => {
+      await t.mutation(api.users.onboarding.save, {
+        age: 25,
+        heightCm: 170,
+        goal: "build",
+      });
+
+      const goals = await t.query(api.users.users.getEffectiveGoals, {});
+
+      expect(goals!.health).toMatchObject({
+        calories: 2136,
+        protein: 160,
+        carbs: 214,
+        fat: 71,
+        bmr: 1676,
+        tdee: 2076,
+        source: "onboarding",
+      });
+      expect(goals!.effective.calories).toBe(2136);
+    });
+  });
+
+  test("custom goals override effective goals without erasing health baseline", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "custom-overrides-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "female",
+        age: 28,
+        weightKg: 68,
+        heightCm: 166,
+        activityLevel: "lightly_active",
+        goal: "lose",
+      });
+      await t.mutation(api.users.users.setCustomGoals, {
+        calories: 1900,
+        protein: 150,
+        carbs: 180,
+        fat: 55,
+      });
+
+      const goals = await t.query(api.users.users.getEffectiveGoals, {});
+
+      expect(goals!.custom).toEqual({
+        calories: 1900,
+        protein: 150,
+        carbs: 180,
+        fat: 55,
+      });
+      expect(goals!.effective).toEqual({
+        calories: 1900,
+        protein: 150,
+        carbs: 180,
+        fat: 55,
+      });
+      expect(goals!.health).toMatchObject({
+        bmr: 1417,
+        tdee: 1948,
+        source: "healthProfile",
+      });
+      expect(goals!.health!.calories).not.toBe(goals!.effective.calories);
+    });
+  });
 });

@@ -6,6 +6,7 @@
 @source "../../../packages/ui/src/**/*.{ts,tsx}";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant short-phone (@media (max-height: 700px) and (max-width: 480px));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -50,22 +51,6 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@keyframes page-in-forward {
-  from { opacity: 0; transform: translateX(32px); }
-  to   { opacity: 1; transform: translateX(0);    }
-}
-@keyframes page-in-back {
-  from { opacity: 0; transform: translateX(-32px); }
-  to   { opacity: 1; transform: translateX(0);     }
-}
-
-.page-enter {
-  animation: page-in-forward 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-body[data-nav="POP"] .page-enter {
-  animation: page-in-back 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
 @media (min-width: 768px) {
   .desktop-canvas {
     background:
@@ -74,24 +59,6 @@ body[data-nav="POP"] .page-enter {
       repeating-linear-gradient(135deg, color-mix(in srgb, var(--foreground) 4%, transparent) 0 1px, transparent 1px 28px),
       linear-gradient(135deg, var(--background), color-mix(in srgb, var(--background) 92%, var(--foreground)));
   }
-}
-
-/* ─── Page-transition snapshot (frozen outgoing page) ─────────────────────── */
-
-@keyframes snapshot-exit-forward {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-32px); }
-}
-@keyframes snapshot-exit-back {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(32px); }
-}
-
-.page-snapshot-exit {
-  animation: snapshot-exit-forward 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-body[data-nav="POP"] .page-snapshot-exit {
-  animation: snapshot-exit-back 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ─── Bottom-sheet animations ─────────────────────────────────────────────── */
@@ -131,9 +98,19 @@ body[data-nav="POP"] .page-snapshot-exit {
 }
 
 :root {
-  --app-safe-top: max(1.5rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
-  --app-safe-bottom: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
-  --app-safe-bottom-lg: max(2.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+  --app-safe-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.45rem));
+  --app-safe-bottom: max(1.35rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
+  --app-safe-bottom-lg: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 0.65rem));
+  --app-page-x: clamp(1rem, 4.8vw, 1.5rem);
+  --app-card-radius: 1.15rem;
+  --accent-food: #f97316;
+  --accent-food-bg: color-mix(in srgb, var(--accent-food) 13%, transparent);
+  --accent-water: #0ea5e9;
+  --accent-water-bg: color-mix(in srgb, var(--accent-water) 13%, transparent);
+  --accent-workout: #22c55e;
+  --accent-workout-bg: color-mix(in srgb, var(--accent-workout) 13%, transparent);
+  --accent-progress: #8b5cf6;
+  --accent-progress-bg: color-mix(in srgb, var(--accent-progress) 13%, transparent);
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -169,6 +146,10 @@ body[data-nav="POP"] .page-snapshot-exit {
 }
 
 .dark {
+  --accent-food: #fb923c;
+  --accent-water: #38bdf8;
+  --accent-workout: #4ade80;
+  --accent-progress: #a78bfa;
   --background: oklch(0.141 0.005 285.823);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.21 0.006 285.885);
@@ -205,8 +186,6 @@ body[data-nav="POP"] .page-snapshot-exit {
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
@@ -215,9 +194,6 @@ body[data-nav="POP"] .page-snapshot-exit {
     -webkit-user-select: text;
     user-select: text;
   }
-  *::-webkit-scrollbar {
-    display: none;
-  }
   body {
     @apply bg-background text-foreground;
     overflow-x: hidden;
@@ -225,6 +201,73 @@ body[data-nav="POP"] .page-snapshot-exit {
   html {
     @apply font-sans;
     overflow-x: hidden;
+  }
+  button, input, textarea, select {
+    font: inherit;
+  }
+  button {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .mobile-surface {
+    border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+    border-radius: var(--app-card-radius);
+    background: var(--card);
+    box-shadow: 0 18px 50px color-mix(in srgb, var(--foreground) 5%, transparent);
+  }
+
+  .mobile-control {
+    min-height: 2.75rem;
+    border-radius: 1rem;
+  }
+
+  .mobile-hairline {
+    border-color: color-mix(in srgb, var(--border) 62%, transparent);
+  }
+}
+
+@media (max-height: 700px) and (max-width: 480px) {
+  :root {
+    --app-safe-top: max(0.8rem, calc(env(safe-area-inset-top, 0px) + 0.25rem));
+    --app-safe-bottom: max(0.85rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem));
+    --app-safe-bottom-lg: max(1.2rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem));
+    --app-card-radius: 1rem;
+  }
+}
+
+@media (hover: hover) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--foreground) 22%, transparent);
+    background-clip: padding-box;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
   }
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "convex/react"
+import { useNavigate } from "react-router"
 import { Card } from "@repo/ui"
 import { BottomBar } from "@/components/bottom-bar"
 import {
@@ -226,6 +227,7 @@ function TopExerciseCard({ exercise }: { exercise: ExerciseCard | null }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Exercises() {
+  const navigate = useNavigate()
   const history = useQuery(api.logs.workouts.getHistory, {})
   const loading = history === undefined
   const [exerciseLookup, setExerciseLookup] = useState<Record<string, Exercise>>({})
@@ -294,11 +296,19 @@ export default function Exercises() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-28 md:max-w-5xl md:pb-10">
-        <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10">
-          <h1 className="text-[1.9rem] leading-tight font-semibold tracking-tight">
+      <div className="mx-auto flex max-w-lg flex-col pb-28 md:max-w-6xl md:pb-10">
+        <header className="px-5 pt-14 pb-6 md:px-6 md:pt-10 md:pb-4">
+          <h1 className="text-[1.9rem] leading-tight font-semibold tracking-tight md:hidden">
             Exercises
           </h1>
+          <div className="hidden md:block">
+            <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
+              Library
+            </p>
+            <h1 className="mt-1 text-[1.9rem] leading-[1.15] font-semibold tracking-tight">
+              Exercises.
+            </h1>
+          </div>
         </header>
 
         <main className="flex flex-col gap-6 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6">
@@ -414,7 +424,7 @@ export default function Exercises() {
         </main>
       </div>
 
-      <BottomBar />
+      <BottomBar onAdd={() => navigate("/workout/active")} />
     </div>
   )
 }

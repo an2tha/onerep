@@ -15,7 +15,9 @@ import { usePostHog } from "@posthog/react"
 import {
   currentDateKey,
   defaultMeal,
+  foodPortionLabel,
   stripUndefined,
+  type FoodPortion,
   type LogMicros,
 } from "@/lib/food-log"
 import { searchFoods } from "@/lib/openfoodfacts"
@@ -216,7 +218,8 @@ export default function SearchFoods() {
     grams = 100,
     micros: LogMicros = {},
     meal = "breakfast",
-    detail?: FoodDetail | null
+    detail?: FoodDetail | null,
+    portion?: FoodPortion
   ) {
     const factor = grams / 100
     const round = (v: number) => Math.round(v * factor * 10) / 10
@@ -224,7 +227,10 @@ export default function SearchFoods() {
     const product = detail?.openFoodFacts ?? item.openFoodFacts
     const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
-      name: grams === 100 ? item.name : `${item.name} (${grams} g)`,
+      name:
+        grams === 100 && !portion
+          ? item.name
+          : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
       calories: Math.round(Number(item.calories) * factor),
       protein: round(Number(item.protein)),
       carbs: round(Number(item.carbs)),
@@ -261,7 +267,7 @@ export default function SearchFoods() {
 
   return (
     <>
-      <div className="desktop-canvas page-enter flex min-h-svh flex-col bg-background">
+      <div className="desktop-canvas flex min-h-svh flex-col bg-background">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
           <div
             className="flex items-center gap-3 px-4 pb-3"
@@ -271,6 +277,7 @@ export default function SearchFoods() {
           >
             <button
               onClick={() => navigate(-1)}
+              aria-label="Go back"
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
             >
               <ArrowLeft size={15} weight="bold" />
@@ -291,6 +298,7 @@ export default function SearchFoods() {
                 placeholder="Search foods…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search foods"
                 className="h-9 w-full rounded-xl bg-muted/60 pr-8 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
               />
               {query.length > 0 && (
@@ -300,6 +308,7 @@ export default function SearchFoods() {
                     setDebouncedQuery("")
                     setSearchState("idle")
                   }}
+                  aria-label="Clear search"
                   className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground/40 transition-opacity active:opacity-60"
                 >
                   <X size={13} weight="bold" />
@@ -357,12 +366,16 @@ export default function SearchFoods() {
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
                     return (
-                      <button
+                      <div
                         key={item.id}
-                        onClick={() => setDetailItem(item)}
-                        className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30 md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
+                        className="flex w-full items-center gap-3 py-3 text-left md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
                       >
-                        <CalorieBadge calories={Number(item.calories)} />
+                        <button
+                          type="button"
+                          onClick={() => setDetailItem(item)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors active:bg-muted/30 md:rounded-xl"
+                        >
+                          <CalorieBadge calories={Number(item.calories)} />
 
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13.5px] leading-snug font-medium">
@@ -401,13 +414,18 @@ export default function SearchFoods() {
                             />
                           </div>
                         </div>
+                        </button>
 
-                        <div
-                          onClick={(e) => {
-                            e.stopPropagation()
+                        <button
+                          type="button"
+                          onClick={() => {
                             if (!isAdded) setPendingItem(item)
                           }}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90"
+                          disabled={isAdded}
+                          aria-label={
+                            isAdded ? `${item.name} added` : `Add ${item.name}`
+                          }
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90 disabled:opacity-60"
                         >
                           {isAdded ? (
                             <span className="text-[11px] text-foreground/60">
@@ -418,8 +436,8 @@ export default function SearchFoods() {
                               +
                             </span>
                           )}
-                        </div>
-                      </button>
+                        </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -433,8 +451,8 @@ export default function SearchFoods() {
         <FoodDetailSheet
           item={detailItem}
           added={added?.itemId === detailItem.id}
-          onAdd={(item, grams, micros, meal, detail) => {
-            void handleAdd(item, grams, micros, meal, detail)
+          onAdd={(item, grams, micros, meal, detail, portion) => {
+            void handleAdd(item, grams, micros, meal, detail, portion)
           }}
           onClose={() => setDetailItem(null)}
         />
