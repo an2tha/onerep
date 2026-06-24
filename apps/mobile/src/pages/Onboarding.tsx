@@ -14,7 +14,6 @@ import {
   UserFocus,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
-import { useNavigate } from "react-router"
 import {
   ACTIVITY_LEVELS,
   type ActivityLevel,
@@ -27,6 +26,7 @@ import {
   isOnboardingGoal,
   mapOnboardingGoalToCalorieGoal,
 } from "@/lib/health-goals"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { api } from "../../../../convex/_generated/api"
 
@@ -165,7 +165,9 @@ function formatHeight(cm: number, unit: "cm" | "ft") {
 }
 
 function formatWeight(weightKg: number, unit: WeightUnit) {
-  return unit === "kg" ? `${Math.round(weightKg)} kg` : `${kgToLbs(weightKg)} lbs`
+  return unit === "kg"
+    ? `${Math.round(weightKg)} kg`
+    : `${kgToLbs(weightKg)} lbs`
 }
 
 function formatLiters(ml: number) {
@@ -197,7 +199,10 @@ function StepProgress({ step }: { step: number }) {
         const complete = index < step
         const active = index === step
         return (
-          <div key={item.label} className="flex min-w-0 flex-1 items-center gap-2">
+          <div
+            key={item.label}
+            className="flex min-w-0 flex-1 items-center gap-2"
+          >
             <div
               className={cn(
                 "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold",
@@ -205,7 +210,7 @@ function StepProgress({ step }: { step: number }) {
                   ? "border-foreground bg-foreground text-background"
                   : active
                     ? "border-foreground text-foreground"
-                    : "border-border bg-muted/40 text-muted-foreground",
+                    : "border-border bg-muted/40 text-muted-foreground"
               )}
             >
               {complete ? <CheckCircle size={15} weight="fill" /> : index + 1}
@@ -214,7 +219,7 @@ function StepProgress({ step }: { step: number }) {
               <div
                 className={cn(
                   "h-px flex-1",
-                  index < step ? "bg-foreground" : "bg-border",
+                  index < step ? "bg-foreground" : "bg-border"
                 )}
               />
             )}
@@ -337,7 +342,12 @@ function SegmentedControl<T extends string>({
       <p className="mb-2 text-[13px] font-semibold text-muted-foreground">
         {label}
       </p>
-      <div className="grid rounded-[16px] bg-muted/70 p-1" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+      <div
+        className="grid rounded-[16px] bg-muted/70 p-1"
+        style={{
+          gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
+        }}
+      >
         {options.map((option) => {
           const active = value === option.value
           return (
@@ -349,7 +359,7 @@ function SegmentedControl<T extends string>({
                 "min-h-11 rounded-[12px] px-2 text-[13px] font-semibold transition-colors",
                 active
                   ? "bg-background text-foreground shadow-sm shadow-black/[0.05]"
-                  : "text-muted-foreground active:text-foreground",
+                  : "text-muted-foreground active:text-foreground"
               )}
             >
               {option.label}
@@ -382,14 +392,14 @@ function GoalStep({
               "min-h-[112px] rounded-[20px] border p-4 text-left transition-colors active:bg-muted",
               selected
                 ? "border-foreground bg-foreground text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
-                : "border-border/70 bg-card text-foreground hover:border-foreground/30",
+                : "border-border/70 bg-card text-foreground hover:border-foreground/30"
             )}
           >
             <div className="flex items-start justify-between gap-3">
               <span
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]",
-                  selected ? "bg-background/12 text-background" : tone,
+                  selected ? "bg-background/12 text-background" : tone
                 )}
               >
                 <Icon size={20} weight="duotone" />
@@ -402,7 +412,7 @@ function GoalStep({
             <p
               className={cn(
                 "mt-1 text-[12.5px] leading-5",
-                selected ? "text-background/70" : "text-muted-foreground",
+                selected ? "text-background/70" : "text-muted-foreground"
               )}
             >
               {sub}
@@ -434,7 +444,9 @@ function BodyBasicsStep({
   setHeightUnit: (unit: "cm" | "ft") => void
 }) {
   const weightValue =
-    weightUnit === "kg" ? Math.round(profile.weightKg) : kgToLbs(profile.weightKg)
+    weightUnit === "kg"
+      ? Math.round(profile.weightKg)
+      : kgToLbs(profile.weightKg)
   const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
 
@@ -457,7 +469,7 @@ function BodyBasicsStep({
                   "min-h-12 rounded-[16px] border px-4 text-[14px] font-semibold capitalize transition-colors",
                   selected
                     ? "border-foreground bg-foreground text-background"
-                    : "border-border/70 bg-card text-foreground active:bg-muted",
+                    : "border-border/70 bg-card text-foreground active:bg-muted"
                 )}
               >
                 {sex}
@@ -532,7 +544,7 @@ function ActivityStep({
               "min-h-[72px] rounded-[18px] border px-4 py-3 text-left transition-colors",
               selected
                 ? "border-foreground bg-foreground text-background"
-                : "border-border/70 bg-card text-foreground active:bg-muted",
+                : "border-border/70 bg-card text-foreground active:bg-muted"
             )}
           >
             <div className="flex items-center justify-between gap-3">
@@ -541,7 +553,7 @@ function ActivityStep({
                 <p
                   className={cn(
                     "mt-1 text-[12.5px] leading-5",
-                    selected ? "text-background/70" : "text-muted-foreground",
+                    selected ? "text-background/70" : "text-muted-foreground"
                   )}
                 >
                   {activity.sub}
@@ -590,9 +602,12 @@ function DefaultsStep({
       />
 
       <div className="rounded-[18px] border border-border/70 bg-muted/35 px-4 py-3">
-        <p className="text-[13px] font-semibold">Defaults are editable later.</p>
+        <p className="text-[13px] font-semibold">
+          Defaults are editable later.
+        </p>
         <p className="mt-1 text-[12.5px] leading-5 text-muted-foreground">
-          OneRep will save these as persistent preferences, not just setup notes.
+          OneRep will save these as persistent preferences, not just setup
+          notes.
         </p>
       </div>
     </div>
@@ -757,7 +772,7 @@ function SummaryRail({
 }
 
 export default function Onboarding() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const saveOnboarding = useMutation(api.users.onboarding.save)
   const saveHealthProfile = useMutation(api.logs.calories.setProfile)
   const saveWeightUnit = useMutation(api.users.users.setWeightUnit)
@@ -802,7 +817,7 @@ export default function Onboarding() {
           activityLevel: profile.activityLevel,
           goal: calorieGoal,
         }
-      : "skip",
+      : "skip"
   )
 
   useEffect(() => {
@@ -823,17 +838,17 @@ export default function Onboarding() {
     const nextAge = clamp(
       healthProfile?.age ?? onboardingProfile?.age ?? 25,
       AGE_MIN,
-      AGE_MAX,
+      AGE_MAX
     )
     const nextHeight = clamp(
       healthProfile?.heightCm ?? onboardingProfile?.heightCm ?? 170,
       HEIGHT_MIN,
-      HEIGHT_MAX,
+      HEIGHT_MAX
     )
     const nextWeight = clamp(
       healthProfile?.weightKg ?? 75,
       WEIGHT_KG_MIN,
-      WEIGHT_KG_MAX,
+      WEIGHT_KG_MAX
     )
     const nextActivity = isActivityLevel(healthProfile?.activityLevel)
       ? healthProfile.activityLevel
@@ -893,7 +908,7 @@ export default function Onboarding() {
       setSaveError(
         step === 1
           ? "Select sex before calculating your targets."
-          : "Complete this step before continuing.",
+          : "Complete this step before continuing."
       )
       return
     }
@@ -929,7 +944,7 @@ export default function Onboarding() {
       setSaveError(
         error instanceof Error
           ? error.message
-          : "Could not save onboarding. Try again.",
+          : "Could not save onboarding. Try again."
       )
       setSaving(false)
     }
@@ -976,7 +991,9 @@ export default function Onboarding() {
             {step === 0 && (
               <GoalStep
                 draft={draft}
-                setGoal={(goal) => setDraft((current) => ({ ...current, goal }))}
+                setGoal={(goal) =>
+                  setDraft((current) => ({ ...current, goal }))
+                }
               />
             )}
             {step === 1 && (

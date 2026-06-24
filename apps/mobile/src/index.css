@@ -54,53 +54,319 @@
 @media (min-width: 768px) {
   .desktop-canvas {
     background:
-      radial-gradient(circle at 16% -10%, color-mix(in srgb, var(--foreground) 10%, transparent), transparent 34rem),
-      radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--foreground) 6%, transparent), transparent 30rem),
-      repeating-linear-gradient(135deg, color-mix(in srgb, var(--foreground) 4%, transparent) 0 1px, transparent 1px 28px),
-      linear-gradient(135deg, var(--background), color-mix(in srgb, var(--background) 92%, var(--foreground)));
+      radial-gradient(
+        circle at 16% -10%,
+        color-mix(in srgb, var(--foreground) 10%, transparent),
+        transparent 34rem
+      ),
+      radial-gradient(
+        circle at 92% 8%,
+        color-mix(in srgb, var(--foreground) 6%, transparent),
+        transparent 30rem
+      ),
+      repeating-linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--foreground) 4%, transparent) 0 1px,
+        transparent 1px 28px
+      ),
+      linear-gradient(
+        135deg,
+        var(--background),
+        color-mix(in srgb, var(--background) 92%, var(--foreground))
+      );
+  }
+}
+
+/* ─── App Motion ──────────────────────────────────────────────────────────── */
+
+@keyframes app-route-enter-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes app-route-enter-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-12px, 0, 0) scale(0.997);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes app-route-enter-switch {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.997);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes app-route-enter-replace {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 4px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes app-vt-old-forward {
+  to {
+    opacity: 0;
+    transform: translate3d(-10px, 0, 0) scale(0.997);
+  }
+}
+
+@keyframes app-vt-new-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0) scale(0.995);
+  }
+}
+
+@keyframes app-vt-old-back {
+  to {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0) scale(0.997);
+  }
+}
+
+@keyframes app-vt-new-back {
+  from {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0) scale(0.997);
+  }
+}
+
+@keyframes app-vt-old-switch {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -5px, 0) scale(0.998);
+  }
+}
+
+@keyframes app-vt-new-switch {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 9px, 0) scale(0.997);
+  }
+}
+
+.app-route-shell {
+  min-height: 100svh;
+  isolation: isolate;
+}
+
+.app-route-frame {
+  min-height: 100svh;
+  view-transition-name: app-route;
+}
+
+.app-route-frame-animated {
+  animation: app-route-enter-forward 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
+
+.app-route-frame-animated[data-route-motion="back"] {
+  animation-name: app-route-enter-back;
+}
+
+.app-route-frame-animated[data-route-motion="switch"] {
+  animation-name: app-route-enter-switch;
+  animation-duration: 180ms;
+}
+
+.app-route-frame-animated[data-route-motion="replace"] {
+  animation-name: app-route-enter-replace;
+  animation-duration: 160ms;
+}
+
+html[data-route-native="true"] .app-route-frame-animated {
+  animation: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0ms;
+}
+
+::view-transition-group(app-route) {
+  animation-duration: 240ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::view-transition-old(app-route),
+::view-transition-new(app-route) {
+  height: 100%;
+  mix-blend-mode: normal;
+}
+
+html[data-route-motion="forward"]::view-transition-old(app-route) {
+  animation: app-vt-old-forward 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-route-motion="forward"]::view-transition-new(app-route) {
+  animation: app-vt-new-forward 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-route-motion="back"]::view-transition-old(app-route) {
+  animation: app-vt-old-back 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-route-motion="back"]::view-transition-new(app-route) {
+  animation: app-vt-new-back 230ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-route-motion="switch"]::view-transition-old(app-route),
+html[data-route-motion="replace"]::view-transition-old(app-route) {
+  animation: app-vt-old-switch 170ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+html[data-route-motion="switch"]::view-transition-new(app-route),
+html[data-route-motion="replace"]::view-transition-new(app-route) {
+  animation: app-vt-new-switch 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-route-frame,
+  .app-route-frame-animated,
+  .sheet-backdrop-enter,
+  .sheet-backdrop-exit,
+  .sheet-panel-enter,
+  .sheet-panel-exit {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
   }
 }
 
 /* ─── Bottom-sheet animations ─────────────────────────────────────────────── */
 
 /* Backdrop — fade only */
-@keyframes backdrop-in  { from { opacity: 0; } to { opacity: 1; } }
-@keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes backdrop-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 
 /* Panel — slide only */
-@keyframes panel-in  { from { transform: translateY(100%); } to { transform: translateY(0); } }
-@keyframes panel-out { from { transform: translateY(0);    } to { transform: translateY(100%); } }
+@keyframes panel-in {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+@keyframes panel-out {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
 
-.sheet-backdrop-enter { animation: backdrop-in  220ms ease         both; }
-.sheet-backdrop-exit  { animation: backdrop-out 200ms ease         both; pointer-events: none; }
-.sheet-panel-enter    { animation: panel-in     380ms cubic-bezier(0.32, 0.72, 0, 1) both; }
-.sheet-panel-exit     { animation: panel-out    200ms cubic-bezier(0.4, 0, 0.6, 1)  both; pointer-events: none; }
+.sheet-backdrop-enter {
+  animation: backdrop-in 160ms ease both;
+}
+.sheet-backdrop-exit {
+  animation: backdrop-out 150ms ease both;
+  pointer-events: none;
+}
+.sheet-panel-enter {
+  animation: panel-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sheet-panel-exit {
+  animation: panel-out 180ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  pointer-events: none;
+}
 
 @keyframes sweep-delete {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
 }
 
 @keyframes scan {
-  0%        { transform: translateY(0px);   opacity: 0;   }
-  6%        { opacity: 0.45; }
-  50%       { transform: translateY(48px);  opacity: 0.45; }
-  56%, 100% { transform: translateY(48px);  opacity: 0;   }
+  0% {
+    transform: translateY(0px);
+    opacity: 0;
+  }
+  6% {
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateY(48px);
+    opacity: 0.45;
+  }
+  56%,
+  100% {
+    transform: translateY(48px);
+    opacity: 0;
+  }
 }
 .scan-line {
   animation: scan 3.2s ease-in-out infinite;
 }
 
 @keyframes set-complete {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
-  35% { transform: scale(1.12); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.14); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+  35% {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.14);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
 }
 
 :root {
   --app-safe-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.45rem));
-  --app-safe-bottom: max(1.35rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
-  --app-safe-bottom-lg: max(2rem, calc(env(safe-area-inset-bottom, 0px) + 0.65rem));
+  --app-safe-bottom: max(
+    1.35rem,
+    calc(env(safe-area-inset-bottom, 0px) + 0.45rem)
+  );
+  --app-safe-bottom-lg: max(
+    2rem,
+    calc(env(safe-area-inset-bottom, 0px) + 0.65rem)
+  );
   --app-page-x: clamp(1rem, 4.8vw, 1.5rem);
   --app-card-radius: 1.15rem;
   --accent-food: #f97316;
@@ -108,9 +374,17 @@
   --accent-water: #0ea5e9;
   --accent-water-bg: color-mix(in srgb, var(--accent-water) 13%, transparent);
   --accent-workout: #22c55e;
-  --accent-workout-bg: color-mix(in srgb, var(--accent-workout) 13%, transparent);
+  --accent-workout-bg: color-mix(
+    in srgb,
+    var(--accent-workout) 13%,
+    transparent
+  );
   --accent-progress: #8b5cf6;
-  --accent-progress-bg: color-mix(in srgb, var(--accent-progress) 13%, transparent);
+  --accent-progress-bg: color-mix(
+    in srgb,
+    var(--accent-progress) 13%,
+    transparent
+  );
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -190,7 +464,9 @@
     user-select: none;
     -webkit-touch-callout: none;
   }
-  input, textarea, [contenteditable] {
+  input,
+  textarea,
+  [contenteditable] {
     -webkit-user-select: text;
     user-select: text;
   }
@@ -202,7 +478,10 @@
     @apply font-sans;
     overflow-x: hidden;
   }
-  button, input, textarea, select {
+  button,
+  input,
+  textarea,
+  select {
     font: inherit;
   }
   button {
@@ -215,7 +494,8 @@
     border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
     border-radius: var(--app-card-radius);
     background: var(--card);
-    box-shadow: 0 18px 50px color-mix(in srgb, var(--foreground) 5%, transparent);
+    box-shadow: 0 18px 50px
+      color-mix(in srgb, var(--foreground) 5%, transparent);
   }
 
   .mobile-control {
@@ -231,8 +511,14 @@
 @media (max-height: 700px) and (max-width: 480px) {
   :root {
     --app-safe-top: max(0.8rem, calc(env(safe-area-inset-top, 0px) + 0.25rem));
-    --app-safe-bottom: max(0.85rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem));
-    --app-safe-bottom-lg: max(1.2rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem));
+    --app-safe-bottom: max(
+      0.85rem,
+      calc(env(safe-area-inset-bottom, 0px) + 0.25rem)
+    );
+    --app-safe-bottom-lg: max(
+      1.2rem,
+      calc(env(safe-area-inset-bottom, 0px) + 0.35rem)
+    );
     --app-card-radius: 1rem;
   }
 }
@@ -240,7 +526,8 @@
 @media (hover: hover) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent) transparent;
+    scrollbar-color: color-mix(in srgb, var(--foreground) 22%, transparent)
+      transparent;
   }
 
   *::-webkit-scrollbar {
@@ -274,12 +561,20 @@
 /* ─── Accordion animations ─────────────────────────────────────────────── */
 
 @keyframes accordion-down {
-  from { height: 0; }
-  to { height: var(--radix-accordion-content-height); }
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
 }
 @keyframes accordion-up {
-  from { height: var(--radix-accordion-content-height); }
-  to { height: 0; }
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
 }
 
 [data-state="open"].animate-accordion-down {

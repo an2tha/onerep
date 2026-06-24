@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
-import { useNavigate } from "react-router"
 import {
   ArrowsInSimple,
   ArrowsOutSimple,
@@ -48,6 +47,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { BottomBar } from "@/components/bottom-bar"
 import {
   DailySummaryStrip,
@@ -59,13 +59,8 @@ import {
 } from "@/components/home"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import {
-  formatReminderLabel,
-} from "@/lib/body-progress"
-import {
-  calcStreak,
-  calcWorkoutsThisWeek,
-} from "@/lib/training-consistency"
+import { formatReminderLabel } from "@/lib/body-progress"
+import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
 import {
   normalizePresetCard,
   type Routine,
@@ -246,9 +241,12 @@ function totalsForEntries(entries: FoodLogEntry[]) {
 }
 
 function ProgressCard() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const measurements = useQuery(api.bodyProgress.list, {})
-  const latest = measurements && measurements.length > 0 ? measurements[measurements.length - 1] : null
+  const latest =
+    measurements && measurements.length > 0
+      ? measurements[measurements.length - 1]
+      : null
 
   return (
     <Card>
@@ -272,8 +270,14 @@ function ProgressCard() {
   )
 }
 
-function CheckInPrompt({ reminderEnabled, reminderLabel }: { reminderEnabled: boolean; reminderLabel: string }) {
-  const navigate = useNavigate()
+function CheckInPrompt({
+  reminderEnabled,
+  reminderLabel,
+}: {
+  reminderEnabled: boolean
+  reminderLabel: string
+}) {
+  const navigate = useSmoothNavigate()
 
   return (
     <button
@@ -305,9 +309,7 @@ function CheckInPrompt({ reminderEnabled, reminderLabel }: { reminderEnabled: bo
         </span>
       </div>
       <div className="sr-only">
-        <p>
-          Log your first body snapshot
-        </p>
+        <p>Log your first body snapshot</p>
       </div>
     </button>
   )
@@ -439,11 +441,9 @@ function CalorieCard({
         {/* Header row */}
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <CardTitle className="text-sm font-semibold">
-              Calories
-            </CardTitle>
+            <CardTitle className="text-sm font-semibold">Calories</CardTitle>
             {info?.isTrainingDay && (
-              <div className="rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[8px] font-bold text-orange-500 uppercase tracking-wider">
+              <div className="rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-orange-500 uppercase">
                 Training Day
               </div>
             )}
@@ -693,7 +693,7 @@ function WorkoutCard({
   onToggleCollapse: () => void
   onDeleteSlot: (slot: 1 | 2) => void
 }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const isToday = dayOffset === 0
   const focus = settings.workoutFocus
   const fallbackWorkout = WORKOUTS[focus]
@@ -836,7 +836,10 @@ function WorkoutCard({
                   <div className="flex flex-col items-center gap-2 py-5 text-center">
                     <Barbell
                       size={28}
-                      className={cn(DASHBOARD_EMPTY_ICON_CLASS, "text-muted-foreground/20")}
+                      className={cn(
+                        DASHBOARD_EMPTY_ICON_CLASS,
+                        "text-muted-foreground/20"
+                      )}
                     />
                     <p className="text-[16px] font-semibold tracking-tight">
                       Rest day
@@ -849,7 +852,7 @@ function WorkoutCard({
                   <>
                     <div className="mb-3 flex items-baseline justify-between pt-1">
                       <p className="text-[17px] font-semibold tracking-tight">
-                        {'title' in workout ? workout.title : workout.name}
+                        {"title" in workout ? workout.title : workout.name}
                       </p>
                       <span className="text-[11px] text-muted-foreground/50">
                         {workout.duration}
@@ -1003,9 +1006,9 @@ function LoggedTodayCard({
     if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
     byMeal.get(e.meal)!.push(e)
   }
-  const groups = DEFAULT_MEAL_CATEGORIES
-    .filter((c) => byMeal.has(c.id))
-    .map((c) => ({ cfg: c, entries: byMeal.get(c.id)! }))
+  const groups = DEFAULT_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
+    (c) => ({ cfg: c, entries: byMeal.get(c.id)! })
+  )
 
   return (
     <Card>
@@ -1114,20 +1117,29 @@ function fmtWater(ml: number): string {
 }
 
 function WaterWidget({ dateKey }: { dateKey: string }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
+  const setWaterDay = useOfflineMutation(
+    api.logs.water.setDay,
+    "logs.water.setDay"
+  )
 
-  const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
+  const entries = (rawEntries ?? []) as {
+    id: string
+    amountMl: number
+    loggedAt: string
+  }[]
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const previewFilledCount =
-    hoveredGlass === null ? filledCount : Math.max(filledCount, hoveredGlass + 1)
+    hoveredGlass === null
+      ? filledCount
+      : Math.max(filledCount, hoveredGlass + 1)
 
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
@@ -1153,7 +1165,9 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
 
   function removeLastEntry() {
     if (entries.length === 0) return
-    const sorted = [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+    const sorted = [...entries].sort((a, b) =>
+      b.loggedAt.localeCompare(a.loggedAt)
+    )
     void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
   }
 
@@ -1256,7 +1270,9 @@ function StreakCard({
   })
 
   const active = streak > 0
-  const fireColor = active ? "#f97316" : "color-mix(in srgb, var(--foreground) 18%, transparent)"
+  const fireColor = active
+    ? "#f97316"
+    : "color-mix(in srgb, var(--foreground) 18%, transparent)"
 
   return (
     <Card>
@@ -1281,8 +1297,12 @@ function StreakCard({
               className={DASHBOARD_METRIC_ICON_CLASS}
             />
             <span
-              className="text-[22px] leading-none font-bold tabular-nums tracking-tight"
-              style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 30%, transparent)" }}
+              className="text-[22px] leading-none font-bold tracking-tight tabular-nums"
+              style={{
+                color: active
+                  ? "#f97316"
+                  : "color-mix(in srgb, var(--foreground) 30%, transparent)",
+              }}
             >
               {streak}
             </span>
@@ -1308,12 +1328,21 @@ function StreakCard({
                           ? "bg-muted/20"
                           : "bg-muted/40"
                     )}
-                    style={isToday && !done ? { boxShadow: "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)" } : undefined}
+                    style={
+                      isToday && !done
+                        ? {
+                            boxShadow:
+                              "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)",
+                          }
+                        : undefined
+                    }
                   />
                   <span
                     className={cn(
                       "text-[8.5px] font-medium",
-                      isToday ? "text-foreground/60" : "text-muted-foreground/30"
+                      isToday
+                        ? "text-foreground/60"
+                        : "text-muted-foreground/30"
                     )}
                   >
                     {WEEK_LABELS[i]}
@@ -1360,7 +1389,8 @@ function CalorieSmall({
   const isPressingRef = useRef(false)
   const expandTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const pct = target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
+  const pct =
+    target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
   const over = consumed > target
 
   function haptic(pattern: number | number[]) {
@@ -1432,19 +1462,25 @@ function CalorieSmall({
         className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
       >
         {/* Base state */}
-        <div className={cn(
-          "flex w-full items-start justify-between transition-opacity duration-200",
-          expanded && "opacity-0"
-        )}>
-          <p className="text-[10px] font-semibold text-muted-foreground/50">Calories</p>
+        <div
+          className={cn(
+            "flex w-full items-start justify-between transition-opacity duration-200",
+            expanded && "opacity-0"
+          )}
+        >
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Calories
+          </p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
-        <div className={cn(
-          "w-full transition-opacity duration-200",
-          expanded && "opacity-0"
-        )}>
+        <div
+          className={cn(
+            "w-full transition-opacity duration-200",
+            expanded && "opacity-0"
+          )}
+        >
           <div className="flex items-baseline gap-1">
-            <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+            <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(consumed)}
             </span>
             <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
@@ -1460,20 +1496,24 @@ function CalorieSmall({
             />
           </div>
           <p className="mt-1 text-[9px] text-muted-foreground/30 tabular-nums">
-            {over ? `+${fmtKcal(consumed - target)} over` : `${fmtKcal(target - consumed)} left`}
+            {over
+              ? `+${fmtKcal(consumed - target)} over`
+              : `${fmtKcal(target - consumed)} left`}
           </p>
         </div>
 
         {/* Expanded overview overlay */}
-        <div className={cn(
-          "absolute inset-0 flex flex-col justify-center px-3.5 py-3 transition-all duration-250 ease-out",
-          expanded
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-2 pointer-events-none"
-        )}>
+        <div
+          className={cn(
+            "absolute inset-0 flex flex-col justify-center px-3.5 py-3 transition-all duration-250 ease-out",
+            expanded
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-2 opacity-0"
+          )}
+        >
           {/* Calories hero */}
           <div className="flex items-baseline gap-1">
-            <span className="text-[1.4rem] font-bold tabular-nums leading-none tracking-tight">
+            <span className="text-[1.4rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(consumed)}
             </span>
             <span className="text-[10px] text-muted-foreground/50">kcal</span>
@@ -1539,12 +1579,21 @@ function CalorieSmall({
 function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
-  const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
-  const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
+  const entries = (rawEntries ?? []) as {
+    id: string
+    amountMl: number
+    loggedAt: string
+  }[]
+  const setWaterDay = useOfflineMutation(
+    api.logs.water.setDay,
+    "logs.water.setDay"
+  )
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
   const previewFilledCount =
-    hoveredGlass === null ? filledCount : Math.max(filledCount, hoveredGlass + 1)
+    hoveredGlass === null
+      ? filledCount
+      : Math.max(filledCount, hoveredGlass + 1)
 
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
@@ -1562,7 +1611,9 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
 
   function removeLastGlass() {
     if (entries.length === 0) return
-    const sorted = [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+    const sorted = [...entries].sort((a, b) =>
+      b.loggedAt.localeCompare(a.loggedAt)
+    )
     void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
   }
 
@@ -1570,7 +1621,9 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
     <Card className="h-full">
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
         <div className="flex items-start justify-between">
-          <p className="text-[10px] font-semibold text-muted-foreground/50">Water</p>
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Water
+          </p>
           <p className="text-[9px] text-muted-foreground/30 tabular-nums">
             {filledCount}/{WATER_GLASS_COUNT}
           </p>
@@ -1606,7 +1659,9 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
                     size={11}
                     weight={previewFilled ? "fill" : "regular"}
                     style={{ color: previewFilled ? "#38bdf8" : undefined }}
-                    className={previewFilled ? undefined : "text-muted-foreground/20"}
+                    className={
+                      previewFilled ? undefined : "text-muted-foreground/20"
+                    }
                   />
                 </button>
               )
@@ -1663,9 +1718,12 @@ function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
     setProgress(0)
   }
 
-  useEffect(() => () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    },
+    []
+  )
 
   const offset = RING_C * (1 - progress)
   const active = progress > 0
@@ -1676,33 +1734,40 @@ function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
-      className="relative flex h-12 w-12 touch-none select-none items-center justify-center rounded-full transition-transform active:scale-95"
+      className="relative flex h-12 w-12 touch-none items-center justify-center rounded-full transition-transform select-none active:scale-95"
       aria-label="Hold to start workout"
     >
       {/* ring */}
       <svg
-        width="48" height="48"
+        width="48"
+        height="48"
         viewBox="0 0 48 48"
         className="absolute inset-0"
         style={{ transform: "rotate(-90deg)" }}
       >
         {/* track */}
         <circle
-          cx="24" cy="24" r={RING_R}
+          cx="24"
+          cy="24"
+          r={RING_R}
           fill="none"
           strokeWidth="2.5"
           className="stroke-foreground/10"
         />
         {/* fill */}
         <circle
-          cx="24" cy="24" r={RING_R}
+          cx="24"
+          cy="24"
+          r={RING_R}
           fill="none"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeDasharray={RING_C}
           strokeDashoffset={offset}
           className="stroke-foreground/70"
-          style={{ transition: active ? "none" : "stroke-dashoffset 180ms ease-out" }}
+          style={{
+            transition: active ? "none" : "stroke-dashoffset 180ms ease-out",
+          }}
         />
       </svg>
       {/* play icon */}
@@ -1727,21 +1792,27 @@ function WorkoutSmall({
   workoutName: string
   isRestDay: boolean
 }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   return (
     <Card className="h-full">
       <div className="flex h-full flex-col justify-between px-3.5 py-3">
-        <p className="text-[10px] font-semibold text-muted-foreground/50">Workout</p>
+        <p className="text-[10px] font-semibold text-muted-foreground/50">
+          Workout
+        </p>
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="truncate text-[13px] font-semibold leading-snug tracking-tight">
+            <p className="truncate text-[13px] leading-snug font-semibold tracking-tight">
               {isRestDay ? "Rest day" : workoutName}
             </p>
             <div className="mt-1 flex items-center gap-1">
               <div
                 className={cn(
                   "h-1.5 w-1.5 rounded-full",
-                  done ? "bg-green-500" : isRestDay ? "bg-muted-foreground/20" : "bg-amber-400/70"
+                  done
+                    ? "bg-green-500"
+                    : isRestDay
+                      ? "bg-muted-foreground/20"
+                      : "bg-amber-400/70"
                 )}
               />
               <span className="text-[9px] text-muted-foreground/40">
@@ -1759,7 +1830,7 @@ function WorkoutSmall({
 }
 
 function StreakSmall({ streak }: { streak: number }) {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const active = streak > 0
   return (
     <Card className="h-full">
@@ -1768,20 +1839,30 @@ function StreakSmall({ streak }: { streak: number }) {
         className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
       >
         <div className="flex w-full items-start justify-between">
-          <p className="text-[10px] font-semibold text-muted-foreground/50">Streak</p>
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Streak
+          </p>
           <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
         </div>
         <div className="flex items-end gap-2">
           <Fire
             size={22}
             weight={active ? "fill" : "regular"}
-            style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 20%, transparent)" }}
+            style={{
+              color: active
+                ? "#f97316"
+                : "color-mix(in srgb, var(--foreground) 20%, transparent)",
+            }}
             className={DASHBOARD_SMALL_METRIC_ICON_CLASS}
           />
           <div>
             <span
-              className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight"
-              style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 35%, transparent)" }}
+              className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums"
+              style={{
+                color: active
+                  ? "#f97316"
+                  : "color-mix(in srgb, var(--foreground) 35%, transparent)",
+              }}
             >
               {streak}
             </span>
@@ -1795,7 +1876,13 @@ function StreakSmall({ streak }: { streak: number }) {
   )
 }
 
-function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => void }) {
+function FoodSmall({
+  entries,
+  onAdd,
+}: {
+  entries: FoodLogEntry[]
+  onAdd: () => void
+}) {
   const [expanded, setExpanded] = useState(false)
   const pressStartRef = useRef<number>(0)
   const isPressingRef = useRef(false)
@@ -1850,18 +1937,24 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
   }, [])
 
   // Group entries by meal category
-  const sorted = [...entries].sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+  const sorted = [...entries].sort((a, b) =>
+    a.loggedAt.localeCompare(b.loggedAt)
+  )
   const byMeal = new Map<string, FoodLogEntry[]>()
   for (const e of sorted) {
     if (!byMeal.has(e.meal)) byMeal.set(e.meal, [])
     byMeal.get(e.meal)!.push(e)
   }
-  const groups = DEFAULT_MEAL_CATEGORIES
-    .filter((c) => byMeal.has(c.id))
-    .map((c) => ({ cfg: c, entries: byMeal.get(c.id)! }))
+  const groups = DEFAULT_MEAL_CATEGORIES.filter((c) => byMeal.has(c.id)).map(
+    (c) => ({ cfg: c, entries: byMeal.get(c.id)! })
+  )
 
   const macroTotals = entries.reduce(
-    (acc, e) => ({ p: acc.p + e.protein, c: acc.c + e.carbs, f: acc.f + e.fat }),
+    (acc, e) => ({
+      p: acc.p + e.protein,
+      c: acc.c + e.carbs,
+      f: acc.f + e.fat,
+    }),
     { p: 0, c: 0, f: 0 }
   )
 
@@ -1876,19 +1969,25 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
         className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
       >
         {/* Base state */}
-        <div className={cn(
-          "flex w-full items-start justify-between transition-opacity duration-200",
-          expanded && "opacity-0"
-        )}>
-          <p className="text-[10px] font-semibold text-muted-foreground/50">Food</p>
+        <div
+          className={cn(
+            "flex w-full items-start justify-between transition-opacity duration-200",
+            expanded && "opacity-0"
+          )}
+        >
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Food
+          </p>
           <Plus size={10} className="mt-0.5 text-muted-foreground/25" />
         </div>
-        <div className={cn(
-          "transition-opacity duration-200",
-          expanded && "opacity-0"
-        )}>
+        <div
+          className={cn(
+            "transition-opacity duration-200",
+            expanded && "opacity-0"
+          )}
+        >
           <div className="flex items-baseline gap-1">
-            <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+            <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
               {fmtKcal(total)}
             </span>
             <span className="text-[9.5px] text-muted-foreground/40">kcal</span>
@@ -1901,15 +2000,19 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
         </div>
 
         {/* Expanded "Logged today" view */}
-        <div className={cn(
-          "absolute inset-0 flex flex-col overflow-hidden transition-all duration-250 ease-out",
-          expanded
-            ? "opacity-100 translate-y-0"
-            : "opacity-0 translate-y-2 pointer-events-none"
-        )}>
+        <div
+          className={cn(
+            "absolute inset-0 flex flex-col overflow-hidden transition-all duration-250 ease-out",
+            expanded
+              ? "translate-y-0 opacity-100"
+              : "pointer-events-none translate-y-2 opacity-0"
+          )}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-3.5 pt-3">
-            <p className="text-[10px] font-semibold text-muted-foreground/50">Logged today</p>
+            <p className="text-[10px] font-semibold text-muted-foreground/50">
+              Logged today
+            </p>
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -1928,7 +2031,9 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
             {entries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-4 text-center">
                 <ForkKnife size={20} className="text-muted-foreground/20" />
-                <p className="mt-1.5 text-[11px] text-muted-foreground/40">Nothing logged yet</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground/40">
+                  Nothing logged yet
+                </p>
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
@@ -1963,16 +2068,21 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
 
                 {/* Macro totals */}
                 <div className="mt-1 flex items-center gap-3 border-t border-border/25 pt-2">
-                  <span className="text-[8.5px] font-semibold text-muted-foreground/35">Total</span>
+                  <span className="text-[8.5px] font-semibold text-muted-foreground/35">
+                    Total
+                  </span>
                   <div className="flex items-baseline gap-2">
                     <span className="text-[12px] font-bold tabular-nums">
                       {total}
                     </span>
-                    <span className="text-[9px] text-muted-foreground/40">kcal</span>
+                    <span className="text-[9px] text-muted-foreground/40">
+                      kcal
+                    </span>
                   </div>
                   {macroTotals.p > 0 && (
                     <span className="text-[9px] text-muted-foreground/30 tabular-nums">
-                      P{Math.round(macroTotals.p)} C{Math.round(macroTotals.c)} F{Math.round(macroTotals.f)}g
+                      P{Math.round(macroTotals.p)} C{Math.round(macroTotals.c)}{" "}
+                      F{Math.round(macroTotals.f)}g
                     </span>
                   )}
                 </div>
@@ -1985,11 +2095,19 @@ function FoodSmall({ entries, onAdd }: { entries: FoodLogEntry[]; onAdd: () => v
   )
 }
 
-function ProgressSmall({ measurements }: { measurements: Array<{ weightKg?: number; loggedAt: string }> | null | undefined }) {
-  const navigate = useNavigate()
-  const latest = measurements && measurements.length > 0
-    ? measurements[measurements.length - 1]
-    : null
+function ProgressSmall({
+  measurements,
+}: {
+  measurements:
+    | Array<{ weightKg?: number; loggedAt: string }>
+    | null
+    | undefined
+}) {
+  const navigate = useSmoothNavigate()
+  const latest =
+    measurements && measurements.length > 0
+      ? measurements[measurements.length - 1]
+      : null
 
   return (
     <Card className="h-full">
@@ -1998,27 +2116,36 @@ function ProgressSmall({ measurements }: { measurements: Array<{ weightKg?: numb
         className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
       >
         <div className="flex w-full items-start justify-between">
-          <p className="text-[10px] font-semibold text-muted-foreground/50">Progress</p>
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Progress
+          </p>
           <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
         </div>
         <div>
           {latest?.weightKg != null ? (
             <>
               <div className="flex items-baseline gap-1">
-                <span className="text-[1.35rem] font-bold tabular-nums leading-none tracking-tight">
+                <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
                   {latest.weightKg.toFixed(1)}
                 </span>
-                <span className="text-[9.5px] text-muted-foreground/40">kg</span>
+                <span className="text-[9.5px] text-muted-foreground/40">
+                  kg
+                </span>
               </div>
               <p className="mt-0.5 text-[9px] text-muted-foreground/35">
-                {new Date(`${latest.loggedAt}T12:00:00Z`).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {new Date(`${latest.loggedAt}T12:00:00Z`).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                  }
+                )}
               </p>
             </>
           ) : (
-            <p className="text-[11px] text-muted-foreground/40">Tap to check in</p>
+            <p className="text-[11px] text-muted-foreground/40">
+              Tap to check in
+            </p>
           )}
         </div>
       </button>
@@ -2059,10 +2186,7 @@ function SortableWidget({
         opacity: isDragging ? 0.45 : 1,
         zIndex: isDragging ? 50 : undefined,
       }}
-      className={cn(
-        "relative",
-        size === "full" ? "col-span-2" : "col-span-1",
-      )}
+      className={cn("relative", size === "full" ? "col-span-2" : "col-span-1")}
     >
       {children}
       {editMode && (
@@ -2083,9 +2207,11 @@ function SortableWidget({
             className="pointer-events-auto flex w-10 shrink-0 items-center justify-center bg-foreground/[0.07] text-muted-foreground/50 transition-colors active:bg-foreground/[0.13]"
             aria-label={size === "full" ? "Shrink to half" : "Expand to full"}
           >
-            {size === "full"
-              ? <ArrowsInSimple size={13} weight="bold" />
-              : <ArrowsOutSimple size={13} weight="bold" />}
+            {size === "full" ? (
+              <ArrowsInSimple size={13} weight="bold" />
+            ) : (
+              <ArrowsOutSimple size={13} weight="bold" />
+            )}
           </button>
         </div>
       )}
@@ -2096,7 +2222,7 @@ function SortableWidget({
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const { data: session } = authClient.useSession()
   const [dayOffset, setDayOffset] = useState(0)
 
@@ -2126,16 +2252,32 @@ export default function App() {
     date: selectedDate,
   })
 
-  const syncTimezone = useOfflineMutation(api.users.users.syncTimezone, "users.users.syncTimezone")
-  const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
-  const addWaterEntry = useOfflineMutation(api.logs.water.addEntry, "logs.water.addEntry")
+  const syncTimezone = useOfflineMutation(
+    api.users.users.syncTimezone,
+    "users.users.syncTimezone"
+  )
+  const setDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
+  )
+  const addWaterEntry = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
+  )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
-  const saveWidgetLayout = useOfflineMutation(api.users.users.setWidgetLayout, "users.users.setWidgetLayout")
+  const saveWidgetLayout = useOfflineMutation(
+    api.users.users.setWidgetLayout,
+    "users.users.setWidgetLayout"
+  )
 
   // ── Dashboard settings ───────────────────────────────────────────────────
 
   const settings: DashboardSettings = useMemo(() => {
-    return (preferences?.dashboardSettings as DashboardSettings) || { workoutFocus: "strength" }
+    return (
+      (preferences?.dashboardSettings as DashboardSettings) || {
+        workoutFocus: "strength",
+      }
+    )
   }, [preferences])
 
   // ── Widget layout ─────────────────────────────────────────────────────────
@@ -2173,7 +2315,7 @@ export default function App() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
   // ── Mappings ──────────────────────────────────────────────────────────────
@@ -2212,11 +2354,21 @@ export default function App() {
     return (schedule?.routine as Routine) || EMPTY_WORKOUT_ROUTINE
   }, [schedule])
 
-  const workoutLogs = useMemo(() => workoutLogsQuery ? [workoutLogsQuery] as unknown as CachedWorkoutLog[] : [], [workoutLogsQuery])
-  const foodEntries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
+  const workoutLogs = useMemo(
+    () =>
+      workoutLogsQuery
+        ? ([workoutLogsQuery] as unknown as CachedWorkoutLog[])
+        : [],
+    [workoutLogsQuery]
+  )
+  const foodEntries = useMemo(
+    () => (foodLogs ?? []) as FoodLogEntry[],
+    [foodLogs]
+  )
   const waterEntries = useMemo(
-    () => (waterLogs ?? []) as { id: string; amountMl: number; loggedAt: string }[],
-    [waterLogs],
+    () =>
+      (waterLogs ?? []) as { id: string; amountMl: number; loggedAt: string }[],
+    [waterLogs]
   )
 
   const loading =
@@ -2227,11 +2379,15 @@ export default function App() {
   const now = new Date()
 
   const workoutDates = useMemo(
-    () => new Set((workoutHistory ?? []).map((log: { date: string }) => log.date)),
+    () =>
+      new Set((workoutHistory ?? []).map((log: { date: string }) => log.date)),
     [workoutHistory]
   )
   const streak = useMemo(() => calcStreak(workoutDates, now), [workoutDates])
-  const workoutsThisWeek = useMemo(() => calcWorkoutsThisWeek(workoutDates, now), [workoutDates])
+  const workoutsThisWeek = useMemo(
+    () => calcWorkoutsThisWeek(workoutDates, now),
+    [workoutDates]
+  )
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
@@ -2260,19 +2416,23 @@ export default function App() {
 
   const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
   const waterGoalMl = preferences?.waterGoalMl ?? 2500
-  const waterTotalMl = waterEntries.reduce((sum, entry) => sum + entry.amountMl, 0)
+  const waterTotalMl = waterEntries.reduce(
+    (sum, entry) => sum + entry.amountMl,
+    0
+  )
   const caloriesTarget = calorieInfo?.target ?? 2000
   const caloriesLeft = Math.round(caloriesTarget - foodTotals.calories)
   const activeWorkout = activeWorkouts?.[0] ?? null
-  const workoutState =
-    activeWorkout
-      ? "Active"
-      : workoutLogs.length > 0
-        ? "Done"
-        : scheduledWorkout
-          ? "Ready"
-          : "Rest"
-  const workoutActionLabel = activeWorkout ? "Continue workout" : "Start workout"
+  const workoutState = activeWorkout
+    ? "Active"
+    : workoutLogs.length > 0
+      ? "Done"
+      : scheduledWorkout
+        ? "Ready"
+        : "Rest"
+  const workoutActionLabel = activeWorkout
+    ? "Continue workout"
+    : "Start workout"
   const workoutActionDetail = activeWorkout
     ? "Resume active session"
     : scheduledWorkout
@@ -2339,7 +2499,7 @@ export default function App() {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
+    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
         <TodayHeader
           dateLabel={dateLabel}
@@ -2354,18 +2514,23 @@ export default function App() {
         />
 
         {bodyMeasurements !== undefined && bodyMeasurements.length === 0 && (
-          <CheckInPrompt 
-            reminderEnabled={preferences?.bodyReminder?.enabled ?? false} 
-            reminderLabel={preferences?.bodyReminder ? formatReminderLabel(preferences.bodyReminder) : ""}
+          <CheckInPrompt
+            reminderEnabled={preferences?.bodyReminder?.enabled ?? false}
+            reminderLabel={
+              preferences?.bodyReminder
+                ? formatReminderLabel(preferences.bodyReminder)
+                : ""
+            }
           />
         )}
 
         <PrimaryActionGrid
           food={{
             label: "Log food",
-            detail: foodEntries.length > 0
-              ? `${foodEntries.length} logged`
-              : "Search or scan",
+            detail:
+              foodEntries.length > 0
+                ? `${foodEntries.length} logged`
+                : "Search or scan",
             onClick: () => navigate("/foods"),
           }}
           workout={{
@@ -2415,8 +2580,9 @@ export default function App() {
 
                   if (widget.id === "calories") {
                     const foodTotals = totalsForEntries(foodEntries)
-                    content = widget.size === "full"
-                      ? <CalorieCard
+                    content =
+                      widget.size === "full" ? (
+                        <CalorieCard
                           info={calorieInfo}
                           loading={loading}
                           entries={foodEntries}
@@ -2424,7 +2590,8 @@ export default function App() {
                           timeZone={activeTimezone}
                           onDayOffsetChange={setDayOffset}
                         />
-                      : <CalorieSmall
+                      ) : (
+                        <CalorieSmall
                           consumed={foodTotals.calories}
                           target={calorieInfo?.target ?? 0}
                           protein={foodTotals.protein}
@@ -2432,50 +2599,84 @@ export default function App() {
                           fat={foodTotals.fat}
                           onAdd={() => setHomeAddOpen(true)}
                         />
+                      )
                   } else if (widget.id === "water") {
-                    content = widget.size === "full"
-                      ? <WaterWidget dateKey={selectedDate} />
-                      : <WaterSmall dateKey={selectedDate} goalMl={preferences?.waterGoalMl ?? 2500} />
+                    content =
+                      widget.size === "full" ? (
+                        <WaterWidget dateKey={selectedDate} />
+                      ) : (
+                        <WaterSmall
+                          dateKey={selectedDate}
+                          goalMl={preferences?.waterGoalMl ?? 2500}
+                        />
+                      )
                   } else if (widget.id === "workout") {
                     const done = workoutLogs.length > 0
                     const fallback = WORKOUTS[settings.workoutFocus]
                     const w = scheduledWorkout ?? fallback
                     const workoutName = "title" in w ? w.title : w.name
-                    content = widget.size === "full"
-                      ? <WorkoutCard
+                    content =
+                      widget.size === "full" ? (
+                        <WorkoutCard
                           settings={settings}
                           dayOffset={dayOffset}
                           scheduledWorkout={scheduledWorkout}
                           timeZone={activeTimezone}
                           workoutLogs={dayOffset === 0 ? workoutLogs : []}
-                          collapsed={dayOffset === 0 ? todayWorkoutCollapsed : false}
+                          collapsed={
+                            dayOffset === 0 ? todayWorkoutCollapsed : false
+                          }
                           onToggleCollapse={() => {
-                            if (dayOffset === 0) setTodayWorkoutCollapsed((v) => !v)
+                            if (dayOffset === 0)
+                              setTodayWorkoutCollapsed((v) => !v)
                           }}
                           onDeleteSlot={(slot) => setConfirmDeleteSlot(slot)}
                         />
-                      : <WorkoutSmall
+                      ) : (
+                        <WorkoutSmall
                           done={dayOffset === 0 && done}
                           workoutName={workoutName}
-                          isRestDay={scheduledWorkout === null && dayOffset === 0}
+                          isRestDay={
+                            scheduledWorkout === null && dayOffset === 0
+                          }
                         />
+                      )
                   } else if (widget.id === "streak") {
-                    content = widget.size === "full" && workoutHistory !== undefined
-                      ? <StreakCard streak={streak} workoutsThisWeek={workoutsThisWeek} workoutDates={workoutDates} today={now} />
-                      : <StreakSmall streak={streak} />
+                    content =
+                      widget.size === "full" && workoutHistory !== undefined ? (
+                        <StreakCard
+                          streak={streak}
+                          workoutsThisWeek={workoutsThisWeek}
+                          workoutDates={workoutDates}
+                          today={now}
+                        />
+                      ) : (
+                        <StreakSmall streak={streak} />
+                      )
                   } else if (widget.id === "food") {
-                    content = widget.size === "full"
-                      ? <LoggedTodayCard
+                    content =
+                      widget.size === "full" ? (
+                        <LoggedTodayCard
                           dayOffset={dayOffset}
                           timeZone={activeTimezone}
                           entries={foodEntries}
-                          onEntriesChange={(entries) => void setDay({ date: selectedDate, entries })}
+                          onEntriesChange={(entries) =>
+                            void setDay({ date: selectedDate, entries })
+                          }
                         />
-                      : <FoodSmall entries={foodEntries} onAdd={() => setHomeAddOpen(true)} />
+                      ) : (
+                        <FoodSmall
+                          entries={foodEntries}
+                          onAdd={() => setHomeAddOpen(true)}
+                        />
+                      )
                   } else {
-                    content = widget.size === "full"
-                      ? <ProgressCard />
-                      : <ProgressSmall measurements={bodyMeasurements} />
+                    content =
+                      widget.size === "full" ? (
+                        <ProgressCard />
+                      ) : (
+                        <ProgressSmall measurements={bodyMeasurements} />
+                      )
                   }
 
                   return (
@@ -2580,7 +2781,10 @@ export default function App() {
                 className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
               >
                 <div className="flex items-center gap-2.5">
-                  <MagnifyingGlass size={13} className="shrink-0 text-muted-foreground/50" />
+                  <MagnifyingGlass
+                    size={13}
+                    className="shrink-0 text-muted-foreground/50"
+                  />
                   <span className="text-[13px] font-medium">Search Food</span>
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
@@ -2594,7 +2798,10 @@ export default function App() {
                 className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
               >
                 <div className="flex items-center gap-2.5">
-                  <ForkKnife size={13} className="shrink-0 text-muted-foreground/50" />
+                  <ForkKnife
+                    size={13}
+                    className="shrink-0 text-muted-foreground/50"
+                  />
                   <span className="text-[13px] font-medium">New Recipe</span>
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
@@ -2608,7 +2815,10 @@ export default function App() {
                 className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
               >
                 <div className="flex items-center gap-2.5">
-                  <Barbell size={13} className="shrink-0 text-muted-foreground/50" />
+                  <Barbell
+                    size={13}
+                    className="shrink-0 text-muted-foreground/50"
+                  />
                   <span className="text-[13px] font-medium">Log Workout</span>
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
@@ -2645,12 +2855,16 @@ export default function App() {
                 Delete workout?
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                This will remove the workout from your log. This cannot be undone.
+                This will remove the workout from your log. This cannot be
+                undone.
               </p>
               <div className="mt-6 flex flex-col gap-2">
                 <button
                   onClick={() => {
-                    void removeWorkoutBySlot({ date: selectedDate, slot: confirmDeleteSlot })
+                    void removeWorkoutBySlot({
+                      date: selectedDate,
+                      slot: confirmDeleteSlot,
+                    })
                     setConfirmDeleteSlot(null)
                   }}
                   className="h-12 w-full rounded-xl bg-red-500/90 text-[14px] font-bold text-white transition-opacity active:opacity-80"

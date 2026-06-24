@@ -1,10 +1,10 @@
 import { useEffect } from "react"
-import { useNavigate } from "react-router"
 import { authClient } from "@/lib/auth-client"
+import { useSmoothNavigate } from "@/lib/navigation"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { data: session, isPending } = authClient.useSession()
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
 
   useEffect(() => {
     if (!isPending && !session) {

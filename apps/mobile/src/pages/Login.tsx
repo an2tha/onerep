@@ -5,8 +5,8 @@ import {
   type ReactNode,
   type SVGProps,
 } from "react"
-import { useNavigate } from "react-router"
 import { authClient } from "@/lib/auth-client"
+import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 
 type LoginMode = "signin" | "signup"
@@ -201,7 +201,7 @@ function IntroIllustration({ index }: { index: number }) {
 }
 
 export default function Login() {
-  const navigate = useNavigate()
+  const navigate = useSmoothNavigate()
   const posthog = usePostHog()
   const { data: session, isPending } = authClient.useSession()
   const [mode, setMode] = useState<LoginMode>("signin")
@@ -390,7 +390,11 @@ export default function Login() {
     <div className="min-h-svh bg-background text-foreground">
       <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
         <header className="mb-8 flex flex-col items-center short-phone:mb-5">
-          <img src="/app-icon.svg" alt="" className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9" />
+          <img
+            src="/app-icon.svg"
+            alt=""
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+          />
           <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
@@ -419,7 +423,10 @@ export default function Login() {
             })}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-2.5 short-phone:space-y-2">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-2.5 short-phone:space-y-2"
+          >
             {mode === "signup" && (
               <label className={FIELD_CLASS}>
                 <span className={LABEL_CLASS}>Name</span>
