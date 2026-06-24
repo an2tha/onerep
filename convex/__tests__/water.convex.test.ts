@@ -251,3 +251,66 @@ describe("addEntry Convex mutation", () => {
     });
   });
 });
+
+// ── removeEntry mutation tests ────────────────────────────────────────────────
+
+describe("removeEntry Convex mutation", () => {
+  test("removeEntry throws when unauthenticated", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.mutation(api.logs.water.removeEntry, {
+        date: "2024-01-15",
+        id: "entry-1",
+      })
+    ).rejects.toThrow();
+  });
+
+  test("removeEntry deletes only the matching entry", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "test-user" }, async () => {
+      await t.mutation(api.logs.water.addEntry, {
+        date: "2024-05-01",
+        entry: { id: "entry-a", amountMl: 250, loggedAt: "2024-05-01T08:00:00Z" },
+      });
+      await t.mutation(api.logs.water.addEntry, {
+        date: "2024-05-01",
+        entry: { id: "entry-b", amountMl: 500, loggedAt: "2024-05-01T09:00:00Z" },
+      });
+
+      const result = await t.mutation(api.logs.water.removeEntry, {
+        date: "2024-05-01",
+        id: "entry-a",
+      });
+      expect(result).toEqual({ ok: true });
+    });
+
+    await t.withIdentity({ name: "test-user" }, async () => {
+      const entries = await t.query(api.logs.water.getDay, { date: "2024-05-01" }) as any[];
+      expect(entries).toHaveLength(1);
+      expect(entries[0].id).toBe("entry-b");
+    });
+  });
+
+  test("removeEntry is safe for missing entry ids", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "test-user" }, async () => {
+      await t.mutation(api.logs.water.addEntry, {
+        date: "2024-05-02",
+        entry: { id: "entry-a", amountMl: 250, loggedAt: "2024-05-02T08:00:00Z" },
+      });
+
+      await expect(
+        t.mutation(api.logs.water.removeEntry, {
+          date: "2024-05-02",
+          id: "missing",
+        })
+      ).resolves.toEqual({ ok: true });
+
+      const entries = await t.query(api.logs.water.getDay, { date: "2024-05-02" }) as any[];
+      expect(entries).toHaveLength(1);
+      expect(entries[0].id).toBe("entry-a");
+    });
+  });
+});

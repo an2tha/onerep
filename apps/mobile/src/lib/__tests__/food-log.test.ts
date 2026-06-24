@@ -6,10 +6,16 @@ import {
   dateForOffset,
   offsetDateKey,
   currentDateKey,
+  defaultFoodPortion,
   detectTimeZone,
+  foodPortionLabel,
+  gramsFromFoodPortion,
+  nutritionDetailTotals,
+  parseFoodPortionLabel,
   readAllMealCategories,
   addMealCategory,
   removeMealCategory,
+  type FoodLogEntry,
 } from "../food-log";
 
 // ── DEFAULT_MEAL_CATEGORIES ───────────────────────────────────────────────────
@@ -65,6 +71,88 @@ describe("defaultMeal", () => {
     const meal = defaultMeal();
     const validMeals = ["breakfast", "lunch", "dinner", "snack"];
     expect(validMeals).toContain(meal);
+  });
+});
+
+describe("food portion units", () => {
+  test("parses metric liquid portions", () => {
+    expect(parseFoodPortionLabel("250 ml")).toEqual({
+      amount: 250,
+      unit: "ml",
+      grams: 250,
+    });
+  });
+
+  test("converts cups and fluid ounces to backing grams", () => {
+    expect(gramsFromFoodPortion(1, "cup")).toBe(240);
+    expect(gramsFromFoodPortion(8, "fl_oz")).toBe(236.6);
+  });
+
+  test("displays liquid foods in ml when source only has generic 100 g", () => {
+    const portion = defaultFoodPortion("100 g", "Orange juice");
+    expect(portion).toEqual({ amount: 100, unit: "ml", grams: 100 });
+    expect(foodPortionLabel(portion)).toBe("100 ml");
+  });
+});
+
+function foodEntry(overrides: Partial<FoodLogEntry>): FoodLogEntry {
+  return {
+    id: "entry",
+    name: "Food",
+    calories: 0,
+    protein: 0,
+    carbs: 0,
+    fat: 0,
+    loggedAt: "2026-01-01T12:00:00.000Z",
+    meal: "breakfast",
+    ...overrides,
+  };
+}
+
+describe("nutritionDetailTotals", () => {
+  test("uses logged micronutrient fields before source fallback data", () => {
+    const totals = nutritionDetailTotals([
+      foodEntry({
+        calories: 100,
+        fiber: 3,
+        sodium: 125,
+        openFoodFacts: {
+          code: "direct",
+          nutriments: {
+            "energy-kcal_100g": 100,
+            fiber_100g: 99,
+            sodium_100g: 1,
+            sodium_unit: "g",
+          },
+        },
+      }),
+    ]);
+
+    expect(totals.fiber).toBe(3);
+    expect(totals.sodium).toBe(125);
+  });
+
+  test("derives source micronutrients using the logged calorie scale", () => {
+    const totals = nutritionDetailTotals([
+      foodEntry({
+        calories: 250,
+        openFoodFacts: {
+          code: "scaled",
+          nutriments: {
+            "energy-kcal_100g": 500,
+            fiber_100g: 4,
+            sodium_100g: 0.8,
+            sodium_unit: "g",
+            calcium_100g: 80,
+            calcium_unit: "mg",
+          },
+        },
+      }),
+    ]);
+
+    expect(totals.fiber).toBe(2);
+    expect(totals.sodium).toBe(400);
+    expect(totals.calcium).toBe(40);
   });
 });
 
@@ -180,12 +268,15 @@ describe("meal category localStorage helpers", () => {
     for (const key of Object.keys(store)) delete store[key];
 
     // Install mock
-    (globalThis as any).localStorage = {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
       getItem: (key: string) => store[key] ?? null,
       setItem: (key: string, value: string) => { store[key] = value; },
       removeItem: (key: string) => { delete store[key]; },
       clear: () => { for (const k of Object.keys(store)) delete store[k]; },
-    };
+      },
+    });
   });
 
   test("readAllMealCategories includes default categories", () => {

@@ -1,5 +1,6 @@
 import { convexClient } from "@/lib/convex"
 import { api } from "../../../../convex/_generated/api"
+import { parseFoodPortionLabel } from "@/lib/food-log"
 import type {
   FoodDetail,
   FoodResult,
@@ -96,6 +97,9 @@ function parseServingGrams(product: OpenFoodFactsProduct): number | null {
 
   const servingSize = product.serving_size ?? product.quantity
   if (!servingSize) return null
+
+  const parsedPortion = parseFoodPortionLabel(servingSize)
+  if (parsedPortion) return parsedPortion.grams
 
   const match = servingSize.match(/([0-9]+(?:[.,][0-9]+)?)\s*g\b/i)
   if (!match) return null
@@ -220,6 +224,12 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
         "g"
       ),
       nutrientRow(
+        "trans-fat",
+        "Trans Fat",
+        nutrientValue(product, "trans-fat"),
+        "g"
+      ),
+      nutrientRow(
         "sodium",
         "Sodium",
         nutrientValue(product, "sodium"),
@@ -252,10 +262,58 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
         nutrientUnit(product, "potassium", "mg")
       ),
       nutrientRow(
+        "magnesium",
+        "Magnesium",
+        nutrientValue(product, "magnesium"),
+        nutrientUnit(product, "magnesium", "mg")
+      ),
+      nutrientRow(
+        "phosphorus",
+        "Phosphorus",
+        nutrientValue(product, "phosphorus"),
+        nutrientUnit(product, "phosphorus", "mg")
+      ),
+      nutrientRow(
+        "zinc",
+        "Zinc",
+        nutrientValue(product, "zinc"),
+        nutrientUnit(product, "zinc", "mg")
+      ),
+      nutrientRow(
         "vitaminC",
         "Vitamin C",
         nutrientValue(product, "vitamin-c"),
         nutrientUnit(product, "vitamin-c", "mg")
+      ),
+      nutrientRow(
+        "vitamin-a",
+        "Vitamin A",
+        nutrientValue(product, "vitamin-a"),
+        nutrientUnit(product, "vitamin-a", "mcg")
+      ),
+      nutrientRow(
+        "vitamin-d",
+        "Vitamin D",
+        nutrientValue(product, "vitamin-d"),
+        nutrientUnit(product, "vitamin-d", "mcg")
+      ),
+      nutrientRow(
+        "vitamin-b12",
+        "Vitamin B12",
+        nutrientValue(product, "vitamin-b12"),
+        nutrientUnit(product, "vitamin-b12", "mcg")
+      ),
+      nutrientRow(
+        "caffeine",
+        "Caffeine",
+        nutrientValue(product, "caffeine"),
+        nutrientUnit(product, "caffeine", "mg")
+      ),
+      nutrientRow(
+        "alcohol",
+        "Alcohol",
+        nutrientValue(product, "alcohol"),
+        nutrientUnit(product, "alcohol", "g")
       ),
     ].filter((n) => n.per100g > 0),
   }

@@ -8,7 +8,6 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
-  Check,
   DotsSixVertical,
   Fire,
   ForkKnife,
@@ -18,7 +17,6 @@ import {
   PintGlass,
   Play,
   Plus,
-  Sliders,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -51,6 +49,14 @@ import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
 import { BottomBar } from "@/components/bottom-bar"
+import {
+  DailySummaryStrip,
+  InsightWidgets,
+  PrimaryActionGrid,
+  TodayHeader,
+  TodayTimeline,
+  type TimelineEvent,
+} from "@/components/home"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import {
@@ -75,6 +81,12 @@ import {
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
 import {
+  filledWaterGlassCount,
+  waterAmountNeededForGlass,
+  WATER_GLASS_COUNT,
+  waterGlassTargetMl,
+} from "@/lib/water-glasses"
+import {
   Calendar,
   Card,
   CardTitle,
@@ -82,7 +94,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
-import Settings from "./pages/Settings"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +107,7 @@ type CalorieInfo = {
   protein: number
   carbs: number
   fat: number
+  source: "healthProfile" | "onboarding" | "default"
   isTrainingDay?: boolean
   burnedCalories?: number
 }
@@ -103,6 +115,10 @@ type CalorieInfo = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MIN_DAY_OFFSET = -6 // how far back history goes
+const DASHBOARD_EMPTY_ICON_CLASS = "size-7 shrink-0 md:size-6"
+const DASHBOARD_TILE_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
+const DASHBOARD_METRIC_ICON_CLASS = "size-8 shrink-0 md:size-6"
+const DASHBOARD_SMALL_METRIC_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
 
 const EMPTY_WORKOUT_ROUTINE: Routine = {
   Mon: null,
@@ -262,7 +278,7 @@ function CheckInPrompt({ reminderEnabled, reminderLabel }: { reminderEnabled: bo
   return (
     <button
       onClick={() => navigate("/progress")}
-      className="relative mx-4 mb-3 overflow-hidden rounded-[26px] bg-foreground px-4 pt-3.5 pb-4 text-left text-background transition-opacity active:opacity-80"
+      className="relative mx-4 mt-3 mb-2.5 overflow-hidden rounded-[20px] bg-foreground px-4 py-3 text-left text-background transition-opacity active:opacity-80 md:mb-3 md:rounded-[26px] md:px-4 md:pt-3.5 md:pb-4"
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.055]"
@@ -271,22 +287,27 @@ function CheckInPrompt({ reminderEnabled, reminderLabel }: { reminderEnabled: bo
             "repeating-linear-gradient(90deg, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 6px)",
         }}
       />
-      <div className="pointer-events-none absolute top-3 right-3 h-14 w-14 rounded-full border border-background/12" />
-      <div className="pointer-events-none absolute top-5 right-5 h-10 w-10 rounded-full border border-background/10" />
+      <div className="pointer-events-none absolute top-3 right-3 h-14 w-14 rounded-full border border-background/12 md:h-12 md:w-12" />
+      <div className="pointer-events-none absolute top-5 right-5 h-10 w-10 rounded-full border border-background/10 md:h-8 md:w-8" />
 
-      <div className="relative min-w-0">
-        <p className="mt-2 text-[17px] leading-snug font-semibold tracking-tight">
-          Log your first
-          <br />
-          body snapshot
-        </p>
-        <p className="mt-2 max-w-[15rem] text-[11.5px] leading-relaxed text-background/62">
-          Weight, waist, and body-fat trends start here.
-          {reminderEnabled ? ` ${reminderLabel}.` : ""}
-        </p>
+      <div className="relative flex min-w-0 items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[15px] leading-tight font-semibold tracking-tight md:mt-2 md:text-[17px]">
+            Log body snapshot
+          </p>
+          <p className="mt-1 max-w-[15rem] text-[11px] leading-snug text-background/62 md:mt-2 md:text-[11.5px] md:leading-relaxed">
+            Weight, waist, and body-fat trends.
+            {reminderEnabled ? ` ${reminderLabel}.` : ""}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-background/10 px-3 py-2 text-[11px] font-semibold text-background ring-1 ring-background/12">
+          Check in
+        </span>
       </div>
-      <div className="relative mt-3 inline-flex items-center rounded-full bg-background/10 px-3 py-1.5 text-[11px] font-semibold text-background ring-1 ring-background/12">
-        Check in
+      <div className="sr-only">
+        <p>
+          Log your first body snapshot
+        </p>
       </div>
     </button>
   )
@@ -388,8 +409,15 @@ function CalorieCard({
   }, [dayOffset, loading])
 
   const target = info?.target ?? 1840
-  const bmr = info?.bmr ?? 1480
-  const tdee = info?.tdee ?? 2100
+  const hasCalculatedBaseline = (info?.bmr ?? 0) > 0 && (info?.tdee ?? 0) > 0
+  const bmr = hasCalculatedBaseline ? info!.bmr : 1480
+  const tdee = hasCalculatedBaseline ? info!.tdee : 2100
+  const sourceLabel =
+    info?.source === "healthProfile"
+      ? "profile"
+      : info?.source === "onboarding"
+        ? "estimated"
+        : "default"
   const consumedTotals = totalsForEntries(entries)
   const consumed = consumedTotals.calories
   const remaining = Math.max(0, target - consumed)
@@ -481,7 +509,7 @@ function CalorieCard({
               />
             </div>
             <p className="mt-1 text-[9.5px] text-muted-foreground/30 tabular-nums">
-              of {fmtKcal(target)} goal
+              of {fmtKcal(target)} {sourceLabel} goal
             </p>
 
             {/* Macro pills row */}
@@ -543,7 +571,7 @@ function CalorieCard({
                     breakdownOpen && "rotate-180"
                   )}
                 />
-                BMR/TDEE
+                {hasCalculatedBaseline ? "BMR/TDEE" : "Est. BMR/TDEE"}
               </button>
             </div>
 
@@ -806,7 +834,10 @@ function WorkoutCard({
               <>
                 {isRestDay ? (
                   <div className="flex flex-col items-center gap-2 py-5 text-center">
-                    <Barbell size={28} className="text-muted-foreground/20" />
+                    <Barbell
+                      size={28}
+                      className={cn(DASHBOARD_EMPTY_ICON_CLASS, "text-muted-foreground/20")}
+                    />
                     <p className="text-[16px] font-semibold tracking-tight">
                       Rest day
                     </p>
@@ -874,8 +905,14 @@ function SwipeRow({
 }) {
   const [tx, setTx] = React.useState(0)
   const startX = React.useRef(0)
+  const txRef = React.useRef(0)
   const dragging = React.useRef(false)
-  const THRESHOLD = 72
+  const ACTION_WIDTH = 72
+
+  function setTranslate(next: number) {
+    txRef.current = next
+    setTx(next)
+  }
 
   function onPointerDown(e: React.PointerEvent) {
     startX.current = e.clientX
@@ -885,26 +922,32 @@ function SwipeRow({
 
   function onPointerMove(e: React.PointerEvent) {
     if (!dragging.current) return
-    const delta = Math.min(0, e.clientX - startX.current)
-    setTx(delta)
+    setTranslate(
+      Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current))
+    )
   }
 
   function onPointerUp() {
     dragging.current = false
-    if (tx < -THRESHOLD) setTx(-THRESHOLD)
-    else setTx(0)
+    setTranslate(txRef.current <= -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0)
   }
 
-  const revealed = tx <= -THRESHOLD
+  const revealed = tx <= -ACTION_WIDTH
 
   return (
     <div className="relative overflow-hidden">
-      <div
-        className="absolute inset-y-0 right-0 flex w-16 items-center justify-center bg-destructive/90"
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onDelete}
+        disabled={!revealed}
+        tabIndex={revealed ? 0 : -1}
+        aria-label={`Delete ${entry.name}`}
+        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive/90 text-white transition-opacity disabled:pointer-events-none disabled:opacity-0"
         style={{ borderRadius: "0 8px 8px 0" }}
       >
         <Trash size={14} weight="fill" className="text-white" />
-      </div>
+      </button>
       <div
         className="relative flex touch-pan-y items-center gap-2 bg-background py-[5px] transition-transform duration-150 ease-out"
         style={{ transform: `translateX(${tx}px)` }}
@@ -919,15 +962,6 @@ function SwipeRow({
         <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
           {entry.calories}
         </span>
-        {revealed && (
-          <button
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onDelete}
-            className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-destructive transition-colors active:bg-destructive/30"
-          >
-            <X size={9} weight="bold" />
-          </button>
-        )}
       </div>
     </div>
   )
@@ -986,6 +1020,7 @@ function LoggedTodayCard({
           <div className="flex flex-col items-center gap-2 py-5 text-center">
             <ForkKnife
               size={28}
+              className={DASHBOARD_EMPTY_ICON_CLASS}
               style={{
                 color: "color-mix(in srgb, var(--foreground) 11%, transparent)",
               }}
@@ -1070,8 +1105,6 @@ function ProfileButton({
 
 // ─── Water widget ─────────────────────────────────────────────────────────────
 
-const WATER_GLASS_COUNT = 8
-
 function fmtWater(ml: number): string {
   if (ml >= 1000) {
     const l = ml / 1000
@@ -1082,6 +1115,7 @@ function fmtWater(ml: number): string {
 
 function WaterWidget({ dateKey }: { dateKey: string }) {
   const navigate = useNavigate()
+  const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
 
@@ -1090,12 +1124,31 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
 
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
-  const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
-  const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
+  const mlPerGlass = waterGlassTargetMl(goalMl, 1)
+  const filledCount = filledWaterGlassCount(totalMl, goalMl)
+  const previewFilledCount =
+    hoveredGlass === null ? filledCount : Math.max(filledCount, hoveredGlass + 1)
+
+  function addWater(amountMl: number) {
+    if (amountMl <= 0) return
+    const entry = {
+      id: crypto.randomUUID(),
+      amountMl,
+      loggedAt: new Date().toISOString(),
+    }
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+  }
 
   function addGlass() {
-    const entry = { id: crypto.randomUUID(), amountMl: mlPerGlass, loggedAt: new Date().toISOString() }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+    if (filledCount >= WATER_GLASS_COUNT) {
+      addWater(mlPerGlass)
+      return
+    }
+    addWater(waterAmountNeededForGlass(totalMl, goalMl, filledCount + 1))
+  }
+
+  function fillToGlass(index: number) {
+    addWater(waterAmountNeededForGlass(totalMl, goalMl, index + 1))
   }
 
   function removeLastEntry() {
@@ -1120,24 +1173,38 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
         </div>
 
         {/* 2×4 glass grid */}
-        <div className="grid grid-cols-4 gap-2">
+        <div
+          className="grid grid-cols-4 gap-2"
+          onPointerLeave={() => setHoveredGlass(null)}
+        >
           {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
             const filled = i < filledCount
+            const previewFilled = i < previewFilledCount
             return (
               <button
                 key={i}
-                onClick={filled ? removeLastEntry : addGlass}
+                onClick={filled ? removeLastEntry : () => fillToGlass(i)}
+                onPointerEnter={() => setHoveredGlass(i)}
+                onFocus={() => setHoveredGlass(i)}
+                onBlur={() => setHoveredGlass(null)}
                 className={cn(
                   "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95",
-                  filled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+                  previewFilled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
                 )}
-                aria-label={filled ? "Remove last water entry" : `Add ${mlPerGlass} ml`}
+                aria-label={
+                  filled
+                    ? "Remove last water entry"
+                    : `Fill to ${fmtWater(waterGlassTargetMl(goalMl, i + 1))}`
+                }
               >
                 <PintGlass
                   size={22}
-                  weight={filled ? "fill" : "regular"}
-                  style={{ color: filled ? "#38bdf8" : undefined }}
-                  className={filled ? undefined : "text-muted-foreground/20"}
+                  weight={previewFilled ? "fill" : "regular"}
+                  style={{ color: previewFilled ? "#38bdf8" : undefined }}
+                  className={cn(
+                    DASHBOARD_TILE_ICON_CLASS,
+                    !previewFilled && "text-muted-foreground/20"
+                  )}
                 />
               </button>
             )
@@ -1211,6 +1278,7 @@ function StreakCard({
               size={32}
               weight={active ? "fill" : "regular"}
               style={{ color: fireColor }}
+              className={DASHBOARD_METRIC_ICON_CLASS}
             />
             <span
               className="text-[22px] leading-none font-bold tabular-nums tracking-tight"
@@ -1469,16 +1537,27 @@ function CalorieSmall({
 }
 
 function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
+  const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const entries = (rawEntries ?? []) as { id: string; amountMl: number; loggedAt: string }[]
   const setWaterDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
-  const mlPerGlass = Math.round(goalMl / WATER_GLASS_COUNT)
-  const filledCount = Math.min(WATER_GLASS_COUNT, Math.floor(totalMl / mlPerGlass))
+  const filledCount = filledWaterGlassCount(totalMl, goalMl)
+  const previewFilledCount =
+    hoveredGlass === null ? filledCount : Math.max(filledCount, hoveredGlass + 1)
 
-  function addGlass() {
-    const entry = { id: crypto.randomUUID(), amountMl: mlPerGlass, loggedAt: new Date().toISOString() }
+  function addWater(amountMl: number) {
+    if (amountMl <= 0) return
+    const entry = {
+      id: crypto.randomUUID(),
+      amountMl,
+      loggedAt: new Date().toISOString(),
+    }
     void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+  }
+
+  function fillToGlass(index: number) {
+    addWater(waterAmountNeededForGlass(totalMl, goalMl, index + 1))
   }
 
   function removeLastGlass() {
@@ -1497,24 +1576,37 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
           </p>
         </div>
         <div>
-          <div className="grid grid-cols-4 gap-1">
+          <div
+            className="grid grid-cols-4 gap-1"
+            onPointerLeave={() => setHoveredGlass(null)}
+          >
             {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
               const filled = i < filledCount
+              const previewFilled = i < previewFilledCount
               return (
                 <button
                   key={i}
-                  onClick={filled ? removeLastGlass : addGlass}
+                  onClick={filled ? removeLastGlass : () => fillToGlass(i)}
+                  onPointerEnter={() => setHoveredGlass(i)}
+                  onFocus={() => setHoveredGlass(i)}
+                  onBlur={() => setHoveredGlass(null)}
                   className={cn(
                     "flex h-6 items-center justify-center rounded transition-all active:scale-90",
-                    filled ? "bg-[rgba(56,189,248,0.20)] active:bg-[rgba(56,189,248,0.32)]" : "bg-muted/25 active:bg-muted/50"
+                    previewFilled
+                      ? "bg-[rgba(56,189,248,0.20)] active:bg-[rgba(56,189,248,0.32)]"
+                      : "bg-muted/25 active:bg-muted/50"
                   )}
-                  aria-label={filled ? "Remove glass" : "Add glass"}
+                  aria-label={
+                    filled
+                      ? "Remove glass"
+                      : `Fill to ${fmtWater(waterGlassTargetMl(goalMl, i + 1))}`
+                  }
                 >
                   <PintGlass
                     size={11}
-                    weight={filled ? "fill" : "regular"}
-                    style={{ color: filled ? "#38bdf8" : undefined }}
-                    className={filled ? undefined : "text-muted-foreground/20"}
+                    weight={previewFilled ? "fill" : "regular"}
+                    style={{ color: previewFilled ? "#38bdf8" : undefined }}
+                    className={previewFilled ? undefined : "text-muted-foreground/20"}
                   />
                 </button>
               )
@@ -1684,6 +1776,7 @@ function StreakSmall({ streak }: { streak: number }) {
             size={22}
             weight={active ? "fill" : "regular"}
             style={{ color: active ? "#f97316" : "color-mix(in srgb, var(--foreground) 20%, transparent)" }}
+            className={DASHBOARD_SMALL_METRIC_ICON_CLASS}
           />
           <div>
             <span
@@ -2025,14 +2118,17 @@ export default function App() {
   const schedule = useQuery(api.users.schedules.get, {})
   const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
+  const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
+  const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
 
   const syncTimezone = useOfflineMutation(api.users.users.syncTimezone, "users.users.syncTimezone")
   const setDay = useOfflineMutation(api.logs.foodLogs.setDay, "logs.foodLogs.setDay")
+  const addWaterEntry = useOfflineMutation(api.logs.water.addEntry, "logs.water.addEntry")
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
   const saveWidgetLayout = useOfflineMutation(api.users.users.setWidgetLayout, "users.users.setWidgetLayout")
 
@@ -2082,16 +2178,17 @@ export default function App() {
 
   // ── Mappings ──────────────────────────────────────────────────────────────
 
-  const calorieInfo = useMemo(() => {
+  const calorieInfo = useMemo<CalorieInfo | null>(() => {
     if (!effectiveGoals) return null
-    const { effective } = effectiveGoals
+    const { effective, health } = effectiveGoals
     return {
       target: Math.round(effective.calories),
-      bmr: 0,
-      tdee: 0,
+      bmr: Math.round(health?.bmr ?? 0),
+      tdee: Math.round(health?.tdee ?? 0),
       protein: Math.round(effective.protein),
       carbs: Math.round(effective.carbs),
       fat: Math.round(effective.fat),
+      source: health?.source ?? "default",
       isTrainingDay: effectiveGoals.isTrainingDay,
       burnedCalories: effectiveGoals.burnedCalories,
     }
@@ -2117,6 +2214,10 @@ export default function App() {
 
   const workoutLogs = useMemo(() => workoutLogsQuery ? [workoutLogsQuery] as unknown as CachedWorkoutLog[] : [], [workoutLogsQuery])
   const foodEntries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
+  const waterEntries = useMemo(
+    () => (waterLogs ?? []) as { id: string; amountMl: number; loggedAt: string }[],
+    [waterLogs],
+  )
 
   const loading =
     onboarding === undefined ||
@@ -2155,45 +2256,102 @@ export default function App() {
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+
+  const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
+  const waterGoalMl = preferences?.waterGoalMl ?? 2500
+  const waterTotalMl = waterEntries.reduce((sum, entry) => sum + entry.amountMl, 0)
+  const caloriesTarget = calorieInfo?.target ?? 2000
+  const caloriesLeft = Math.round(caloriesTarget - foodTotals.calories)
+  const activeWorkout = activeWorkouts?.[0] ?? null
+  const workoutState =
+    activeWorkout
+      ? "Active"
+      : workoutLogs.length > 0
+        ? "Done"
+        : scheduledWorkout
+          ? "Ready"
+          : "Rest"
+  const workoutActionLabel = activeWorkout ? "Continue workout" : "Start workout"
+  const workoutActionDetail = activeWorkout
+    ? "Resume active session"
+    : scheduledWorkout
+      ? "Today routine"
+      : "Open workout"
+
+  const timelineEvents = useMemo<TimelineEvent[]>(() => {
+    const foodEvents = foodEntries.map((entry) => ({
+      id: `food-${entry.id}`,
+      title: entry.name,
+      detail: `${Math.round(entry.calories)} kcal logged`,
+      kind: "food" as const,
+      loggedAt: entry.loggedAt,
+    }))
+    const waterEvents = waterEntries.map((entry) => ({
+      id: `water-${entry.id}`,
+      title: "Water",
+      detail: `${fmtWater(entry.amountMl)} added`,
+      kind: "water" as const,
+      loggedAt: entry.loggedAt,
+    }))
+    const workoutEvents = workoutLogs.map((log, index) => ({
+      id: `workout-${log._id ?? index}`,
+      title: "Workout completed",
+      detail: `${log.exercises?.length ?? 0} exercises logged`,
+      kind: "workout" as const,
+      loggedAt: log.completedAt
+        ? new Date(log.completedAt).toISOString()
+        : `${selectedDate}T23:59:00.000Z`,
+    }))
+
+    return [...foodEvents, ...waterEvents, ...workoutEvents]
+      .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
+      .slice(0, 20)
+      .map((event) => ({
+        id: event.id,
+        title: event.title,
+        detail: event.detail,
+        kind: event.kind,
+      }))
+  }, [foodEntries, selectedDate, waterEntries, workoutLogs])
+
+  function addQuickWater() {
+    void addWaterEntry({
+      date: selectedDate,
+      entry: {
+        id: crypto.randomUUID(),
+        amountMl: 250,
+        loggedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  function openWorkoutAction() {
+    if (activeWorkout) {
+      navigate(`/workout/active?slot=${activeWorkout.slot}`)
+      return
+    }
+    if (scheduledWorkout) {
+      navigate(`/workout/active/${scheduledWorkout.id}`)
+      return
+    }
+    navigate("/workout/active")
+  }
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
-      <div className="page-enter mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
-        {/* Header */}
-        <header className="flex items-center justify-between px-5 pt-12 pb-4 md:px-6 md:pt-10">
-          <div>
-            <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">
-              {dateLabel}
-            </p>
-            <h1 className="mt-0.5 text-[1.5rem] leading-snug font-semibold tracking-tight">
-              {salutation}, {firstName}.
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            {editMode ? (
-              <button
-                onClick={() => setEditMode(false)}
-                className="flex h-9 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-opacity active:opacity-70"
-              >
-                <Check size={12} weight="bold" />
-                Done
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={() => setEditMode(true)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-opacity active:opacity-70"
-                  aria-label="Edit dashboard layout"
-                >
-                  <Sliders size={15} />
-                </button>
-                <ProfileButton name={session?.user?.name} onSettingsClick={() => setSettingsOpen(true)} />
-              </>
-            )}
-          </div>
-        </header>
+      <div className="mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
+        <TodayHeader
+          dateLabel={dateLabel}
+          salutation={salutation}
+          firstName={firstName}
+          action={
+            <ProfileButton
+              name={session?.user?.name}
+              onSettingsClick={() => navigate("/settings")}
+            />
+          }
+        />
 
         {bodyMeasurements !== undefined && bodyMeasurements.length === 0 && (
           <CheckInPrompt 
@@ -2202,8 +2360,46 @@ export default function App() {
           />
         )}
 
-        {/* Cards */}
-        <main className="px-4 md:px-6">
+        <PrimaryActionGrid
+          food={{
+            label: "Log food",
+            detail: foodEntries.length > 0
+              ? `${foodEntries.length} logged`
+              : "Search or scan",
+            onClick: () => navigate("/foods"),
+          }}
+          workout={{
+            label: workoutActionLabel,
+            detail: workoutActionDetail,
+            onClick: openWorkoutAction,
+          }}
+          water={{
+            label: "Add water",
+            detail: "+250 ml",
+            onClick: addQuickWater,
+          }}
+        />
+
+        <DailySummaryStrip
+          caloriesLeft={caloriesLeft}
+          caloriesTarget={caloriesTarget}
+          waterMl={waterTotalMl}
+          waterGoalMl={waterGoalMl}
+          workoutState={workoutState}
+          targetSource={calorieInfo?.source ?? "default"}
+        />
+
+        <TodayTimeline
+          events={timelineEvents}
+          onLogFood={() => navigate("/foods")}
+        />
+
+        <InsightWidgets
+          editMode={editMode}
+          onToggleEdit={() => {
+            setEditMode((value) => !value)
+          }}
+        >
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -2297,7 +2493,7 @@ export default function App() {
               </div>
             </SortableContext>
           </DndContext>
-        </main>
+        </InsightWidgets>
       </div>
 
       <BottomBar onAdd={() => setHomeAddOpen(true)} />
@@ -2472,10 +2668,6 @@ export default function App() {
             <div className="h-4" />
           </div>
         </div>
-      )}
-
-      {settingsOpen && (
-        <Settings onClose={() => setSettingsOpen(false)} />
       )}
     </div>
   )

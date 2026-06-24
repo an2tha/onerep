@@ -159,6 +159,21 @@ function mergeEntries(
   return [...serverEntries, ...pending]
 }
 
+function mergeVisibleEntries(
+  serverEntries: WaterLogEntry[],
+  optimisticEntries: WaterLogEntry[],
+  pendingDeletedIds: Set<string>,
+): WaterLogEntry[] {
+  const visibleServerEntries = serverEntries.filter(
+    (entry) => !pendingDeletedIds.has(entry.id),
+  )
+  const serverIds = new Set(serverEntries.map((e) => e.id))
+  const pending = optimisticEntries.filter(
+    (entry) => !serverIds.has(entry.id) && !pendingDeletedIds.has(entry.id),
+  )
+  return [...visibleServerEntries, ...pending]
+}
+
 describe("optimistic entry merge logic", () => {
   test("when there are no optimistic entries, returns server entries", () => {
     const server: WaterLogEntry[] = [
@@ -239,6 +254,26 @@ describe("optimistic entry merge logic", () => {
     const merged = mergeEntries(server, optimistic)
     const total = merged.reduce((s, e) => s + e.amountMl, 0)
     expect(total).toBe(1250)
+  })
+
+  test("pending deleted server entries are hidden immediately", () => {
+    const server: WaterLogEntry[] = [
+      { id: "s1", amountMl: 500, loggedAt: "2024-01-01T08:00:00Z" },
+      { id: "s2", amountMl: 750, loggedAt: "2024-01-01T09:00:00Z" },
+    ]
+    const merged = mergeVisibleEntries(server, [], new Set(["s1"]))
+    expect(merged).toHaveLength(1)
+    expect(merged[0].id).toBe("s2")
+  })
+
+  test("pending deleted optimistic entries are hidden immediately", () => {
+    const optimistic: WaterLogEntry[] = [
+      { id: "o1", amountMl: 500, loggedAt: "2024-01-01T08:00:00Z" },
+      { id: "o2", amountMl: 750, loggedAt: "2024-01-01T09:00:00Z" },
+    ]
+    const merged = mergeVisibleEntries([], optimistic, new Set(["o1"]))
+    expect(merged).toHaveLength(1)
+    expect(merged[0].id).toBe("o2")
   })
 })
 
