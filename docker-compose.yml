@@ -1,0 +1,24 @@
+name: "OneRep Production"
+
+services:
+  web:
+    image: node:22-alpine
+    container_name: web
+    working_dir: /app
+    volumes:
+      - ./apps/web/dist:/app/dist:ro
+    command: sh -c "npx --yes serve@latest -s dist -l tcp://0.0.0.0:3000"
+    ports:
+      - "8082:3000"
+    restart: unless-stopped
+
+  webapp:
+    image: node:22-alpine
+    container_name: web-app
+    working_dir: /app
+    volumes:
+      - ./apps/mobile/dist:/app/dist:ro
+    command: sh -c "npx --yes serve@latest -s dist -l tcp://0.0.0.0:3000"
+    ports:
+      - "8081:3000"
+    restart: unless-stopped
