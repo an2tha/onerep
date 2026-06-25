@@ -95,11 +95,31 @@ const CATEGORY_COLOR: Record<Category, string> = {
 const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 
 const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
-  working: { label: "W", color: "#38bdf8", bg: "rgba(56,189,248,0.10)" }, // sky
-  warmup: { label: "WU", color: "#a8a29e", bg: "rgba(168,162,158,0.10)" }, // stone
-  failure: { label: "F", color: "#f87171", bg: "rgba(248,113,113,0.10)" }, // red
-  myoreps: { label: "M", color: "#fb923c", bg: "rgba(251,146,60,0.10)" }, // orange
-  drop: { label: "DS", color: "#2dd4bf", bg: "rgba(45,212,191,0.10)" }, // teal
+  working: {
+    label: "Working",
+    color: "#38bdf8",
+    bg: "rgba(56,189,248,0.10)",
+  },
+  warmup: {
+    label: "Warm-up",
+    color: "#a8a29e",
+    bg: "rgba(168,162,158,0.10)",
+  },
+  failure: {
+    label: "Failure",
+    color: "#f87171",
+    bg: "rgba(248,113,113,0.10)",
+  },
+  myoreps: {
+    label: "Myo-reps",
+    color: "#fb923c",
+    bg: "rgba(251,146,60,0.10)",
+  },
+  drop: {
+    label: "Drop set",
+    color: "#2dd4bf",
+    bg: "rgba(45,212,191,0.10)",
+  },
 }
 
 const SUPERSET_PALETTE = ["#f59e0b", "#ec4899", "#14b8a6", "#06b6d4", "#84cc16"]
@@ -416,11 +436,15 @@ function SetRow({
         {/* Type — tap to cycle */}
         <button
           onClick={cycleType}
-          className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg transition-all select-none active:scale-90"
+          className="flex h-12 w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 transition-all select-none active:scale-90"
           style={{ backgroundColor: cfg.bg }}
-          title="Tap to change set type"
+          aria-label={`Set mode: ${cfg.label}. Tap to change.`}
+          title={`Set mode: ${cfg.label}`}
         >
-          <span className="text-[13px] font-black" style={{ color: cfg.color }}>
+          <span
+            className="truncate text-[11px] font-black"
+            style={{ color: cfg.color }}
+          >
             {cfg.label}
           </span>
         </button>

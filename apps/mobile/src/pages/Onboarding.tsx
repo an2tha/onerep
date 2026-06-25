@@ -38,6 +38,7 @@ const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
 const WATER_MIN = 1000
 const WATER_MAX = 6000
+const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 
 const GOALS = [
   {
@@ -319,7 +320,7 @@ function NumberControl({
         step={step}
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-6 h-2 w-full cursor-pointer accent-foreground"
+        className="mt-3 h-10 w-full cursor-pointer accent-foreground"
         aria-label={label}
       />
     </div>
@@ -939,6 +940,9 @@ export default function Onboarding() {
         saveWeightUnit({ unit: weightUnit }),
         saveWaterGoal({ goalMl: waterGoalMl }),
       ])
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(POST_SIGNUP_ONBOARDING_KEY)
+      }
       navigate("/", { replace: true })
     } catch (error) {
       setSaveError(
