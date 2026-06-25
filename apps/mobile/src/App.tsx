@@ -2394,8 +2394,9 @@ export default function App() {
   // ── Effects ───────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (!currentUser) return
     void syncTimezone({ timeZone: detectTimeZone() })
-  }, [syncTimezone])
+  }, [currentUser, syncTimezone])
 
   useEffect(() => {
     if (currentUser && onboarding === null) {
