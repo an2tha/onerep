@@ -121,7 +121,7 @@ function FoodActionRow({
       <button
         type="button"
         onClick={onSearch}
-        className="flex min-h-11 min-w-0 items-center gap-3 rounded-[18px] border border-border/60 bg-card px-3.5 text-left text-foreground transition-transform active:scale-[0.99] short-phone:min-h-10"
+        className="flex min-h-11 min-w-0 items-center gap-3 rounded-[18px] border border-border/60 bg-card px-3.5 text-left text-foreground transition-transform active:scale-[0.985] short-phone:min-h-10"
       >
         <MagnifyingGlass size={17} weight="bold" className="shrink-0" />
         <span className="min-w-0">
@@ -473,7 +473,7 @@ function StatsBar({
           {/* Calorie progress bar */}
           <div className="relative mt-2 h-[2px] w-20 rounded-sm bg-muted/40">
             <div
-              className="absolute inset-y-0 left-0 rounded-sm transition-all duration-700 ease-out"
+              className="motion-progress-fill absolute inset-y-0 left-0 rounded-sm"
               style={{
                 width: mounted ? `${calPct}%` : "0%",
                 backgroundColor: over ? "#ef4444" : "var(--foreground)",
@@ -512,7 +512,7 @@ function StatsBar({
                 </span>
                 <div className="relative mt-1.5 h-[2px] w-10 rounded-sm bg-muted/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-sm transition-all duration-500 ease-out"
+                    className="motion-progress-fill absolute inset-y-0 left-0 rounded-sm"
                     style={{
                       width: mounted ? `${pct}%` : "0%",
                       backgroundColor: macOver
@@ -882,7 +882,7 @@ function RecipeLogSheet({
             <button
               key={cat.id}
               onClick={() => onLog(cat.id)}
-              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.98]"
+              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
                 outline:
@@ -1238,7 +1238,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
               onFocus={() => setHoveredGlass(i)}
               onBlur={() => setHoveredGlass(null)}
               className={cn(
-                "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95 short-phone:py-2",
+                "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-[0.985] short-phone:py-2",
                 previewFilled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
               )}
               aria-label={

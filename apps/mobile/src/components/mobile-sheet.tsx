@@ -165,7 +165,7 @@ export function MobileSheet({
           transform: `translateY(${offsetY}px)`,
           transition: dragging
             ? "none"
-            : "transform 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+            : "transform var(--motion-panel) var(--motion-ease-out), height var(--motion-panel) var(--motion-ease-out)",
         }
       : {}
 
@@ -203,6 +203,7 @@ export function MobileSheet({
           minHeight,
           maxHeight,
           height: currentHeight || undefined,
+          transformOrigin: "bottom center",
           ...panelStyle,
           ...dragStyle,
           ...heightStyle,

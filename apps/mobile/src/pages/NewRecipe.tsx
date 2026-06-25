@@ -459,7 +459,7 @@ function MacroRing({
             strokeDashoffset={a.offset}
             style={{
               transition: drawn
-                ? `stroke-dasharray 600ms cubic-bezier(0.4,0,0.2,1) ${i * 80}ms`
+                ? `stroke-dasharray var(--motion-slow) var(--motion-ease-out) ${i * 55}ms`
                 : "none",
             }}
           />
@@ -587,7 +587,7 @@ function IngredientCard({
               aria-hidden="true"
             >
               <div
-                className="h-full rounded-full transition-all duration-500 ease-out"
+                className="motion-progress-fill h-full rounded-full"
                 style={{
                   width: `${calShare}%`,
                   backgroundColor: accent,
@@ -606,7 +606,7 @@ function IngredientCard({
                 e.preventDefault()
                 step(-1)
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
             >
               <Minus size={11} weight="bold" />
             </button>
@@ -663,7 +663,7 @@ function IngredientCard({
                 e.preventDefault()
                 step(1)
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
             >
               <Plus size={11} weight="bold" />
             </button>
@@ -744,7 +744,7 @@ function RecipeSummary({
                   </span>
                   <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
                     <div
-                      className="h-full rounded-full transition-all duration-500"
+                      className="motion-progress-fill h-full rounded-full"
                       style={{
                         width: `${Math.min(100, (value / maxMacro) * 100)}%`,
                         backgroundColor: color,
@@ -1080,7 +1080,7 @@ function SearchOverlay({
                               e.stopPropagation()
                               if (!isAdded) handleAdd(item)
                             }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985]"
                           >
                             {isAdded ? (
                               <span className="text-[11px] text-foreground/60">
@@ -1266,7 +1266,7 @@ export default function NewRecipe() {
             <button
               onClick={handleSave}
               disabled={!canSave || saved}
-              className="flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-all active:scale-95 active:opacity-75 disabled:opacity-25"
+              className="flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-all active:scale-[0.985] active:opacity-75 disabled:opacity-25"
             >
               {saved ? (
                 <Check size={12} weight="bold" className="text-green-400" />
@@ -1392,7 +1392,7 @@ export default function NewRecipe() {
                 <button
                   onClick={handleSave}
                   disabled={!canSave || saved}
-                  className="mt-4 w-full rounded-xl bg-foreground py-4 text-[14px] font-semibold text-background transition-all active:scale-[0.98] active:opacity-75 disabled:opacity-25"
+                  className="mt-4 w-full rounded-xl bg-foreground py-4 text-[14px] font-semibold text-background transition-all active:scale-[0.985] active:opacity-75 disabled:opacity-25"
                 >
                   {saved ? "Saved ✓" : initial ? "Save Changes" : "Save Recipe"}
                 </button>

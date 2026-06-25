@@ -425,7 +425,7 @@ export default function SearchFoods() {
                           aria-label={
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90 disabled:opacity-60"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985] disabled:opacity-60"
                         >
                           {isAdded ? (
                             <span className="text-[11px] text-foreground/60">
@@ -521,6 +521,16 @@ function MealSelectSheet({
 }) {
   const categories = MEAL_CATEGORIES
   const suggested = defaultMeal()
+  const titleId = `meal-select-${item.id}`
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [onClose])
 
   return (
     <>
@@ -529,13 +539,19 @@ function MealSelectSheet({
         onClick={onClose}
       />
       <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[calc(100svh-1rem)] w-full max-w-sm overflow-y-auto rounded-t-[24px] border border-border/40 bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)] md:top-1/2 md:right-auto md:bottom-auto md:left-1/2 md:mx-0 md:w-[min(24rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[28px] md:shadow-2xl"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
         }}
       >
         <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-foreground/10" />
-        <p className="mb-0.5 text-[15px] leading-snug font-semibold tracking-[-0.01em]">
+        <p
+          id={titleId}
+          className="mb-0.5 text-[15px] leading-snug font-semibold tracking-[-0.01em]"
+        >
           Add to…
         </p>
         <p className="mb-4 truncate text-[11.5px] text-muted-foreground/45">
@@ -546,7 +562,7 @@ function MealSelectSheet({
             <button
               key={cat.id}
               onClick={() => onSelect(cat.id)}
-              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.98]"
+              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
                 outline:

@@ -7,12 +7,7 @@ import {
   useState,
 } from "react"
 import { createRoot } from "react-dom/client"
-import {
-  createBrowserRouter,
-  Outlet,
-  useLocation,
-  useNavigationType,
-} from "react-router"
+import { createBrowserRouter, Outlet, useLocation } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
@@ -59,12 +54,7 @@ import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
-import {
-  clearRouteMotion,
-  getRouteMotion,
-  hasNativeRouteTransition,
-  useSmoothNavigate,
-} from "./lib/navigation"
+import { clearRouteMotion, useSmoothNavigate } from "./lib/navigation"
 
 function shouldShowBottomBar(pathname: string) {
   return (
@@ -81,25 +71,14 @@ function shouldShowBottomBar(pathname: string) {
 function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
-  const navigationType = useNavigationType()
   const [bottomBarAction, setBottomBarActionState] = useState<
     (() => void) | undefined
   >()
-  const initialRouteRef = useRef(true)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const edge = 28
   const threshold = 72
-  const routeMotion =
-    getRouteMotion() ??
-    (navigationType === "POP"
-      ? "back"
-      : navigationType === "REPLACE"
-        ? "replace"
-        : "forward")
-  const animateRoute = !initialRouteRef.current
-  const nativeRouteTransition = hasNativeRouteTransition()
   const showBottomBar = shouldShowBottomBar(location.pathname)
 
   const setBottomBarAction = useCallback((action?: () => void) => {
@@ -157,12 +136,8 @@ function NavSync() {
   }, [location.key])
 
   useEffect(() => {
-    initialRouteRef.current = false
-    document.documentElement.dataset.routeMotion = routeMotion
-
-    const id = window.setTimeout(clearRouteMotion, 360)
-    return () => window.clearTimeout(id)
-  }, [location.key, routeMotion])
+    clearRouteMotion()
+  }, [location.key])
 
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
@@ -202,17 +177,8 @@ function NavSync() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         className="app-route-shell"
-        data-route-motion={routeMotion}
       >
-        <div
-          key={location.key}
-          className={
-            animateRoute && !nativeRouteTransition
-              ? "app-route-frame app-route-frame-animated"
-              : "app-route-frame"
-          }
-          data-route-motion={routeMotion}
-        >
+        <div key={location.key} className="app-route-frame">
           <Outlet />
         </div>
       </div>

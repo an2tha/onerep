@@ -483,7 +483,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   ? "Switch to light mode"
                   : "Switch to dark mode"
               }
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-90"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-[0.985]"
             >
               {theme === "dark" ? (
                 <Sun size={16} weight="bold" />
@@ -1219,7 +1219,7 @@ function NumberStepper({
         className={cn(
           "flex h-10 w-10 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
-          "active:scale-95 active:bg-muted",
+          "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >
@@ -1295,7 +1295,7 @@ function NumberStepper({
         className={cn(
           "flex h-10 w-10 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
-          "active:scale-95 active:bg-muted",
+          "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >

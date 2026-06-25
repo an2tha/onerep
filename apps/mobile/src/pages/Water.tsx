@@ -237,7 +237,7 @@ function ProgressCard({
       {/* Progress bar */}
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted/40 short-phone:mt-2.5">
         <div
-          className="h-full rounded-full transition-all duration-500 ease-out"
+          className="motion-progress-fill h-full rounded-full"
           style={{
             width: mounted ? `${pct}%` : "0%",
             backgroundColor: WATER_COLOR,
@@ -419,7 +419,7 @@ function AddSheet({
             <button
               key={ml}
               onClick={() => submit(ml)}
-              className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-95"
+              className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
               style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
             >
               {label}
@@ -673,7 +673,7 @@ export default function Water() {
                 <button
                   key={ml}
                   onClick={() => addEntry(ml)}
-                  className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-95"
+                  className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
                 >
                   {label}
