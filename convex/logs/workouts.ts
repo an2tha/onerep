@@ -60,7 +60,7 @@ export const completion = mutation({
 export const getLog = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     return ctx.db
@@ -77,7 +77,7 @@ export const getLog = query({
 export const getHistory = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
     return ctx.db
       .query("workoutLogs")
@@ -92,7 +92,7 @@ export const getHistory = query({
 export const historyForExercise = query({
   args: { exerciseId: v.string() },
   handler: async (ctx, { exerciseId }) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
     const logs = await ctx.db
       .query("workoutLogs")

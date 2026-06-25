@@ -7,7 +7,7 @@ import { authComponent } from "../auth";
 export const getActive = query({
   args: { slot: v.union(v.literal(1), v.literal(2)) },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     const active = await ctx.db
@@ -28,7 +28,7 @@ export const getActive = query({
 export const getAllActive = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
 
     return ctx.db
