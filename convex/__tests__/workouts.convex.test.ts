@@ -6,18 +6,18 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("workoutLogs Convex functions", () => {
-  test("getLog throws when unauthenticated", async () => {
+  test("getLog returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.query(api.logs.workouts.getLog, { date: "2024-01-15" })
-    ).rejects.toThrow();
+    ).resolves.toBeNull();
   });
 
-  test("getHistory throws when unauthenticated", async () => {
+  test("getHistory returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.query(api.logs.workouts.getHistory, {})
-    ).rejects.toThrow();
+    ).resolves.toEqual([]);
   });
 
   test("completion throws when unauthenticated", async () => {

@@ -16,9 +16,9 @@ const routine = {
 };
 
 describe("schedules Convex functions", () => {
-  test("get throws when unauthenticated", async () => {
+  test("get returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.schedules.get, {})).rejects.toThrow();
+    await expect(t.query(api.users.schedules.get, {})).resolves.toBeNull();
   });
 
   test("set throws when unauthenticated", async () => {

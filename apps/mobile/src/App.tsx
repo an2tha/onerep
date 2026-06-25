@@ -2510,6 +2510,7 @@ export default function App() {
 
   const homeBodyReady =
     bodyMeasurements !== undefined && preferences !== undefined
+  const bodyReminder = preferences?.bodyReminder ?? null
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
@@ -2530,11 +2531,9 @@ export default function App() {
           <>
             {bodyMeasurements.length === 0 && (
               <CheckInPrompt
-                reminderEnabled={preferences.bodyReminder?.enabled ?? false}
+                reminderEnabled={bodyReminder?.enabled ?? false}
                 reminderLabel={
-                  preferences.bodyReminder
-                    ? formatReminderLabel(preferences.bodyReminder)
-                    : ""
+                  bodyReminder ? formatReminderLabel(bodyReminder) : ""
                 }
               />
             )}
@@ -2622,7 +2621,7 @@ export default function App() {
                           ) : (
                             <WaterSmall
                               dateKey={selectedDate}
-                              goalMl={preferences.waterGoalMl ?? 2500}
+                              goalMl={waterGoalMl}
                             />
                           )
                       } else if (widget.id === "workout") {

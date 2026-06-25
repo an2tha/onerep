@@ -50,9 +50,9 @@ describe("calories Convex functions", () => {
     expect(result.targetCalories).toBe(result.tdee + 500);
   });
 
-  test("getGoals throws when unauthenticated", async () => {
+  test("getGoals returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.logs.calories.getGoals, {})).rejects.toThrow();
+    await expect(t.query(api.logs.calories.getGoals, {})).resolves.toBeNull();
   });
 
   test("setProfile stores health profile data", async () => {
