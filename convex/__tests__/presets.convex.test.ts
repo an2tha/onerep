@@ -15,9 +15,9 @@ const basePreset = {
 };
 
 describe("presets Convex functions", () => {
-  test("list throws when unauthenticated", async () => {
+  test("list returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.logs.presets.list, {})).rejects.toThrow();
+    await expect(t.query(api.logs.presets.list, {})).resolves.toEqual([]);
   });
 
   test("create throws when unauthenticated", async () => {

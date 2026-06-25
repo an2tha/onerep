@@ -16,7 +16,7 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     return await getLatestOnboardingProfile(ctx, user._id);

@@ -25,7 +25,7 @@ const healthProfileArgs = {
 export const getGoals = query({
   args: {},
   handler: async (ctx): Promise<CaloricGoals | null> => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     const profile = await ctx.db
@@ -45,7 +45,7 @@ export const getGoals = query({
 export const getProfile = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     return await ctx.db

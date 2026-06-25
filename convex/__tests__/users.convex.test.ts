@@ -6,14 +6,14 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("users Convex functions", () => {
-  test("getCurrentUser throws when unauthenticated", async () => {
+  test("getCurrentUser returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getCurrentUser, {})).rejects.toThrow();
+    await expect(t.query(api.users.users.getCurrentUser, {})).resolves.toBeNull();
   });
 
-  test("getPreferences throws when unauthenticated", async () => {
+  test("getPreferences returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getPreferences, {})).rejects.toThrow();
+    await expect(t.query(api.users.users.getPreferences, {})).resolves.toBeNull();
   });
 
   test("syncTimezone throws when unauthenticated", async () => {
@@ -44,9 +44,9 @@ describe("users Convex functions", () => {
     ).rejects.toThrow();
   });
 
-  test("getEffectiveGoals throws when unauthenticated", async () => {
+  test("getEffectiveGoals returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getEffectiveGoals, {})).rejects.toThrow();
+    await expect(t.query(api.users.users.getEffectiveGoals, {})).resolves.toBeNull();
   });
 
   test("stores user preferences correctly", async () => {

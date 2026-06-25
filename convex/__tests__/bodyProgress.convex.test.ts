@@ -6,12 +6,10 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("bodyProgress Convex functions", () => {
-  test("list throws when unauthenticated", async () => {
+  test("list returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
 
-    await expect(t.query(api.bodyProgress.list, {})).rejects.toThrow(
-      "Unauthenticated",
-    );
+    await expect(t.query(api.bodyProgress.list, {})).resolves.toEqual([]);
   });
 
   test("save throws when unauthenticated", async () => {
