@@ -38,8 +38,10 @@ if (posthogToken) {
 }
 import App from "./App.tsx"
 import Exercises from "./pages/Exercises.tsx"
+import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
 import Onboarding from "./pages/Onboarding.tsx"
+import ResetPassword from "./pages/ResetPassword.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -55,10 +57,7 @@ import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
-import {
-  BottomBar,
-  BottomBarActionProvider,
-} from "./components/bottom-bar"
+import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
 import {
   clearRouteMotion,
   getRouteMotion,
@@ -360,6 +359,14 @@ const router = createBrowserRouter([
       {
         path: "/login",
         element: <Login />,
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPassword />,
+      },
+      {
+        path: "/email-verified",
+        element: <EmailVerified />,
       },
       {
         path: "/settings",
