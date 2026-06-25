@@ -37,11 +37,9 @@ export const getPreferences = query({
 export const syncTimezone = mutation({
   args: { timeZone: v.string() },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
-
-    if (!isValidTimeZone(args.timeZone)) {
-      return { timeZone: "UTC" };
-    }
+    const timeZone = isValidTimeZone(args.timeZone) ? args.timeZone : "UTC";
+    const user = await authComponent.safeGetAuthUser(ctx);
+    if (!user) return { timeZone };
 
     const existing = await ctx.db
       .query("userPreferences")
@@ -50,18 +48,18 @@ export const syncTimezone = mutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, {
-        lastActiveTimezone: args.timeZone,
+        lastActiveTimezone: timeZone,
         updatedAt: Date.now(),
       });
     } else {
       await ctx.db.insert("userPreferences", {
         userId: user._id,
-        lastActiveTimezone: args.timeZone,
+        lastActiveTimezone: timeZone,
         updatedAt: Date.now(),
       });
     }
 
-    return { timeZone: args.timeZone };
+    return { timeZone };
   },
 });
 

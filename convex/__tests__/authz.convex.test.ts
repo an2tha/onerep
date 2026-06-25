@@ -68,12 +68,6 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: {},
   },
   {
-    name: "users.users.syncTimezone",
-    kind: "mutation",
-    fn: api.users.users.syncTimezone,
-    args: { timeZone: "America/New_York" },
-  },
-  {
     name: "users.users.setBodyReminder",
     kind: "mutation",
     fn: api.users.users.setBodyReminder,

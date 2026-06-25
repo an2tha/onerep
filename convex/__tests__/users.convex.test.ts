@@ -16,11 +16,18 @@ describe("users Convex functions", () => {
     await expect(t.query(api.users.users.getPreferences, {})).resolves.toBeNull();
   });
 
-  test("syncTimezone throws when unauthenticated", async () => {
+  test("syncTimezone is a no-op when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.mutation(api.users.users.syncTimezone, { timeZone: "America/New_York" })
-    ).rejects.toThrow();
+    ).resolves.toEqual({ timeZone: "America/New_York" });
+  });
+
+  test("syncTimezone normalizes invalid timezone when unauthenticated", async () => {
+    const t = convexTest(schema, modules);
+    await expect(
+      t.mutation(api.users.users.syncTimezone, { timeZone: "Not/A_Zone" })
+    ).resolves.toEqual({ timeZone: "UTC" });
   });
 
   test("setWeightUnit throws when unauthenticated", async () => {
