@@ -11,7 +11,6 @@ import { createBrowserRouter, Outlet, useLocation } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
-import { ConvexProvider } from "convex/react"
 import {
   ConvexBetterAuthProvider,
   type AuthClient,
@@ -355,21 +354,19 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConvexProvider client={convexClient}>
-      <ConvexBetterAuthProvider
-        client={convexClient}
-        authClient={authClient as unknown as AuthClient}
-      >
-        <PostHogProvider client={posthog}>
-          <ThemeProvider>
-            <ErrorBoundary label="the app">
-              <OfflineSyncIndicator />
-              <RouterProvider router={router} />
-              <Toaster position="top-center" richColors />
-            </ErrorBoundary>
-          </ThemeProvider>
-        </PostHogProvider>
-      </ConvexBetterAuthProvider>
-    </ConvexProvider>
+    <ConvexBetterAuthProvider
+      client={convexClient}
+      authClient={authClient as unknown as AuthClient}
+    >
+      <PostHogProvider client={posthog}>
+        <ThemeProvider>
+          <ErrorBoundary label="the app">
+            <OfflineSyncIndicator />
+            <RouterProvider router={router} />
+            <Toaster position="top-center" richColors />
+          </ErrorBoundary>
+        </ThemeProvider>
+      </PostHogProvider>
+    </ConvexBetterAuthProvider>
   </StrictMode>
 )
