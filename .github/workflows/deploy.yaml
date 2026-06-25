@@ -28,12 +28,12 @@ jobs:
           tags: |
             heckerrr/onerep:mobile-latest 
           platforms: linux/amd64     
-       - name: Build and push Docker image
-            uses: docker/build-push-action@v4
-            with:
-              context: .
-              file: ./apps/web/Dockerfile
-              push: true
-              tags: |
-                heckerrr/onerep:web-latest 
-              platforms: linux/amd64   
+      - name: Build and push web Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: |
+            heckerrr/onerep:web-latest
+          platforms: linux/amd64
