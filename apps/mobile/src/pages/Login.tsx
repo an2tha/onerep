@@ -6,6 +6,7 @@ import {
   type SVGProps,
 } from "react"
 import { authClient } from "@/lib/auth-client"
+import { getAuthCallbackUrl } from "@/lib/auth-redirects"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 
@@ -18,7 +19,6 @@ const LABEL_CLASS =
 const INPUT_CLASS =
   "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 
 const INTRO_SLIDES = [
   {
@@ -37,6 +37,17 @@ const INTRO_SLIDES = [
     body: "Export, delete, and control analytics anytime.",
   },
 ]
+
+function isEmailNotVerified(
+  error: { status?: number; code?: string; message?: string } | null | undefined
+) {
+  const message = error?.message?.toLowerCase() ?? ""
+
+  return (
+    error?.code === "EMAIL_NOT_VERIFIED" ||
+    (error?.status === 403 && message.includes("verified"))
+  )
+}
 
 function IntroSvgShell({ children }: { children: ReactNode }) {
   return (
@@ -220,14 +231,6 @@ export default function Login() {
 
   useEffect(() => {
     if (!isPending && session) {
-      const needsOnboarding =
-        typeof window !== "undefined" &&
-        localStorage.getItem(POST_SIGNUP_ONBOARDING_KEY) === "true"
-      if (needsOnboarding) {
-        localStorage.removeItem(POST_SIGNUP_ONBOARDING_KEY)
-        navigate("/onboarding", { replace: true })
-        return
-      }
       navigate("/", { replace: true })
     }
   }, [session, isPending, navigate])
@@ -235,6 +238,7 @@ export default function Login() {
   function switchMode(nextMode: LoginMode) {
     setMode(nextMode)
     setError(undefined)
+    setMessage(undefined)
   }
 
   function finishIntro(nextMode: LoginMode) {
@@ -265,16 +269,40 @@ export default function Login() {
 
     setLoading(true)
     try {
-      const siteUrl = import.meta.env.VITE_SITE_URL || "https://onerep.life"
       const { error } = await authClient.requestPasswordReset({
         email: trimmed,
-        redirectTo: `${siteUrl}/reset-password`,
+        redirectTo: getAuthCallbackUrl("/reset-password"),
       })
       if (error) {
         setError(error.message ?? "Could not send reset email")
         return
       }
       setMessage("If that email has an account, a reset link is on the way.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleVerificationEmail(targetEmail = email.trim()) {
+    const trimmed = targetEmail.trim()
+    if (!trimmed) {
+      setError("Enter your email first")
+      return
+    }
+
+    setLoading(true)
+    setError(undefined)
+    setMessage(undefined)
+    try {
+      const { error } = await authClient.sendVerificationEmail({
+        email: trimmed,
+        callbackURL: getAuthCallbackUrl("/email-verified"),
+      })
+      if (error) {
+        setError(error.message ?? "Could not send verification email")
+        return
+      }
+      setMessage("Verification email sent. Check your inbox.")
     } finally {
       setLoading(false)
     }
@@ -293,6 +321,10 @@ export default function Login() {
           password,
         })
         if (error) {
+          if (isEmailNotVerified(error)) {
+            await handleVerificationEmail(email)
+            return
+          }
           setError(error.message ?? "Sign in failed")
           return
         }
@@ -304,6 +336,7 @@ export default function Login() {
           email,
           password,
           name: displayName,
+          callbackURL: getAuthCallbackUrl("/email-verified?next=onboarding"),
         })
         if (error) {
           setError(error.message ?? "Sign up failed")
@@ -311,10 +344,12 @@ export default function Login() {
         }
         posthog.identify(data?.user?.id ?? email, { email, name: displayName })
         posthog.capture("user_signed_up", { method: "email" })
-        if (typeof window !== "undefined") {
-          localStorage.setItem(POST_SIGNUP_ONBOARDING_KEY, "true")
-        }
-        navigate("/onboarding", { replace: true })
+        setMode("signin")
+        setName("")
+        setPassword("")
+        setMessage(
+          "If this is a new account, a verification link is on the way."
+        )
       }
     } finally {
       setLoading(false)
@@ -490,14 +525,24 @@ export default function Login() {
             </label>
 
             {mode === "signin" && (
-              <button
-                type="button"
-                onClick={handlePasswordReset}
-                disabled={loading}
-                className="flex min-h-10 w-full items-center px-1 text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
-              >
-                Forgot password?
-              </button>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={loading}
+                  className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
+                >
+                  Forgot password?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleVerificationEmail()}
+                  disabled={loading}
+                  className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
+                >
+                  Resend verification
+                </button>
+              </div>
             )}
 
             {error && (
