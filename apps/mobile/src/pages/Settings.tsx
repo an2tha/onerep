@@ -27,7 +27,6 @@ import {
   syncPushReminders,
   type ReminderSettings,
 } from "@/lib/reminders"
-import { BottomBar } from "@/components/bottom-bar"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
@@ -162,6 +161,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   )
   const [carbs, setCarbs] = useState(effectiveGoals?.effective.carbs ?? 200)
   const [fat, setFat] = useState(effectiveGoals?.effective.fat ?? 65)
+  const [goalsInitialized, setGoalsInitialized] = useState(false)
 
   const [macroCyclingEnabled, setMacroCyclingEnabled] = useState(false)
   const [restDayTargets, setRestDayTargets] = useState({
@@ -247,12 +247,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }, [preferences])
 
   useEffect(() => {
+    if (effectiveGoals === undefined) return
+
     if (effectiveGoals?.effective) {
       setCalories(effectiveGoals.effective.calories)
       setProtein(effectiveGoals.effective.protein)
       setCarbs(effectiveGoals.effective.carbs)
       setFat(effectiveGoals.effective.fat)
     }
+    setGoalsInitialized(true)
   }, [effectiveGoals])
 
   useEffect(() => {
@@ -460,6 +463,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const settingsContentReady = goalsInitialized
+
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground md:pr-8 md:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-3xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-6 md:pt-10 md:pb-12">
@@ -478,7 +483,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   ? "Switch to light mode"
                   : "Switch to dark mode"
               }
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-90"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-90"
             >
               {theme === "dark" ? (
                 <Sun size={16} weight="bold" />
@@ -492,19 +497,21 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 onClose()
               }}
               aria-label="Close settings"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
             >
               <X size={16} weight="bold" />
             </button>
           </div>
         </div>
 
-        <div className="space-y-2.5 short-phone:space-y-2">
-          <Accordion
-            type="multiple"
-            defaultValue={["goals", "water", "workout"]}
-            className="space-y-2.5 short-phone:space-y-2"
-          >
+        {settingsContentReady ? (
+          <>
+            <div className="space-y-2.5 short-phone:space-y-2">
+              <Accordion
+                type="multiple"
+                defaultValue={["goals", "water", "workout"]}
+                className="space-y-2.5 short-phone:space-y-2"
+              >
             {/* Account Section */}
             <AccordionItem value="profile" className="border-none">
               <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
@@ -1034,19 +1041,28 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 </div>
               </AccordionContent>
             </AccordionItem>
-          </Accordion>
-        </div>
+              </Accordion>
+            </div>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={loggingOut || saving}
-          className="mt-3 w-full rounded-[20px] border border-border/60 bg-card py-3.5 text-[15px] font-semibold tracking-tight text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:rounded-[18px]"
-        >
-          {loggingOut ? "Logging out..." : "Log out"}
-        </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut || saving}
+              className="mt-3 w-full rounded-[20px] border border-border/60 bg-card py-3.5 text-[15px] font-semibold tracking-tight text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:rounded-[18px]"
+            >
+              {loggingOut ? "Logging out..." : "Log out"}
+            </button>
+          </>
+        ) : (
+          <div
+            role="status"
+            aria-label="Loading settings"
+            className="flex min-h-[45svh] items-center justify-center"
+          >
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+          </div>
+        )}
       </main>
-      <BottomBar />
     </div>
   )
 }
@@ -1078,7 +1094,7 @@ function ReminderRow({
             const [hour, minute] = e.target.value.split(":").map(Number)
             onChange({ hour, minute })
           }}
-          className="h-8 rounded-xl bg-muted/60 px-2 text-[12px] font-semibold outline-none"
+          className="h-10 rounded-xl bg-muted/60 px-2 text-[12px] font-semibold outline-none"
         />
         <button
           type="button"
@@ -1088,13 +1104,13 @@ function ReminderRow({
           }}
           aria-label={`${reminder.enabled ? "Disable" : "Enable"} ${label} reminder`}
           className={cn(
-            "relative h-7 w-12 rounded-full transition-colors",
+            "relative h-10 w-16 rounded-full transition-colors",
             reminder.enabled ? "bg-foreground" : "bg-muted"
           )}
         >
           <span
             className={cn(
-              "absolute top-1 h-5 w-5 rounded-full bg-background shadow-sm transition-transform",
+              "absolute top-1 h-8 w-8 rounded-full bg-background shadow-sm transition-transform",
               reminder.enabled ? "translate-x-6" : "translate-x-1"
             )}
           />
@@ -1201,7 +1217,7 @@ function NumberStepper({
         disabled={value <= min}
         aria-label={label ? `Decrease ${label}` : "Decrease"}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-xl",
+          "flex h-10 w-10 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-95 active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
@@ -1226,7 +1242,7 @@ function NumberStepper({
             : `Edit value ${value}`
         }
         className={cn(
-          "relative flex min-w-[62px] flex-col items-center justify-center rounded-xl px-2 py-1.5",
+          "relative flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-xl px-2",
           "bg-muted/60 transition-colors",
           editing && "hidden"
         )}
@@ -1242,7 +1258,7 @@ function NumberStepper({
       </button>
 
       {editing && (
-        <div className="flex min-w-[62px] flex-col items-center justify-center rounded-xl bg-muted/80 px-2 py-1.5 ring-1 ring-foreground/20">
+        <div className="flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-xl bg-muted/80 px-2 ring-1 ring-foreground/20">
           <input
             ref={inputRef}
             type="text"
@@ -1277,7 +1293,7 @@ function NumberStepper({
         disabled={value >= max}
         aria-label={label ? `Increase ${label}` : "Increase"}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-xl",
+          "flex h-10 w-10 items-center justify-center rounded-xl",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-95 active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
@@ -1308,7 +1324,7 @@ function SegmentedControl({
             onChange(opt.value)
           }}
           className={cn(
-            "rounded-[9px] px-3 py-1.5 text-[12px] font-semibold transition-all duration-150",
+            "min-h-10 rounded-[9px] px-3 text-[12px] font-semibold transition-all duration-150",
             value === opt.value
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground/45 active:text-foreground/60"

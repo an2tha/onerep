@@ -17,7 +17,6 @@ import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { toast } from "sonner"
 import { Card } from "@repo/ui"
-import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
@@ -380,7 +379,7 @@ function MeasurementSheet({
                     setPhotoDataUrl(undefined)
                     setPhotoFile(undefined)
                   }}
-                  className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
+                  className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
                 >
                   <X size={14} weight="bold" />
                 </button>
@@ -529,14 +528,14 @@ export default function Progress() {
           <div className="mb-4 flex items-center justify-between md:hidden">
             <button
               onClick={() => navigate(-1)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-border/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border/60 text-muted-foreground/70 transition-colors active:bg-muted"
               aria-label="Back"
             >
               <ArrowLeft size={14} weight="bold" />
             </button>
             <button
               onClick={() => setSheetOpen(true)}
-              className="flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold text-background transition-opacity active:opacity-80"
+              className="flex min-h-10 items-center gap-1 rounded-full bg-foreground px-3 text-[11px] font-semibold text-background transition-opacity active:opacity-80"
             >
               <Plus size={11} weight="bold" />
               Add check-in
@@ -553,7 +552,7 @@ export default function Progress() {
           </div>
           <button
             onClick={() => setSheetOpen(true)}
-            className="hidden h-8 items-center gap-1.5 rounded-full bg-foreground px-3 text-[11px] font-semibold text-background transition-opacity active:opacity-80 md:flex"
+            className="hidden h-10 items-center gap-1.5 rounded-full bg-foreground px-3 text-[11px] font-semibold text-background transition-opacity active:opacity-80 md:flex"
           >
             <Plus size={11} weight="bold" />
             Add check-in
@@ -578,7 +577,7 @@ export default function Progress() {
                       key={tab.id}
                       onClick={() => setMetricTab(tab.id)}
                       className={cn(
-                        "flex-1 rounded-lg py-1.5 text-[11px] font-semibold tracking-tight transition-all duration-200",
+                        "min-h-10 flex-1 rounded-lg px-2 text-[11px] font-semibold tracking-tight transition-all duration-200",
                         metricTab === tab.id
                           ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground/55 active:text-foreground"
@@ -1090,15 +1089,15 @@ export default function Progress() {
                       })
                     }
                     className={cn(
-                      "flex h-7 min-w-12 items-center rounded-full p-1 transition-colors",
+                      "flex h-10 min-w-16 items-center rounded-full p-1 transition-colors",
                       reminder.enabled ? "bg-foreground" : "bg-muted"
                     )}
                     aria-label="Toggle reminder"
                   >
                     <span
                       className={cn(
-                        "h-5 w-5 rounded-full bg-background transition-transform",
-                        reminder.enabled ? "translate-x-5" : "translate-x-0"
+                        "h-8 w-8 rounded-full bg-background transition-transform",
+                        reminder.enabled ? "translate-x-6" : "translate-x-0"
                       )}
                     />
                   </button>
@@ -1209,7 +1208,7 @@ export default function Progress() {
                                   )
                                 }
                               }}
-                              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
+                              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/45 transition-colors active:bg-destructive/10 active:text-destructive"
                               aria-label="Delete measurement"
                             >
                               <Trash size={13} />
@@ -1225,8 +1224,6 @@ export default function Progress() {
           </section>
         </div>
       </div>
-
-      <BottomBar onAdd={() => setSheetOpen(true)} />
 
       {sheetOpen && (
         <MeasurementSheet
