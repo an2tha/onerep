@@ -2,13 +2,25 @@ import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import { internalAction, query } from "./_generated/server";
 import { betterAuth } from "better-auth";
 import authConfig from "./auth.config";
 
 // Primary app origin — set SITE_URL in Convex env vars / .env.local
 const siteUrl = process.env.SITE_URL ?? "https://app.onerep.life";
 const authBaseUrl = process.env.BETTER_AUTH_URL ?? process.env.CONVEX_SITE_URL;
+const authSecret =
+  process.env.BETTER_AUTH_SECRET ??
+  process.env.AUTH_SECRET ??
+  (process.env.VITEST || process.env.NODE_ENV === "test"
+    ? "test-better-auth-secret-12345678901234567890"
+    : undefined);
+
+if (!authSecret) {
+  throw new Error(
+    "BETTER_AUTH_SECRET or AUTH_SECRET must be set for Better Auth. Generate one with `openssl rand -base64 32` and set it in Convex env vars.",
+  );
+}
 
 const localWebOrigins = Array.from({ length: 18 }, (_, index) => {
   const port = 5173 + index;
@@ -150,6 +162,7 @@ function renderAuthEmail({
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: authBaseUrl,
+    secret: authSecret,
     trustedOrigins,
     database: authComponent.adapter(ctx),
     emailAndPassword: {
@@ -211,5 +224,17 @@ export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
     return authComponent.getAuthUser(ctx);
+  },
+});
+
+export const rotateAuthKeys = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const auth = createAuth(ctx);
+    const jwks = await auth.api.rotateKeys();
+    return {
+      rotated: true,
+      keyCount: Array.isArray(jwks) ? jwks.length : 0,
+    };
   },
 });
