@@ -167,11 +167,15 @@
 
 .app-route-shell {
   min-height: 100svh;
+  overflow-x: clip;
   isolation: isolate;
 }
 
 .app-route-frame {
   min-height: 100svh;
+}
+
+html[data-route-native="true"] .app-route-frame {
   view-transition-name: app-route;
 }
 

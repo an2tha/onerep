@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState } from "react"
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { useLocation } from "react-router"
 import {
   Barbell,
@@ -12,6 +19,42 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
+
+type BottomBarAction = () => void
+type BottomBarActionSetter = (action?: BottomBarAction) => void
+
+const BottomBarActionContext = createContext<BottomBarActionSetter | null>(null)
+
+export function BottomBarActionProvider({
+  children,
+  onActionChange,
+}: {
+  children: ReactNode
+  onActionChange: BottomBarActionSetter
+}) {
+  return (
+    <BottomBarActionContext.Provider value={onActionChange}>
+      {children}
+    </BottomBarActionContext.Provider>
+  )
+}
+
+export function useBottomBarAction(action?: BottomBarAction) {
+  const setBottomBarAction = useContext(BottomBarActionContext)
+  const actionRef = useRef(action)
+  const enabled = action != null
+
+  useEffect(() => {
+    actionRef.current = action
+  }, [action])
+
+  useEffect(() => {
+    if (!setBottomBarAction || !enabled) return
+
+    setBottomBarAction(() => actionRef.current?.())
+    return () => setBottomBarAction(undefined)
+  }, [enabled, setBottomBarAction])
+}
 
 const TABS = [
   { path: "/", Icon: House, label: "Today" },
@@ -46,10 +89,11 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
   const activeIdx = TABS.findIndex((t) => isActive(pathname, t.path))
   const showQuickAdd =
-    pathname === "/" ||
-    pathname.startsWith("/foods") ||
-    pathname.startsWith("/workouts") ||
-    pathname.startsWith("/workout")
+    Boolean(onAdd) &&
+    (pathname === "/" ||
+      pathname.startsWith("/foods") ||
+      pathname.startsWith("/workouts") ||
+      pathname.startsWith("/workout"))
 
   // useEffect (post-paint) so the browser renders the old pill position first,
   // giving the CSS transition a start value to animate from.

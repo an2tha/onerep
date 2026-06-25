@@ -278,7 +278,7 @@ export default function SearchFoods() {
             <button
               onClick={() => navigate(-1)}
               aria-label="Go back"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
@@ -299,7 +299,7 @@ export default function SearchFoods() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search foods"
-                className="h-9 w-full rounded-xl bg-muted/60 pr-8 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
+                className="h-10 w-full rounded-xl bg-muted/60 pr-10 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
               />
               {query.length > 0 && (
                 <button
@@ -309,7 +309,7 @@ export default function SearchFoods() {
                     setSearchState("idle")
                   }}
                   aria-label="Clear search"
-                  className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground/40 transition-opacity active:opacity-60"
+                  className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted-foreground/40 transition-opacity active:opacity-60"
                 >
                   <X size={13} weight="bold" />
                 </button>

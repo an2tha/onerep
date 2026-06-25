@@ -574,7 +574,7 @@ function IngredientCard({
               <button
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onDelete}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/30 transition-colors active:bg-muted/60 active:text-destructive/70"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/30 transition-colors active:bg-muted/60 active:text-destructive/70"
               >
                 <X size={11} weight="bold" />
               </button>
@@ -606,7 +606,7 @@ function IngredientCard({
                 e.preventDefault()
                 step(-1)
               }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
             >
               <Minus size={11} weight="bold" />
             </button>
@@ -626,7 +626,7 @@ function IngredientCard({
                     setEditing(false)
                   }
                 }}
-                className="h-8 w-20 rounded-lg bg-muted/60 px-1.5 text-center text-[12px] font-semibold tabular-nums outline-none"
+                className="h-10 w-20 rounded-lg bg-muted/60 px-1.5 text-center text-[12px] font-semibold tabular-nums outline-none"
               />
             ) : (
               <button
@@ -634,7 +634,7 @@ function IngredientCard({
                   setInputVal(String(amount))
                   setEditing(true)
                 }}
-                className="h-8 min-w-[64px] rounded-lg bg-muted/50 px-2.5 text-center text-[12px] font-semibold text-muted-foreground/75 tabular-nums transition-colors active:bg-muted"
+                className="h-10 min-w-[64px] rounded-lg bg-muted/50 px-2.5 text-center text-[12px] font-semibold text-muted-foreground/75 tabular-nums transition-colors active:bg-muted"
               >
                 {amount}
               </button>
@@ -649,7 +649,7 @@ function IngredientCard({
                   nextUnit
                 )
               }}
-              className="h-8 rounded-lg bg-muted/50 px-2 text-[11px] font-semibold text-muted-foreground/75 outline-none"
+              className="h-10 rounded-lg bg-muted/50 px-2 text-[11px] font-semibold text-muted-foreground/75 outline-none"
             >
               {FOOD_PORTION_UNITS.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -663,7 +663,7 @@ function IngredientCard({
                 e.preventDefault()
                 step(1)
               }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-95 active:bg-muted"
             >
               <Plus size={11} weight="bold" />
             </button>
@@ -944,7 +944,7 @@ function SearchOverlay({
             >
               <button
                 onClick={onClose}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
               >
                 <ArrowLeft size={15} weight="bold" />
               </button>
@@ -964,7 +964,7 @@ function SearchOverlay({
                   placeholder="Search foods…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="h-9 w-full rounded-xl bg-muted/60 pr-8 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
+                  className="h-10 w-full rounded-xl bg-muted/60 pr-10 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
                 />
                 {query.length > 0 && (
                   <button
@@ -973,7 +973,7 @@ function SearchOverlay({
                       setDebouncedQuery("")
                       setSearchState("idle")
                     }}
-                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground/40 transition-opacity active:opacity-60"
+                    className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted-foreground/40 transition-opacity active:opacity-60"
                   >
                     <X size={13} weight="bold" />
                   </button>
@@ -1080,7 +1080,7 @@ function SearchOverlay({
                               e.stopPropagation()
                               if (!isAdded) handleAdd(item)
                             }}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-90"
                           >
                             {isAdded ? (
                               <span className="text-[11px] text-foreground/60">
@@ -1254,7 +1254,7 @@ export default function NewRecipe() {
           >
             <button
               onClick={() => navigate(-1)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
@@ -1266,7 +1266,7 @@ export default function NewRecipe() {
             <button
               onClick={handleSave}
               disabled={!canSave || saved}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-all active:scale-95 active:opacity-75 disabled:opacity-25"
+              className="flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-all active:scale-95 active:opacity-75 disabled:opacity-25"
             >
               {saved ? (
                 <Check size={12} weight="bold" className="text-green-400" />
@@ -1284,7 +1284,7 @@ export default function NewRecipe() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Untitled Recipe"
-              className="w-full bg-transparent text-[2rem] leading-[1.12] font-bold tracking-[-0.025em] text-foreground outline-none placeholder:text-foreground/18"
+              className="min-h-12 w-full bg-transparent text-[2rem] leading-[1.12] font-bold tracking-[-0.025em] text-foreground outline-none placeholder:text-foreground/18"
             />
             {/* Ruler line — always visible, like a recipe card */}
             <div className="mt-3 h-px bg-border/50" />

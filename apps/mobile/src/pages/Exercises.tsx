@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery } from "convex/react"
 import { Card } from "@repo/ui"
-import { BottomBar } from "@/components/bottom-bar"
-import { useSmoothNavigate } from "@/lib/navigation"
 import {
   resolveExerciseIds,
   type Exercise,
@@ -231,7 +229,6 @@ function TopExerciseCard({ exercise }: { exercise: ExerciseCard | null }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Exercises() {
-  const navigate = useSmoothNavigate()
   const history = useQuery(api.logs.workouts.getHistory, {})
   const loading = history === undefined
   const [exerciseLookup, setExerciseLookup] = useState<
@@ -410,8 +407,6 @@ export default function Exercises() {
           </section>
         </main>
       </div>
-
-      <BottomBar onAdd={() => navigate("/workout/active")} />
     </div>
   )
 }

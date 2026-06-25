@@ -550,7 +550,7 @@ export default function SnapAndLog() {
       >
         <button
           onClick={() => navigate(-1)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-opacity active:opacity-60"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-opacity active:opacity-60"
         >
           <ArrowLeft size={16} weight="bold" />
         </button>
@@ -562,7 +562,7 @@ export default function SnapAndLog() {
               void hapticTap()
               switchMode("snap")
             }}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/50"}`}
+            className={`flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/50"}`}
           >
             <CameraIcon size={12} weight="bold" />
             Snap
@@ -572,7 +572,7 @@ export default function SnapAndLog() {
               void hapticTap()
               switchMode("barcode")
             }}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/50"}`}
+            className={`flex min-h-10 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/50"}`}
           >
             <Barcode size={12} weight="bold" />
             Scan
@@ -581,7 +581,7 @@ export default function SnapAndLog() {
 
         <button
           onClick={() => setFlash((f) => !f)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-opacity active:opacity-60"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-md transition-opacity active:opacity-60"
         >
           {flash ? (
             <Lightning size={16} weight="fill" className="text-amber-400" />
@@ -751,7 +751,7 @@ function ResultsSheet({
         </div>
         <button
           onClick={onDismiss}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-white/10 transition-opacity active:opacity-60"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition-opacity active:opacity-60"
         >
           <X size={13} weight="bold" className="text-white/60" />
         </button>
@@ -865,7 +865,7 @@ function ResultsSheet({
                     </div>
                     <button
                       onClick={() => onAdd(item)}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all active:scale-90"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-90"
                       style={{
                         backgroundColor: isAdded
                           ? mealCfg.bg
