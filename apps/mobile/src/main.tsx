@@ -42,6 +42,7 @@ import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
 import Onboarding from "./pages/Onboarding.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx"
+import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -367,6 +368,10 @@ const router = createBrowserRouter([
       {
         path: "/email-verified",
         element: <EmailVerified />,
+      },
+      {
+        path: "/verify-email-required",
+        element: <VerifyEmailRequired />,
       },
       {
         path: "/settings",
