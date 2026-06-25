@@ -6,7 +6,10 @@ import {
   type SVGProps,
 } from "react"
 import { authClient } from "@/lib/auth-client"
-import { getAuthCallbackUrl } from "@/lib/auth-redirects"
+import {
+  getAuthCallbackUrl,
+  rememberPendingVerification,
+} from "@/lib/auth-redirects"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 
@@ -283,12 +286,21 @@ export default function Login() {
     }
   }
 
-  async function handleVerificationEmail(targetEmail = email.trim()) {
+  async function handleVerificationEmail(
+    targetEmail = email.trim(),
+    options?: { next?: string; redirect?: boolean }
+  ) {
     const trimmed = targetEmail.trim()
     if (!trimmed) {
       setError("Enter your email first")
       return
     }
+
+    const next = options?.next
+    const callbackPath =
+      next === "onboarding"
+        ? "/email-verified?next=onboarding"
+        : "/email-verified"
 
     setLoading(true)
     setError(undefined)
@@ -296,10 +308,15 @@ export default function Login() {
     try {
       const { error } = await authClient.sendVerificationEmail({
         email: trimmed,
-        callbackURL: getAuthCallbackUrl("/email-verified"),
+        callbackURL: getAuthCallbackUrl(callbackPath),
       })
       if (error) {
         setError(error.message ?? "Could not send verification email")
+        return
+      }
+      rememberPendingVerification(trimmed, next)
+      if (options?.redirect) {
+        navigate("/verify-email-required", { replace: true })
         return
       }
       setMessage("Verification email sent. Check your inbox.")
@@ -322,7 +339,7 @@ export default function Login() {
         })
         if (error) {
           if (isEmailNotVerified(error)) {
-            await handleVerificationEmail(email)
+            await handleVerificationEmail(email, { redirect: true })
             return
           }
           setError(error.message ?? "Sign in failed")
@@ -344,16 +361,19 @@ export default function Login() {
         }
         posthog.identify(data?.user?.id ?? email, { email, name: displayName })
         posthog.capture("user_signed_up", { method: "email" })
-        setMode("signin")
-        setName("")
-        setPassword("")
-        setMessage(
-          "If this is a new account, a verification link is on the way."
-        )
+        rememberPendingVerification(email.trim(), "onboarding")
+        navigate("/verify-email-required", { replace: true })
+        return
       }
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleManualVerificationEmail() {
+    await handleVerificationEmail(email, {
+      redirect: true,
+    })
   }
 
   if (showIntro) {
@@ -536,7 +556,7 @@ export default function Login() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleVerificationEmail()}
+                  onClick={() => void handleManualVerificationEmail()}
                   disabled={loading}
                   className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
                 >
