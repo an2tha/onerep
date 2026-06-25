@@ -15,6 +15,7 @@ import {
   DotsSixVertical,
   Fire,
   MagnifyingGlass,
+  Minus,
   Plus,
   Sparkle,
   Timer,
@@ -24,6 +25,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { sparklinePoints } from "@/lib/progress-metrics"
+import olympicBarPng from "@/assets/bars/bar-olympic.png"
+import ezBarPng from "@/assets/bars/bar-ez.png"
+import trapBarPng from "@/assets/bars/bar-trap.png"
 import {
   resolveExerciseIds,
   searchExercises,
@@ -46,6 +50,7 @@ import {
 type Category = ExerciseCategory
 type SetType = "working" | "warmup" | "failure" | "myoreps" | "drop"
 type WeightUnit = "kg" | "lbs"
+type BarType = "olympic" | "womens" | "ez" | "trap" | "custom"
 
 type WorkoutSet = {
   id: string
@@ -65,6 +70,8 @@ type ExerciseState = {
   sets: WorkoutSet[]
   trackRpe: boolean
   trackUnilateral: boolean
+  barWeight: string
+  barType: BarType
 }
 
 type PersistedExerciseState = Partial<Omit<ExerciseState, "sets">> & {
@@ -91,6 +98,12 @@ type LoggedWorkoutExercise = {
 type ExerciseCardDropProps = {
   showLineBefore: boolean
   showLineAfter: boolean
+}
+
+type WeightSelectorChange = {
+  weight?: string
+  barWeight?: string
+  barType?: BarType
 }
 
 type WorkoutItem =
@@ -161,6 +174,51 @@ const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
 }
 
 const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
+const KG_TO_LBS = 2.20462
+
+const BAR_TYPES = ["olympic", "womens", "ez", "trap", "custom"] as const
+
+const BAR_PROFILES: Array<{
+  type: BarType
+  label: string
+  shortLabel: string
+  kg: number
+  lbs: number
+  image: string
+}> = [
+  {
+    type: "olympic",
+    label: "Olympic bar",
+    shortLabel: "Olympic",
+    kg: 20,
+    lbs: 45,
+    image: olympicBarPng,
+  },
+  {
+    type: "womens",
+    label: "Training bar",
+    shortLabel: "15 kg",
+    kg: 15,
+    lbs: 35,
+    image: olympicBarPng,
+  },
+  {
+    type: "ez",
+    label: "EZ curl bar",
+    shortLabel: "EZ",
+    kg: 10,
+    lbs: 25,
+    image: ezBarPng,
+  },
+  {
+    type: "trap",
+    label: "Trap bar",
+    shortLabel: "Trap",
+    kg: 25,
+    lbs: 55,
+    image: trapBarPng,
+  },
+]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -202,14 +260,87 @@ function toDisplay(kgStr: string, unit: WeightUnit): string {
   if (!kgStr) return ""
   const kg = parseFloat(kgStr)
   if (isNaN(kg)) return kgStr
-  return unit === "lbs" ? String(+(kg * 2.20462).toFixed(1)) : kgStr
+  return formatWeightValue(kg, unit)
 }
 
 function toKg(displayVal: string, unit: WeightUnit): string {
   if (!displayVal) return ""
   const n = parseFloat(displayVal)
   if (isNaN(n)) return displayVal
-  return unit === "lbs" ? String(+(n / 2.20462).toFixed(2)) : displayVal
+  return unit === "lbs" ? formatKgString(n / KG_TO_LBS) : formatKgString(n)
+}
+
+function parseKg(value?: string | number | null) {
+  if (value == null || value === "") return null
+  const parsed = typeof value === "number" ? value : Number.parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function formatKgString(kg: number) {
+  return String(+kg.toFixed(2))
+}
+
+function formatWeightValue(kg: number, unit: WeightUnit) {
+  const value = unit === "lbs" ? kg * KG_TO_LBS : kg
+  return String(Number.isInteger(value) ? value : +value.toFixed(1))
+}
+
+function displayWeightToKg(value: number, unit: WeightUnit) {
+  return unit === "lbs" ? value / KG_TO_LBS : value
+}
+
+function getBarProfile(type: BarType) {
+  return BAR_PROFILES.find((profile) => profile.type === type)
+}
+
+function isBarType(value: unknown): value is BarType {
+  return (
+    typeof value === "string" &&
+    (BAR_TYPES as readonly string[]).includes(value)
+  )
+}
+
+function normalizeBarType(value: unknown, barWeight?: string): BarType {
+  if (isBarType(value)) return value
+  const kg = parseKg(barWeight)
+  if (!kg) return "olympic"
+  const exactProfile = BAR_PROFILES.find(
+    (profile) =>
+      Math.abs(profile.kg - kg) < 0.01 ||
+      Math.abs(profile.lbs / KG_TO_LBS - kg) < 0.01
+  )
+  return exactProfile?.type ?? "custom"
+}
+
+function defaultBarWeight(type: BarType, unit: WeightUnit) {
+  const profile = getBarProfile(type) ?? BAR_PROFILES[0]
+  return unit === "lbs"
+    ? toKg(String(profile.lbs), "lbs")
+    : formatKgString(profile.kg)
+}
+
+function barImageForType(type: BarType) {
+  return getBarProfile(type)?.image ?? olympicBarPng
+}
+
+function barLabelForType(type: BarType) {
+  return getBarProfile(type)?.label ?? "Custom bar"
+}
+
+function platePerSideKg(totalKg: number | null, barKg: number | null) {
+  if (barKg == null || barKg <= 0 || totalKg == null) return null
+  return Math.max(0, (totalKg - barKg) / 2)
+}
+
+function plateDisplayFromValues(
+  totalWeight: string,
+  barWeight: string,
+  unit: WeightUnit
+) {
+  const totalKg = parseKg(totalWeight)
+  const barKg = parseKg(barWeight)
+  const plateKg = platePerSideKg(totalKg, barKg)
+  return plateKg == null ? "" : formatWeightValue(plateKg, unit)
 }
 
 function makeSet(): WorkoutSet {
@@ -238,7 +369,9 @@ function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
 }
 
 function workoutItemKey(item: WorkoutItem) {
-  return item.kind === "solo" ? `solo:${item.exerciseId}` : `superset:${item.id}`
+  return item.kind === "solo"
+    ? `solo:${item.exerciseId}`
+    : `superset:${item.id}`
 }
 
 /**
@@ -368,6 +501,7 @@ function findNextTarget(
  * @returns A normalized ExerciseState ready for UI usage and persistence
  */
 function normalizeExerciseState(state?: PersistedExerciseState): ExerciseState {
+  const barWeight = state?.barWeight || ""
   return {
     sets: (state?.sets || []).map((s) => ({
       id: s.id || uid(),
@@ -382,6 +516,8 @@ function normalizeExerciseState(state?: PersistedExerciseState): ExerciseState {
     })),
     trackRpe: !!state?.trackRpe,
     trackUnilateral: !!state?.trackUnilateral,
+    barWeight,
+    barType: normalizeBarType(state?.barType, barWeight),
   }
 }
 
@@ -508,7 +644,7 @@ function RestCountdownBanner({
           }}
         >
           <div
-            className="h-full transition-all duration-1000 ease-linear"
+            className="motion-countdown-fill h-full"
             style={{
               width: `${pct * 100}%`,
               backgroundColor: trackColor,
@@ -605,7 +741,7 @@ function RestTimerSheet({
               key={s}
               onClick={() => onSelect(s)}
               className={cn(
-                "h-[52px] rounded-[20px] text-[14px] font-black tracking-tight tabular-nums transition-all active:scale-[0.96]",
+                "h-[52px] rounded-[20px] text-[14px] font-black tracking-tight tabular-nums transition-all active:scale-[0.985]",
                 s === current
                   ? "bg-foreground text-background"
                   : "bg-muted/50 text-muted-foreground/80 active:bg-muted"
@@ -663,6 +799,600 @@ function RestTimerSheet({
   )
 }
 
+function WeightSelectorSheet({
+  currentWeight,
+  barWeight,
+  barType,
+  unit,
+  lastSet,
+  onChange,
+  onClose,
+}: {
+  currentWeight: string
+  barWeight: string
+  barType: BarType
+  unit: WeightUnit
+  lastSet?: { weight: number; reps: number } | null
+  onChange: (change: WeightSelectorChange) => void
+  onClose: () => void
+}) {
+  const [isClosing, setIsClosing] = useState(false)
+  const [weightInput, setWeightInput] = useState(() =>
+    toDisplay(currentWeight, unit)
+  )
+  const [barInput, setBarInput] = useState(() => toDisplay(barWeight, unit))
+  const [selectedBarType, setSelectedBarType] = useState<BarType>(() =>
+    normalizeBarType(barType, barWeight)
+  )
+  const [plateInput, setPlateInput] = useState(() =>
+    plateDisplayFromValues(currentWeight, barWeight, unit)
+  )
+
+  useEffect(() => {
+    setWeightInput(toDisplay(currentWeight, unit))
+    setBarInput(toDisplay(barWeight, unit))
+    setPlateInput(plateDisplayFromValues(currentWeight, barWeight, unit))
+  }, [barWeight, currentWeight, unit])
+
+  useEffect(() => {
+    setSelectedBarType(normalizeBarType(barType, barWeight))
+  }, [barType, barWeight])
+
+  const totalKg = parseKg(toKg(weightInput, unit))
+  const barKg = parseKg(toKg(barInput, unit))
+  const hasBar = !!barKg && barKg > 0
+  const activeBarImage = barImageForType(selectedBarType)
+  const activeBarLabel = barLabelForType(selectedBarType)
+  const currentPlateKg = platePerSideKg(totalKg, barKg)
+  const lastWeightLabel =
+    lastSet?.weight && lastSet.weight > 0
+      ? `${toDisplay(String(lastSet.weight), unit)} ${unit}`
+      : null
+  const barDisplayValue =
+    hasBar && barKg != null ? formatWeightValue(barKg, unit) : ""
+  const plateDisplayValue =
+    currentPlateKg != null ? formatWeightValue(currentPlateKg, unit) : ""
+  const quickDeltas = unit === "kg" ? [1.25, 2.5, 5, 10] : [2.5, 5, 10, 25]
+  const plateDeltas = unit === "kg" ? [1.25, 2.5, 5] : [2.5, 5, 10]
+  const platePresets =
+    unit === "kg" ? [1.25, 2.5, 5, 10, 15, 20, 25] : [2.5, 5, 10, 25, 35, 45]
+
+  function dismiss() {
+    if (isClosing) return
+    setIsClosing(true)
+    window.setTimeout(onClose, 190)
+  }
+
+  function emitChange(change: WeightSelectorChange) {
+    onChange({
+      barType: selectedBarType,
+      barWeight: barKg != null && barKg > 0 ? formatKgString(barKg) : "",
+      ...change,
+    })
+  }
+
+  function updatePlateInput(nextTotalKg: number | null, nextBarKg = barKg) {
+    const nextPlateKg = platePerSideKg(nextTotalKg, nextBarKg)
+    setPlateInput(
+      nextPlateKg == null ? "" : formatWeightValue(nextPlateKg, unit)
+    )
+  }
+
+  function commitWeightKg(
+    nextTotalKg: number,
+    nextBarKg = barKg,
+    nextBarType = selectedBarType
+  ) {
+    const nextWeightKg = formatKgString(nextTotalKg)
+    setWeightInput(formatWeightValue(nextTotalKg, unit))
+    updatePlateInput(nextTotalKg, nextBarKg)
+    onChange({
+      weight: nextWeightKg,
+      barWeight:
+        nextBarKg != null && nextBarKg > 0 ? formatKgString(nextBarKg) : "",
+      barType: nextBarType,
+    })
+  }
+
+  function setWeightDisplay(value: string) {
+    setWeightInput(value)
+    const nextWeightKg = toKg(value, unit)
+    updatePlateInput(parseKg(nextWeightKg))
+    emitChange({ weight: nextWeightKg })
+  }
+
+  function setBarDisplay(
+    value: string,
+    recalculateTotal = true,
+    nextBarType = selectedBarType
+  ) {
+    const previousPlateKg =
+      currentPlateKg ?? parseKg(toKg(plateInput, unit)) ?? 0
+    const nextBarKgString = toKg(value, unit)
+    const nextBarKg = parseKg(nextBarKgString)
+    setBarInput(value)
+    if (recalculateTotal && nextBarKg != null && nextBarKg > 0) {
+      commitWeightKg(nextBarKg + previousPlateKg * 2, nextBarKg, nextBarType)
+      return
+    }
+    if (nextBarKg == null || nextBarKg <= 0) {
+      setPlateInput("")
+    }
+    onChange({
+      barWeight: nextBarKgString,
+      barType: nextBarType,
+    })
+  }
+
+  function setWeightFromDisplayNumber(value: number) {
+    const safeValue = Math.max(0, value)
+    setWeightDisplay(
+      String(Number.isInteger(safeValue) ? safeValue : +safeValue.toFixed(1))
+    )
+  }
+
+  function applyDelta(delta: number) {
+    const currentDisplay =
+      totalKg != null ? (unit === "lbs" ? totalKg * KG_TO_LBS : totalKg) : 0
+    setWeightFromDisplayNumber(currentDisplay + delta)
+  }
+
+  function selectBarType(type: BarType) {
+    const previousPlateKg =
+      currentPlateKg ?? parseKg(toKg(plateInput, unit)) ?? 0
+    const nextBarKgString = defaultBarWeight(type, unit)
+    const nextBarKg = parseKg(nextBarKgString)
+    setSelectedBarType(type)
+    setBarInput(toDisplay(nextBarKgString, unit))
+    if (nextBarKg != null) {
+      commitWeightKg(nextBarKg + previousPlateKg * 2, nextBarKg, type)
+      return
+    }
+    onChange({ barWeight: nextBarKgString, barType: type })
+  }
+
+  function toggleBar() {
+    if (!hasBar) {
+      selectBarType(selectedBarType === "custom" ? "olympic" : selectedBarType)
+      return
+    }
+    setBarInput("")
+    setPlateInput("")
+    onChange({ barWeight: "", barType: selectedBarType })
+  }
+
+  function setCustomBarDisplay(value: string) {
+    if (selectedBarType !== "custom") {
+      setSelectedBarType("custom")
+    }
+    setBarDisplay(value, true, "custom")
+  }
+
+  function ensureBarForPlates() {
+    if (barKg != null && barKg > 0) {
+      return { kg: barKg, type: selectedBarType }
+    }
+    const nextType = selectedBarType === "custom" ? "olympic" : selectedBarType
+    const nextBarKgString = defaultBarWeight(nextType, unit)
+    const nextBarKg = parseKg(nextBarKgString)
+    setSelectedBarType(nextType)
+    setBarInput(toDisplay(nextBarKgString, unit))
+    return { kg: nextBarKg ?? 0, type: nextType }
+  }
+
+  function setPlatePerSideDisplay(value: string) {
+    setPlateInput(value)
+    const nextPlateKg = parseKg(toKg(value, unit))
+    const activeBar = ensureBarForPlates()
+    if (nextPlateKg == null) return
+    commitWeightKg(activeBar.kg + nextPlateKg * 2, activeBar.kg, activeBar.type)
+  }
+
+  function setPlateFromDisplayNumber(value: number) {
+    const safeValue = Math.max(0, value)
+    setPlatePerSideDisplay(
+      String(Number.isInteger(safeValue) ? safeValue : +safeValue.toFixed(1))
+    )
+  }
+
+  function applyPlateDelta(delta: number) {
+    const currentDisplay =
+      currentPlateKg != null
+        ? unit === "lbs"
+          ? currentPlateKg * KG_TO_LBS
+          : currentPlateKg
+        : 0
+    setPlateFromDisplayNumber(currentDisplay + delta)
+  }
+
+  function selectPlatePerSide(displayPlate: number) {
+    const activeBar = ensureBarForPlates()
+    const plateKg = displayWeightToKg(displayPlate, unit)
+    setPlateInput(String(displayPlate))
+    commitWeightKg(activeBar.kg + plateKg * 2, activeBar.kg, activeBar.type)
+  }
+
+  return (
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-[8px] md:block md:p-6",
+        isClosing
+          ? "weight-selector-overlay-exit"
+          : "weight-selector-overlay-enter"
+      )}
+      onClick={dismiss}
+    >
+      <div
+        className={cn(
+          "max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:absolute md:top-1/2 md:left-1/2 md:max-w-3xl md:rounded-[28px] md:shadow-2xl",
+          isClosing
+            ? "weight-selector-panel-exit"
+            : "weight-selector-panel-enter"
+        )}
+        style={{
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="h-1 w-10 rounded-full bg-muted/70" />
+        </div>
+        <div className="flex items-center justify-between px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-[18px] bg-muted/55 text-foreground/70">
+              <Barbell size={17} weight="bold" />
+            </span>
+            <div>
+              <p className="text-[15px] font-black tracking-tight">Weight</p>
+              <p className="text-[11px] text-muted-foreground/55">
+                {lastWeightLabel
+                  ? `Last set ${lastWeightLabel}`
+                  : hasBar
+                    ? `${activeBarLabel} + plates`
+                    : `Total load in ${unit}`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={dismiss}
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/60 transition-colors active:bg-muted active:text-foreground"
+          >
+            <X size={13} weight="bold" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-4 md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-3 md:px-6 md:pb-6">
+          <div className="rounded-[26px] border border-border/45 bg-background p-3">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                  Bar setup
+                </p>
+                <p className="mt-1 truncate text-[12px] font-semibold text-foreground/75">
+                  {hasBar
+                    ? `${activeBarLabel} · ${barDisplayValue} ${unit}`
+                    : "No bar added"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleBar}
+                className={cn(
+                  "h-10 shrink-0 rounded-[18px] px-3 text-[12px] font-black transition-all active:scale-[0.985]",
+                  hasBar
+                    ? "bg-foreground text-background"
+                    : "bg-muted/55 text-muted-foreground/75 active:bg-muted active:text-foreground"
+                )}
+              >
+                {hasBar ? "On" : "Use bar"}
+              </button>
+            </div>
+
+            <div className="relative mt-3 overflow-hidden rounded-[24px] border border-border/35 bg-muted/25 px-3 py-4">
+              <div className="absolute inset-x-5 top-1/2 h-px bg-border/45" />
+              <img
+                src={activeBarImage}
+                alt=""
+                className={cn(
+                  "relative mx-auto w-full object-contain transition-all duration-200",
+                  selectedBarType === "trap" ? "h-24" : "h-14",
+                  !hasBar && "opacity-35 grayscale"
+                )}
+              />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {BAR_PROFILES.map((profile) => {
+                const selected = hasBar && selectedBarType === profile.type
+                const presetWeight =
+                  unit === "lbs" ? `${profile.lbs} lbs` : `${profile.kg} kg`
+                return (
+                  <button
+                    key={profile.type}
+                    type="button"
+                    onClick={() => selectBarType(profile.type)}
+                    className={cn(
+                      "min-w-0 overflow-hidden rounded-[20px] border p-2 text-left transition-all active:scale-[0.985]",
+                      selected
+                        ? "border-foreground/20 bg-foreground text-background shadow-sm"
+                        : "border-border/40 bg-card/65 active:border-primary/20 active:bg-card"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "flex h-9 items-center rounded-[14px] px-1.5",
+                        selected ? "bg-background/10" : "bg-muted/30"
+                      )}
+                    >
+                      <img
+                        src={profile.image}
+                        alt=""
+                        className={cn(
+                          "h-full w-full object-contain",
+                          profile.type === "trap" && "scale-125"
+                        )}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <span className="min-w-0 truncate text-[11px] font-black">
+                        {profile.shortLabel}
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0 text-[10px] font-black tabular-nums",
+                          selected
+                            ? "text-background/70"
+                            : "text-muted-foreground/55"
+                        )}
+                      >
+                        {presetWeight}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {hasBar && (
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <label className="relative min-w-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={barInput}
+                    onChange={(event) =>
+                      setCustomBarDisplay(event.target.value)
+                    }
+                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/50 bg-card px-3 pr-12 text-center text-[18px] font-black tabular-nums transition-all outline-none focus:border-primary/30 focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    aria-label={`Bar weight in ${unit}`}
+                  />
+                  <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[9px] font-black tracking-[0.14em] text-muted-foreground/45 uppercase">
+                    {unit}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setCustomBarDisplay(barInput || "0")}
+                  className={cn(
+                    "h-12 rounded-[20px] px-3 text-[11px] font-black tracking-[0.12em] uppercase transition-all active:scale-[0.985]",
+                    selectedBarType === "custom"
+                      ? "bg-foreground text-background"
+                      : "bg-muted/50 text-muted-foreground/70 active:bg-muted active:text-foreground"
+                  )}
+                >
+                  Custom
+                </button>
+              </div>
+            )}
+          </div>
+
+          {hasBar && (
+            <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                    Plates per side
+                  </p>
+                  <p className="mt-1 text-[12px] font-semibold text-foreground/75">
+                    Total {weightInput || "0"} {unit}
+                  </p>
+                </div>
+                <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-muted-foreground/65 uppercase">
+                  {activeBarLabel}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyPlateDelta(-(unit === "kg" ? 1.25 : 2.5))}
+                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                  aria-label="Decrease plates per side"
+                >
+                  <Minus size={15} weight="bold" />
+                </button>
+                <label className="relative min-w-0">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={plateInput}
+                    onChange={(event) =>
+                      setPlatePerSideDisplay(event.target.value)
+                    }
+                    placeholder="0"
+                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-black tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground/25 focus:border-primary/30 focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    aria-label={`Plates per side in ${unit}`}
+                  />
+                  <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+                    {unit}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => applyPlateDelta(unit === "kg" ? 1.25 : 2.5)}
+                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                  aria-label="Increase plates per side"
+                >
+                  <Plus size={15} weight="bold" />
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {plateDeltas.map((delta) => (
+                  <button
+                    key={delta}
+                    type="button"
+                    onClick={() => applyPlateDelta(delta)}
+                    className="h-9 rounded-[15px] bg-muted/40 text-[11px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-muted active:text-foreground"
+                  >
+                    +{delta}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                {platePresets.map((plate) => (
+                  <button
+                    key={plate}
+                    type="button"
+                    onClick={() => selectPlatePerSide(plate)}
+                    className="h-9 rounded-[15px] bg-card/80 text-[11px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-card active:text-foreground"
+                  >
+                    {plate}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4 md:mt-0">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                  Total weight
+                </p>
+                <p className="mt-1 text-[12px] font-semibold text-foreground/75">
+                  {hasBar
+                    ? `${barDisplayValue} ${unit} bar + ${plateDisplayValue || "0"} ${unit}/side`
+                    : `Direct entry in ${unit}`}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-[3.25rem_minmax(0,1fr)_3.25rem] items-center gap-2">
+              <button
+                type="button"
+                onClick={() => applyDelta(-(unit === "kg" ? 2.5 : 5))}
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                aria-label="Decrease weight"
+              >
+                <Minus size={16} weight="bold" />
+              </button>
+              <label className="relative min-w-0">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={weightInput}
+                  onChange={(event) => setWeightDisplay(event.target.value)}
+                  placeholder="0"
+                  className="h-[58px] w-full [appearance:textfield] rounded-[22px] border border-border/55 bg-card px-4 pr-14 text-center text-[28px] leading-none font-black tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground/25 focus:border-primary/30 focus:ring-2 focus:ring-primary/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  aria-label={`Total weight in ${unit}`}
+                />
+                <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+                  {unit}
+                </span>
+              </label>
+              <button
+                type="button"
+                onClick={() => applyDelta(unit === "kg" ? 2.5 : 5)}
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                aria-label="Increase weight"
+              >
+                <Plus size={16} weight="bold" />
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-1.5">
+              {quickDeltas.map((delta) => (
+                <button
+                  key={delta}
+                  type="button"
+                  onClick={() => applyDelta(delta)}
+                  className="h-10 rounded-[16px] bg-muted/40 text-[12px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-muted active:text-foreground"
+                >
+                  +{delta}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={dismiss}
+            className="mt-3 h-12 w-full rounded-[20px] bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-85 md:col-span-2"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WeightSelectorButton({
+  value,
+  placeholder,
+  unit,
+  barWeight,
+  disabled,
+  compact,
+  onClick,
+}: {
+  value: string
+  placeholder: string
+  unit: WeightUnit
+  barWeight: string
+  disabled?: boolean
+  compact?: boolean
+  onClick: () => void
+}) {
+  const totalKg = parseKg(value)
+  const barKg = parseKg(barWeight)
+  const hasBar = !!barKg && barKg > 0
+  const platePerSide =
+    hasBar && totalKg != null ? Math.max(0, (totalKg - barKg) / 2) : null
+  const display = toDisplay(value, unit)
+  const plateLabel =
+    platePerSide != null
+      ? `${formatWeightValue(platePerSide, unit)}/side`
+      : null
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`Select weight in ${unit}`}
+      className={cn(
+        "group flex w-full min-w-0 items-center justify-center border text-center font-semibold tabular-nums transition-all outline-none disabled:pointer-events-none",
+        compact
+          ? "h-10 rounded-[18px] px-2.5 text-[14px]"
+          : "h-12 rounded-[20px] px-3 text-[17px]",
+        disabled
+          ? "border-border/30 bg-muted/30 text-foreground/50"
+          : "border-border/45 bg-muted/20 active:scale-[0.985] active:border-primary/25 active:bg-card/80"
+      )}
+    >
+      <span className="min-w-0 truncate">{display || placeholder}</span>
+      {display && (
+        <span className="ml-1.5 shrink-0 text-[9px] font-black tracking-[0.12em] text-muted-foreground/45 uppercase">
+          {unit}
+        </span>
+      )}
+      {plateLabel && !compact && (
+        <span className="ml-2 min-w-0 truncate rounded-full bg-muted/55 px-2 py-0.5 text-[9px] font-black tracking-[0.08em] text-muted-foreground/65 uppercase">
+          {plateLabel}
+        </span>
+      )}
+    </button>
+  )
+}
+
 /**
  * Render a single active set row allowing the user to edit weight/reps/RPE, toggle completion, pick rest, cycle set type, and delete the set.
  *
@@ -694,6 +1424,9 @@ function ActiveSetRow({
   onComplete,
   isNext,
   lastSet,
+  barWeight,
+  barType,
+  onWeightConfigChange,
 }: {
   set: WorkoutSet
   index: number
@@ -706,8 +1439,12 @@ function ActiveSetRow({
   onComplete: (restSeconds: number) => void
   isNext?: boolean
   lastSet?: { weight: number; reps: number } | null
+  barWeight: string
+  barType: BarType
+  onWeightConfigChange: (change: WeightSelectorChange) => void
 }) {
   const [showRest, setShowRest] = useState(false)
+  const [showWeight, setShowWeight] = useState(false)
   const [completionPulse, setCompletionPulse] = useState(false)
   const cfg = SET_CFG[set.type]
 
@@ -752,6 +1489,9 @@ function ActiveSetRow({
   const fullWidthComplete = trackUnilateral || trackRpe
   const showSecondarySetControls = trackUnilateral || trackRpe
   const desktopGridClass = setGridClass(trackUnilateral, trackRpe)
+  const weightPlaceholder = lastSet?.weight
+    ? toDisplay(String(lastSet.weight), unit)
+    : "–"
 
   return (
     <>
@@ -784,19 +1524,14 @@ function ActiveSetRow({
         >
           {set.completed ? <Check size={14} weight="bold" /> : cfg.label}
         </button>
-        <input
-          type="number"
-          inputMode="decimal"
-          value={toDisplay(set.weight, unit)}
-          onChange={(event) =>
-            onUpdate({ ...set, weight: toKg(event.target.value, unit) })
-          }
-          placeholder={
-            lastSet?.weight ? toDisplay(String(lastSet.weight), unit) : "–"
-          }
+        <WeightSelectorButton
+          value={set.weight}
+          placeholder={weightPlaceholder}
+          unit={unit}
+          barWeight={barWeight}
+          compact
           disabled={set.completed}
-          aria-label={`Weight (${unit})`}
-          className={compactFieldCls}
+          onClick={() => setShowWeight(true)}
         />
         {trackUnilateral ? (
           <>
@@ -933,7 +1668,7 @@ function ActiveSetRow({
             aria-label={`Set mode: ${cfg.label}. Tap to change.`}
             title={`Set mode: ${cfg.label}`}
             className={cn(
-              "flex h-10 min-w-[6.25rem] shrink-0 items-center justify-center rounded-[20px] px-3 transition-all select-none active:scale-[0.96] disabled:pointer-events-none",
+              "flex h-10 min-w-[6.25rem] shrink-0 items-center justify-center rounded-[20px] px-3 transition-all select-none active:scale-[0.985] disabled:pointer-events-none",
               isNext && !set.completed && "ring-1 ring-primary/15"
             )}
             style={{
@@ -962,7 +1697,7 @@ function ActiveSetRow({
             <button
               onClick={() => setShowRest(true)}
               aria-label="Set rest timer"
-              className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border border-border/40 bg-muted/20 px-3 transition-all active:scale-[0.97] active:bg-muted/50"
+              className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-[20px] border border-border/40 bg-muted/20 px-3 transition-all active:scale-[0.985] active:bg-muted/50"
             >
               <Timer size={13} className="text-muted-foreground/55" />
               <span className="text-[12px] font-semibold text-foreground/70 tabular-nums">
@@ -989,19 +1724,19 @@ function ActiveSetRow({
               : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem]"
           )}
         >
-          <SetNumberField
-            label={`Weight (${unit})`}
-            inputMode="decimal"
-            value={toDisplay(set.weight, unit)}
-            onChange={(value) =>
-              onUpdate({ ...set, weight: toKg(value, unit) })
-            }
-            placeholder={
-              lastSet?.weight ? toDisplay(String(lastSet.weight), unit) : "–"
-            }
-            disabled={set.completed}
-            className={fieldCls}
-          />
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+              Weight
+            </span>
+            <WeightSelectorButton
+              value={set.weight}
+              placeholder={weightPlaceholder}
+              unit={unit}
+              barWeight={barWeight}
+              disabled={set.completed}
+              onClick={() => setShowWeight(true)}
+            />
+          </label>
           {trackUnilateral ? (
             <>
               <SetNumberField
@@ -1051,13 +1786,12 @@ function ActiveSetRow({
               set.completed ? "Mark set incomplete" : "Mark set complete"
             }
             className={cn(
-              "flex h-12 items-center justify-center rounded-[20px] border text-[13px] font-bold transition-all active:scale-[0.97]",
+              "flex h-12 items-center justify-center rounded-[20px] border text-[13px] font-bold transition-all active:scale-[0.985]",
               fullWidthComplete ? "col-span-2 gap-2" : "w-full",
               set.completed
                 ? "border-primary/25 bg-primary/[0.10] text-primary shadow-sm"
                 : "border-border/40 bg-muted/15 text-muted-foreground/55 active:border-primary/25 active:bg-primary/[0.05] active:text-primary",
-              completionPulse &&
-                "animate-[set-complete_520ms_cubic-bezier(0.22,1,0.36,1)]"
+              completionPulse && "motion-set-complete"
             )}
           >
             <Check size={14} weight="bold" />
@@ -1075,6 +1809,17 @@ function ActiveSetRow({
             setShowRest(false)
           }}
           onClose={() => setShowRest(false)}
+        />
+      )}
+      {showWeight && (
+        <WeightSelectorSheet
+          currentWeight={set.weight}
+          barWeight={barWeight}
+          barType={barType}
+          unit={unit}
+          lastSet={lastSet}
+          onChange={onWeightConfigChange}
+          onClose={() => setShowWeight(false)}
         />
       )}
     </>
@@ -1161,12 +1906,44 @@ function ActiveExerciseCard({
     sets[i] = s
     onUpdate({ ...data, sets })
   }
+  function updateWeightConfig(i: number, change: WeightSelectorChange) {
+    const sets = [...data.sets]
+    if (change.weight !== undefined) {
+      sets[i] = { ...sets[i], weight: change.weight }
+    }
+    onUpdate({
+      ...data,
+      sets,
+      barWeight:
+        change.barWeight !== undefined ? change.barWeight : data.barWeight,
+      barType: change.barType ?? data.barType,
+    })
+  }
   function removeSet(i: number) {
     onUpdate({ ...data, sets: data.sets.filter((_, j) => j !== i) })
   }
   const allDone = data.sets.length > 0 && data.sets.every((s) => s.completed)
   const doneSets = data.sets.filter((s) => s.completed).length
   const totalRest = data.sets.reduce((sum, set) => sum + set.restSeconds, 0)
+  const selectedBarType = normalizeBarType(data.barType, data.barWeight)
+  const barKg = parseKg(data.barWeight)
+  const hasBarWeight = !!barKg && barKg > 0
+  const barLabel =
+    hasBarWeight && barKg != null
+      ? `${formatWeightValue(barKg, unit)} ${unit}`
+      : "Add bar"
+  const barModeLabel = hasBarWeight
+    ? barLabelForType(selectedBarType)
+    : "No bar"
+
+  function toggleBarWeight() {
+    onUpdate({
+      ...data,
+      barType: selectedBarType,
+      barWeight: hasBarWeight ? "" : defaultBarWeight(selectedBarType, unit),
+    })
+  }
+
   return (
     <div
       ref={cardRef}
@@ -1264,6 +2041,31 @@ function ActiveExerciseCard({
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <button
+              type="button"
+              onClick={toggleBarWeight}
+              aria-label={
+                hasBarWeight
+                  ? `Remove ${barLabel} bar weight`
+                  : "Add bar weight"
+              }
+              className={cn(
+                "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[10.5px] font-bold tracking-[0.12em] uppercase transition-colors md:flex-none",
+                hasBarWeight
+                  ? "border-foreground/10 bg-foreground text-background"
+                  : "border-border/45 bg-muted/20 text-muted-foreground/70 active:bg-muted/50"
+              )}
+            >
+              <Barbell size={13} weight="bold" />
+              <span className="min-w-0 truncate tracking-normal">
+                {barLabel}
+              </span>
+              {hasBarWeight && (
+                <span className="hidden max-w-20 truncate text-[10px] tracking-normal opacity-70 sm:inline">
+                  {barModeLabel}
+                </span>
+              )}
+            </button>
             <button
               onClick={onShowHistory}
               aria-label="Open exercise history"
@@ -1395,6 +2197,11 @@ function ActiveExerciseCard({
                     onComplete={onStartRest}
                     isNext={nextSetIndex === i}
                     lastSet={lastSession?.sets[i]}
+                    barWeight={data.barWeight}
+                    barType={selectedBarType}
+                    onWeightConfigChange={(change) =>
+                      updateWeightConfig(i, change)
+                    }
                   />
                 </div>
               ))}
@@ -2381,6 +3188,14 @@ export default function ActiveWorkout() {
     () => findNextTarget(items, exData),
     [items, exData]
   )
+  const nextExercise = nextTarget
+    ? exerciseLookup[nextTarget.exerciseId]
+    : undefined
+  const nextSetLabel = nextTarget
+    ? `${nextExercise?.name ?? "Next exercise"} · set ${nextTarget.setIndex + 1}`
+    : totalSets > 0
+      ? "Ready to finish"
+      : "Add an exercise"
 
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
   const syncToConvex = useCallback(() => {
@@ -2543,6 +3358,8 @@ export default function ActiveWorkout() {
         sets: [makeSet(), makeSet(), makeSet()],
         trackRpe: false,
         trackUnilateral: false,
+        barWeight: "",
+        barType: "olympic",
       },
     }))
   }
@@ -2560,7 +3377,11 @@ export default function ActiveWorkout() {
   function toggleCollapsed(id: string) {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   }
-  function calcDropTarget(x: number, y: number, draggedKey: string): DropTarget {
+  function calcDropTarget(
+    x: number,
+    y: number,
+    draggedKey: string
+  ): DropTarget {
     for (const [targetKey, el] of itemRefs.current) {
       if (targetKey === draggedKey) continue
       const rect = el.getBoundingClientRect()
@@ -2713,7 +3534,10 @@ export default function ActiveWorkout() {
     }
   }
 
-  function cardProps(itemKey: string, inSuperset = false): ExerciseCardDropProps {
+  function cardProps(
+    itemKey: string,
+    inSuperset = false
+  ): ExerciseCardDropProps {
     const dt = dropTarget
     const isTarget = dt?.targetKey === itemKey
     if (inSuperset)
@@ -2766,7 +3590,7 @@ export default function ActiveWorkout() {
             </button>
           </div>
           <div className="px-4 pb-3 md:px-6 md:pb-2.5">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
@@ -2778,8 +3602,8 @@ export default function ActiveWorkout() {
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-[12px] font-medium text-muted-foreground/60">
-                  {doneSets}/{totalSets} sets complete
+                <p className="mt-1 truncate text-[12px] font-semibold text-foreground/70">
+                  {nextSetLabel}
                 </p>
               </div>
               <div className="ml-auto flex h-11 shrink-0 overflow-hidden rounded-[20px] border border-border/45 bg-muted/35 text-[11px] font-bold">
@@ -2799,9 +3623,15 @@ export default function ActiveWorkout() {
                 ))}
               </div>
             </div>
+            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
+              <span>
+                {doneSets}/{totalSets} complete
+              </span>
+              <span>{progressPct}</span>
+            </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted/55">
               <div
-                className="h-full rounded-full bg-primary/45 transition-all duration-500 ease-out"
+                className="motion-progress-fill h-full rounded-full bg-primary/45"
                 style={{ width: progressPct }}
               />
             </div>

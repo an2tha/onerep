@@ -336,7 +336,7 @@ function RestTimerSheet({
               key={s}
               onClick={() => onSelect(s)}
               className={cn(
-                "h-12 rounded-xl text-[13px] font-semibold tracking-tight transition-all active:scale-95",
+                "h-12 rounded-xl text-[13px] font-semibold tracking-tight transition-all active:scale-[0.985]",
                 s === current
                   ? "bg-foreground text-background shadow-sm"
                   : "bg-muted/60 text-foreground/80 active:bg-muted"
@@ -436,7 +436,7 @@ function SetRow({
         {/* Type — tap to cycle */}
         <button
           onClick={cycleType}
-          className="flex h-12 w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 transition-all select-none active:scale-90"
+          className="flex h-12 w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 transition-all select-none active:scale-[0.985]"
           style={{ backgroundColor: cfg.bg }}
           aria-label={`Set mode: ${cfg.label}. Tap to change.`}
           title={`Set mode: ${cfg.label}`}
@@ -551,7 +551,7 @@ function SetRow({
         {/* Rest */}
         <button
           onClick={() => setShowRest(true)}
-          className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 transition-all active:scale-95 active:bg-muted"
+          className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 transition-all active:scale-[0.985] active:bg-muted"
         >
           <div className="flex items-center gap-1">
             <Timer size={10} className="text-muted-foreground/50" />
@@ -1689,7 +1689,7 @@ export default function NewPreset() {
           <button
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "flex h-14 w-full items-center gap-3 rounded-2xl border transition-all active:scale-[0.98]",
+              "flex h-14 w-full items-center gap-3 rounded-2xl border transition-all active:scale-[0.985]",
               items.length === 0
                 ? "border-border bg-card active:bg-muted/40"
                 : "border-dashed border-border/60 bg-transparent active:bg-muted/20"
