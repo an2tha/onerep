@@ -1,4 +1,11 @@
-import { StrictMode, useEffect, useRef } from "react"
+import {
+  StrictMode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import { createRoot } from "react-dom/client"
 import {
   createBrowserRouter,
@@ -49,16 +56,35 @@ import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import {
+  BottomBar,
+  BottomBarActionProvider,
+} from "./components/bottom-bar"
+import {
   clearRouteMotion,
   getRouteMotion,
   hasNativeRouteTransition,
   useSmoothNavigate,
 } from "./lib/navigation"
 
+function shouldShowBottomBar(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/foods" ||
+    pathname === "/workouts" ||
+    pathname === "/water" ||
+    pathname === "/progress" ||
+    pathname === "/exercises" ||
+    pathname === "/settings"
+  )
+}
+
 function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
   const navigationType = useNavigationType()
+  const [bottomBarAction, setBottomBarActionState] = useState<
+    (() => void) | undefined
+  >()
   const initialRouteRef = useRef(true)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
@@ -74,6 +100,11 @@ function NavSync() {
         : "forward")
   const animateRoute = !initialRouteRef.current
   const nativeRouteTransition = hasNativeRouteTransition()
+  const showBottomBar = shouldShowBottomBar(location.pathname)
+
+  const setBottomBarAction = useCallback((action?: () => void) => {
+    setBottomBarActionState(() => action)
+  }, [])
 
   useEffect(() => {
     function clearHold() {
@@ -121,6 +152,10 @@ function NavSync() {
     }
   }, [])
 
+  useLayoutEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+  }, [location.key])
+
   useEffect(() => {
     initialRouteRef.current = false
     document.documentElement.dataset.routeMotion = routeMotion
@@ -162,24 +197,27 @@ function NavSync() {
   }
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className="app-route-shell"
-      data-route-motion={routeMotion}
-    >
+    <BottomBarActionProvider onActionChange={setBottomBarAction}>
       <div
-        key={location.key}
-        className={
-          animateRoute && !nativeRouteTransition
-            ? "app-route-frame app-route-frame-animated"
-            : "app-route-frame"
-        }
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className="app-route-shell"
         data-route-motion={routeMotion}
       >
-        <Outlet />
+        <div
+          key={location.key}
+          className={
+            animateRoute && !nativeRouteTransition
+              ? "app-route-frame app-route-frame-animated"
+              : "app-route-frame"
+          }
+          data-route-motion={routeMotion}
+        >
+          <Outlet />
+        </div>
       </div>
-    </div>
+      {showBottomBar && <BottomBar onAdd={bottomBarAction} />}
+    </BottomBarActionProvider>
   )
 }
 

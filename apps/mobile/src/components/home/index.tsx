@@ -206,7 +206,7 @@ export function TodayTimeline({
         }
       />
 
-      <div className="mt-3 max-h-[13rem] space-y-2 overflow-y-auto overscroll-contain pr-1 md:max-h-[20rem] short-phone:mt-2 short-phone:max-h-[9.5rem]">
+      <div className="mt-3 max-h-[13rem] space-y-2 overflow-y-auto overscroll-contain pr-1 md:grid md:max-h-[14rem] md:grid-cols-2 md:gap-x-6 md:gap-y-3 md:space-y-0 xl:grid-cols-3 short-phone:mt-2 short-phone:max-h-[9.5rem]">
         {events.length > 0 ? (
           events.map((event) => (
             <div key={event.id} className="flex items-center gap-3">
