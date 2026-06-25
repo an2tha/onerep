@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router"
 import { authClient } from "@/lib/auth-client"
+import { clearPendingVerification } from "@/lib/auth-redirects"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const STATUS_COPY = {
@@ -31,7 +32,13 @@ export default function EmailVerified() {
         : "Sign in"
 
   function handleContinue() {
-    if (hasError || !session) {
+    if (hasError) {
+      navigate("/login", { replace: true })
+      return
+    }
+
+    clearPendingVerification()
+    if (!session) {
       navigate("/login", { replace: true })
       return
     }
