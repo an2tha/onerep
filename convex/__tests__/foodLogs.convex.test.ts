@@ -6,11 +6,11 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("foodLogs Convex functions", () => {
-  test("getDay throws when unauthenticated", async () => {
+  test("getDay returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.query(api.logs.foodLogs.getDay, { date: "2024-01-15" })
-    ).rejects.toThrow();
+    ).resolves.toEqual([]);
   });
 
   test("setDay throws when unauthenticated", async () => {

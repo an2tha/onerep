@@ -6,9 +6,9 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("onboarding Convex functions", () => {
-  test("get throws when unauthenticated", async () => {
+  test("get returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.onboarding.get, {})).rejects.toThrow();
+    await expect(t.query(api.users.onboarding.get, {})).resolves.toBeNull();
   });
 
   test("save throws when unauthenticated", async () => {
