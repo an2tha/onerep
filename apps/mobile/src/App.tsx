@@ -492,7 +492,7 @@ function CalorieCard({
             {/* Hairline progress */}
             <div className="relative mt-2.5 h-[2px] rounded-sm bg-muted/40">
               <div
-                className="absolute inset-y-0 left-0 rounded-sm transition-all duration-700 ease-out"
+                className="motion-progress-fill absolute inset-y-0 left-0 rounded-sm"
                 style={{
                   width: barMounted ? `${pct}%` : "0%",
                   backgroundColor:
@@ -791,7 +791,7 @@ function WorkoutCard({
                     style={{
                       transform: `translateX(-${slide * 100}%)`,
                       transition:
-                        "transform 340ms cubic-bezier(0.22, 1, 0.36, 1)",
+                        "transform var(--motion-panel) var(--motion-ease-out)",
                     }}
                   >
                     {workoutLogs.map((log, i) => (
@@ -1201,7 +1201,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
                 onFocus={() => setHoveredGlass(i)}
                 onBlur={() => setHoveredGlass(null)}
                 className={cn(
-                  "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-95",
+                  "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-[0.985]",
                   previewFilled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
                 )}
                 aria-label={
@@ -1486,7 +1486,7 @@ function CalorieSmall({
           </div>
           <div className="mt-2 h-[2px] w-full rounded bg-muted/40">
             <div
-              className="h-full rounded transition-all duration-700"
+              className="motion-progress-fill h-full rounded"
               style={{
                 width: `${pct}%`,
                 backgroundColor: over ? "#ef4444" : "var(--foreground)",
@@ -1558,7 +1558,7 @@ function CalorieSmall({
           {/* Progress indicator */}
           <div className="mt-2 h-[2px] w-full rounded bg-muted/40">
             <div
-              className="h-full rounded transition-all duration-700"
+              className="motion-progress-fill h-full rounded"
               style={{
                 width: `${pct}%`,
                 backgroundColor: over ? "#ef4444" : "var(--foreground)",
@@ -1643,7 +1643,7 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
                   onFocus={() => setHoveredGlass(i)}
                   onBlur={() => setHoveredGlass(null)}
                   className={cn(
-                    "flex h-6 items-center justify-center rounded transition-all active:scale-90",
+                    "flex h-6 items-center justify-center rounded transition-all active:scale-[0.985]",
                     previewFilled
                       ? "bg-[rgba(56,189,248,0.20)] active:bg-[rgba(56,189,248,0.32)]"
                       : "bg-muted/25 active:bg-muted/50"
@@ -1733,7 +1733,7 @@ function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
       onPointerUp={cancelHold}
       onPointerLeave={cancelHold}
       onPointerCancel={cancelHold}
-      className="relative flex h-12 w-12 touch-none items-center justify-center rounded-full transition-transform select-none active:scale-95"
+      className="relative flex h-12 w-12 touch-none items-center justify-center rounded-full transition-transform select-none active:scale-[0.985]"
       aria-label="Hold to start workout"
     >
       {/* ring */}
@@ -1765,7 +1765,9 @@ function HoldToStartRing({ onComplete }: { onComplete: () => void }) {
           strokeDashoffset={offset}
           className="stroke-foreground/70"
           style={{
-            transition: active ? "none" : "stroke-dashoffset 180ms ease-out",
+            transition: active
+              ? "none"
+              : "stroke-dashoffset var(--motion-medium) var(--motion-ease-out)",
           }}
         />
       </svg>

@@ -3,7 +3,7 @@ import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { components } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
-import { betterAuth } from "better-auth/minimal";
+import { betterAuth } from "better-auth";
 import authConfig from "./auth.config";
 
 // Primary app origin — set SITE_URL in Convex env vars / .env.local
@@ -176,6 +176,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       },
     },
     emailVerification: {
+      sendOnSignIn: true,
       sendOnSignUp: true,
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60 * 24,
