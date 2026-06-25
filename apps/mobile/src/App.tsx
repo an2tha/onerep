@@ -10,6 +10,7 @@ import {
   DotsSixVertical,
   Fire,
   ForkKnife,
+  GearSix,
   Aperture,
   MagnifyingGlass,
   PencilSimple,
@@ -171,14 +172,6 @@ function greeting(hour: number) {
 
 function fmtKcal(n: number) {
   return new Intl.NumberFormat("en-US").format(Math.round(n))
-}
-
-function getInitials(name?: string) {
-  if (!name) return "?"
-  const parts = name.trim().split(/\s+/)
-  return parts.length === 1
-    ? parts[0][0].toUpperCase()
-    : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 function dayOffsetLabel(offset: number, timeZone: string): string {
@@ -345,19 +338,19 @@ function DateNav({
   }
 
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-1">
       <button
         onClick={() => onChange(Math.max(MIN_DAY_OFFSET, offset - 1))}
         disabled={offset <= MIN_DAY_OFFSET}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors active:text-foreground disabled:opacity-25"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-25"
         aria-label="Previous day"
       >
-        <CaretLeft size={11} weight="bold" />
+        <CaretLeft size={14} weight="bold" />
       </button>
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button className="min-w-[72px] rounded-md px-1 py-0.5 text-center text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground active:text-foreground">
+          <button className="min-h-10 min-w-[84px] rounded-lg px-2 text-center text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-muted/45 active:text-foreground">
             {dayOffsetLabel(offset, timeZone)}
           </button>
         </PopoverTrigger>
@@ -375,10 +368,10 @@ function DateNav({
       <button
         onClick={() => onChange(Math.min(0, offset + 1))}
         disabled={offset >= 0}
-        className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors active:text-foreground disabled:opacity-25"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-25"
         aria-label="Next day"
       >
-        <CaretRight size={11} weight="bold" />
+        <CaretRight size={14} weight="bold" />
       </button>
     </div>
   )
@@ -561,10 +554,11 @@ function CalorieCard({
               {/* BMR/TDEE toggle — pushed to right */}
               <button
                 onClick={() => setBreakdownOpen((o) => !o)}
-                className="ml-auto flex items-center gap-0.5 text-[10px] text-muted-foreground/35 transition-colors active:text-muted-foreground/60"
+                className="ml-auto flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10px] text-muted-foreground/45 transition-colors active:bg-muted/45 active:text-muted-foreground/70"
+                aria-expanded={breakdownOpen}
               >
                 <CaretDown
-                  size={9}
+                  size={10}
                   weight="bold"
                   className={cn(
                     "transition-transform duration-200",
@@ -736,20 +730,20 @@ function WorkoutCard({
             {isToday && done && (
               <button
                 onClick={() => onDeleteSlot(workoutLogs.length === 2 ? 2 : 1)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors active:bg-destructive/10 active:text-destructive"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/40 transition-colors active:bg-destructive/10 active:text-destructive"
                 aria-label="Delete workout"
               >
-                <Trash size={14} />
+                <Trash size={15} />
               </button>
             )}
             {isToday && (
               <button
                 onClick={onToggleCollapse}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/45 transition-colors active:bg-muted/40 active:text-foreground"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/45 transition-colors active:bg-muted/40 active:text-foreground"
                 aria-label={collapsed ? "Expand" : "Collapse"}
               >
                 <CaretDown
-                  size={14}
+                  size={15}
                   className={cn(
                     "transition-transform duration-300",
                     !collapsed && "rotate-180"
@@ -759,7 +753,7 @@ function WorkoutCard({
             )}
             {!isToday && (
               <button
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors active:text-foreground"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:text-foreground"
                 aria-label="Edit workout"
               >
                 <PencilSimple size={15} />
@@ -813,14 +807,18 @@ function WorkoutCard({
                     <button
                       key={i}
                       onClick={() => setSlide(i)}
-                      className={cn(
-                        "rounded-full transition-all duration-300",
-                        slide === i
-                          ? "h-1.5 w-4 bg-foreground/50"
-                          : "h-1.5 w-1.5 bg-foreground/20"
-                      )}
+                      className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/45"
                       aria-label={`Workout ${i + 1}`}
-                    />
+                    >
+                      <span
+                        className={cn(
+                          "rounded-full transition-all duration-300",
+                          slide === i
+                            ? "h-1.5 w-4 bg-foreground/50"
+                            : "h-1.5 w-1.5 bg-foreground/20"
+                        )}
+                      />
+                    </button>
                   ))}
                 </div>
               </div>
@@ -1098,10 +1096,11 @@ function ProfileButton({
   return (
     <button
       onClick={onSettingsClick}
-      className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground transition-opacity active:opacity-70"
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-opacity active:opacity-70"
       aria-label="Settings"
+      title={name ? `${name} settings` : "Settings"}
     >
-      {getInitials(name)}
+      <GearSix size={17} weight="bold" />
     </button>
   )
 }
@@ -1179,10 +1178,10 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
           <CardTitle className="text-sm font-semibold">Water</CardTitle>
           <button
             onClick={() => navigate("/water")}
-            className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+            className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10.5px] font-medium text-muted-foreground/45 active:bg-muted/45 active:text-muted-foreground/70"
           >
             Open
-            <CaretRight size={9} weight="bold" />
+            <CaretRight size={10} weight="bold" />
           </button>
         </div>
 
@@ -1232,7 +1231,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
           </p>
           <button
             onClick={addGlass}
-            className="rounded-lg bg-muted/40 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+            className="min-h-10 rounded-lg bg-muted/40 px-3 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
           >
             + More water
           </button>
@@ -2019,10 +2018,10 @@ function FoodSmall({
                 setExpanded(false)
                 haptic(8)
               }}
-              className="flex h-4 w-4 items-center justify-center rounded-full bg-muted/40"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/40"
               aria-label="Collapse"
             >
-              <X size={8} weight="bold" className="text-muted-foreground/50" />
+              <X size={11} weight="bold" className="text-muted-foreground/50" />
             </button>
           </div>
 
@@ -2229,6 +2228,7 @@ export default function App() {
   // ── Queries ──────────────────────────────────────────────────────────────
 
   const onboarding = useQuery(api.users.onboarding.get, {})
+  const currentUser = useQuery(api.users.users.getCurrentUser, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(activeTimezone)
@@ -2394,6 +2394,13 @@ export default function App() {
   useEffect(() => {
     void syncTimezone({ timeZone: detectTimeZone() })
   }, [syncTimezone])
+
+  useEffect(() => {
+    if (currentUser && onboarding === null) {
+      navigate("/onboarding", { replace: true })
+    }
+  }, [currentUser, navigate, onboarding])
+
   const firstName = session?.user?.name?.trim().split(/\s+/)[0] ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   const dateLabel = now.toLocaleDateString("en-US", {

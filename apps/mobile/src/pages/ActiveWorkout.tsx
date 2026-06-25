@@ -135,27 +135,27 @@ const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 
 const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
   working: {
-    label: "W",
+    label: "Working",
     color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
     bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
   },
   warmup: {
-    label: "WU",
+    label: "Warm-up",
     color: "color-mix(in srgb, var(--foreground) 58%, var(--muted-foreground))",
     bg: "color-mix(in srgb, var(--muted) 48%, transparent)",
   },
   failure: {
-    label: "F",
+    label: "Failure",
     color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
     bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
   },
   myoreps: {
-    label: "M",
+    label: "Myo-reps",
     color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
     bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
   },
   drop: {
-    label: "DS",
+    label: "Drop set",
     color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
     bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
   },
@@ -318,15 +318,15 @@ function SetNumberField({
 
 function setGridClass(trackUnilateral: boolean, trackRpe: boolean) {
   if (trackUnilateral && trackRpe) {
-    return "md:grid-cols-[2.25rem_3rem_minmax(4.5rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
+    return "md:grid-cols-[2.25rem_7rem_minmax(4.5rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
   }
   if (trackUnilateral) {
-    return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(4.5rem,1fr)_minmax(4.5rem,1fr)_5rem_2.75rem_2.25rem]"
+    return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(4.5rem,1fr)_minmax(4.5rem,1fr)_5rem_2.75rem_2.25rem]"
   }
   if (trackRpe) {
-    return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(5rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
+    return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(5rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
   }
-  return "md:grid-cols-[2.25rem_3rem_minmax(5rem,1fr)_minmax(5rem,1fr)_2.75rem]"
+  return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(5rem,1fr)_2.75rem]"
 }
 
 /**
@@ -771,9 +771,9 @@ function ActiveSetRow({
         <button
           onClick={cycleType}
           disabled={set.completed}
-          aria-label="Change set type"
-          title="Change set type"
-          className="flex h-10 items-center justify-center rounded-[18px] px-2 text-[12px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
+          aria-label={`Set mode: ${cfg.label}. Tap to change.`}
+          title={`Set mode: ${cfg.label}`}
+          className="flex h-10 items-center justify-center rounded-[18px] px-2 text-[11px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
           style={{
             backgroundColor: set.completed
               ? "color-mix(in srgb, var(--muted) 70%, transparent)"
@@ -929,10 +929,10 @@ function ActiveSetRow({
           <button
             onClick={cycleType}
             disabled={set.completed}
-            aria-label="Change set type"
-            title="Change set type"
+            aria-label={`Set mode: ${cfg.label}. Tap to change.`}
+            title={`Set mode: ${cfg.label}`}
             className={cn(
-              "flex h-10 min-w-14 shrink-0 items-center justify-center rounded-[20px] px-3 transition-all select-none active:scale-[0.96] disabled:pointer-events-none",
+              "flex h-10 min-w-[6.25rem] shrink-0 items-center justify-center rounded-[20px] px-3 transition-all select-none active:scale-[0.96] disabled:pointer-events-none",
               isNext && !set.completed && "ring-1 ring-primary/15"
             )}
             style={{
@@ -945,7 +945,7 @@ function ActiveSetRow({
               <Check size={15} weight="bold" className="text-foreground/65" />
             ) : (
               <span
-                className="text-[12px] font-bold"
+                className="truncate text-[11.5px] font-bold"
                 style={{ color: cfg.color }}
               >
                 {cfg.label}

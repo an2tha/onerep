@@ -8,6 +8,10 @@ import {
   type Exercise,
   type ExerciseCategory,
 } from "@/lib/exercise-catalog"
+import {
+  getCompletedSetCountsByExercise,
+  getExerciseIdsFromHistory,
+} from "@/lib/exercise-history"
 import { api } from "../../../../convex/_generated/api"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -237,13 +241,7 @@ export default function Exercises() {
   // Collect all exercise IDs from history and resolve them
   useEffect(() => {
     if (!history) return
-    const ids = [
-      ...new Set(
-        history.flatMap((log) =>
-          ((log as any).exercises ?? []).map((e: any) => e.exerciseId as string)
-        )
-      ),
-    ].filter(Boolean)
+    const ids = getExerciseIdsFromHistory(history)
     if (ids.length === 0) return
     void resolveExerciseIds(ids).then((lookup) => {
       setExerciseLookup(lookup as Record<string, Exercise>)
@@ -252,20 +250,7 @@ export default function Exercises() {
 
   const items = useMemo<ExerciseCard[]>(() => {
     if (!history) return []
-    const counts = new Map<string, number>()
-    for (const log of history) {
-      for (const exercise of (log as any).exercises ?? []) {
-        const completedSets = (exercise.sets ?? []).filter(
-          (set: any) => set.completed
-        ).length
-        if (completedSets > 0) {
-          counts.set(
-            exercise.exerciseId,
-            (counts.get(exercise.exerciseId) ?? 0) + completedSets
-          )
-        }
-      }
-    }
+    const counts = getCompletedSetCountsByExercise(history)
     return [...counts.entries()]
       .map(([id, count]) => {
         const ex = exerciseLookup[id]
