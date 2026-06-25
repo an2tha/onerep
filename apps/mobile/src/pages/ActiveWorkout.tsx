@@ -536,7 +536,7 @@ function RestCountdownBanner({
           </span>
           <button
             onClick={onDismiss}
-            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
+            className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 35%, transparent)",
             }}
@@ -593,7 +593,7 @@ function RestTimerSheet({
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/60 transition-colors active:bg-muted active:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/60 transition-colors active:bg-muted active:text-foreground"
           >
             <X size={13} weight="bold" />
           </button>
@@ -1511,7 +1511,7 @@ function ExerciseHistorySheet({
         <div className="flex items-center gap-3 px-5 pt-4 pb-3">
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full transition-colors active:bg-muted/60"
+            className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
             }}

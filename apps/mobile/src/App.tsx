@@ -49,7 +49,7 @@ import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { BottomBar } from "@/components/bottom-bar"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailySummaryStrip,
   InsightWidgets,
@@ -2420,6 +2420,7 @@ export default function App() {
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  useBottomBarAction(() => setHomeAddOpen(true))
 
   const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
   const waterGoalMl = preferences?.waterGoalMl ?? 2500
@@ -2505,6 +2506,9 @@ export default function App() {
     navigate("/workout/active")
   }
 
+  const homeBodyReady =
+    bodyMeasurements !== undefined && preferences !== undefined
+
   return (
     <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
@@ -2520,191 +2524,204 @@ export default function App() {
           }
         />
 
-        {bodyMeasurements !== undefined && bodyMeasurements.length === 0 && (
-          <CheckInPrompt
-            reminderEnabled={preferences?.bodyReminder?.enabled ?? false}
-            reminderLabel={
-              preferences?.bodyReminder
-                ? formatReminderLabel(preferences.bodyReminder)
-                : ""
-            }
-          />
-        )}
+        {homeBodyReady ? (
+          <>
+            {bodyMeasurements.length === 0 && (
+              <CheckInPrompt
+                reminderEnabled={preferences.bodyReminder?.enabled ?? false}
+                reminderLabel={
+                  preferences.bodyReminder
+                    ? formatReminderLabel(preferences.bodyReminder)
+                    : ""
+                }
+              />
+            )}
 
-        <PrimaryActionGrid
-          food={{
-            label: "Log food",
-            detail:
-              foodEntries.length > 0
-                ? `${foodEntries.length} logged`
-                : "Search or scan",
-            onClick: () => navigate("/foods"),
-          }}
-          workout={{
-            label: workoutActionLabel,
-            detail: workoutActionDetail,
-            onClick: openWorkoutAction,
-          }}
-          water={{
-            label: "Add water",
-            detail: "+250 ml",
-            onClick: addQuickWater,
-          }}
-        />
+            <PrimaryActionGrid
+              food={{
+                label: "Log food",
+                detail:
+                  foodEntries.length > 0
+                    ? `${foodEntries.length} logged`
+                    : "Search or scan",
+                onClick: () => navigate("/foods"),
+              }}
+              workout={{
+                label: workoutActionLabel,
+                detail: workoutActionDetail,
+                onClick: openWorkoutAction,
+              }}
+              water={{
+                label: "Add water",
+                detail: "+250 ml",
+                onClick: addQuickWater,
+              }}
+            />
 
-        <DailySummaryStrip
-          caloriesLeft={caloriesLeft}
-          caloriesTarget={caloriesTarget}
-          waterMl={waterTotalMl}
-          waterGoalMl={waterGoalMl}
-          workoutState={workoutState}
-          targetSource={calorieInfo?.source ?? "default"}
-        />
+            <DailySummaryStrip
+              caloriesLeft={caloriesLeft}
+              caloriesTarget={caloriesTarget}
+              waterMl={waterTotalMl}
+              waterGoalMl={waterGoalMl}
+              workoutState={workoutState}
+              targetSource={calorieInfo?.source ?? "default"}
+            />
 
-        <TodayTimeline
-          events={timelineEvents}
-          onLogFood={() => navigate("/foods")}
-        />
+            <TodayTimeline
+              events={timelineEvents}
+              onLogFood={() => navigate("/foods")}
+            />
 
-        <InsightWidgets
-          editMode={editMode}
-          onToggleEdit={() => {
-            setEditMode((value) => !value)
-          }}
-        >
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={widgetLayout.map((w) => w.id)}
-              strategy={rectSortingStrategy}
+            <InsightWidgets
+              editMode={editMode}
+              onToggleEdit={() => {
+                setEditMode((value) => !value)
+              }}
             >
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-                {widgetLayout.map((widget) => {
-                  let content: React.ReactNode
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={widgetLayout.map((w) => w.id)}
+                  strategy={rectSortingStrategy}
+                >
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+                    {widgetLayout.map((widget) => {
+                      let content: React.ReactNode
 
-                  if (widget.id === "calories") {
-                    const foodTotals = totalsForEntries(foodEntries)
-                    content =
-                      widget.size === "full" ? (
-                        <CalorieCard
-                          info={calorieInfo}
-                          loading={loading}
-                          entries={foodEntries}
-                          dayOffset={dayOffset}
-                          timeZone={activeTimezone}
-                          onDayOffsetChange={setDayOffset}
-                        />
-                      ) : (
-                        <CalorieSmall
-                          consumed={foodTotals.calories}
-                          target={calorieInfo?.target ?? 0}
-                          protein={foodTotals.protein}
-                          carbs={foodTotals.carbs}
-                          fat={foodTotals.fat}
-                          onAdd={() => setHomeAddOpen(true)}
-                        />
-                      )
-                  } else if (widget.id === "water") {
-                    content =
-                      widget.size === "full" ? (
-                        <WaterWidget dateKey={selectedDate} />
-                      ) : (
-                        <WaterSmall
-                          dateKey={selectedDate}
-                          goalMl={preferences?.waterGoalMl ?? 2500}
-                        />
-                      )
-                  } else if (widget.id === "workout") {
-                    const done = workoutLogs.length > 0
-                    const fallback = WORKOUTS[settings.workoutFocus]
-                    const w = scheduledWorkout ?? fallback
-                    const workoutName = "title" in w ? w.title : w.name
-                    content =
-                      widget.size === "full" ? (
-                        <WorkoutCard
-                          settings={settings}
-                          dayOffset={dayOffset}
-                          scheduledWorkout={scheduledWorkout}
-                          timeZone={activeTimezone}
-                          workoutLogs={dayOffset === 0 ? workoutLogs : []}
-                          collapsed={
-                            dayOffset === 0 ? todayWorkoutCollapsed : false
-                          }
-                          onToggleCollapse={() => {
-                            if (dayOffset === 0)
-                              setTodayWorkoutCollapsed((v) => !v)
-                          }}
-                          onDeleteSlot={(slot) => setConfirmDeleteSlot(slot)}
-                        />
-                      ) : (
-                        <WorkoutSmall
-                          done={dayOffset === 0 && done}
-                          workoutName={workoutName}
-                          isRestDay={
-                            scheduledWorkout === null && dayOffset === 0
-                          }
-                        />
-                      )
-                  } else if (widget.id === "streak") {
-                    content =
-                      widget.size === "full" && workoutHistory !== undefined ? (
-                        <StreakCard
-                          streak={streak}
-                          workoutsThisWeek={workoutsThisWeek}
-                          workoutDates={workoutDates}
-                          today={now}
-                        />
-                      ) : (
-                        <StreakSmall streak={streak} />
-                      )
-                  } else if (widget.id === "food") {
-                    content =
-                      widget.size === "full" ? (
-                        <LoggedTodayCard
-                          dayOffset={dayOffset}
-                          timeZone={activeTimezone}
-                          entries={foodEntries}
-                          onEntriesChange={(entries) =>
-                            void setDay({ date: selectedDate, entries })
-                          }
-                        />
-                      ) : (
-                        <FoodSmall
-                          entries={foodEntries}
-                          onAdd={() => setHomeAddOpen(true)}
-                        />
-                      )
-                  } else {
-                    content =
-                      widget.size === "full" ? (
-                        <ProgressCard />
-                      ) : (
-                        <ProgressSmall measurements={bodyMeasurements} />
-                      )
-                  }
+                      if (widget.id === "calories") {
+                        const foodTotals = totalsForEntries(foodEntries)
+                        content =
+                          widget.size === "full" ? (
+                            <CalorieCard
+                              info={calorieInfo}
+                              loading={loading}
+                              entries={foodEntries}
+                              dayOffset={dayOffset}
+                              timeZone={activeTimezone}
+                              onDayOffsetChange={setDayOffset}
+                            />
+                          ) : (
+                            <CalorieSmall
+                              consumed={foodTotals.calories}
+                              target={calorieInfo?.target ?? 0}
+                              protein={foodTotals.protein}
+                              carbs={foodTotals.carbs}
+                              fat={foodTotals.fat}
+                              onAdd={() => setHomeAddOpen(true)}
+                            />
+                          )
+                      } else if (widget.id === "water") {
+                        content =
+                          widget.size === "full" ? (
+                            <WaterWidget dateKey={selectedDate} />
+                          ) : (
+                            <WaterSmall
+                              dateKey={selectedDate}
+                              goalMl={preferences.waterGoalMl ?? 2500}
+                            />
+                          )
+                      } else if (widget.id === "workout") {
+                        const done = workoutLogs.length > 0
+                        const fallback = WORKOUTS[settings.workoutFocus]
+                        const w = scheduledWorkout ?? fallback
+                        const workoutName = "title" in w ? w.title : w.name
+                        content =
+                          widget.size === "full" ? (
+                            <WorkoutCard
+                              settings={settings}
+                              dayOffset={dayOffset}
+                              scheduledWorkout={scheduledWorkout}
+                              timeZone={activeTimezone}
+                              workoutLogs={dayOffset === 0 ? workoutLogs : []}
+                              collapsed={
+                                dayOffset === 0 ? todayWorkoutCollapsed : false
+                              }
+                              onToggleCollapse={() => {
+                                if (dayOffset === 0)
+                                  setTodayWorkoutCollapsed((v) => !v)
+                              }}
+                              onDeleteSlot={(slot) =>
+                                setConfirmDeleteSlot(slot)
+                              }
+                            />
+                          ) : (
+                            <WorkoutSmall
+                              done={dayOffset === 0 && done}
+                              workoutName={workoutName}
+                              isRestDay={
+                                scheduledWorkout === null && dayOffset === 0
+                              }
+                            />
+                          )
+                      } else if (widget.id === "streak") {
+                        content =
+                          widget.size === "full" &&
+                          workoutHistory !== undefined ? (
+                            <StreakCard
+                              streak={streak}
+                              workoutsThisWeek={workoutsThisWeek}
+                              workoutDates={workoutDates}
+                              today={now}
+                            />
+                          ) : (
+                            <StreakSmall streak={streak} />
+                          )
+                      } else if (widget.id === "food") {
+                        content =
+                          widget.size === "full" ? (
+                            <LoggedTodayCard
+                              dayOffset={dayOffset}
+                              timeZone={activeTimezone}
+                              entries={foodEntries}
+                              onEntriesChange={(entries) =>
+                                void setDay({ date: selectedDate, entries })
+                              }
+                            />
+                          ) : (
+                            <FoodSmall
+                              entries={foodEntries}
+                              onAdd={() => setHomeAddOpen(true)}
+                            />
+                          )
+                      } else {
+                        content =
+                          widget.size === "full" ? (
+                            <ProgressCard />
+                          ) : (
+                            <ProgressSmall measurements={bodyMeasurements} />
+                          )
+                      }
 
-                  return (
-                    <SortableWidget
-                      key={widget.id}
-                      id={widget.id}
-                      editMode={editMode}
-                      size={widget.size}
-                      onToggleSize={() => handleToggleSize(widget.id)}
-                    >
-                      {content}
-                    </SortableWidget>
-                  )
-                })}
-              </div>
-            </SortableContext>
-          </DndContext>
-        </InsightWidgets>
+                      return (
+                        <SortableWidget
+                          key={widget.id}
+                          id={widget.id}
+                          editMode={editMode}
+                          size={widget.size}
+                          onToggleSize={() => handleToggleSize(widget.id)}
+                        >
+                          {content}
+                        </SortableWidget>
+                      )
+                    })}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </InsightWidgets>
+          </>
+        ) : (
+          <div
+            role="status"
+            aria-label="Loading today"
+            className="flex min-h-[45svh] items-center justify-center"
+          >
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+          </div>
+        )}
       </div>
-
-      <BottomBar onAdd={() => setHomeAddOpen(true)} />
 
       {homeAddOpen && (
         <MobileSheet

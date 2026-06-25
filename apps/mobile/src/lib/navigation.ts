@@ -23,18 +23,10 @@ const ROUTE_MOTIONS = new Set<RouteMotion>([
   "switch",
 ])
 
-function prefersReducedMotion() {
+export function prefersReducedMotion() {
   return (
     typeof window !== "undefined" &&
     window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-  )
-}
-
-function canUseViewTransitions() {
-  return (
-    typeof document !== "undefined" &&
-    "startViewTransition" in document &&
-    !prefersReducedMotion()
   )
 }
 
@@ -95,8 +87,7 @@ export function useSmoothNavigate(): SmoothNavigateFunction {
 
       const { motion, ...routerOptions } = (options ??
         {}) as SmoothNavigateOptions
-      const viewTransition =
-        routerOptions.viewTransition ?? canUseViewTransitions()
+      const viewTransition = routerOptions.viewTransition ?? false
 
       setRouteMotion(
         motion ?? (routerOptions.replace ? "replace" : "forward"),

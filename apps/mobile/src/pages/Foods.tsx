@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { BottomBar } from "@/components/bottom-bar"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -379,7 +379,7 @@ function HistorySheet({ onClose }: { onClose: () => void }) {
           <p className="text-[15px] font-semibold">History</p>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
@@ -968,20 +968,20 @@ function RecipeCard({
       <div className="mt-3 flex gap-2">
         <button
           onClick={onEdit}
-          className="flex items-center gap-1.5 rounded-xl border border-border/50 px-3 py-1.5 text-[11.5px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/40"
+          className="flex min-h-10 items-center gap-1.5 rounded-xl border border-border/50 px-3 text-[11.5px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/40"
         >
           <PencilSimple size={10} />
           Edit
         </button>
         <button
           onClick={onDelete}
-          className="flex items-center justify-center rounded-xl border border-border/50 px-3 py-1.5 text-[11.5px] text-muted-foreground/40 transition-colors active:bg-muted/40"
+          className="flex min-h-10 items-center justify-center rounded-xl border border-border/50 px-3 text-[11.5px] text-muted-foreground/40 transition-colors active:bg-muted/40"
         >
           <Trash size={11} />
         </button>
         <button
           onClick={onLog}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground/[0.07] py-1.5 text-[12px] font-semibold transition-colors active:bg-foreground/[0.12]"
+          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground/[0.07] px-3 text-[12px] font-semibold transition-colors active:bg-foreground/[0.12]"
         >
           Log to diary
           <CaretRight
@@ -1025,7 +1025,7 @@ function GoalsCardWrapper({
         </p>
         <button
           onClick={() => setEditing((o) => !o)}
-          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
         >
           {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
           {editing ? "Cancel" : "Edit"}
@@ -1079,10 +1079,10 @@ function GoalsCardWrapper({
                     {unit}
                   </span>
                 </div>
-                <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+                <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
                   <button
                     onClick={() => adjust(key, -step)}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">−</span>
                   </button>
@@ -1094,11 +1094,11 @@ function GoalsCardWrapper({
                       if (!isNaN(v))
                         setDraft((p) => ({ ...p, [key]: Math.max(min, v) }))
                     }}
-                    className="w-14 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
+                    className="h-10 w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
                   />
                   <button
                     onClick={() => adjust(key, step)}
-                    className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">+</span>
                   </button>
@@ -1112,7 +1112,7 @@ function GoalsCardWrapper({
                 onSave(draft)
                 setEditing(false)
               }}
-              className="flex-1 rounded-lg bg-foreground py-2 text-[12.5px] font-semibold text-background active:opacity-75"
+              className="min-h-10 flex-1 rounded-lg bg-foreground px-3 text-[12.5px] font-semibold text-background active:opacity-75"
             >
               Save
             </button>
@@ -1129,7 +1129,7 @@ function GoalsCardWrapper({
                   onSave(r)
                   setEditing(false)
                 }}
-                className="rounded-lg border border-border/50 px-3.5 py-2 text-[11.5px] font-medium text-muted-foreground/60 active:bg-muted/40"
+                className="min-h-10 rounded-lg border border-border/50 px-3.5 text-[11.5px] font-medium text-muted-foreground/60 active:bg-muted/40"
               >
                 Reset
               </button>
@@ -1215,7 +1215,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
         </p>
         <button
           onClick={() => navigate("/settings")}
-          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
         >
           <PencilSimple size={10} />
           Goal
@@ -1267,7 +1267,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
         </p>
         <button
           onClick={addGlass}
-          className="rounded-lg bg-muted/40 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+          className="min-h-10 rounded-lg bg-muted/40 px-3 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
         >
           + More water
         </button>
@@ -1311,6 +1311,7 @@ export default function Foods() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null)
+  useBottomBarAction(() => setAddOpen(true))
 
   const apiGoals = useMemo(() => {
     if (!goalsRes) return null
@@ -1354,21 +1355,21 @@ export default function Foods() {
             <button
               onClick={() => setHistoryOpen(true)}
               aria-label="Open food history"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
             >
               <CalendarBlank size={15} />
             </button>
             <button
               onClick={() => navigate("/camera")}
               aria-label="Snap meal"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
             >
               <Aperture size={15} />
             </button>
             <button
               onClick={() => navigate("/foods/search")}
               aria-label="Search foods"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
             >
               <MagnifyingGlass size={15} />
             </button>
@@ -1427,7 +1428,7 @@ export default function Foods() {
               action={
                 <button
                   onClick={() => navigate("/foods/recipe/new")}
-                  className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+                  className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
                 >
                   <Plus size={10} weight="bold" />
                   New
@@ -1485,8 +1486,6 @@ export default function Foods() {
           </section>
         </div>
       </div>
-
-      <BottomBar onAdd={() => setAddOpen(true)} />
 
       {/* History sheet */}
       {historyOpen && <HistorySheet onClose={() => setHistoryOpen(false)} />}

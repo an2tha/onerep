@@ -8,7 +8,6 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { BottomBar } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -30,11 +29,11 @@ const QUICK_AMOUNTS = [
   { label: "250 ml", ml: 250 },
   { label: "500 ml", ml: 500 },
   { label: "750 ml", ml: 750 },
-  { label: "1 L",    ml: 1000 },
+  { label: "1 L", ml: 1000 },
 ]
 
 const WATER_COLOR = "#38bdf8"
-const WATER_BG    = "rgba(56,189,248,0.13)"
+const WATER_BG = "rgba(56,189,248,0.13)"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -58,7 +57,11 @@ function formatDateLabel(dateKey: string, todayKey: string): string {
   const yesterday = offsetDateKey(todayKey, -1)
   if (dateKey === yesterday) return "Yesterday"
   const d = new Date(`${dateKey}T12:00:00Z`)
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })
+  return d.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
 }
 
 // ─── Swipe-to-delete row ──────────────────────────────────────────────────────
@@ -89,7 +92,9 @@ function SwipeRow({
 
   function onPointerMove(e: React.PointerEvent) {
     if (!dragging.current) return
-    setTranslate(Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current)))
+    setTranslate(
+      Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current))
+    )
   }
 
   function onPointerUp() {
@@ -142,7 +147,7 @@ function SwipeRow({
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={onDelete}
-            className="hidden h-7 w-7 items-center justify-center rounded-full text-muted-foreground/35 transition-colors hover:bg-destructive/10 hover:text-destructive md:flex"
+            className="hidden h-10 w-10 items-center justify-center rounded-full text-muted-foreground/35 transition-colors hover:bg-destructive/10 hover:text-destructive md:flex"
             aria-label={`Delete ${fmtMl(entry.amountMl)} water entry`}
           >
             <Trash size={12} weight="bold" />
@@ -182,7 +187,7 @@ function ProgressCard({
         </p>
         <button
           onClick={onEditGoal}
-          className="flex items-center gap-1 text-[10.5px] font-medium text-muted-foreground/40 active:text-muted-foreground/70"
+          className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
         >
           <PencilSimple size={10} />
           Goal
@@ -208,16 +213,24 @@ function ProgressCard({
             </p>
           )}
           {over && (
-            <p className="mt-0.5 text-[11px] tabular-nums" style={{ color: WATER_COLOR, opacity: 0.7 }}>
+            <p
+              className="mt-0.5 text-[11px] tabular-nums"
+              style={{ color: WATER_COLOR, opacity: 0.7 }}
+            >
               Goal reached!
             </p>
           )}
         </div>
         <div className="text-right">
-          <span className="text-[13px] font-semibold tabular-nums" style={{ color: WATER_COLOR }}>
+          <span
+            className="text-[13px] font-semibold tabular-nums"
+            style={{ color: WATER_COLOR }}
+          >
             {Math.round(pct)}%
           </span>
-          <p className="text-[9px] text-muted-foreground/30 uppercase tracking-wide">of goal</p>
+          <p className="text-[9px] tracking-wide text-muted-foreground/30 uppercase">
+            of goal
+          </p>
         </div>
       </div>
 
@@ -262,7 +275,10 @@ function EntryList({
             {sorted.length} logged today
           </p>
         </div>
-        <span className="text-[12px] font-semibold tabular-nums" style={{ color: WATER_COLOR }}>
+        <span
+          className="text-[12px] font-semibold tabular-nums"
+          style={{ color: WATER_COLOR }}
+        >
           {fmtMl(sorted.reduce((sum, entry) => sum + entry.amountMl, 0))}
         </span>
       </div>
@@ -306,7 +322,7 @@ function GoalSheet({
           <p className="text-[15px] font-semibold">Daily goal</p>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
@@ -317,10 +333,10 @@ function GoalSheet({
             <span className="text-[13px] font-medium">Water</span>
             <span className="text-[10px] text-muted-foreground/40">ml</span>
           </div>
-          <div className="flex items-center rounded-lg bg-muted/50 p-0.5">
+          <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
             <button
               onClick={() => setDraft((v) => Math.max(250, v - 250))}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">−</span>
             </button>
@@ -331,11 +347,11 @@ function GoalSheet({
                 const n = parseInt(e.target.value)
                 if (!isNaN(n)) setDraft(Math.max(250, n))
               }}
-              className="w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
+              className="h-10 w-20 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
             />
             <button
               onClick={() => setDraft((v) => v + 250)}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground/60 active:bg-background active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">+</span>
             </button>
@@ -343,7 +359,10 @@ function GoalSheet({
         </div>
 
         <button
-          onClick={() => { onSave(draft); onClose() }}
+          onClick={() => {
+            onSave(draft)
+            onClose()
+          }}
           className="mt-4 w-full rounded-xl bg-foreground py-3 text-[13px] font-semibold text-background active:opacity-75"
         >
           Save
@@ -385,7 +404,7 @@ function AddSheet({
           <p className="text-[15px] font-semibold">Log water</p>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
@@ -400,7 +419,7 @@ function AddSheet({
             <button
               key={ml}
               onClick={() => submit(ml)}
-              className="rounded-xl px-3.5 py-2 text-[12.5px] font-semibold transition-all active:scale-95"
+              className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-95"
               style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
             >
               {label}
@@ -428,14 +447,16 @@ function AddSheet({
               }}
               className="flex-1 bg-transparent text-[13px] font-medium outline-none placeholder:text-muted-foreground/30"
             />
-            <span className="ml-1 text-[11px] text-muted-foreground/35">ml</span>
+            <span className="ml-1 text-[11px] text-muted-foreground/35">
+              ml
+            </span>
           </div>
           <button
             onClick={() => {
               const n = parseInt(custom)
               if (!isNaN(n)) submit(n)
             }}
-            className="flex items-center justify-center rounded-xl bg-foreground px-4 text-background active:opacity-75"
+            className="flex min-h-10 items-center justify-center rounded-xl bg-foreground px-4 text-background active:opacity-75"
           >
             <Plus size={15} weight="bold" />
           </button>
@@ -458,14 +479,27 @@ export default function Water() {
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
-  const addEntryMutation = useOfflineMutation(api.logs.water.addEntry, "logs.water.addEntry")
-  const removeEntryMutation = useOfflineMutation(api.logs.water.removeEntry, "logs.water.removeEntry")
-  const setWaterGoal = useOfflineMutation(api.users.users.setWaterGoal, "users.users.setWaterGoal")
+  const addEntryMutation = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
+  )
+  const removeEntryMutation = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
+  )
+  const setWaterGoal = useOfflineMutation(
+    api.users.users.setWaterGoal,
+    "users.users.setWaterGoal"
+  )
 
   // Optimistic local entries — immediately reflects taps, gets replaced by
   // server data once Convex round-trips back.
-  const [optimisticEntries, setOptimisticEntries] = useState<WaterLogEntry[]>([])
-  const [pendingDeletedIds, setPendingDeletedIds] = useState<Set<string>>(new Set())
+  const [optimisticEntries, setOptimisticEntries] = useState<WaterLogEntry[]>(
+    []
+  )
+  const [pendingDeletedIds, setPendingDeletedIds] = useState<Set<string>>(
+    new Set()
+  )
   const pendingDeletedIdsRef = React.useRef<Set<string>>(new Set())
   const syncedDateKey = React.useRef<string | null>(null)
 
@@ -508,7 +542,7 @@ export default function Water() {
 
   const serverEntries = useMemo(
     () => (rawEntries ?? []) as WaterLogEntry[],
-    [rawEntries],
+    [rawEntries]
   )
   // Merge: server entries are ground truth; optimistic ones are appended on top
   // (they'll disappear once server round-trips and replaces rawEntries).
@@ -581,14 +615,13 @@ export default function Water() {
     const nextEntries = entriesRef.current.filter((entry) => entry.id !== id)
     markDeleted(id)
     setOptimisticEntries((prev) => prev.filter((e) => e.id !== id))
-    persistDelete(date, id, nextEntries)
-      .catch(() => {
-        unmarkDeleted(id)
-      })
+    persistDelete(date, id, nextEntries).catch(() => {
+      unmarkDeleted(id)
+    })
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pl-72 md:pr-8">
+    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
         <header className="flex items-end justify-between px-5 pt-[var(--app-safe-top)] pb-4 md:px-6 md:pt-10 short-phone:pb-3">
@@ -605,7 +638,7 @@ export default function Water() {
           <div className="flex items-center gap-1 pb-0.5">
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground"
             >
               <CaretLeft size={13} weight="bold" />
             </button>
@@ -615,7 +648,7 @@ export default function Water() {
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
               disabled={isToday}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground disabled:opacity-20"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground disabled:opacity-20"
             >
               <CaretRight size={13} weight="bold" />
             </button>
@@ -640,7 +673,7 @@ export default function Water() {
                 <button
                   key={ml}
                   onClick={() => addEntry(ml)}
-                  className="rounded-xl px-3.5 py-2 text-[12.5px] font-semibold transition-all active:scale-95"
+                  className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-95"
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
                 >
                   {label}
@@ -648,7 +681,7 @@ export default function Water() {
               ))}
               <button
                 onClick={() => setAddOpen(true)}
-                className="flex items-center gap-1 rounded-xl px-3.5 py-2 text-[12.5px] font-medium text-muted-foreground/50 ring-1 ring-border/40 active:bg-foreground/[0.05]"
+                className="flex min-h-10 items-center gap-1 rounded-xl px-3.5 text-[12.5px] font-medium text-muted-foreground/50 ring-1 ring-border/40 active:bg-foreground/[0.05]"
               >
                 <Plus size={11} weight="bold" />
                 Custom
@@ -671,8 +704,6 @@ export default function Water() {
           onClose={() => setGoalOpen(false)}
         />
       )}
-
-      <BottomBar onAdd={() => setAddOpen(true)} />
     </div>
   )
 }
