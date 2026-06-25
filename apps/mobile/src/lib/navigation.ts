@@ -81,22 +81,19 @@ export function useSmoothNavigate(): SmoothNavigateFunction {
       options?: SmoothNavigateOptions | SmoothDeltaNavigateOptions
     ) => {
       if (typeof to === "number") {
-        setRouteMotion(options?.motion ?? (to < 0 ? "back" : "forward"))
+        clearRouteMotion()
         return navigate(to)
       }
 
-      const { motion, ...routerOptions } = (options ??
-        {}) as SmoothNavigateOptions
-      const viewTransition = routerOptions.viewTransition ?? false
+      const routerOptions = { ...((options ?? {}) as SmoothNavigateOptions) }
+      delete routerOptions.motion
+      delete routerOptions.viewTransition
 
-      setRouteMotion(
-        motion ?? (routerOptions.replace ? "replace" : "forward"),
-        viewTransition
-      )
+      clearRouteMotion()
 
       const result = navigate(to, {
         ...routerOptions,
-        viewTransition,
+        viewTransition: false,
       })
 
       if (!routerOptions.preventScrollReset) {

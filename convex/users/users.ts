@@ -4,6 +4,7 @@ import { authComponent } from "../auth";
 import { calculateCalories } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
+import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -510,10 +511,7 @@ export const getEffectiveGoals = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
-    const onboarding = await ctx.db
-      .query("onboardingProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const onboarding = await getLatestOnboardingProfile(ctx, user._id);
 
     let healthGoals: {
       calories: number;

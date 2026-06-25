@@ -82,7 +82,10 @@
 @keyframes app-route-enter-forward {
   from {
     opacity: 0;
-    transform: translate3d(16px, 0, 0) scale(0.995);
+    transform: translate3d(0, 10px, 0) scale(0.988);
+  }
+  60% {
+    opacity: 1;
   }
   to {
     opacity: 1;
@@ -93,7 +96,7 @@
 @keyframes app-route-enter-back {
   from {
     opacity: 0;
-    transform: translate3d(-12px, 0, 0) scale(0.997);
+    transform: translate3d(0, -8px, 0) scale(0.99);
   }
   to {
     opacity: 1;
@@ -104,7 +107,7 @@
 @keyframes app-route-enter-switch {
   from {
     opacity: 0;
-    transform: translate3d(0, 8px, 0) scale(0.997);
+    transform: translate3d(0, 6px, 0) scale(0.992);
   }
   to {
     opacity: 1;
@@ -115,53 +118,90 @@
 @keyframes app-route-enter-replace {
   from {
     opacity: 0;
-    transform: translate3d(0, 4px, 0);
+    transform: translate3d(0, 3px, 0) scale(0.995);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes app-vt-old-forward {
   to {
     opacity: 0;
-    transform: translate3d(-10px, 0, 0) scale(0.997);
+    transform: translate3d(0, -4px, 0) scale(0.992);
   }
 }
 
 @keyframes app-vt-new-forward {
   from {
     opacity: 0;
-    transform: translate3d(18px, 0, 0) scale(0.995);
+    transform: translate3d(0, 10px, 0) scale(0.988);
   }
 }
 
 @keyframes app-vt-old-back {
   to {
     opacity: 0;
-    transform: translate3d(12px, 0, 0) scale(0.997);
+    transform: translate3d(0, 5px, 0) scale(0.992);
   }
 }
 
 @keyframes app-vt-new-back {
   from {
     opacity: 0;
-    transform: translate3d(-14px, 0, 0) scale(0.997);
+    transform: translate3d(0, -8px, 0) scale(0.99);
   }
 }
 
 @keyframes app-vt-old-switch {
   to {
     opacity: 0;
-    transform: translate3d(0, -5px, 0) scale(0.998);
+    transform: translate3d(0, -3px, 0) scale(0.994);
   }
 }
 
 @keyframes app-vt-new-switch {
   from {
     opacity: 0;
-    transform: translate3d(0, 9px, 0) scale(0.997);
+    transform: translate3d(0, 6px, 0) scale(0.992);
+  }
+}
+
+@keyframes motion-page-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes motion-card-settle {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 9px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes motion-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -176,26 +216,26 @@
 }
 
 html[data-route-native="true"] .app-route-frame {
-  view-transition-name: app-route;
+  view-transition-name: none;
 }
 
 .app-route-frame-animated {
-  animation: app-route-enter-forward 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: opacity, transform;
+  animation: none;
+  will-change: auto;
 }
 
 .app-route-frame-animated[data-route-motion="back"] {
-  animation-name: app-route-enter-back;
+  animation-name: none;
 }
 
 .app-route-frame-animated[data-route-motion="switch"] {
-  animation-name: app-route-enter-switch;
-  animation-duration: 180ms;
+  animation-name: none;
+  animation-duration: 0ms;
 }
 
 .app-route-frame-animated[data-route-motion="replace"] {
-  animation-name: app-route-enter-replace;
-  animation-duration: 160ms;
+  animation-name: none;
+  animation-duration: 0ms;
 }
 
 html[data-route-native="true"] .app-route-frame-animated {
@@ -208,40 +248,41 @@ html[data-route-native="true"] .app-route-frame-animated {
 }
 
 ::view-transition-group(app-route) {
-  animation-duration: 240ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-duration: 0ms;
+  animation-timing-function: step-end;
 }
 
 ::view-transition-old(app-route),
 ::view-transition-new(app-route) {
+  animation: none !important;
   height: 100%;
   mix-blend-mode: normal;
 }
 
 html[data-route-motion="forward"]::view-transition-old(app-route) {
-  animation: app-vt-old-forward 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 html[data-route-motion="forward"]::view-transition-new(app-route) {
-  animation: app-vt-new-forward 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 html[data-route-motion="back"]::view-transition-old(app-route) {
-  animation: app-vt-old-back 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 html[data-route-motion="back"]::view-transition-new(app-route) {
-  animation: app-vt-new-back 230ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 html[data-route-motion="switch"]::view-transition-old(app-route),
 html[data-route-motion="replace"]::view-transition-old(app-route) {
-  animation: app-vt-old-switch 170ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 html[data-route-motion="switch"]::view-transition-new(app-route),
 html[data-route-motion="replace"]::view-transition-new(app-route) {
-  animation: app-vt-new-switch 210ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -250,7 +291,25 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .sheet-backdrop-enter,
   .sheet-backdrop-exit,
   .sheet-panel-enter,
-  .sheet-panel-exit {
+  .sheet-panel-exit,
+  .weight-selector-overlay-enter,
+  .weight-selector-overlay-exit,
+  .weight-selector-panel-enter,
+  .weight-selector-panel-exit,
+  .sheet-overlay,
+  .sheet-panel,
+  .motion-page,
+  .motion-card,
+  .motion-item,
+  .motion-pop,
+  .motion-progress-fill,
+  .motion-countdown-fill,
+  .motion-set-complete,
+  [data-slot="card"],
+  .scan-line,
+  .animate-in,
+  .animate-spin,
+  .animate-pulse {
     animation: none !important;
     transition: none !important;
   }
@@ -268,6 +327,7 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
 @keyframes backdrop-in {
   from {
     opacity: 0;
+    backdrop-filter: blur(0);
   }
   to {
     opacity: 1;
@@ -285,65 +345,173 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
 /* Panel — slide only */
 @keyframes panel-in {
   from {
-    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.985);
   }
   to {
-    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 @keyframes panel-out {
   from {
-    transform: translate3d(0, 0, 0);
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
   to {
-    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.99);
   }
 }
 
 .sheet-backdrop-enter {
-  animation: backdrop-in 160ms ease both;
+  animation: backdrop-in var(--motion-fast) var(--motion-ease-standard) both;
 }
 .sheet-backdrop-exit {
-  animation: backdrop-out 150ms ease both;
+  animation: backdrop-out 140ms var(--motion-ease-standard) both;
   pointer-events: none;
 }
 .sheet-panel-enter {
-  animation: panel-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: panel-in var(--motion-panel) var(--motion-ease-out) both;
 }
 .sheet-panel-exit {
-  animation: panel-out 180ms cubic-bezier(0.4, 0, 0.6, 1) both;
+  animation: panel-out 170ms var(--motion-ease-in) both;
   pointer-events: none;
+}
+
+.sheet-overlay {
+  animation: backdrop-in var(--motion-fast) var(--motion-ease-standard) both;
+}
+
+.sheet-panel:not(.sheet-panel-enter):not(.sheet-panel-exit) {
+  animation: panel-in var(--motion-panel) var(--motion-ease-out) both;
+  transform-origin: bottom center;
+}
+
+@keyframes weight-selector-overlay-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes weight-selector-overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes weight-selector-panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 22px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes weight-selector-panel-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.99);
+  }
+}
+
+.weight-selector-overlay-enter {
+  animation: weight-selector-overlay-in var(--motion-fast)
+    var(--motion-ease-standard) both;
+}
+
+.weight-selector-overlay-exit {
+  animation: weight-selector-overlay-out 170ms var(--motion-ease-standard) both;
+  pointer-events: none;
+}
+
+.weight-selector-panel-enter {
+  animation: weight-selector-panel-in var(--motion-panel) var(--motion-ease-out)
+    both;
+  transform-origin: bottom center;
+}
+
+.weight-selector-panel-exit {
+  animation: weight-selector-panel-out 190ms var(--motion-ease-in) both;
+  pointer-events: none;
+  transform-origin: bottom center;
+}
+
+@media (min-width: 768px) {
+  @keyframes weight-selector-panel-in {
+    from {
+      opacity: 0;
+      transform: translate3d(-50%, calc(-50% + 12px), 0) scale(0.975);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(-50%, -50%, 0) scale(1);
+    }
+  }
+
+  @keyframes weight-selector-panel-out {
+    from {
+      opacity: 1;
+      transform: translate3d(-50%, -50%, 0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translate3d(-50%, calc(-50% + 10px), 0) scale(0.98);
+    }
+  }
+
+  .weight-selector-panel-enter,
+  .weight-selector-panel-exit {
+    transform-origin: center;
+  }
 }
 
 @keyframes sweep-delete {
   from {
     transform: scaleX(0);
+    opacity: 0.65;
   }
   to {
     transform: scaleX(1);
+    opacity: 1;
   }
 }
 
 @keyframes scan {
   0% {
-    transform: translateY(0px);
+    transform: translateY(0px) scaleX(0.68);
     opacity: 0;
   }
-  6% {
-    opacity: 0.45;
+  12% {
+    opacity: 0.5;
   }
   50% {
-    transform: translateY(48px);
-    opacity: 0.45;
+    transform: translateY(48px) scaleX(1);
+    opacity: 0.55;
   }
-  56%,
+  70%,
   100% {
-    transform: translateY(48px);
+    transform: translateY(48px) scaleX(0.76);
     opacity: 0;
   }
 }
 .scan-line {
-  animation: scan 3.2s ease-in-out infinite;
+  animation: scan 2.6s var(--motion-ease-standard) infinite;
+  transform-origin: center;
 }
 
 @keyframes set-complete {
@@ -351,9 +519,9 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
   }
-  35% {
-    transform: scale(1.12);
-    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.14);
+  38% {
+    transform: scale(1.028);
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.12);
   }
   100% {
     transform: scale(1);
@@ -361,7 +529,41 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   }
 }
 
+@keyframes motion-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes motion-skeleton {
+  0%,
+  100% {
+    opacity: 0.52;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes motion-progress-shine {
+  0% {
+    transform: translateX(-115%);
+  }
+  100% {
+    transform: translateX(115%);
+  }
+}
+
 :root {
+  --motion-fast: 160ms;
+  --motion-medium: 230ms;
+  --motion-slow: 360ms;
+  --motion-route: 260ms;
+  --motion-panel: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0.85, 0.25, 1);
   --app-safe-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.45rem));
   --app-safe-bottom: max(
     1.35rem,
@@ -510,6 +712,144 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .mobile-hairline {
     border-color: color-mix(in srgb, var(--border) 62%, transparent);
   }
+
+  .motion-page {
+    animation: none;
+  }
+
+  .motion-card {
+    animation: none;
+    animation-delay: var(--motion-delay, 0ms);
+    transform-origin: center bottom;
+  }
+
+  [data-slot="card"] {
+    animation: none;
+    animation-delay: var(--motion-delay, 0ms);
+    transform-origin: center bottom;
+  }
+
+  .motion-item {
+    animation: none;
+    animation-delay: var(--motion-delay, 0ms);
+  }
+
+  .motion-pop {
+    animation: none;
+    transform-origin: center;
+  }
+
+  .motion-pressable {
+    transition-property:
+      transform, opacity, background-color, border-color, color, box-shadow;
+    transition-duration: var(--motion-fast);
+    transition-timing-function: var(--motion-ease-out);
+    will-change: transform;
+  }
+
+  .motion-pressable:active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  .motion-progress-fill {
+    position: relative;
+    overflow: hidden;
+    transition-property: width, opacity, background-color, transform;
+    transition-duration: var(--motion-slow);
+    transition-timing-function: var(--motion-ease-out);
+  }
+
+  .motion-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, white 36%, transparent),
+      transparent
+    );
+    opacity: 0.55;
+    transform: translateX(-115%);
+    animation: motion-progress-shine 1.15s var(--motion-ease-out) 120ms both;
+    pointer-events: none;
+  }
+
+  .motion-countdown-fill {
+    transition:
+      width 1000ms linear,
+      background-color var(--motion-medium) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-icon {
+    transition:
+      transform var(--motion-medium) var(--motion-ease-out),
+      opacity var(--motion-fast) var(--motion-ease-standard),
+      color var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-set-complete {
+    animation: set-complete 420ms var(--motion-ease-emphasized) both;
+  }
+}
+
+[data-motion-stagger] > * {
+  animation: none;
+}
+
+[data-motion-stagger] > :nth-child(1) {
+  animation-delay: 0ms;
+}
+[data-motion-stagger] > :nth-child(2) {
+  animation-delay: 35ms;
+}
+[data-motion-stagger] > :nth-child(3) {
+  animation-delay: 70ms;
+}
+[data-motion-stagger] > :nth-child(4) {
+  animation-delay: 105ms;
+}
+[data-motion-stagger] > :nth-child(5) {
+  animation-delay: 140ms;
+}
+[data-motion-stagger] > :nth-child(n + 6) {
+  animation-delay: 175ms;
+}
+
+.animate-spin {
+  animation: motion-spinner 820ms linear infinite;
+}
+
+.animate-pulse {
+  animation: motion-skeleton 1.45s var(--motion-ease-standard) infinite;
+}
+
+.animate-in {
+  animation-timing-function: var(--motion-ease-out) !important;
+}
+
+.duration-150 {
+  transition-duration: var(--motion-fast);
+  animation-duration: var(--motion-fast);
+}
+
+.duration-200,
+.duration-250 {
+  transition-duration: var(--motion-medium);
+  animation-duration: var(--motion-medium);
+}
+
+.duration-300,
+.duration-500,
+.duration-700 {
+  transition-duration: var(--motion-slow);
+  animation-duration: var(--motion-slow);
+}
+
+.ease-out {
+  transition-timing-function: var(--motion-ease-out);
+  animation-timing-function: var(--motion-ease-out);
 }
 
 @media (max-height: 700px) and (max-width: 480px) {

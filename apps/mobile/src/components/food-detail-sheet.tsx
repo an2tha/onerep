@@ -226,7 +226,7 @@ function DonutRing({
             strokeDashoffset={a.offset}
             style={{
               transition: drawn
-                ? `stroke-dasharray 650ms cubic-bezier(0.4,0,0.2,1) ${i * 70}ms`
+                ? `stroke-dasharray var(--motion-slow) var(--motion-ease-out) ${i * 55}ms`
                 : "none",
             }}
           />
@@ -291,7 +291,7 @@ function MacroStack({
             </div>
             <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/[0.07]">
               <div
-                className="h-full rounded-full transition-all duration-500"
+                className="motion-progress-fill h-full rounded-full"
                 style={{
                   width: `${pct}%`,
                   backgroundColor: m.color,
@@ -402,7 +402,7 @@ function PortionPicker({
             <button
               key={`${p.label}-${p.grams}-${p.unit ?? ""}`}
               onClick={() => onChange(p.grams, p.unit)}
-              className="flex min-h-11 max-w-32 shrink-0 flex-col items-start justify-center rounded-[14px] border px-3 py-2 text-left transition-all active:scale-95"
+              className="flex min-h-11 max-w-32 shrink-0 flex-col items-start justify-center rounded-[14px] border px-3 py-2 text-left transition-all active:scale-[0.985]"
               style={
                 active
                   ? {
@@ -442,7 +442,7 @@ function PortionPicker({
             <button
               key={option.id}
               onClick={() => onChange(grams, option.id)}
-              className="h-8 min-w-[3.75rem] shrink-0 rounded-[10px] px-2 text-[11px] font-bold transition-all active:scale-95"
+              className="h-8 min-w-[3.75rem] shrink-0 rounded-[10px] px-2 text-[11px] font-bold transition-all active:scale-[0.985]"
               style={
                 active
                   ? {
@@ -469,7 +469,7 @@ function PortionPicker({
             stepAmount(-1)
           }}
           aria-label="Decrease portion"
-          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-95 active:bg-muted"
+          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-[0.985] active:bg-muted"
         >
           <Minus size={14} weight="bold" />
         </button>
@@ -501,7 +501,7 @@ function PortionPicker({
             stepAmount(1)
           }}
           aria-label="Increase portion"
-          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-95 active:bg-muted"
+          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-[0.985] active:bg-muted"
         >
           <Plus size={14} weight="bold" />
         </button>
@@ -901,7 +901,7 @@ function MealPicker({
                     onChange(cat.id)
                   }
                 }}
-                className="flex h-10 min-w-20 items-center justify-center rounded-[15px] border px-3 text-[12px] font-bold transition-all active:scale-95"
+                className="flex h-10 min-w-20 items-center justify-center rounded-[15px] border px-3 text-[12px] font-bold transition-all active:scale-[0.985]"
                 style={
                   isSelected
                     ? {
@@ -1144,7 +1144,7 @@ export function FoodDetailSheet({
                   portion
                 )
               }
-              className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-[14px] font-semibold tracking-tight transition-all active:scale-[0.98]"
+              className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-center text-[14px] font-semibold tracking-tight transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: added ? mealCfg.bg : "var(--foreground)",
                 color: added ? mealCfg.color : "var(--background)",
@@ -1304,7 +1304,8 @@ export function FoodDetailSheet({
                 className="overflow-hidden px-4"
                 style={{
                   maxHeight: 0,
-                  transition: "max-height 300ms cubic-bezier(0.4,0,0.2,1)",
+                  transition:
+                    "max-height var(--motion-panel) var(--motion-ease-out)",
                 }}
               >
                 <div className="border-t border-border/30">
