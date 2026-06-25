@@ -483,8 +483,11 @@ export default function SnapAndLog() {
 
       {/* ── Shutter flash ────────────────────────────────────────────── */}
       <div
-        className="pointer-events-none absolute inset-0 bg-white transition-opacity duration-75"
-        style={{ opacity: fired ? 0.4 : 0 }}
+        className="pointer-events-none absolute inset-0 bg-white"
+        style={{
+          opacity: fired ? 0.32 : 0,
+          transition: "opacity var(--motion-fast) var(--motion-ease-standard)",
+        }}
       />
 
       {/* ── Viewfinder — snap corners / barcode box ───────────────────── */}
@@ -632,13 +635,17 @@ export default function SnapAndLog() {
           <button
             onClick={handleShutter}
             disabled={!useNativeCapture && cameraState !== "active"}
-            className="relative flex h-[76px] w-[76px] items-center justify-center rounded-full transition-transform active:scale-95 disabled:opacity-30"
+            className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
             aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}
           >
             <div className="absolute inset-0 rounded-full border-2 border-white/30" />
             <div
-              className="h-[60px] w-[60px] rounded-full bg-white transition-transform duration-75"
-              style={{ transform: fired ? "scale(0.87)" : "scale(1)" }}
+              className="h-[60px] w-[60px] rounded-full bg-white"
+              style={{
+                transform: fired ? "scale(0.9)" : "scale(1)",
+                transition:
+                  "transform var(--motion-fast) var(--motion-ease-out)",
+              }}
             />
           </button>
 
@@ -865,7 +872,7 @@ function ResultsSheet({
                     </div>
                     <button
                       onClick={() => onAdd(item)}
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-90"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-all active:scale-[0.985]"
                       style={{
                         backgroundColor: isAdded
                           ? mealCfg.bg

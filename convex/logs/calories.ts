@@ -3,6 +3,7 @@ import { mutation, query } from "../_generated/server";
 import { authComponent } from "../auth";
 import { calculateCalories, type CaloricGoals } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
+import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 
 const healthProfileArgs = {
   sex: v.union(v.literal("male"), v.literal("female")),
@@ -34,10 +35,7 @@ export const getGoals = query({
 
     if (profile) return calculateCalories(profile);
 
-    const onboarding = await ctx.db
-      .query("onboardingProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const onboarding = await getLatestOnboardingProfile(ctx, user._id);
 
     if (!onboarding) return null;
     return estimateOnboardingCalories(onboarding);
