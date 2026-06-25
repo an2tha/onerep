@@ -16,8 +16,9 @@ const FIELD_CLASS =
 const LABEL_CLASS =
   "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
 const INPUT_CLASS =
-  "mt-1.5 w-full bg-transparent text-[15px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
+const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 
 const INTRO_SLIDES = [
   {
@@ -219,6 +220,14 @@ export default function Login() {
 
   useEffect(() => {
     if (!isPending && session) {
+      const needsOnboarding =
+        typeof window !== "undefined" &&
+        localStorage.getItem(POST_SIGNUP_ONBOARDING_KEY) === "true"
+      if (needsOnboarding) {
+        localStorage.removeItem(POST_SIGNUP_ONBOARDING_KEY)
+        navigate("/onboarding", { replace: true })
+        return
+      }
       navigate("/", { replace: true })
     }
   }, [session, isPending, navigate])
@@ -302,6 +311,9 @@ export default function Login() {
         }
         posthog.identify(data?.user?.id ?? email, { email, name: displayName })
         posthog.capture("user_signed_up", { method: "email" })
+        if (typeof window !== "undefined") {
+          localStorage.setItem(POST_SIGNUP_ONBOARDING_KEY, "true")
+        }
         navigate("/onboarding", { replace: true })
       }
     } finally {
@@ -354,13 +366,17 @@ export default function Login() {
                   type="button"
                   aria-label={`Show ${item.kicker}`}
                   onClick={() => setIntroIndex(index)}
-                  className={[
-                    "h-1.5 rounded-full transition-all",
-                    index === introIndex
-                      ? "w-6 bg-foreground"
-                      : "w-1.5 bg-muted-foreground/25",
-                  ].join(" ")}
-                />
+                  className="flex h-8 w-8 items-center justify-center rounded-full transition-colors active:bg-muted/45"
+                >
+                  <span
+                    className={[
+                      "h-1.5 rounded-full transition-all",
+                      index === introIndex
+                        ? "w-6 bg-foreground"
+                        : "w-1.5 bg-muted-foreground/25",
+                    ].join(" ")}
+                  />
+                </button>
               ))}
             </div>
           </section>
@@ -478,7 +494,7 @@ export default function Login() {
                 type="button"
                 onClick={handlePasswordReset}
                 disabled={loading}
-                className="w-full px-1 text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
+                className="flex min-h-10 w-full items-center px-1 text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
               >
                 Forgot password?
               </button>
@@ -521,7 +537,7 @@ export default function Login() {
               onClick={() =>
                 switchMode(mode === "signin" ? "signup" : "signin")
               }
-              className="font-semibold text-foreground/85 transition-opacity active:opacity-60"
+              className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60"
             >
               {mode === "signin" ? "Sign up" : "Sign in"}
             </button>

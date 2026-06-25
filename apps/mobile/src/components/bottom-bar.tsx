@@ -4,6 +4,7 @@ import {
   Barbell,
   ChartLine,
   ForkKnife,
+  GearSix,
   House,
   ListChecks,
   PintGlass,
@@ -17,6 +18,7 @@ const TABS = [
   { path: "/foods", Icon: ForkKnife, label: "Food" },
   { path: "/workouts", Icon: Barbell, label: "Workout" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
+  { path: "/settings", Icon: GearSix, label: "Settings" },
 ] as const
 
 const DESKTOP_TABS = [
@@ -26,6 +28,7 @@ const DESKTOP_TABS = [
   { path: "/water", Icon: PintGlass, label: "Water" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/exercises", Icon: ListChecks, label: "Exercises" },
+  { path: "/settings", Icon: GearSix, label: "Settings" },
 ] as const
 
 function isActive(pathname: string, path: string) {
@@ -88,7 +91,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
                 className={cn(
-                  "relative flex items-center gap-2 rounded-full px-4 py-2 transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]",
+                  "relative flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3 transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97]",
                   active
                     ? "text-foreground"
                     : "text-muted-foreground active:bg-foreground/[0.05]"
@@ -108,7 +111,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
               <div className="mx-1 h-4 w-px bg-border/60" />
               <button
                 onClick={onAdd}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-foreground/[0.07] active:text-foreground"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-foreground/[0.07] active:text-foreground"
                 aria-label="Add"
               >
                 <Plus size={15} />
