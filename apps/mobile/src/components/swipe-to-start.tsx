@@ -58,7 +58,7 @@ export function SwipeToStart({
   return (
     <div
       ref={trackRef}
-      className="relative flex h-12 items-center overflow-hidden rounded-2xl px-[4px] select-none"
+      className="motion-card relative flex h-12 items-center overflow-hidden rounded-2xl px-[4px] select-none"
       style={{
         backgroundColor: isCompleted
           ? "rgba(34,197,94,0.10)"
@@ -70,7 +70,9 @@ export function SwipeToStart({
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
           background: `linear-gradient(to right, rgba(${fillColor},${fillOpacity}) 0%, rgba(${fillColor},0) 100%)`,
-          transition: releasing ? "opacity 400ms ease" : "none",
+          transition: releasing
+            ? "opacity var(--motion-slow) var(--motion-ease-out)"
+            : "none",
           opacity: releasing ? 0 : 1,
         }}
       />
@@ -80,6 +82,7 @@ export function SwipeToStart({
         className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-[12px] font-semibold tracking-wide"
         style={{
           opacity: Math.max(0, 1 - progress * 3),
+          transition: "opacity var(--motion-fast) var(--motion-ease-standard)",
           color: isCompleted
             ? "rgba(34,197,94,0.70)"
             : "color-mix(in srgb, var(--foreground) 100%, transparent)",
@@ -94,9 +97,10 @@ export function SwipeToStart({
         style={{
           transform: `translateX(${x}px)`,
           transition: releasing
-            ? "transform 400ms cubic-bezier(0.34, 1.4, 0.64, 1)"
+            ? "transform var(--motion-slow) var(--motion-ease-emphasized), background-color var(--motion-medium) var(--motion-ease-out)"
             : "none",
           backgroundColor: thumbColor,
+          boxShadow: `0 8px 18px rgba(0,0,0,${0.08 + progress * 0.08})`,
         }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

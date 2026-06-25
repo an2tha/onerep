@@ -32,7 +32,7 @@ export function MobilePage({
   return (
     <main
       className={cn(
-        "mx-auto min-h-svh w-full max-w-xl bg-background text-foreground md:max-w-5xl",
+        "motion-page mx-auto min-h-svh w-full max-w-xl bg-background text-foreground md:max-w-5xl",
         bottomInset === "nav"
           ? "pb-[calc(var(--app-safe-bottom-lg)+5.5rem)] md:pb-10"
           : "pb-[var(--app-safe-bottom-lg)]",
@@ -60,7 +60,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex items-center justify-between gap-3 px-4 md:px-6",
+        "motion-item flex items-center justify-between gap-3 px-4 md:px-6",
         compact
           ? "pt-[var(--app-safe-top)] pb-2.5"
           : "pt-[calc(var(--app-safe-top)+0.25rem)] pb-3.5"
@@ -104,7 +104,10 @@ export function SectionHeader({
 }) {
   return (
     <div
-      className={cn("mb-2.5 flex items-end justify-between gap-3", className)}
+      className={cn(
+        "motion-item mb-2.5 flex items-end justify-between gap-3",
+        className
+      )}
     >
       <div className="min-w-0">
         <h2 className="truncate text-[13px] font-bold tracking-tight">
@@ -139,7 +142,7 @@ export function MetricTile({
   return (
     <div
       className={cn(
-        "min-h-[68px] rounded-[18px] border border-border/55 bg-card px-3 py-2.5 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out",
+        "motion-card min-h-[68px] rounded-[18px] border border-border/55 bg-card px-3 py-2.5 transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out",
         toneVars[tone],
         className
       )}
@@ -149,7 +152,7 @@ export function MetricTile({
           {label}
         </p>
         {Icon && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--tone-bg)] text-[var(--tone)]">
+          <span className="motion-pop flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--tone-bg)] text-[var(--tone)]">
             <Icon size={14} weight="bold" />
           </span>
         )}
@@ -188,6 +191,7 @@ export function ActionDock({
     <div
       className={cn(
         "md:backdrop-blur-0 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl gap-2 border-t border-border/50 bg-background/86 px-4 pt-3 pb-[var(--app-safe-bottom)] backdrop-blur-xl md:static md:max-w-none md:border-0 md:bg-transparent md:px-0 md:py-0",
+        "motion-card",
         className
       )}
     >
@@ -214,7 +218,7 @@ function DockButton({
       onClick={action.onClick}
       disabled={action.disabled}
       className={cn(
-        "flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] px-4 text-[13px] font-bold transition-[opacity,transform,background-color,color] duration-150 ease-out active:scale-[0.985] active:opacity-85 disabled:opacity-45",
+        "motion-pressable flex h-12 min-w-12 items-center justify-center gap-2 rounded-[20px] px-4 text-[13px] font-bold active:opacity-85 disabled:opacity-45",
         variant === "primary" && "bg-foreground text-background",
         variant === "secondary" && "bg-muted text-foreground",
         variant === "danger" && "bg-destructive/10 text-destructive",
@@ -245,12 +249,12 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-[22px] border border-dashed border-border/60 bg-card/70 px-5 py-6 text-center",
+        "motion-card flex flex-col items-center rounded-[22px] border border-dashed border-border/60 bg-card/70 px-5 py-6 text-center",
         toneVars[tone],
         className
       )}
     >
-      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--tone-bg)] text-[var(--tone)]">
+      <span className="motion-pop flex h-11 w-11 items-center justify-center rounded-full bg-[var(--tone-bg)] text-[var(--tone)]">
         <Icon size={20} weight="bold" />
       </span>
       <p className="mt-3 text-[15px] font-bold tracking-tight">{title}</p>

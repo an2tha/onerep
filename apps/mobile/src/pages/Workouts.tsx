@@ -415,7 +415,7 @@ function WorkoutLogCarousel({
             transform: `translateX(-${slide * 100}%)`,
             transition: touching
               ? "none"
-              : "transform 340ms cubic-bezier(0.22, 1, 0.36, 1)",
+              : "transform var(--motion-panel) var(--motion-ease-out)",
           }}
         >
           {logs.map((log, i) => (
@@ -586,7 +586,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
                 </div>
                 <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
                   <div
-                    className="h-full rounded-full transition-all duration-500"
+                    className="motion-progress-fill h-full rounded-full"
                     style={{
                       width: `${pct}%`,
                       backgroundColor: color,

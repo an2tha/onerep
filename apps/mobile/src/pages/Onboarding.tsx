@@ -1066,7 +1066,7 @@ export default function Onboarding() {
               type="button"
               onClick={goNext}
               disabled={saving || !stepReady}
-              className="min-h-12 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)] transition-transform active:scale-[0.99] disabled:opacity-50"
+              className="min-h-12 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)] transition-transform active:scale-[0.985] disabled:opacity-50"
             >
               {saving
                 ? "Saving..."

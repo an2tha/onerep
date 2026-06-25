@@ -82,7 +82,7 @@ function AnimatedBar({ pct, color }: { pct: number; color: string }) {
   return (
     <div
       ref={ref}
-      className="h-full rounded-full transition-all duration-700 ease-out"
+      className="motion-progress-fill h-full rounded-full"
       style={{ width: w, backgroundColor: color }}
     />
   )
