@@ -1,0 +1,126 @@
+import { useEffect, useState } from "react"
+import { authClient } from "@/lib/auth-client"
+import {
+  getAuthCallbackUrl,
+  getPendingVerification,
+  rememberPendingVerification,
+} from "@/lib/auth-redirects"
+import { useSmoothNavigate } from "@/lib/navigation"
+
+function getCallbackPath(next: string) {
+  return next === "onboarding"
+    ? "/email-verified?next=onboarding"
+    : "/email-verified"
+}
+
+export default function VerifyEmailRequired() {
+  const navigate = useSmoothNavigate()
+  const [email, setEmail] = useState("")
+  const [next, setNext] = useState("")
+  const [error, setError] = useState<string | undefined>()
+  const [message, setMessage] = useState<string | undefined>()
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const pending = getPendingVerification()
+    setEmail(pending.email)
+    setNext(pending.next)
+  }, [])
+
+  async function handleResend() {
+    if (!email) {
+      navigate("/login", { replace: true })
+      return
+    }
+
+    setLoading(true)
+    setError(undefined)
+    setMessage(undefined)
+    try {
+      const { error: sendError } = await authClient.sendVerificationEmail({
+        email,
+        callbackURL: getAuthCallbackUrl(getCallbackPath(next)),
+      })
+      if (sendError) {
+        setError(sendError.message ?? "Could not send verification email")
+        return
+      }
+
+      rememberPendingVerification(email, next || undefined)
+      setMessage("Verification email sent. Check your inbox.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-svh bg-background text-foreground">
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+          <img
+            src="/app-icon.svg"
+            alt=""
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+          />
+          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+            OneRep
+          </h1>
+        </header>
+
+        <section className="rounded-[28px] border border-border/70 bg-card p-4 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
+          <div className="rounded-[24px] border border-border/60 bg-background px-4 py-5 text-center short-phone:rounded-[20px] short-phone:py-4">
+            <p className="text-[10px] font-semibold tracking-[0.22em] text-muted-foreground/60 uppercase">
+              Verify email
+            </p>
+            <h2 className="mt-3 text-[1.75rem] leading-tight font-semibold tracking-tight short-phone:text-[1.55rem]">
+              Verify your email first.
+            </h2>
+            <p className="mx-auto mt-3 max-w-[268px] text-[14px] leading-6 font-medium text-muted-foreground/70 short-phone:text-[13px] short-phone:leading-5">
+              OneRep needs a verified email before you can sign in.
+              {email
+                ? ` We sent a link to ${email}.`
+                : " Use the link in your inbox."}
+            </p>
+          </div>
+
+          {error && (
+            <p
+              role="alert"
+              className="mt-3 rounded-[18px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
+            >
+              {error}
+            </p>
+          )}
+
+          {message && (
+            <p className="mt-3 rounded-[18px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+              {message}
+            </p>
+          )}
+
+          <div className="mt-3 space-y-2.5">
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={loading}
+              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12 short-phone:rounded-[20px]"
+            >
+              {loading
+                ? "Sending..."
+                : email
+                  ? "Resend email"
+                  : "Back to sign in"}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/login", { replace: true })}
+              className="h-[48px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
+            >
+              Back to sign in
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  )
+}
