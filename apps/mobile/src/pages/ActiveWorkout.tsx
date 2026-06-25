@@ -91,7 +91,6 @@ type LoggedWorkoutExercise = {
 type ExerciseCardDropProps = {
   showLineBefore: boolean
   showLineAfter: boolean
-  showSupersetRing: boolean
 }
 
 type WorkoutItem =
@@ -99,7 +98,7 @@ type WorkoutItem =
   | { kind: "superset"; id: string; color: string; exerciseIds: string[] }
 
 type DragInfo = {
-  exerciseId: string
+  itemKey: string
   x: number
   y: number
   startX: number
@@ -108,8 +107,8 @@ type DragInfo = {
 }
 
 type DropTarget = {
-  type: "before" | "after" | "superset"
-  targetExId: string
+  type: "before" | "after"
+  targetKey: string
 } | null
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -160,8 +159,6 @@ const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
     bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
   },
 }
-
-const SUPERSET_PALETTE = ["#737373", "#6b7280", "#71717a", "#78716c", "#737373"]
 
 const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
 
@@ -238,6 +235,10 @@ function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
       return [{ kind: "solo" as const, exerciseId: rest[0] }]
     return [{ ...item, exerciseIds: rest }]
   })
+}
+
+function workoutItemKey(item: WorkoutItem) {
+  return item.kind === "solo" ? `solo:${item.exerciseId}` : `superset:${item.id}`
 }
 
 /**
@@ -1095,11 +1096,10 @@ function ActiveSetRow({
  * @param isDragging - Whether this card is currently being dragged (applies visual transform).
  * @param showLineBefore - Render a decorative line above the card when true.
  * @param showLineAfter - Render a decorative line below the card when true.
- * @param showSupersetRing - Apply a colored ring accent to indicate superset grouping when true.
  * @param inSuperset - True when the card is rendered inside a superset container.
  * @param collapsed - Whether the card's set list is collapsed.
  * @param onToggleCollapse - Toggle collapsed state for this card.
- * @param dragHandlers - Pointer/drag event handlers to attach to the drag handle.
+ * @param dragHandlers - Pointer/drag event handlers to attach to the drag handle when reordering is allowed.
  * @param cardRef - Ref callback for the card DOM element (used for hit-testing during drag).
  * @param onStartRest - Called with rest seconds when a set is completed and a rest timer should start.
  * @param lastSession - Optional recent session summary (date and sets) to render a compact history row.
@@ -1117,7 +1117,6 @@ function ActiveExerciseCard({
   isDragging,
   showLineBefore,
   showLineAfter,
-  showSupersetRing,
   inSuperset,
   collapsed,
   onToggleCollapse,
@@ -1136,11 +1135,10 @@ function ActiveExerciseCard({
   isDragging: boolean
   showLineBefore: boolean
   showLineAfter: boolean
-  showSupersetRing: boolean
   inSuperset?: boolean
   collapsed: boolean
   onToggleCollapse: () => void
-  dragHandlers: React.HTMLAttributes<HTMLDivElement>
+  dragHandlers?: React.HTMLAttributes<HTMLDivElement>
   cardRef: (el: HTMLDivElement | null) => void
   onStartRest: (seconds: number) => void
   lastSession?: {
@@ -1173,24 +1171,13 @@ function ActiveExerciseCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden transition-all duration-150",
+        "relative flex overflow-hidden transition-[opacity,transform] duration-150",
         inSuperset
-          ? "bg-card"
-          : "rounded-[30px] border bg-card shadow-sm shadow-black/[0.018] md:rounded-[32px]",
-        !inSuperset && (allDone ? "border-primary/20" : "border-border/40"),
-        isDragging && "scale-[0.97] opacity-20",
-        showSupersetRing &&
-          !inSuperset &&
-          "ring-2 ring-offset-2 ring-offset-background"
+          ? "border-t border-border/45 bg-transparent first:border-t-0"
+          : "rounded-[20px] border bg-card md:rounded-[22px]",
+        !inSuperset && (allDone ? "border-primary/25" : "border-border/55"),
+        isDragging && "scale-[0.985] opacity-25"
       )}
-      style={
-        showSupersetRing && !inSuperset
-          ? ({
-              "--tw-ring-color":
-                "color-mix(in srgb, var(--primary) 22%, transparent)",
-            } as React.CSSProperties)
-          : undefined
-      }
     >
       {showLineBefore && (
         <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
@@ -1198,30 +1185,34 @@ function ActiveExerciseCard({
       {showLineAfter && (
         <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
-      <div
-        className="w-[3px] shrink-0 transition-all duration-500"
-        style={{
-          background: allDone
-            ? "color-mix(in srgb, var(--primary) 36%, transparent)"
-            : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
-        }}
-      />
+      {!inSuperset && (
+        <div
+          className="w-[3px] shrink-0 transition-colors duration-300"
+          style={{
+            background: allDone
+              ? "color-mix(in srgb, var(--primary) 36%, transparent)"
+              : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
+          }}
+        />
+      )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="px-3 py-3 sm:px-4 md:py-3">
+        <div className={cn("px-3 py-3 sm:px-4 md:py-3", inSuperset && "pl-4")}>
           <div className="flex items-start gap-2">
-            <div
-              {...dragHandlers}
-              role="button"
-              aria-label="Reorder exercise"
-              className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-[18px] text-muted-foreground/40 transition-colors select-none active:cursor-grabbing active:bg-muted/50 md:h-10 md:w-9"
-            >
-              <DotsSixVertical size={16} weight="bold" />
-            </div>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <p className="truncate text-[16px] leading-tight font-semibold tracking-tight md:text-[15px]">
+            {dragHandlers && (
+              <div
+                {...dragHandlers}
+                role="button"
+                aria-label="Reorder exercise"
+                className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:bg-muted/50 active:text-muted-foreground/70 md:h-9"
+              >
+                <DotsSixVertical size={15} weight="bold" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] leading-tight font-semibold tracking-tight md:text-[14.5px]">
                 {exercise.name}
               </p>
-              <p className="mt-1 truncate text-[12px] text-muted-foreground/55 md:text-[11px]">
+              <p className="mt-1 truncate text-[11.5px] text-muted-foreground/55 md:text-[11px]">
                 {collapsed
                   ? `${doneSets}/${data.sets.length} sets · ${formatRest(totalRest)} rest`
                   : exercise.muscle}
@@ -1229,19 +1220,19 @@ function ActiveExerciseCard({
             </div>
             <span
               className={cn(
-                "mt-0.5 shrink-0 rounded-full px-2.5 py-1 text-[12px] font-semibold tracking-tight tabular-nums transition-all",
+                "mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold tracking-tight tabular-nums transition-colors",
                 allDone
                   ? "bg-primary/[0.10] text-primary"
-                  : "bg-muted/45 text-muted-foreground/75"
+                  : "bg-muted/45 text-muted-foreground/70"
               )}
             >
               {doneSets}/{data.sets.length}
             </span>
           </div>
-          <div className="mt-3 flex items-center gap-2 md:mt-2">
+          <div className="mt-2.5 flex items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-[20px] border border-border/40 bg-muted/20 px-3 text-[11px] font-bold tracking-[0.14em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:h-10 md:flex-none md:px-4">
+                <button className="flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-border/45 bg-muted/20 px-3 text-[10.5px] font-bold tracking-[0.12em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:flex-none md:px-3.5">
                   Track
                   <span className="truncate text-[11px] tracking-normal text-foreground/60">
                     {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
@@ -1276,21 +1267,21 @@ function ActiveExerciseCard({
             <button
               onClick={onShowHistory}
               aria-label="Open exercise history"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/55 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/55 transition-colors active:bg-muted/50 active:text-foreground"
             >
               <ChartLine size={16} weight="bold" />
             </button>
             <button
               onClick={onRemove}
               aria-label="Remove exercise"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
             >
               <X size={16} weight="bold" />
             </button>
             <button
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[20px] text-muted-foreground/60 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/60 transition-colors active:bg-muted/50 active:text-foreground"
             >
               {collapsed ? (
                 <CaretDown size={16} weight="bold" />
@@ -2134,9 +2125,8 @@ function AbortSheet({
  * @param collapsed - Map of exerciseId to collapsed boolean.
  * @param toggleCollapsed - Toggles collapsed state for a given exercise ID.
  * @param makeDragHandlers - Factory that returns pointer/drag handlers for a given exercise ID.
- * @param cardRefs - Mutable ref map from exerciseId to the card DOM element (used for hit-testing).
+ * @param itemRefs - Mutable ref map from top-level item key to the item DOM element (used for hit-testing).
  * @param onStartRest - Invoked with rest seconds to start the rest countdown for a set.
- * @param cardProps - Function returning shared props spread onto each ActiveExerciseCard; receives (exerciseId, inSuperset).
  * @param exerciseLookup - Map of exercise metadata keyed by exercise ID.
  * @param lastSessionMap - Map of exerciseId to last completed session summary (date and sets) or undefined.
  * @param onShowHistory - Callback invoked to open the exercise history sheet (exerciseId, name).
@@ -2154,26 +2144,45 @@ function renderSupersetItem(
   dropTarget: DropTarget,
   collapsed: Record<string, boolean>,
   toggleCollapsed: (id: string) => void,
-  makeDragHandlers: (id: string) => React.HTMLAttributes<HTMLDivElement>,
-  cardRefs: React.MutableRefObject<Map<string, HTMLDivElement>>,
+  makeDragHandlers: (itemKey: string) => React.HTMLAttributes<HTMLDivElement>,
+  itemRefs: React.MutableRefObject<Map<string, HTMLDivElement>>,
   onStartRest: (s: number) => void,
-  cardProps: (id: string, inS: boolean) => ExerciseCardDropProps,
   exerciseLookup: Record<string, Exercise>,
   lastSessionMap: Record<string, LastSession>,
   onShowHistory: (exId: string, name: string) => void,
   nextTarget: NextTarget
 ) {
+  const key = workoutItemKey(item)
   const dt = dropTarget
-  const containerIsTarget = dt && item.exerciseIds.includes(dt.targetExId)
-  const showLineBefore = !!(containerIsTarget && dt?.type === "before")
-  const showLineAfter = !!(containerIsTarget && dt?.type === "after")
+  const isTarget = dt?.targetKey === key
+  const showLineBefore = !!(isTarget && dt?.type === "before")
+  const showLineAfter = !!(isTarget && dt?.type === "after")
   const allDone = item.exerciseIds.every((id) =>
     exData[id]?.sets.every((s) => s.completed)
   )
+  const groupSets = item.exerciseIds.reduce(
+    (acc, id) => {
+      const sets = exData[id]?.sets ?? []
+      return {
+        done: acc.done + sets.filter((set) => set.completed).length,
+        total: acc.total + sets.length,
+      }
+    },
+    { done: 0, total: 0 }
+  )
+
   return (
     <div
       key={item.id}
-      className="relative overflow-hidden rounded-[30px] border border-border/40 bg-card shadow-sm shadow-black/[0.018] transition-colors md:rounded-[32px]"
+      ref={(el) => {
+        if (el) itemRefs.current.set(key, el)
+        else itemRefs.current.delete(key)
+      }}
+      className={cn(
+        "relative overflow-hidden rounded-[20px] border bg-card transition-[border-color,opacity,transform] duration-150 md:rounded-[22px]",
+        allDone ? "border-primary/25" : "border-border/55",
+        drag?.itemKey === key && drag.active && "scale-[0.985] opacity-25"
+      )}
     >
       {showLineBefore && (
         <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
@@ -2182,7 +2191,7 @@ function renderSupersetItem(
         <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
       <div
-        className="absolute inset-y-0 left-0 w-1"
+        className="absolute inset-y-0 left-0 w-[3px]"
         style={{
           background: allDone
             ? "color-mix(in srgb, var(--primary) 36%, transparent)"
@@ -2191,69 +2200,74 @@ function renderSupersetItem(
         }}
       />
       <div
-        className="flex items-center justify-between border-b border-border/30 bg-muted/15 px-4 py-2.5"
+        className="flex items-center justify-between gap-3 border-b border-border/45 bg-muted/10 px-4 py-3"
         style={{
           paddingLeft: "calc(1rem + 4px)",
         }}
       >
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-primary/45" />
-          <span className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground/80 uppercase">
-            Superset
-          </span>
-          <span className="rounded-full bg-muted/55 px-2 py-px text-[10px] font-semibold text-muted-foreground/70">
-            {item.exerciseIds.length} exercises
-          </span>
+        <div className="flex min-w-0 items-center gap-2">
+          <div
+            {...makeDragHandlers(key)}
+            role="button"
+            aria-label="Reorder superset"
+            className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:bg-muted/50 active:text-muted-foreground/70"
+          >
+            <DotsSixVertical size={15} weight="bold" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10.5px] font-bold tracking-[0.14em] text-muted-foreground/75 uppercase">
+              Superset
+            </span>
+            <p className="mt-1 truncate text-[12px] text-muted-foreground/55">
+              {item.exerciseIds.length} exercises
+            </p>
+          </div>
         </div>
+        <span
+          className={cn(
+            "shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold tabular-nums",
+            allDone
+              ? "bg-primary/[0.10] text-primary"
+              : "bg-muted/45 text-muted-foreground/70"
+          )}
+        >
+          {groupSets.done}/{groupSets.total}
+        </span>
       </div>
-      <div className="flex flex-col">
-        {item.exerciseIds.map((exId, idx) => {
+      <div className="flex flex-col pl-[3px]">
+        {item.exerciseIds.map((exId) => {
           const ex = exerciseLookup[exId]
           if (!ex || !exData[exId]) return null
           return (
-            <React.Fragment key={exId}>
-              {idx > 0 && (
-                <div
-                  className="mx-auto h-2 w-px rounded-full"
-                  style={{
-                    background:
-                      "color-mix(in srgb, var(--border) 70%, transparent)",
-                  }}
-                />
-              )}
-              <ActiveExerciseCard
-                exercise={ex}
-                data={exData[exId]}
-                unit={unit}
-                onUpdate={(d) => updateExData(exId, d)}
-                onRemove={() => removeExercise(exId)}
-                isDragging={drag?.exerciseId === exId && drag.active}
-                {...cardProps(exId, true)}
-                inSuperset
-                collapsed={Boolean(collapsed[exId])}
-                onToggleCollapse={() => toggleCollapsed(exId)}
-                dragHandlers={makeDragHandlers(exId)}
-                cardRef={(el) => {
-                  if (el) cardRefs.current.set(exId, el)
-                  else cardRefs.current.delete(exId)
-                }}
-                onStartRest={onStartRest}
-                lastSession={lastSessionMap[exId] ?? null}
-                onShowHistory={() => onShowHistory(exId, ex.name)}
-                nextSetIndex={
-                  nextTarget?.exerciseId === exId ? nextTarget.setIndex : null
-                }
-              />
-            </React.Fragment>
+            <ActiveExerciseCard
+              key={exId}
+              exercise={ex}
+              data={exData[exId]}
+              unit={unit}
+              onUpdate={(d) => updateExData(exId, d)}
+              onRemove={() => removeExercise(exId)}
+              isDragging={false}
+              showLineBefore={false}
+              showLineAfter={false}
+              inSuperset
+              collapsed={Boolean(collapsed[exId])}
+              onToggleCollapse={() => toggleCollapsed(exId)}
+              cardRef={() => undefined}
+              onStartRest={onStartRest}
+              lastSession={lastSessionMap[exId] ?? null}
+              onShowHistory={() => onShowHistory(exId, ex.name)}
+              nextSetIndex={
+                nextTarget?.exerciseId === exId ? nextTarget.setIndex : null
+              }
+            />
           )
         })}
       </div>
     </div>
   )
 }
-
 /**
- * Renders and manages the Active Workout page, including UI for editing/performing sets and exercises, timers, drag-and-drop reordering/superset creation, and sheets for adding exercises, viewing history, finishing, or aborting a workout.
+ * Renders and manages the Active Workout page, including UI for editing/performing sets and exercises, timers, drag-and-drop reordering, and sheets for adding exercises, viewing history, finishing, or aborting a workout.
  *
  * This component initializes from a Convex active workout or a preset, maintains local workout state (items, per-exercise sets and tracking options, UI collapse/drag state, and elapsed/rest timers), and debounces syncing updates back to Convex. It also handles creating the active workout record, finishing (with Convex primary and legacy fallback logging), aborting, and analytics events.
  *
@@ -2297,7 +2311,7 @@ export default function ActiveWorkout() {
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
-  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? null)
   const rest = useRestCountdown()
 
@@ -2546,21 +2560,16 @@ export default function ActiveWorkout() {
   function toggleCollapsed(id: string) {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   }
-  function calcDropTarget(x: number, y: number, draggedId: string): DropTarget {
-    for (const [exId, el] of cardRefs.current) {
-      if (exId === draggedId) continue
+  function calcDropTarget(x: number, y: number, draggedKey: string): DropTarget {
+    for (const [targetKey, el] of itemRefs.current) {
+      if (targetKey === draggedKey) continue
       const rect = el.getBoundingClientRect()
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom)
         continue
       const relY = (y - rect.top) / rect.height
-      if (collapsed[exId]) {
-        return relY < 0.5
-          ? { type: "before", targetExId: exId }
-          : { type: "after", targetExId: exId }
-      }
-      if (relY < 0.25) return { type: "before", targetExId: exId }
-      if (relY > 0.75) return { type: "after", targetExId: exId }
-      return { type: "superset", targetExId: exId }
+      return relY < 0.5
+        ? { type: "before", targetKey }
+        : { type: "after", targetKey }
     }
     return null
   }
@@ -2583,11 +2592,11 @@ export default function ActiveWorkout() {
       })
       const movedX = event.clientX
       const movedY = event.clientY
-      setDropTarget(calcDropTarget(movedX, movedY, currentDrag.exerciseId))
+      setDropTarget(calcDropTarget(movedX, movedY, currentDrag.itemKey))
     }
     function handlePointerEnd() {
       if (currentDrag.active && dropTarget) {
-        executeDrop(currentDrag.exerciseId, dropTarget)
+        executeDrop(currentDrag.itemKey, dropTarget)
       }
       setDrag(null)
       setDropTarget(null)
@@ -2605,14 +2614,14 @@ export default function ActiveWorkout() {
   }, [drag, dropTarget])
 
   function makeDragHandlers(
-    exerciseId: string
+    itemKey: string
   ): React.HTMLAttributes<HTMLDivElement> {
     return {
       onPointerDown(event) {
         event.preventDefault()
         event.stopPropagation()
         setDrag({
-          exerciseId,
+          itemKey,
           x: event.clientX,
           y: event.clientY,
           startX: event.clientX,
@@ -2623,69 +2632,29 @@ export default function ActiveWorkout() {
     }
   }
 
-  function executeDrop(draggedId: string, zone: DropTarget) {
-    if (!zone) {
-      setItems((prev) => {
-        const inSuperset = prev.some(
-          (i) => i.kind === "superset" && i.exerciseIds.includes(draggedId)
-        )
-        if (!inSuperset) return prev
-        return [
-          ...removeExFromItems(prev, draggedId),
-          { kind: "solo", exerciseId: draggedId },
-        ]
-      })
-      return
-    }
-    if (zone.type === "superset") {
-      setItems((prev) => {
-        const newItems = removeExFromItems(prev, draggedId)
-        const tIdx = newItems.findIndex(
-          (i) =>
-            (i.kind === "solo" && i.exerciseId === zone.targetExId) ||
-            (i.kind === "superset" && i.exerciseIds.includes(zone.targetExId))
-        )
-        if (tIdx === -1) return prev
-        const t = newItems[tIdx]
-        const updated = [...newItems]
-        if (t.kind === "solo") {
-          const usedColors = newItems
-            .filter(
-              (i): i is Extract<WorkoutItem, { kind: "superset" }> =>
-                i.kind === "superset"
-            )
-            .map((i) => i.color)
-          const color =
-            SUPERSET_PALETTE.find((c) => !usedColors.includes(c)) ??
-            SUPERSET_PALETTE[0]
-          updated[tIdx] = {
-            kind: "superset",
-            id: uid(),
-            color,
-            exerciseIds: [t.exerciseId, draggedId],
-          }
-        } else {
-          updated[tIdx] = { ...t, exerciseIds: [...t.exerciseIds, draggedId] }
-        }
-        return updated
-      })
-    } else {
-      setItems((prev) => {
-        const newItems = removeExFromItems(prev, draggedId)
-        const tIdx = newItems.findIndex(
-          (i) =>
-            (i.kind === "solo" && i.exerciseId === zone.targetExId) ||
-            (i.kind === "superset" && i.exerciseIds.includes(zone.targetExId))
-        )
-        if (tIdx === -1) return prev
-        const insertAt = zone.type === "before" ? tIdx : tIdx + 1
-        return [
-          ...newItems.slice(0, insertAt),
-          { kind: "solo", exerciseId: draggedId },
-          ...newItems.slice(insertAt),
-        ]
-      })
-    }
+  function executeDrop(draggedKey: string, zone: DropTarget) {
+    if (!zone) return
+
+    setItems((prev) => {
+      const fromIdx = prev.findIndex(
+        (item) => workoutItemKey(item) === draggedKey
+      )
+      if (fromIdx === -1) return prev
+
+      const draggedItem = prev[fromIdx]
+      const nextItems = prev.filter((_, index) => index !== fromIdx)
+      const targetIdx = nextItems.findIndex(
+        (item) => workoutItemKey(item) === zone.targetKey
+      )
+      if (targetIdx === -1) return prev
+
+      const insertAt = zone.type === "before" ? targetIdx : targetIdx + 1
+      return [
+        ...nextItems.slice(0, insertAt),
+        draggedItem,
+        ...nextItems.slice(insertAt),
+      ]
+    })
   }
 
   async function handleFinish() {
@@ -2744,19 +2713,17 @@ export default function ActiveWorkout() {
     }
   }
 
-  function cardProps(exId: string, inSuperset = false): ExerciseCardDropProps {
+  function cardProps(itemKey: string, inSuperset = false): ExerciseCardDropProps {
     const dt = dropTarget
-    const isTarget = dt?.targetExId === exId
+    const isTarget = dt?.targetKey === itemKey
     if (inSuperset)
       return {
         showLineBefore: false,
         showLineAfter: false,
-        showSupersetRing: isTarget && dt?.type === "superset",
       }
     return {
       showLineBefore: isTarget && dt?.type === "before",
       showLineAfter: isTarget && dt?.type === "after",
-      showSupersetRing: isTarget && dt?.type === "superset",
     }
   }
 
@@ -2846,6 +2813,7 @@ export default function ActiveWorkout() {
               if (item.kind === "solo") {
                 const ex = exerciseLookup[item.exerciseId]
                 if (!ex) return null
+                const key = workoutItemKey(item)
                 return (
                   <ActiveExerciseCard
                     key={item.exerciseId}
@@ -2854,16 +2822,14 @@ export default function ActiveWorkout() {
                     unit={unit}
                     onUpdate={(d) => updateExData(item.exerciseId, d)}
                     onRemove={() => removeExercise(item.exerciseId)}
-                    isDragging={
-                      drag?.exerciseId === item.exerciseId && drag.active
-                    }
-                    {...cardProps(item.exerciseId)}
+                    isDragging={drag?.itemKey === key && drag.active}
+                    {...cardProps(key)}
                     collapsed={Boolean(collapsed[item.exerciseId])}
                     onToggleCollapse={() => toggleCollapsed(item.exerciseId)}
-                    dragHandlers={makeDragHandlers(item.exerciseId)}
+                    dragHandlers={makeDragHandlers(key)}
                     cardRef={(el) => {
-                      if (el) cardRefs.current.set(item.exerciseId, el)
-                      else cardRefs.current.delete(item.exerciseId)
+                      if (el) itemRefs.current.set(key, el)
+                      else itemRefs.current.delete(key)
                     }}
                     onStartRest={rest.start}
                     lastSession={lastSessionMap[item.exerciseId] ?? null}
@@ -2892,9 +2858,8 @@ export default function ActiveWorkout() {
                 collapsed,
                 toggleCollapsed,
                 makeDragHandlers,
-                cardRefs,
+                itemRefs,
                 rest.start,
-                cardProps,
                 exerciseLookup,
                 lastSessionMap,
                 (exId, name) => setHistorySheet({ exerciseId: exId, name }),
