@@ -7,7 +7,7 @@ import { authComponent } from "./auth";
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
 
     const docs = await ctx.db

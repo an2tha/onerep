@@ -18,14 +18,14 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return authComponent.getAuthUser(ctx);
+    return authComponent.safeGetAuthUser(ctx);
   },
 });
 
 export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
     return await ctx.db
       .query("userPreferences")
@@ -497,7 +497,7 @@ export const deleteMyDataBatch = mutation({
 export const getEffectiveGoals = query({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return null;
 
     const prefs = await ctx.db

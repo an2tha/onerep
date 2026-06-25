@@ -7,7 +7,7 @@ import { authComponent } from "../auth";
 export const getDay = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
 
     const doc = await ctx.db

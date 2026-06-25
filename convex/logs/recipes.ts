@@ -43,7 +43,7 @@ const recipeIngredientValidator = v.object({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await authComponent.safeGetAuthUser(ctx);
     if (!user) return [];
     return await ctx.db
       .query("recipes")

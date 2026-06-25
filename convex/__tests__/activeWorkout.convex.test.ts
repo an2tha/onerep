@@ -11,17 +11,15 @@ const sampleExerciseData = {
 };
 
 describe("activeWorkout Convex functions", () => {
-  test("unauthenticated reads and writes throw", async () => {
+  test("unauthenticated reads return empty state and writes throw", async () => {
     const t = convexTest(schema, modules);
 
     await expect(
       t.query(api.logs.activeWorkout.getActive, { slot: 1 }),
-    ).rejects.toThrow("Unauthenticated");
+    ).resolves.toBeNull();
     await expect(
       t.query(api.logs.activeWorkout.getAllActive, {}),
-    ).rejects.toThrow(
-      "Unauthenticated",
-    );
+    ).resolves.toEqual([]);
     await expect(
       t.mutation(api.logs.activeWorkout.createActive, {
         slot: 1,
