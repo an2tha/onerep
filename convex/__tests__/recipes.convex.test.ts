@@ -16,9 +16,9 @@ const ingredient = {
 };
 
 describe("recipes Convex functions", () => {
-  test("list throws when unauthenticated", async () => {
+  test("list returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.logs.recipes.list, {})).rejects.toThrow();
+    await expect(t.query(api.logs.recipes.list, {})).resolves.toEqual([]);
   });
 
   test("save throws when unauthenticated", async () => {
