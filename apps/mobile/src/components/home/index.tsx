@@ -1,10 +1,5 @@
 import type { ReactNode } from "react"
-import {
-  Barbell,
-  Fire,
-  ForkKnife,
-  PintGlass,
-} from "@phosphor-icons/react"
+import { Barbell, Fire, ForkKnife, PintGlass } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { MetricTile, SectionHeader } from "@/components/mobile-ui"
 
@@ -71,7 +66,10 @@ export function PrimaryActionGrid({
   ]
 
   return (
-    <section className="grid grid-cols-3 gap-2 px-4 md:px-6 short-phone:gap-1.5" aria-label="Primary actions">
+    <section
+      className="grid grid-cols-3 gap-2 px-4 md:px-6 short-phone:gap-1.5"
+      aria-label="Primary actions"
+    >
       {actions.map(({ key, Icon, label, detail, tone, onClick }) => (
         <button
           key={key}
@@ -79,27 +77,32 @@ export function PrimaryActionGrid({
           onClick={onClick}
           className={cn(
             "min-h-[88px] rounded-[18px] border border-border/55 bg-card p-3 text-left transition-transform active:scale-[0.985] md:min-h-[104px] md:rounded-[20px] short-phone:min-h-[74px] short-phone:p-2.5",
-            key === "food" && "bg-foreground text-background",
+            key === "food" && "bg-foreground text-background"
           )}
         >
           <span
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-full text-current ring-1 ring-current/8 md:h-9 md:w-9 short-phone:h-7 short-phone:w-7",
-              key === "food" ? "bg-background/12" : "bg-[var(--tone-bg)] text-[var(--tone)]",
-              tone === "food" && "[--tone:var(--accent-food)] [--tone-bg:var(--accent-food-bg)]",
-              tone === "workout" && "[--tone:var(--accent-workout)] [--tone-bg:var(--accent-workout-bg)]",
-              tone === "water" && "[--tone:var(--accent-water)] [--tone-bg:var(--accent-water-bg)]",
+              key === "food"
+                ? "bg-background/12"
+                : "bg-[var(--tone-bg)] text-[var(--tone)]",
+              tone === "food" &&
+                "[--tone-bg:var(--accent-food-bg)] [--tone:var(--accent-food)]",
+              tone === "workout" &&
+                "[--tone-bg:var(--accent-workout-bg)] [--tone:var(--accent-workout)]",
+              tone === "water" &&
+                "[--tone-bg:var(--accent-water-bg)] [--tone:var(--accent-water)]"
             )}
           >
             <Icon size={18} weight="bold" />
           </span>
-          <span className="mt-2.5 block text-[12.5px] font-bold leading-tight md:mt-3 md:text-[13px] short-phone:mt-2">
+          <span className="mt-2.5 block text-[12.5px] leading-tight font-bold md:mt-3 md:text-[13px] short-phone:mt-2">
             {label}
           </span>
           <span
             className={cn(
               "mt-1 block text-[11px] leading-4 md:text-[11.5px] short-phone:text-[10.5px] short-phone:leading-[0.9rem]",
-              key === "food" ? "text-background/65" : "text-muted-foreground",
+              key === "food" ? "text-background/65" : "text-muted-foreground"
             )}
           >
             {detail}
@@ -126,7 +129,9 @@ export function DailySummaryStrip({
   targetSource: "healthProfile" | "onboarding" | "default"
 }) {
   const waterPct =
-    waterGoalMl > 0 ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100)) : 0
+    waterGoalMl > 0
+      ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100))
+      : 0
   const sourceLabel =
     targetSource === "healthProfile"
       ? "profile"
@@ -135,10 +140,17 @@ export function DailySummaryStrip({
         : "default"
 
   return (
-    <section className="mx-4 mt-2.5 grid grid-cols-3 gap-2 md:mx-6 md:mt-3 short-phone:mt-2 short-phone:gap-1.5" aria-label="Daily summary">
+    <section
+      className="mx-4 mt-2.5 grid grid-cols-3 gap-2 md:mx-6 md:mt-3 short-phone:mt-2 short-phone:gap-1.5"
+      aria-label="Daily summary"
+    >
       <MetricTile
         label="Calories left"
-        value={caloriesLeft >= 0 ? String(caloriesLeft) : `+${Math.abs(caloriesLeft)}`}
+        value={
+          caloriesLeft >= 0
+            ? String(caloriesLeft)
+            : `+${Math.abs(caloriesLeft)}`
+        }
         detail={`${caloriesTarget} ${sourceLabel}`}
         icon={ForkKnife}
         tone="food"
@@ -184,13 +196,13 @@ export function TodayTimeline({
         title="Today so far"
         subtitle="Recent food, water, and workout events"
         action={
-        <button
-          type="button"
-          onClick={onLogFood}
-          className="min-h-9 rounded-full bg-muted px-3 text-[12px] font-semibold"
-        >
-          Add
-        </button>
+          <button
+            type="button"
+            onClick={onLogFood}
+            className="min-h-10 rounded-full bg-muted px-3 text-[12px] font-semibold"
+          >
+            Add
+          </button>
         }
       />
 
@@ -203,7 +215,7 @@ export function TodayTimeline({
                   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full md:h-8 md:w-8",
                   event.kind === "food" && "bg-orange-500/10 text-orange-500",
                   event.kind === "water" && "bg-sky-500/10 text-sky-500",
-                  event.kind === "workout" && "bg-green-500/10 text-green-500",
+                  event.kind === "workout" && "bg-green-500/10 text-green-500"
                 )}
               >
                 {event.kind === "food" ? (
@@ -252,18 +264,18 @@ export function InsightWidgets({
         title="Insights"
         subtitle="Trends, widgets, and deeper dashboard views"
         action={
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          className={cn(
-            "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold",
-            editMode
-              ? "bg-foreground text-background"
-              : "bg-muted text-foreground",
-          )}
-        >
-          {editMode ? "Done" : "Customize"}
-        </button>
+          <button
+            type="button"
+            onClick={onToggleEdit}
+            className={cn(
+              "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold",
+              editMode
+                ? "bg-foreground text-background"
+                : "bg-muted text-foreground"
+            )}
+          >
+            {editMode ? "Done" : "Customize"}
+          </button>
         }
       />
       {children}

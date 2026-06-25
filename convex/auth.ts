@@ -9,16 +9,20 @@ import authConfig from "./auth.config";
 // Primary app origin — set SITE_URL in Convex env vars / .env.local
 const siteUrl = process.env.SITE_URL ?? "https://app.onerep.life";
 
+const localWebOrigins = Array.from({ length: 18 }, (_, index) => {
+  const port = 5173 + index;
+  return [`http://localhost:${port}`, `http://127.0.0.1:${port}`];
+}).flat();
+
 // All origins the client may run from:
-//   • Vite dev server (web)
+//   • Vite dev server (web, including fallback ports when 5173 is busy)
 //   • Capacitor iOS  (capacitor://localhost)
 //   • Capacitor Android (http://localhost)
 const trustedOrigins = [
   siteUrl,
   "https://app.onerep.life",
   "https://onerep.life",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
+  ...localWebOrigins,
   "capacitor://localhost",
   "http://localhost",
 ].filter((o, i, arr) => o && arr.indexOf(o) === i); // unique, non-empty

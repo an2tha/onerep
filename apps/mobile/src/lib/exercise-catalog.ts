@@ -280,6 +280,8 @@ export async function searchExercises({
   categories?: ExerciseCategory[]
   limit?: number
 } = {}): Promise<Exercise[]> {
+  const fallback = () => fallbackSearchExercises({ query, categories, limit })
+
   try {
     const { convexClient, api } = await remoteExerciseApi()
     const results = (await convexClient.query(api.exercises.search, {
@@ -287,12 +289,18 @@ export async function searchExercises({
       categories,
       limit,
     })) as Exercise[]
-    if (results.length > 0 || query.trim().length > 0) return results
+
+    if (results.length > 0) return results
+
+    const fallbackResults = fallback()
+    if (fallbackResults.length > 0) return fallbackResults
+
+    if (query.trim().length > 0) return results
   } catch {
     // Fall back to the small bundled catalog when Convex is unavailable.
   }
 
-  return fallbackSearchExercises({ query, categories, limit })
+  return fallback()
 }
 
 export async function resolveExerciseIds(
