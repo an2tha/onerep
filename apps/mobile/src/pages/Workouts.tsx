@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { Card } from "@repo/ui"
-import { BottomBar } from "@/components/bottom-bar"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SectionHeader as MobileSectionHeader } from "@/components/mobile-ui"
 import { SwipeToStart } from "@/components/swipe-to-start"
@@ -333,7 +333,7 @@ function WorkoutLogSummary({
         </div>
         <button
           onClick={onEdit}
-          className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors active:bg-muted/50 active:text-foreground"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors active:bg-muted/50 active:text-foreground"
           aria-label="Edit workout"
         >
           <PencilSimple size={13} />
@@ -484,7 +484,7 @@ function PickSecondWorkoutSheet({
           <p className="text-[15px] font-semibold tracking-tight">{title}</p>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
           </button>
@@ -733,6 +733,7 @@ export default function Workouts() {
   const [pickRoutineDay, setPickRoutineDay] = useState<Day | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  useBottomBarAction(() => setAddOpen(true))
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const [overDay, setOverDay] = useState<Day | null>(null)
@@ -1184,7 +1185,7 @@ export default function Workouts() {
                     type="button"
                     onClick={() => setRoutineEditMode((value) => !value)}
                     className={cn(
-                      "min-h-8 rounded-full px-3 text-[12px] font-semibold transition-colors",
+                      "min-h-10 rounded-full px-3 text-[12px] font-semibold transition-colors",
                       routineEditMode
                         ? "bg-foreground text-background"
                         : "bg-muted text-foreground"
@@ -1196,7 +1197,7 @@ export default function Workouts() {
                     <button
                       onClick={() => setLocked((l) => !l)}
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full border transition-all duration-200",
+                        "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-200",
                         locked
                           ? "border-foreground/25 bg-foreground/[0.06] text-foreground"
                           : "border-border text-muted-foreground active:text-foreground"
@@ -1273,7 +1274,7 @@ export default function Workouts() {
                         <button
                           type="button"
                           onClick={() => removeSlot(day)}
-                          className="text-destructive-foreground absolute top-1.5 right-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-destructive shadow-sm"
+                          className="text-destructive-foreground absolute top-1.5 right-1.5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-destructive shadow-sm"
                           aria-label={`Remove workout from ${day}`}
                         >
                           <X size={11} weight="bold" />
@@ -1453,7 +1454,7 @@ export default function Workouts() {
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
                             aria-label={`Edit ${preset.name}`}
                           >
                             <PencilSimple size={12} />
@@ -1461,7 +1462,7 @@ export default function Workouts() {
                           <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => duplicatePreset(preset)}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
                             aria-label={`Duplicate ${preset.name}`}
                           >
                             <Copy size={12} />
@@ -1469,7 +1470,7 @@ export default function Workouts() {
                           <button
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setConfirmDeleteId(preset.id)}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-destructive/70 transition-colors active:bg-destructive/10 active:text-destructive"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-destructive/70 transition-colors active:bg-destructive/10 active:text-destructive"
                             aria-label={`Delete ${preset.name}`}
                           >
                             <Trash size={12} />
@@ -1563,8 +1564,6 @@ export default function Workouts() {
             />
           )
         })()}
-
-      <BottomBar onAdd={() => setAddOpen(true)} />
 
       {addOpen && (
         <MobileSheet

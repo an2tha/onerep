@@ -325,7 +325,7 @@ function RestTimerSheet({
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground/60 active:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/60 transition-colors active:bg-muted/60 active:text-foreground"
           >
             <X size={16} weight="bold" />
           </button>
@@ -568,7 +568,7 @@ function SetRow({
         {canDelete && (
           <button
             onClick={onDelete}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground/20 transition-colors active:text-red-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/20 transition-colors active:bg-muted/50 active:text-red-400"
           >
             <X size={11} weight="bold" />
           </button>
@@ -697,7 +697,7 @@ function PresetExerciseCard({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-2.5 py-1 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60"
+                className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-3 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60"
                 aria-label={`Tracking options for ${exercise.name}`}
               >
                 Track
@@ -735,7 +735,7 @@ function PresetExerciseCard({
           {/* Remove */}
           <button
             onClick={onRemove}
-            className="flex h-7 w-7 shrink-0 items-center justify-center text-muted-foreground/25 transition-colors active:text-red-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/25 transition-colors active:bg-muted/50 active:text-red-400"
             aria-label={`Remove ${exercise.name}`}
           >
             <X size={12} weight="bold" />
@@ -743,7 +743,7 @@ function PresetExerciseCard({
 
           <button
             onClick={onToggleCollapse}
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/35 transition-colors active:bg-muted/40 active:text-foreground"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/35 transition-colors active:bg-muted/40 active:text-foreground"
             aria-label={
               collapsed
                 ? `Expand ${exercise.name}`
@@ -913,7 +913,7 @@ function SearchSheet({
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground/40 active:text-foreground"
+                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground/40 active:text-foreground"
               >
                 <X size={13} weight="bold" />
               </button>
@@ -921,7 +921,7 @@ function SearchSheet({
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+            className="min-h-10 shrink-0 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
             Done
           </button>
@@ -1609,7 +1609,7 @@ export default function NewPreset() {
               if (isDirty) setConfirming(true)
               else navigate(-1)
             }}
-            className="flex items-center gap-1.5 rounded-lg py-1 text-[13px] font-medium text-muted-foreground transition-colors active:text-foreground"
+            className="flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
             <ArrowLeft size={14} weight="bold" />
             Back
@@ -1618,7 +1618,7 @@ export default function NewPreset() {
           <button
             onClick={() => void handleSave()}
             disabled={addedIds.length === 0 || saving || loadingPreset}
-            className="ml-auto flex items-center gap-1.5 rounded-lg py-1 text-[13px] font-semibold text-foreground transition-colors disabled:text-muted-foreground/30"
+            className="ml-auto flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-foreground transition-colors active:bg-muted/45 disabled:text-muted-foreground/30"
           >
             <FloppyDisk
               size={14}
@@ -1639,7 +1639,7 @@ export default function NewPreset() {
             }
             maxLength={40}
             disabled={loadingPreset}
-            className="w-full bg-transparent text-[26px] font-black tracking-tight outline-none placeholder:text-muted-foreground/20"
+            className="min-h-12 w-full bg-transparent text-[26px] font-black tracking-tight outline-none placeholder:text-muted-foreground/20"
           />
           <div className="mt-2 flex items-center gap-3">
             {addedIds.length > 0 && (
@@ -1654,7 +1654,7 @@ export default function NewPreset() {
                   key={u}
                   onClick={() => setUnit(u)}
                   className={cn(
-                    "rounded-md px-3 py-1 transition-all duration-150",
+                    "min-h-10 min-w-10 rounded-md px-3 transition-all duration-150",
                     unit === u
                       ? "bg-foreground text-background shadow-sm"
                       : "text-muted-foreground/60 active:text-foreground"
@@ -1697,7 +1697,7 @@ export default function NewPreset() {
           >
             <div
               className={cn(
-                "ml-4 flex h-7 w-7 items-center justify-center rounded-full",
+                "ml-4 flex h-10 w-10 items-center justify-center rounded-full",
                 items.length === 0
                   ? "bg-foreground text-background"
                   : "border border-dashed border-muted-foreground/40 text-muted-foreground/50"
