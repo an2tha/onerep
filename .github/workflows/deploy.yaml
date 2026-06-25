@@ -15,8 +15,8 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }} # Make sure to add the secrets in your repository in -> Settings -> Secrets (Actions) -> New repository secret
-          password: ${{ secrets.DOCKERHUB_TOKEN }}   # Make sure to add the secrets in your repository in -> Settings -> Secrets (Actions) -> New repository secret
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
@@ -24,9 +24,8 @@ jobs:
           context: .
           file: ./apps/mobile/Dockerfile
           push: true
-          # Make sure to replace with your own namespace and repository
           tags: |
-            heckerrr/onerep:mobile-latest 
+            heckerrr/onerep:mobile-latest
           platforms: linux/amd64     
       - name: Build and push web Docker image
         uses: docker/build-push-action@v4
