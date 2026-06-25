@@ -38,6 +38,14 @@ function canUseViewTransitions() {
   )
 }
 
+function resetScrollAfterNavigation() {
+  if (typeof window === "undefined") return
+
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
+  })
+}
+
 export function setRouteMotion(motion: RouteMotion, native = false) {
   if (typeof document === "undefined") return
 
@@ -95,10 +103,16 @@ export function useSmoothNavigate(): SmoothNavigateFunction {
         viewTransition
       )
 
-      return navigate(to, {
+      const result = navigate(to, {
         ...routerOptions,
         viewTransition,
       })
+
+      if (!routerOptions.preventScrollReset) {
+        resetScrollAfterNavigation()
+      }
+
+      return result
     },
     [navigate]
   )

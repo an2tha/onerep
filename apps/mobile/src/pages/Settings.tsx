@@ -27,6 +27,7 @@ import {
   syncPushReminders,
   type ReminderSettings,
 } from "@/lib/reminders"
+import { BottomBar } from "@/components/bottom-bar"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
@@ -1045,6 +1046,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           {loggingOut ? "Logging out..." : "Log out"}
         </button>
       </main>
+      <BottomBar />
     </div>
   )
 }
