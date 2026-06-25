@@ -101,11 +101,12 @@ VITE_CONVEX_SITE_URL=
 Required for mobile food search in Convex env:
 
 ```env
+BETTER_AUTH_SECRET=
 OPENFOODFACTS_URL=https://world.openfoodfacts.org
 OPENFOODFACTS_AUTH_TOKEN=
 ```
 
-Set these with `bunx convex env set OPENFOODFACTS_URL <url>` and, for the auth-protected mirror, `bunx convex env set OPENFOODFACTS_AUTH_TOKEN <token>`. The mobile app talks only to Convex.
+Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. Set these with `bunx convex env set BETTER_AUTH_SECRET <secret>`, `bunx convex env set OPENFOODFACTS_URL <url>`, and, for the auth-protected mirror, `bunx convex env set OPENFOODFACTS_AUTH_TOKEN <token>`. The mobile app talks only to Convex.
 
 Food search and barcode lookups use Open Food Facts Product Opener-compatible endpoints (`/cgi/search.pl` and `/api/v2/product/:code.json`) through a Convex proxy. `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
 

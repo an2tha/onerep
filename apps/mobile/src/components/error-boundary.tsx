@@ -1,5 +1,9 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
 import { ArrowCounterClockwise, Warning } from "@phosphor-icons/react"
+import {
+  handleUnauthenticatedSession,
+  isUnauthenticatedError,
+} from "@/lib/auth-session"
 
 interface Props {
   children: ReactNode
@@ -20,12 +24,23 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack)
+    if (isUnauthenticatedError(error)) {
+      handleUnauthenticatedSession()
+    }
   }
 
   reset = () => this.setState({ error: null })
 
   render() {
     if (!this.state.error) return this.props.children
+
+    if (isUnauthenticatedError(this.state.error)) {
+      return (
+        <div className="flex min-h-svh items-center justify-center">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        </div>
+      )
+    }
 
     const label = this.props.label ?? "this page"
 
