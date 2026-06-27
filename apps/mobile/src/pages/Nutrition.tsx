@@ -700,10 +700,10 @@ export default function Nutrition() {
               <p className="app-section-title">Food</p>
               <button
                 type="button"
-                onClick={() => navigate("/foods/search")}
+                onClick={() => navigate("/foods")}
                 className="app-button app-button-quiet h-9"
               >
-                Search
+                Diary
               </button>
             </div>
             <div className="space-y-2.5">

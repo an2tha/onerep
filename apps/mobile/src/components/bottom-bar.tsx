@@ -56,7 +56,7 @@ export function useBottomBarAction(action?: BottomBarAction) {
 
 const TABS = [
   { path: "/", Icon: House, label: "Today" },
-  { path: "/foods", Icon: ForkKnife, label: "Nutrition" },
+  { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Workout" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/settings", Icon: GearSix, label: "Settings" },
@@ -64,7 +64,7 @@ const TABS = [
 
 const DESKTOP_TABS = [
   { path: "/", Icon: House, label: "Today" },
-  { path: "/foods", Icon: ForkKnife, label: "Nutrition" },
+  { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Workout" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/settings", Icon: GearSix, label: "Settings" },
@@ -94,7 +94,7 @@ function isTrainingPath(pathname: string) {
 
 function isActive(pathname: string, path: string) {
   if (path === "/") return pathname === "/"
-  if (path === "/foods") return isNutritionPath(pathname)
+  if (path === "/nutrition") return isNutritionPath(pathname)
   if (path === "/workouts") return isTrainingPath(pathname)
   return pathname === path || pathname.startsWith(`${path}/`)
 }

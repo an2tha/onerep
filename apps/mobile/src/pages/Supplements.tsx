@@ -907,8 +907,7 @@ function ItemSheet({
             <div
               className="border-t border-border/35 bg-card px-4 pt-3"
               style={{
-                paddingBottom:
-                  "max(1rem, env(safe-area-inset-bottom, 1rem))",
+                paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
               }}
             >
               <button
@@ -1302,7 +1301,6 @@ function ItemSheet({
             </>
           )}
         </div>
-
       </MobileSheet>
 
       {previewItem && (
@@ -1911,7 +1909,7 @@ export default function Supplements() {
           <div>
             <button
               type="button"
-              onClick={() => navigate("/foods")}
+              onClick={() => navigate("/nutrition")}
               className="mb-1 flex min-h-9 items-center gap-1 rounded-full pr-3 text-[11px] font-semibold text-muted-foreground/60 transition-colors active:text-foreground"
               aria-label="Back to Nutrition"
             >
