@@ -1,11 +1,12 @@
 import { useEffect } from "react"
-import { useAuth } from "@clerk/react"
+import { useAuth, useClerk } from "@clerk/react"
 import { handleUnauthenticatedSession } from "@/lib/auth-session"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useConvexAuth } from "convex/react"
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn } = useAuth()
+  const { signOut } = useClerk()
   const convexAuth = useConvexAuth()
   const navigate = useSmoothNavigate()
 
@@ -13,9 +14,21 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isLoaded) return
 
     if (!isSignedIn) {
-      handleUnauthenticatedSession({ navigate })
+      void handleUnauthenticatedSession({ navigate, signOut })
+      return
     }
-  }, [isLoaded, isSignedIn, navigate])
+
+    if (!convexAuth.isLoading && !convexAuth.isAuthenticated) {
+      void handleUnauthenticatedSession({ navigate, signOut })
+    }
+  }, [
+    convexAuth.isAuthenticated,
+    convexAuth.isLoading,
+    isLoaded,
+    isSignedIn,
+    navigate,
+    signOut,
+  ])
 
   if (!isLoaded || (isSignedIn && !convexAuth.isAuthenticated)) {
     return (
