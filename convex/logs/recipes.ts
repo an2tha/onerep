@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 
 async function requireUser(ctx: MutationCtx | QueryCtx) {
-  const user = await authComponent.getAuthUser(ctx);
+  const user = await getAuthUser(ctx);
   if (!user) throw new Error("Not authenticated");
   return user;
 }
@@ -43,7 +43,7 @@ const recipeIngredientValidator = v.object({
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return [];
     return await ctx.db
       .query("recipes")

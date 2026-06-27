@@ -28,11 +28,11 @@ async function deleteFromUserIndex(
 }
 
 /**
- * Delete a bounded batch of app-owned data for a Better Auth user id.
+ * Delete a bounded batch of app-owned data for an authenticated user id.
  *
  * The auth component owns its own tables; this helper only removes OneRep app
  * data keyed by `userId`. Call repeatedly until `remaining` is false before
- * invoking Better Auth account deletion.
+ * invoking Clerk account deletion.
  */
 export async function deleteUserDataBatch(
   ctx: DeleteCtx,
@@ -49,6 +49,9 @@ export async function deleteUserDataBatch(
     ["workoutLogs", "by_userId_date"],
     ["foodLogs", "by_userId_date"],
     ["waterLogs", "by_userId_date"],
+    ["supplementLogs", "by_userId_date"],
+    ["supplementItems", "by_userId"],
+    ["supplementIntakeLogs", "by_userId_and_date"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
     ["snapUsage", "by_userId_date"],
@@ -67,7 +70,13 @@ export async function deleteUserDataBatch(
     }
 
     const limit = Math.min(25, budget);
-    const result = await deleteFromUserIndex(ctx, table, userId, limit, indexName);
+    const result = await deleteFromUserIndex(
+      ctx,
+      table,
+      userId,
+      limit,
+      indexName,
+    );
     deleted += result.deleted;
     budget -= result.deleted;
     if (result.mayHaveMore) remaining = true;

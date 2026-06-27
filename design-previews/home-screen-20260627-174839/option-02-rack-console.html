@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Option 02 — Rack Console</title>
+  <style>
+    :root {
+      --bg: #11100e;
+      --panel: #1b1a17;
+      --panel-2: #24231f;
+      --ink: #f3ead7;
+      --muted: #9c927e;
+      --line: rgba(243,234,215,.13);
+      --primary: #f6a34d;
+      --green: #96be62;
+      --blue: #84a9bc;
+      --danger: #d06a4d;
+      --focus: #f3ead7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/28px 28px,
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0/28px 28px,
+        radial-gradient(circle at 82% 8%, rgba(246,163,77,.16), transparent 24rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: "DIN Condensed", "Avenir Next Condensed", "Arial Narrow", ui-sans-serif, system-ui, sans-serif;
+    }
+    button { font: inherit; color: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .option-label { position: fixed; top: 12px; left: 12px; z-index: 3; border: 1px solid var(--line); background: rgba(17,16,14,.78); color: var(--muted); border-radius: 999px; padding: 7px 10px; font: 900 11px/1 ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(8px); }
+    .shell { width: min(100% - 20px, 470px); min-height: 100svh; margin: 0 auto; padding: 54px 0 24px; }
+    header { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: end; margin-bottom: 18px; padding: 0 6px; }
+    .date { margin: 0 0 8px; color: var(--muted); font: 800 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .13em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(40px, 11vw, 56px); line-height: .85; letter-spacing: -.04em; text-transform: uppercase; }
+    .sync { display: grid; place-items: center; min-width: 78px; min-height: 52px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.035); color: var(--green); font: 900 12px/1 ui-monospace, Menlo, monospace; }
+    .console { border: 1px solid var(--line); border-radius: 26px; background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025)); box-shadow: 0 30px 90px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.08); overflow: hidden; }
+    .top-strip { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--line); }
+    .strip-cell { min-height: 70px; padding: 14px; border-right: 1px solid var(--line); background: rgba(0,0,0,.1); }
+    .strip-cell:last-child { border-right: 0; }
+    .k { display: block; color: var(--muted); font: 800 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    .v { display: block; margin-top: 8px; font-size: 25px; line-height: .9; letter-spacing: -.02em; }
+    .v small { font-size: 12px; color: var(--muted); }
+    .main-readout { padding: 22px 18px 20px; border-bottom: 1px solid var(--line); }
+    .read-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .read-head strong { color: var(--primary); font: 900 12px/1 ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: .15em; }
+    .read-head span { color: var(--muted); font: 800 12px/1 ui-monospace, Menlo, monospace; }
+    .number { display: flex; align-items: flex-end; gap: 10px; margin-top: 14px; }
+    .number b { font-size: 122px; line-height: .78; letter-spacing: -.075em; }
+    .number small { color: var(--muted); font: 900 15px/1.1 ui-monospace, Menlo, monospace; padding-bottom: 12px; }
+    .gauge { display: grid; grid-template-columns: repeat(24,1fr); gap: 3px; margin-top: 20px; }
+    .gauge i { height: 16px; border-radius: 2px; background: rgba(255,255,255,.08); }
+    .gauge i.on { background: var(--primary); box-shadow: 0 0 18px rgba(246,163,77,.18); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .actions button { min-height: 82px; border: 0; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: transparent; text-align: left; padding: 16px; text-transform: uppercase; letter-spacing: -.01em; }
+    .actions button:nth-child(2n) { border-right: 0; }
+    .actions b { display: block; font-size: 23px; line-height: .9; }
+    .actions span { display: block; margin-top: 7px; color: var(--muted); font: 800 11px/1.2 ui-monospace, Menlo, monospace; text-transform: none; letter-spacing: 0; }
+    .actions .primary { background: var(--primary); color: #16120d; }
+    .actions .primary span { color: rgba(22,18,13,.72); }
+    .recent { margin-top: 14px; border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: rgba(255,255,255,.03); }
+    .recent h2 { margin: 0; padding: 14px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font: 900 12px/1 ui-monospace, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
+    .feed { display: grid; }
+    .feed div { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 10px; min-height: 49px; padding: 10px 14px; border-top: 1px solid rgba(255,255,255,.075); }
+    .feed div:first-child { border-top: 0; }
+    .feed time { color: var(--muted); font: 800 12px/1 ui-monospace, Menlo, monospace; }
+    .feed b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: "Avenir Next", ui-sans-serif, system-ui; font-size: 13px; }
+    .feed span { color: var(--muted); font: 900 11px/1 ui-monospace, Menlo, monospace; }
+    .warning { margin-top: 12px; border: 1px solid rgba(208,106,77,.36); border-radius: 18px; padding: 12px 14px; color: #f1c0ad; background: rgba(208,106,77,.1); font: 800 12px/1.35 ui-monospace, Menlo, monospace; }
+    @media (min-width: 900px) { .shell { width: min(100% - 56px, 960px); display: grid; grid-template-columns: .85fr 1.15fr; gap: 22px; align-items: start; padding-top: 72px; } header { position: sticky; top: 72px; display: block; } h1 { font-size: 86px; } .sync { margin-top: 24px; } .recent { margin-top: 0; } }
+    @media (prefers-reduced-motion: no-preference) { .console, .recent { animation: rise .42s ease both; } .recent { animation-delay: .08s; } @keyframes rise { from { opacity: 0; transform: translateY(10px); } } }
+  </style>
+</head>
+<body>
+  <div class="option-label">Option 02 — Rack Console</div>
+  <main class="shell">
+    <header>
+      <div>
+        <p class="date">Sat, Jun 27</p>
+        <h1>Good afternoon, Ananth.</h1>
+      </div>
+      <div class="sync">SYNC OK</div>
+    </header>
+
+    <section class="console" aria-label="Today console">
+      <div class="top-strip" aria-label="Key states">
+        <div class="strip-cell"><span class="k">Water</span><span class="v">1250<small>/2500</small></span></div>
+        <div class="strip-cell"><span class="k">Training</span><span class="v">READY</span></div>
+        <div class="strip-cell"><span class="k">Supps</span><span class="v">2<small>/4</small></span></div>
+      </div>
+      <div class="main-readout">
+        <div class="read-head"><strong>Fuel remaining</strong><span>1537 / 2200 eaten</span></div>
+        <div class="number"><b>663</b><small>KCAL<br>LEFT</small></div>
+        <div class="gauge" aria-hidden="true">
+          <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        </div>
+      </div>
+      <div class="actions" aria-label="Quick actions">
+        <button class="primary" type="button"><b>Log dinner</b><span>Scan, search, repeat</span></button>
+        <button type="button"><b>+250 ml</b><span>Add water entry</span></button>
+        <button type="button"><b>Start lift</b><span>Upper Strength · 6 moves</span></button>
+        <button type="button"><b>Review scan</b><span>Sodium estimate pending</span></button>
+      </div>
+    </section>
+
+    <aside class="recent" aria-label="Recent log">
+      <h2>Last recorded</h2>
+      <div class="feed">
+        <div><time>13:10</time><b>Water</b><span>250 ML</span></div>
+        <div><time>12:42</time><b>Chicken rice bowl</b><span>680 KCAL</span></div>
+        <div><time>09:36</time><b>Latte · oat milk</b><span>140 KCAL</span></div>
+        <div><time>07:55</time><b>Creatine</b><span>5 G</span></div>
+      </div>
+      <p class="warning">Rack is clear. Upper Strength is ready; no active workout has started.</p>
+    </aside>
+  </main>
+</body>
+</html>

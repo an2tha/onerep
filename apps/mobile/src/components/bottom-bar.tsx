@@ -13,8 +13,6 @@ import {
   ForkKnife,
   GearSix,
   House,
-  ListChecks,
-  PintGlass,
   Plus,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
@@ -58,7 +56,7 @@ export function useBottomBarAction(action?: BottomBarAction) {
 
 const TABS = [
   { path: "/", Icon: House, label: "Today" },
-  { path: "/foods", Icon: ForkKnife, label: "Food" },
+  { path: "/foods", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Workout" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/settings", Icon: GearSix, label: "Settings" },
@@ -66,18 +64,39 @@ const TABS = [
 
 const DESKTOP_TABS = [
   { path: "/", Icon: House, label: "Today" },
-  { path: "/foods", Icon: ForkKnife, label: "Food" },
+  { path: "/foods", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Workout" },
-  { path: "/water", Icon: PintGlass, label: "Water" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
-  { path: "/exercises", Icon: ListChecks, label: "Exercises" },
   { path: "/settings", Icon: GearSix, label: "Settings" },
 ] as const
 
+function isNutritionPath(pathname: string) {
+  return (
+    pathname === "/nutrition" ||
+    pathname.startsWith("/nutrition/") ||
+    pathname === "/foods" ||
+    pathname.startsWith("/foods/") ||
+    pathname === "/water" ||
+    pathname.startsWith("/water/") ||
+    pathname === "/supplements" ||
+    pathname.startsWith("/supplements/")
+  )
+}
+
+function isTrainingPath(pathname: string) {
+  return (
+    pathname === "/workouts" ||
+    pathname.startsWith("/workouts/") ||
+    pathname === "/exercises" ||
+    pathname.startsWith("/exercises/")
+  )
+}
+
 function isActive(pathname: string, path: string) {
-  return path === "/"
-    ? pathname === "/"
-    : pathname === path || pathname.startsWith(`${path}/`)
+  if (path === "/") return pathname === "/"
+  if (path === "/foods") return isNutritionPath(pathname)
+  if (path === "/workouts") return isTrainingPath(pathname)
+  return pathname === path || pathname.startsWith(`${path}/`)
 }
 
 export function BottomBar({ onAdd }: { onAdd?: () => void }) {
@@ -86,13 +105,16 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
-
   const activeIdx = TABS.findIndex((t) => isActive(pathname, t.path))
   const showQuickAdd =
     Boolean(onAdd) &&
     (pathname === "/" ||
       pathname.startsWith("/foods") ||
+      pathname.startsWith("/nutrition") ||
+      pathname.startsWith("/water") ||
+      pathname.startsWith("/supplements") ||
       pathname.startsWith("/workouts") ||
+      pathname.startsWith("/exercises") ||
       pathname.startsWith("/workout"))
 
   // useEffect (post-paint) so the browser renders the old pill position first,
@@ -108,12 +130,12 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-[var(--app-safe-bottom)] z-40 flex items-center justify-center md:hidden">
+      <div className="fixed inset-x-0 bottom-[var(--app-safe-bottom)] z-40 flex items-center justify-center px-2 lg:hidden">
         {/* position:relative so offsetLeft on buttons is relative to this element */}
-        <div className="motion-card relative flex items-center gap-0.5 rounded-full border border-border/50 bg-background/75 px-1.5 py-1.5 shadow-lg shadow-black/[0.06] backdrop-blur-xl">
+        <div className="mobile-tabbar motion-card relative flex w-full max-w-[calc(100vw-1rem)] items-center gap-0.5 px-1 py-1.5 backdrop-blur-xl">
           {/* Sliding pill — always in DOM so the CSS transition has a start value */}
           <div
-            className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-full bg-foreground/[0.07] will-change-[left,width]"
+            className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-[8px] bg-foreground/[0.075] will-change-[left,width]"
             style={{
               left: pill?.left ?? 0,
               width: pill?.width ?? 0,
@@ -135,15 +157,19 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
                 className={cn(
-                  "motion-pressable relative flex min-h-10 min-w-10 items-center justify-center gap-1.5 rounded-full px-3",
+                  "motion-pressable relative flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-[8px] px-1.5",
                   active
                     ? "text-foreground"
                     : "text-muted-foreground active:bg-foreground/[0.05]"
                 )}
               >
-                <Icon size={17} weight={active ? "fill" : "regular"} />
+                <Icon
+                  size={17}
+                  weight={active ? "fill" : "regular"}
+                  className="shrink-0"
+                />
                 {active && (
-                  <span className="motion-pop text-[11px] font-medium">
+                  <span className="mobile-tabbar-active-label motion-pop truncate text-[11px] font-medium">
                     {label}
                   </span>
                 )}
@@ -157,7 +183,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
               <div className="mx-1 h-4 w-px bg-border/60" />
               <button
                 onClick={onAdd}
-                className="motion-pressable flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-foreground/[0.07] active:text-foreground"
+                className="motion-pressable flex h-10 w-10 items-center justify-center rounded-[8px] text-muted-foreground active:bg-foreground/[0.07] active:text-foreground"
                 aria-label="Add"
               >
                 <Plus size={15} />
@@ -167,20 +193,15 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
         </div>
       </div>
 
-      <aside className="motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden rounded-[32px] border border-border/60 bg-background/85 p-3 shadow-2xl shadow-black/[0.08] backdrop-blur-2xl md:flex">
+      <aside className="desktop-sidebar motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex">
         <button
           onClick={() => {
             if (pathname !== "/") navigate("/", { motion: "switch" })
           }}
-          className="motion-pressable mb-6 flex items-center gap-3 rounded-2xl px-2 py-2 text-left active:bg-foreground/[0.05]"
+          className="motion-pressable mb-6 flex items-center gap-3 rounded-[9px] px-2 py-2 text-left active:bg-foreground/[0.05]"
         >
-          <img src="/app-icon.svg" alt="" className="h-10 w-10 rounded-2xl" />
-          <div>
-            <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
-            <p className="text-[11px] font-medium text-muted-foreground/60">
-              Daily log
-            </p>
-          </div>
+          <img src="/app-icon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
+          <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
         </button>
 
         <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
@@ -193,9 +214,9 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
                 className={cn(
-                  "motion-pressable flex h-11 items-center gap-3 rounded-2xl px-3 text-[13px] font-semibold",
+                  "motion-pressable flex h-11 items-center gap-3 rounded-[9px] px-3 text-[13px] font-semibold",
                   active
-                    ? "bg-foreground text-background shadow-sm"
+                    ? "bg-foreground/[0.075] text-foreground"
                     : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground"
                 )}
               >
@@ -209,7 +230,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
         {onAdd && showQuickAdd && (
           <button
             onClick={onAdd}
-            className="motion-pressable mt-3 flex h-12 shrink-0 items-center justify-center gap-2 rounded-[20px] bg-foreground text-[13px] font-bold text-background shadow-lg shadow-black/[0.08] active:opacity-85"
+            className="motion-pressable mt-3 flex h-12 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-foreground text-[13px] font-bold text-background active:opacity-85"
           >
             <Plus size={15} weight="bold" />
             Quick add

@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createAuthClient } from 'better-auth/client';
 
   type Route = 'home' | 'privacy' | 'support' | 'changelog' | 'about' | 'guides' | 'terms' | 'reset-password';
 
@@ -14,10 +13,6 @@
     '/guides': 'guides',
     '/terms': 'terms',
   };
-
-  const authClient = createAuthClient({
-    baseURL: import.meta.env.VITE_CONVEX_SITE_URL as string,
-  });
 
   let theme: 'light' | 'dark' = 'light';
   let route: Route = typeof window === 'undefined' ? 'home' : routeFromPath(window.location.pathname);
@@ -41,17 +36,7 @@
     event.preventDefault();
     resetError = '';
     resetMessage = '';
-    const token = new URLSearchParams(window.location.search).get('token');
-    if (!token) {
-      resetError = 'This reset link is missing its token. Request a new one from the app.';
-      return;
-    }
-    const { error } = await authClient.resetPassword({ token, newPassword });
-    if (error) {
-      resetError = error.message ?? 'Could not reset password';
-      return;
-    }
-    resetMessage = 'Password changed. Open the app and sign in.';
+    resetError = 'Password reset is now handled in the OneRep app with an email code.';
     newPassword = '';
   }
 

@@ -1,7 +1,7 @@
 <wizard-report>
 # PostHog post-wizard report
 
-The wizard has completed a deep integration of PostHog analytics into the OneRep mobile app. PostHog is initialized in `src/main.tsx` with `PostHogProvider` wrapping the entire app. Users are identified on sign-in and sign-up using their user ID from `better-auth`. Ten business-critical events are instrumented across six files covering the full user journey: authentication, onboarding, workout tracking, and food logging (search, AI snap, and barcode).
+The wizard has completed a deep integration of PostHog analytics into the OneRep mobile app. PostHog is initialized in `src/main.tsx` with `PostHogProvider` wrapping the entire app. Users are identified on sign-in and sign-up through Clerk-backed auth state. Ten business-critical events are instrumented across six files covering the full user journey: authentication, onboarding, workout tracking, and food logging (search, AI snap, and barcode).
 
 > **Action required**: Run `bun add posthog-js @posthog/react` in `apps/mobile` to install the PostHog packages (sandbox restrictions prevented automatic installation). Environment variables have already been written to `.env`.
 

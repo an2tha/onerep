@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OneRep — rebuilt mobile preview set</title>
+  <style>
+    :root {
+      --ink: #f6efe2;
+      --muted: rgba(246,239,226,.64);
+      --quiet: rgba(246,239,226,.38);
+      --black: #0d0d0b;
+      --rubber: #171613;
+      --brass: #e0a64b;
+      --blood: #b84f3d;
+      --mint: #9fb08c;
+      --blue: #8da5a9;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--black); }
+    body {
+      margin: 0;
+      min-height: 100svh;
+      color: var(--ink);
+      font-family: "Avenir Next", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 8% 4%, rgba(224,166,75,.22), transparent 28rem),
+        radial-gradient(circle at 88% 8%, rgba(141,165,169,.12), transparent 30rem),
+        linear-gradient(90deg, rgba(246,239,226,.05) 1px, transparent 1px) 0 0 / 74px 74px,
+        linear-gradient(180deg, #171613 0%, #0d0d0b 58%, #060604 100%);
+    }
+    a { color: inherit; }
+    .grain { position: fixed; inset: 0; pointer-events: none; opacity: .42; mix-blend-mode: soft-light; background-image: radial-gradient(circle, rgba(255,255,255,.22) 0 1px, transparent 1.5px); background-size: 7px 7px; }
+    main { width: min(1180px, calc(100vw - 32px)); margin: 0 auto; padding: 44px 0 60px; }
+    header { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 34px; align-items: end; padding-bottom: 34px; border-bottom: 1px solid rgba(246,239,226,.14); }
+    .stamp { width: fit-content; border: 1px solid rgba(224,166,75,.45); border-radius: 999px; padding: 8px 12px; color: var(--brass); background: rgba(224,166,75,.08); font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 18px 0 0; max-width: 900px; font-family: "Iowan Old Style", Georgia, serif; font-size: clamp(48px, 8vw, 118px); line-height: .82; letter-spacing: -.08em; }
+    .intro { margin: 18px 0 0; max-width: 760px; color: var(--muted); font-size: 17px; line-height: 1.55; }
+    .audit { border: 1px solid rgba(246,239,226,.16); border-radius: 26px; padding: 18px; background: rgba(246,239,226,.055); box-shadow: inset 0 1px rgba(255,255,255,.06); }
+    .audit b { display: block; margin-bottom: 8px; color: var(--brass); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; }
+    .audit p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 28px; }
+    .direction { position: relative; min-height: 430px; overflow: hidden; border: 1px solid rgba(246,239,226,.16); border-radius: 34px; padding: 18px; text-decoration: none; background: #151410; box-shadow: 0 24px 60px rgba(0,0,0,.22); transition: transform .18s ease, border-color .18s ease; }
+    .direction:focus-visible { outline: 3px solid var(--brass); outline-offset: 4px; }
+    .direction:hover { transform: translateY(-5px); border-color: rgba(224,166,75,.62); }
+    .num { color: var(--quiet); font-family: "DIN Alternate", "Avenir Next Condensed", ui-sans-serif; font-size: 12px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+    h2 { margin: 12px 0 8px; font-size: 29px; line-height: .94; letter-spacing: -.055em; }
+    .direction p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .mini { position: absolute; left: 18px; right: 18px; bottom: 18px; height: 190px; border-radius: 26px; overflow: hidden; border: 1px solid rgba(246,239,226,.14); background: rgba(0,0,0,.22); }
+    .rack .mini { background: linear-gradient(135deg, #0d100e, #25221b); }
+    .food .mini { background: linear-gradient(135deg, #fff4d7, #d8b678); color: #1b160f; }
+    .split .mini { background: linear-gradient(135deg, #11100e, #243024); }
+    .dial .mini { background: radial-gradient(circle at 50% 62%, #e0a64b 0 26%, #282620 27% 100%); }
+    .body .mini { background: linear-gradient(135deg, #ede0ca, #f9f1df); color: #17130d; }
+    .rackbars, .filmgrid { position: absolute; inset: 16px; display: grid; gap: 8px; }
+    .rackbars { grid-template-rows: 1.4fr 1fr 1fr 1fr; }
+    .rackbars i { border-radius: 14px; background: rgba(246,239,226,.09); border: 1px solid rgba(246,239,226,.12); }
+    .foodlabel { position:absolute; inset: 18px; border: 2px solid currentColor; padding: 10px; font-family: Georgia, serif; font-size: 42px; line-height:.8; letter-spacing:-.06em; }
+    .weekstrip { position:absolute; inset: 18px; display:grid; grid-template-columns:repeat(7,1fr); gap:3px; align-items:end; }
+    .weekstrip i { background:rgba(246,239,226,.1); border:1px solid rgba(246,239,226,.16); border-radius:12px 12px 4px 4px; }
+    .weekstrip i:nth-child(2), .weekstrip i:nth-child(5){height:90%}.weekstrip i:nth-child(1){height:62%}.weekstrip i:nth-child(3){height:30%}.weekstrip i:nth-child(4){height:76%}.weekstrip i:nth-child(6){height:48%}.weekstrip i:nth-child(7){height:24%}
+    .dialmark { position:absolute; inset: 26px; border-radius:50%; border: 1px solid rgba(255,255,255,.25); box-shadow: inset 0 0 0 28px rgba(0,0,0,.18); }
+    .filmgrid { grid-template-columns: repeat(3,1fr); }
+    .filmgrid i { border-radius: 8px; border:1px solid rgba(23,19,13,.2); background: linear-gradient(135deg, rgba(23,19,13,.16), rgba(184,79,61,.16)); }
+    .open { position:absolute; right: 20px; bottom: 218px; color: var(--brass); font-size: 12px; font-weight: 900; }
+    .links { margin-top: 24px; display: flex; gap: 14px; flex-wrap: wrap; }
+    .links a { border: 1px solid rgba(246,239,226,.16); border-radius: 999px; padding: 10px 13px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 800; }
+    .links a:hover { color: var(--ink); border-color: rgba(246,239,226,.35); }
+    @media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 740px) { main { width: min(100% - 22px, 560px); padding-top: 26px; } header { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } .direction { min-height: 360px; } }
+    @media (prefers-reduced-motion: reduce) { .direction { transition: none; } .direction:hover { transform: none; } }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <main>
+    <header>
+      <div>
+        <div class="stamp">Rejected generic set · rebuilt</div>
+        <h1>Five OneRep screens with actual product spine.</h1>
+        <p class="intro">The old set leaned on the same fake phone, same rounded cards, same soft gradients. This pass uses concrete OneRep moments: a rack timer, a barcode ambiguity, a split board, a thumb dial, and a private body check-in.</p>
+      </div>
+      <aside class="audit">
+        <b>Reference pass</b>
+        <p>Used the good list for typographic systems, product artifacts, and disciplined motion; used the bad list to kill clutter, weak hierarchy, fake dashboards, and mobile-hostile controls.</p>
+      </aside>
+    </header>
+
+    <section class="grid" aria-label="Rebuilt design directions">
+      <a class="direction rack" href="option-01-rack-timer.html">
+        <span class="num">Option 01</span>
+        <h2>Rack Timer</h2>
+        <p>Active workout surface for bench set 3, rest timing, plates, and one blunt logging action.</p>
+        <span class="open">Open →</span>
+        <div class="mini" aria-hidden="true"><div class="rackbars"><i></i><i></i><i></i><i></i></div></div>
+      </a>
+      <a class="direction food" href="option-02-barcode-counter.html">
+        <span class="num">Option 02</span>
+        <h2>Barcode Counter</h2>
+        <p>Food logging as a serving-review counter, not another calorie dashboard.</p>
+        <span class="open">Open →</span>
+        <div class="mini" aria-hidden="true"><div class="foodlabel">2<br>matches</div></div>
+      </a>
+      <a class="direction split" href="option-03-split-map.html">
+        <span class="num">Option 03</span>
+        <h2>Split Map</h2>
+        <p>Weekly training plan with muscle load and recovery risk visible before start.</p>
+        <span class="open">Open →</span>
+        <div class="mini" aria-hidden="true"><div class="weekstrip"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      </a>
+      <a class="direction dial" href="option-04-log-dial.html">
+        <span class="num">Option 04</span>
+        <h2>Log Dial</h2>
+        <p>Thumb-first quick add: rotate between food, water, lift, stack, and body.</p>
+        <span class="open">Open →</span>
+        <div class="mini" aria-hidden="true"><div class="dialmark"></div></div>
+      </a>
+      <a class="direction body" href="option-05-body-contact-sheet.html">
+        <span class="num">Option 05</span>
+        <h2>Body Contact Sheet</h2>
+        <p>Progress check-in as a private photo lab with measurements, retake, and sync state.</p>
+        <span class="open">Open →</span>
+        <div class="mini" aria-hidden="true"><div class="filmgrid"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+      </a>
+    </section>
+
+    <nav class="links" aria-label="Supporting files">
+      <a href="manifest.md">Read manifest / audit</a>
+      <a href="option-01-rack-timer.html">Start with active workout</a>
+    </nav>
+  </main>
+</body>
+</html>

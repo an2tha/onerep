@@ -12,6 +12,7 @@ export type ReminderSettings = {
   meal: ReminderConfig
   workout: ReminderConfig
   body: ReminderConfig
+  supplement: ReminderConfig
 }
 
 export const DEFAULT_REMINDERS: ReminderSettings = {
@@ -19,9 +20,13 @@ export const DEFAULT_REMINDERS: ReminderSettings = {
   meal: { enabled: false, hour: 12, minute: 30 },
   workout: { enabled: false, hour: 18, minute: 0 },
   body: { enabled: false, hour: 19, minute: 0 },
+  supplement: { enabled: false, hour: 9, minute: 0 },
 }
 
-const REMINDER_COPY: Record<keyof ReminderSettings, { id: number; title: string; body: string }> = {
+const REMINDER_COPY: Record<
+  keyof ReminderSettings,
+  { id: number; title: string; body: string }
+> = {
   water: {
     id: 9201,
     title: "Hydration check",
@@ -42,28 +47,44 @@ const REMINDER_COPY: Record<keyof ReminderSettings, { id: number; title: string;
     title: "Daily check-in",
     body: "Log your latest measurements and see how your goal is moving.",
   },
+  supplement: {
+    id: 9205,
+    title: "Supplement log",
+    body: "Mark off creatine, protein, vitamins, or caffeine for today.",
+  },
 }
 
-export function mergeReminderSettings(value?: Partial<ReminderSettings> | null): ReminderSettings {
+export function mergeReminderSettings(
+  value?: Partial<ReminderSettings> | null
+): ReminderSettings {
   return {
     water: { ...DEFAULT_REMINDERS.water, ...(value?.water ?? {}) },
     meal: { ...DEFAULT_REMINDERS.meal, ...(value?.meal ?? {}) },
     workout: { ...DEFAULT_REMINDERS.workout, ...(value?.workout ?? {}) },
     body: { ...DEFAULT_REMINDERS.body, ...(value?.body ?? {}) },
+    supplement: {
+      ...DEFAULT_REMINDERS.supplement,
+      ...(value?.supplement ?? {}),
+    },
   }
 }
 
 export function formatReminderTime(reminder: ReminderConfig) {
   const base = new Date()
   base.setHours(reminder.hour, reminder.minute, 0, 0)
-  return base.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  return base.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  })
 }
 
 export function formatReminderLabel(reminder: ReminderConfig) {
   return `Daily at ${formatReminderTime(reminder)}`
 }
 
-export async function syncPushReminders(settings: ReminderSettings): Promise<"scheduled" | "disabled" | "unsupported" | "denied"> {
+export async function syncPushReminders(
+  settings: ReminderSettings
+): Promise<"scheduled" | "disabled" | "unsupported" | "denied"> {
   if (Capacitor.getPlatform() === "web") {
     return "unsupported"
   }
@@ -71,8 +92,9 @@ export async function syncPushReminders(settings: ReminderSettings): Promise<"sc
   const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
   await LocalNotifications.cancel({ notifications: ids })
 
-  const enabledEntries = (Object.entries(settings) as [keyof ReminderSettings, ReminderConfig][])
-    .filter(([, reminder]) => reminder.enabled)
+  const enabledEntries = (
+    Object.entries(settings) as [keyof ReminderSettings, ReminderConfig][]
+  ).filter(([, reminder]) => reminder.enabled)
 
   if (enabledEntries.length === 0) {
     return "disabled"

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { calculateCalories, type CaloricGoals } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
@@ -25,7 +25,7 @@ const healthProfileArgs = {
 export const getGoals = query({
   args: {},
   handler: async (ctx): Promise<CaloricGoals | null> => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     const profile = await ctx.db
@@ -45,7 +45,7 @@ export const getGoals = query({
 export const getProfile = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     return await ctx.db
@@ -60,7 +60,7 @@ export const getProfile = query({
 export const setProfile = mutation({
   args: healthProfileArgs,
   handler: async (ctx, args): Promise<CaloricGoals> => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const existing = await ctx.db

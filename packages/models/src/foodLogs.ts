@@ -14,6 +14,7 @@ export type FoodLogEntry = {
   // Open Food Facts source metadata — populated when logged via food search
   source?: "openfoodfacts";
   foodCode?: string;
+  quantityGrams?: number;
   servingGrams?: number;
   servingLabel?: string;
   imageUrl?: string;

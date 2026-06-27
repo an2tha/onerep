@@ -24,20 +24,26 @@ const PRODUCT_FIELDS = [
   "image_front_thumb_url",
   "selected_images",
   "nutriments",
+  "nutriments_estimated",
   "nutriscore_grade",
   "nova_group",
 ].join(",")
 
 async function openFoodFactsFetch<T>(
   path: string,
-  params?: URLSearchParams
+  params?: URLSearchParams,
+  language?: string
 ): Promise<T> {
-  return (await convexClient.action(api.food.openFoodFacts.proxy, {
+  const result = (await convexClient.action(api.food.openFoodFacts.proxy, {
     path,
     params: params
       ? Array.from(params.entries()).map(([key, value]) => ({ key, value }))
       : [],
+    language,
   })) as T
+
+  console.debug("[openfoodfacts:raw-client]", { path, response: result })
+  return result
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -101,9 +107,20 @@ function nutriments(product: OpenFoodFactsProduct): OpenFoodFactsNutriments {
   return product.nutriments ?? {}
 }
 
-function nutrientValue(product: OpenFoodFactsProduct, key: string): number {
+function estimatedNutriments(
+  product: OpenFoodFactsProduct
+): OpenFoodFactsNutriments {
+  return product.nutriments_estimated ?? {}
+}
+
+function nutrientValue(
+  product: OpenFoodFactsProduct,
+  key: string,
+  includeEstimated = false
+): number {
   const n = nutriments(product)
-  return firstNumber(n[`${key}_100g`], n[key])
+  const estimated = includeEstimated ? estimatedNutriments(product) : {}
+  return firstNumber(n[`${key}_100g`], n[key], estimated[`${key}_100g`], estimated[key])
 }
 
 function nutrientUnit(
@@ -160,19 +177,39 @@ function normalizeProduct(raw: unknown): OpenFoodFactsProduct | null {
       src.nutriments && typeof src.nutriments === "object"
         ? (src.nutriments as OpenFoodFactsNutriments)
         : undefined,
+    nutriments_estimated:
+      src.nutriments_estimated && typeof src.nutriments_estimated === "object"
+        ? (src.nutriments_estimated as OpenFoodFactsNutriments)
+        : undefined,
     nutriscore_grade: firstString(src.nutriscore_grade),
     nova_group: firstString(src.nova_group),
   }
 }
 
+function titleCaseName(value: string): string {
+  return value.replace(/\S+/g, (word) => {
+    if (/^[A-Z0-9&.'-]+$/.test(word) && word.length <= 4) return word
+    return word
+      .toLowerCase()
+      .replace(/^([\p{L}\p{N}])|([\s'’\-/])([\p{L}\p{N}])/gu, (match, first, sep, next) =>
+        first ? first.toUpperCase() : `${sep}${next.toUpperCase()}`
+      )
+  })
+}
+
 function productName(product: OpenFoodFactsProduct): string {
-  return (
+  return titleCaseName(
     firstString(
       product.product_name_en,
       product.product_name,
       product.generic_name
     ) ?? product.code
   )
+}
+
+function isNumbersOnlyName(name: string): boolean {
+  const compact = name.replace(/[^\p{L}\p{N}]+/gu, "")
+  return compact.length > 0 && /^\p{N}+$/u.test(compact)
 }
 
 function productToResult(product: OpenFoodFactsProduct): FoodResult {
@@ -278,61 +315,61 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
       nutrientRow(
         "calcium",
         "Calcium",
-        nutrientValue(product, "calcium"),
+        nutrientValue(product, "calcium", true),
         nutrientUnit(product, "calcium", "mg")
       ),
       nutrientRow(
         "iron",
         "Iron",
-        nutrientValue(product, "iron"),
+        nutrientValue(product, "iron", true),
         nutrientUnit(product, "iron", "mg")
       ),
       nutrientRow(
         "potassium",
         "Potassium",
-        nutrientValue(product, "potassium"),
+        nutrientValue(product, "potassium", true),
         nutrientUnit(product, "potassium", "mg")
       ),
       nutrientRow(
         "magnesium",
         "Magnesium",
-        nutrientValue(product, "magnesium"),
+        nutrientValue(product, "magnesium", true),
         nutrientUnit(product, "magnesium", "mg")
       ),
       nutrientRow(
         "phosphorus",
         "Phosphorus",
-        nutrientValue(product, "phosphorus"),
+        nutrientValue(product, "phosphorus", true),
         nutrientUnit(product, "phosphorus", "mg")
       ),
       nutrientRow(
         "zinc",
         "Zinc",
-        nutrientValue(product, "zinc"),
+        nutrientValue(product, "zinc", true),
         nutrientUnit(product, "zinc", "mg")
       ),
       nutrientRow(
         "vitaminC",
         "Vitamin C",
-        nutrientValue(product, "vitamin-c"),
+        nutrientValue(product, "vitamin-c", true),
         nutrientUnit(product, "vitamin-c", "mg")
       ),
       nutrientRow(
         "vitamin-a",
         "Vitamin A",
-        nutrientValue(product, "vitamin-a"),
+        nutrientValue(product, "vitamin-a", true),
         nutrientUnit(product, "vitamin-a", "mcg")
       ),
       nutrientRow(
         "vitamin-d",
         "Vitamin D",
-        nutrientValue(product, "vitamin-d"),
+        nutrientValue(product, "vitamin-d", true),
         nutrientUnit(product, "vitamin-d", "mcg")
       ),
       nutrientRow(
         "vitamin-b12",
         "Vitamin B12",
-        nutrientValue(product, "vitamin-b12"),
+        nutrientValue(product, "vitamin-b12", true),
         nutrientUnit(product, "vitamin-b12", "mcg")
       ),
       nutrientRow(
@@ -340,6 +377,24 @@ function productToDetail(product: OpenFoodFactsProduct): FoodDetail {
         "Caffeine",
         nutrientValue(product, "caffeine"),
         nutrientUnit(product, "caffeine", "mg")
+      ),
+      nutrientRow(
+        "omega-3-fat",
+        "Omega-3",
+        nutrientValue(product, "omega-3-fat"),
+        nutrientUnit(product, "omega-3-fat", "mg")
+      ),
+      nutrientRow(
+        "eicosapentaenoic-acid",
+        "EPA",
+        nutrientValue(product, "eicosapentaenoic-acid"),
+        nutrientUnit(product, "eicosapentaenoic-acid", "mg")
+      ),
+      nutrientRow(
+        "docosahexaenoic-acid",
+        "DHA",
+        nutrientValue(product, "docosahexaenoic-acid"),
+        nutrientUnit(product, "docosahexaenoic-acid", "mg")
       ),
       nutrientRow(
         "alcohol",
@@ -362,8 +417,9 @@ type OpenFoodFactsProductResponse = {
 
 export async function searchFoods(
   query: string,
-  limit?: number
-): Promise<FoodResult[]> {
+  limit?: number,
+  language?: string
+): Promise<FoodDetail[]> {
   const trimmed = query.trim()
   if (trimmed.length < 2) return []
 
@@ -378,22 +434,30 @@ export async function searchFoods(
 
   const data = await openFoodFactsFetch<OpenFoodFactsSearchResponse>(
     "/cgi/search.pl",
-    params
+    params,
+    language
   )
 
   return (data.products ?? [])
     .map(normalizeProduct)
     .filter((product): product is OpenFoodFactsProduct => product !== null)
-    .map(productToResult)
+    .map(productToDetail)
+    .filter((item) => !isNumbersOnlyName(item.name))
 }
 
 export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
   const encoded = encodeURIComponent(id)
   const params = new URLSearchParams({ fields: PRODUCT_FIELDS })
-  const data = await openFoodFactsFetch<OpenFoodFactsProductResponse>(
-    `/api/v2/product/${encoded}.json`,
-    params
-  )
+  let data: OpenFoodFactsProductResponse
+  try {
+    data = await openFoodFactsFetch<OpenFoodFactsProductResponse>(
+      `/api/v2/product/${encoded}.json`,
+      params
+    )
+  } catch (error) {
+    if (error instanceof Error && /\b404\b/.test(error.message)) return null
+    throw error
+  }
 
   const product = normalizeProduct(data.product)
   return product ? productToDetail(product) : null

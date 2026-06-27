@@ -2,13 +2,7 @@
  * Pure helpers for dashboard widget layout.
  */
 
-export type WidgetId =
-  | "calories"
-  | "water"
-  | "workout"
-  | "streak"
-  | "food"
-  | "progress"
+export type WidgetId = "water" | "workout" | "streak" | "food" | "progress"
 
 export type WidgetSize = "full" | "small"
 
@@ -18,34 +12,43 @@ export interface WidgetConfig {
 }
 
 /** Ordered list of all widget IDs for defaults. */
-export const ALL_WIDGET_IDS: WidgetId[] = [
-  "calories",
-  "water",
-  "workout",
-  "streak",
-  "food",
-  "progress",
+export const DEFAULT_LAYOUT: WidgetConfig[] = [
+  { id: "food", size: "small" },
+  { id: "workout", size: "small" },
+  { id: "water", size: "small" },
+  { id: "progress", size: "full" },
+  { id: "streak", size: "small" },
 ]
 
-export const DEFAULT_LAYOUT: WidgetConfig[] = ALL_WIDGET_IDS.map((id) => ({
-  id,
-  size: "full",
-}))
+export const ALL_WIDGET_IDS: WidgetId[] = DEFAULT_LAYOUT.map(
+  (widget) => widget.id
+)
 
 /**
  * Merge a stored layout (may be partial/stale) with the canonical default.
  * - Widgets in the stored layout come first, in stored order.
- * - New widgets not yet in the stored layout are appended at the end as "full".
+ * - New widgets not yet in the stored layout are appended at the end.
  * - Widgets removed from ALL_WIDGET_IDS are dropped.
+ * - Sizes are fixed by the app: everything small except body progress.
  */
-export function resolveLayout(stored: WidgetConfig[] | null | undefined): WidgetConfig[] {
+export function resolveLayout(
+  stored: WidgetConfig[] | null | undefined
+): WidgetConfig[] {
   if (!stored || stored.length === 0) return [...DEFAULT_LAYOUT]
 
-  const valid = stored.filter((w) => (ALL_WIDGET_IDS as string[]).includes(w.id))
+  const defaultSizeById = new Map(
+    DEFAULT_LAYOUT.map((widget) => [widget.id, widget.size])
+  )
+  const valid = stored
+    .filter((w) => (ALL_WIDGET_IDS as string[]).includes(w.id))
+    .map(
+      (w): WidgetConfig => ({
+        id: w.id,
+        size: defaultSizeById.get(w.id) ?? "small",
+      })
+    )
   const seenIds = new Set(valid.map((w) => w.id))
-  const appended = ALL_WIDGET_IDS
-    .filter((id) => !seenIds.has(id))
-    .map((id): WidgetConfig => ({ id, size: "full" }))
+  const appended = DEFAULT_LAYOUT.filter((widget) => !seenIds.has(widget.id))
 
   return [...valid, ...appended]
 }
@@ -96,7 +99,7 @@ export function buildRows(layout: WidgetConfig[]): LayoutRow[] {
 export function reorderLayout(
   layout: WidgetConfig[],
   fromIndex: number,
-  toIndex: number,
+  toIndex: number
 ): WidgetConfig[] {
   if (fromIndex === toIndex) return layout
   if (fromIndex < 0 || fromIndex >= layout.length) return layout
@@ -106,16 +109,4 @@ export function reorderLayout(
   const [item] = next.splice(fromIndex, 1)
   next.splice(toIndex, 0, item)
   return next
-}
-
-/**
- * Toggle a widget's size between "full" and "small".
- */
-export function toggleWidgetSize(
-  layout: WidgetConfig[],
-  id: WidgetId,
-): WidgetConfig[] {
-  return layout.map((w) =>
-    w.id === id ? { ...w, size: w.size === "full" ? "small" : "full" } : w
-  )
 }
