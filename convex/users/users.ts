@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { calculateCalories } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
@@ -10,7 +10,7 @@ import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
 async function requireUser(ctx: QueryCtx | MutationCtx) {
-  const user = await authComponent.getAuthUser(ctx);
+  const user = await getAuthUser(ctx);
   if (!user) throw new Error("Not authenticated");
   return user;
 }
@@ -18,14 +18,14 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    return authComponent.safeGetAuthUser(ctx);
+    return safeGetAuthUser(ctx);
   },
 });
 
 export const getPreferences = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
     return await ctx.db
       .query("userPreferences")
@@ -38,7 +38,7 @@ export const syncTimezone = mutation({
   args: { timeZone: v.string() },
   handler: async (ctx, args) => {
     const timeZone = isValidTimeZone(args.timeZone) ? args.timeZone : "UTC";
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return { timeZone };
 
     const existing = await ctx.db
@@ -180,6 +180,40 @@ export const setWeightUnit = mutation({
         userId: user._id,
         lastActiveTimezone: "UTC",
         weightUnit: args.unit,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const setFoodSearchLanguage = mutation({
+  args: {
+    language: v.union(
+      v.literal("en"),
+      v.literal("es"),
+      v.literal("fr"),
+      v.literal("de"),
+      v.literal("it"),
+      v.literal("pt"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        foodSearchLanguage: args.language,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        foodSearchLanguage: args.language,
         updatedAt: Date.now(),
       });
     }
@@ -366,6 +400,7 @@ export const setPushReminders = mutation({
       meal: reminderValidator,
       workout: reminderValidator,
       body: reminderValidator,
+      supplement: v.optional(reminderValidator),
     }),
   },
   handler: async (ctx, args) => {
@@ -424,9 +459,8 @@ export const setPrivacySettings = mutation({
 export const exportMyData = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
-
 
     const [
       preferences,
@@ -438,24 +472,78 @@ export const exportMyData = query({
       workoutLogs,
       foodLogs,
       waterLogs,
+      supplementLogs,
+      supplementItems,
+      supplementIntakeLogs,
       bodyMeasurements,
       dailyCheckIns,
       activeWorkouts,
       customExercises,
     ] = await Promise.all([
-      ctx.db.query("userPreferences").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("recipes").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("onboardingProfiles").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("healthProfiles").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("presets").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("schedules").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("workoutLogs").withIndex("by_userId_date", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("foodLogs").withIndex("by_userId_date", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("waterLogs").withIndex("by_userId_date", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("bodyMeasurements").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("dailyCheckIns").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("activeWorkouts").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
-      ctx.db.query("exercises").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect(),
+      ctx.db
+        .query("userPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("recipes")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("onboardingProfiles")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("healthProfiles")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("presets")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("schedules")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("workoutLogs")
+        .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("foodLogs")
+        .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("waterLogs")
+        .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("supplementLogs")
+        .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("supplementItems")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("supplementIntakeLogs")
+        .withIndex("by_userId_and_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("bodyMeasurements")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("dailyCheckIns")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("activeWorkouts")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("exercises")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
     ]);
 
     return {
@@ -475,6 +563,9 @@ export const exportMyData = query({
         workoutLogs,
         foodLogs,
         waterLogs,
+        supplementLogs,
+        supplementItems,
+        supplementIntakeLogs,
         bodyMeasurements,
         dailyCheckIns,
         activeWorkouts,
@@ -495,7 +586,7 @@ export const deleteMyDataBatch = mutation({
 export const getEffectiveGoals = query({
   args: { date: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     const prefs = await ctx.db

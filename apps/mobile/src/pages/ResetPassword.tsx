@@ -1,59 +1,91 @@
 import { useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
-import { authClient } from "@/lib/auth-client"
+import { useSignIn } from "@clerk/react"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const FIELD_CLASS =
-  "block rounded-[20px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:rounded-[18px] short-phone:py-2.5"
+  "block rounded-[10px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:py-2.5"
 const LABEL_CLASS =
   "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
 const INPUT_CLASS =
-  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
 
-function formatResetError(message?: string) {
-  const normalized = message?.toLowerCase() ?? ""
-  if (normalized.includes("token")) {
-    return "This reset link has expired. Request a new one from sign in."
+function clerkErrorMessage(error: unknown, fallback: string) {
+  if (!error) return fallback
+  if (typeof error === "object" && error !== null) {
+    const maybeError = error as {
+      longMessage?: unknown
+      message?: unknown
+      errors?: { longMessage?: unknown; message?: unknown }[]
+    }
+    const nested = maybeError.errors?.[0]
+    const message =
+      nested?.longMessage ??
+      nested?.message ??
+      maybeError.longMessage ??
+      maybeError.message
+    if (typeof message === "string" && message.length > 0) return message
   }
-  if (normalized.includes("short")) {
-    return "Use at least 8 characters for your new password."
-  }
-  return message || "Could not reset password"
+  return fallback
 }
 
 export default function ResetPassword() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const token = searchParams.get("token") ?? ""
-  const linkError = searchParams.get("error")
+  const { signIn } = useSignIn()
+  const [email, setEmail] = useState(searchParams.get("email") ?? "")
+  const [code, setCode] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState<string | undefined>(
-    linkError
-      ? "This reset link has expired. Request a new one from sign in."
-      : token
-        ? undefined
-        : "Open the reset link from your email."
-  )
+  const [codeSent, setCodeSent] = useState(false)
+  const [error, setError] = useState<string | undefined>()
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
-  const canSubmit = Boolean(token) && !linkError && !message
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function sendCode(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    setError(undefined)
+    setMessage(undefined)
+
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) {
+      setError("Enter your email")
+      return
+    }
+    setLoading(true)
+    try {
+      const created = await signIn.create({ identifier: trimmedEmail })
+      if (created.error) {
+        setError(clerkErrorMessage(created.error, "Could not start reset"))
+        return
+      }
+
+      const sent = await signIn.resetPasswordEmailCode.sendCode()
+      if (sent.error) {
+        setError(clerkErrorMessage(sent.error, "Could not send reset code"))
+        return
+      }
+
+      setCodeSent(true)
+      setMessage("Reset code sent. Check your email.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(undefined)
     setMessage(undefined)
 
-    if (!canSubmit) {
-      setError("Request a new reset link from sign in.")
+    if (!code.trim()) {
+      setError("Enter the reset code from your email.")
       return
     }
-
     if (newPassword.length < 8) {
       setError("Use at least 8 characters for your new password.")
       return
     }
-
     if (newPassword !== confirmPassword) {
       setError("Passwords do not match.")
       return
@@ -61,15 +93,28 @@ export default function ResetPassword() {
 
     setLoading(true)
     try {
-      const { error: resetError } = await authClient.resetPassword({
-        token,
-        newPassword,
+      const verified = await signIn.resetPasswordEmailCode.verifyCode({
+        code: code.trim(),
       })
-      if (resetError) {
-        setError(formatResetError(resetError.message))
+      if (verified.error) {
+        setError(clerkErrorMessage(verified.error, "Invalid reset code"))
         return
       }
 
+      const submitted = await signIn.resetPasswordEmailCode.submitPassword({
+        password: newPassword,
+        signOutOfOtherSessions: true,
+      })
+      if (submitted.error) {
+        setError(clerkErrorMessage(submitted.error, "Could not reset password"))
+        return
+      }
+
+      if (signIn.status === "complete") {
+        await signIn.finalize()
+      }
+
+      setCode("")
       setNewPassword("")
       setConfirmPassword("")
       setMessage("Password changed. Sign in with the new password.")
@@ -87,92 +132,147 @@ export default function ResetPassword() {
             alt=""
             className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="rounded-[28px] border border-border/70 bg-card p-3.5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3">
+        <section className="app-rail-surface p-3.5 short-phone:p-3">
           <div className="mb-3 px-1.5 py-1 short-phone:mb-2">
-            <p className="text-[10px] font-semibold tracking-[0.22em] text-muted-foreground/60 uppercase">
+            <p className="app-eyebrow text-muted-foreground/60">
               Reset password
             </p>
-            <h2 className="mt-2 text-[1.75rem] leading-tight font-semibold tracking-tight short-phone:text-[1.55rem]">
-              Pick a new one.
+            <h2 className="app-display mt-2 text-[1.9rem] short-phone:text-[1.55rem]">
+              {codeSent ? "Enter the code." : "Get a reset code."}
             </h2>
             <p className="mt-2 text-[13.5px] leading-5 font-medium text-muted-foreground/70">
-              Use the link from your email. Other sessions are revoked when this
-              changes.
+              {codeSent
+                ? "Use the code Clerk sent to your email, then choose a new password."
+                : "Enter your account email and Clerk will send a password reset code."}
             </p>
           </div>
 
           <form
-            onSubmit={handleSubmit}
+            onSubmit={codeSent ? changePassword : sendCode}
             className="space-y-2.5 short-phone:space-y-2"
           >
-            <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>New password</span>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                disabled={loading || !canSubmit}
-                className={INPUT_CLASS}
-              />
-            </label>
+            {!codeSent && (
+              <label className={FIELD_CLASS}>
+                <span className={LABEL_CLASS}>Email</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  required
+                  autoComplete="email"
+                  disabled={loading || Boolean(message)}
+                  className={INPUT_CLASS}
+                />
+              </label>
+            )}
 
-            <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Confirm password</span>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="••••••••"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                disabled={loading || !canSubmit}
-                className={INPUT_CLASS}
-              />
-            </label>
+            {codeSent && !message && (
+              <>
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>Code</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
+                    placeholder="123456"
+                    required
+                    autoComplete="one-time-code"
+                    disabled={loading}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>New password</span>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    disabled={loading}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>Confirm password</span>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) =>
+                      setConfirmPassword(event.target.value)
+                    }
+                    placeholder="••••••••"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                    disabled={loading}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+              </>
+            )}
 
             {error && (
               <p
                 role="alert"
-                className="rounded-[18px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
+                className="rounded-[10px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
               >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="rounded-[18px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+              <p className="rounded-[10px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
                 {message}
               </p>
             )}
 
-            {message ? (
+            {message === "Password changed. Sign in with the new password." ? (
               <button
                 type="button"
                 onClick={() => navigate("/login", { replace: true })}
-                className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 short-phone:h-12 short-phone:rounded-[20px]"
+                className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 short-phone:h-12"
               >
                 Back to sign in
               </button>
             ) : (
               <button
                 type="submit"
-                disabled={loading || !canSubmit}
-                className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12 short-phone:rounded-[20px]"
+                disabled={loading}
+                className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
               >
-                {loading ? "Changing..." : "Change password"}
+                {loading
+                  ? codeSent
+                    ? "Changing…"
+                    : "Sending…"
+                  : codeSent
+                    ? "Change password"
+                    : "Send code"}
               </button>
             )}
           </form>
+
+          {codeSent && !message && (
+            <button
+              type="button"
+              onClick={() => void sendCode()}
+              disabled={loading}
+              className="mt-2 h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:h-10"
+            >
+              Resend code
+            </button>
+          )}
         </section>
       </main>
     </div>

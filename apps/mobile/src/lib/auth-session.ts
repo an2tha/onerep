@@ -7,7 +7,6 @@ const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
 const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
   "onerep:",
   "onerep_",
-  "better-auth",
   "convex:",
 ]
 const LOCAL_STORAGE_KEYS_TO_CLEAR = new Set(["theme"])
@@ -78,9 +77,5 @@ export function handleUnauthenticatedSession(options?: {
   authRedirectInFlight = true
 
   clearUnauthenticatedLocalState()
-
-  void import("@/lib/auth-client")
-    .then(({ authClient }) => authClient.signOut())
-    .catch(() => undefined)
-    .finally(() => redirectToLogin(options?.navigate))
+  redirectToLogin(options?.navigate)
 }

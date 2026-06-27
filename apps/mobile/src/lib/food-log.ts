@@ -1,4 +1,5 @@
-import type { OpenFoodFactsProduct } from "@repo/models"
+import type { FoodDetail, NutrientRow, OpenFoodFactsProduct } from "@repo/models"
+import { CUSTOM_CATEGORY_TONES, DEFAULT_MEAL_TONES } from "@/lib/design-tokens"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export type FoodLogEntry = {
   // Open Food Facts source metadata
   source?: "openfoodfacts"
   foodCode?: string
+  quantityGrams?: number
   servingGrams?: number
   servingLabel?: string
   imageUrl?: string
@@ -51,6 +53,53 @@ export type FoodLogEntry = {
   alcohol?: number
 }
 
+export type MealPresetEntry = Omit<
+  FoodLogEntry,
+  "_id" | "id" | "loggedAt" | "meal"
+>
+
+export type MealPreset = {
+  _id?: string
+  id?: string
+  name: string
+  meal: MealType
+  signature: string
+  entries: MealPresetEntry[]
+  createdAt?: number
+  updatedAt?: number
+}
+
+export type FoodLogDaySnapshot = {
+  date: string
+  entries: FoodLogEntry[]
+}
+
+export type SaveMealPresetSuggestion = {
+  kind: "save"
+  key: string
+  meal: MealType
+  mealLabel: string
+  name: string
+  signature: string
+  entries: MealPresetEntry[]
+  count: number
+  latestDate: string
+}
+
+export type LogMealPresetSuggestion = {
+  kind: "log"
+  key: string
+  meal: MealType
+  mealLabel: string
+  preset: MealPreset
+  signature: string
+  entries: MealPresetEntry[]
+}
+
+export type SmartMealPresetSuggestion =
+  | SaveMealPresetSuggestion
+  | LogMealPresetSuggestion
+
 export type LogMicros = Omit<
   FoodLogEntry,
   | "id"
@@ -63,6 +112,7 @@ export type LogMicros = Omit<
   | "meal"
   | "source"
   | "foodCode"
+  | "quantityGrams"
   | "servingGrams"
   | "servingLabel"
   | "imageUrl"
@@ -195,6 +245,41 @@ function roundFoodNutrient(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function scaledDetailNutrient(
+  rows: NutrientRow[],
+  sourceKey: string,
+  grams: number,
+  targetUnit: FoodMicronutrientUnit
+): number | undefined {
+  const row = rows.find((nutrient) => nutrient.key === sourceKey)
+  if (!row || row.per100g <= 0) return undefined
+  const scaled = (row.per100g * grams) / 100
+  const normalized = normalizeFoodMass(scaled, row.unit, targetUnit)
+  return normalized > 0 ? roundFoodNutrient(normalized) : undefined
+}
+
+export function logMicrosFromFoodDetail(
+  detail: FoodDetail | null | undefined,
+  grams: number
+): LogMicros {
+  if (!detail) return {}
+  const rows = [...(detail.nutrients ?? []), ...(detail.extraNutrients ?? [])]
+  const micros: LogMicros = {}
+
+  for (const key of FOOD_MICRONUTRIENT_KEYS) {
+    const cfg = OPEN_FOOD_FACTS_MICROS[key]
+    const value = scaledDetailNutrient(
+      rows,
+      cfg.sourceKey,
+      grams,
+      cfg.targetUnit
+    )
+    if (value !== undefined) micros[key] = value
+  }
+
+  return micros
+}
+
 function positiveRatio(numerator: number, denominator: number): number | null {
   if (
     !Number.isFinite(numerator) ||
@@ -218,7 +303,10 @@ function loggedFoodScale(
   if (caloriesRatio) return caloriesRatio
 
   const macroRatios = [
-    positiveRatio(Number(entry.protein), foodNutrientPer100(nutriments, "proteins")),
+    positiveRatio(
+      Number(entry.protein),
+      foodNutrientPer100(nutriments, "proteins")
+    ),
     positiveRatio(
       Number(entry.carbs),
       foodNutrientPer100(nutriments, "carbohydrates")
@@ -228,6 +316,10 @@ function loggedFoodScale(
 
   if (macroRatios.length > 0) {
     return macroRatios.sort((a, b) => a - b)[Math.floor(macroRatios.length / 2)]
+  }
+
+  if (entry.quantityGrams && entry.quantityGrams > 0) {
+    return entry.quantityGrams / 100
   }
 
   if (entry.servingGrams && entry.servingGrams > 0) {
@@ -315,7 +407,10 @@ export function foodPortionUnitLabel(unit: FoodPortionUnit) {
 }
 
 function portionUnitConfig(unit: FoodPortionUnit) {
-  return FOOD_PORTION_UNITS.find((option) => option.id === unit) ?? FOOD_PORTION_UNITS[0]
+  return (
+    FOOD_PORTION_UNITS.find((option) => option.id === unit) ??
+    FOOD_PORTION_UNITS[0]
+  )
 }
 
 function roundPortion(value: number) {
@@ -325,16 +420,25 @@ function roundPortion(value: number) {
 }
 
 export function gramsFromFoodPortion(amount: number, unit: FoodPortionUnit) {
-  return Math.max(0.1, Math.round(amount * portionUnitConfig(unit).gramsPerUnit * 10) / 10)
+  return Math.max(
+    0.1,
+    Math.round(amount * portionUnitConfig(unit).gramsPerUnit * 10) / 10
+  )
 }
 
-export function amountFromFoodPortionGrams(grams: number, unit: FoodPortionUnit) {
+export function amountFromFoodPortionGrams(
+  grams: number,
+  unit: FoodPortionUnit
+) {
   return roundPortion(grams / portionUnitConfig(unit).gramsPerUnit)
 }
 
 export function formatFoodPortionAmount(amount: number) {
-  if (Math.abs(amount - Math.round(amount)) < 0.01) return String(Math.round(amount))
-  return String(amount).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1")
+  if (Math.abs(amount - Math.round(amount)) < 0.01)
+    return String(Math.round(amount))
+  return String(amount)
+    .replace(/\.0+$/, "")
+    .replace(/(\.\d*?)0+$/, "$1")
 }
 
 export function foodPortionLabel(portion: FoodPortion) {
@@ -346,25 +450,42 @@ function normalizePortionUnit(raw: string): FoodPortionUnit | null {
   if (unit === "g" || unit === "gram" || unit === "grams") return "g"
   if (unit === "kg" || unit === "kilogram" || unit === "kilograms") return "g"
   if (unit === "oz" || unit === "ounce" || unit === "ounces") return "oz"
-  if (unit === "ml" || unit === "milliliter" || unit === "milliliters") return "ml"
-  if (unit === "cl" || unit === "centiliter" || unit === "centiliters") return "ml"
+  if (unit === "ml" || unit === "milliliter" || unit === "milliliters")
+    return "ml"
+  if (unit === "cl" || unit === "centiliter" || unit === "centiliters")
+    return "ml"
   if (unit === "l" || unit === "liter" || unit === "liters") return "ml"
-  if (unit === "fl oz" || unit === "floz" || unit === "fluid ounce" || unit === "fluid ounces") return "fl_oz"
+  if (
+    unit === "fl oz" ||
+    unit === "floz" ||
+    unit === "fluid ounce" ||
+    unit === "fluid ounces"
+  )
+    return "fl_oz"
   if (unit === "cup" || unit === "cups") return "cup"
-  if (unit === "tbsp" || unit === "tablespoon" || unit === "tablespoons") return "tbsp"
-  if (unit === "tsp" || unit === "teaspoon" || unit === "teaspoons") return "tsp"
+  if (unit === "tbsp" || unit === "tablespoon" || unit === "tablespoons")
+    return "tbsp"
+  if (unit === "tsp" || unit === "teaspoon" || unit === "teaspoons")
+    return "tsp"
   return null
 }
 
-function normalizedPortionAmount(amount: number, rawUnit: string, unit: FoodPortionUnit) {
+function normalizedPortionAmount(
+  amount: number,
+  rawUnit: string,
+  unit: FoodPortionUnit
+) {
   const normalized = rawUnit.toLowerCase().replace(/\./g, "").trim()
   if (unit === "g" && normalized.startsWith("kg")) return amount * 1000
   if (unit === "ml" && normalized === "cl") return amount * 10
-  if (unit === "ml" && (normalized === "l" || normalized.startsWith("liter"))) return amount * 1000
+  if (unit === "ml" && (normalized === "l" || normalized.startsWith("liter")))
+    return amount * 1000
   return amount
 }
 
-export function parseFoodPortionLabel(label?: string | null): FoodPortion | null {
+export function parseFoodPortionLabel(
+  label?: string | null
+): FoodPortion | null {
   if (!label) return null
   const match = label.match(
     /([0-9]+(?:[.,][0-9]+)?)\s*(fluid\s*ounces?|fl\.?\s*oz|floz|tablespoons?|tbsp|teaspoons?|tsp|cups?|kilograms?|kg|grams?|g|milliliters?|ml|centiliters?|cl|liters?|l|ounces?|oz)\b/i
@@ -375,7 +496,9 @@ export function parseFoodPortionLabel(label?: string | null): FoodPortion | null
   const unit = normalizePortionUnit(match[2])
   if (!Number.isFinite(rawAmount) || rawAmount <= 0 || !unit) return null
 
-  const amount = roundPortion(normalizedPortionAmount(rawAmount, match[2], unit))
+  const amount = roundPortion(
+    normalizedPortionAmount(rawAmount, match[2], unit)
+  )
   return {
     amount,
     unit,
@@ -389,12 +512,16 @@ function looksLikeLiquid(name?: string | null) {
   )
 }
 
-export function inferFoodPortionUnit(label?: string | null, name?: string | null): FoodPortionUnit {
+export function inferFoodPortionUnit(
+  label?: string | null,
+  name?: string | null
+): FoodPortionUnit {
   const parsed = parseFoodPortionLabel(label)
   if (parsed) return parsed.unit
 
   const text = `${label ?? ""} ${name ?? ""}`.toLowerCase()
-  if (/\b(ml|milliliter|cl|liter|litre|fluid ounce|fl oz|floz)\b/.test(text)) return "ml"
+  if (/\b(ml|milliliter|cl|liter|litre|fluid ounce|fl oz|floz)\b/.test(text))
+    return "ml"
   if (/\b(cup|tbsp|tablespoon|tsp|teaspoon)\b/.test(text)) return "cup"
   if (looksLikeLiquid(text)) return "ml"
   if (/\b(oz|ounce)\b/.test(text)) return "oz"
@@ -408,7 +535,8 @@ export function defaultFoodPortion(
 ): FoodPortion {
   const parsed = parseFoodPortionLabel(label)
   if (parsed) {
-    const genericGramServing = parsed.unit === "g" && /\b100\s*g\b/i.test(label ?? "")
+    const genericGramServing =
+      parsed.unit === "g" && /\b100\s*g\b/i.test(label ?? "")
     if (genericGramServing && looksLikeLiquid(name)) {
       return {
         amount: parsed.amount,
@@ -450,41 +578,278 @@ export const DEFAULT_MEAL_CATEGORIES: MealCategory[] = [
   {
     id: "breakfast",
     label: "Breakfast",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.12)",
+    color: DEFAULT_MEAL_TONES.breakfast.color,
+    bg: DEFAULT_MEAL_TONES.breakfast.bg,
     isDefault: true,
   },
   {
     id: "lunch",
     label: "Lunch",
-    color: "#0ea5e9",
-    bg: "rgba(14,165,233,0.12)",
+    color: DEFAULT_MEAL_TONES.lunch.color,
+    bg: DEFAULT_MEAL_TONES.lunch.bg,
     isDefault: true,
   },
   {
     id: "dinner",
     label: "Dinner",
-    color: "#818cf8",
-    bg: "rgba(129,140,248,0.12)",
+    color: DEFAULT_MEAL_TONES.dinner.color,
+    bg: DEFAULT_MEAL_TONES.dinner.bg,
     isDefault: true,
   },
   {
     id: "snack",
     label: "Snack",
-    color: "#34d399",
-    bg: "rgba(52,211,153,0.12)",
+    color: DEFAULT_MEAL_TONES.snack.color,
+    bg: DEFAULT_MEAL_TONES.snack.bg,
     isDefault: true,
   },
 ]
 
-export const CUSTOM_CATEGORY_COLORS = [
-  { color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
-  { color: "#f97316", bg: "rgba(249,115,22,0.12)" },
-  { color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
-  { color: "#a855f7", bg: "rgba(168,85,247,0.12)" },
-  { color: "#ec4899", bg: "rgba(236,72,153,0.12)" },
-  { color: "#84cc16", bg: "rgba(132,204,22,0.12)" },
-]
+// ─── Smart meal preset helpers ────────────────────────────────────────────────
+
+const MEAL_PRESET_MIN_OCCURRENCES = 2
+
+function normalizeSignatureText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+function signatureNumber(value: unknown, decimals = 1) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return 0
+  const factor = 10 ** decimals
+  return Math.round(number * factor) / factor
+}
+
+function mealSuggestionKey(meal: MealType, signature: string) {
+  return `${meal}:${signature}`
+}
+
+function mealLabel(meal: MealType) {
+  const category = DEFAULT_MEAL_CATEGORIES.find((item) => item.id === meal)
+  if (category) return category.label
+  return String(meal)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function presetId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID()
+  }
+  return `${Date.now()}_${Math.random().toString(36).slice(2)}`
+}
+
+function mealPresetTotalCalories(entries: MealPresetEntry[]) {
+  return entries.reduce(
+    (sum, entry) => sum + signatureNumber(entry.calories, 0),
+    0
+  )
+}
+
+function groupFoodEntriesByMeal(entries: FoodLogEntry[]) {
+  const groups = new Map<MealType, FoodLogEntry[]>()
+  for (const entry of entries) {
+    if (!groups.has(entry.meal)) groups.set(entry.meal, [])
+    groups.get(entry.meal)!.push(entry)
+  }
+  return groups
+}
+
+export function mealEntriesSignature(
+  entries: Array<MealPresetEntry | FoodLogEntry>
+) {
+  if (entries.length === 0) return ""
+
+  return entries
+    .map((entry) =>
+      JSON.stringify({
+        source: entry.source ?? "",
+        code: normalizeSignatureText(entry.foodCode),
+        name: normalizeSignatureText(entry.name),
+        serving: normalizeSignatureText(entry.servingLabel),
+        quantityGrams: signatureNumber(entry.quantityGrams),
+        servingGrams: signatureNumber(entry.servingGrams),
+        calories: signatureNumber(entry.calories, 0),
+        protein: signatureNumber(entry.protein),
+        carbs: signatureNumber(entry.carbs),
+        fat: signatureNumber(entry.fat),
+      })
+    )
+    .sort()
+    .join("|")
+}
+
+export function mealPresetTemplateEntries(
+  entries: Array<FoodLogEntry | MealPresetEntry>
+): MealPresetEntry[] {
+  return entries.map((entry) => {
+    const {
+      _id: _entryId,
+      id: _clientId,
+      loggedAt: _loggedAt,
+      meal: _meal,
+      ...template
+    } = entry as FoodLogEntry
+
+    return stripUndefined(template) as MealPresetEntry
+  })
+}
+
+export function foodLogEntriesFromMealPreset(
+  preset: Pick<MealPreset, "entries" | "meal">,
+  options: { meal?: MealType; loggedAt?: string } = {}
+): FoodLogEntry[] {
+  const loggedAt = options.loggedAt ?? new Date().toISOString()
+  const meal = options.meal ?? preset.meal
+
+  return preset.entries.map(
+    (entry) =>
+      stripUndefined({
+        ...entry,
+        id: presetId(),
+        name: entry.name,
+        calories: signatureNumber(entry.calories, 0),
+        protein: signatureNumber(entry.protein),
+        carbs: signatureNumber(entry.carbs),
+        fat: signatureNumber(entry.fat),
+        loggedAt,
+        meal,
+      }) as FoodLogEntry
+  )
+}
+
+export function findSmartMealPresetSuggestion({
+  recentDays,
+  presets,
+  todayEntries,
+  currentMeal,
+  dismissedKeys = [],
+}: {
+  recentDays: FoodLogDaySnapshot[]
+  presets: MealPreset[]
+  todayEntries: FoodLogEntry[]
+  currentMeal: MealType
+  dismissedKeys?: string[]
+}): SmartMealPresetSuggestion | null {
+  const dismissed = new Set(dismissedKeys)
+  const todayMealSignatures = new Set<string>()
+  const currentMealHasEntries = todayEntries.some(
+    (entry) => entry.meal === currentMeal
+  )
+
+  for (const [meal, entries] of groupFoodEntriesByMeal(todayEntries)) {
+    const signature = mealEntriesSignature(entries)
+    if (signature) todayMealSignatures.add(mealSuggestionKey(meal, signature))
+  }
+
+  const presetsWithSignatures = presets.map((preset) => {
+    const signature =
+      preset.signature ||
+      mealEntriesSignature(mealPresetTemplateEntries(preset.entries))
+    return {
+      ...preset,
+      signature,
+      key: mealSuggestionKey(preset.meal, signature),
+    }
+  })
+
+  const logPreset = currentMealHasEntries
+    ? null
+    : presetsWithSignatures
+        .filter((preset) => preset.meal === currentMeal)
+        .filter((preset) => preset.signature.length > 0)
+        .filter((preset) => !todayMealSignatures.has(preset.key))
+        .sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))[0]
+
+  if (logPreset) {
+    return {
+      kind: "log",
+      key: logPreset.key,
+      meal: logPreset.meal,
+      mealLabel: mealLabel(logPreset.meal),
+      preset: logPreset,
+      signature: logPreset.signature,
+      entries: mealPresetTemplateEntries(logPreset.entries),
+    }
+  }
+
+  const existingPresetKeys = new Set(
+    presetsWithSignatures.map((preset) => preset.key)
+  )
+  const occurrences = new Map<
+    string,
+    {
+      key: string
+      meal: MealType
+      signature: string
+      entries: MealPresetEntry[]
+      count: number
+      latestDate: string
+    }
+  >()
+
+  for (const day of recentDays) {
+    for (const [meal, entries] of groupFoodEntriesByMeal(day.entries)) {
+      const templateEntries = mealPresetTemplateEntries(entries)
+      const signature = mealEntriesSignature(templateEntries)
+      if (!signature) continue
+
+      const key = mealSuggestionKey(meal, signature)
+      const existing = occurrences.get(key)
+      if (!existing) {
+        occurrences.set(key, {
+          key,
+          meal,
+          signature,
+          entries: templateEntries,
+          count: 1,
+          latestDate: day.date,
+        })
+        continue
+      }
+
+      existing.count += 1
+      if (day.date > existing.latestDate) {
+        existing.latestDate = day.date
+        existing.entries = templateEntries
+      }
+    }
+  }
+
+  const repeatedMeal = [...occurrences.values()]
+    .filter((occurrence) => occurrence.count >= MEAL_PRESET_MIN_OCCURRENCES)
+    .filter((occurrence) => !existingPresetKeys.has(occurrence.key))
+    .filter((occurrence) => !dismissed.has(occurrence.key))
+    .sort(
+      (a, b) =>
+        b.latestDate.localeCompare(a.latestDate) ||
+        b.count - a.count ||
+        mealPresetTotalCalories(b.entries) - mealPresetTotalCalories(a.entries)
+    )[0]
+
+  if (!repeatedMeal) return null
+
+  const label = mealLabel(repeatedMeal.meal)
+  return {
+    kind: "save",
+    key: repeatedMeal.key,
+    meal: repeatedMeal.meal,
+    mealLabel: label,
+    name: `Usual ${label}`,
+    signature: repeatedMeal.signature,
+    entries: repeatedMeal.entries,
+    count: repeatedMeal.count,
+    latestDate: repeatedMeal.latestDate,
+  }
+}
+
+export const CUSTOM_CATEGORY_COLORS: Array<{ color: string; bg: string }> =
+  CUSTOM_CATEGORY_TONES.map(({ color, bg }) => ({ color, bg }))
 
 // ─── Custom meal category helpers ────────────────────────────────────────────
 

@@ -31,6 +31,11 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
+import {
+  APP_ACCENT_COLORS,
+  MACRO_COLORS,
+  MICRO_COLORS,
+} from "@/lib/design-tokens"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
@@ -76,10 +81,10 @@ function dominantMacroColor(ing: RecipeIngredient) {
   const cC = ((ing.carbsPer100 * ing.grams) / 100) * 4
   const cF = ((ing.fatPer100 * ing.grams) / 100) * 9
   const max = Math.max(cP, cC, cF)
-  if (max === 0) return "#94a3b8"
-  if (max === cP) return "#60a5fa"
-  if (max === cC) return "#a78bfa"
-  return "#fb923c"
+  if (max === 0) return APP_ACCENT_COLORS.neutral
+  if (max === cP) return MACRO_COLORS.protein
+  if (max === cC) return MACRO_COLORS.carbs
+  return MACRO_COLORS.fat
 }
 
 function normalizeSearchText(value: string): string {
@@ -194,126 +199,126 @@ const MICRO_FIELDS: {
     per100Key: "fiberPer100",
     label: "Fiber",
     unit: "g",
-    color: "#22c55e",
+    color: MICRO_COLORS.fiber,
   },
   {
     key: "sugar",
     per100Key: "sugarPer100",
     label: "Sugar",
     unit: "g",
-    color: "#f59e0b",
+    color: MICRO_COLORS.sugar,
   },
   {
     key: "saturatedFat",
     per100Key: "saturatedFatPer100",
     label: "Sat. fat",
     unit: "g",
-    color: "#fb7185",
+    color: MICRO_COLORS.saturatedFat,
   },
   {
     key: "transFat",
     per100Key: "transFatPer100",
     label: "Trans fat",
     unit: "g",
-    color: "#f43f5e",
+    color: MICRO_COLORS.transFat,
   },
   {
     key: "cholesterol",
     per100Key: "cholesterolPer100",
     label: "Cholesterol",
     unit: "mg",
-    color: "#f97316",
+    color: MICRO_COLORS.cholesterol,
   },
   {
     key: "sodium",
     per100Key: "sodiumPer100",
     label: "Sodium",
     unit: "mg",
-    color: "#38bdf8",
+    color: MICRO_COLORS.sodium,
   },
   {
     key: "potassium",
     per100Key: "potassiumPer100",
     label: "Potassium",
     unit: "mg",
-    color: "#34d399",
+    color: MICRO_COLORS.potassium,
   },
   {
     key: "calcium",
     per100Key: "calciumPer100",
     label: "Calcium",
     unit: "mg",
-    color: "#60a5fa",
+    color: MICRO_COLORS.calcium,
   },
   {
     key: "iron",
     per100Key: "ironPer100",
     label: "Iron",
     unit: "mg",
-    color: "#a78bfa",
+    color: MICRO_COLORS.iron,
   },
   {
     key: "magnesium",
     per100Key: "magnesiumPer100",
     label: "Magnesium",
     unit: "mg",
-    color: "#2dd4bf",
+    color: MICRO_COLORS.magnesium,
   },
   {
     key: "phosphorus",
     per100Key: "phosphorusPer100",
     label: "Phosphorus",
     unit: "mg",
-    color: "#818cf8",
+    color: MICRO_COLORS.phosphorus,
   },
   {
     key: "zinc",
     per100Key: "zincPer100",
     label: "Zinc",
     unit: "mg",
-    color: "#eab308",
+    color: MICRO_COLORS.zinc,
   },
   {
     key: "vitaminC",
     per100Key: "vitaminCPer100",
     label: "Vitamin C",
     unit: "mg",
-    color: "#facc15",
+    color: MICRO_COLORS.vitaminC,
   },
   {
     key: "vitaminA",
     per100Key: "vitaminAPer100",
     label: "Vitamin A",
     unit: "mcg",
-    color: "#fb923c",
+    color: MICRO_COLORS.vitaminA,
   },
   {
     key: "vitaminD",
     per100Key: "vitaminDPer100",
     label: "Vitamin D",
     unit: "mcg",
-    color: "#fbbf24",
+    color: MICRO_COLORS.vitaminD,
   },
   {
     key: "vitaminB12",
     per100Key: "vitaminB12Per100",
     label: "Vitamin B12",
     unit: "mcg",
-    color: "#c084fc",
+    color: MICRO_COLORS.vitaminB12,
   },
   {
     key: "caffeine",
     per100Key: "caffeinePer100",
     label: "Caffeine",
     unit: "mg",
-    color: "#94a3b8",
+    color: MICRO_COLORS.caffeine,
   },
   {
     key: "alcohol",
     per100Key: "alcoholPer100",
     label: "Alcohol",
     unit: "g",
-    color: "#f87171",
+    color: MICRO_COLORS.alcohol,
   },
 ]
 
@@ -385,9 +390,9 @@ const RING_CIRC = 2 * Math.PI * RING_R
 const RING_GAP = 3.5
 
 const MACRO_ARCS = [
-  { key: "protein" as const, color: "#60a5fa", kcalPerG: 4 },
-  { key: "carbs" as const, color: "#a78bfa", kcalPerG: 4 },
-  { key: "fat" as const, color: "#fb923c", kcalPerG: 9 },
+  { key: "protein" as const, color: MACRO_COLORS.protein, kcalPerG: 4 },
+  { key: "carbs" as const, color: MACRO_COLORS.carbs, kcalPerG: 4 },
+  { key: "fat" as const, color: MACRO_COLORS.fat, kcalPerG: 9 },
 ]
 
 function MacroRing({
@@ -561,9 +566,13 @@ function IngredientCard({
                 {ingredient.name}
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <MacroPill label="P" value={protein} color="#60a5fa" />
-                <MacroPill label="C" value={carbs} color="#a78bfa" />
-                <MacroPill label="F" value={fat} color="#f59e0b" />
+                <MacroPill
+                  label="P"
+                  value={protein}
+                  color={MACRO_COLORS.protein}
+                />
+                <MacroPill label="C" value={carbs} color={MACRO_COLORS.carbs} />
+                <MacroPill label="F" value={fat} color={MACRO_COLORS.fat} />
               </div>
             </div>
 
@@ -731,9 +740,13 @@ function RecipeSummary({
           </div>
 
           {[
-            { key: "protein" as const, label: "P", color: "#60a5fa" },
-            { key: "carbs" as const, label: "C", color: "#a78bfa" },
-            { key: "fat" as const, label: "F", color: "#fb923c" },
+            {
+              key: "protein" as const,
+              label: "P",
+              color: MACRO_COLORS.protein,
+            },
+            { key: "carbs" as const, label: "C", color: MACRO_COLORS.carbs },
+            { key: "fat" as const, label: "F", color: MACRO_COLORS.fat },
           ].map(({ key, label, color }) => {
             const value = totals[key]
             return (
@@ -847,6 +860,7 @@ function SearchOverlay({
   const [added, setAdded] = useState<AddedState | null>(null)
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
+  const preferences = useQuery(api.users.users.getPreferences)
 
   useEffect(() => {
     const q = query.trim()
@@ -861,7 +875,11 @@ function SearchOverlay({
     debounceRef.current = setTimeout(async () => {
       setDebouncedQuery(q)
       try {
-        const results = await searchFoods(q, 50)
+        const results = await searchFoods(
+          q,
+          50,
+          preferences?.foodSearchLanguage ?? "en"
+        )
         setSearchResults(results ?? [])
         setSearchState("done")
       } catch {
@@ -872,7 +890,7 @@ function SearchOverlay({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query])
+  }, [query, preferences?.foodSearchLanguage])
 
   const results = useMemo(
     () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
@@ -1060,17 +1078,17 @@ function SearchOverlay({
                               <MacroPill
                                 label="P"
                                 value={Number(item.protein)}
-                                color="#60a5fa"
+                                color={MACRO_COLORS.protein}
                               />
                               <MacroPill
                                 label="C"
                                 value={Number(item.carbs)}
-                                color="#a78bfa"
+                                color={MACRO_COLORS.carbs}
                               />
                               <MacroPill
                                 label="F"
                                 value={Number(item.fat)}
-                                color="#f59e0b"
+                                color={MACRO_COLORS.fat}
                               />
                             </div>
                           </div>
@@ -1112,8 +1130,8 @@ function SearchOverlay({
             `Add ${foodPortionLabel(portion)} to recipe`
           }
           addedLabel={() => "✓ Added to recipe"}
-          onAdd={(item, grams, micros, _meal, detail, portion) => {
-            handleAdd(item, grams, micros, detail, portion)
+          onAdd={(_item, grams, micros, _meal, detail, portion) => {
+            handleAdd(detailItem, grams, micros, detail ?? detailItem, portion)
           }}
           onClose={() => setDetailItem(null)}
         />
@@ -1125,7 +1143,10 @@ function SearchOverlay({
 function CalorieBadge({ calories }: { calories: number }) {
   return (
     <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-muted/60 text-center">
-      <div className="flex items-center gap-0.5 text-orange-400/80">
+      <div
+        className="flex items-center gap-0.5"
+        style={{ color: APP_ACCENT_COLORS.food }}
+      >
         <Fire size={13} weight="fill" />
         <span className="text-[13px] leading-none font-semibold tabular-nums">
           {Math.round(calories)}
@@ -1247,29 +1268,33 @@ export default function NewRecipe() {
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
           {/* ── Header ────────────────────────────────────────────────── */}
           <header
-            className="flex items-center gap-3 px-4 pb-4"
+            className="flex items-center gap-3 px-4 pb-4 md:px-8"
             style={{
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
             <button
               onClick={() => navigate(-1)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+              className="app-icon-button"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
 
-            <p className="flex-1 text-[10px] font-semibold tracking-[0.22em] text-muted-foreground/40 uppercase">
+            <p className="app-eyebrow flex-1 text-muted-foreground/55">
               {initial ? "Edit Recipe" : "New Recipe"}
             </p>
 
             <button
               onClick={handleSave}
               disabled={!canSave || saved}
-              className="flex h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[12px] font-semibold text-background transition-all active:scale-[0.985] active:opacity-75 disabled:opacity-25"
+              className="app-button app-button-primary h-10 px-4 text-[12px] disabled:opacity-25"
             >
               {saved ? (
-                <Check size={12} weight="bold" className="text-green-400" />
+                <Check
+                  size={12}
+                  weight="bold"
+                  style={{ color: APP_ACCENT_COLORS.complete }}
+                />
               ) : (
                 <Check size={11} weight="bold" />
               )}
@@ -1278,13 +1303,13 @@ export default function NewRecipe() {
           </header>
 
           {/* ── Recipe name ─────────────────────────────────────────────── */}
-          <div className="px-5 pb-5">
+          <div className="px-5 pb-5 md:px-8">
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Untitled Recipe"
-              className="min-h-12 w-full bg-transparent text-[2rem] leading-[1.12] font-bold tracking-[-0.025em] text-foreground outline-none placeholder:text-foreground/18"
+              className="app-display min-h-12 w-full bg-transparent text-[2.1rem] text-foreground outline-none placeholder:text-foreground/18"
             />
             {/* Ruler line — always visible, like a recipe card */}
             <div className="mt-3 h-px bg-border/50" />
@@ -1300,7 +1325,7 @@ export default function NewRecipe() {
 
           {/* ── Ingredient list ─────────────────────────────────────────── */}
           <div
-            className="flex-1 overflow-y-auto px-4 [&::-webkit-scrollbar]:hidden"
+            className="flex-1 overflow-y-auto px-4 md:px-8 [&::-webkit-scrollbar]:hidden"
             style={{
               paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
             }}
@@ -1310,7 +1335,7 @@ export default function NewRecipe() {
             ) : (
               <>
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/35 uppercase">
+                  <span className="app-eyebrow text-muted-foreground/45">
                     Ingredients
                   </span>
                   <span className="text-[10px] text-muted-foreground/30">
@@ -1358,7 +1383,7 @@ export default function NewRecipe() {
                 {/* Add ingredient button */}
                 <button
                   onClick={() => setSearchOpen(true)}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 py-3.5 text-[13px] font-semibold text-muted-foreground/55 transition-colors active:bg-muted/25"
+                  className="app-empty mt-3 w-full justify-center py-3.5 text-[13px] font-semibold transition-colors active:bg-muted/25"
                 >
                   <Plus size={13} className="text-muted-foreground/35" />
                   Add ingredient

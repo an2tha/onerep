@@ -13,7 +13,7 @@ A personal fitness and nutrition tracking mobile application built with React, C
 
 - **Mobile App**: React 19, Ionic, React Router v7, Tailwind CSS v4
 - **Backend**: Convex (serverless functions + database)
-- **Authentication**: Better Auth via Convex
+- **Authentication**: Clerk with Convex auth
 - **UI Components**: Radix UI primitives, shadcn/ui
 - **Build Tool**: Vite, Bun
 - **Platform**: Capacitor (iOS/Android)

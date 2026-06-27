@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalMutation } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser } from "../lib/auth";
 
 const MAX_SNAPS_PER_DAY = 10;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
@@ -121,7 +121,7 @@ export const snap = action({
     mimeType: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const apiKey = process.env.OPENAI_API_KEY;

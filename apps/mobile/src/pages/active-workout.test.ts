@@ -34,7 +34,19 @@ type MappedSet = {
 type ExerciseLog = {
   id: string
   name: string
+  category?: string
   sets: MappedSet[]
+  cardio?: {
+    distanceMeters?: number
+    distanceUnit?: "km" | "mi"
+    durationSeconds?: number
+    paceSecondsPerKm?: number
+    avgHeartRateBpm?: number
+    maxHeartRateBpm?: number
+    heartRateZones?: Record<string, number>
+    route?: { name?: string; url?: string }
+    source?: { provider: string; name?: string; externalId?: string }
+  }
 }
 
 // ─── Mirrors of the changed handleFinish logic ─────────────────────────────────
@@ -50,12 +62,21 @@ function mapSets(rawSets: RawSet[]): MappedSet[] {
     }))
 }
 
-function mapExercise(id: string, name: string, rawSets: RawSet[]): ExerciseLog {
-  return {
+function mapExercise(
+  id: string,
+  name: string,
+  rawSets: RawSet[],
+  category = "strength",
+  cardio?: ExerciseLog["cardio"]
+): ExerciseLog {
+  const log: ExerciseLog = {
     id,
     name,
-    sets: mapSets(rawSets),
+    category,
+    sets: category === "cardio" ? [] : mapSets(rawSets),
   }
+  if (cardio) log.cardio = cardio
+  return log
 }
 
 // ─── Set filtering ─────────────────────────────────────────────────────────────
@@ -148,7 +169,9 @@ describe("handleFinish – weight parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("non-numeric string weight falls back to 0", () => {
-    const sets: RawSet[] = [{ weight: "bodyweight" as any, reps: 8, completed: true }]
+    const sets: RawSet[] = [
+      { weight: "bodyweight" as any, reps: 8, completed: true },
+    ]
     expect(mapSets(sets)[0].weight).toBe(0)
   })
 
@@ -180,7 +203,9 @@ describe("handleFinish – reps parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("non-numeric string reps falls back to 0", () => {
-    const sets: RawSet[] = [{ weight: 80, reps: "AMRAP" as any, completed: true }]
+    const sets: RawSet[] = [
+      { weight: 80, reps: "AMRAP" as any, completed: true },
+    ]
     expect(mapSets(sets)[0].reps).toBe(0)
   })
 })
@@ -200,13 +225,17 @@ describe("handleFinish – mapped set shape", () => {
   })
 
   test("mapped set does NOT include leftReps field", () => {
-    const sets: RawSet[] = [{ weight: 80, leftReps: 10, rightReps: 10, completed: true }]
+    const sets: RawSet[] = [
+      { weight: 80, leftReps: 10, rightReps: 10, completed: true },
+    ]
     const mapped = mapSets(sets)[0] as any
     expect(mapped.leftReps).toBeUndefined()
   })
 
   test("mapped set does NOT include rightReps field", () => {
-    const sets: RawSet[] = [{ weight: 80, leftReps: 10, rightReps: 10, completed: true }]
+    const sets: RawSet[] = [
+      { weight: 80, leftReps: 10, rightReps: 10, completed: true },
+    ]
     const mapped = mapSets(sets)[0] as any
     expect(mapped.rightReps).toBeUndefined()
   })
@@ -228,7 +257,9 @@ describe("handleFinish – mapped set shape", () => {
 
 describe("handleFinish – exercise log shape", () => {
   test("exercise log uses 'id' field (not 'exerciseId')", () => {
-    const log = mapExercise("ex-123", "Squat", [{ weight: 100, reps: 5, completed: true }])
+    const log = mapExercise("ex-123", "Squat", [
+      { weight: 100, reps: 5, completed: true },
+    ])
     expect(log.id).toBe("ex-123")
     expect((log as any).exerciseId).toBeUndefined()
   })
@@ -261,14 +292,57 @@ describe("handleFinish – exercise log shape", () => {
     const sets: RawSet[] = [
       { weight: 100, reps: 5, completed: true },
       { weight: 100, reps: 4, completed: true },
-      { weight: 90,  reps: 5, completed: false },
+      { weight: 90, reps: 5, completed: false },
     ]
     const log = mapExercise("ex-deadlift", "Deadlift", sets)
     expect(log.id).toBe("ex-deadlift")
     expect(log.name).toBe("Deadlift")
     expect(log.sets).toHaveLength(2)
-    expect(log.sets[0]).toEqual({ type: "normal", weight: 100, reps: 5, completed: true })
-    expect(log.sets[1]).toEqual({ type: "normal", weight: 100, reps: 4, completed: true })
+    expect(log.sets[0]).toEqual({
+      type: "normal",
+      weight: 100,
+      reps: 5,
+      completed: true,
+    })
+    expect(log.sets[1]).toEqual({
+      type: "normal",
+      weight: 100,
+      reps: 4,
+      completed: true,
+    })
+  })
+
+  test("cardio exercise log includes normalized cardio details and no strength sets", () => {
+    const log = mapExercise("run-5k", "Zone 2 Run", [], "cardio", {
+      distanceMeters: 5000,
+      distanceUnit: "km",
+      durationSeconds: 1800,
+      paceSecondsPerKm: 360,
+      avgHeartRateBpm: 142,
+      heartRateZones: {
+        zone2Seconds: 1200,
+        zone3Seconds: 600,
+      },
+      route: {
+        name: "Park loop",
+        url: "https://example.com/routes/park-loop",
+      },
+      source: {
+        provider: "strava",
+        name: "Morning Run",
+        externalId: "strava-123",
+      },
+    })
+
+    expect(log.category).toBe("cardio")
+    expect(log.sets).toEqual([])
+    expect(log.cardio).toMatchObject({
+      distanceMeters: 5000,
+      durationSeconds: 1800,
+      paceSecondsPerKm: 360,
+      avgHeartRateBpm: 142,
+      source: { provider: "strava", externalId: "strava-123" },
+    })
   })
 })
 

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Option 05 — Coach Queue</title>
+  <style>
+    :root {
+      --bg: #efe7dd;
+      --ink: #251d19;
+      --muted: #74665d;
+      --card: #fffaf2;
+      --line: rgba(37,29,25,.14);
+      --clay: #9b4f34;
+      --clay-dark: #5a2d23;
+      --cream: #fff4df;
+      --green: #4f6c45;
+      --blue: #557684;
+      --warning: #9f6a25;
+      --danger: #a24634;
+      --focus: #251d19;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; background: radial-gradient(circle at 14% 4%, rgba(255,250,242,.95), transparent 30rem), linear-gradient(180deg, #f7efe5, var(--bg)); color: var(--ink); font-family: "Avenir Next", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    .option-label { position: fixed; top: 12px; right: 12px; z-index: 6; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,250,242,.86); color: var(--muted); padding: 7px 10px; font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; backdrop-filter: blur(8px); }
+    .app { width: min(100%, 460px); margin: 0 auto; min-height: 100svh; padding: max(24px, env(safe-area-inset-top)) 14px 24px; }
+    header { padding: 14px 4px 16px; }
+    .date { margin: 0; color: var(--muted); font-size: 12px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+    h1 { margin: 12px 0 0; font-family: "Arial Rounded MT Bold", "Avenir Next", ui-sans-serif, system-ui; font-size: clamp(36px, 10vw, 50px); line-height: .92; letter-spacing: -.055em; }
+    .score { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: end; padding: 18px; border: 1px solid var(--line); border-radius: 28px; background: var(--clay-dark); color: var(--cream); box-shadow: 0 26px 80px rgba(89,45,35,.2); }
+    .score span { display: block; color: rgba(255,244,223,.7); font-size: 11px; font-weight: 950; letter-spacing: .13em; text-transform: uppercase; }
+    .score b { display: block; margin-top: 10px; font-family: Georgia, serif; font-size: 76px; line-height: .78; letter-spacing: -.08em; }
+    .score small { color: rgba(255,244,223,.72); font-size: 13px; font-weight: 850; }
+    .ring { width: 92px; height: 92px; border-radius: 50%; background: conic-gradient(var(--cream) 0 70%, rgba(255,244,223,.22) 70% 100%); display: grid; place-items: center; }
+    .ring i { width: 66px; height: 66px; border-radius: 50%; background: var(--clay-dark); display: grid; place-items: center; color: var(--cream); font-style: normal; font-size: 12px; font-weight: 950; text-align: center; line-height: 1.05; }
+    .queue { margin-top: 14px; border: 1px solid var(--line); border-radius: 30px; overflow: hidden; background: var(--card); box-shadow: 0 18px 60px rgba(89,45,35,.09); }
+    .queue-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .queue-head h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+    .queue-head span { color: var(--muted); font-size: 12px; font-weight: 850; }
+    .task { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); min-height: 72px; }
+    .task:last-child { border-bottom: 0; }
+    .mark { width: 38px; height: 38px; border-radius: 15px; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); font-size: 17px; font-weight: 950; background: rgba(37,29,25,.03); }
+    .task.done .mark { background: rgba(79,108,69,.13); color: var(--green); border-color: rgba(79,108,69,.24); }
+    .task.hot .mark { background: var(--clay); color: white; border-color: var(--clay); }
+    .task.sync .mark { background: rgba(85,118,132,.12); color: var(--blue); }
+    .copy { min-width: 0; }
+    .copy b { display: block; font-size: 15px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .copy small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.25; }
+    .task button { min-height: 40px; border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--ink); padding: 0 12px; font-size: 12px; font-weight: 950; white-space: nowrap; }
+    .task.hot button { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+    .metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px; }
+    .metric { border: 1px solid var(--line); border-radius: 22px; background: rgba(255,250,242,.72); padding: 14px; min-height: 94px; }
+    .metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .11em; }
+    .metric b { display: block; margin-top: 14px; font-family: Georgia, serif; font-size: 27px; line-height: .85; letter-spacing: -.06em; }
+    .metric small { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .toast { margin-top: 12px; padding: 12px 14px; border: 1px solid rgba(85,118,132,.22); border-radius: 18px; color: #355766; background: rgba(85,118,132,.1); font-size: 13px; line-height: 1.35; font-weight: 750; }
+    @media (min-width: 900px) { .app { width: min(100% - 54px, 980px); display: grid; grid-template-columns: 330px 1fr; grid-template-rows: auto auto; gap: 20px 28px; padding-top: 60px; } header { grid-row: 1/4; position: sticky; top: 60px; align-self: start; } h1 { font-size: 64px; } .score { grid-column: 2; } .queue { grid-column: 2; } .metrics, .toast { grid-column: 2; } }
+    @media (max-width: 380px) { .task { grid-template-columns: 34px minmax(0,1fr); } .task button { grid-column: 2; justify-self: start; } .metrics { grid-template-columns: 1fr; } }
+    @media (prefers-reduced-motion: no-preference) { .score, .queue, .metric { animation: pop .45s ease both; } .queue { animation-delay: .07s; } .metric:nth-child(2) { animation-delay: .1s; } .metric:nth-child(3) { animation-delay: .14s; } @keyframes pop { from { opacity: 0; transform: translateY(12px) scale(.99); } } }
+  </style>
+</head>
+<body>
+  <div class="option-label">Option 05 — Coach Queue</div>
+  <main class="app">
+    <header>
+      <p class="date">Sat, Jun 27</p>
+      <h1>Good afternoon, Ananth.</h1>
+    </header>
+
+    <section class="score" aria-label="Daily score">
+      <div><span>Fuel remaining</span><b>663</b><small>kcal left after lunch</small></div>
+      <div class="ring" aria-label="70 percent of calories used"><i>70%<br>used</i></div>
+    </section>
+
+    <section class="queue" aria-label="Today action queue">
+      <div class="queue-head"><h2>Next best actions</h2><span>4 open</span></div>
+      <div class="task hot"><div class="mark">1</div><span class="copy"><b>Log dinner</b><small>Search, scan, or repeat a recent meal</small></span><button type="button">Open</button></div>
+      <div class="task"><div class="mark">2</div><span class="copy"><b>Add water</b><small>1,250 ml of 2,500 ml · one glass helps</small></span><button type="button">+250</button></div>
+      <div class="task"><div class="mark">3</div><span class="copy"><b>Upper Strength is ready</b><small>6 exercises · no active workout</small></span><button type="button">Start</button></div>
+      <div class="task sync"><div class="mark">!</div><span class="copy"><b>Review chicken bowl sodium</b><small>Open Food Facts estimate; calories saved</small></span><button type="button">Review</button></div>
+      <div class="task done"><div class="mark">✓</div><span class="copy"><b>Creatine logged</b><small>5g at 07:55</small></span><button type="button">Edit</button></div>
+    </section>
+
+    <section class="metrics" aria-label="Status metrics">
+      <div class="metric"><span>Water</span><b>1.25L</b><small>halfway</small></div>
+      <div class="metric"><span>Food</span><b>1,537</b><small>kcal eaten</small></div>
+      <div class="metric"><span>Training</span><b>Ready</b><small>Upper</small></div>
+    </section>
+    <p class="toast">One water entry is queued locally. It will sync when the connection settles.</p>
+  </main>
+</body>
+</html>

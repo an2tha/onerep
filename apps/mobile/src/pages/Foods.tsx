@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
@@ -27,19 +28,37 @@ import {
   FOOD_MICRONUTRIENT_KEYS,
   currentDateKey,
   defaultMeal,
+  findSmartMealPresetSuggestion,
+  foodLogEntriesFromMealPreset,
   type FoodLogEntry,
+  type MealPreset,
   type Recipe,
   type RecipeIngredient,
   DEFAULT_MEAL_CATEGORIES,
   nutritionDetailTotals,
   type FoodMicronutrientKey,
+  type SmartMealPresetSuggestion,
 } from "@/lib/food-log"
+import {
+  SUPPLEMENT_NUTRIENT_DETAILS,
+  SUPPLEMENT_SUMMARY_NUTRIENT_KEYS,
+  mergeNutritionTotals,
+  type NutritionSummaryKey,
+  type SupplementNutrients,
+} from "@/lib/supplements"
 import {
   filledWaterGlassCount,
   waterAmountNeededForGlass,
   WATER_GLASS_COUNT,
   waterGlassTargetMl,
 } from "@/lib/water-glasses"
+import {
+  APP_ACCENT_COLORS,
+  MACRO_COLORS,
+  MACRO_TONES,
+  MICRO_COLORS,
+  tint,
+} from "@/lib/design-tokens"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -79,11 +98,11 @@ function fmtKcal(n: number) {
   return new Intl.NumberFormat("en-US").format(Math.round(n))
 }
 
-const MACRO_COLOR = {
-  protein: { solid: "#f59e0b", bg: "rgba(245,158,11,0.13)" },
-  carbs: { solid: "#38bdf8", bg: "rgba(56,189,248,0.13)" },
-  fat: { solid: "#a78bfa", bg: "rgba(167,139,250,0.13)" },
-}
+const MACRO_COLOR = MACRO_TONES
+const WATER_COLOR = APP_ACCENT_COLORS.water
+const WATER_BG = tint(WATER_COLOR, 13)
+const DANGER_COLOR = APP_ACCENT_COLORS.danger
+const CAUTION_COLOR = APP_ACCENT_COLORS.caution
 
 function SectionHeader({
   title,
@@ -95,11 +114,11 @@ function SectionHeader({
   action?: React.ReactNode
 }) {
   return (
-    <div className="mb-2.5 flex items-end justify-between gap-3">
+    <div className="app-section-header">
       <div>
-        <h2 className="text-[13px] font-semibold tracking-[0.01em]">{title}</h2>
+        <h2 className="app-section-title">{title}</h2>
         {sub && (
-          <p className="mt-0.5 text-[11px] text-muted-foreground/60">{sub}</p>
+          <p className="app-section-subtitle">{sub}</p>
         )}
       </div>
       {action}
@@ -117,38 +136,39 @@ function FoodActionRow({
   onSnap: () => void
 }) {
   return (
-    <section className="grid w-full grid-cols-[minmax(0,1fr)_3rem_3rem] gap-2 px-4 pb-3 md:px-6 short-phone:gap-1.5 short-phone:pb-2">
-      <button
-        type="button"
-        onClick={onSearch}
-        className="flex min-h-11 min-w-0 items-center gap-3 rounded-[18px] border border-border/60 bg-card px-3.5 text-left text-foreground transition-transform active:scale-[0.985] short-phone:min-h-10"
-      >
-        <MagnifyingGlass size={17} weight="bold" className="shrink-0" />
-        <span className="min-w-0">
-          <span className="block truncate text-[14px] font-semibold">
-            Search food
+    <section className="px-4 pb-4 md:px-8 short-phone:pb-3">
+      <div className="food-search-shell flex min-h-12 items-center gap-1.5 px-2 py-1.5 short-phone:min-h-11">
+        <button
+          type="button"
+          onClick={onSearch}
+          className="motion-pressable flex min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 py-2.5 text-left active:bg-foreground/[0.045]"
+        >
+          <MagnifyingGlass
+            size={16}
+            weight="bold"
+            className="shrink-0 text-muted-foreground/55"
+          />
+          <span className="truncate text-[14px] font-medium text-muted-foreground/72">
+            Search foods
           </span>
-          <span className="block truncate text-[11px] text-muted-foreground/60">
-            Name, brand, meal
-          </span>
-        </span>
-      </button>
-      <button
-        type="button"
-        onClick={onScan}
-        className="flex min-h-11 w-12 items-center justify-center rounded-[18px] border border-border/60 bg-card text-muted-foreground transition-colors active:bg-muted/70 short-phone:min-h-10"
-        aria-label="Scan barcode"
-      >
-        <Barcode size={18} weight="bold" />
-      </button>
-      <button
-        type="button"
-        onClick={onSnap}
-        className="flex min-h-11 w-12 items-center justify-center rounded-[18px] border border-border/60 bg-card text-muted-foreground transition-colors active:bg-muted/70 short-phone:min-h-10"
-        aria-label="Snap meal"
-      >
-        <Aperture size={18} weight="bold" />
-      </button>
+        </button>
+        <button
+          type="button"
+          onClick={onScan}
+          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/65"
+          aria-label="Scan barcode"
+        >
+          <Barcode size={17} weight="bold" />
+        </button>
+        <button
+          type="button"
+          onClick={onSnap}
+          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/65"
+          aria-label="Snap meal"
+        >
+          <Aperture size={17} weight="bold" />
+        </button>
+      </div>
     </section>
   )
 }
@@ -162,69 +182,20 @@ function SwipeRow({
   entry: FoodLogEntry
   onDelete: () => void
 }) {
-  const [tx, setTx] = React.useState(0)
-  const startX = React.useRef(0)
-  const txRef = React.useRef(0)
-  const dragging = React.useRef(false)
-  const ACTION_WIDTH = 72
-
-  function setTranslate(next: number) {
-    txRef.current = next
-    setTx(next)
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    startX.current = e.clientX
-    dragging.current = true
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging.current) return
-    setTranslate(
-      Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current))
-    )
-  }
-
-  function onPointerUp() {
-    dragging.current = false
-    setTranslate(txRef.current <= -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0)
-  }
-
-  const revealed = tx <= -ACTION_WIDTH
-
   return (
-    <div className="relative overflow-hidden">
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={onDelete}
-        disabled={!revealed}
-        tabIndex={revealed ? 0 : -1}
-        aria-label={`Delete ${entry.name}`}
-        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive/90 text-white transition-opacity disabled:pointer-events-none disabled:opacity-0"
-        style={{ borderRadius: "0 8px 8px 0" }}
-      >
-        <Trash size={14} weight="fill" className="text-white" />
-      </button>
-
-      {/* The row itself */}
-      <div
-        className="relative flex touch-pan-y items-center gap-2 bg-card py-[5px] transition-transform duration-150 ease-out"
-        style={{ transform: `translateX(${tx}px)` }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
-          {entry.name}
-        </p>
-        <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
-          {entry.calories}
-        </span>
-      </div>
-    </div>
+    <SlideToDeleteRow
+      deleteLabel={`Delete ${entry.name}`}
+      onDelete={onDelete}
+      actionClassName="rounded-r-lg"
+      rowClassName="flex items-center gap-2 bg-card py-[5px]"
+    >
+      <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
+        {entry.name}
+      </p>
+      <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
+        {entry.calories}
+      </span>
+    </SlideToDeleteRow>
   )
 }
 
@@ -339,9 +310,12 @@ function TodayDiaryCard({
   onDelete: (index: number) => void
 }) {
   return (
-    <div className="rounded-[18px] border border-border/50 bg-card px-4 py-3.5">
+    <div
+      className="app-rail-surface px-4 py-3.5"
+      style={{ "--rail-color": "var(--accent-food)" } as React.CSSProperties}
+    >
       <div className="mb-3 flex items-baseline justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="app-eyebrow">
           Today
         </p>
         <span className="text-[11px] text-muted-foreground/35 tabular-nums">
@@ -349,15 +323,119 @@ function TodayDiaryCard({
         </span>
       </div>
       {entries.length === 0 ? (
-        <div className="flex items-center gap-2 py-2">
+        <div className="app-empty py-3">
           <ForkKnife size={13} className="text-muted-foreground/20" />
           <p className="text-[12px] text-muted-foreground/35">
-            Nothing logged yet — tap + to add
+            No food logged. Search, scan, or snap a meal.
           </p>
         </div>
       ) : (
         <DiaryEntries entries={entries} dateKey={dateKey} onDelete={onDelete} />
       )}
+    </div>
+  )
+}
+
+// ─── Smart meal preset card ───────────────────────────────────────────────────
+
+function mealPresetTotals(entries: SmartMealPresetSuggestion["entries"]) {
+  return entries.reduce(
+    (acc, entry) => {
+      acc.calories += Number(entry.calories) || 0
+      acc.protein += Number(entry.protein) || 0
+      acc.carbs += Number(entry.carbs) || 0
+      acc.fat += Number(entry.fat) || 0
+      return acc
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  )
+}
+
+function mealPresetItemSummary(entries: SmartMealPresetSuggestion["entries"]) {
+  const names = entries.map((entry) => entry.name).filter(Boolean)
+  if (names.length <= 2) return names.join(", ")
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`
+}
+
+function SmartMealPresetCard({
+  suggestion,
+  onSave,
+  onLog,
+  onDismiss,
+  busy,
+}: {
+  suggestion: SmartMealPresetSuggestion
+  onSave: () => void
+  onLog: () => void
+  onDismiss: () => void
+  busy: boolean
+}) {
+  const totals = mealPresetTotals(suggestion.entries)
+  const summary = mealPresetItemSummary(suggestion.entries)
+  const meal = suggestion.mealLabel.toLowerCase()
+  const isSave = suggestion.kind === "save"
+  const fallbackName =
+    suggestion.kind === "save" ? suggestion.name : suggestion.preset.name
+
+  return (
+    <div
+      className="app-rail-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3"
+      style={{ "--rail-color": "var(--accent-food)" } as React.CSSProperties}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-muted/55">
+          {isSave ? (
+            <BookBookmark size={15} className="text-muted-foreground/55" />
+          ) : (
+            <ForkKnife size={15} className="text-muted-foreground/55" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] leading-snug font-semibold">
+            {isSave ? `Save usual ${meal}` : `Log usual ${meal}`}
+          </p>
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
+            {summary || fallbackName}
+          </p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="text-[10.5px] font-semibold text-muted-foreground/55 tabular-nums">
+              {Math.round(totals.calories)} kcal
+            </span>
+            <span className="text-[10.5px] text-muted-foreground/40 tabular-nums">
+              P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
+              {Math.round(totals.fat)}g
+            </span>
+            {suggestion.kind === "save" && (
+              <span className="text-[10.5px] text-muted-foreground/35 tabular-nums">
+                {suggestion.count}x recently
+              </span>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss smart meal suggestion"
+          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45"
+        >
+          <X size={10} weight="bold" />
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={isSave ? onSave : onLog}
+        disabled={busy}
+        className="mt-3 flex min-h-10 w-full items-center justify-center rounded-xl bg-foreground px-3 text-[12.5px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-55"
+      >
+        {busy
+          ? isSave
+            ? "Saving..."
+            : "Logging..."
+          : isSave
+            ? "Save as preset"
+            : `Log usual ${meal}`}
+      </button>
     </div>
   )
 }
@@ -399,10 +477,12 @@ function HistorySheet({ onClose }: { onClose: () => void }) {
 
 function StatsBar({
   entries,
+  supplementTotals,
   goals,
   loading,
 }: {
   entries: FoodLogEntry[]
+  supplementTotals: SupplementNutrients
   goals: GoalOverride
   loading: boolean
 }) {
@@ -413,10 +493,18 @@ function StatsBar({
     return () => clearTimeout(t)
   }, [loading])
 
-  const consumed = entries.reduce((s, e) => s + e.calories, 0)
-  const protein = entries.reduce((s, e) => s + (e.protein || 0), 0)
-  const carbs = entries.reduce((s, e) => s + (e.carbs || 0), 0)
-  const fat = entries.reduce((s, e) => s + (e.fat || 0), 0)
+  const consumed =
+    entries.reduce((s, e) => s + e.calories, 0) +
+    (supplementTotals.calories ?? 0)
+  const protein =
+    entries.reduce((s, e) => s + (e.protein || 0), 0) +
+    (supplementTotals.protein ?? 0)
+  const carbs =
+    entries.reduce((s, e) => s + (e.carbs || 0), 0) +
+    (supplementTotals.carbs ?? 0)
+  const fat =
+    entries.reduce((s, e) => s + (e.fat || 0), 0) +
+    (supplementTotals.fat ?? 0)
   const calPct =
     goals.calories > 0 ? Math.min(100, (consumed / goals.calories) * 100) : 0
   const over = consumed > goals.calories
@@ -434,7 +522,7 @@ function StatsBar({
 
   if (loading) {
     return (
-      <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+      <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
         <div className="flex gap-3">
           <div className="h-12 w-20 animate-pulse rounded-lg bg-muted/50" />
           <div className="flex flex-1 flex-col gap-1.5 pt-1">
@@ -452,13 +540,16 @@ function StatsBar({
   }
 
   return (
-    <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+    <div
+      className="app-rail-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3"
+      style={{ "--rail-color": "var(--accent-food)" } as React.CSSProperties}
+    >
       <div className="flex items-start gap-4">
         {/* Calorie block */}
         <div className="min-w-0 shrink-0">
           <span
             className={cn(
-              "text-[2rem] leading-none font-bold tracking-tight tabular-nums",
+              "app-display text-[2.1rem] tabular-nums",
               over && "text-destructive/80"
             )}
           >
@@ -476,7 +567,7 @@ function StatsBar({
               className="motion-progress-fill absolute inset-y-0 left-0 rounded-sm"
               style={{
                 width: mounted ? `${calPct}%` : "0%",
-                backgroundColor: over ? "#ef4444" : "var(--foreground)",
+                backgroundColor: over ? DANGER_COLOR : "var(--foreground)",
                 opacity: 0.5,
               }}
             />
@@ -487,7 +578,7 @@ function StatsBar({
         </div>
 
         {/* Divider */}
-        <div className="w-px self-stretch bg-border/25" />
+        <div className="w-px self-stretch bg-border/35" />
 
         {/* Macro columns */}
         <div className="flex flex-1 justify-between">
@@ -496,13 +587,13 @@ function StatsBar({
             const macOver = val > target
             return (
               <div key={key} className="flex flex-col items-center">
-                <span className="text-[9px] font-semibold tracking-[0.12em] text-muted-foreground/40 uppercase">
+                <span className="text-[9px] font-semibold text-muted-foreground/40 uppercase">
                   {label}
                 </span>
                 <span
                   className="mt-0.5 text-[16px] leading-none font-semibold tabular-nums"
                   style={{
-                    color: macOver ? "#ef4444" : MACRO_COLOR[key].solid,
+                    color: macOver ? DANGER_COLOR : MACRO_COLOR[key].solid,
                   }}
                 >
                   {Math.round(val)}
@@ -516,7 +607,7 @@ function StatsBar({
                     style={{
                       width: mounted ? `${pct}%` : "0%",
                       backgroundColor: macOver
-                        ? "#ef4444"
+                        ? DANGER_COLOR
                         : MACRO_COLOR[key].solid,
                       opacity: 0.7,
                     }}
@@ -540,34 +631,105 @@ type MicroDetail = {
   unit: string
   color: string
   dv?: number
+  supplementCautionAt?: number
 }
 
-const MICRO_DETAILS: Record<FoodMicronutrientKey, MicroDetail> = {
-  fiber: { label: "Fiber", unit: "g", dv: 28, color: "#22c55e" },
-  sugar: { label: "Total sugar", unit: "g", dv: 50, color: "#f59e0b" },
-  saturatedFat: { label: "Saturated fat", unit: "g", dv: 20, color: "#fb7185" },
-  transFat: { label: "Trans fat", unit: "g", color: "#f43f5e" },
-  cholesterol: { label: "Cholesterol", unit: "mg", dv: 300, color: "#f97316" },
-  sodium: { label: "Sodium", unit: "mg", dv: 2300, color: "#38bdf8" },
-  potassium: { label: "Potassium", unit: "mg", dv: 4700, color: "#34d399" },
-  calcium: { label: "Calcium", unit: "mg", dv: 1300, color: "#60a5fa" },
-  iron: { label: "Iron", unit: "mg", dv: 18, color: "#a78bfa" },
-  magnesium: { label: "Magnesium", unit: "mg", dv: 420, color: "#2dd4bf" },
-  phosphorus: { label: "Phosphorus", unit: "mg", dv: 1250, color: "#818cf8" },
-  zinc: { label: "Zinc", unit: "mg", dv: 11, color: "#eab308" },
-  vitaminC: { label: "Vitamin C", unit: "mg", dv: 90, color: "#facc15" },
-  vitaminA: { label: "Vitamin A", unit: "mcg", dv: 900, color: "#fb923c" },
-  vitaminD: { label: "Vitamin D", unit: "mcg", dv: 20, color: "#fbbf24" },
-  vitaminB12: { label: "Vitamin B12", unit: "mcg", dv: 2.4, color: "#c084fc" },
-  caffeine: { label: "Caffeine", unit: "mg", color: "#94a3b8" },
-  alcohol: { label: "Alcohol", unit: "g", color: "#f87171" },
+const MICRO_DETAILS: Record<NutritionSummaryKey, MicroDetail> = {
+  fiber: { label: "Fiber", unit: "g", dv: 28, color: MICRO_COLORS.fiber },
+  sugar: { label: "Total sugar", unit: "g", dv: 50, color: MICRO_COLORS.sugar },
+  saturatedFat: {
+    label: "Saturated fat",
+    unit: "g",
+    dv: 20,
+    color: MICRO_COLORS.saturatedFat,
+  },
+  transFat: { label: "Trans fat", unit: "g", color: MICRO_COLORS.transFat },
+  cholesterol: {
+    label: "Cholesterol",
+    unit: "mg",
+    dv: 300,
+    color: MICRO_COLORS.cholesterol,
+  },
+  sodium: { label: "Sodium", unit: "mg", dv: 2300, color: MICRO_COLORS.sodium },
+  potassium: {
+    label: "Potassium",
+    unit: "mg",
+    dv: 4700,
+    color: MICRO_COLORS.potassium,
+  },
+  calcium: {
+    label: "Calcium",
+    unit: "mg",
+    dv: 1300,
+    color: MICRO_COLORS.calcium,
+  },
+  iron: { label: "Iron", unit: "mg", dv: 18, color: MICRO_COLORS.iron },
+  magnesium: {
+    label: "Magnesium",
+    unit: "mg",
+    dv: 420,
+    color: MICRO_COLORS.magnesium,
+  },
+  phosphorus: {
+    label: "Phosphorus",
+    unit: "mg",
+    dv: 1250,
+    color: MICRO_COLORS.phosphorus,
+  },
+  zinc: { label: "Zinc", unit: "mg", dv: 11, color: MICRO_COLORS.zinc },
+  vitaminC: {
+    label: "Vitamin C",
+    unit: "mg",
+    dv: 90,
+    color: MICRO_COLORS.vitaminC,
+  },
+  vitaminA: {
+    label: "Vitamin A",
+    unit: "mcg",
+    dv: 900,
+    color: MICRO_COLORS.vitaminA,
+  },
+  vitaminD: {
+    label: "Vitamin D",
+    unit: "mcg",
+    dv: 20,
+    color: MICRO_COLORS.vitaminD,
+  },
+  vitaminB12: {
+    label: "Vitamin B12",
+    unit: "mcg",
+    dv: 2.4,
+    color: MICRO_COLORS.vitaminB12,
+  },
+  caffeine: { label: "Caffeine", unit: "mg", color: MICRO_COLORS.caffeine },
+  alcohol: { label: "Alcohol", unit: "g", color: MICRO_COLORS.alcohol },
+  creatine: {
+    label: SUPPLEMENT_NUTRIENT_DETAILS.creatine.label,
+    unit: SUPPLEMENT_NUTRIENT_DETAILS.creatine.unit,
+    color: SUPPLEMENT_NUTRIENT_DETAILS.creatine.color,
+  },
+  omega3: {
+    label: SUPPLEMENT_NUTRIENT_DETAILS.omega3.label,
+    unit: SUPPLEMENT_NUTRIENT_DETAILS.omega3.unit,
+    color: SUPPLEMENT_NUTRIENT_DETAILS.omega3.color,
+  },
+  epa: {
+    label: SUPPLEMENT_NUTRIENT_DETAILS.epa.label,
+    unit: SUPPLEMENT_NUTRIENT_DETAILS.epa.unit,
+    color: SUPPLEMENT_NUTRIENT_DETAILS.epa.color,
+  },
+  dha: {
+    label: SUPPLEMENT_NUTRIENT_DETAILS.dha.label,
+    unit: SUPPLEMENT_NUTRIENT_DETAILS.dha.unit,
+    color: SUPPLEMENT_NUTRIENT_DETAILS.dha.color,
+  },
 }
 
 function dailyValueFor(cfg: MicroDetail) {
   return "dv" in cfg ? cfg.dv : undefined
 }
 
-type NutritionDetailDisplayKey = FoodMicronutrientKey
+type NutritionDetailDisplayKey = NutritionSummaryKey
 
 const MICRO_GROUPS = [
   { label: "Carbs", keys: ["fiber", "sugar"] },
@@ -588,6 +750,10 @@ const MICRO_GROUPS = [
     label: "Vitamins",
     keys: ["vitaminC", "vitaminA", "vitaminD", "vitaminB12"],
   },
+  {
+    label: "Supplements",
+    keys: ["creatine", "omega3", "epa", "dha"],
+  },
   { label: "Other", keys: ["caffeine", "alcohol"] },
 ] satisfies { label: string; keys: NutritionDetailDisplayKey[] }[]
 
@@ -603,47 +769,64 @@ function formatDailyValuePercent(percent: number) {
   return `${Math.round(percent)}%`
 }
 
-function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
+function MicronutrientsCard({
+  entries,
+  supplementTotals,
+}: {
+  entries: FoodLogEntry[]
+  supplementTotals: SupplementNutrients
+}) {
   const [open, setOpen] = useState(true)
-  const totals = useMemo(() => nutritionDetailTotals(entries), [entries])
+  const foodTotals = useMemo(() => nutritionDetailTotals(entries), [entries])
+  const totals = useMemo(
+    () => mergeNutritionTotals(foodTotals, supplementTotals),
+    [foodTotals, supplementTotals]
+  )
 
-  const keys = FOOD_MICRONUTRIENT_KEYS.filter((k) => totals[k] != null)
+  const keys = SUPPLEMENT_SUMMARY_NUTRIENT_KEYS.filter((k) => totals[k] != null)
   const groups = MICRO_GROUPS.map((group) => ({
     ...group,
     keys: group.keys.filter((key) => totals[key] != null),
   })).filter((group) => group.keys.length > 0)
+  const supplementKeyCount = SUPPLEMENT_SUMMARY_NUTRIENT_KEYS.filter(
+    (key) => (supplementTotals[key] ?? 0) > 0
+  ).length
+  const highSupplementKeys = SUPPLEMENT_SUMMARY_NUTRIENT_KEYS.filter((key) => {
+    const caution = SUPPLEMENT_NUTRIENT_DETAILS[key]?.supplementCautionAt
+    return caution && (supplementTotals[key] ?? 0) >= caution
+  })
 
   if (keys.length === 0) {
     return (
-      <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+      <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
+        <p className="app-eyebrow">
           Micronutrients
         </p>
         <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/40">
           {entries.length === 0
-            ? "No food logged today."
-            : "No micronutrient data available for today's foods."}
+            ? "No food or supplement nutrients logged today."
+            : "No micronutrient details on today’s items."}
         </p>
       </div>
     )
   }
 
   return (
-    <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+    <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+          <p className="app-eyebrow">
             Micronutrients
           </p>
           <p className="mt-0.5 text-[10.5px] text-muted-foreground/30">
-            {keys.length} tracked breakdown{keys.length !== 1 ? "s" : ""}
+            {keys.length} total · {supplementKeyCount} from supplements
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full bg-muted/45 px-2 py-0.5 text-[9.5px] font-semibold text-muted-foreground/45 tabular-nums">
+          <span className="rounded-[8px] bg-muted/45 px-2 py-0.5 text-[9.5px] font-semibold text-muted-foreground/45 tabular-nums">
             {keys.length}
           </span>
           <CaretDown
@@ -698,13 +881,18 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
           <div className="space-y-3">
             {groups.map((group) => (
               <div key={group.label}>
-                <p className="mb-1.5 text-[9px] font-semibold tracking-[0.16em] text-muted-foreground/30 uppercase">
+                <p className="mb-1.5 text-[9px] font-semibold text-muted-foreground/35 uppercase">
                   {group.label}
                 </p>
                 <div className="divide-y divide-border/25">
                   {group.keys.map((k) => {
                     const cfg = MICRO_DETAILS[k]
                     const val = totals[k] ?? 0
+                    const supplementVal = supplementTotals[k] ?? 0
+                    const foodVal =
+                      k in foodTotals
+                        ? (foodTotals[k as FoodMicronutrientKey] ?? 0)
+                        : 0
                     const dailyValue = dailyValueFor(cfg)
                     const pct = dailyValue ? (val / dailyValue) * 100 : null
                     const cappedPct = pct === null ? 0 : Math.min(100, pct)
@@ -727,6 +915,14 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
                             </span>
                           </span>
                         </div>
+                        {supplementVal > 0 && (
+                          <p className="mt-1 text-[9px] text-muted-foreground/30 tabular-nums">
+                            Food {formatMicroValue(foodVal)}
+                            {cfg.unit} · Supplement{" "}
+                            {formatMicroValue(supplementVal)}
+                            {cfg.unit}
+                          </p>
+                        )}
                         {pct !== null ? (
                           <div className="mt-1.5 flex items-center gap-2">
                             <div className="relative h-[3px] min-w-0 flex-1 overflow-hidden rounded-full bg-muted/40">
@@ -734,18 +930,18 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
                                 className="absolute inset-y-0 left-0 rounded-full"
                                 style={{
                                   width: `${barPct}%`,
-                                  backgroundColor: over ? "#f59e0b" : cfg.color,
+                                  backgroundColor: over
+                                    ? CAUTION_COLOR
+                                    : cfg.color,
                                   opacity: over ? 0.7 : 0.55,
                                 }}
                               />
                             </div>
                             <span
-                              className={cn(
-                                "w-9 text-right text-[9.5px] tabular-nums",
-                                over
-                                  ? "text-amber-500/75"
-                                  : "text-muted-foreground/30"
-                              )}
+                              className="w-9 text-right text-[9.5px] text-muted-foreground/30 tabular-nums"
+                              style={
+                                over ? { color: CAUTION_COLOR } : undefined
+                              }
                             >
                               {formatDailyValuePercent(pct)}
                             </span>
@@ -759,8 +955,18 @@ function MicronutrientsCard({ entries }: { entries: FoodLogEntry[] }) {
                 </div>
               </div>
             ))}
+            {highSupplementKeys.length > 0 && (
+              <p className="mt-0.5 text-[9px] leading-relaxed text-muted-foreground/35">
+                Supplement intake is high for{" "}
+                {highSupplementKeys
+                  .map((key) => MICRO_DETAILS[key].label.toLowerCase())
+                  .join(", ")}
+                . Check labels and totals before adding more.
+              </p>
+            )}
             <p className="mt-0.5 text-[9px] text-muted-foreground/25">
-              % Daily Value based on FDA 2,000 kcal reference.
+              Totals combine food and supplements. % Daily Value based on FDA
+              2,000 kcal reference.
             </p>
           </div>
         </div>
@@ -836,9 +1042,9 @@ function recipeTotals(ingredients: RecipeIngredient[]) {
 }
 
 const RECIPE_MACRO_PILLS = [
-  { label: "P", key: "protein" as const, color: "#60a5fa" },
-  { label: "C", key: "carbs" as const, color: "#a78bfa" },
-  { label: "F", key: "fat" as const, color: "#fb923c" },
+  { label: "P", key: "protein" as const, color: MACRO_COLORS.protein },
+  { label: "C", key: "carbs" as const, color: MACRO_COLORS.carbs },
+  { label: "F", key: "fat" as const, color: MACRO_COLORS.fat },
 ]
 
 // ─── Recipe log sheet ─────────────────────────────────────────────────────────
@@ -931,7 +1137,7 @@ function RecipeCard({
   const totals = recipeTotals(recipe.ingredients)
 
   return (
-    <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+    <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13.5px] font-semibold">{recipe.name}</p>
@@ -968,20 +1174,21 @@ function RecipeCard({
       <div className="mt-3 flex gap-2">
         <button
           onClick={onEdit}
-          className="flex min-h-10 items-center gap-1.5 rounded-xl border border-border/50 px-3 text-[11.5px] font-medium text-muted-foreground/50 transition-colors active:bg-muted/40"
+          className="app-button app-button-secondary text-muted-foreground/70"
         >
           <PencilSimple size={10} />
           Edit
         </button>
         <button
           onClick={onDelete}
-          className="flex min-h-10 items-center justify-center rounded-xl border border-border/50 px-3 text-[11.5px] text-muted-foreground/40 transition-colors active:bg-muted/40"
+          className="app-button app-button-secondary px-3 text-muted-foreground/55"
+          aria-label={`Delete ${recipe.name}`}
         >
           <Trash size={11} />
         </button>
         <button
           onClick={onLog}
-          className="flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground/[0.07] px-3 text-[12px] font-semibold transition-colors active:bg-foreground/[0.12]"
+          className="app-button app-button-quiet flex-1"
         >
           Log to diary
           <CaretRight
@@ -1018,14 +1225,14 @@ function GoalsCardWrapper({
   }
 
   return (
-    <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+    <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <div className="flex items-center justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="app-eyebrow">
           Daily goals
         </p>
         <button
           onClick={() => setEditing((o) => !o)}
-          className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
+          className="app-button app-button-quiet"
         >
           {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
           {editing ? "Cancel" : "Edit"}
@@ -1051,7 +1258,7 @@ function GoalsCardWrapper({
                 <span className="text-[14px] leading-none font-semibold tabular-nums">
                   {goals[key]}
                 </span>
-                <span className="mt-0.5 text-[9px] font-medium tracking-[0.1em] text-muted-foreground/35 uppercase">
+                <span className="mt-0.5 text-[9px] font-medium text-muted-foreground/35 uppercase">
                   {key === "calories" ? "kcal" : label}
                 </span>
               </div>
@@ -1079,7 +1286,7 @@ function GoalsCardWrapper({
                     {unit}
                   </span>
                 </div>
-                <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
+                <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
                   <button
                     onClick={() => adjust(key, -step)}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
@@ -1112,7 +1319,7 @@ function GoalsCardWrapper({
                 onSave(draft)
                 setEditing(false)
               }}
-              className="min-h-10 flex-1 rounded-lg bg-foreground px-3 text-[12.5px] font-semibold text-background active:opacity-75"
+              className="app-button app-button-primary flex-1"
             >
               Save
             </button>
@@ -1129,7 +1336,7 @@ function GoalsCardWrapper({
                   onSave(r)
                   setEditing(false)
                 }}
-                className="min-h-10 rounded-lg border border-border/50 px-3.5 text-[11.5px] font-medium text-muted-foreground/60 active:bg-muted/40"
+                className="app-button app-button-secondary text-muted-foreground/70"
               >
                 Reset
               </button>
@@ -1207,15 +1414,15 @@ function WaterCard({ dateKey }: { dateKey: string }) {
   }
 
   return (
-    <div className="rounded-[20px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
+    <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       {/* Header */}
       <div className="mb-2.5 flex items-center justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+        <p className="app-eyebrow">
           Hydration
         </p>
         <button
           onClick={() => navigate("/settings")}
-          className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
+          className="app-button app-button-quiet"
         >
           <PencilSimple size={10} />
           Goal
@@ -1238,9 +1445,10 @@ function WaterCard({ dateKey }: { dateKey: string }) {
               onFocus={() => setHoveredGlass(i)}
               onBlur={() => setHoveredGlass(null)}
               className={cn(
-                "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-[0.985] short-phone:py-2",
-                previewFilled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+                "flex items-center justify-center rounded-[10px] py-2.5 transition-all active:scale-[0.985] short-phone:py-2",
+                previewFilled ? "" : "bg-muted/25"
               )}
+              style={previewFilled ? { backgroundColor: WATER_BG } : undefined}
               aria-label={
                 filled
                   ? "Remove last water entry"
@@ -1250,7 +1458,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
               <PintGlass
                 size={22}
                 weight={previewFilled ? "fill" : "regular"}
-                style={{ color: previewFilled ? "#38bdf8" : undefined }}
+                style={{ color: previewFilled ? WATER_COLOR : undefined }}
                 className={
                   previewFilled ? undefined : "text-muted-foreground/20"
                 }
@@ -1267,7 +1475,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
         </p>
         <button
           onClick={addGlass}
-          className="min-h-10 rounded-lg bg-muted/40 px-3 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+          className="app-button app-button-quiet"
         >
           + More water
         </button>
@@ -1283,6 +1491,7 @@ export default function Foods() {
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
+  const mealPresetsQuery = useQuery(api.logs.mealPresets.list, {})
 
   const setDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
@@ -1296,6 +1505,10 @@ export default function Foods() {
     api.logs.recipes.remove,
     "logs.recipes.remove"
   )
+  const createMealPresetMutation = useOfflineMutation(
+    api.logs.mealPresets.create,
+    "logs.mealPresets.create"
+  )
 
   const activeTimezone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(activeTimezone)
@@ -1304,13 +1517,31 @@ export default function Foods() {
   })
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: todayKey })
+  const supplementNutrition = useQuery(api.logs.supplements.getDayNutrition, {
+    date: todayKey,
+  })
+  const recentFoodLogs = useQuery(api.logs.foodLogs.getRecent, {
+    beforeOrOn: todayKey,
+    limit: 21,
+  })
   const todayEntries = (foodLogs ?? []) as FoodLogEntry[]
+  const todaySupplementTotals = (supplementNutrition ??
+    {}) as SupplementNutrients
   const recipes = (recipesQuery ?? []) as unknown as Recipe[]
+  const mealPresets = (mealPresetsQuery ?? []) as unknown as MealPreset[]
+  const recentFoodLogDays = (recentFoodLogs ?? []) as unknown as {
+    date: string
+    entries: FoodLogEntry[]
+  }[]
 
   const [addOpen, setAddOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null)
+  const [dismissedSmartMealKeys, setDismissedSmartMealKeys] = useState<
+    string[]
+  >([])
+  const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
   useBottomBarAction(() => setAddOpen(true))
 
   const apiGoals = useMemo(() => {
@@ -1338,16 +1569,67 @@ export default function Foods() {
     fat: Math.round(goalsRes?.effective.fat ?? 65),
   }
 
+  const smartMealSuggestion = useMemo(
+    () =>
+      findSmartMealPresetSuggestion({
+        recentDays: recentFoodLogDays,
+        presets: mealPresets,
+        todayEntries,
+        currentMeal: defaultMeal(),
+        dismissedKeys: dismissedSmartMealKeys,
+      }),
+    [dismissedSmartMealKeys, mealPresets, recentFoodLogDays, todayEntries]
+  )
+
+  function dismissSmartMealSuggestion(key: string) {
+    setDismissedSmartMealKeys((prev) =>
+      prev.includes(key) ? prev : [...prev, key]
+    )
+  }
+
+  async function saveSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
+    if (suggestion.kind !== "save") return
+    setSmartMealBusyKey(suggestion.key)
+    try {
+      await createMealPresetMutation({
+        name: suggestion.name,
+        meal: suggestion.meal,
+        signature: suggestion.signature,
+        entries: suggestion.entries,
+      })
+      dismissSmartMealSuggestion(suggestion.key)
+    } finally {
+      setSmartMealBusyKey(null)
+    }
+  }
+
+  async function logSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
+    if (suggestion.kind !== "log") return
+    setSmartMealBusyKey(suggestion.key)
+    try {
+      const presetEntries = foodLogEntriesFromMealPreset(suggestion.preset, {
+        meal: suggestion.meal,
+      })
+      await setDay({
+        date: todayKey,
+        entries: [...todayEntries, ...presetEntries],
+      })
+      dismissSmartMealSuggestion(suggestion.key)
+    } finally {
+      setSmartMealBusyKey(null)
+    }
+  }
+
   return (
-    <div className="desktop-canvas min-h-svh overflow-x-hidden bg-background md:pr-8 md:pl-72">
+    <div className="desktop-canvas min-h-svh overflow-x-hidden bg-background lg:pr-8 lg:pl-72">
       <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="flex items-end justify-between px-4 pt-[var(--app-safe-top)] pb-3 md:px-6 md:pt-10 short-phone:pb-2">
+        <header className="app-header px-4 md:px-8 short-phone:pb-2">
           <div>
-            <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
+            <p className="app-eyebrow">
               Diary
             </p>
-            <h1 className="mt-1 text-[1.5rem] leading-[1.15] font-semibold tracking-tight md:text-[1.75rem] short-phone:text-[1.32rem]">
+            <h1 className="app-title short-phone:text-[1.32rem]">
               Food
             </h1>
           </div>
@@ -1355,21 +1637,21 @@ export default function Foods() {
             <button
               onClick={() => setHistoryOpen(true)}
               aria-label="Open food history"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="app-icon-button"
             >
               <CalendarBlank size={15} />
             </button>
             <button
               onClick={() => navigate("/camera")}
               aria-label="Snap meal"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="app-icon-button"
             >
               <Aperture size={15} />
             </button>
             <button
               onClick={() => navigate("/foods/search")}
               aria-label="Search foods"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/70 transition-colors active:bg-muted"
+              className="app-icon-button"
             >
               <MagnifyingGlass size={15} />
             </button>
@@ -1389,7 +1671,25 @@ export default function Foods() {
           }}
         />
 
-        <div className="flex flex-col gap-4 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6 short-phone:gap-3">
+        <div className="app-grid px-4 md:px-8 short-phone:gap-3">
+          {smartMealSuggestion && (
+            <section className="md:col-span-2">
+              <SmartMealPresetCard
+                suggestion={smartMealSuggestion}
+                onSave={() => {
+                  void saveSmartMealPreset(smartMealSuggestion)
+                }}
+                onLog={() => {
+                  void logSmartMealPreset(smartMealSuggestion)
+                }}
+                onDismiss={() =>
+                  dismissSmartMealSuggestion(smartMealSuggestion.key)
+                }
+                busy={smartMealBusyKey === smartMealSuggestion.key}
+              />
+            </section>
+          )}
+
           <section>
             <SectionHeader title="Today's diary" />
             <TodayDiaryCard
@@ -1409,6 +1709,7 @@ export default function Foods() {
             <div className="flex flex-col gap-2.5">
               <StatsBar
                 entries={todayEntries}
+                supplementTotals={todaySupplementTotals}
                 goals={goals}
                 loading={loading}
               />
@@ -1428,7 +1729,7 @@ export default function Foods() {
               action={
                 <button
                   onClick={() => navigate("/foods/recipe/new")}
-                  className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
+                  className="app-button app-button-quiet"
                 >
                   <Plus size={10} weight="bold" />
                   New
@@ -1438,9 +1739,9 @@ export default function Foods() {
             {recipes.length === 0 ? (
               <button
                 onClick={() => navigate("/foods/recipe/new")}
-                className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border/50 px-4 py-5 transition-colors active:bg-muted/20"
+                className="app-empty w-full transition-colors active:bg-muted/20"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/60">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-muted/60">
                   <BookBookmark
                     size={15}
                     className="text-muted-foreground/40"
@@ -1448,10 +1749,10 @@ export default function Foods() {
                 </div>
                 <div className="text-left">
                   <p className="text-[13px] font-medium text-foreground/60">
-                    Create your first recipe
+                    No recipes saved
                   </p>
                   <p className="text-[11px] text-muted-foreground/35">
-                    Stack ingredients, save for quick logging
+                    Create one for repeat meals.
                   </p>
                 </div>
               </button>
@@ -1478,7 +1779,10 @@ export default function Foods() {
 
           <section>
             <SectionHeader title="Nutrition details" />
-            <MicronutrientsCard entries={todayEntries} />
+            <MicronutrientsCard
+              entries={todayEntries}
+              supplementTotals={todaySupplementTotals}
+            />
           </section>
 
           <section>
@@ -1523,35 +1827,28 @@ export default function Foods() {
           }}
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="mb-2 grid grid-cols-2 gap-2">
+            <div className="mb-3 app-surface overflow-hidden">
               <button
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/camera?mode=barcode")
                 }}
-                className="relative overflow-hidden rounded-2xl bg-foreground px-4 pt-3.5 pb-4 text-left text-background transition-opacity active:opacity-75"
+                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
-                <div
-                  className="pointer-events-none absolute inset-0 opacity-[0.055]"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(90deg, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 5px)",
-                  }}
-                />
-                <div className="scan-line pointer-events-none absolute right-3 left-3 h-px bg-background/50" />
-                <p className="relative text-[9px] font-semibold tracking-[0.18em] uppercase opacity-40">
-                  Capture
-                </p>
-                <p className="relative mt-1.5 text-[15px] leading-snug font-semibold tracking-tight">
-                  Scan
-                  <br />
-                  Barcode
-                </p>
-                <Barcode
-                  size={15}
-                  weight="bold"
-                  className="absolute right-3.5 bottom-3.5 opacity-25"
-                />
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
+                    <Barcode size={16} weight="bold" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Scan barcode
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      Packaged food
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
               </button>
 
               <button
@@ -1564,29 +1861,26 @@ export default function Foods() {
                   setAddOpen(false)
                   navigate("/camera")
                 }}
-                className="relative overflow-hidden rounded-2xl bg-foreground/[0.055] px-5 pt-5 pb-6 text-left ring-1 ring-foreground/[0.07] transition-colors active:bg-foreground/[0.10]"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
-                <div className="pointer-events-none absolute top-3 left-3 h-4 w-4 border-t-[1.5px] border-l-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute top-3 right-3 h-4 w-4 border-t-[1.5px] border-r-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 border-b-[1.5px] border-l-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute right-3 bottom-3 h-4 w-4 border-r-[1.5px] border-b-[1.5px] border-foreground/30" />
-                <p className="relative text-[9px] font-semibold tracking-[0.18em] text-muted-foreground/50 uppercase">
-                  Capture
-                </p>
-                <p className="relative mt-5 text-[15px] leading-snug font-semibold tracking-tight">
-                  Snap
-                  <br />
-                  and Log
-                </p>
-                <Aperture
-                  size={18}
-                  weight="light"
-                  className="absolute right-4 bottom-4 opacity-20"
-                />
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                    <Aperture size={17} weight="bold" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Snap meal
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      Estimate from photo
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-border/50">
+            <div className="app-surface overflow-hidden">
               <button
                 onClick={() => {
                   setAddOpen(false)
