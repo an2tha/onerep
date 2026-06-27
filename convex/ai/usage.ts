@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { internalMutation, type ActionCtx } from "../_generated/server";
+import { internalMutation, query, type ActionCtx } from "../_generated/server";
+import { safeGetAuthUser } from "../lib/auth";
 
 export const AI_MONTHLY_REQUEST_LIMIT = 150;
 
@@ -23,6 +24,37 @@ export type AiUsageQuota = {
 function utcMonthKey(date = new Date()) {
   return date.toISOString().slice(0, 7);
 }
+
+export const getMonthlyUsage = query({
+  args: {},
+  handler: async (ctx): Promise<Omit<AiUsageQuota, "allowed">> => {
+    const month = utcMonthKey();
+    const user = await safeGetAuthUser(ctx);
+    if (!user) {
+      return {
+        count: 0,
+        remaining: AI_MONTHLY_REQUEST_LIMIT,
+        limit: AI_MONTHLY_REQUEST_LIMIT,
+        month,
+      };
+    }
+
+    const existing = await ctx.db
+      .query("aiUsage")
+      .withIndex("by_userId_month", (q) =>
+        q.eq("userId", user._id).eq("month", month),
+      )
+      .unique();
+    const count = existing?.count ?? 0;
+
+    return {
+      count,
+      remaining: Math.max(0, AI_MONTHLY_REQUEST_LIMIT - count),
+      limit: AI_MONTHLY_REQUEST_LIMIT,
+      month,
+    };
+  },
+});
 
 export const consumeMonthlyQuota = internalMutation({
   args: {
