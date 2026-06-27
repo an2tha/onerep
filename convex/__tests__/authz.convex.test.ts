@@ -376,6 +376,22 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: { path: "/cgi/search.pl", params: [] },
   },
   {
+    name: "ai.metricGeneration.generateMetricSet",
+    kind: "action",
+    fn: api.ai.metricGeneration.generateMetricSet,
+    args: {
+      subapp: "progress",
+      prompt: "strength progress",
+      metrics: [],
+    },
+  },
+  {
+    name: "logs.presetAgent.createFromText",
+    kind: "action",
+    fn: api.logs.presetAgent.createFromText,
+    args: { text: "Bench Press 3x5" },
+  },
+  {
     name: "logs.snap.snap",
     kind: "action",
     fn: api.logs.snap.snap,

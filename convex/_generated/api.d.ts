@@ -9,6 +9,7 @@
  */
 
 import type * as ai_metricGeneration from "../ai/metricGeneration.js";
+import type * as ai_usage from "../ai/usage.js";
 import type * as bodyProgress from "../bodyProgress.js";
 import type * as exercises from "../exercises.js";
 import type * as food_openFoodFacts from "../food/openFoodFacts.js";
@@ -42,6 +43,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "ai/metricGeneration": typeof ai_metricGeneration;
+  "ai/usage": typeof ai_usage;
   bodyProgress: typeof bodyProgress;
   exercises: typeof exercises;
   "food/openFoodFacts": typeof food_openFoodFacts;
