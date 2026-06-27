@@ -438,7 +438,7 @@ export const getOverview = query({
       ctx.db
         .query("supplementIntakeLogs")
         .withIndex("by_userId_and_date", (q) =>
-          q.eq("userId", user._id).lte("date", args.date),
+          q.eq("userId", user._id).lt("date", args.date),
         )
         .order("desc")
         .take(300),
