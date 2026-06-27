@@ -102,13 +102,18 @@ const SETTINGS_PANEL_CLASS = "app-surface overflow-hidden rounded-t-none"
  * @param onClose - Callback invoked to close the settings sheet
  * @returns The Settings React element
  */
-export default function Settings({ onClose: _onClose }: { onClose: () => void }) {
+export default function Settings({
+  onClose: _onClose,
+}: {
+  onClose: () => void
+}) {
   const navigate = useSmoothNavigate()
   const { signOut } = useClerk()
   const { user } = useUser()
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
+  const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
 
   const setDashboardSettings = useOfflineMutation(
     api.users.users.setDashboardSettings,
@@ -497,7 +502,7 @@ export default function Settings({ onClose: _onClose }: { onClose: () => void })
       <main className="mx-auto min-h-svh w-full max-w-2xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-8 md:pt-10 md:pb-12">
         {/* Header */}
         <div className="mb-5 px-1 pt-1 md:mb-6 md:px-0 md:pt-0">
-          <h1 className="app-title text-[24px] short-phone:text-[21px] md:mt-1">
+          <h1 className="app-title text-[24px] md:mt-1 short-phone:text-[21px]">
             Settings
           </h1>
         </div>
@@ -547,6 +552,8 @@ export default function Settings({ onClose: _onClose }: { onClose: () => void })
                           )}
                         </button>
                       </div>
+                      <RowDivider />
+                      <AiUsageProgress usage={aiUsage} />
                       <RowDivider />
                       <button
                         onClick={() => {
@@ -1126,7 +1133,6 @@ export default function Settings({ onClose: _onClose }: { onClose: () => void })
                 </AccordionItem>
               </Accordion>
             </div>
-
           </>
         ) : (
           <div
@@ -1212,6 +1218,65 @@ function SettingsRow({
 
 function RowDivider() {
   return <div className="mx-4 h-px bg-border/20" />
+}
+
+type AiUsageSummary = {
+  count: number
+  remaining: number
+  limit: number
+  month: string
+}
+
+function formatAiUsageMonth(month: string) {
+  const date = new Date(`${month}-01T12:00:00Z`)
+  if (Number.isNaN(date.getTime())) return "This month"
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
+
+function AiUsageProgress({ usage }: { usage?: AiUsageSummary | null }) {
+  const limit = usage?.limit ?? 150
+  const count = usage?.count ?? 0
+  const remaining = usage?.remaining ?? limit
+  const percent =
+    limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : 0
+  const isNearLimit = remaining <= 15
+
+  return (
+    <div className="px-4 py-4">
+      <div className="mb-2 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[14px] font-semibold text-foreground/85">
+            AI usage
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground/48">
+            {formatAiUsageMonth(usage?.month ?? "")} · {remaining} request
+            {remaining === 1 ? "" : "s"} left
+          </p>
+        </div>
+        <p className="shrink-0 text-[12px] font-bold text-muted-foreground/62 tabular-nums">
+          {count}/{limit}
+        </p>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-muted/55">
+        <div
+          className="h-full rounded-full transition-[width,background-color]"
+          style={{
+            width: `${percent}%`,
+            backgroundColor: isNearLimit
+              ? "var(--status-danger)"
+              : "var(--foreground)",
+          }}
+        />
+      </div>
+      <p className="mt-2 text-[10.5px] leading-snug text-muted-foreground/45">
+        Shared across AI metrics, workout generation, and food photo analysis.
+      </p>
+    </div>
+  )
 }
 
 function SectionSaveButton({
