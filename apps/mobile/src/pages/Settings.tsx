@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react"
 import { CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
 import { useClerk, useUser } from "@clerk/react"
+import {
+  CheckoutButton,
+  usePlans,
+  useSubscription,
+} from "@clerk/react/experimental"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
@@ -33,6 +38,12 @@ import {
 type Theme = "light" | "dark"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
+const AI_ACCESS_PLAN_SLUG =
+  (import.meta.env.VITE_CLERK_AI_PLAN_SLUG as string | undefined) ??
+  "ai-access"
+const AI_ACCESS_PLAN_ID = import.meta.env.VITE_CLERK_AI_PLAN_ID as
+  | string
+  | undefined
 
 /**
  * Determine the current UI theme.
@@ -554,6 +565,8 @@ export default function Settings({
                       </div>
                       <RowDivider />
                       <AiUsageProgress usage={aiUsage} />
+                      <RowDivider />
+                      <AiAccessBillingCard />
                       <RowDivider />
                       <button
                         onClick={() => {
@@ -1275,6 +1288,174 @@ function AiUsageProgress({ usage }: { usage?: AiUsageSummary | null }) {
       <p className="mt-2 text-[10.5px] leading-snug text-muted-foreground/45">
         Shared across AI metrics, workout generation, and food photo analysis.
       </p>
+    </div>
+  )
+}
+
+function formatBillingDate(value?: Date | string | number | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function AiAccessBillingCard() {
+  const plans = usePlans({ for: "user", pageSize: 20 })
+  const subscription = useSubscription({ for: "user" })
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
+  const [canceling, setCanceling] = useState(false)
+
+  const aiPlan = (plans.data ?? []).find(
+    (plan) =>
+      plan.slug === AI_ACCESS_PLAN_SLUG ||
+      (AI_ACCESS_PLAN_ID ? plan.id === AI_ACCESS_PLAN_ID : false)
+  )
+  const planId = AI_ACCESS_PLAN_ID ?? aiPlan?.id
+  const aiSubscriptionItem = subscription.data?.subscriptionItems.find(
+    (item) =>
+      (item.plan.slug === AI_ACCESS_PLAN_SLUG ||
+        (AI_ACCESS_PLAN_ID ? item.plan.id === AI_ACCESS_PLAN_ID : false)) &&
+      item.status !== "ended" &&
+      !item.canceledAt
+  )
+  const upgraded = Boolean(aiSubscriptionItem)
+  const nextPaymentDate = formatBillingDate(aiSubscriptionItem?.nextPayment?.date)
+  const loadingBilling = plans.isLoading || subscription.isLoading
+
+  async function handleCancelPlan() {
+    if (!aiSubscriptionItem || canceling) return
+    setCanceling(true)
+    try {
+      await aiSubscriptionItem.cancel({})
+      await subscription.revalidate?.()
+      setConfirmCancelOpen(false)
+      toast.success("AI Access canceled")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not cancel AI Access"
+      )
+    } finally {
+      setCanceling(false)
+    }
+  }
+
+  return (
+    <div className="px-4 py-4">
+      <div className="rounded-[22px] border border-border/35 bg-muted/25 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[14px] font-semibold text-foreground/88">
+              AI Access
+            </p>
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground/50">
+              Optional $5/month access for AI metric generation, workout drafts,
+              and food photo analysis.
+            </p>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
+              upgraded
+                ? "bg-foreground text-background"
+                : "bg-background text-muted-foreground ring-1 ring-border/35"
+            )}
+          >
+            {upgraded ? "Active" : "$5/mo"}
+          </span>
+        </div>
+
+        {upgraded ? (
+          <div className="mt-4 grid gap-2">
+            <p className="text-[11px] text-muted-foreground/48">
+              {nextPaymentDate
+                ? `Next billing date: ${nextPaymentDate}`
+                : "Your AI Access subscription is active."}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                hapticMedium()
+                setConfirmCancelOpen(true)
+              }}
+              disabled={canceling}
+              className="min-h-11 rounded-xl border border-destructive/20 bg-destructive/10 px-3 text-[13px] font-bold text-destructive transition-opacity active:opacity-70 disabled:opacity-50"
+            >
+              {canceling ? "Canceling…" : "Cancel AI Access"}
+            </button>
+          </div>
+        ) : planId ? (
+          <CheckoutButton
+            planId={planId}
+            planPeriod="month"
+            for="user"
+            onSubscriptionComplete={() => {
+              void subscription.revalidate?.()
+              toast.success("AI Access enabled")
+            }}
+            checkoutProps={{
+              onClose: () => void subscription.revalidate?.(),
+            }}
+          >
+            <button
+              type="button"
+              className="mt-4 min-h-11 w-full rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
+            >
+              Upgrade to AI Access
+            </button>
+          </CheckoutButton>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="mt-4 min-h-11 w-full rounded-xl bg-muted px-3 text-[13px] font-bold text-muted-foreground/55"
+          >
+            {loadingBilling ? "Loading billing…" : "AI plan unavailable"}
+          </button>
+        )}
+      </div>
+
+      {confirmCancelOpen && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-background/72 px-5 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="cancel-ai-access-title"
+        >
+          <div className="w-full max-w-sm rounded-[26px] border border-border/45 bg-card p-5 shadow-2xl">
+            <p
+              id="cancel-ai-access-title"
+              className="text-[17px] font-bold tracking-tight"
+            >
+              Cancel AI Access?
+            </p>
+            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/62">
+              Your core OneRep features stay free. Canceling only removes the
+              paid AI allowance after Clerk finishes the subscription change.
+            </p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmCancelOpen(false)}
+                disabled={canceling}
+                className="min-h-11 rounded-xl bg-muted px-3 text-[13px] font-bold text-foreground/75 transition-opacity active:opacity-75 disabled:opacity-50"
+              >
+                Keep plan
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelPlan}
+                disabled={canceling}
+                className="min-h-11 rounded-xl bg-destructive px-3 text-[13px] font-bold text-destructive-foreground transition-opacity active:opacity-75 disabled:opacity-50"
+              >
+                {canceling ? "Canceling…" : "Cancel plan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
