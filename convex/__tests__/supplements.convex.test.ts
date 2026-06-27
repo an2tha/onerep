@@ -209,4 +209,49 @@ describe("supplementLogs Convex functions", () => {
       expect(totals).toEqual({ caffeine: 100, creatine: 10 });
     });
   });
+
+  test("overview recentLogs excludes entries from the selected date", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "supplement-overview-recent" }, async () => {
+      const saved = (await t.mutation(api.logs.supplements.saveItem, {
+        name: "Creatine",
+        category: "creatine",
+        form: "powder",
+        servingLabel: "5 g",
+        defaultServingQuantity: 5,
+        active: true,
+        schedule: { type: "daily" },
+        nutrientsPerServing: { creatine: 5 },
+        source: "manual",
+      })) as { id: any };
+
+      await t.mutation(api.logs.supplements.logTaken, {
+        supplementId: saved.id,
+        date: "2026-06-25",
+        loggedAt: "2026-06-25T21:00:00.000Z",
+        servingMultiplier: 1,
+      });
+      await t.mutation(api.logs.supplements.logTaken, {
+        supplementId: saved.id,
+        date: "2026-06-24",
+        loggedAt: "2026-06-24T21:00:00.000Z",
+        servingMultiplier: 1,
+      });
+
+      const overview = (await t.query(api.logs.supplements.getOverview, {
+        date: "2026-06-25",
+      })) as any;
+
+      expect(overview.logs).toHaveLength(1);
+      expect(overview.recentLogs).toHaveLength(1);
+      expect(overview.logs[0].date).toBe("2026-06-25");
+      expect(
+        overview.recentLogs.every((log: any) => log.date < "2026-06-25"),
+      ).toBe(true);
+      expect(overview.logs.every((log: any) => log.date === "2026-06-25")).toBe(
+        true,
+      );
+    });
+  });
 });
