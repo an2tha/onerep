@@ -9,30 +9,34 @@ describe("workoutLogs Convex functions", () => {
   test("getLog returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.query(api.logs.workouts.getLog, { date: "2024-01-15" })
+      t.query(api.logs.workouts.getLog, { date: "2024-01-15" }),
     ).resolves.toBeNull();
   });
 
   test("getHistory returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(
-      t.query(api.logs.workouts.getHistory, {})
-    ).resolves.toEqual([]);
+    await expect(t.query(api.logs.workouts.getHistory, {})).resolves.toEqual(
+      [],
+    );
   });
 
   test("completion throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.mutation(api.logs.workouts.completion, {
-        date: "2024-01-15", exercises: [], durationSeconds: 3600,
-      })
+        date: "2024-01-15",
+        exercises: [],
+        durationSeconds: 3600,
+      }),
     ).rejects.toThrow();
   });
 
   test("remove throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.workouts.remove, { id: "jd7f4z1y2s3d4t5v6w7x8" as any })
+      t.mutation(api.logs.workouts.remove, {
+        id: "jd7f4z1y2s3d4t5v6w7x8" as any,
+      }),
     ).rejects.toThrow();
   });
 
@@ -65,16 +69,19 @@ describe("workoutLogs Convex functions", () => {
 
     const id = await t.run(async (ctx) => {
       return ctx.db.insert("workoutLogs", {
-        userId: "workout-upsert-user", date: "2024-01-20",
+        userId: "workout-upsert-user",
+        date: "2024-01-20",
         exercises: [{ name: "Old exercise" }],
-        durationSeconds: 1800, completedAt: Date.now(),
+        durationSeconds: 1800,
+        completedAt: Date.now(),
       });
     });
 
     await t.run(async (ctx) => {
       await ctx.db.patch(id, {
         exercises: [{ name: "Updated exercise" }],
-        durationSeconds: 3600, completedAt: Date.now(),
+        durationSeconds: 3600,
+        completedAt: Date.now(),
       });
     });
 
@@ -88,8 +95,11 @@ describe("workoutLogs Convex functions", () => {
 
     const id = await t.run(async (ctx) => {
       return ctx.db.insert("workoutLogs", {
-        userId: "workout-delete-user", date: "2024-02-01",
-        exercises: [], durationSeconds: 0, completedAt: Date.now(),
+        userId: "workout-delete-user",
+        date: "2024-02-01",
+        exercises: [],
+        durationSeconds: 0,
+        completedAt: Date.now(),
       });
     });
 
@@ -102,7 +112,66 @@ describe("workoutLogs Convex functions", () => {
   test("removeBySlot throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.workouts.removeBySlot, { date: "2024-01-15", slot: 1 })
+      t.mutation(api.logs.workouts.removeBySlot, {
+        date: "2024-01-15",
+        slot: 1,
+      }),
     ).rejects.toThrow();
+  });
+
+  test("completion persists cardio workout details", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "cardio-user" }, async () => {
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2024-03-01",
+        durationSeconds: 1800,
+        exercises: [
+          {
+            id: "zone-2-run",
+            name: "Zone 2 Run",
+            category: "cardio",
+            sets: [],
+            cardio: {
+              distanceMeters: 5000,
+              distanceUnit: "km",
+              durationSeconds: 1800,
+              paceSecondsPerKm: 360,
+              avgHeartRateBpm: 142,
+              maxHeartRateBpm: 168,
+              heartRateZones: {
+                zone2Seconds: 1200,
+                zone3Seconds: 600,
+              },
+              route: {
+                name: "Park loop",
+                url: "https://example.com/routes/park-loop",
+              },
+              source: {
+                provider: "strava",
+                name: "Morning Run",
+                externalId: "strava-123",
+              },
+            },
+          },
+        ],
+      });
+
+      const log = await t.query(api.logs.workouts.getLog, {
+        date: "2024-03-01",
+      });
+      expect(log!.exercises[0]).toMatchObject({
+        id: "zone-2-run",
+        category: "cardio",
+        cardio: {
+          distanceMeters: 5000,
+          durationSeconds: 1800,
+          paceSecondsPerKm: 360,
+          avgHeartRateBpm: 142,
+          route: { name: "Park loop" },
+          source: { provider: "strava", externalId: "strava-123" },
+        },
+      });
+    });
   });
 });

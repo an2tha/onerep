@@ -60,6 +60,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>OneRep uses the camera to snap and log meals.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>OneRep reads Apple Health workouts, distance, heart rate, routes, and source data to import cardio workout details.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>OneRep may save captured meal photos when you choose to keep them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

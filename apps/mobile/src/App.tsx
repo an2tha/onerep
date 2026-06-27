@@ -1,19 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import {
-  ArrowsInSimple,
-  ArrowsOutSimple,
   Barbell,
   Barcode,
   CaretDown,
   CaretLeft,
   CaretRight,
+  Coffee,
   DotsSixVertical,
   Fire,
   ForkKnife,
-  GearSix,
+  Lightning,
   Aperture,
   MagnifyingGlass,
   PencilSimple,
+  Pill,
   PintGlass,
   Play,
   Plus,
@@ -37,41 +37,45 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useUser } from "@clerk/react"
 import {
   resolveLayout,
-  toggleWidgetSize,
   type WidgetConfig,
   type WidgetId,
 } from "@/lib/widget-layout"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { authClient } from "@/lib/auth-client"
 import { api } from "../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
-  DailySummaryStrip,
+  DailyLedgerHero,
   InsightWidgets,
-  PrimaryActionGrid,
   TodayHeader,
   TodayTimeline,
+  type MacroProgress,
   type TimelineEvent,
 } from "@/components/home"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import { formatReminderLabel } from "@/lib/body-progress"
+import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
 import {
+  compactCardioSummary,
+  hasCardioDetails,
   normalizePresetCard,
   type Routine,
   type CachedWorkoutLog,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
+import { getLoggedExerciseId } from "@/lib/exercise-history"
 import {
   currentDateKey,
   dateForOffset,
+  defaultMeal,
   detectTimeZone,
+  nutritionDetailTotals,
   offsetDateKey,
   type FoodLogEntry,
   DEFAULT_MEAL_CATEGORIES,
@@ -83,6 +87,16 @@ import {
   waterGlassTargetMl,
 } from "@/lib/water-glasses"
 import {
+  SUPPLEMENT_DEFINITIONS,
+  SUPPLEMENT_LIST,
+  completedSupplementCount,
+  formatSupplementAmount,
+  supplementEntryLabel,
+  supplementTotals,
+  type SupplementKind,
+  type SupplementLogEntry,
+} from "@/lib/supplements"
+import {
   Calendar,
   Card,
   CardTitle,
@@ -90,6 +104,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
+import {
+  APP_ACCENT_COLORS,
+  MACRO_COLORS,
+  MICRO_COLORS,
+  tint,
+} from "@/lib/design-tokens"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,13 +128,45 @@ type CalorieInfo = {
   burnedCalories?: number
 }
 
+type DashboardStatLine = {
+  label: string
+  value: string
+  progress?: number
+  color?: string
+}
+
+type DashboardStat = {
+  title: string
+  value: string
+  detail?: string
+  lines?: DashboardStatLine[]
+  onClick?: () => void
+}
+
+type ActiveWorkoutCandidate = {
+  slot?: 1 | 2
+  completedAt?: number
+  abortedAt?: number
+  status?: string
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MIN_DAY_OFFSET = -6 // how far back history goes
+const ABORTED_WORKOUT_SLOT_KEY = "onerep:aborted-workout-slot"
 const DASHBOARD_EMPTY_ICON_CLASS = "size-7 shrink-0 md:size-6"
 const DASHBOARD_TILE_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
 const DASHBOARD_METRIC_ICON_CLASS = "size-8 shrink-0 md:size-6"
 const DASHBOARD_SMALL_METRIC_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
+const COMPLETE_COLOR = APP_ACCENT_COLORS.complete
+const COMPLETE_BG = tint(COMPLETE_COLOR, 13)
+const COMPLETE_SOFT_BG = tint(COMPLETE_COLOR, 7)
+const CAUTION_COLOR = APP_ACCENT_COLORS.caution
+const DANGER_COLOR = APP_ACCENT_COLORS.danger
+const FOOD_COLOR = APP_ACCENT_COLORS.food
+const FOOD_BG = tint(FOOD_COLOR, 10)
+const WATER_COLOR = APP_ACCENT_COLORS.water
+const WATER_BG = tint(WATER_COLOR, 13)
 
 const EMPTY_WORKOUT_ROUTINE: Routine = {
   Mon: null,
@@ -233,6 +285,37 @@ function totalsForEntries(entries: FoodLogEntry[]) {
   )
 }
 
+function readRecentlyAbortedWorkoutSlot(): 1 | 2 | null {
+  if (typeof window === "undefined") return null
+  const value = window.sessionStorage.getItem(ABORTED_WORKOUT_SLOT_KEY)
+  if (value === "1") return 1
+  if (value === "2") return 2
+  return null
+}
+
+function isLiveActiveWorkout(
+  workout: ActiveWorkoutCandidate | null | undefined
+) {
+  if (!workout) return false
+  if (workout.completedAt || workout.abortedAt) return false
+  const status = workout.status?.toLowerCase()
+  return status !== "aborted" && status !== "complete" && status !== "completed"
+}
+
+function statPct(value: number, target: number) {
+  if (target <= 0) return undefined
+  return Math.max(0, Math.min(100, Math.round((value / target) * 100)))
+}
+
+function fmtStatNutrient(value: number | undefined, unit: "g" | "mg" | "mcg") {
+  const safe = Number.isFinite(value) ? Math.max(0, value ?? 0) : 0
+  if (unit === "g") {
+    return `${safe >= 10 ? Math.round(safe) : safe.toFixed(1).replace(/\.0$/, "")}g`
+  }
+  if (unit === "mg") return `${Math.round(safe).toLocaleString("en-US")}mg`
+  return `${Math.round(safe).toLocaleString("en-US")}mcg`
+}
+
 function ProgressCard() {
   const navigate = useSmoothNavigate()
   const measurements = useQuery(api.bodyProgress.list, {})
@@ -245,7 +328,7 @@ function ProgressCard() {
     <Card>
       <button
         onClick={() => navigate("/progress")}
-        className="flex w-full items-start justify-between gap-4 px-4 py-2.5 text-left transition-colors active:bg-muted/20"
+        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors active:bg-muted/20"
       >
         <div className="min-w-0">
           <p className="text-sm font-semibold">Body progress</p>
@@ -255,56 +338,11 @@ function ProgressCard() {
               : "Log weight, body fat, waist, and more to see your trend."}
           </p>
         </div>
-        <div className="rounded-2xl bg-foreground/[0.06] px-3 py-2">
+        <div className="rounded-[10px] bg-foreground/[0.06] px-3 py-2">
           <span className="text-[11px] font-semibold">Open</span>
         </div>
       </button>
     </Card>
-  )
-}
-
-function CheckInPrompt({
-  reminderEnabled,
-  reminderLabel,
-}: {
-  reminderEnabled: boolean
-  reminderLabel: string
-}) {
-  const navigate = useSmoothNavigate()
-
-  return (
-    <button
-      onClick={() => navigate("/progress")}
-      className="relative mx-4 mt-3 mb-2.5 overflow-hidden rounded-[20px] bg-foreground px-4 py-3 text-left text-background transition-opacity active:opacity-80 md:mb-3 md:rounded-[26px] md:px-4 md:pt-3.5 md:pb-4"
-    >
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.055]"
-        style={{
-          backgroundImage:
-            "repeating-linear-gradient(90deg, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 6px)",
-        }}
-      />
-      <div className="pointer-events-none absolute top-3 right-3 h-14 w-14 rounded-full border border-background/12 md:h-12 md:w-12" />
-      <div className="pointer-events-none absolute top-5 right-5 h-10 w-10 rounded-full border border-background/10 md:h-8 md:w-8" />
-
-      <div className="relative flex min-w-0 items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[15px] leading-tight font-semibold tracking-tight md:mt-2 md:text-[17px]">
-            Log body snapshot
-          </p>
-          <p className="mt-1 max-w-[15rem] text-[11px] leading-snug text-background/62 md:mt-2 md:text-[11.5px] md:leading-relaxed">
-            Weight, waist, and body-fat trends.
-            {reminderEnabled ? ` ${reminderLabel}.` : ""}
-          </p>
-        </div>
-        <span className="shrink-0 rounded-full bg-background/10 px-3 py-2 text-[11px] font-semibold text-background ring-1 ring-background/12">
-          Check in
-        </span>
-      </div>
-      <div className="sr-only">
-        <p>Log your first body snapshot</p>
-      </div>
-    </button>
   )
 }
 
@@ -416,17 +454,10 @@ function CalorieCard({
   const consumedTotals = totalsForEntries(entries)
   const consumed = consumedTotals.calories
   const remaining = Math.max(0, target - consumed)
-  const isToday = dayOffset === 0
   const pct =
     target > 0 ? Math.min(100, Math.round((consumed / target) * 100)) : 0
 
   const { protein, carbs, fat } = consumedTotals
-
-  const MACRO_COLORS = {
-    protein: "#f59e0b",
-    carbs: "#38bdf8",
-    fat: "#a78bfa",
-  } as const
 
   return (
     <Card>
@@ -436,7 +467,10 @@ function CalorieCard({
           <div className="flex items-center gap-1.5">
             <CardTitle className="text-sm font-semibold">Calories</CardTitle>
             {info?.isTrainingDay && (
-              <div className="rounded-full bg-orange-500/10 px-1.5 py-0.5 text-[8px] font-bold tracking-wider text-orange-500 uppercase">
+              <div
+                className="rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-wider uppercase"
+                style={{ backgroundColor: FOOD_BG, color: FOOD_COLOR }}
+              >
                 Training Day
               </div>
             )}
@@ -481,7 +515,12 @@ function CalorieCard({
                 <p className="text-[9.5px] text-muted-foreground/35">
                   {consumed > target ? "over" : "left"}
                   {info?.burnedCalories ? (
-                    <span className="ml-1 text-green-500/60">
+                    <span
+                      className="ml-1"
+                      style={{
+                        color: `color-mix(in srgb, ${COMPLETE_COLOR} 62%, transparent)`,
+                      }}
+                    >
                       (+{info.burnedCalories} activity)
                     </span>
                   ) : null}
@@ -496,7 +535,7 @@ function CalorieCard({
                 style={{
                   width: barMounted ? `${pct}%` : "0%",
                   backgroundColor:
-                    consumed > target ? "#ef4444" : "var(--foreground)",
+                    consumed > target ? DANGER_COLOR : "var(--foreground)",
                   opacity: 0.45,
                 }}
               />
@@ -615,18 +654,24 @@ function HomeWorkoutSummary({
   log: CachedWorkoutLog
   slot: 1 | 2
 }) {
-  const completedExercises = log.exercises.filter((e) =>
-    e.sets.some((s) => s.completed)
+  const completedExercises = log.exercises.filter(
+    (e) => hasCardioDetails(e.cardio) || (e.sets ?? []).some((s) => s.completed)
   )
   const totalSets = log.exercises.reduce(
-    (acc, e) => acc + e.sets.filter((s) => s.completed).length,
+    (acc, e) => acc + (e.sets ?? []).filter((s) => s.completed).length,
     0
   )
+  const cardioCount = completedExercises.filter((e) =>
+    hasCardioDetails(e.cardio)
+  ).length
   const durationMin = Math.floor(log.durationSeconds / 60)
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[9.5px] font-bold tracking-widest text-green-600 uppercase dark:text-green-400">
+        <span
+          className="rounded-full px-2 py-0.5 text-[9.5px] font-bold tracking-widest uppercase"
+          style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
+        >
           Done
         </span>
         <span className="text-[11px] text-muted-foreground/60">
@@ -634,26 +679,48 @@ function HomeWorkoutSummary({
         </span>
       </div>
       <div className="flex flex-col gap-1">
-        {completedExercises.map((ex) => (
-          <div
-            key={ex.exerciseId}
-            className="flex items-center gap-2.5 rounded-lg bg-green-500/[0.06] px-3 py-1.5"
-          >
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-green-500/20 text-[8px] font-bold text-green-600 dark:text-green-400">
-              ✓
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-green-700 dark:text-green-300">
-              {ex.name}
-            </span>
-            <span className="shrink-0 text-[10.5px] text-green-600/50 tabular-nums dark:text-green-400/50">
-              {ex.sets.filter((s) => s.completed).length}/{ex.sets.length}
-            </span>
-          </div>
-        ))}
+        {completedExercises.map((ex) => {
+          const isCardio = hasCardioDetails(ex.cardio)
+          const id = getLoggedExerciseId(ex) ?? ex.name
+          return (
+            <div
+              key={id}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-1.5"
+              style={{ backgroundColor: COMPLETE_SOFT_BG }}
+            >
+              <span
+                className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-bold"
+                style={{
+                  backgroundColor: tint(COMPLETE_COLOR, 20),
+                  color: COMPLETE_COLOR,
+                }}
+              >
+                ✓
+              </span>
+              <span
+                className="min-w-0 flex-1 truncate text-[12.5px] font-medium"
+                style={{ color: COMPLETE_COLOR }}
+              >
+                {ex.name}
+              </span>
+              <span
+                className="max-w-[8.5rem] shrink truncate text-right text-[10.5px] tabular-nums"
+                style={{
+                  color: `color-mix(in srgb, ${COMPLETE_COLOR} 54%, transparent)`,
+                }}
+              >
+                {isCardio
+                  ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
+                  : `${(ex.sets ?? []).filter((s) => s.completed).length}/${ex.sets?.length ?? 0}`}
+              </span>
+            </div>
+          )
+        })}
       </div>
       <div className="flex justify-between text-[9.5px] text-muted-foreground/40">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
+          {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
         </span>
         <span>
           {new Date(log.completedAt).toLocaleTimeString("en-US", {
@@ -716,12 +783,18 @@ function WorkoutCard({
           <div className="flex items-center gap-2">
             <CardTitle className="text-sm font-semibold">{title}</CardTitle>
             {done && workoutLogs.length === 1 && (
-              <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-green-600 uppercase dark:text-green-400">
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase"
+                style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
+              >
                 Done
               </span>
             )}
             {done && workoutLogs.length === 2 && (
-              <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-green-600 uppercase dark:text-green-400">
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-widest uppercase"
+                style={{ backgroundColor: COMPLETE_BG, color: COMPLETE_COLOR }}
+              >
                 2× Done
               </span>
             )}
@@ -904,67 +977,20 @@ function SwipeRow({
   entry: FoodLogEntry
   onDelete: () => void
 }) {
-  const [tx, setTx] = React.useState(0)
-  const startX = React.useRef(0)
-  const txRef = React.useRef(0)
-  const dragging = React.useRef(false)
-  const ACTION_WIDTH = 72
-
-  function setTranslate(next: number) {
-    txRef.current = next
-    setTx(next)
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    startX.current = e.clientX
-    dragging.current = true
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging.current) return
-    setTranslate(
-      Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current))
-    )
-  }
-
-  function onPointerUp() {
-    dragging.current = false
-    setTranslate(txRef.current <= -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0)
-  }
-
-  const revealed = tx <= -ACTION_WIDTH
-
   return (
-    <div className="relative overflow-hidden">
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={onDelete}
-        disabled={!revealed}
-        tabIndex={revealed ? 0 : -1}
-        aria-label={`Delete ${entry.name}`}
-        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive/90 text-white transition-opacity disabled:pointer-events-none disabled:opacity-0"
-        style={{ borderRadius: "0 8px 8px 0" }}
-      >
-        <Trash size={14} weight="fill" className="text-white" />
-      </button>
-      <div
-        className="relative flex touch-pan-y items-center gap-2 bg-background py-[5px] transition-transform duration-150 ease-out"
-        style={{ transform: `translateX(${tx}px)` }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
-          {entry.name}
-        </p>
-        <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
-          {entry.calories}
-        </span>
-      </div>
-    </div>
+    <SlideToDeleteRow
+      deleteLabel={`Delete ${entry.name}`}
+      onDelete={onDelete}
+      actionClassName="rounded-r-lg"
+      rowClassName="flex items-center gap-2 bg-background py-[5px]"
+    >
+      <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
+        {entry.name}
+      </p>
+      <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
+        {entry.calories}
+      </span>
+    </SlideToDeleteRow>
   )
 }
 
@@ -1084,27 +1110,6 @@ function LoggedTodayCard({
   )
 }
 
-// ─── Profile button ─────────────────────────────────────────────────────────
-
-function ProfileButton({
-  name,
-  onSettingsClick,
-}: {
-  name?: string
-  onSettingsClick: () => void
-}) {
-  return (
-    <button
-      onClick={onSettingsClick}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground transition-opacity active:opacity-70"
-      aria-label="Settings"
-      title={name ? `${name} settings` : "Settings"}
-    >
-      <GearSix size={17} weight="bold" />
-    </button>
-  )
-}
-
 // ─── Water widget ─────────────────────────────────────────────────────────────
 
 function fmtWater(ml: number): string {
@@ -1202,8 +1207,11 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
                 onBlur={() => setHoveredGlass(null)}
                 className={cn(
                   "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-[0.985]",
-                  previewFilled ? "bg-[rgba(56,189,248,0.13)]" : "bg-muted/25"
+                  previewFilled ? "" : "bg-muted/25"
                 )}
+                style={
+                  previewFilled ? { backgroundColor: WATER_BG } : undefined
+                }
                 aria-label={
                   filled
                     ? "Remove last water entry"
@@ -1213,7 +1221,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
                 <PintGlass
                   size={22}
                   weight={previewFilled ? "fill" : "regular"}
-                  style={{ color: previewFilled ? "#38bdf8" : undefined }}
+                  style={{ color: previewFilled ? WATER_COLOR : undefined }}
                   className={cn(
                     DASHBOARD_TILE_ICON_CLASS,
                     !previewFilled && "text-muted-foreground/20"
@@ -1270,7 +1278,7 @@ function StreakCard({
 
   const active = streak > 0
   const fireColor = active
-    ? "#f97316"
+    ? FOOD_COLOR
     : "color-mix(in srgb, var(--foreground) 18%, transparent)"
 
   return (
@@ -1280,7 +1288,10 @@ function StreakCard({
         <div className="mb-3 flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Streak</CardTitle>
           {streak > 1 && (
-            <span className="text-[10px] font-semibold text-orange-400/80 tabular-nums">
+            <span
+              className="text-[10px] font-semibold tabular-nums"
+              style={{ color: FOOD_COLOR }}
+            >
               {streak} days
             </span>
           )}
@@ -1299,7 +1310,7 @@ function StreakCard({
               className="text-[22px] leading-none font-bold tracking-tight tabular-nums"
               style={{
                 color: active
-                  ? "#f97316"
+                  ? FOOD_COLOR
                   : "color-mix(in srgb, var(--foreground) 30%, transparent)",
               }}
             >
@@ -1321,19 +1332,17 @@ function StreakCard({
                   <div
                     className={cn(
                       "h-5 w-5 rounded-full transition-colors",
-                      done
-                        ? "bg-orange-400"
-                        : isFuture
-                          ? "bg-muted/20"
-                          : "bg-muted/40"
+                      done ? "" : isFuture ? "bg-muted/20" : "bg-muted/40"
                     )}
                     style={
-                      isToday && !done
-                        ? {
-                            boxShadow:
-                              "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)",
-                          }
-                        : undefined
+                      done
+                        ? { backgroundColor: FOOD_COLOR }
+                        : isToday
+                          ? {
+                              boxShadow:
+                                "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)",
+                            }
+                          : undefined
                     }
                   />
                   <span
@@ -1440,12 +1449,6 @@ function CalorieSmall({
     }
   }, [])
 
-  const MACRO_COLORS = {
-    protein: "#f59e0b",
-    carbs: "#38bdf8",
-    fat: "#a78bfa",
-  } as const
-
   return (
     <Card className="h-full overflow-hidden">
       <button
@@ -1489,7 +1492,7 @@ function CalorieSmall({
               className="motion-progress-fill h-full rounded"
               style={{
                 width: `${pct}%`,
-                backgroundColor: over ? "#ef4444" : "var(--foreground)",
+                backgroundColor: over ? DANGER_COLOR : "var(--foreground)",
                 opacity: 0.45,
               }}
             />
@@ -1561,7 +1564,7 @@ function CalorieSmall({
               className="motion-progress-fill h-full rounded"
               style={{
                 width: `${pct}%`,
-                backgroundColor: over ? "#ef4444" : "var(--foreground)",
+                backgroundColor: over ? DANGER_COLOR : "var(--foreground)",
                 opacity: 0.45,
               }}
             />
@@ -1644,10 +1647,15 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
                   onBlur={() => setHoveredGlass(null)}
                   className={cn(
                     "flex h-6 items-center justify-center rounded transition-all active:scale-[0.985]",
-                    previewFilled
-                      ? "bg-[rgba(56,189,248,0.20)] active:bg-[rgba(56,189,248,0.32)]"
-                      : "bg-muted/25 active:bg-muted/50"
+                    previewFilled ? "" : "bg-muted/25 active:bg-muted/50"
                   )}
+                  style={
+                    previewFilled
+                      ? {
+                          backgroundColor: tint(WATER_COLOR, 20),
+                        }
+                      : undefined
+                  }
                   aria-label={
                     filled
                       ? "Remove glass"
@@ -1657,7 +1665,7 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
                   <PintGlass
                     size={11}
                     weight={previewFilled ? "fill" : "regular"}
-                    style={{ color: previewFilled ? "#38bdf8" : undefined }}
+                    style={{ color: previewFilled ? WATER_COLOR : undefined }}
                     className={
                       previewFilled ? undefined : "text-muted-foreground/20"
                     }
@@ -1671,6 +1679,152 @@ function WaterSmall({ dateKey, goalMl }: { dateKey: string; goalMl: number }) {
           </p>
         </div>
       </div>
+    </Card>
+  )
+}
+
+const SUPPLEMENT_ICON = {
+  creatine: Lightning,
+  protein: ForkKnife,
+  vitamins: Pill,
+  caffeine: Coffee,
+} as const
+
+function SupplementWidget({
+  dateKey,
+  entries,
+}: {
+  dateKey: string
+  entries: SupplementLogEntry[]
+}) {
+  const navigate = useSmoothNavigate()
+  const addSupplement = useOfflineMutation(
+    api.logs.supplements.addEntry,
+    "logs.supplements.addEntry"
+  )
+  const totals = supplementTotals(entries)
+  const doneCount = completedSupplementCount(entries)
+
+  function quickAdd(kind: SupplementKind) {
+    const definition = SUPPLEMENT_DEFINITIONS[kind]
+    void addSupplement({
+      date: dateKey,
+      entry: {
+        id: crypto.randomUUID(),
+        kind,
+        amount: definition.defaultAmount,
+        unit: definition.unit,
+        loggedAt: new Date().toISOString(),
+      },
+    })
+  }
+
+  return (
+    <Card>
+      <div className="px-4 py-2.5">
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-baseline gap-2">
+            <CardTitle className="text-sm font-semibold">Supplements</CardTitle>
+            <span className="text-[10px] text-muted-foreground/35 tabular-nums">
+              {doneCount}/{SUPPLEMENT_LIST.length}
+            </span>
+          </div>
+          <button
+            onClick={() => navigate("/supplements")}
+            className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10.5px] font-medium text-muted-foreground/45 active:bg-muted/45 active:text-muted-foreground/70"
+          >
+            Open
+            <CaretRight size={10} weight="bold" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {SUPPLEMENT_LIST.map((definition) => {
+            const Icon = SUPPLEMENT_ICON[definition.kind]
+            const total = totals[definition.kind]
+            const done = total > 0
+            return (
+              <button
+                key={definition.kind}
+                type="button"
+                onClick={() => quickAdd(definition.kind)}
+                className={cn(
+                  "flex min-h-[58px] items-center gap-2 rounded-xl px-3 py-2 text-left transition-transform active:scale-[0.985]",
+                  done ? "bg-foreground/[0.055]" : "bg-muted/28"
+                )}
+              >
+                <span
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: definition.bg,
+                    color: definition.color,
+                  }}
+                >
+                  <Icon size={15} weight="bold" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12px] font-semibold">
+                    {definition.shortLabel}
+                  </span>
+                  <span className="block truncate text-[10px] text-muted-foreground/45 tabular-nums">
+                    {done
+                      ? formatSupplementAmount(total, definition.unit)
+                      : formatSupplementAmount(
+                          definition.defaultAmount,
+                          definition.unit
+                        )}
+                  </span>
+                </span>
+                <Plus size={11} className="shrink-0 text-muted-foreground/25" />
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function SupplementsSmall({
+  entries,
+  onOpen,
+}: {
+  entries: SupplementLogEntry[]
+  onOpen: () => void
+}) {
+  const doneCount = completedSupplementCount(entries)
+  const totals = supplementTotals(entries)
+
+  return (
+    <Card className="h-full">
+      <button
+        onClick={onOpen}
+        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+      >
+        <div className="flex w-full items-start justify-between">
+          <p className="text-[10px] font-semibold text-muted-foreground/50">
+            Supplements
+          </p>
+          <Pill
+            size={14}
+            weight="bold"
+            className="mt-0.5 text-[var(--accent-supplement)]"
+          />
+        </div>
+        <div>
+          <div className="flex items-baseline gap-1">
+            <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
+              {doneCount}
+            </span>
+            <span className="text-[9.5px] text-muted-foreground/40">
+              /{SUPPLEMENT_LIST.length}
+            </span>
+          </div>
+          <p className="mt-0.5 truncate text-[9px] text-muted-foreground/35">
+            {formatSupplementAmount(totals.caffeine, "mg")} caffeine
+          </p>
+        </div>
+      </button>
     </Card>
   )
 }
@@ -1809,12 +1963,15 @@ function WorkoutSmall({
               <div
                 className={cn(
                   "h-1.5 w-1.5 rounded-full",
-                  done
-                    ? "bg-green-500"
-                    : isRestDay
-                      ? "bg-muted-foreground/20"
-                      : "bg-amber-400/70"
+                  isRestDay && "bg-muted-foreground/20"
                 )}
+                style={
+                  done
+                    ? { backgroundColor: COMPLETE_COLOR }
+                    : !isRestDay
+                      ? { backgroundColor: CAUTION_COLOR }
+                      : undefined
+                }
               />
               <span className="text-[9px] text-muted-foreground/40">
                 {done ? "Done" : isRestDay ? "Rest" : "Hold to start"}
@@ -1851,7 +2008,7 @@ function StreakSmall({ streak }: { streak: number }) {
             weight={active ? "fill" : "regular"}
             style={{
               color: active
-                ? "#f97316"
+                ? FOOD_COLOR
                 : "color-mix(in srgb, var(--foreground) 20%, transparent)",
             }}
             className={DASHBOARD_SMALL_METRIC_ICON_CLASS}
@@ -1861,7 +2018,7 @@ function StreakSmall({ streak }: { streak: number }) {
               className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums"
               style={{
                 color: active
-                  ? "#f97316"
+                  ? FOOD_COLOR
                   : "color-mix(in srgb, var(--foreground) 35%, transparent)",
               }}
             >
@@ -2154,19 +2311,95 @@ function ProgressSmall({
   )
 }
 
+// ─── Stats preview ────────────────────────────────────────────────────────────
+
+function DashboardStatCard({
+  stat,
+  compact,
+}: {
+  stat: DashboardStat
+  compact: boolean
+}) {
+  const lines = compact ? stat.lines?.slice(0, 2) : stat.lines
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="app-eyebrow text-[0.62rem] text-muted-foreground/64">
+            {stat.title}
+          </p>
+          <p className="mt-2 truncate text-[1.35rem] leading-none font-extrabold tabular-nums">
+            {stat.value}
+          </p>
+        </div>
+        {stat.onClick && (
+          <span className="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground/70">
+            Open
+          </span>
+        )}
+      </div>
+      {stat.detail && (
+        <p className="mt-2 line-clamp-2 text-[11.5px] leading-4 font-semibold text-muted-foreground/60">
+          {stat.detail}
+        </p>
+      )}
+      {lines && lines.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {lines.map((line) => (
+            <div key={line.label}>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="truncate text-[10.5px] font-semibold text-muted-foreground/62">
+                  {line.label}
+                </span>
+                <span className="shrink-0 text-[10.5px] font-bold text-foreground/72 tabular-nums">
+                  {line.value}
+                </span>
+              </div>
+              {line.progress != null && (
+                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
+                  <div
+                    className="h-full rounded-full bg-foreground/70"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, line.progress))}%`,
+                      backgroundColor: line.color ?? "var(--foreground)",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+
+  const className = cn(
+    "app-surface flex h-full min-h-[8.4rem] w-full flex-col p-3.5 text-left transition-colors active:bg-muted/20",
+    compact ? "min-h-[8.4rem]" : "min-h-[10.5rem]"
+  )
+
+  if (stat.onClick) {
+    return (
+      <button type="button" onClick={stat.onClick} className={className}>
+        {content}
+      </button>
+    )
+  }
+
+  return <div className={className}>{content}</div>
+}
+
 // ─── Sortable widget wrapper ──────────────────────────────────────────────────
 
 function SortableWidget({
   id,
   editMode,
   size,
-  onToggleSize,
   children,
 }: {
   id: WidgetId
   editMode: boolean
   size: "full" | "small"
-  onToggleSize: () => void
   children: React.ReactNode
 }) {
   const {
@@ -2187,11 +2420,14 @@ function SortableWidget({
         opacity: isDragging ? 0.45 : 1,
         zIndex: isDragging ? 50 : undefined,
       }}
-      className={cn("relative", size === "full" ? "col-span-2" : "col-span-1")}
+      className={cn(
+        "relative flex min-h-0",
+        size === "full" ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
+      )}
     >
       {children}
       {editMode && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex overflow-hidden rounded-[20px]">
+        <div className="pointer-events-none absolute inset-0 z-10 flex overflow-hidden rounded-[12px]">
           {/* drag handle */}
           <button
             {...attributes}
@@ -2202,18 +2438,6 @@ function SortableWidget({
             <DotsSixVertical size={15} weight="bold" />
           </button>
           <div className="flex-1" />
-          {/* size toggle */}
-          <button
-            onClick={onToggleSize}
-            className="pointer-events-auto flex w-10 shrink-0 items-center justify-center bg-foreground/[0.07] text-muted-foreground/50 transition-colors active:bg-foreground/[0.13]"
-            aria-label={size === "full" ? "Shrink to half" : "Expand to full"}
-          >
-            {size === "full" ? (
-              <ArrowsInSimple size={13} weight="bold" />
-            ) : (
-              <ArrowsOutSimple size={13} weight="bold" />
-            )}
-          </button>
         </div>
       )}
     </div>
@@ -2224,7 +2448,7 @@ function SortableWidget({
 
 export default function App() {
   const navigate = useSmoothNavigate()
-  const { data: session } = authClient.useSession()
+  const { user } = useUser()
   const [dayOffset, setDayOffset] = useState(0)
 
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -2250,6 +2474,9 @@ export default function App() {
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
   const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
+  const supplementLogs = useQuery(api.logs.supplements.getDay, {
+    date: selectedDate,
+  })
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
@@ -2265,6 +2492,14 @@ export default function App() {
   const addWaterEntry = useOfflineMutation(
     api.logs.water.addEntry,
     "logs.water.addEntry"
+  )
+  const removeWaterEntry = useOfflineMutation(
+    api.logs.water.removeEntry,
+    "logs.water.removeEntry"
+  )
+  const removeSupplementEntry = useOfflineMutation(
+    api.logs.supplements.removeEntry,
+    "logs.supplements.removeEntry"
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
   const saveWidgetLayout = useOfflineMutation(
@@ -2305,12 +2540,6 @@ export default function App() {
     const oldIndex = widgetLayout.findIndex((w) => w.id === active.id)
     const newIndex = widgetLayout.findIndex((w) => w.id === over.id)
     const next = arrayMove(widgetLayout, oldIndex, newIndex)
-    setWidgetLayout(next)
-    void saveWidgetLayout({ layout: next })
-  }
-
-  function handleToggleSize(id: WidgetId) {
-    const next = toggleWidgetSize(widgetLayout, id)
     setWidgetLayout(next)
     void saveWidgetLayout({ layout: next })
   }
@@ -2372,6 +2601,10 @@ export default function App() {
       (waterLogs ?? []) as { id: string; amountMl: number; loggedAt: string }[],
     [waterLogs]
   )
+  const supplementEntries = useMemo(
+    () => (supplementLogs ?? []) as SupplementLogEntry[],
+    [supplementLogs]
+  )
 
   const loading =
     onboarding === undefined ||
@@ -2404,14 +2637,17 @@ export default function App() {
     }
   }, [currentUser, navigate, onboarding])
 
-  const firstName = session?.user?.name?.trim().split(/\s+/)[0] ?? "there"
+  const firstName =
+    user?.firstName ?? user?.fullName?.trim().split(/\s+/)[0] ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
-  const dateLabel = now.toLocaleDateString("en-US", {
+  const selectedDateLabel = dayOffsetLabel(dayOffset, activeTimezone)
+  const dateLabel = `${selectedDateLabel} · ${dateKeyToCalendarDate(
+    selectedDate
+  ).toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
-    timeZone: activeTimezone,
-  })
+  })}`
 
   const scheduledWorkout = useMemo(() => {
     const day = dateKeyToDay(selectedDate, activeTimezone)
@@ -2433,22 +2669,210 @@ export default function App() {
   )
   const caloriesTarget = calorieInfo?.target ?? 2000
   const caloriesLeft = Math.round(caloriesTarget - foodTotals.calories)
-  const activeWorkout = activeWorkouts?.[0] ?? null
+  const isTodaySelected = dayOffset === 0
+  const recentlyAbortedSlot = readRecentlyAbortedWorkoutSlot()
+  const activeWorkout = isTodaySelected
+    ? (((activeWorkouts ?? []) as ActiveWorkoutCandidate[]).find(
+        (workout) =>
+          isLiveActiveWorkout(workout) && workout.slot !== recentlyAbortedSlot
+      ) ?? null)
+    : null
+
+  useEffect(() => {
+    if (!recentlyAbortedSlot || activeWorkouts === undefined) return
+    const stillReturned = (activeWorkouts as ActiveWorkoutCandidate[]).some(
+      (workout) =>
+        workout.slot === recentlyAbortedSlot && isLiveActiveWorkout(workout)
+    )
+    if (!stillReturned && typeof window !== "undefined") {
+      window.sessionStorage.removeItem(ABORTED_WORKOUT_SLOT_KEY)
+    }
+  }, [activeWorkouts, recentlyAbortedSlot])
+
+  const hasCompletedWorkout = workoutLogs.length > 0
   const workoutState = activeWorkout
     ? "Active"
-    : workoutLogs.length > 0
+    : hasCompletedWorkout
       ? "Done"
       : scheduledWorkout
-        ? "Ready"
+        ? isTodaySelected
+          ? "Ready"
+          : "Planned"
         : "Rest"
-  const workoutActionLabel = activeWorkout
-    ? "Continue workout"
-    : "Start workout"
   const workoutActionDetail = activeWorkout
     ? "Resume active session"
-    : scheduledWorkout
-      ? "Today routine"
-      : "Open workout"
+    : hasCompletedWorkout
+      ? "View workout log"
+      : scheduledWorkout
+        ? `${scheduledWorkout.duration} planned`
+        : "Choose workout"
+  const currentMealLabel =
+    DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
+    "food"
+  const proteinTarget = calorieInfo?.protein ?? 140
+  const carbsTarget = calorieInfo?.carbs ?? 220
+  const fatTarget = calorieInfo?.fat ?? 65
+  const macroProgress: MacroProgress[] = [
+    {
+      label: "Protein",
+      shortLabel: "P",
+      value: foodTotals.protein,
+      target: proteinTarget,
+      color: MACRO_COLORS.protein,
+    },
+    {
+      label: "Carbs",
+      shortLabel: "C",
+      value: foodTotals.carbs,
+      target: carbsTarget,
+      color: MACRO_COLORS.carbs,
+    },
+    {
+      label: "Fat",
+      shortLabel: "F",
+      value: foodTotals.fat,
+      target: fatTarget,
+      color: MACRO_COLORS.fat,
+    },
+  ]
+  const supplementDoneCount = completedSupplementCount(supplementEntries)
+  const supplementTargetCount = SUPPLEMENT_LIST.length
+  const supplementRemainingCount = Math.max(
+    0,
+    supplementTargetCount - supplementDoneCount
+  )
+  const waterPct = statPct(waterTotalMl, waterGoalMl) ?? 0
+  const caloriePct = statPct(foodTotals.calories, caloriesTarget) ?? 0
+  const supplementPct = statPct(supplementDoneCount, supplementTargetCount) ?? 0
+  const goalsHit =
+    (foodEntries.length > 0 && caloriesLeft >= 0 ? 1 : 0) +
+    (waterTotalMl >= waterGoalMl ? 1 : 0) +
+    (supplementRemainingCount === 0 ? 1 : 0)
+  const microTotals = useMemo(
+    () => nutritionDetailTotals(foodEntries),
+    [foodEntries]
+  )
+  const measurements = (bodyMeasurements ?? []) as Array<{
+    weightKg?: number
+    loggedAt: string
+  }>
+  const latestMeasurement =
+    measurements.length > 0 ? measurements[measurements.length - 1] : null
+  const previousMeasurement =
+    measurements.length > 1 ? measurements[measurements.length - 2] : null
+  const weightDelta =
+    latestMeasurement?.weightKg != null && previousMeasurement?.weightKg != null
+      ? latestMeasurement.weightKg - previousMeasurement.weightKg
+      : null
+  const weightDetail = latestMeasurement
+    ? `${new Date(`${latestMeasurement.loggedAt}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${weightDelta != null ? ` · ${weightDelta >= 0 ? "+" : ""}${weightDelta.toFixed(1)} kg` : ""}`
+    : "Log weight, waist, or body fat"
+  const microLines: DashboardStatLine[] = [
+    {
+      label: "Fiber",
+      value: `${fmtStatNutrient(microTotals.fiber, "g")} / 30g`,
+      progress: statPct(microTotals.fiber ?? 0, 30),
+      color: MICRO_COLORS.fiber,
+    },
+    {
+      label: "Sodium",
+      value: `${fmtStatNutrient(microTotals.sodium, "mg")} / 2,300mg`,
+      progress: statPct(microTotals.sodium ?? 0, 2300),
+      color: MICRO_COLORS.sodium,
+    },
+    {
+      label: "Sugar",
+      value: fmtStatNutrient(microTotals.sugar, "g"),
+      color: MICRO_COLORS.sugar,
+    },
+  ]
+  const workoutPreviewDetail = activeWorkout
+    ? "Active session in progress"
+    : hasCompletedWorkout
+      ? `${workoutLogs.length} workout${workoutLogs.length === 1 ? "" : "s"} logged`
+      : scheduledWorkout
+        ? `${scheduledWorkout.duration} · ${scheduledWorkout.steps.slice(0, 2).join(" · ")}`
+        : "No workout scheduled"
+  const statsByWidget: Record<WidgetId, DashboardStat> = {
+    water: {
+      title: "Daily goals",
+      value: `${goalsHit}/3`,
+      lines: [
+        {
+          label: "Calories",
+          value: `${fmtKcal(foodTotals.calories)} / ${fmtKcal(caloriesTarget)}`,
+          progress: caloriePct,
+          color: caloriesLeft < 0 ? DANGER_COLOR : FOOD_COLOR,
+        },
+        {
+          label: "Water",
+          value: `${fmtWater(waterTotalMl)} / ${fmtWater(waterGoalMl)}`,
+          progress: waterPct,
+          color: WATER_COLOR,
+        },
+        {
+          label: "Supplements",
+          value: `${supplementDoneCount}/${supplementTargetCount}`,
+          progress: supplementPct,
+          color: COMPLETE_COLOR,
+        },
+      ],
+    },
+    workout: {
+      title: "Today’s workout",
+      value: activeWorkout
+        ? "Active"
+        : hasCompletedWorkout
+          ? "Done"
+          : (scheduledWorkout?.name ?? "Rest"),
+      detail: workoutPreviewDetail,
+      lines: scheduledWorkout
+        ? scheduledWorkout.steps.slice(0, 3).map((step, index) => ({
+            label: `Step ${index + 1}`,
+            value: step,
+          }))
+        : undefined,
+      onClick: hasCompletedWorkout
+        ? () => navigate("/workouts")
+        : openWorkoutAction,
+    },
+    streak: {
+      title: "Training week",
+      value: `${workoutsThisWeek}`,
+      detail:
+        workoutsThisWeek === 1
+          ? "1 workout logged this week"
+          : `${workoutsThisWeek} workouts logged this week`,
+      lines: [
+        {
+          label: "Current streak",
+          value: `${streak} day${streak === 1 ? "" : "s"}`,
+          progress: Math.min(100, streak * 14),
+          color: COMPLETE_COLOR,
+        },
+      ],
+      onClick: () => navigate("/workouts"),
+    },
+    food: {
+      title: "Micros",
+      value:
+        (microTotals.fiber ?? 0) > 0
+          ? `${fmtStatNutrient(microTotals.fiber, "g")} fiber`
+          : "No detail",
+      detail: "Fiber, sodium, and sugar from foods with nutrition details.",
+      lines: microLines,
+      onClick: () => navigate("/foods"),
+    },
+    progress: {
+      title: "Body",
+      value:
+        latestMeasurement?.weightKg != null
+          ? `${latestMeasurement.weightKg.toFixed(1)} kg`
+          : "Check in",
+      detail: weightDetail,
+      onClick: () => navigate("/progress"),
+    },
+  }
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const foodEvents = foodEntries.map((entry) => ({
@@ -2457,6 +2881,7 @@ export default function App() {
       detail: `${Math.round(entry.calories)} kcal logged`,
       kind: "food" as const,
       loggedAt: entry.loggedAt,
+      deleteLabel: `Delete ${entry.name}`,
     }))
     const waterEvents = waterEntries.map((entry) => ({
       id: `water-${entry.id}`,
@@ -2464,6 +2889,15 @@ export default function App() {
       detail: `${fmtWater(entry.amountMl)} added`,
       kind: "water" as const,
       loggedAt: entry.loggedAt,
+      deleteLabel: `Delete ${fmtWater(entry.amountMl)} water entry`,
+    }))
+    const supplementEvents = supplementEntries.map((entry) => ({
+      id: `supplement-${entry.id}`,
+      title: SUPPLEMENT_DEFINITIONS[entry.kind].label,
+      detail: supplementEntryLabel(entry),
+      kind: "supplement" as const,
+      loggedAt: entry.loggedAt,
+      deleteLabel: `Delete ${SUPPLEMENT_DEFINITIONS[entry.kind].label}`,
     }))
     const workoutEvents = workoutLogs.map((log, index) => ({
       id: `workout-${log._id ?? index}`,
@@ -2473,18 +2907,19 @@ export default function App() {
       loggedAt: log.completedAt
         ? new Date(log.completedAt).toISOString()
         : `${selectedDate}T23:59:00.000Z`,
+      deleteLabel: "Delete workout",
+      deleteSlot: (index + 1) as 1 | 2,
     }))
 
-    return [...foodEvents, ...waterEvents, ...workoutEvents]
+    return [
+      ...foodEvents,
+      ...waterEvents,
+      ...supplementEvents,
+      ...workoutEvents,
+    ]
       .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
       .slice(0, 20)
-      .map((event) => ({
-        id: event.id,
-        title: event.title,
-        detail: event.detail,
-        kind: event.kind,
-      }))
-  }, [foodEntries, selectedDate, waterEntries, workoutLogs])
+  }, [foodEntries, selectedDate, supplementEntries, waterEntries, workoutLogs])
 
   function addQuickWater() {
     void addWaterEntry({
@@ -2497,9 +2932,44 @@ export default function App() {
     })
   }
 
+  function deleteTimelineEvent(event: TimelineEvent) {
+    if (event.kind === "food") {
+      const id = event.id.replace(/^food-/, "")
+      void setDay({
+        date: selectedDate,
+        entries: foodEntries.filter((entry) => entry.id !== id),
+      })
+      return
+    }
+
+    if (event.kind === "water") {
+      void removeWaterEntry({
+        date: selectedDate,
+        id: event.id.replace(/^water-/, ""),
+      })
+      return
+    }
+
+    if (event.kind === "supplement") {
+      void removeSupplementEntry({
+        date: selectedDate,
+        id: event.id.replace(/^supplement-/, ""),
+      })
+      return
+    }
+
+    if (event.kind === "workout" && event.deleteSlot) {
+      setConfirmDeleteSlot(event.deleteSlot)
+    }
+  }
+
   function openWorkoutAction() {
     if (activeWorkout) {
       navigate(`/workout/active?slot=${activeWorkout.slot}`)
+      return
+    }
+    if (hasCompletedWorkout) {
+      navigate("/workouts")
       return
     }
     if (scheduledWorkout) {
@@ -2510,75 +2980,69 @@ export default function App() {
   }
 
   const homeBodyReady =
-    bodyMeasurements !== undefined && preferences !== undefined
-  const bodyReminder = preferences?.bodyReminder ?? null
+    bodyMeasurements !== undefined &&
+    preferences !== undefined &&
+    effectiveGoals !== undefined &&
+    foodLogs !== undefined &&
+    waterLogs !== undefined &&
+    supplementLogs !== undefined &&
+    workoutLogsQuery !== undefined &&
+    activeWorkouts !== undefined &&
+    serverPresets !== undefined &&
+    schedule !== undefined
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
+    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
         <TodayHeader
           dateLabel={dateLabel}
           salutation={salutation}
           firstName={firstName}
           action={
-            <ProfileButton
-              name={session?.user?.name}
-              onSettingsClick={() => navigate("/settings")}
+            <DateNav
+              offset={dayOffset}
+              timeZone={activeTimezone}
+              onChange={setDayOffset}
             />
           }
         />
 
         {homeBodyReady ? (
           <>
-            {bodyMeasurements.length === 0 && (
-              <CheckInPrompt
-                reminderEnabled={bodyReminder?.enabled ?? false}
-                reminderLabel={
-                  bodyReminder ? formatReminderLabel(bodyReminder) : ""
-                }
-              />
-            )}
-
-            <PrimaryActionGrid
-              food={{
-                label: "Log food",
-                detail:
-                  foodEntries.length > 0
-                    ? `${foodEntries.length} logged`
-                    : "Search or scan",
-                onClick: () => navigate("/foods"),
-              }}
-              workout={{
-                label: workoutActionLabel,
-                detail: workoutActionDetail,
-                onClick: openWorkoutAction,
-              }}
-              water={{
-                label: "Add water",
-                detail: "+250 ml",
-                onClick: addQuickWater,
-              }}
-            />
-
-            <DailySummaryStrip
+            <DailyLedgerHero
               caloriesLeft={caloriesLeft}
               caloriesTarget={caloriesTarget}
               waterMl={waterTotalMl}
               waterGoalMl={waterGoalMl}
               workoutState={workoutState}
-              targetSource={calorieInfo?.source ?? "default"}
-            />
-
-            <TodayTimeline
-              events={timelineEvents}
-              onLogFood={() => navigate("/foods")}
+              macros={macroProgress}
+              food={{
+                label: `Log ${currentMealLabel.toLowerCase()}`,
+                detail:
+                  foodEntries.length > 0
+                    ? `${foodEntries.length} logged today`
+                    : "Search, scan, or repeat meal",
+                onClick: () => setHomeAddOpen(true),
+              }}
+              workout={{
+                label: activeWorkout
+                  ? "Continue"
+                  : hasCompletedWorkout
+                    ? "Done"
+                    : "Workout",
+                detail: workoutActionDetail,
+                onClick: openWorkoutAction,
+              }}
+              water={{
+                label: "Water",
+                detail: "+250 ml",
+                onClick: addQuickWater,
+              }}
             />
 
             <InsightWidgets
               editMode={editMode}
-              onToggleEdit={() => {
-                setEditMode((value) => !value)
-              }}
+              onToggleEdit={() => setEditMode((value) => !value)}
             >
               <DndContext
                 sensors={sensors}
@@ -2586,133 +3050,34 @@ export default function App() {
                 onDragEnd={handleDragEnd}
               >
                 <SortableContext
-                  items={widgetLayout.map((w) => w.id)}
+                  items={widgetLayout.map((widget) => widget.id)}
                   strategy={rectSortingStrategy}
                 >
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-                    {widgetLayout.map((widget) => {
-                      let content: React.ReactNode
-
-                      if (widget.id === "calories") {
-                        const foodTotals = totalsForEntries(foodEntries)
-                        content =
-                          widget.size === "full" ? (
-                            <CalorieCard
-                              info={calorieInfo}
-                              loading={loading}
-                              entries={foodEntries}
-                              dayOffset={dayOffset}
-                              timeZone={activeTimezone}
-                              onDayOffsetChange={setDayOffset}
-                            />
-                          ) : (
-                            <CalorieSmall
-                              consumed={foodTotals.calories}
-                              target={calorieInfo?.target ?? 0}
-                              protein={foodTotals.protein}
-                              carbs={foodTotals.carbs}
-                              fat={foodTotals.fat}
-                              onAdd={() => setHomeAddOpen(true)}
-                            />
-                          )
-                      } else if (widget.id === "water") {
-                        content =
-                          widget.size === "full" ? (
-                            <WaterWidget dateKey={selectedDate} />
-                          ) : (
-                            <WaterSmall
-                              dateKey={selectedDate}
-                              goalMl={waterGoalMl}
-                            />
-                          )
-                      } else if (widget.id === "workout") {
-                        const done = workoutLogs.length > 0
-                        const fallback = WORKOUTS[settings.workoutFocus]
-                        const w = scheduledWorkout ?? fallback
-                        const workoutName = "title" in w ? w.title : w.name
-                        content =
-                          widget.size === "full" ? (
-                            <WorkoutCard
-                              settings={settings}
-                              dayOffset={dayOffset}
-                              scheduledWorkout={scheduledWorkout}
-                              timeZone={activeTimezone}
-                              workoutLogs={dayOffset === 0 ? workoutLogs : []}
-                              collapsed={
-                                dayOffset === 0 ? todayWorkoutCollapsed : false
-                              }
-                              onToggleCollapse={() => {
-                                if (dayOffset === 0)
-                                  setTodayWorkoutCollapsed((v) => !v)
-                              }}
-                              onDeleteSlot={(slot) =>
-                                setConfirmDeleteSlot(slot)
-                              }
-                            />
-                          ) : (
-                            <WorkoutSmall
-                              done={dayOffset === 0 && done}
-                              workoutName={workoutName}
-                              isRestDay={
-                                scheduledWorkout === null && dayOffset === 0
-                              }
-                            />
-                          )
-                      } else if (widget.id === "streak") {
-                        content =
-                          widget.size === "full" &&
-                          workoutHistory !== undefined ? (
-                            <StreakCard
-                              streak={streak}
-                              workoutsThisWeek={workoutsThisWeek}
-                              workoutDates={workoutDates}
-                              today={now}
-                            />
-                          ) : (
-                            <StreakSmall streak={streak} />
-                          )
-                      } else if (widget.id === "food") {
-                        content =
-                          widget.size === "full" ? (
-                            <LoggedTodayCard
-                              dayOffset={dayOffset}
-                              timeZone={activeTimezone}
-                              entries={foodEntries}
-                              onEntriesChange={(entries) =>
-                                void setDay({ date: selectedDate, entries })
-                              }
-                            />
-                          ) : (
-                            <FoodSmall
-                              entries={foodEntries}
-                              onAdd={() => setHomeAddOpen(true)}
-                            />
-                          )
-                      } else {
-                        content =
-                          widget.size === "full" ? (
-                            <ProgressCard />
-                          ) : (
-                            <ProgressSmall measurements={bodyMeasurements} />
-                          )
-                      }
-
-                      return (
-                        <SortableWidget
-                          key={widget.id}
-                          id={widget.id}
-                          editMode={editMode}
-                          size={widget.size}
-                          onToggleSize={() => handleToggleSize(widget.id)}
-                        >
-                          {content}
-                        </SortableWidget>
-                      )
-                    })}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {widgetLayout.map((widget) => (
+                      <SortableWidget
+                        key={widget.id}
+                        id={widget.id}
+                        editMode={editMode}
+                        size={widget.size}
+                      >
+                        <DashboardStatCard
+                          stat={statsByWidget[widget.id]}
+                          compact={widget.size === "small"}
+                        />
+                      </SortableWidget>
+                    ))}
                   </div>
                 </SortableContext>
               </DndContext>
             </InsightWidgets>
+
+            <TodayTimeline
+              events={timelineEvents}
+              onLogFood={() => navigate("/foods")}
+              onLogWater={addQuickWater}
+              onDeleteEvent={deleteTimelineEvent}
+            />
           </>
         ) : (
           <div
@@ -2735,35 +3100,28 @@ export default function App() {
           }}
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="mb-2 grid grid-cols-2 gap-2">
+            <div className="app-surface mb-3 overflow-hidden">
               <button
                 onClick={() => {
                   setHomeAddOpen(false)
                   navigate("/camera?mode=barcode")
                 }}
-                className="relative overflow-hidden rounded-2xl bg-foreground px-4 pt-3.5 pb-4 text-left text-background transition-opacity active:opacity-75"
+                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
-                <div
-                  className="pointer-events-none absolute inset-0 opacity-[0.055]"
-                  style={{
-                    backgroundImage:
-                      "repeating-linear-gradient(90deg, currentColor 0, currentColor 1.5px, transparent 1.5px, transparent 5px)",
-                  }}
-                />
-                <div className="scan-line pointer-events-none absolute right-3 left-3 h-px bg-background/50" />
-                <p className="relative text-[9px] font-semibold tracking-[0.18em] uppercase opacity-40">
-                  Capture
-                </p>
-                <p className="relative mt-1.5 text-[15px] leading-snug font-semibold tracking-tight">
-                  Scan
-                  <br />
-                  Barcode
-                </p>
-                <Barcode
-                  size={15}
-                  weight="bold"
-                  className="absolute right-3.5 bottom-3.5 opacity-25"
-                />
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
+                    <Barcode size={16} weight="bold" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Scan barcode
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      Packaged food
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
               </button>
 
               <button
@@ -2776,29 +3134,26 @@ export default function App() {
                   setHomeAddOpen(false)
                   navigate("/camera")
                 }}
-                className="relative overflow-hidden rounded-2xl bg-foreground/[0.055] px-5 pt-5 pb-6 text-left ring-1 ring-foreground/[0.07] transition-colors active:bg-foreground/[0.10]"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
-                <div className="pointer-events-none absolute top-3 left-3 h-4 w-4 border-t-[1.5px] border-l-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute top-3 right-3 h-4 w-4 border-t-[1.5px] border-r-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute bottom-3 left-3 h-4 w-4 border-b-[1.5px] border-l-[1.5px] border-foreground/30" />
-                <div className="pointer-events-none absolute right-3 bottom-3 h-4 w-4 border-r-[1.5px] border-b-[1.5px] border-foreground/30" />
-                <p className="relative text-[9px] font-semibold tracking-[0.18em] text-muted-foreground/50 uppercase">
-                  Capture
-                </p>
-                <p className="relative mt-5 text-[15px] leading-snug font-semibold tracking-tight">
-                  Snap
-                  <br />
-                  and Log
-                </p>
-                <Aperture
-                  size={18}
-                  weight="light"
-                  className="absolute right-4 bottom-4 opacity-20"
-                />
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                    <Aperture size={17} weight="bold" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Snap meal
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      Estimate from photo
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-border/50">
+            <div className="app-surface overflow-hidden">
               <button
                 onClick={() => {
                   setHomeAddOpen(false)
@@ -2829,6 +3184,23 @@ export default function App() {
                     className="shrink-0 text-muted-foreground/50"
                   />
                   <span className="text-[13px] font-medium">New Recipe</span>
+                </div>
+                <CaretRight size={11} className="text-muted-foreground/30" />
+              </button>
+              <div className="mx-4 h-px bg-border/50" />
+              <button
+                onClick={() => {
+                  setHomeAddOpen(false)
+                  navigate("/foods")
+                }}
+                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Pill
+                    size={13}
+                    className="shrink-0 text-muted-foreground/50"
+                  />
+                  <span className="text-[13px] font-medium">Supplements</span>
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
@@ -2893,7 +3265,8 @@ export default function App() {
                     })
                     setConfirmDeleteSlot(null)
                   }}
-                  className="h-12 w-full rounded-xl bg-red-500/90 text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                  className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                  style={{ backgroundColor: DANGER_COLOR }}
                 >
                   Delete
                 </button>

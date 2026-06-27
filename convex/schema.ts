@@ -37,6 +37,7 @@ export default defineSchema({
       ),
     ),
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
+    foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
     customGoals: v.optional(
       v.object({
@@ -86,6 +87,13 @@ export default defineSchema({
           hour: v.number(),
           minute: v.number(),
         }),
+        supplement: v.optional(
+          v.object({
+            enabled: v.boolean(),
+            hour: v.number(),
+            minute: v.number(),
+          }),
+        ),
       }),
     ),
     privacySettings: v.optional(
@@ -136,6 +144,19 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // ── Meal presets (quick-log templates from repeated food logs) ────────────
+  mealPresets: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    meal: v.string(),
+    signature: v.string(),
+    entries: v.array(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_meal_and_signature", ["userId", "meal", "signature"]),
 
   // ── Onboarding profile (lightweight initial setup) ─────────────────────────
   onboardingProfiles: defineTable({
@@ -203,6 +224,161 @@ export default defineSchema({
     entries: v.array(v.any()), // WaterLogEntry[]
     updatedAt: v.number(),
   }).index("by_userId_date", ["userId", "date"]),
+
+  // ── Supplement logs (one doc per user+date) ───────────────────────────────
+  supplementLogs: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    entries: v.array(v.any()), // SupplementLogEntry[]
+    updatedAt: v.number(),
+  }).index("by_userId_date", ["userId", "date"]),
+
+  // ── Supplement catalog (reusable user-owned supplement items) ─────────────
+  supplementItems: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    brand: v.optional(v.string()),
+    category: v.union(
+      v.literal("protein"),
+      v.literal("creatine"),
+      v.literal("multivitamin"),
+      v.literal("vitamin_mineral"),
+      v.literal("electrolyte"),
+      v.literal("caffeine_pre_workout"),
+      v.literal("omega_3"),
+      v.literal("fiber"),
+      v.literal("other"),
+    ),
+    form: v.union(
+      v.literal("capsule"),
+      v.literal("tablet"),
+      v.literal("powder"),
+      v.literal("liquid"),
+      v.literal("gummy"),
+      v.literal("softgel"),
+      v.literal("other"),
+    ),
+    servingLabel: v.string(),
+    defaultServingQuantity: v.number(),
+    barcode: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    active: v.boolean(),
+    schedule: v.object({
+      type: v.union(
+        v.literal("none"),
+        v.literal("daily"),
+        v.literal("weekdays"),
+        v.literal("training_days"),
+        v.literal("rest_days"),
+      ),
+      weekdays: v.optional(v.array(v.number())), // 0 Sun through 6 Sat
+      preferredTime: v.optional(v.string()), // HH:mm
+    }),
+    nutrientsPerServing: v.object({
+      calories: v.optional(v.number()),
+      protein: v.optional(v.number()),
+      carbs: v.optional(v.number()),
+      fat: v.optional(v.number()),
+      fiber: v.optional(v.number()),
+      sugar: v.optional(v.number()),
+      saturatedFat: v.optional(v.number()),
+      transFat: v.optional(v.number()),
+      cholesterol: v.optional(v.number()),
+      sodium: v.optional(v.number()),
+      potassium: v.optional(v.number()),
+      calcium: v.optional(v.number()),
+      iron: v.optional(v.number()),
+      magnesium: v.optional(v.number()),
+      phosphorus: v.optional(v.number()),
+      zinc: v.optional(v.number()),
+      vitaminA: v.optional(v.number()),
+      vitaminC: v.optional(v.number()),
+      vitaminD: v.optional(v.number()),
+      vitaminB12: v.optional(v.number()),
+      caffeine: v.optional(v.number()),
+      alcohol: v.optional(v.number()),
+      creatine: v.optional(v.number()),
+      omega3: v.optional(v.number()),
+      epa: v.optional(v.number()),
+      dha: v.optional(v.number()),
+    }),
+    source: v.union(v.literal("manual"), v.literal("openfoodfacts")),
+    importedOpenFoodFacts: v.optional(v.any()),
+    legacyKey: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_active", ["userId", "active"])
+    .index("by_userId_and_barcode", ["userId", "barcode"])
+    .index("by_userId_and_legacyKey", ["userId", "legacyKey"]),
+
+  // ── Supplement intake events (one row per taken/skipped event) ────────────
+  supplementIntakeLogs: defineTable({
+    userId: v.string(),
+    supplementId: v.id("supplementItems"),
+    clientId: v.optional(v.string()),
+    date: v.string(), // YYYY-MM-DD
+    status: v.union(v.literal("taken"), v.literal("skipped")),
+    loggedAt: v.string(),
+    servingMultiplier: v.number(),
+    servingLabel: v.string(),
+    name: v.string(),
+    brand: v.optional(v.string()),
+    category: v.union(
+      v.literal("protein"),
+      v.literal("creatine"),
+      v.literal("multivitamin"),
+      v.literal("vitamin_mineral"),
+      v.literal("electrolyte"),
+      v.literal("caffeine_pre_workout"),
+      v.literal("omega_3"),
+      v.literal("fiber"),
+      v.literal("other"),
+    ),
+    nutrients: v.object({
+      calories: v.optional(v.number()),
+      protein: v.optional(v.number()),
+      carbs: v.optional(v.number()),
+      fat: v.optional(v.number()),
+      fiber: v.optional(v.number()),
+      sugar: v.optional(v.number()),
+      saturatedFat: v.optional(v.number()),
+      transFat: v.optional(v.number()),
+      cholesterol: v.optional(v.number()),
+      sodium: v.optional(v.number()),
+      potassium: v.optional(v.number()),
+      calcium: v.optional(v.number()),
+      iron: v.optional(v.number()),
+      magnesium: v.optional(v.number()),
+      phosphorus: v.optional(v.number()),
+      zinc: v.optional(v.number()),
+      vitaminA: v.optional(v.number()),
+      vitaminC: v.optional(v.number()),
+      vitaminD: v.optional(v.number()),
+      vitaminB12: v.optional(v.number()),
+      caffeine: v.optional(v.number()),
+      alcohol: v.optional(v.number()),
+      creatine: v.optional(v.number()),
+      omega3: v.optional(v.number()),
+      epa: v.optional(v.number()),
+      dha: v.optional(v.number()),
+    }),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_date", ["userId", "date"])
+    .index("by_userId_and_date_and_supplementId", [
+      "userId",
+      "date",
+      "supplementId",
+    ])
+    .index("by_userId_and_supplementId_and_date", [
+      "userId",
+      "supplementId",
+      "date",
+    ]),
 
   // ── Body measurements (one record per check-in) ────────────────────────────
   bodyMeasurements: defineTable({
@@ -324,6 +500,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  // ── AI usage quotas ──────────────────────────────────────────────────────
+  aiUsage: defineTable({
+    userId: v.string(),
+    month: v.string(), // YYYY-MM UTC month key
+    count: v.number(),
+    lastSource: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_userId_month", ["userId", "month"]),
+
   // ── Food photo analysis quota ─────────────────────────────────────────────
   snapUsage: defineTable({
     userId: v.string(),
@@ -341,7 +526,7 @@ export default defineSchema({
     exerciseData: v.any(), // Record<string, ExerciseState>
     startedAt: v.number(), // timestamp when workout started
     elapsedSeconds: v.number(), // current elapsed time
-    completedAt: v.optional(v.number()), // when finished or aborted
+    completedAt: v.optional(v.number()), // when finished
   })
     .index("by_userId_slot", ["userId", "slot"])
     .index("by_userId", ["userId"]),

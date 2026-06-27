@@ -47,7 +47,9 @@ describe("activeWorkout Convex functions", () => {
       });
 
       expect(first.id).not.toBe(second.id);
-      const active = await t.query(api.logs.activeWorkout.getActive, { slot: 1 });
+      const active = await t.query(api.logs.activeWorkout.getActive, {
+        slot: 1,
+      });
       expect(active).toMatchObject({
         _id: second.id,
         slot: 1,
@@ -85,7 +87,9 @@ describe("activeWorkout Convex functions", () => {
         }),
       ).rejects.toThrow("No active workout found");
 
-      const active = await t.query(api.logs.activeWorkout.getActive, { slot: 1 });
+      const active = await t.query(api.logs.activeWorkout.getActive, {
+        slot: 1,
+      });
       expect(active).toMatchObject({
         items: [{ id: "deadlift", name: "Deadlift" }],
         elapsedSeconds: 123,
@@ -112,9 +116,9 @@ describe("activeWorkout Convex functions", () => {
         t.mutation(api.logs.activeWorkout.abortActive, { slot: 1 }),
       ).resolves.toEqual({ ok: true });
 
-      await expect(t.query(api.logs.activeWorkout.getActive, { slot: 1 })).resolves.toBe(
-        null,
-      );
+      await expect(
+        t.query(api.logs.activeWorkout.getActive, { slot: 1 }),
+      ).resolves.toBe(null);
       const allActive = await t.query(api.logs.activeWorkout.getAllActive, {});
       expect(allActive.map((workout) => workout.slot)).toEqual([2]);
     });
@@ -138,18 +142,16 @@ describe("activeWorkout Convex functions", () => {
             {
               id: "squat",
               name: "Squat",
-              sets: [
-                { type: "normal", reps: 5, weight: 100, completed: true },
-              ],
+              sets: [{ type: "normal", reps: 5, weight: 100, completed: true }],
             },
           ],
           durationSeconds: 1800,
         }),
       ).resolves.toEqual({ ok: true });
 
-      await expect(t.query(api.logs.activeWorkout.getActive, { slot: 1 })).resolves.toBe(
-        null,
-      );
+      await expect(
+        t.query(api.logs.activeWorkout.getActive, { slot: 1 }),
+      ).resolves.toBe(null);
       const log = await t.query(api.logs.workouts.getLog, { date: today });
       expect(log).toMatchObject({
         date: today,
@@ -189,10 +191,65 @@ describe("activeWorkout Convex functions", () => {
 
       const log = await t.query(api.logs.workouts.getLog, { date: today });
       expect(log!.durationSeconds).toBe(1500);
-      expect(log!.exercises.map((exercise: { id: string }) => exercise.id)).toEqual([
-        "bench",
-        "squat",
-      ]);
+      expect(
+        log!.exercises.map((exercise: { id: string }) => exercise.id),
+      ).toEqual(["bench", "squat"]);
+    });
+  });
+
+  test("finishActive writes cardio details to today's workout log", async () => {
+    const t = convexTest(schema, modules);
+    const today = new Date().toISOString().split("T")[0];
+
+    await t.withIdentity({ name: "active-cardio-user" }, async () => {
+      await t.mutation(api.logs.activeWorkout.createActive, {
+        slot: 1,
+        items: [{ id: "run", name: "Run" }],
+        exerciseData: {},
+      });
+
+      await t.mutation(api.logs.activeWorkout.finishActive, {
+        slot: 1,
+        exercises: [
+          {
+            id: "run",
+            name: "Run",
+            category: "cardio",
+            sets: [],
+            cardio: {
+              distanceMeters: 3218.69,
+              distanceUnit: "mi",
+              durationSeconds: 1500,
+              paceSecondsPerKm: 466,
+              avgHeartRateBpm: 150,
+              heartRateZones: {
+                zone2Seconds: 900,
+                zone3Seconds: 600,
+              },
+              source: {
+                provider: "garmin",
+                externalId: "activity-456",
+              },
+            },
+          },
+        ],
+        durationSeconds: 1500,
+      });
+
+      const log = await t.query(api.logs.workouts.getLog, { date: today });
+      expect(log!.exercises[0]).toMatchObject({
+        id: "run",
+        category: "cardio",
+        cardio: {
+          distanceUnit: "mi",
+          durationSeconds: 1500,
+          avgHeartRateBpm: 150,
+          source: {
+            provider: "garmin",
+            externalId: "activity-456",
+          },
+        },
+      });
     });
   });
 });
