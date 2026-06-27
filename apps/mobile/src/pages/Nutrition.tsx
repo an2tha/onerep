@@ -179,6 +179,14 @@ function timeLabel(value: string) {
   })
 }
 
+function nutrientTotal(
+  totals: Partial<Record<string, number>> | undefined,
+  key: string
+) {
+  const value = totals?.[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : 0
+}
+
 function totalFood(entries: FoodLogEntry[]) {
   return entries.reduce(
     (acc, entry) => ({
@@ -189,6 +197,30 @@ function totalFood(entries: FoodLogEntry[]) {
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
+}
+
+function combineMacroTotals(
+  food: ReturnType<typeof totalFood>,
+  supplements: Partial<Record<string, number>> | undefined
+) {
+  return {
+    calories: food.calories + nutrientTotal(supplements, "calories"),
+    protein: food.protein + nutrientTotal(supplements, "protein"),
+    carbs: food.carbs + nutrientTotal(supplements, "carbs"),
+    fat: food.fat + nutrientTotal(supplements, "fat"),
+  }
+}
+
+function combineMicronutrientTotals(
+  food: Partial<Record<FoodMicronutrientKey, number>>,
+  supplements: Partial<Record<string, number>> | undefined
+) {
+  const totals: Partial<Record<FoodMicronutrientKey, number>> = {}
+  for (const key of FOOD_MICRONUTRIENT_KEYS) {
+    const value = (food[key] ?? 0) + nutrientTotal(supplements, key)
+    if (value > 0) totals[key] = value
+  }
+  return totals
 }
 
 function ProgressLine({
@@ -547,14 +579,18 @@ export default function Nutrition() {
 
   const entries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
   const waterEntries = (waterLogs ?? []) as WaterLogEntry[]
-  const overview = (supplementOverviewRaw ?? {
-    items: [],
-    logs: [],
-    legacyEntries: [],
-    recentLogs: [],
-    nutritionTotals: {},
-    isTrainingDay: false,
-  }) as SupplementOverview
+  const overview = useMemo(
+    () =>
+      (supplementOverviewRaw ?? {
+        items: [],
+        logs: [],
+        legacyEntries: [],
+        recentLogs: [],
+        nutritionTotals: {},
+        isTrainingDay: false,
+      }) as SupplementOverview,
+    [supplementOverviewRaw]
+  )
 
   const goals = effectiveGoals?.effective
   const calorieTarget = Math.round(goals?.calories ?? 2000)
@@ -564,7 +600,20 @@ export default function Nutrition() {
     fat: Math.round(goals?.fat ?? 65),
   }
   const foodTotals = useMemo(() => totalFood(entries), [entries])
-  const microTotals = useMemo(() => nutritionDetailTotals(entries), [entries])
+  const supplementNutritionTotals = overview.nutritionTotals
+  const intakeTotals = useMemo(
+    () => combineMacroTotals(foodTotals, supplementNutritionTotals),
+    [foodTotals, supplementNutritionTotals]
+  )
+  const foodMicroTotals = useMemo(
+    () => nutritionDetailTotals(entries),
+    [entries]
+  )
+  const microTotals = useMemo(
+    () =>
+      combineMicronutrientTotals(foodMicroTotals, supplementNutritionTotals),
+    [foodMicroTotals, supplementNutritionTotals]
+  )
   const waterTotal = waterEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
     0
@@ -597,7 +646,7 @@ export default function Nutrition() {
   const currentMealLabel =
     DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
     "Food"
-  const caloriesLeft = calorieTarget - foodTotals.calories
+  const caloriesLeft = calorieTarget - intakeTotals.calories
   const loggedToday = entries.length + waterEntries.length + supplementDone
   const recentFood = [...entries]
     .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
@@ -669,11 +718,11 @@ export default function Nutrition() {
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             <GoalTile
-              label="Food"
-              value={`${pct(foodTotals.calories, calorieTarget)}%`}
-              detail={`${fmt(foodTotals.calories)} / ${fmt(calorieTarget)} kcal`}
+              label="Intake"
+              value={`${pct(intakeTotals.calories, calorieTarget)}%`}
+              detail={`${fmt(intakeTotals.calories)} / ${fmt(calorieTarget)} kcal`}
               icon={<ForkKnife size={15} weight="bold" />}
-              complete={entries.length > 0 && caloriesLeft >= 0}
+              complete={intakeTotals.calories > 0 && caloriesLeft >= 0}
             />
             <GoalTile
               label="Water"
@@ -697,7 +746,7 @@ export default function Nutrition() {
         <section className="mt-3 grid gap-3 md:grid-cols-[1fr_0.82fr]">
           <div className="app-surface p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="app-section-title">Food</p>
+              <p className="app-section-title">Intake</p>
               <button
                 type="button"
                 onClick={() => navigate("/foods")}
@@ -711,7 +760,7 @@ export default function Nutrition() {
                 <ProgressLine
                   key={key}
                   label={key[0].toUpperCase() + key.slice(1)}
-                  value={foodTotals[key]}
+                  value={intakeTotals[key]}
                   target={macroTargets[key]}
                   suffix="g"
                   color={MACRO_COLORS[key]}
