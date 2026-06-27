@@ -1,30 +1,73 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+
+const heartRateZonesValidator = v.object({
+  zone1Seconds: v.optional(v.number()),
+  zone2Seconds: v.optional(v.number()),
+  zone3Seconds: v.optional(v.number()),
+  zone4Seconds: v.optional(v.number()),
+  zone5Seconds: v.optional(v.number()),
+});
+
+const cardioDetailsValidator = v.object({
+  distanceMeters: v.optional(v.number()),
+  distanceUnit: v.optional(v.union(v.literal("km"), v.literal("mi"))),
+  durationSeconds: v.optional(v.number()),
+  paceSecondsPerKm: v.optional(v.number()),
+  avgHeartRateBpm: v.optional(v.number()),
+  maxHeartRateBpm: v.optional(v.number()),
+  heartRateZones: v.optional(heartRateZonesValidator),
+  route: v.optional(
+    v.object({
+      name: v.optional(v.string()),
+      url: v.optional(v.string()),
+    }),
+  ),
+  source: v.optional(
+    v.object({
+      provider: v.union(
+        v.literal("manual"),
+        v.literal("apple_health"),
+        v.literal("strava"),
+        v.literal("garmin"),
+        v.literal("fitbit"),
+        v.literal("gpx"),
+        v.literal("other"),
+      ),
+      name: v.optional(v.string()),
+      externalId: v.optional(v.string()),
+      importedAt: v.optional(v.string()),
+    }),
+  ),
+  notes: v.optional(v.string()),
+});
+
+const completedSetValidator = v.object({
+  type: v.string(), // "normal", "warmup", "dropset", "failure"
+  reps: v.number(),
+  weight: v.number(),
+  completed: v.boolean(),
+});
+
+const completedExerciseValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  category: v.optional(v.string()),
+  sets: v.array(completedSetValidator),
+  cardio: v.optional(cardioDetailsValidator),
+});
 
 // ── logCompletion ─────────────────────────────────────────────────────────────
 
 export const completion = mutation({
   args: {
     date: v.string(),
-    exercises: v.array(
-      v.object({
-        id: v.string(),
-        name: v.string(),
-        sets: v.array(
-          v.object({
-            type: v.string(), // "normal", "warmup", "dropset", "failure"
-            reps: v.number(),
-            weight: v.number(),
-            completed: v.boolean(),
-          }),
-        ),
-      }),
-    ),
+    exercises: v.array(completedExerciseValidator),
     durationSeconds: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const existing = await ctx.db
@@ -60,7 +103,7 @@ export const completion = mutation({
 export const getLog = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     return ctx.db
@@ -77,7 +120,7 @@ export const getLog = query({
 export const getHistory = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return [];
     return ctx.db
       .query("workoutLogs")
@@ -92,7 +135,7 @@ export const getHistory = query({
 export const historyForExercise = query({
   args: { exerciseId: v.string() },
   handler: async (ctx, { exerciseId }) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return [];
     const logs = await ctx.db
       .query("workoutLogs")
@@ -113,7 +156,7 @@ export const historyForExercise = query({
 export const remove = mutation({
   args: { id: v.id("workoutLogs") },
   handler: async (ctx, { id }) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
     const log = await ctx.db.get(id);
     if (!log || log.userId !== user._id) throw new Error("Not found");
@@ -126,7 +169,7 @@ export const remove = mutation({
 export const removeBySlot = mutation({
   args: { date: v.string(), slot: v.union(v.literal(1), v.literal(2)) },
   handler: async (ctx, { date, slot }) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const logs = await ctx.db

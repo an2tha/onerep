@@ -29,6 +29,7 @@ import {
 import { useSmoothNavigate } from "@/lib/navigation"
 import { cn } from "@/lib/utils"
 import { api } from "../../../../convex/_generated/api"
+import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 
 const AGE_MIN = 13
 const AGE_MAX = 100
@@ -46,35 +47,44 @@ const GOALS = [
     label: "Lose weight",
     sub: "A controlled deficit with enough protein to keep training steady.",
     Icon: Fire,
-    tone: "bg-orange-500/10 text-orange-500",
+    tone: {
+      color: APP_ACCENT_COLORS.food,
+      bg: tint(APP_ACCENT_COLORS.food, 10),
+    },
   },
   {
     id: "build",
     label: "Build muscle",
     sub: "More fuel for progressive training, recovery, and lean mass.",
     Icon: Barbell,
-    tone: "bg-sky-500/10 text-sky-500",
+    tone: { color: MACRO_COLORS.protein, bg: tint(MACRO_COLORS.protein, 10) },
   },
   {
     id: "health",
     label: "Stay healthy",
     sub: "Maintenance targets built around consistency and daily habits.",
     Icon: Heart,
-    tone: "bg-rose-500/10 text-rose-500",
+    tone: {
+      color: APP_ACCENT_COLORS.complete,
+      bg: tint(APP_ACCENT_COLORS.complete, 10),
+    },
   },
   {
     id: "performance",
     label: "Peak performance",
     sub: "Higher output, better sessions, and more aggressive recovery.",
     Icon: Medal,
-    tone: "bg-violet-500/10 text-violet-500",
+    tone: {
+      color: APP_ACCENT_COLORS.progress,
+      bg: tint(APP_ACCENT_COLORS.progress, 10),
+    },
   },
 ] satisfies {
   id: OnboardingGoal
   label: string
   sub: string
   Icon: typeof Fire
-  tone: string
+  tone: { color: string; bg: string }
 }[]
 
 const ACTIVITIES = [
@@ -206,7 +216,7 @@ function StepProgress({ step }: { step: number }) {
           >
             <div
               className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[12px] font-semibold",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border text-[12px] font-semibold",
                 complete
                   ? "border-foreground bg-foreground text-background"
                   : active
@@ -238,12 +248,12 @@ function StepHeader({ step }: { step: number }) {
   return (
     <div>
       <div className="mb-5 flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground text-background">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-foreground text-background">
           <Icon size={15} weight="bold" />
         </span>
         <span>{meta.label}</span>
       </div>
-      <h1 className="text-[2rem] leading-tight font-semibold md:text-[2.35rem]">
+      <h1 className="app-display text-[2.12rem] md:text-[2.45rem]">
         {meta.title}
       </h1>
       <p className="mt-3 max-w-md text-[14px] leading-6 text-muted-foreground">
@@ -275,7 +285,7 @@ function NumberControl({
   }
 
   return (
-    <div className="rounded-[20px] border border-border/70 bg-card px-4 py-5 shadow-[0_18px_50px_rgba(15,23,42,0.06)] dark:shadow-black/25">
+    <div className="app-rail-surface px-4 py-5">
       <div className="mb-5 flex items-center justify-between">
         <p className="text-[13px] font-semibold text-muted-foreground">
           {label}
@@ -290,14 +300,14 @@ function NumberControl({
           type="button"
           onClick={() => applyStep(-step)}
           disabled={value <= min}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
           aria-label={`Decrease ${label}`}
         >
           <Minus size={16} weight="bold" />
         </button>
 
         <div className="min-w-0 text-center">
-          <p className="text-[2.6rem] leading-none font-semibold tabular-nums md:text-[3rem]">
+          <p className="app-display text-[2.7rem] tabular-nums md:text-[3.1rem]">
             {displayValue}
           </p>
         </div>
@@ -306,7 +316,7 @@ function NumberControl({
           type="button"
           onClick={() => applyStep(step)}
           disabled={value >= max}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
           aria-label={`Increase ${label}`}
         >
           <Plus size={16} weight="bold" />
@@ -344,7 +354,7 @@ function SegmentedControl<T extends string>({
         {label}
       </p>
       <div
-        className="grid rounded-[16px] bg-muted/70 p-1"
+        className="app-segmented grid"
         style={{
           gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))`,
         }}
@@ -357,11 +367,12 @@ function SegmentedControl<T extends string>({
               type="button"
               onClick={() => onChange(option.value)}
               className={cn(
-                "min-h-11 rounded-[12px] px-2 text-[13px] font-semibold transition-colors",
+                "app-segmented-button min-h-11 px-2 text-[13px] transition-colors",
                 active
                   ? "bg-background text-foreground shadow-sm shadow-black/[0.05]"
                   : "text-muted-foreground active:text-foreground"
               )}
+              data-active={active}
             >
               {option.label}
             </button>
@@ -390,7 +401,7 @@ function GoalStep({
             onClick={() => setGoal(id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-[112px] rounded-[20px] border p-4 text-left transition-colors active:bg-muted",
+              "min-h-[112px] rounded-[12px] border p-4 text-left transition-colors active:bg-muted",
               selected
                 ? "border-foreground bg-foreground text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
                 : "border-border/70 bg-card text-foreground hover:border-foreground/30"
@@ -399,9 +410,14 @@ function GoalStep({
             <div className="flex items-start justify-between gap-3">
               <span
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]",
-                  selected ? "bg-background/12 text-background" : tone
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px]",
+                  selected && "bg-background/12 text-background"
                 )}
+                style={
+                  selected
+                    ? undefined
+                    : { backgroundColor: tone.bg, color: tone.color }
+                }
               >
                 <Icon size={20} weight="duotone" />
               </span>
@@ -467,7 +483,7 @@ function BodyBasicsStep({
                 onClick={() => setSex(sex)}
                 aria-pressed={selected}
                 className={cn(
-                  "min-h-12 rounded-[16px] border px-4 text-[14px] font-semibold capitalize transition-colors",
+                  "min-h-12 rounded-[10px] border px-4 text-[14px] font-semibold capitalize transition-colors",
                   selected
                     ? "border-foreground bg-foreground text-background"
                     : "border-border/70 bg-card text-foreground active:bg-muted"
@@ -542,7 +558,7 @@ function ActivityStep({
             onClick={() => onChange(activity.id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-[72px] rounded-[18px] border px-4 py-3 text-left transition-colors",
+              "min-h-[72px] rounded-[10px] border px-4 py-3 text-left transition-colors",
               selected
                 ? "border-foreground bg-foreground text-background"
                 : "border-border/70 bg-card text-foreground active:bg-muted"
@@ -602,7 +618,7 @@ function DefaultsStep({
         onChange={setWaterGoalMl}
       />
 
-      <div className="rounded-[18px] border border-border/70 bg-muted/35 px-4 py-3">
+      <div className="rounded-[10px] border border-border/70 bg-muted/35 px-4 py-3">
         <p className="text-[13px] font-semibold">
           Defaults are editable later.
         </p>
@@ -650,19 +666,19 @@ function ReviewStep({
         {items.map((item) => (
           <div
             key={item.label}
-            className="rounded-[18px] border border-border/70 bg-card px-4 py-4"
+            className="rounded-[10px] border border-border/70 bg-card px-4 py-4"
           >
             <p className="text-[12px] font-semibold text-muted-foreground">
               {item.label}
             </p>
-            <p className="mt-2 text-[1.7rem] leading-none font-semibold tabular-nums">
+            <p className="app-display mt-2 text-[1.8rem] tabular-nums">
               {item.value}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="rounded-[20px] border border-border/70 bg-card px-4 py-4">
+      <div className="rounded-[10px] border border-border/70 bg-card px-4 py-4">
         <p className="text-[13px] font-semibold">Calculation basis</p>
         <div className="mt-3 grid gap-2 text-[12.5px] text-muted-foreground">
           <div className="flex items-center justify-between gap-3">
@@ -1057,7 +1073,7 @@ export default function Onboarding() {
               type="button"
               onClick={goBack}
               disabled={step === 0 || saving}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-border px-5 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted disabled:opacity-35"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-border px-5 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted disabled:opacity-35"
             >
               <ArrowLeft size={16} weight="bold" />
               Back
@@ -1066,7 +1082,7 @@ export default function Onboarding() {
               type="button"
               onClick={goNext}
               disabled={saving || !stepReady}
-              className="min-h-12 rounded-full bg-foreground px-6 text-[14px] font-semibold text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)] transition-transform active:scale-[0.985] disabled:opacity-50"
+              className="min-h-12 rounded-[10px] bg-foreground px-6 text-[14px] font-semibold text-background transition-transform active:scale-[0.985] disabled:opacity-50"
             >
               {saving
                 ? "Saving..."

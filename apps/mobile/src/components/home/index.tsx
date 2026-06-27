@@ -1,12 +1,71 @@
 import type { ReactNode } from "react"
-import { Barbell, Fire, ForkKnife, PintGlass } from "@phosphor-icons/react"
+import {
+  Barbell,
+  Fire,
+  ForkKnife,
+  Pill,
+  PintGlass,
+} from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { MetricTile, SectionHeader } from "@/components/mobile-ui"
+import { SectionHeader } from "@/components/mobile-ui"
+import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 
 type PrimaryAction = {
   label: string
   detail: string
   onClick: () => void
+}
+
+export type MacroProgress = {
+  label: string
+  shortLabel: string
+  value: number
+  target: number
+  color: string
+  unit?: string
+}
+
+function pct(current: number, target: number) {
+  if (target <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round((current / target) * 100)))
+}
+
+function fmt(n: number) {
+  return new Intl.NumberFormat("en-US").format(Math.round(n))
+}
+
+function MacroMeter({ macro }: { macro: MacroProgress }) {
+  const progress = pct(macro.value, macro.target)
+  const over = macro.target > 0 && macro.value > macro.target
+  const unit = macro.unit ?? "g"
+
+  return (
+    <div className="min-w-0">
+      <div className="mb-0.5 flex items-baseline justify-between gap-1.5">
+        <span className="text-[9.5px] font-bold text-muted-foreground/66">
+          {macro.shortLabel}
+        </span>
+        <span
+          className={cn(
+            "text-[9.5px] font-semibold text-muted-foreground/52 tabular-nums",
+            over && "text-destructive/72"
+          )}
+        >
+          {fmt(macro.value)}/{fmt(macro.target)}
+          {unit}
+        </span>
+      </div>
+      <div className="h-[5px] overflow-hidden rounded-full bg-foreground/[0.06]">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${progress}%`,
+            backgroundColor: over ? "var(--status-danger)" : macro.color,
+          }}
+        />
+      </div>
+    </div>
+  )
 }
 
 export function TodayHeader({
@@ -18,160 +77,131 @@ export function TodayHeader({
   dateLabel: string
   salutation: string
   firstName: string
-  action: ReactNode
+  action?: ReactNode
 }) {
   return (
-    <header className="flex items-center justify-between px-4 pt-[var(--app-safe-top)] pb-2.5 md:px-6 md:pt-10 short-phone:pb-1.5">
+    <header className="motion-item flex items-start justify-between gap-4 px-4 pt-[var(--app-safe-top)] pb-5 md:px-8 md:pt-10 md:pb-6 short-phone:pb-3">
       <div className="min-w-0">
-        <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/65 uppercase">
-          {dateLabel}
-        </p>
-        <h1 className="mt-0.5 text-[1.32rem] leading-snug font-semibold tracking-tight md:text-[1.45rem] short-phone:text-[1.18rem]">
+        <h1 className="app-title mt-3 max-w-[14ch] text-[2rem] md:max-w-none short-phone:mt-2 short-phone:text-[1.58rem]">
           {salutation}, {firstName}.
         </h1>
       </div>
-      <div className="shrink-0">{action}</div>
+      {action && <div className="shrink-0 pt-0.5">{action}</div>}
     </header>
   )
 }
 
-export function PrimaryActionGrid({
-  food,
-  workout,
-  water,
-}: {
-  food: PrimaryAction
-  workout: PrimaryAction
-  water: PrimaryAction
-}) {
-  const actions = [
-    {
-      key: "food",
-      Icon: ForkKnife,
-      tone: "food",
-      ...food,
-    },
-    {
-      key: "workout",
-      Icon: Barbell,
-      tone: "workout",
-      ...workout,
-    },
-    {
-      key: "water",
-      Icon: PintGlass,
-      tone: "water",
-      ...water,
-    },
-  ]
-
-  return (
-    <section
-      className="grid grid-cols-3 gap-2 px-4 md:px-6 short-phone:gap-1.5"
-      aria-label="Primary actions"
-    >
-      {actions.map(({ key, Icon, label, detail, tone, onClick }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={onClick}
-          className={cn(
-            "min-h-[88px] rounded-[18px] border border-border/55 bg-card p-3 text-left transition-transform active:scale-[0.985] md:min-h-[104px] md:rounded-[20px] short-phone:min-h-[74px] short-phone:p-2.5",
-            key === "food" && "bg-foreground text-background"
-          )}
-        >
-          <span
-            className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-full text-current ring-1 ring-current/8 md:h-9 md:w-9 short-phone:h-7 short-phone:w-7",
-              key === "food"
-                ? "bg-background/12"
-                : "bg-[var(--tone-bg)] text-[var(--tone)]",
-              tone === "food" &&
-                "[--tone-bg:var(--accent-food-bg)] [--tone:var(--accent-food)]",
-              tone === "workout" &&
-                "[--tone-bg:var(--accent-workout-bg)] [--tone:var(--accent-workout)]",
-              tone === "water" &&
-                "[--tone-bg:var(--accent-water-bg)] [--tone:var(--accent-water)]"
-            )}
-          >
-            <Icon size={18} weight="bold" />
-          </span>
-          <span className="mt-2.5 block text-[12.5px] leading-tight font-bold md:mt-3 md:text-[13px] short-phone:mt-2">
-            {label}
-          </span>
-          <span
-            className={cn(
-              "mt-1 block text-[11px] leading-4 md:text-[11.5px] short-phone:text-[10.5px] short-phone:leading-[0.9rem]",
-              key === "food" ? "text-background/65" : "text-muted-foreground"
-            )}
-          >
-            {detail}
-          </span>
-        </button>
-      ))}
-    </section>
-  )
-}
-
-export function DailySummaryStrip({
+export function DailyLedgerHero({
   caloriesLeft,
   caloriesTarget,
   waterMl,
   waterGoalMl,
   workoutState,
-  targetSource,
+  food,
+  workout,
+  water,
+  macros = [],
 }: {
   caloriesLeft: number
   caloriesTarget: number
   waterMl: number
   waterGoalMl: number
   workoutState: string
-  targetSource: "healthProfile" | "onboarding" | "default"
+  food: PrimaryAction
+  workout: PrimaryAction
+  water: PrimaryAction
+  macros?: MacroProgress[]
 }) {
-  const waterPct =
-    waterGoalMl > 0
-      ? Math.min(100, Math.round((waterMl / waterGoalMl) * 100))
-      : 0
-  const sourceLabel =
-    targetSource === "healthProfile"
-      ? "profile"
-      : targetSource === "onboarding"
-        ? "estimated"
-        : "default"
+  const consumed = Math.max(0, caloriesTarget - caloriesLeft)
+  const caloriesPct = pct(consumed, caloriesTarget)
+  const waterPct = pct(waterMl, waterGoalMl)
+  const overTarget = caloriesLeft < 0
 
   return (
-    <section
-      className="mx-4 mt-2.5 grid grid-cols-3 gap-2 md:mx-6 md:mt-3 short-phone:mt-2 short-phone:gap-1.5"
-      aria-label="Daily summary"
-    >
-      <MetricTile
-        label="Calories left"
-        value={
-          caloriesLeft >= 0
-            ? String(caloriesLeft)
-            : `+${Math.abs(caloriesLeft)}`
-        }
-        detail={`${caloriesTarget} ${sourceLabel}`}
-        icon={ForkKnife}
-        tone="food"
-        className="short-phone:min-h-[60px] short-phone:px-2.5 short-phone:py-2"
-      />
-      <MetricTile
-        label="Water"
-        value={`${waterPct}%`}
-        detail={`${Math.round(waterMl)} / ${waterGoalMl} ml`}
-        icon={PintGlass}
-        tone="water"
-        className="short-phone:min-h-[60px] short-phone:px-2.5 short-phone:py-2"
-      />
-      <MetricTile
-        label="Workout"
-        value={workoutState}
-        detail="today"
-        icon={Barbell}
-        tone="workout"
-        className="short-phone:min-h-[60px] short-phone:px-2.5 short-phone:py-2"
-      />
+    <section className="home-dashboard-card motion-card mx-4 overflow-hidden md:mx-8">
+      <div className="p-3.5 md:p-4 short-phone:p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="app-eyebrow home-ledger-eyebrow">Daily budget</p>
+            <div className="mt-2 flex items-end gap-1.5">
+              <span className="home-ledger-number tabular-nums">
+                {caloriesLeft >= 0
+                  ? fmt(caloriesLeft)
+                  : `+${fmt(Math.abs(caloriesLeft))}`}
+              </span>
+              <span className="pb-1 text-[10.5px] font-bold text-muted-foreground/60">
+                kcal {caloriesLeft >= 0 ? "left" : "over"}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={food.onClick}
+            className="app-button app-button-quiet home-ledger-log-button shrink-0"
+          >
+            {food.label}
+          </button>
+        </div>
+
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/[0.065]">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${caloriesPct}%`,
+              backgroundColor: overTarget
+                ? "var(--status-danger)"
+                : "var(--foreground)",
+              opacity: overTarget ? 0.72 : 0.78,
+            }}
+          />
+        </div>
+        <div className="mt-1.5 flex justify-between text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
+          <span>{fmt(consumed)} eaten</span>
+          <span>{fmt(caloriesTarget)} target</span>
+        </div>
+
+        {macros.length > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2.5">
+            {macros.map((macro) => (
+              <MacroMeter key={macro.label} macro={macro} />
+            ))}
+          </div>
+        )}
+
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            onClick={water.onClick}
+            className="rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left transition-colors active:bg-foreground/[0.08]"
+          >
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
+              <PintGlass size={13} weight="bold" /> Water
+            </span>
+            <span className="mt-1 block text-[12px] font-extrabold tabular-nums">
+              {fmt(waterMl)} / {fmt(waterGoalMl)} ml
+            </span>
+            <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground/52">
+              {waterPct}% complete · {water.detail}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={workout.onClick}
+            className="rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left transition-colors active:bg-foreground/[0.08]"
+          >
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
+              <Barbell size={13} weight="bold" /> Workout
+            </span>
+            <span className="mt-1 block truncate text-[12px] font-extrabold">
+              {workoutState}
+            </span>
+            <span className="mt-0.5 block truncate text-[10px] font-semibold text-muted-foreground/52">
+              {workout.detail}
+            </span>
+          </button>
+        </div>
+      </div>
     </section>
   )
 }
@@ -180,68 +210,134 @@ export type TimelineEvent = {
   id: string
   title: string
   detail: string
-  kind: "food" | "water" | "workout"
+  kind: "food" | "water" | "workout" | "supplement"
+  loggedAt?: string
+  deleteLabel?: string
+  deleteSlot?: 1 | 2
+}
+
+function ledgerTime(value?: string) {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+}
+
+function TimelineIcon({ kind }: { kind: TimelineEvent["kind"] }) {
+  if (kind === "water") return <PintGlass size={14} weight="bold" />
+  if (kind === "workout") return <Barbell size={14} weight="bold" />
+  if (kind === "supplement") return <Pill size={14} weight="bold" />
+  return <ForkKnife size={14} weight="bold" />
 }
 
 export function TodayTimeline({
   events,
   onLogFood,
+  onLogWater,
+  onDeleteEvent,
 }: {
   events: TimelineEvent[]
   onLogFood: () => void
+  onLogWater?: () => void
+  onStartWorkout?: () => void
+  onDeleteEvent?: (event: TimelineEvent) => void
 }) {
   return (
-    <section className="mx-4 mt-3 rounded-[20px] border border-border/60 bg-card px-4 py-3 md:mx-6 md:rounded-[22px] short-phone:mt-2.5 short-phone:px-3.5">
+    <section className="mx-4 mt-5 md:mx-8 short-phone:mt-3">
       <SectionHeader
-        title="Today so far"
-        subtitle="Recent food, water, and workout events"
+        title="Today’s ledger"
         action={
           <button
             type="button"
             onClick={onLogFood}
-            className="min-h-10 rounded-full bg-muted px-3 text-[12px] font-semibold"
+            className="app-button app-button-quiet"
           >
-            Add
+            Full log
           </button>
         }
       />
 
-      <div className="mt-3 max-h-[13rem] space-y-2 overflow-y-auto overscroll-contain pr-1 md:grid md:max-h-[14rem] md:grid-cols-2 md:gap-x-6 md:gap-y-3 md:space-y-0 xl:grid-cols-3 short-phone:mt-2 short-phone:max-h-[9.5rem]">
+      <div
+        className="app-rail-surface mt-3 overflow-hidden"
+        data-motion-stagger
+      >
         {events.length > 0 ? (
-          events.map((event) => (
-            <div key={event.id} className="flex items-center gap-3">
-              <span
-                className={cn(
-                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-full md:h-8 md:w-8",
-                  event.kind === "food" && "bg-orange-500/10 text-orange-500",
-                  event.kind === "water" && "bg-sky-500/10 text-sky-500",
-                  event.kind === "workout" && "bg-green-500/10 text-green-500"
-                )}
+          events.slice(0, 6).map((event, index) => {
+            const rowClassName = cn(
+              "flex min-h-[3.55rem] items-center justify-between gap-3 bg-card px-4 py-3",
+              index > 0 && "border-t border-border/40"
+            )
+            const content = (
+              <>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/72">
+                    <TimelineIcon kind={event.kind} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13.5px] font-bold md:text-[13px]">
+                      {event.title}
+                    </span>
+                    <span className="mt-0.5 block truncate text-[12px] text-muted-foreground/62">
+                      {event.detail}
+                    </span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-[11px] font-bold text-muted-foreground/50 tabular-nums">
+                  {ledgerTime(event.loggedAt)}
+                </span>
+              </>
+            )
+
+            if (!onDeleteEvent) {
+              return (
+                <div key={event.id} className={cn("motion-item", rowClassName)}>
+                  {content}
+                </div>
+              )
+            }
+
+            return (
+              <SlideToDeleteRow
+                key={event.id}
+                deleteLabel={event.deleteLabel ?? `Delete ${event.title}`}
+                onDelete={() => onDeleteEvent(event)}
+                className="motion-item"
+                rowClassName={rowClassName}
               >
-                {event.kind === "food" ? (
-                  <ForkKnife size={14} weight="bold" />
-                ) : event.kind === "water" ? (
-                  <PintGlass size={14} weight="bold" />
-                ) : (
-                  <Barbell size={14} weight="bold" />
+                {content}
+              </SlideToDeleteRow>
+            )
+          })
+        ) : (
+          <div className="app-empty m-3">
+            <Fire size={16} className="shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[12.5px] leading-5 text-muted-foreground">
+                Nothing logged yet.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={onLogFood}
+                  className="app-button h-9 bg-foreground text-background"
+                >
+                  Log food
+                </button>
+                {onLogWater && (
+                  <button
+                    type="button"
+                    onClick={onLogWater}
+                    className="app-button app-button-quiet h-9"
+                  >
+                    + Water
+                  </button>
                 )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-semibold md:text-[13px]">
-                  {event.title}
-                </p>
-                <p className="truncate text-[11.5px] text-muted-foreground">
-                  {event.detail}
-                </p>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="flex items-center gap-3 rounded-[16px] bg-muted/45 px-3 py-3">
-            <Fire size={16} className="shrink-0 text-muted-foreground" />
-            <p className="text-[12.5px] leading-5 text-muted-foreground">
-              Nothing logged yet. Start with food, water, or a workout.
-            </p>
           </div>
         )}
       </div>
@@ -259,16 +355,16 @@ export function InsightWidgets({
   onToggleEdit: () => void
 }) {
   return (
-    <section className="mx-4 mt-4 md:mx-6 short-phone:mt-3">
+    <section className="mx-4 mt-5 md:mx-8 short-phone:mt-3">
       <SectionHeader
-        title="Insights"
-        subtitle="Trends, widgets, and deeper dashboard views"
+        title="Stats preview"
+        subtitle="Reorder the cards you care about."
         action={
           <button
             type="button"
             onClick={onToggleEdit}
             className={cn(
-              "min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold",
+              "app-button shrink-0",
               editMode
                 ? "bg-foreground text-background"
                 : "bg-muted text-foreground"
@@ -281,4 +377,8 @@ export function InsightWidgets({
       {children}
     </section>
   )
+}
+
+export function DailySummaryStrip() {
+  return null
 }

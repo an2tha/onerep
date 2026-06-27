@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { CaretRight, PencilSimple } from "@phosphor-icons/react"
+import { APP_ACCENT_COLORS, tint } from "@/lib/design-tokens"
 
 export function SwipeToStart({
   onComplete,
@@ -47,13 +48,13 @@ export function SwipeToStart({
 
   const isCompleted = variant === "completed"
 
-  // completed variant uses green as the base thumb colour, default keeps foreground→green sweep
+  const completeColor = APP_ACCENT_COLORS.complete
   const thumbColor = isCompleted
-    ? `color-mix(in srgb, #22c55e ${Math.round(60 + progress * 40)}%, #16a34a)`
-    : `color-mix(in srgb, #22c55e ${Math.round(progress * 100)}%, var(--foreground))`
+    ? `color-mix(in srgb, ${completeColor} ${Math.round(68 + progress * 32)}%, var(--foreground))`
+    : `color-mix(in srgb, ${completeColor} ${Math.round(progress * 100)}%, var(--foreground))`
 
-  const fillOpacity = isCompleted ? 0.12 + progress * 0.16 : progress * 0.28
-  const fillColor = isCompleted ? "34,197,94" : "34,197,94"
+  const fillStrength =
+    Math.round((isCompleted ? 12 + progress * 16 : progress * 28) * 100) / 100
 
   return (
     <div
@@ -61,15 +62,15 @@ export function SwipeToStart({
       className="motion-card relative flex h-12 items-center overflow-hidden rounded-2xl px-[4px] select-none"
       style={{
         backgroundColor: isCompleted
-          ? "rgba(34,197,94,0.10)"
-          : "rgba(var(--foreground-rgb,0,0,0),0.07)",
+          ? tint(completeColor, 10)
+          : "color-mix(in srgb, var(--foreground) 7%, transparent)",
       }}
     >
       {/* Fill sweep */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{
-          background: `linear-gradient(to right, rgba(${fillColor},${fillOpacity}) 0%, rgba(${fillColor},0) 100%)`,
+          background: `linear-gradient(to right, color-mix(in srgb, ${completeColor} ${fillStrength}%, transparent) 0%, transparent 100%)`,
           transition: releasing
             ? "opacity var(--motion-slow) var(--motion-ease-out)"
             : "none",
@@ -84,7 +85,7 @@ export function SwipeToStart({
           opacity: Math.max(0, 1 - progress * 3),
           transition: "opacity var(--motion-fast) var(--motion-ease-standard)",
           color: isCompleted
-            ? "rgba(34,197,94,0.70)"
+            ? `color-mix(in srgb, ${completeColor} 72%, var(--foreground))`
             : "color-mix(in srgb, var(--foreground) 100%, transparent)",
         }}
       >

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
-import { useQuery } from "convex/react"
+import { useAction, useQuery } from "convex/react"
+import { toast } from "sonner"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ArrowLeft,
@@ -35,6 +36,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui"
+import {
+  APP_ACCENT_COLORS,
+  CUSTOM_CATEGORY_TONES,
+  EXERCISE_CATEGORY_COLORS,
+  SET_TYPE_TONES,
+} from "@/lib/design-tokens"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +83,23 @@ type DropTarget = {
   targetExId: string
 } | null
 
+type AgentPresetMode = "replace" | "append"
+
+type AgentPresetSetDraft = Partial<WorkoutSet>
+
+type AgentPresetExerciseDraft = {
+  name: string
+  sets?: AgentPresetSetDraft[]
+  trackRpe?: boolean
+  trackUnilateral?: boolean
+}
+
+type AgentPresetDraft = {
+  name?: string
+  exercises?: AgentPresetExerciseDraft[]
+  notes?: string
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const CATEGORY_ICON: Record<Category, React.FC<any>> = {
@@ -86,10 +110,10 @@ const CATEGORY_ICON: Record<Category, React.FC<any>> = {
 }
 
 const CATEGORY_COLOR: Record<Category, string> = {
-  strength: "#57534e", // warm stone — iron, steel, weight
-  cardio: "#ea580c", // orange-red — heat, pulse
-  mobility: "#0d9488", // teal — flow, ease
-  core: "#0284c7", // sky blue — focus, stability
+  strength: EXERCISE_CATEGORY_COLORS.strength,
+  cardio: EXERCISE_CATEGORY_COLORS.cardio,
+  mobility: EXERCISE_CATEGORY_COLORS.mobility,
+  core: EXERCISE_CATEGORY_COLORS.core,
 }
 
 const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
@@ -97,32 +121,32 @@ const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
   working: {
     label: "Working",
-    color: "#38bdf8",
-    bg: "rgba(56,189,248,0.10)",
+    color: SET_TYPE_TONES.working.color,
+    bg: SET_TYPE_TONES.working.bg,
   },
   warmup: {
     label: "Warm-up",
-    color: "#a8a29e",
-    bg: "rgba(168,162,158,0.10)",
+    color: SET_TYPE_TONES.warmup.color,
+    bg: SET_TYPE_TONES.warmup.bg,
   },
   failure: {
     label: "Failure",
-    color: "#f87171",
-    bg: "rgba(248,113,113,0.10)",
+    color: SET_TYPE_TONES.failure.color,
+    bg: SET_TYPE_TONES.failure.bg,
   },
   myoreps: {
     label: "Myo-reps",
-    color: "#fb923c",
-    bg: "rgba(251,146,60,0.10)",
+    color: SET_TYPE_TONES.myoreps.color,
+    bg: SET_TYPE_TONES.myoreps.bg,
   },
   drop: {
     label: "Drop set",
-    color: "#2dd4bf",
-    bg: "rgba(45,212,191,0.10)",
+    color: SET_TYPE_TONES.drop.color,
+    bg: SET_TYPE_TONES.drop.bg,
   },
 }
 
-const SUPERSET_PALETTE = ["#f59e0b", "#ec4899", "#14b8a6", "#06b6d4", "#84cc16"]
+const SUPERSET_PALETTE = CUSTOM_CATEGORY_TONES.map((tone) => tone.color)
 
 const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
 
@@ -208,6 +232,48 @@ function normalizeExerciseState(
   }
 }
 
+function isCardioExercise(exercise: Exercise | undefined | null) {
+  return exercise?.category === "cardio"
+}
+
+function makeExerciseState(exercise: Exercise): ExerciseState {
+  return {
+    sets: isCardioExercise(exercise) ? [] : [makeSet()],
+    trackRpe: false,
+    trackUnilateral: false,
+  }
+}
+
+function sanitizeExerciseDataForSave(
+  items: PresetItem[],
+  exData: Record<string, ExerciseState>,
+  exerciseLookup: Record<string, Exercise>
+) {
+  const ids = new Set(
+    items.flatMap((item) =>
+      item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
+    )
+  )
+
+  return Object.fromEntries(
+    [...ids].map((id) => {
+      const normalized = normalizeExerciseState(exData[id])
+      if (isCardioExercise(exerciseLookup[id])) {
+        return [
+          id,
+          {
+            ...normalized,
+            sets: [],
+            trackRpe: false,
+            trackUnilateral: false,
+          },
+        ]
+      }
+      return [id, normalized]
+    })
+  )
+}
+
 function removeExFromItems(items: PresetItem[], exId: string): PresetItem[] {
   return items.flatMap((item): PresetItem[] => {
     if (item.kind === "solo") return item.exerciseId === exId ? [] : [item]
@@ -237,6 +303,7 @@ function buildSummary(
 
   let totalSets = 0
   let totalRestSeconds = 0
+  let cardioCount = 0
 
   const steps = items.flatMap((item) => {
     const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
@@ -254,6 +321,10 @@ function buildSummary(
     }
 
     for (const id of ids) {
+      if (isCardioExercise(exerciseLookup[id])) {
+        cardioCount += 1
+        continue
+      }
       const state = exData[id]
       totalSets += state?.sets.length ?? 0
       totalRestSeconds +=
@@ -276,13 +347,101 @@ function buildSummary(
     "strength"
   const minutes = Math.max(
     15,
-    Math.round(8 + items.length * 4 + totalSets * 1.2 + totalRestSeconds / 180)
+    Math.round(
+      8 +
+        items.length * 4 +
+        cardioCount * 20 +
+        totalSets * 1.2 +
+        totalRestSeconds / 180
+    )
   )
 
   return {
     focus,
     duration: `${minutes} min`,
     steps: steps.length > 0 ? steps : [name],
+  }
+}
+
+function normalizeExerciseNameForMatch(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+function scoreExerciseMatch(query: string, exercise: Exercise) {
+  const q = normalizeExerciseNameForMatch(query)
+  const name = normalizeExerciseNameForMatch(exercise.name)
+  if (!q || !name) return 0
+  if (q === name) return 100
+  if (name.includes(q) || q.includes(name)) return 85
+
+  const qTokens = new Set(q.split(" ").filter((token) => token.length > 2))
+  const haystack = normalizeExerciseNameForMatch(
+    [
+      exercise.name,
+      exercise.muscle,
+      exercise.equipment,
+      ...(exercise.primaryMuscles ?? []),
+      ...(exercise.secondaryMuscles ?? []),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  )
+  const matches = [...qTokens].filter((token) => haystack.includes(token))
+  return matches.length * 12 - Math.max(0, qTokens.size - matches.length) * 3
+}
+
+function pickBestExerciseMatch(query: string, candidates: Exercise[]) {
+  const best = candidates
+    .map((exercise) => ({
+      exercise,
+      score: scoreExerciseMatch(query, exercise),
+    }))
+    .sort((a, b) => b.score - a.score)[0]
+  return best && best.score > 0 ? best.exercise : undefined
+}
+
+function normalizeAgentSet(set: AgentPresetSetDraft): WorkoutSet {
+  const type = SET_ORDER.includes(set.type as SetType)
+    ? (set.type as SetType)
+    : "working"
+  const restSeconds = Number.isFinite(Number(set.restSeconds))
+    ? Math.max(0, Math.min(600, Math.round(Number(set.restSeconds))))
+    : 120
+
+  return normalizeSet({
+    ...set,
+    id: uid(),
+    type,
+    weight: String(set.weight ?? "").trim(),
+    reps: String(set.reps ?? "").trim(),
+    leftReps: String(set.leftReps ?? "").trim(),
+    rightReps: String(set.rightReps ?? "").trim(),
+    rpe: String(set.rpe ?? "").trim(),
+    restSeconds,
+  })
+}
+
+function makeExerciseStateFromAgentDraft(
+  exercise: Exercise,
+  draft: AgentPresetExerciseDraft
+): ExerciseState {
+  if (isCardioExercise(exercise)) return makeExerciseState(exercise)
+
+  const sets =
+    draft.sets && draft.sets.length > 0
+      ? draft.sets.slice(0, 8).map((set) => normalizeAgentSet(set))
+      : makeExerciseState(exercise).sets
+
+  return {
+    sets,
+    trackRpe: Boolean(draft.trackRpe) || sets.some((set) => Boolean(set.rpe)),
+    trackUnilateral:
+      Boolean(draft.trackUnilateral) ||
+      sets.some((set) => Boolean(set.leftReps || set.rightReps)),
   }
 }
 
@@ -568,7 +727,7 @@ function SetRow({
         {canDelete && (
           <button
             onClick={onDelete}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/20 transition-colors active:bg-muted/50 active:text-red-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/20 transition-colors active:bg-muted/50 active:text-destructive"
           >
             <X size={11} weight="bold" />
           </button>
@@ -637,6 +796,7 @@ function PresetExerciseCard({
   }
 
   const totalRest = data.sets.reduce((sum, set) => sum + set.restSeconds, 0)
+  const isCardio = isCardioExercise(exercise)
 
   return (
     <div
@@ -689,53 +849,57 @@ function PresetExerciseCard({
             </p>
             <p className="mt-0.5 truncate text-[11px] text-muted-foreground/50">
               {collapsed
-                ? `${data.sets.length} set${data.sets.length !== 1 ? "s" : ""} · rest ${formatRest(totalRest)}`
+                ? isCardio
+                  ? "Cardio"
+                  : `${data.sets.length} set${data.sets.length !== 1 ? "s" : ""} · rest ${formatRest(totalRest)}`
                 : exercise.muscle}
             </p>
           </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-3 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60"
-                aria-label={`Tracking options for ${exercise.name}`}
-              >
-                Track
-                <span className="text-[9px] tracking-normal text-foreground/55">
-                  {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
-                    .filter(Boolean)
-                    .join(" · ") || "Off"}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase">
-                ADVANCED TRACKING
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={data.trackRpe}
-                onCheckedChange={(checked) =>
-                  onUpdate({ ...data, trackRpe: checked === true })
-                }
-              >
-                Track RPE
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={data.trackUnilateral}
-                onCheckedChange={(checked) =>
-                  onUpdate({ ...data, trackUnilateral: checked === true })
-                }
-              >
-                Track unilateral reps
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isCardio && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-3 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60"
+                  aria-label={`Tracking options for ${exercise.name}`}
+                >
+                  Track
+                  <span className="text-[9px] tracking-normal text-foreground/55">
+                    {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
+                      .filter(Boolean)
+                      .join(" · ") || "Off"}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase">
+                  ADVANCED TRACKING
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={data.trackRpe}
+                  onCheckedChange={(checked) =>
+                    onUpdate({ ...data, trackRpe: checked === true })
+                  }
+                >
+                  Track RPE
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={data.trackUnilateral}
+                  onCheckedChange={(checked) =>
+                    onUpdate({ ...data, trackUnilateral: checked === true })
+                  }
+                >
+                  Track unilateral reps
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
 
           {/* Remove */}
           <button
             onClick={onRemove}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/25 transition-colors active:bg-muted/50 active:text-red-400"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/25 transition-colors active:bg-muted/50 active:text-destructive"
             aria-label={`Remove ${exercise.name}`}
           >
             <X size={12} weight="bold" />
@@ -767,41 +931,67 @@ function PresetExerciseCard({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            {/* ── Sets ──────────────────────────────────── */}
-            <div className="border-t border-border/40">
-              {data.sets.map((s, i) => (
-                <div
-                  key={s.id}
-                  className={i > 0 ? "border-t border-border/25" : ""}
-                >
-                  <SetRow
-                    set={s}
-                    index={i}
-                    trackRpe={data.trackRpe}
-                    trackUnilateral={data.trackUnilateral}
-                    unit={unit}
-                    onUpdate={(updated) => updateSet(i, updated)}
-                    onDelete={() => removeSet(i)}
-                    canDelete={data.sets.length > 1}
-                  />
+            {isCardio ? (
+              <div className="border-t border-border/40 px-3 py-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {[
+                    "Distance",
+                    "Duration",
+                    "Pace",
+                    "Heart rate",
+                    "Zones",
+                    "Route/source",
+                  ].map((label) => (
+                    <div
+                      key={label}
+                      className="min-w-0 rounded-lg border border-border/40 bg-background/70 px-3 py-2"
+                    >
+                      <span className="block truncate text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
+                        {label}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* ── Sets ──────────────────────────────────── */}
+                <div className="border-t border-border/40">
+                  {data.sets.map((s, i) => (
+                    <div
+                      key={s.id}
+                      className={i > 0 ? "border-t border-border/25" : ""}
+                    >
+                      <SetRow
+                        set={s}
+                        index={i}
+                        trackRpe={data.trackRpe}
+                        trackUnilateral={data.trackUnilateral}
+                        unit={unit}
+                        onUpdate={(updated) => updateSet(i, updated)}
+                        onDelete={() => removeSet(i)}
+                        canDelete={data.sets.length > 1}
+                      />
+                    </div>
+                  ))}
+                </div>
 
-            {/* ── Add set ───────────────────────────────── */}
-            <button
-              onClick={addSet}
-              className="flex w-full items-center gap-2 border-t border-border/30 px-4 py-2.5 text-left transition-colors active:bg-muted/30"
-            >
-              <Plus
-                size={10}
-                weight="bold"
-                className="text-muted-foreground/40"
-              />
-              <span className="text-[11px] font-bold tracking-widest text-muted-foreground/40 uppercase">
-                Add set
-              </span>
-            </button>
+                {/* ── Add set ───────────────────────────────── */}
+                <button
+                  onClick={addSet}
+                  className="flex w-full items-center gap-2 border-t border-border/30 px-4 py-2.5 text-left transition-colors active:bg-muted/30"
+                >
+                  <Plus
+                    size={10}
+                    weight="bold"
+                    className="text-muted-foreground/40"
+                  />
+                  <span className="text-[11px] font-bold tracking-widest text-muted-foreground/40 uppercase">
+                    Add set
+                  </span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1152,6 +1342,119 @@ function ExerciseModal({
   )
 }
 
+// ─── Paste-to-preset sheet ───────────────────────────────────────────────────
+
+function PastePresetSheet({
+  hasExisting,
+  loading,
+  onGenerate,
+  onClose,
+}: {
+  hasExisting: boolean
+  loading: boolean
+  onGenerate: (text: string, mode: AgentPresetMode) => void | Promise<void>
+  onClose: () => void
+}) {
+  const [text, setText] = useState("")
+  const [mode, setMode] = useState<AgentPresetMode>("replace")
+  const canGenerate = text.trim().length >= 8 && !loading
+
+  return (
+    <div
+      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[4px]"
+      onClick={loading ? undefined : onClose}
+    >
+      <div
+        className="sheet-panel w-full max-w-lg overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+        style={{
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-border/60" />
+        <div className="px-5 pt-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
+              <Sparkle size={17} weight="fill" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black tracking-[0.2em] text-muted-foreground/45 uppercase">
+                AI preset builder
+              </p>
+              <h2 className="mt-1 text-[19px] leading-tight font-black tracking-tight">
+                Paste a workout plan
+              </h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+                Drop in coach notes, a split from the web, or your own rough
+                plan. We'll match exercises and build editable sets.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
+            >
+              <X size={15} weight="bold" />
+            </button>
+          </div>
+
+          {hasExisting && (
+            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[12px] font-bold">
+              {(["replace", "append"] as AgentPresetMode[]).map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setMode(value)}
+                  disabled={loading}
+                  className={cn(
+                    "h-10 rounded-xl capitalize transition-all",
+                    mode === value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground/55 active:text-foreground"
+                  )}
+                >
+                  {value}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={loading}
+            placeholder={
+              "Upper Body Strength\nBench press 4x6 @ 185 lb, rest 2 min\nPull-up 4xAMRAP\nSeated cable row 3x10\nLateral raise 3x15"
+            }
+            className="mt-5 min-h-52 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/30 focus:border-foreground/20 disabled:opacity-60"
+          />
+
+          <div className="mt-4 flex flex-col gap-2">
+            <button
+              onClick={() => void onGenerate(text.trim(), mode)}
+              disabled={!canGenerate}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
+            >
+              <Sparkle
+                size={15}
+                weight="fill"
+                className={loading ? "animate-spin" : ""}
+              />
+              {loading ? "Building preset…" : "Create preset"}
+            </button>
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className="h-11 w-full rounded-xl bg-muted/55 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted active:text-foreground disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NewPreset() {
@@ -1168,9 +1471,11 @@ export default function NewPreset() {
     api.logs.presets.update,
     "logs.presets.update"
   )
+  const createPresetDraft = useAction(api.logs.presetAgent.createFromText)
 
   const [confirming, setConfirming] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [pasteOpen, setPasteOpen] = useState(false)
   const [presetName, setPresetName] = useState("")
   const [modalExercise, setModalExercise] = useState<Exercise | null>(null)
   const [items, setItems] = useState<PresetItem[]>([])
@@ -1183,6 +1488,7 @@ export default function NewPreset() {
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [saving, setSaving] = useState(false)
+  const [generatingPreset, setGeneratingPreset] = useState(false)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const dragRef = useRef<DragInfo | null>(null)
@@ -1254,13 +1560,18 @@ export default function NewPreset() {
       exData,
       exerciseLookup
     )
+    const exerciseData = sanitizeExerciseDataForSave(
+      items,
+      exData,
+      exerciseLookup
+    )
     const input = {
       name:
         summary.steps.length > 0
           ? presetName.trim() || "Untitled Preset"
           : "Untitled Preset",
       items,
-      exerciseData: exData,
+      exerciseData,
       ...summary,
     }
 
@@ -1277,10 +1588,108 @@ export default function NewPreset() {
         exercise_count: items.length,
       })
       navigate(-1)
-    } catch {
-      // toast error
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save preset"
+      )
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleGenerateFromText(text: string, mode: AgentPresetMode) {
+    if (!text.trim()) return
+
+    setGeneratingPreset(true)
+    try {
+      const draft = (await createPresetDraft({ text })) as AgentPresetDraft
+      const draftExercises = (draft.exercises ?? []).filter((exercise) =>
+        exercise.name?.trim()
+      )
+
+      if (draftExercises.length === 0) {
+        throw new Error("I couldn't find any exercises in that text.")
+      }
+
+      const resolved = await Promise.all(
+        draftExercises.map(async (draftExercise) => {
+          const candidates = await searchExercises({
+            query: draftExercise.name,
+            limit: 6,
+          })
+          return {
+            draftExercise,
+            exercise: pickBestExerciseMatch(draftExercise.name, candidates),
+          }
+        })
+      )
+
+      const existingIds = new Set(mode === "append" ? addedIds : [])
+      const seenIds = new Set<string>()
+      const nextItems: PresetItem[] = []
+      const nextExerciseData: Record<string, ExerciseState> = {}
+      const nextExerciseLookup: Record<string, Exercise> = {}
+      const unmatched: string[] = []
+
+      for (const match of resolved) {
+        const exercise = match.exercise
+        if (!exercise) {
+          unmatched.push(match.draftExercise.name)
+          continue
+        }
+        if (seenIds.has(exercise.id) || existingIds.has(exercise.id)) continue
+
+        seenIds.add(exercise.id)
+        nextItems.push({ kind: "solo", exerciseId: exercise.id })
+        nextExerciseData[exercise.id] = makeExerciseStateFromAgentDraft(
+          exercise,
+          match.draftExercise
+        )
+        nextExerciseLookup[exercise.id] = exercise
+      }
+
+      if (nextItems.length === 0) {
+        throw new Error(
+          mode === "append"
+            ? "Those exercises are already in this preset."
+            : "I couldn't match those exercises to the catalog."
+        )
+      }
+
+      if (mode === "replace") {
+        setItems(nextItems)
+        setExData(nextExerciseData)
+        setExerciseLookup(nextExerciseLookup)
+        setCollapsed({})
+      } else {
+        setItems((prev) => [...prev, ...nextItems])
+        setExData((prev) => ({ ...prev, ...nextExerciseData }))
+        setExerciseLookup((prev) => ({ ...prev, ...nextExerciseLookup }))
+      }
+
+      const nextName = draft.name?.trim().slice(0, 40)
+      if (nextName && (mode === "replace" || !presetName.trim())) {
+        setPresetName(nextName)
+      }
+
+      posthog.capture("workout_preset_text_imported", {
+        mode,
+        matched_count: nextItems.length,
+        unmatched_count: unmatched.length,
+      })
+
+      setPasteOpen(false)
+      toast.success(
+        unmatched.length > 0
+          ? `Added ${nextItems.length} exercises. ${unmatched.length} couldn't be matched.`
+          : `Created ${nextItems.length}-exercise preset draft`
+      )
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not create preset"
+      )
+    } finally {
+      setGeneratingPreset(false)
     }
   }
 
@@ -1304,7 +1713,7 @@ export default function NewPreset() {
       setItems((prev) => [...prev, { kind: "solo", exerciseId: id }])
       setExData((prev) => ({
         ...prev,
-        [id]: { sets: [makeSet()], trackRpe: false, trackUnilateral: false },
+        [id]: makeExerciseState(ex),
       }))
     }
   }
@@ -1598,7 +2007,7 @@ export default function NewPreset() {
       <div className="mx-auto max-w-lg pb-20 md:max-w-3xl md:pb-10">
         {/* ── Navigation bar ──────────────────────────── */}
         <div
-          className="flex items-center px-5"
+          className="flex items-center px-5 md:px-8"
           style={{
             paddingTop: "max(3.25rem, env(safe-area-inset-top, 3.25rem))",
             paddingBottom: "0.75rem",
@@ -1630,7 +2039,7 @@ export default function NewPreset() {
         </div>
 
         {/* ── Hero: Preset name ────────────────────────── */}
-        <div className="px-5 pt-2 pb-5">
+        <div className="px-5 pt-2 pb-5 md:px-8">
           <input
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
@@ -1639,7 +2048,7 @@ export default function NewPreset() {
             }
             maxLength={40}
             disabled={loadingPreset}
-            className="min-h-12 w-full bg-transparent text-[26px] font-black tracking-tight outline-none placeholder:text-muted-foreground/20"
+            className="app-display min-h-12 w-full bg-transparent text-[2rem] outline-none placeholder:text-muted-foreground/20"
           />
           <div className="mt-2 flex items-center gap-3">
             {addedIds.length > 0 && (
@@ -1648,17 +2057,18 @@ export default function NewPreset() {
               </p>
             )}
             {/* kg / lbs toggle */}
-            <div className="ml-auto flex items-center gap-0 rounded-lg border border-border/60 bg-muted/40 p-0.5 text-[11px] font-bold">
+            <div className="app-segmented ml-auto grid grid-cols-2 text-[11px] font-bold">
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
                   key={u}
                   onClick={() => setUnit(u)}
                   className={cn(
-                    "min-h-10 min-w-10 rounded-md px-3 transition-all duration-150",
+                    "app-segmented-button min-h-10 min-w-10 px-3 transition-all duration-150",
                     unit === u
                       ? "bg-foreground text-background shadow-sm"
                       : "text-muted-foreground/60 active:text-foreground"
                   )}
+                  data-active={unit === u}
                 >
                   {u}
                 </button>
@@ -1667,7 +2077,7 @@ export default function NewPreset() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-4">
+        <div className="flex flex-col gap-4 px-4 md:px-8">
           {/* ── Exercise list ──────────────────────────── */}
           {items.length > 0 && (
             <div className="flex flex-col gap-3">
@@ -1680,7 +2090,7 @@ export default function NewPreset() {
           )}
 
           {loadingPreset && (
-            <div className="rounded-2xl border border-border/60 bg-card px-4 py-4 text-[13px] text-muted-foreground/60">
+            <div className="app-empty px-4 py-4 text-[13px] text-muted-foreground/60">
               Loading preset...
             </div>
           )}
@@ -1689,7 +2099,7 @@ export default function NewPreset() {
           <button
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "flex h-14 w-full items-center gap-3 rounded-2xl border transition-all active:scale-[0.985]",
+              "app-empty flex h-14 w-full items-center gap-3 transition-all active:scale-[0.985]",
               items.length === 0
                 ? "border-border bg-card active:bg-muted/40"
                 : "border-dashed border-border/60 bg-transparent active:bg-muted/20"
@@ -1697,7 +2107,7 @@ export default function NewPreset() {
           >
             <div
               className={cn(
-                "ml-4 flex h-10 w-10 items-center justify-center rounded-full",
+                "ml-4 flex h-10 w-10 items-center justify-center rounded-[8px]",
                 items.length === 0
                   ? "bg-foreground text-background"
                   : "border border-dashed border-muted-foreground/40 text-muted-foreground/50"
@@ -1721,6 +2131,27 @@ export default function NewPreset() {
                 className="mr-4 ml-auto text-muted-foreground/40"
               />
             )}
+          </button>
+
+          {/* ── Paste workout text button ───────────────── */}
+          <button
+            onClick={() => setPasteOpen(true)}
+            disabled={loadingPreset || generatingPreset}
+            className="app-empty flex min-h-14 w-full items-center gap-3 border-dashed border-border/60 bg-transparent transition-all active:scale-[0.985] active:bg-muted/20 disabled:opacity-45"
+          >
+            <div className="ml-4 flex h-10 w-10 items-center justify-center rounded-[8px] bg-muted/70 text-foreground">
+              <Sparkle
+                size={14}
+                weight="fill"
+                className={generatingPreset ? "animate-spin" : ""}
+              />
+            </div>
+            <span className="text-left text-[14px] font-semibold text-muted-foreground/65">
+              Paste workout text
+            </span>
+            <span className="mr-4 ml-auto rounded-full bg-foreground px-2 py-1 text-[9px] font-black tracking-widest text-background uppercase">
+              AI
+            </span>
           </button>
         </div>
       </div>
@@ -1771,6 +2202,16 @@ export default function NewPreset() {
         />
       )}
 
+      {/* ── Paste-to-preset sheet ─────────────────────────── */}
+      {pasteOpen && (
+        <PastePresetSheet
+          hasExisting={addedIds.length > 0}
+          loading={generatingPreset}
+          onGenerate={handleGenerateFromText}
+          onClose={() => setPasteOpen(false)}
+        />
+      )}
+
       {/* ── Exercise detail modal ─────────────────────────── */}
       {modalExercise && (
         <ExerciseModal
@@ -1805,7 +2246,8 @@ export default function NewPreset() {
               <div className="mt-6 flex flex-col gap-2">
                 <button
                   onClick={() => navigate(-1)}
-                  className="h-12 w-full rounded-xl bg-red-500/90 text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                  className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"
+                  style={{ backgroundColor: APP_ACCENT_COLORS.danger }}
                 >
                   Discard
                 </button>

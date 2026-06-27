@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import {
   getLatestOnboardingProfile,
   listOnboardingProfilesForUser,
 } from "../lib/onboardingProfiles";
 
 async function requireUser(ctx: QueryCtx | MutationCtx) {
-  const user = await authComponent.getAuthUser(ctx);
+  const user = await getAuthUser(ctx);
   if (!user) throw new Error("Not authenticated");
   return user;
 }
@@ -16,7 +16,7 @@ async function requireUser(ctx: QueryCtx | MutationCtx) {
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     return await getLatestOnboardingProfile(ctx, user._id);

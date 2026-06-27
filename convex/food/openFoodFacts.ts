@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser } from "../lib/auth";
 
 const DEFAULT_OPENFOODFACTS_URL = "https://world.openfoodfacts.org";
 
@@ -8,11 +8,12 @@ function normalizePath(path: string) {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+function isProductPath(path: string) {
+  return /^\/api\/v2\/product\/[^/?#]+\.json$/.test(path);
+}
+
 function allowedPath(path: string) {
-  return (
-    path === "/cgi/search.pl" ||
-    /^\/api\/v2\/product\/[^/?#]+\.json$/.test(path)
-  );
+  return path === "/cgi/search.pl" || isProductPath(path);
 }
 
 export const proxy = action({
@@ -21,9 +22,10 @@ export const proxy = action({
     params: v.optional(
       v.array(v.object({ key: v.string(), value: v.string() })),
     ),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const path = normalizePath(args.path);
@@ -37,6 +39,17 @@ export const proxy = action({
       url.searchParams.append(key, value);
     }
 
+    const language = args.language?.trim().toLowerCase();
+    if (path === "/cgi/search.pl" && language) {
+      // OFF search supports filtering by taxonomy tags. Restricting the
+      // language tag server-side keeps irrelevant localized products out of
+      // the client result set instead of merely re-ranking them locally.
+      url.searchParams.set("tagtype_0", "languages");
+      url.searchParams.set("tag_contains_0", "contains");
+      url.searchParams.set("tag_0", language);
+      url.searchParams.set("lc", language);
+    }
+
     const headers: Record<string, string> = {
       Accept: "application/json",
       "User-Agent": "OneRep/1.0 Convex food proxy",
@@ -45,10 +58,24 @@ export const proxy = action({
     if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(url, { headers });
+    if (response.status === 404 && isProductPath(path)) {
+      console.log("[openfoodfacts:raw]", {
+        path,
+        status: response.status,
+        body: await response.text(),
+      });
+      return { status: 0, product: null };
+    }
     if (!response.ok) {
       throw new Error(`Open Food Facts request failed: ${response.status}`);
     }
 
-    return await response.json();
+    const rawText = await response.text();
+    console.log("[openfoodfacts:raw]", {
+      path,
+      status: response.status,
+      body: rawText,
+    });
+    return JSON.parse(rawText);
   },
 });

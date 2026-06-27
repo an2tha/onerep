@@ -29,6 +29,7 @@ export type OpenFoodFactsProduct = {
   image_front_thumb_url?: string;
   selected_images?: OpenFoodFactsImageSet;
   nutriments?: OpenFoodFactsNutriments;
+  nutriments_estimated?: OpenFoodFactsNutriments;
   nutriscore_grade?: string;
   nova_group?: string | number;
 };

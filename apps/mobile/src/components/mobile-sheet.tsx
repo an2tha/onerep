@@ -194,9 +194,9 @@ export function MobileSheet({
       <div
         ref={panelRef}
         className={cn(
-          "relative flex w-full flex-col overflow-hidden rounded-3xl bg-card shadow-2xl will-change-transform sm:max-w-lg",
+          "app-sheet-panel relative flex w-full flex-col overflow-hidden will-change-transform sm:max-w-lg",
           panelClassName,
-          "md:w-[min(92vw,46rem)] md:max-w-2xl md:rounded-3xl md:border md:border-border/50 md:shadow-2xl",
+          "md:w-[min(92vw,46rem)] md:max-w-2xl md:border md:border-border/50",
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         style={{
@@ -220,7 +220,7 @@ export function MobileSheet({
           >
             <div
               className={cn(
-                "h-1 w-10 rounded-full bg-foreground/[0.10]",
+                "app-sheet-handle",
                 notchClassName
               )}
             />

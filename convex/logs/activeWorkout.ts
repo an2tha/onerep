@@ -1,13 +1,69 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+
+const heartRateZonesValidator = v.object({
+  zone1Seconds: v.optional(v.number()),
+  zone2Seconds: v.optional(v.number()),
+  zone3Seconds: v.optional(v.number()),
+  zone4Seconds: v.optional(v.number()),
+  zone5Seconds: v.optional(v.number()),
+});
+
+const cardioDetailsValidator = v.object({
+  distanceMeters: v.optional(v.number()),
+  distanceUnit: v.optional(v.union(v.literal("km"), v.literal("mi"))),
+  durationSeconds: v.optional(v.number()),
+  paceSecondsPerKm: v.optional(v.number()),
+  avgHeartRateBpm: v.optional(v.number()),
+  maxHeartRateBpm: v.optional(v.number()),
+  heartRateZones: v.optional(heartRateZonesValidator),
+  route: v.optional(
+    v.object({
+      name: v.optional(v.string()),
+      url: v.optional(v.string()),
+    }),
+  ),
+  source: v.optional(
+    v.object({
+      provider: v.union(
+        v.literal("manual"),
+        v.literal("apple_health"),
+        v.literal("strava"),
+        v.literal("garmin"),
+        v.literal("fitbit"),
+        v.literal("gpx"),
+        v.literal("other"),
+      ),
+      name: v.optional(v.string()),
+      externalId: v.optional(v.string()),
+      importedAt: v.optional(v.string()),
+    }),
+  ),
+  notes: v.optional(v.string()),
+});
+
+const completedSetValidator = v.object({
+  type: v.string(),
+  reps: v.number(),
+  weight: v.number(),
+  completed: v.boolean(),
+});
+
+const completedExerciseValidator = v.object({
+  id: v.string(),
+  name: v.string(),
+  category: v.optional(v.string()),
+  sets: v.array(completedSetValidator),
+  cardio: v.optional(cardioDetailsValidator),
+});
 
 // ── getActive ─────────────────────────────────────────────────────────────────
 
 export const getActive = query({
   args: { slot: v.union(v.literal(1), v.literal(2)) },
   handler: async (ctx, args) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
     const active = await ctx.db
@@ -28,7 +84,7 @@ export const getActive = query({
 export const getAllActive = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return [];
 
     return ctx.db
@@ -49,7 +105,7 @@ export const createActive = mutation({
     exerciseData: v.any(),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     // Remove any existing active workout for this slot
@@ -90,7 +146,7 @@ export const updateActive = mutation({
     elapsedSeconds: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const active = await ctx.db
@@ -119,7 +175,7 @@ export const updateActive = mutation({
 export const abortActive = mutation({
   args: { slot: v.union(v.literal(1), v.literal(2)) },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const active = await ctx.db
@@ -131,9 +187,10 @@ export const abortActive = mutation({
 
     if (!active) return { ok: true }; // Nothing to abort
 
-    await ctx.db.patch(active._id, {
-      completedAt: Date.now(),
-    });
+    // Aborted workouts are disposable draft state. Delete instead of marking
+    // complete so active-workout queries and client cache refreshes cannot
+    // resurrect them as live sessions.
+    await ctx.db.delete(active._id);
 
     return { ok: true };
   },
@@ -144,24 +201,11 @@ export const abortActive = mutation({
 export const finishActive = mutation({
   args: {
     slot: v.union(v.literal(1), v.literal(2)),
-    exercises: v.array(
-      v.object({
-        id: v.string(),
-        name: v.string(),
-        sets: v.array(
-          v.object({
-            type: v.string(),
-            reps: v.number(),
-            weight: v.number(),
-            completed: v.boolean(),
-          }),
-        ),
-      }),
-    ),
+    exercises: v.array(completedExerciseValidator),
     durationSeconds: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const active = await ctx.db

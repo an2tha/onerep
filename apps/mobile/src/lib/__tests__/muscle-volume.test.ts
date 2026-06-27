@@ -4,7 +4,9 @@ import {
   normaliseMuscle,
   computeMuscleVolume,
   computeWeeklyMuscleVolume,
+  computeMuscleRecovery,
   buildCatalogMap,
+  recoveryStatusForDays,
   type ExerciseMeta,
   type WorkoutLogRecord,
 } from "../muscle-volume"
@@ -49,6 +51,23 @@ describe("normaliseMuscle", () => {
   })
 })
 
+describe("recoveryStatusForDays", () => {
+  test("marks today and yesterday as trained", () => {
+    expect(recoveryStatusForDays(0)).toBe("trained")
+    expect(recoveryStatusForDays(1)).toBe("trained")
+  })
+
+  test("marks days 2 through 4 as recovering", () => {
+    expect(recoveryStatusForDays(2)).toBe("recovering")
+    expect(recoveryStatusForDays(4)).toBe("recovering")
+  })
+
+  test("marks day 5 and later as overdue", () => {
+    expect(recoveryStatusForDays(5)).toBe("overdue")
+    expect(recoveryStatusForDays(12)).toBe("overdue")
+  })
+})
+
 // ─── Core ─────────────────────────────────────────────────────────────────────
 
 const catalog: ExerciseMeta[] = [
@@ -70,14 +89,23 @@ const catalog: ExerciseMeta[] = [
 ]
 const catalogMap = buildCatalogMap(catalog)
 
-function makeLog(date: string, exercises: WorkoutLogRecord["exercises"]): WorkoutLogRecord {
+function makeLog(
+  date: string,
+  exercises: WorkoutLogRecord["exercises"]
+): WorkoutLogRecord {
   return { date, exercises }
 }
 
-function makeExercise(id: string, completedCount: number, totalCount = completedCount) {
+function makeExercise(
+  id: string,
+  completedCount: number,
+  totalCount = completedCount
+) {
   return {
     id,
-    sets: Array.from({ length: totalCount }, (_, i) => ({ completed: i < completedCount })),
+    sets: Array.from({ length: totalCount }, (_, i) => ({
+      completed: i < completedCount,
+    })),
   }
 }
 
@@ -87,9 +115,7 @@ describe("computeMuscleVolume", () => {
   })
 
   test("counts primary and secondary sets correctly", () => {
-    const logs = [
-      makeLog("2026-04-15", [makeExercise("squat", 4)]),
-    ]
+    const logs = [makeLog("2026-04-15", [makeExercise("squat", 4)])]
     const result = computeMuscleVolume(logs, catalogMap)
 
     const quads = result.find((m) => m.muscle === "quadriceps")!
@@ -143,24 +169,20 @@ describe("computeMuscleVolume", () => {
   })
 
   test("skips exercises not in catalog", () => {
-    const logs = [
-      makeLog("2026-04-15", [makeExercise("unknown-exercise", 4)]),
-    ]
+    const logs = [makeLog("2026-04-15", [makeExercise("unknown-exercise", 4)])]
     expect(computeMuscleVolume(logs, catalogMap)).toEqual([])
   })
 
   test("skips exercises with no completed sets", () => {
-    const logs = [
-      makeLog("2026-04-15", [makeExercise("squat", 0, 4)]),
-    ]
+    const logs = [makeLog("2026-04-15", [makeExercise("squat", 0, 4)])]
     expect(computeMuscleVolume(logs, catalogMap)).toEqual([])
   })
 
   test("sorts result by effectiveSets descending", () => {
     const logs = [
       makeLog("2026-04-15", [
-        makeExercise("bench", 4),  // chest = 4 primary
-        makeExercise("row", 6),    // back = 6 primary
+        makeExercise("bench", 4), // chest = 4 primary
+        makeExercise("row", 6), // back = 6 primary
       ]),
     ]
     const result = computeMuscleVolume(logs, catalogMap)
@@ -214,6 +236,76 @@ describe("computeWeeklyMuscleVolume", () => {
   test("returns empty when no workouts this week", () => {
     const logs = [makeLog("2026-04-01", [makeExercise("squat", 5)])]
     expect(computeWeeklyMuscleVolume(logs, catalogMap, today)).toEqual([])
+  })
+})
+
+describe("computeMuscleRecovery", () => {
+  const today = new Date("2026-04-15T12:00:00Z")
+
+  test("uses the most recent completed training day per muscle", () => {
+    const logs = [
+      makeLog("2026-04-08", [makeExercise("bench", 4)]),
+      makeLog("2026-04-14", [makeExercise("bench", 2)]),
+    ]
+
+    const result = computeMuscleRecovery(logs, catalogMap, today)
+    const chest = result.find((m) => m.muscle === "chest")!
+
+    expect(chest.lastTrainedDate).toBe("2026-04-14")
+    expect(chest.daysSinceLastTrained).toBe(1)
+    expect(chest.status).toBe("trained")
+    expect(chest.primarySets).toBe(2)
+  })
+
+  test("aggregates primary and secondary sets on the latest day", () => {
+    const logs = [
+      makeLog("2026-04-13", [makeExercise("squat", 4), makeExercise("row", 3)]),
+    ]
+
+    const result = computeMuscleRecovery(logs, catalogMap, today)
+    const biceps = result.find((m) => m.muscle === "biceps")!
+    const quads = result.find((m) => m.muscle === "quadriceps")!
+
+    expect(quads.primarySets).toBe(4)
+    expect(quads.effectiveSets).toBe(4)
+    expect(biceps.secondarySets).toBe(3)
+    expect(biceps.effectiveSets).toBe(1.5)
+    expect(biceps.status).toBe("recovering")
+  })
+
+  test("marks stale muscles as overdue", () => {
+    const logs = [makeLog("2026-04-09", [makeExercise("row", 4)])]
+
+    const result = computeMuscleRecovery(logs, catalogMap, today)
+    const back = result.find((m) => m.muscle === "back")!
+
+    expect(back.daysSinceLastTrained).toBe(6)
+    expect(back.status).toBe("overdue")
+  })
+
+  test("ignores future logs", () => {
+    const logs = [
+      makeLog("2026-04-10", [makeExercise("bench", 3)]),
+      makeLog("2026-04-16", [makeExercise("bench", 5)]),
+    ]
+
+    const result = computeMuscleRecovery(logs, catalogMap, today)
+    const chest = result.find((m) => m.muscle === "chest")!
+
+    expect(chest.lastTrainedDate).toBe("2026-04-10")
+    expect(chest.primarySets).toBe(3)
+  })
+
+  test("skips unknown exercises and empty muscle metadata", () => {
+    const emptyCatalog = buildCatalogMap([{ id: "empty" }])
+    const logs = [
+      makeLog("2026-04-15", [
+        makeExercise("unknown-exercise", 4),
+        makeExercise("empty", 4),
+      ]),
+    ]
+
+    expect(computeMuscleRecovery(logs, emptyCatalog, today)).toEqual([])
   })
 })
 

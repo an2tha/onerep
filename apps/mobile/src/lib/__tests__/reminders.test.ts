@@ -32,7 +32,9 @@ describe("reminder settings", () => {
     platform = "ios"
     cancelMock.mockClear()
     requestPermissionsMock.mockReset()
-    requestPermissionsMock.mockImplementation(async () => ({ display: "granted" }))
+    requestPermissionsMock.mockImplementation(async () => ({
+      display: "granted",
+    }))
     scheduleMock.mockClear()
   })
 
@@ -45,6 +47,7 @@ describe("reminder settings", () => {
     expect(merged.meal).toEqual(DEFAULT_REMINDERS.meal)
     expect(merged.workout).toEqual(DEFAULT_REMINDERS.workout)
     expect(merged.body).toEqual(DEFAULT_REMINDERS.body)
+    expect(merged.supplement).toEqual(DEFAULT_REMINDERS.supplement)
   })
 
   test("mergeReminderSettings preserves partial overrides within each reminder", () => {
@@ -65,7 +68,9 @@ describe("reminder settings", () => {
   test("syncPushReminders returns unsupported on web without touching notifications", async () => {
     platform = "web"
 
-    await expect(syncPushReminders(DEFAULT_REMINDERS)).resolves.toBe("unsupported")
+    await expect(syncPushReminders(DEFAULT_REMINDERS)).resolves.toBe(
+      "unsupported"
+    )
     expect(cancelMock).not.toHaveBeenCalled()
     expect(requestPermissionsMock).not.toHaveBeenCalled()
     expect(scheduleMock).not.toHaveBeenCalled()
@@ -75,14 +80,22 @@ describe("reminder settings", () => {
     await expect(syncPushReminders(DEFAULT_REMINDERS)).resolves.toBe("disabled")
 
     expect(cancelMock).toHaveBeenCalledWith({
-      notifications: [{ id: 9201 }, { id: 9202 }, { id: 9203 }, { id: 9204 }],
+      notifications: [
+        { id: 9201 },
+        { id: 9202 },
+        { id: 9203 },
+        { id: 9204 },
+        { id: 9205 },
+      ],
     })
     expect(requestPermissionsMock).not.toHaveBeenCalled()
     expect(scheduleMock).not.toHaveBeenCalled()
   })
 
   test("syncPushReminders returns denied when notification permission is rejected", async () => {
-    requestPermissionsMock.mockImplementationOnce(async () => ({ display: "denied" }))
+    requestPermissionsMock.mockImplementationOnce(async () => ({
+      display: "denied",
+    }))
 
     await expect(
       syncPushReminders({

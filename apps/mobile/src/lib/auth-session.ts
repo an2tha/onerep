@@ -1,15 +1,11 @@
 import type { NavigateOptions, To } from "react-router"
 
 type Navigate = (to: To, options?: NavigateOptions) => void | Promise<void>
+type SignOut = () => void | Promise<void>
 
 const LOGIN_PATH = "/login"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
-  "onerep:",
-  "onerep_",
-  "better-auth",
-  "convex:",
-]
+const LOCAL_STORAGE_PREFIXES_TO_CLEAR = ["onerep:", "onerep_", "convex:"]
 const LOCAL_STORAGE_KEYS_TO_CLEAR = new Set(["theme"])
 
 let authRedirectInFlight = false
@@ -59,6 +55,30 @@ export function clearUnauthenticatedLocalState() {
   localStorage.setItem(PRELOGIN_SEEN_KEY, "true")
 }
 
+function getGlobalSignOut(): SignOut | undefined {
+  if (typeof window === "undefined") return undefined
+  const maybeClerk = (
+    window as typeof window & {
+      Clerk?: { signOut?: SignOut }
+    }
+  ).Clerk
+  return maybeClerk?.signOut?.bind(maybeClerk)
+}
+
+async function clearAuthClientSession(signOut?: SignOut) {
+  const clearSession = signOut ?? getGlobalSignOut()
+  if (!clearSession) return
+
+  try {
+    await clearSession()
+  } catch (error) {
+    console.warn(
+      "Failed to sign out auth client after unauthenticated error",
+      error
+    )
+  }
+}
+
 function redirectToLogin(navigate?: Navigate) {
   if (navigate) {
     void navigate(LOGIN_PATH, { replace: true })
@@ -71,16 +91,14 @@ function redirectToLogin(navigate?: Navigate) {
   window.location.replace(LOGIN_PATH)
 }
 
-export function handleUnauthenticatedSession(options?: {
+export async function handleUnauthenticatedSession(options?: {
   navigate?: Navigate
+  signOut?: SignOut
 }) {
   if (authRedirectInFlight) return
   authRedirectInFlight = true
 
   clearUnauthenticatedLocalState()
-
-  void import("@/lib/auth-client")
-    .then(({ authClient }) => authClient.signOut())
-    .catch(() => undefined)
-    .finally(() => redirectToLogin(options?.navigate))
+  await clearAuthClientSession(options?.signOut)
+  redirectToLogin(options?.navigate)
 }
