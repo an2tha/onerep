@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ai_metricGeneration from "../ai/metricGeneration.js";
 import type * as bodyProgress from "../bodyProgress.js";
 import type * as exercises from "../exercises.js";
 import type * as food_openFoodFacts from "../food/openFoodFacts.js";
@@ -40,6 +41,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "ai/metricGeneration": typeof ai_metricGeneration;
   bodyProgress: typeof bodyProgress;
   exercises: typeof exercises;
   "food/openFoodFacts": typeof food_openFoodFacts;

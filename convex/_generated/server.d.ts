@@ -26,6 +26,7 @@ import type { DataModel } from "./dataModel.js";
  */
 type Env = {
   readonly OPENAI_API_KEY: string | undefined;
+  readonly OPENAI_METRIC_MODEL: string | undefined;
   readonly OPENAI_WORKOUT_PRESET_MODEL: string | undefined;
 };
 
