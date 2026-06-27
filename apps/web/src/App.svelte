@@ -22,6 +22,8 @@
   let appOpenMessage = '';
   let appOpenTimer = 0;
 
+  const appUrl = (import.meta.env.VITE_APP_URL as string | undefined) ?? 'https://app.onerep.life';
+
   function routeFromPath(path: string): Route {
     return routes[path] ?? 'home';
   }
@@ -50,7 +52,7 @@
   function openApp(event: MouseEvent) {
     event.preventDefault();
     appOpenMessage = 'Trying to open OneRep…';
-    window.location.href = 'https://app.onerep.life';
+    window.location.href = appUrl;
     window.clearTimeout(appOpenTimer);
     appOpenTimer = window.setTimeout(() => {
       if (document.visibilityState === 'visible') {
@@ -248,7 +250,7 @@
       <a href="/privacy" class:active={route === 'privacy'} on:click={(event) => go(event, '/privacy')}>Privacy</a>
       <a href="/support" class:active={route === 'support'} on:click={(event) => go(event, '/support')}>Support</a>
     </nav>
-    <a class="header-open-app" href="https://app.onerep.life" on:click={openApp}>Open app <span aria-hidden="true">↗</span></a>
+    <a class="header-open-app" href={appUrl} on:click={openApp}>Open app <span aria-hidden="true">↗</span></a>
     <button
       class="theme-toggle"
       type="button"
@@ -290,7 +292,7 @@
           OneRep keeps the receipts in one private web app: workouts, routines, meals, recipes, water, goals, measurements, and progress photos.
         </p>
         <div class="hero-actions">
-          <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
+          <a class="button primary" href={appUrl} on:click={openApp}>Open app</a>
           <a class="button secondary" href="/privacy" on:click={(event) => go(event, '/privacy')}>Privacy</a>
         </div>
 
@@ -323,7 +325,7 @@
           <span>Next</span>
           <strong>Lift day · 45 min</strong>
         </div>
-        <a class="open-app-badge" href="https://app.onerep.life" on:click={openApp} aria-label="Open OneRep app">
+        <a class="open-app-badge" href={appUrl} on:click={openApp} aria-label="Open OneRep app">
           <span>Open app</span>
           <strong>↗</strong>
         </a>
@@ -440,11 +442,57 @@
       </div>
     </section>
 
+    <section id="pricing" class="pricing-section" aria-labelledby="pricing-title">
+      <div class="pricing-copy">
+        <div>
+          <p class="eyebrow">Pricing</p>
+          <h2 id="pricing-title">Free means free.</h2>
+        </div>
+        <p>
+          OneRep’s core log is free forever: workouts, food, water, recipes, routines, measurements, progress photos, export, and deletion. No strings attached, no sneaky upgrade incentives, and no fake limits that show up after you trust the app.
+        </p>
+      </div>
+
+      <div class="pricing-cards" aria-label="OneRep plans">
+        <article class="price-card free-card primary-plan">
+          <div class="price-card-top">
+            <span>Core</span>
+            <strong>Forever</strong>
+          </div>
+          <div class="price-tag"><strong>$0</strong><span>/mo</span></div>
+          <p>Everything you need to keep a private training, nutrition, water, and body-progress log.</p>
+          <ul>
+            <li>Workout presets, routines, active sessions, and rest timers</li>
+            <li>Food search, barcode lookup, recipes, macros, and water goals</li>
+            <li>Measurements, notes, progress photos, export, and account deletion</li>
+          </ul>
+        </article>
+
+        <article class="price-card ai-card secondary-plan">
+          <div class="price-card-top">
+            <span>AI Access</span>
+            <strong>Paid because tokens cost money</strong>
+          </div>
+          <div class="price-action-row">
+            <div class="price-tag"><strong>$5</strong><span>/mo</span></div>
+            <a class="button price-subscribe" href={appUrl} on:click={openApp}>Subscribe in the app</a>
+          </div>
+          <p>A small optional tier for compute-heavy helpers. Core logging never moves behind it.</p>
+          <ul>
+            <li>AI-generated progress metric sets</li>
+            <li>Workout preset drafts from plain text</li>
+            <li>Food photo analysis and shared monthly AI usage</li>
+          </ul>
+        </article>
+      </div>
+
+    </section>
+
     <section id="waitlist" class="cta-panel" aria-labelledby="cta-title">
       <p class="eyebrow">For today</p>
       <h2 id="cta-title">Open OneRep and log the day.</h2>
       <p>Log the set. Log the meal. Add water. Save the check-in. Come back tomorrow with a clearer picture.</p>
-      <a class="button primary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
+      <a class="button primary" href={appUrl} on:click={openApp}>Open app</a>
     </section>
   </main>
 {:else}
@@ -545,7 +593,7 @@
         <p>Email us with the boring details. Boring details fix bugs faster than “it does not work.” We do not offer phone support; written reports keep the details from getting lost.</p>
         <div class="page-actions">
           <a class="button primary" href="mailto:support@onerep.life?subject=OneRep%20support">support@onerep.life</a>
-          <a class="button secondary" href="https://app.onerep.life" on:click={openApp}>Open app</a>
+          <a class="button secondary" href={appUrl} on:click={openApp}>Open app</a>
         </div>
       </section>
       <section class="support-layout">
