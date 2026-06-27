@@ -96,7 +96,16 @@ Required for the mobile app:
 ```env
 VITE_CONVEX_URL=
 VITE_CONVEX_SITE_URL=
+VITE_CLERK_PUBLISHABLE_KEY=
 ```
+
+Required for Clerk auth in Convex env:
+
+```env
+CLERK_JWT_ISSUER_DOMAIN=https://your-app.clerk.accounts.dev
+```
+
+`CLERK_JWT_ISSUER_DOMAIN` must match the Clerk JWT issuer URL used by the mobile app's Clerk project, with no trailing slash. Convex `auth.config.ts` uses this as the provider domain and expects Clerk JWTs with audience/application ID `convex`. Set it with `bunx convex env set CLERK_JWT_ISSUER_DOMAIN <issuer-url>`.
 
 Required for mobile food search in Convex env:
 
