@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { action, internalMutation } from "../_generated/server";
+import { action, env, internalMutation } from "../_generated/server";
+import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
 
 const MAX_SNAPS_PER_DAY = 10;
@@ -90,7 +91,10 @@ export const consumeSnapQuota = internalMutation({
 
     const nextCount = (existing?.count ?? 0) + 1;
     if (existing) {
-      await ctx.db.patch(existing._id, { count: nextCount, updatedAt: Date.now() });
+      await ctx.db.patch(existing._id, {
+        count: nextCount,
+        updatedAt: Date.now(),
+      });
     } else {
       await ctx.db.insert("snapUsage", {
         userId: args.userId,
@@ -124,7 +128,7 @@ export const snap = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = env.OPENAI_API_KEY;
     if (!apiKey) throw new Error("Photo analysis is not configured");
 
     const mimeType = args.mimeType ?? "image/jpeg";
@@ -136,11 +140,14 @@ export const snap = action({
       throw new Error("Image is too large");
     }
 
-    const quota: { allowed: boolean; remaining: number } = await ctx.runMutation(
-      internal.logs.snap.consumeSnapQuota,
-      { userId: user._id, date: utcDateKey() },
-    );
+    const quota: { allowed: boolean; remaining: number } =
+      await ctx.runMutation(internal.logs.snap.consumeSnapQuota, {
+        userId: user._id,
+        date: utcDateKey(),
+      });
     if (!quota.allowed) throw new Error("Daily photo analysis limit reached");
+
+    await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
 

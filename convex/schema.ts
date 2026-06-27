@@ -500,6 +500,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  // ── AI usage quotas ──────────────────────────────────────────────────────
+  aiUsage: defineTable({
+    userId: v.string(),
+    month: v.string(), // YYYY-MM UTC month key
+    count: v.number(),
+    lastSource: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_userId_month", ["userId", "month"]),
+
   // ── Food photo analysis quota ─────────────────────────────────────────────
   snapUsage: defineTable({
     userId: v.string(),
