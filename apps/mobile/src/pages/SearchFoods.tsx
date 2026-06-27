@@ -13,8 +13,10 @@ import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
 import {
   currentDateKey,
+  DEFAULT_MEAL_CATEGORIES,
   defaultMeal,
   foodPortionLabel,
+  logMicrosFromFoodDetail,
   stripUndefined,
   type FoodPortion,
   type LogMicros,
@@ -22,6 +24,7 @@ import {
 import { searchFoods } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
 import type { FoodDetail } from "@repo/models"
+import { APP_ACCENT_COLORS, MACRO_COLORS } from "@/lib/design-tokens"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
@@ -100,6 +103,13 @@ function relevanceScore(item: FoodSearchItem, query: string, index: number) {
   return score - index * 0.001
 }
 
+function shouldOpenReviewAsPage() {
+  return !(
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(min-width: 768px)").matches
+  )
+}
+
 function rankAndFilterResults(
   items: FoodSearchItem[],
   query: string
@@ -126,32 +136,7 @@ function rankAndFilterResults(
     .map(({ item }) => item)
 }
 
-const MEAL_CATEGORIES = [
-  {
-    id: "breakfast",
-    label: "Breakfast",
-    color: "#f59e0b",
-    bg: "rgba(245,158,11,0.12)",
-  },
-  {
-    id: "lunch",
-    label: "Lunch",
-    color: "#0ea5e9",
-    bg: "rgba(14,165,233,0.12)",
-  },
-  {
-    id: "dinner",
-    label: "Dinner",
-    color: "#818cf8",
-    bg: "rgba(129,140,248,0.12)",
-  },
-  {
-    id: "snack",
-    label: "Snack",
-    color: "#34d399",
-    bg: "rgba(52,211,153,0.12)",
-  },
-]
+const MEAL_CATEGORIES = DEFAULT_MEAL_CATEGORIES
 
 export default function SearchFoods() {
   const navigate = useSmoothNavigate()
@@ -168,6 +153,7 @@ export default function SearchFoods() {
   const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
 
   const date = currentDateKey()
+  const preferences = useQuery(api.users.users.getPreferences)
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
   const setDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
@@ -190,7 +176,11 @@ export default function SearchFoods() {
     debounceRef.current = setTimeout(async () => {
       setDebouncedQuery(q)
       try {
-        const results = await searchFoods(q, 50)
+        const results = await searchFoods(
+          q,
+          50,
+          preferences?.foodSearchLanguage ?? "en"
+        )
         setSearchResults(results ?? [])
         setSearchState("done")
       } catch {
@@ -201,7 +191,7 @@ export default function SearchFoods() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query])
+  }, [query, preferences?.foodSearchLanguage])
 
   const results = useMemo(
     () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
@@ -239,6 +229,7 @@ export default function SearchFoods() {
       meal,
       source: "openfoodfacts" as const,
       foodCode: item.code,
+      quantityGrams: grams,
       servingGrams: detail?.servingGrams ?? undefined,
       servingLabel: detail?.servingLabel ?? item.serving,
       imageUrl: detail?.imageUrl ?? item.imageUrl,
@@ -265,6 +256,17 @@ export default function SearchFoods() {
     searchState === "done" && results.length === 0 && debouncedQuery !== ""
   const showResults = results.length > 0
 
+  function openFoodReview(item: FoodSearchItem) {
+    if (shouldOpenReviewAsPage()) {
+      navigate(`/foods/review/${encodeURIComponent(item.id)}`, {
+        state: { item },
+      })
+      return
+    }
+
+    setDetailItem(item)
+  }
+
   return (
     <>
       <div className="desktop-canvas flex min-h-svh flex-col bg-background">
@@ -278,7 +280,7 @@ export default function SearchFoods() {
             <button
               onClick={() => navigate(-1)}
               aria-label="Go back"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+              className="app-icon-button"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
@@ -299,7 +301,7 @@ export default function SearchFoods() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search foods"
-                className="h-10 w-full rounded-xl bg-muted/60 pr-10 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
+                className="app-input h-11 w-full border-border/60 bg-muted/45 pr-10 pl-8 text-[14px] placeholder:text-muted-foreground/40"
               />
               {query.length > 0 && (
                 <button
@@ -326,32 +328,29 @@ export default function SearchFoods() {
             }}
           >
             {searchState === "idle" && (
-              <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
+              <div className="app-empty mt-8 justify-center text-center">
                 <MagnifyingGlass
-                  size={28}
-                  className="text-muted-foreground/20"
+                  size={18}
+                  className="shrink-0 text-muted-foreground/35"
                 />
-                <p className="text-[13px] font-medium text-muted-foreground/40">
-                  Search millions of foods
-                </p>
-                <p className="text-[11px] text-muted-foreground/25">
-                  Powered by OneRep Foods
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  Type a food, brand, or barcode number.
                 </p>
               </div>
             )}
 
             {searchState === "error" && (
-              <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
-                <Warning size={28} className="text-muted-foreground/30" />
-                <p className="text-[13px] font-medium text-muted-foreground/50">
-                  Search failed
+              <div className="app-empty mt-8 justify-center text-center">
+                <Warning size={18} className="shrink-0 text-destructive/70" />
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  Food search failed. Check your connection and try again.
                 </p>
               </div>
             )}
 
             {showEmpty && (
-              <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
-                <p className="text-[13px] font-medium text-muted-foreground/50">
+              <div className="app-empty mt-8 justify-center text-center">
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
                   No results for "{query}"
                 </p>
               </div>
@@ -359,21 +358,21 @@ export default function SearchFoods() {
 
             {showResults && (
               <>
-                <p className="mt-1 mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+                <p className="app-eyebrow mt-1 mb-2 px-1 text-muted-foreground/55">
                   {results.length} result{results.length !== 1 ? "s" : ""}
                 </p>
-                <div className="divide-y divide-border/30 md:grid md:grid-cols-2 md:gap-3 md:divide-y-0">
+                <div className="app-ledger md:grid md:grid-cols-2 md:gap-0">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
                     return (
                       <div
                         key={item.id}
-                        className="flex w-full items-center gap-3 py-3 text-left md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
+                        className="app-ledger-row w-full text-left"
                       >
                         <button
                           type="button"
-                          onClick={() => setDetailItem(item)}
-                          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors active:bg-muted/30 md:rounded-xl"
+                          onClick={() => openFoodReview(item)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors active:bg-muted/30"
                         >
                           <CalorieBadge calories={Number(item.calories)} />
 
@@ -400,17 +399,17 @@ export default function SearchFoods() {
                               <MacroPill
                                 label="P"
                                 value={Number(item.protein)}
-                                color="#60a5fa"
+                                color={MACRO_COLORS.protein}
                               />
                               <MacroPill
                                 label="C"
                                 value={Number(item.carbs)}
-                                color="#a78bfa"
+                                color={MACRO_COLORS.carbs}
                               />
                               <MacroPill
                                 label="F"
                                 value={Number(item.fat)}
-                                color="#f59e0b"
+                                color={MACRO_COLORS.fat}
                               />
                             </div>
                           </div>
@@ -425,7 +424,7 @@ export default function SearchFoods() {
                           aria-label={
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985] disabled:opacity-60"
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 transition-all active:scale-[0.985] disabled:opacity-60"
                         >
                           {isAdded ? (
                             <span className="text-[11px] text-foreground/60">
@@ -452,7 +451,14 @@ export default function SearchFoods() {
           item={detailItem}
           added={added?.itemId === detailItem.id}
           onAdd={(item, grams, micros, meal, detail, portion) => {
-            void handleAdd(item, grams, micros, meal, detail, portion)
+            void handleAdd(
+              detailItem,
+              grams,
+              micros,
+              meal,
+              detail ?? detailItem,
+              portion
+            )
           }}
           onClose={() => setDetailItem(null)}
         />
@@ -462,7 +468,13 @@ export default function SearchFoods() {
         <MealSelectSheet
           item={pendingItem}
           onSelect={(meal) => {
-            void handleAdd(pendingItem, 100, {}, meal)
+            void handleAdd(
+              pendingItem,
+              100,
+              logMicrosFromFoodDetail(pendingItem, 100),
+              meal,
+              pendingItem
+            )
             setPendingItem(null)
           }}
           onClose={() => setPendingItem(null)}
@@ -474,8 +486,11 @@ export default function SearchFoods() {
 
 function CalorieBadge({ calories }: { calories: number }) {
   return (
-    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-muted/60 text-center">
-      <div className="flex items-center gap-0.5 text-orange-400/80">
+    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-[9px] bg-muted/60 text-center">
+      <div
+        className="flex items-center gap-0.5"
+        style={{ color: APP_ACCENT_COLORS.food }}
+      >
         <Fire size={13} weight="fill" />
         <span className="text-[13px] leading-none font-semibold tabular-nums">
           {Math.round(calories)}

@@ -5,14 +5,16 @@ import {
   Drop,
   PencilSimple,
   Plus,
-  Trash,
   X,
 } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey, offsetDateKey } from "@/lib/food-log"
+import { APP_ACCENT_COLORS, tint } from "@/lib/design-tokens"
+import { useSmoothNavigate } from "@/lib/navigation"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,8 +34,8 @@ const QUICK_AMOUNTS = [
   { label: "1 L", ml: 1000 },
 ]
 
-const WATER_COLOR = "#38bdf8"
-const WATER_BG = "rgba(56,189,248,0.13)"
+const WATER_COLOR = APP_ACCENT_COLORS.water
+const WATER_BG = tint(WATER_COLOR, 13)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,88 +75,31 @@ function SwipeRow({
   entry: WaterLogEntry
   onDelete: () => void
 }) {
-  const [tx, setTx] = React.useState(0)
-  const startX = React.useRef(0)
-  const txRef = React.useRef(0)
-  const dragging = React.useRef(false)
-  const ACTION_WIDTH = 72
-
-  function setTranslate(next: number) {
-    txRef.current = next
-    setTx(next)
-  }
-
-  function onPointerDown(e: React.PointerEvent) {
-    startX.current = e.clientX
-    dragging.current = true
-    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-  }
-
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging.current) return
-    setTranslate(
-      Math.max(-ACTION_WIDTH, Math.min(0, e.clientX - startX.current))
-    )
-  }
-
-  function onPointerUp() {
-    dragging.current = false
-    setTranslate(txRef.current <= -ACTION_WIDTH / 2 ? -ACTION_WIDTH : 0)
-  }
-
-  const revealed = tx <= -ACTION_WIDTH
-
   return (
-    <div className="relative overflow-hidden rounded-xl bg-foreground/[0.035] ring-1 ring-border/25">
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={onDelete}
-        disabled={!revealed}
-        tabIndex={revealed ? 0 : -1}
-        aria-label={`Delete ${fmtMl(entry.amountMl)} water entry`}
-        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive/90 text-white transition-opacity disabled:pointer-events-none disabled:opacity-0 md:hidden"
+    <SlideToDeleteRow
+      deleteLabel={`Delete ${fmtMl(entry.amountMl)} water entry`}
+      onDelete={onDelete}
+      className="rounded-xl bg-foreground/[0.035] ring-1 ring-border/25"
+      rowClassName="flex items-center gap-3 bg-card px-3 py-2.5"
+    >
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
+        style={{ backgroundColor: WATER_BG }}
       >
-        <Trash size={14} weight="fill" className="text-white" />
-      </button>
-      <div
-        className="relative flex touch-pan-y items-center gap-3 bg-card px-3 py-2.5 transition-transform duration-150 ease-out md:translate-x-0"
-        style={{ transform: `translateX(${tx}px)` }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: WATER_BG }}
-        >
-          <Drop size={12} weight="fill" style={{ color: WATER_COLOR }} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-foreground/85">
-            {fmtMl(entry.amountMl)}
-          </p>
-          <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground/35 uppercase">
-            Water
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[11px] text-muted-foreground/45 tabular-nums">
-            {fmtTime(entry.loggedAt)}
-          </span>
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onDelete}
-            className="hidden h-10 w-10 items-center justify-center rounded-full text-muted-foreground/35 transition-colors hover:bg-destructive/10 hover:text-destructive md:flex"
-            aria-label={`Delete ${fmtMl(entry.amountMl)} water entry`}
-          >
-            <Trash size={12} weight="bold" />
-          </button>
-        </div>
+        <Drop size={12} weight="fill" style={{ color: WATER_COLOR }} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-foreground/85">
+          {fmtMl(entry.amountMl)}
+        </p>
+        <p className="mt-0.5 text-[10px] font-medium tracking-[0.12em] text-muted-foreground/35 uppercase">
+          Water
+        </p>
       </div>
-    </div>
+      <span className="shrink-0 text-[11px] text-muted-foreground/45 tabular-nums">
+        {fmtTime(entry.loggedAt)}
+      </span>
+    </SlideToDeleteRow>
   )
 }
 
@@ -198,7 +143,7 @@ function ProgressCard({
         <div>
           <span
             className="text-[2.2rem] leading-none font-bold tabular-nums"
-            style={{ color: over ? "#38bdf8" : undefined }}
+            style={{ color: over ? WATER_COLOR : undefined }}
           >
             {fmtMl(totalMl)}
           </span>
@@ -469,6 +414,7 @@ function AddSheet({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Water() {
+  const navigate = useSmoothNavigate()
   const preferences = useQuery(api.users.users.getPreferences, {})
   const activeTimezone = preferences?.lastActiveTimezone ?? "UTC"
   const todayKey = currentDateKey(activeTimezone)
@@ -621,24 +567,28 @@ export default function Water() {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
+    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="flex items-end justify-between px-5 pt-[var(--app-safe-top)] pb-4 md:px-6 md:pt-10 short-phone:pb-3">
+        <header className="app-header px-4 md:px-8 short-phone:pb-3">
           <div>
-            <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/50 uppercase">
-              Hydration
-            </p>
-            <h1 className="mt-1 text-[1.65rem] leading-[1.15] font-semibold tracking-tight short-phone:text-[1.42rem]">
-              Water
-            </h1>
+            <button
+              type="button"
+              onClick={() => navigate("/foods")}
+              className="mb-1 flex min-h-9 items-center gap-1 rounded-full pr-3 text-[11px] font-semibold text-muted-foreground/60 transition-colors active:text-foreground"
+              aria-label="Back to Nutrition"
+            >
+              <CaretLeft size={12} weight="bold" />
+              Nutrition
+            </button>
+            <h1 className="app-title short-phone:text-[1.42rem]">Water</h1>
           </div>
 
           {/* Date navigation */}
           <div className="flex items-center gap-1 pb-0.5">
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground"
+              className="app-icon-button"
             >
               <CaretLeft size={13} weight="bold" />
             </button>
@@ -648,7 +598,7 @@ export default function Water() {
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
               disabled={isToday}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground disabled:opacity-20"
+              className="app-icon-button disabled:opacity-20"
             >
               <CaretRight size={13} weight="bold" />
             </button>
@@ -656,7 +606,7 @@ export default function Water() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-6 short-phone:gap-2.5">
+        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-8 short-phone:gap-2.5">
           <ProgressCard
             totalMl={totalMl}
             goalMl={goalMl}
@@ -664,8 +614,13 @@ export default function Water() {
           />
 
           {/* Quick-add row */}
-          <div className="rounded-[22px] bg-card px-4 py-3.5 ring-1 ring-border/40 short-phone:rounded-[18px] short-phone:px-3.5 short-phone:py-3">
-            <p className="mb-2.5 text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
+          <div
+            className="app-rail-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3"
+            style={
+              { "--rail-color": "var(--accent-water)" } as React.CSSProperties
+            }
+          >
+            <p className="app-eyebrow mb-2.5 text-muted-foreground/55">
               Quick add
             </p>
             <div className="flex flex-wrap gap-2">
@@ -673,7 +628,7 @@ export default function Water() {
                 <button
                   key={ml}
                   onClick={() => addEntry(ml)}
-                  className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
+                  className="min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
                 >
                   {label}
@@ -681,7 +636,7 @@ export default function Water() {
               ))}
               <button
                 onClick={() => setAddOpen(true)}
-                className="flex min-h-10 items-center gap-1 rounded-xl px-3.5 text-[12.5px] font-medium text-muted-foreground/50 ring-1 ring-border/40 active:bg-foreground/[0.05]"
+                className="flex min-h-10 items-center gap-1 rounded-[9px] px-3.5 text-[12.5px] font-medium text-muted-foreground/60 ring-1 ring-border/50 active:bg-foreground/[0.05]"
               >
                 <Plus size={11} weight="bold" />
                 Custom

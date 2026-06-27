@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react"
-import { X, CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
+import { CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
+import { useClerk, useUser } from "@clerk/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
-import { authClient } from "@/lib/auth-client"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticTap, hapticSelection, hapticMedium } from "@/lib/haptics"
@@ -87,11 +87,11 @@ if (typeof window !== "undefined") {
 
 type WorkoutFocus = "strength" | "cardio" | "mobility"
 type WeightUnit = "kg" | "lbs"
+type FoodSearchLanguage = "en" | "es" | "fr" | "de" | "it" | "pt"
 
 const SETTINGS_SECTION_TRIGGER_CLASS =
-  "rounded-[20px] border border-border/50 bg-card/85 px-4 py-3 text-left hover:no-underline data-[state=open]:bg-card short-phone:rounded-[18px] short-phone:py-2.5"
-const SETTINGS_PANEL_CLASS =
-  "overflow-hidden rounded-[20px] border border-border/50 bg-card/85 short-phone:rounded-[18px]"
+  "app-rail-surface px-4 py-3 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-2.5"
+const SETTINGS_PANEL_CLASS = "app-surface overflow-hidden rounded-t-none"
 
 /**
  * Renders the Settings sheet UI for viewing and editing user preferences, goals, theme, and account actions.
@@ -102,11 +102,12 @@ const SETTINGS_PANEL_CLASS =
  * @param onClose - Callback invoked to close the settings sheet
  * @returns The Settings React element
  */
-export default function Settings({ onClose }: { onClose: () => void }) {
+export default function Settings({ onClose: _onClose }: { onClose: () => void }) {
   const navigate = useSmoothNavigate()
+  const { signOut } = useClerk()
+  const { user } = useUser()
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
-  const session = useQuery(api.users.users.getCurrentUser)
   const onboarding = useQuery(api.users.onboarding.get)
 
   const setDashboardSettings = useOfflineMutation(
@@ -116,6 +117,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const setWeightUnit = useOfflineMutation(
     api.users.users.setWeightUnit,
     "users.users.setWeightUnit"
+  )
+  const setFoodSearchLanguage = useOfflineMutation(
+    api.users.users.setFoodSearchLanguage,
+    "users.users.setFoodSearchLanguage"
   )
   const setWaterGoal = useOfflineMutation(
     api.users.users.setWaterGoal,
@@ -150,6 +155,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>(
     (preferences?.weightUnit as WeightUnit) || "kg"
   )
+  const [foodSearchLanguage, setFoodSearchLanguageState] =
+    useState<FoodSearchLanguage>(
+      (preferences?.foodSearchLanguage as FoodSearchLanguage) || "en"
+    )
   const [waterGoal, setWaterGoalState] = useState(
     preferences?.waterGoalMl ?? 2500
   )
@@ -191,7 +200,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
-  const [deletePassword, setDeletePassword] = useState("")
 
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -237,6 +245,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (preferences?.weightUnit) {
       setWeightUnitState(preferences.weightUnit as WeightUnit)
+    }
+    if (preferences?.foodSearchLanguage) {
+      setFoodSearchLanguageState(
+        preferences.foodSearchLanguage as FoodSearchLanguage
+      )
     }
   }, [preferences])
 
@@ -312,7 +325,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     await runSectionSave(async () => {
       await setDashboardSettings({ workoutFocus })
       await setWeightUnit({ unit: weightUnit })
+      await setFoodSearchLanguage({ language: foodSearchLanguage })
     }, "Workout settings saved")
+  }
+
+  async function handleSaveTargets() {
+    await runSectionSave(async () => {
+      await setCustomGoals({
+        calories,
+        protein,
+        carbs,
+        fat,
+      })
+      await setWaterGoal({ goalMl: waterGoal })
+      await setDashboardSettings({ workoutFocus })
+      await setWeightUnit({ unit: weightUnit })
+      await setFoodSearchLanguage({ language: foodSearchLanguage })
+    }, "Targets saved")
   }
 
   async function handleSaveNutritionLogic() {
@@ -356,7 +385,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     setLoggingOut(true)
     try {
       clearOfflineQueue()
-      await authClient.signOut()
+      await signOut()
       localStorage.removeItem(PRELOGIN_SEEN_KEY)
       posthog.reset()
       navigate("/login", { replace: true })
@@ -448,9 +477,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         throw new Error("Account has too much data to delete in one session")
 
       clearOfflineQueue()
-      const payload = deletePassword ? { ["password"]: deletePassword } : {}
-      const { error } = await authClient.deleteUser(payload)
-      if (error) throw new Error(error.message ?? "Account deletion failed")
+      await user?.delete()
 
       posthog.reset()
       navigate("/login", { replace: true })
@@ -466,42 +493,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const settingsContentReady = goalsInitialized
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background text-foreground md:pr-8 md:pl-72">
-      <main className="mx-auto min-h-svh w-full max-w-3xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-6 md:pt-10 md:pb-12">
+    <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
+      <main className="mx-auto min-h-svh w-full max-w-2xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-8 md:pt-10 md:pb-12">
         {/* Header */}
-        <div className="sticky top-0 z-20 -mx-4 mb-4 flex items-center justify-between border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur-xl md:static md:mx-0 md:border-b-0 md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-none short-phone:mb-3 short-phone:py-2.5">
-          <div>
-            <h1 className="text-[21px] font-bold tracking-tight short-phone:text-[19px]">
-              Settings
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleThemeToggle}
-              aria-label={
-                theme === "dark"
-                  ? "Switch to light mode"
-                  : "Switch to dark mode"
-              }
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-all active:scale-[0.985]"
-            >
-              {theme === "dark" ? (
-                <Sun size={16} weight="bold" />
-              ) : (
-                <Moon size={16} weight="bold" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                hapticTap()
-                onClose()
-              }}
-              aria-label="Close settings"
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/70 text-muted-foreground/60 transition-opacity active:opacity-50"
-            >
-              <X size={16} weight="bold" />
-            </button>
-          </div>
+        <div className="mb-5 px-1 pt-1 md:mb-6 md:px-0 md:pt-0">
+          <h1 className="app-title text-[24px] short-phone:text-[21px] md:mt-1">
+            Settings
+          </h1>
         </div>
 
         {settingsContentReady ? (
@@ -509,549 +507,626 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <div className="space-y-2.5 short-phone:space-y-2">
               <Accordion
                 type="multiple"
-                defaultValue={["goals", "water", "workout"]}
+                defaultValue={["profile", "targets", "reminders"]}
                 className="space-y-2.5 short-phone:space-y-2"
               >
-            {/* Account Section */}
-            <AccordionItem value="profile" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Account
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <div className="flex items-center justify-between px-4 py-4">
-                    <div>
-                      <p className="text-[15px] font-semibold">
-                        {session?.name || "User"}
-                      </p>
-                      {session?.email && (
-                        <p className="mt-0.5 text-[12px] text-muted-foreground/50">
-                          {session.email}
-                        </p>
+                {/* Account Section */}
+                <AccordionItem value="profile" className="border-none">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Account
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <div className="flex items-center justify-between gap-4 px-4 py-4">
+                        <div className="min-w-0">
+                          <p className="truncate text-[15px] font-semibold">
+                            {user?.fullName || user?.firstName || "User"}
+                          </p>
+                          {user?.primaryEmailAddress?.emailAddress && (
+                            <p className="mt-0.5 truncate text-[12px] text-muted-foreground/50">
+                              {user.primaryEmailAddress.emailAddress}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleThemeToggle}
+                          aria-label={
+                            theme === "dark"
+                              ? "Switch to light mode"
+                              : "Switch to dark mode"
+                          }
+                          className="app-icon-button"
+                        >
+                          {theme === "dark" ? (
+                            <Sun size={16} weight="bold" />
+                          ) : (
+                            <Moon size={16} weight="bold" />
+                          )}
+                        </button>
+                      </div>
+                      <RowDivider />
+                      <button
+                        onClick={() => {
+                          hapticTap()
+                          handleLogout()
+                        }}
+                        disabled={loggingOut}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left text-muted-foreground transition-opacity active:opacity-60 disabled:opacity-50"
+                      >
+                        <span className="text-[14px] font-medium">
+                          {loggingOut ? "Signing out…" : "Sign out"}
+                        </span>
+                      </button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Targets Section */}
+                <AccordionItem value="targets" className="border-none">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Targets
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <SettingsRow label="Calories">
+                        <NumberStepper
+                          value={calories}
+                          onChange={setCalories}
+                          suffix="kcal"
+                          min={800}
+                          max={5000}
+                          step={50}
+                          label="Calories"
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Protein">
+                        <NumberStepper
+                          value={protein}
+                          onChange={setProtein}
+                          suffix="g"
+                          min={20}
+                          max={400}
+                          step={5}
+                          label="Protein"
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Carbs">
+                        <NumberStepper
+                          value={carbs}
+                          onChange={setCarbs}
+                          suffix="g"
+                          min={10}
+                          max={500}
+                          step={10}
+                          label="Carbs"
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Fat">
+                        <NumberStepper
+                          value={fat}
+                          onChange={setFat}
+                          suffix="g"
+                          min={10}
+                          max={200}
+                          step={5}
+                          label="Fat"
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Water">
+                        <NumberStepper
+                          value={waterGoal}
+                          onChange={setWaterGoalState}
+                          suffix="ml"
+                          min={500}
+                          max={5000}
+                          step={250}
+                          label="Water"
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Focus">
+                        <SegmentedControl
+                          value={workoutFocus}
+                          onChange={(v) => setWorkoutFocus(v as WorkoutFocus)}
+                          options={[
+                            { value: "strength", label: "Strength" },
+                            { value: "cardio", label: "Cardio" },
+                            { value: "mobility", label: "Mobility" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Weight unit">
+                        <SegmentedControl
+                          value={weightUnit}
+                          onChange={(v) => setWeightUnitState(v as WeightUnit)}
+                          options={[
+                            { value: "kg", label: "kg" },
+                            { value: "lbs", label: "lbs" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Search language">
+                        <SegmentedControl
+                          value={foodSearchLanguage}
+                          onChange={(v) =>
+                            setFoodSearchLanguageState(v as FoodSearchLanguage)
+                          }
+                          options={[
+                            { value: "en", label: "EN" },
+                            { value: "es", label: "ES" },
+                            { value: "fr", label: "FR" },
+                            { value: "de", label: "DE" },
+                            { value: "it", label: "IT" },
+                            { value: "pt", label: "PT" },
+                          ]}
+                        />
+                      </SettingsRow>
+                    </div>
+                    <SectionSaveButton
+                      label="Save targets"
+                      saving={saving}
+                      onClick={handleSaveTargets}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Water Goal Section */}
+                <AccordionItem value="water" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Water
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <SettingsRow label="Daily goal">
+                        <NumberStepper
+                          value={waterGoal}
+                          onChange={setWaterGoalState}
+                          suffix="ml"
+                          min={500}
+                          max={5000}
+                          step={250}
+                          label="Daily goal"
+                        />
+                      </SettingsRow>
+                    </div>
+                    <SectionSaveButton
+                      label="Save water goal"
+                      saving={saving}
+                      onClick={handleSaveWaterGoal}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Workout Section */}
+                <AccordionItem value="workout" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Workout
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <SettingsRow label="Focus">
+                        <SegmentedControl
+                          value={workoutFocus}
+                          onChange={(v) => setWorkoutFocus(v as WorkoutFocus)}
+                          options={[
+                            { value: "strength", label: "Strength" },
+                            { value: "cardio", label: "Cardio" },
+                            { value: "mobility", label: "Mobility" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Weight unit">
+                        <SegmentedControl
+                          value={weightUnit}
+                          onChange={(v) => setWeightUnitState(v as WeightUnit)}
+                          options={[
+                            { value: "kg", label: "kg" },
+                            { value: "lbs", label: "lbs" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Search language">
+                        <SegmentedControl
+                          value={foodSearchLanguage}
+                          onChange={(v) =>
+                            setFoodSearchLanguageState(v as FoodSearchLanguage)
+                          }
+                          options={[
+                            { value: "en", label: "EN" },
+                            { value: "es", label: "ES" },
+                            { value: "fr", label: "FR" },
+                            { value: "de", label: "DE" },
+                            { value: "it", label: "IT" },
+                            { value: "pt", label: "PT" },
+                          ]}
+                        />
+                      </SettingsRow>
+                    </div>
+                    <SectionSaveButton
+                      label="Save workout settings"
+                      saving={saving}
+                      onClick={handleSaveWorkout}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Health Profile Section */}
+                <AccordionItem value="health" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Health Profile
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      {onboarding ? (
+                        <button
+                          onClick={handleResetOnboarding}
+                          className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                        >
+                          <span className="text-[14px]">
+                            Recalculate from profile
+                          </span>
+                          <CaretRight
+                            className="text-muted-foreground/30"
+                            size={16}
+                          />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            hapticTap()
+                            navigate("/onboarding")
+                          }}
+                          className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                        >
+                          <span className="text-[14px]">
+                            Set up health profile
+                          </span>
+                          <CaretRight
+                            className="text-muted-foreground/30"
+                            size={16}
+                          />
+                        </button>
                       )}
                     </div>
-                  </div>
-                  <div className="mx-4 h-px bg-border/20" />
-                  <button
-                    onClick={() => {
-                      hapticTap()
-                      handleLogout()
-                    }}
-                    className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
-                  >
-                    <span className="text-[14px] font-medium">Sign out</span>
-                  </button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                  </AccordionContent>
+                </AccordionItem>
 
-            {/* Goals Section */}
-            <AccordionItem value="goals" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Goals
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <SettingsRow label="Calories">
-                    <NumberStepper
-                      value={calories}
-                      onChange={setCalories}
-                      suffix="kcal"
-                      min={800}
-                      max={5000}
-                      step={50}
-                      label="Calories"
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <SettingsRow label="Protein">
-                    <NumberStepper
-                      value={protein}
-                      onChange={setProtein}
-                      suffix="g"
-                      min={20}
-                      max={400}
-                      step={5}
-                      label="Protein"
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <SettingsRow label="Carbs">
-                    <NumberStepper
-                      value={carbs}
-                      onChange={setCarbs}
-                      suffix="g"
-                      min={10}
-                      max={500}
-                      step={10}
-                      label="Carbs"
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <SettingsRow label="Fat">
-                    <NumberStepper
-                      value={fat}
-                      onChange={setFat}
-                      suffix="g"
-                      min={10}
-                      max={200}
-                      step={5}
-                      label="Fat"
-                    />
-                  </SettingsRow>
-                </div>
-                {effectiveGoals?.health && (
-                  <p className="mt-2 text-center text-[11px] text-muted-foreground/35">
-                    Health-based: {effectiveGoals.health.calories} kcal ·{" "}
-                    {effectiveGoals.health.protein}g protein
-                  </p>
-                )}
-                <SectionSaveButton
-                  label="Save goals"
-                  saving={saving}
-                  onClick={handleSaveGoals}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Water Goal Section */}
-            <AccordionItem value="water" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Water
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <SettingsRow label="Daily goal">
-                    <NumberStepper
-                      value={waterGoal}
-                      onChange={setWaterGoalState}
-                      suffix="ml"
-                      min={500}
-                      max={5000}
-                      step={250}
-                      label="Daily goal"
-                    />
-                  </SettingsRow>
-                </div>
-                <SectionSaveButton
-                  label="Save water goal"
-                  saving={saving}
-                  onClick={handleSaveWaterGoal}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Workout Section */}
-            <AccordionItem value="workout" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Workout
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <SettingsRow label="Focus">
-                    <SegmentedControl
-                      value={workoutFocus}
-                      onChange={(v) => setWorkoutFocus(v as WorkoutFocus)}
-                      options={[
-                        { value: "strength", label: "Strength" },
-                        { value: "cardio", label: "Cardio" },
-                        { value: "mobility", label: "Mobility" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <SettingsRow label="Weight unit">
-                    <SegmentedControl
-                      value={weightUnit}
-                      onChange={(v) => setWeightUnitState(v as WeightUnit)}
-                      options={[
-                        { value: "kg", label: "kg" },
-                        { value: "lbs", label: "lbs" },
-                      ]}
-                    />
-                  </SettingsRow>
-                </div>
-                <SectionSaveButton
-                  label="Save workout settings"
-                  saving={saving}
-                  onClick={handleSaveWorkout}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Health Profile Section */}
-            <AccordionItem value="health" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Health Profile
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  {onboarding ? (
-                    <button
-                      onClick={handleResetOnboarding}
-                      className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
-                    >
-                      <span className="text-[14px]">
-                        Recalculate from profile
-                      </span>
-                      <CaretRight
-                        className="text-muted-foreground/30"
-                        size={16}
-                      />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        hapticTap()
-                        navigate("/onboarding")
-                      }}
-                      className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
-                    >
-                      <span className="text-[14px]">Set up health profile</span>
-                      <CaretRight
-                        className="text-muted-foreground/30"
-                        size={16}
-                      />
-                    </button>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Nutrition Logic Section */}
-            <AccordionItem value="nutrition-logic" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Nutrition Logic
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <SettingsRow label="Macro cycling">
-                    <SegmentedControl
-                      value={macroCyclingEnabled ? "on" : "off"}
-                      onChange={(v) => setMacroCyclingEnabled(v === "on")}
-                      options={[
-                        { value: "off", label: "Off" },
-                        { value: "on", label: "On" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  {macroCyclingEnabled && (
-                    <div className="space-y-4 bg-muted/20 px-4 py-4 transition-all">
-                      <div>
-                        <p className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
-                          Training Day
-                        </p>
-                        <div className="grid grid-cols-1 gap-2">
-                          <SettingsRow label="Calories">
-                            <NumberStepper
-                              value={trainingDayTargets.calories}
-                              onChange={(v) =>
-                                setTrainingDayTargets((t) => ({
-                                  ...t,
-                                  calories: v,
-                                }))
-                              }
-                              suffix="kcal"
-                              min={800}
-                              max={5000}
-                              step={50}
-                            />
-                          </SettingsRow>
-                          <SettingsRow label="Protein">
-                            <NumberStepper
-                              value={trainingDayTargets.protein}
-                              onChange={(v) =>
-                                setTrainingDayTargets((t) => ({
-                                  ...t,
-                                  protein: v,
-                                }))
-                              }
-                              suffix="g"
-                              min={20}
-                              max={400}
-                              step={5}
-                            />
-                          </SettingsRow>
+                {/* Nutrition Logic Section */}
+                <AccordionItem value="nutrition-logic" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Nutrition Logic
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <SettingsRow label="Macro cycling">
+                        <SegmentedControl
+                          value={macroCyclingEnabled ? "on" : "off"}
+                          onChange={(v) => setMacroCyclingEnabled(v === "on")}
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      {macroCyclingEnabled && (
+                        <div className="space-y-4 bg-muted/20 px-4 py-4 transition-all">
+                          <div>
+                            <p className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
+                              Training Day
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              <SettingsRow label="Calories">
+                                <NumberStepper
+                                  value={trainingDayTargets.calories}
+                                  onChange={(v) =>
+                                    setTrainingDayTargets((t) => ({
+                                      ...t,
+                                      calories: v,
+                                    }))
+                                  }
+                                  suffix="kcal"
+                                  min={800}
+                                  max={5000}
+                                  step={50}
+                                />
+                              </SettingsRow>
+                              <SettingsRow label="Protein">
+                                <NumberStepper
+                                  value={trainingDayTargets.protein}
+                                  onChange={(v) =>
+                                    setTrainingDayTargets((t) => ({
+                                      ...t,
+                                      protein: v,
+                                    }))
+                                  }
+                                  suffix="g"
+                                  min={20}
+                                  max={400}
+                                  step={5}
+                                />
+                              </SettingsRow>
+                            </div>
+                          </div>
+                          <div className="h-px bg-border/20" />
+                          <div>
+                            <p className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
+                              Rest Day
+                            </p>
+                            <div className="grid grid-cols-1 gap-2">
+                              <SettingsRow label="Calories">
+                                <NumberStepper
+                                  value={restDayTargets.calories}
+                                  onChange={(v) =>
+                                    setRestDayTargets((t) => ({
+                                      ...t,
+                                      calories: v,
+                                    }))
+                                  }
+                                  suffix="kcal"
+                                  min={800}
+                                  max={5000}
+                                  step={50}
+                                />
+                              </SettingsRow>
+                              <SettingsRow label="Protein">
+                                <NumberStepper
+                                  value={restDayTargets.protein}
+                                  onChange={(v) =>
+                                    setRestDayTargets((t) => ({
+                                      ...t,
+                                      protein: v,
+                                    }))
+                                  }
+                                  suffix="g"
+                                  min={20}
+                                  max={400}
+                                  step={5}
+                                />
+                              </SettingsRow>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="h-px bg-border/20" />
-                      <div>
-                        <p className="mb-2 text-[10px] font-bold tracking-widest text-muted-foreground/60 uppercase">
-                          Rest Day
-                        </p>
-                        <div className="grid grid-cols-1 gap-2">
-                          <SettingsRow label="Calories">
-                            <NumberStepper
-                              value={restDayTargets.calories}
-                              onChange={(v) =>
-                                setRestDayTargets((t) => ({
-                                  ...t,
-                                  calories: v,
-                                }))
-                              }
-                              suffix="kcal"
-                              min={800}
-                              max={5000}
-                              step={50}
-                            />
-                          </SettingsRow>
-                          <SettingsRow label="Protein">
-                            <NumberStepper
-                              value={restDayTargets.protein}
-                              onChange={(v) =>
-                                setRestDayTargets((t) => ({
-                                  ...t,
-                                  protein: v,
-                                }))
-                              }
-                              suffix="g"
-                              min={20}
-                              max={400}
-                              step={5}
-                            />
-                          </SettingsRow>
+                      )}
+                      <RowDivider />
+                      <SettingsRow label="Workout adjust">
+                        <SegmentedControl
+                          value={workoutAdjustmentEnabled ? "on" : "off"}
+                          onChange={(v) =>
+                            setWorkoutAdjustmentEnabled(v === "on")
+                          }
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
+                          ]}
+                        />
+                      </SettingsRow>
+                    </div>
+                    <p className="mt-2 px-4 text-[11px] leading-tight text-muted-foreground/60">
+                      Macro cycling adjusts targets on days you log a workout.
+                      Workout adjust adds estimated burned calories to your
+                      daily budget.
+                    </p>
+                    <SectionSaveButton
+                      label="Save nutrition logic"
+                      saving={saving}
+                      onClick={handleSaveNutritionLogic}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Notifications Section */}
+                <AccordionItem value="reminders" className="border-none">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Notifications
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <ReminderRow
+                        label="Water"
+                        reminder={pushReminders.water}
+                        onChange={(patch) => updateReminder("water", patch)}
+                      />
+                      <RowDivider />
+                      <ReminderRow
+                        label="Meal log"
+                        reminder={pushReminders.meal}
+                        onChange={(patch) => updateReminder("meal", patch)}
+                      />
+                      <RowDivider />
+                      <ReminderRow
+                        label="Workout"
+                        reminder={pushReminders.workout}
+                        onChange={(patch) => updateReminder("workout", patch)}
+                      />
+                      <RowDivider />
+                      <ReminderRow
+                        label="Body check-in"
+                        reminder={pushReminders.body}
+                        onChange={(patch) => updateReminder("body", patch)}
+                      />
+                      <RowDivider />
+                      <ReminderRow
+                        label="Supplements"
+                        reminder={pushReminders.supplement}
+                        onChange={(patch) =>
+                          updateReminder("supplement", patch)
+                        }
+                      />
+                    </div>
+                    <SectionSaveButton
+                      label="Save notifications"
+                      saving={saving}
+                      onClick={handleSaveNotifications}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Privacy Section */}
+                <AccordionItem value="privacy" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Privacy & Offline
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <SettingsRow label="Analytics">
+                        <SegmentedControl
+                          value={analyticsEnabled ? "on" : "off"}
+                          onChange={(v) => setAnalyticsEnabled(v === "on")}
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Personal insights">
+                        <SegmentedControl
+                          value={personalizedInsightsEnabled ? "on" : "off"}
+                          onChange={(v) =>
+                            setPersonalizedInsightsEnabled(v === "on")
+                          }
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <button
+                        type="button"
+                        onClick={handleFlushOfflineQueue}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                      >
+                        <span>
+                          <span className="block text-[14px] font-medium">
+                            Sync offline queue
+                          </span>
+                          <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
+                            {offlineQueueTotal} pending change
+                            {offlineQueueTotal === 1 ? "" : "s"}
+                          </span>
+                        </span>
+                        <CaretRight
+                          className="text-muted-foreground/30"
+                          size={16}
+                        />
+                      </button>
+                      <RowDivider />
+                      <button
+                        type="button"
+                        onClick={handleExportData}
+                        disabled={exporting}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
+                      >
+                        <span className="text-[14px] font-medium">
+                          {exporting ? "Preparing export…" : "Export my data"}
+                        </span>
+                        <CaretRight
+                          className="text-muted-foreground/30"
+                          size={16}
+                        />
+                      </button>
+                      <RowDivider />
+                      <button
+                        type="button"
+                        onClick={handleClearLocalData}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                      >
+                        <span>
+                          <span className="block text-[14px] font-medium">
+                            Clear local cache
+                          </span>
+                          <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
+                            Removes offline queue and local preferences on this
+                            device.
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                    <SectionSaveButton
+                      label="Save privacy settings"
+                      saving={saving}
+                      onClick={handleSavePrivacy}
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+
+                {/* Data Section */}
+                <AccordionItem value="data" className="hidden">
+                  <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
+                    <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                      Data
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="!h-auto px-0 pt-1">
+                    <div className={SETTINGS_PANEL_CLASS}>
+                      <button
+                        onClick={handleResetOnboarding}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
+                      >
+                        <span className="text-[14px] font-medium">
+                          Reset onboarding
+                        </span>
+                      </button>
+                      <RowDivider />
+                      <div className="space-y-3 px-4 py-4">
+                        <div>
+                          <p className="text-[14px] font-semibold text-destructive">
+                            Delete account
+                          </p>
+                          <p className="mt-1 text-[11px] leading-snug text-muted-foreground/55">
+                            Permanently removes your OneRep logs, settings,
+                            local offline queue, and Clerk account.
+                          </p>
                         </div>
+                        <input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="Type DELETE to confirm"
+                          className="w-full rounded-xl border border-border/40 bg-muted/40 px-3 py-2.5 text-[13px] outline-none focus:border-destructive/50"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDeleteAccount}
+                          disabled={deleteConfirmText !== "DELETE" || deleting}
+                          className="text-destructive-foreground w-full rounded-xl bg-destructive px-3 py-3 text-[13px] font-bold transition-opacity active:opacity-75 disabled:opacity-35"
+                        >
+                          {deleting
+                            ? "Deleting…"
+                            : "Permanently delete account"}
+                        </button>
                       </div>
                     </div>
-                  )}
-                  <RowDivider />
-                  <SettingsRow label="Workout adjust">
-                    <SegmentedControl
-                      value={workoutAdjustmentEnabled ? "on" : "off"}
-                      onChange={(v) => setWorkoutAdjustmentEnabled(v === "on")}
-                      options={[
-                        { value: "off", label: "Off" },
-                        { value: "on", label: "On" },
-                      ]}
-                    />
-                  </SettingsRow>
-                </div>
-                <p className="mt-2 px-4 text-[11px] leading-tight text-muted-foreground/60">
-                  Macro cycling adjusts targets on days you log a workout.
-                  Workout adjust adds estimated burned calories to your daily
-                  budget.
-                </p>
-                <SectionSaveButton
-                  label="Save nutrition logic"
-                  saving={saving}
-                  onClick={handleSaveNutritionLogic}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Notifications Section */}
-            <AccordionItem value="reminders" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Notifications
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <ReminderRow
-                    label="Water"
-                    reminder={pushReminders.water}
-                    onChange={(patch) => updateReminder("water", patch)}
-                  />
-                  <RowDivider />
-                  <ReminderRow
-                    label="Meal log"
-                    reminder={pushReminders.meal}
-                    onChange={(patch) => updateReminder("meal", patch)}
-                  />
-                  <RowDivider />
-                  <ReminderRow
-                    label="Workout"
-                    reminder={pushReminders.workout}
-                    onChange={(patch) => updateReminder("workout", patch)}
-                  />
-                  <RowDivider />
-                  <ReminderRow
-                    label="Body check-in"
-                    reminder={pushReminders.body}
-                    onChange={(patch) => updateReminder("body", patch)}
-                  />
-                </div>
-                <p className="mt-2 px-4 text-[11px] leading-tight text-muted-foreground/60">
-                  Native local notifications are scheduled on installed iOS or
-                  Android builds after saving.
-                </p>
-                <SectionSaveButton
-                  label="Save notifications"
-                  saving={saving}
-                  onClick={handleSaveNotifications}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Privacy Section */}
-            <AccordionItem value="privacy" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Privacy & Offline
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <SettingsRow label="Analytics">
-                    <SegmentedControl
-                      value={analyticsEnabled ? "on" : "off"}
-                      onChange={(v) => setAnalyticsEnabled(v === "on")}
-                      options={[
-                        { value: "off", label: "Off" },
-                        { value: "on", label: "On" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <SettingsRow label="Personal insights">
-                    <SegmentedControl
-                      value={personalizedInsightsEnabled ? "on" : "off"}
-                      onChange={(v) =>
-                        setPersonalizedInsightsEnabled(v === "on")
-                      }
-                      options={[
-                        { value: "off", label: "Off" },
-                        { value: "on", label: "On" },
-                      ]}
-                    />
-                  </SettingsRow>
-                  <RowDivider />
-                  <button
-                    type="button"
-                    onClick={handleFlushOfflineQueue}
-                    className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
-                  >
-                    <span>
-                      <span className="block text-[14px] font-medium">
-                        Sync offline queue
-                      </span>
-                      <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
-                        {offlineQueueTotal} pending change
-                        {offlineQueueTotal === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <CaretRight
-                      className="text-muted-foreground/30"
-                      size={16}
-                    />
-                  </button>
-                  <RowDivider />
-                  <button
-                    type="button"
-                    onClick={handleExportData}
-                    disabled={exporting}
-                    className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
-                  >
-                    <span className="text-[14px] font-medium">
-                      {exporting ? "Preparing export…" : "Export my data"}
-                    </span>
-                    <CaretRight
-                      className="text-muted-foreground/30"
-                      size={16}
-                    />
-                  </button>
-                  <RowDivider />
-                  <button
-                    type="button"
-                    onClick={handleClearLocalData}
-                    className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
-                  >
-                    <span>
-                      <span className="block text-[14px] font-medium">
-                        Clear local cache
-                      </span>
-                      <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
-                        Removes offline queue and local preferences on this
-                        device.
-                      </span>
-                    </span>
-                  </button>
-                </div>
-                <SectionSaveButton
-                  label="Save privacy settings"
-                  saving={saving}
-                  onClick={handleSavePrivacy}
-                />
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Data Section */}
-            <AccordionItem value="data" className="border-none">
-              <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
-                <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
-                  Data
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="!h-auto px-0 pt-1">
-                <div className={SETTINGS_PANEL_CLASS}>
-                  <button
-                    onClick={handleResetOnboarding}
-                    className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
-                  >
-                    <span className="text-[14px] font-medium">
-                      Reset onboarding
-                    </span>
-                  </button>
-                  <RowDivider />
-                  <div className="space-y-3 px-4 py-4">
-                    <div>
-                      <p className="text-[14px] font-semibold text-destructive">
-                        Delete account
-                      </p>
-                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground/55">
-                        Permanently removes your OneRep logs, settings, local
-                        offline queue, and Better Auth account.
-                      </p>
-                    </div>
-                    <input
-                      type="password"
-                      value={deletePassword}
-                      onChange={(e) => setDeletePassword(e.target.value)}
-                      placeholder="Password, if required"
-                      className="w-full rounded-xl border border-border/40 bg-muted/40 px-3 py-2.5 text-[13px] outline-none focus:border-foreground/30"
-                    />
-                    <input
-                      value={deleteConfirmText}
-                      onChange={(e) => setDeleteConfirmText(e.target.value)}
-                      placeholder="Type DELETE to confirm"
-                      className="w-full rounded-xl border border-border/40 bg-muted/40 px-3 py-2.5 text-[13px] outline-none focus:border-destructive/50"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDeleteAccount}
-                      disabled={deleteConfirmText !== "DELETE" || deleting}
-                      className="text-destructive-foreground w-full rounded-xl bg-destructive px-3 py-3 text-[13px] font-bold transition-opacity active:opacity-75 disabled:opacity-35"
-                    >
-                      {deleting ? "Deleting…" : "Permanently delete account"}
-                    </button>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
+                  </AccordionContent>
+                </AccordionItem>
               </Accordion>
             </div>
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={loggingOut || saving}
-              className="mt-3 w-full rounded-[20px] border border-border/60 bg-card py-3.5 text-[15px] font-semibold tracking-tight text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:rounded-[18px]"
-            >
-              {loggingOut ? "Logging out..." : "Log out"}
-            </button>
           </>
         ) : (
           <div
@@ -1094,7 +1169,7 @@ function ReminderRow({
             const [hour, minute] = e.target.value.split(":").map(Number)
             onChange({ hour, minute })
           }}
-          className="h-10 rounded-xl bg-muted/60 px-2 text-[12px] font-semibold outline-none"
+          className="h-10 rounded-[10px] bg-muted/60 px-2 text-[12px] font-semibold outline-none"
         />
         <button
           type="button"
@@ -1153,7 +1228,7 @@ function SectionSaveButton({
       type="button"
       onClick={onClick}
       disabled={saving}
-      className="mt-3 min-h-11 w-full rounded-[20px] bg-foreground px-4 text-[14px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:rounded-[18px]"
+      className="app-button app-button-primary mt-3 min-h-11 w-full text-[14px] disabled:opacity-50"
     >
       {saving ? "Saving..." : label}
     </button>
@@ -1217,7 +1292,7 @@ function NumberStepper({
         disabled={value <= min}
         aria-label={label ? `Decrease ${label}` : "Decrease"}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-xl",
+          "flex h-10 w-10 items-center justify-center rounded-[10px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
@@ -1242,7 +1317,7 @@ function NumberStepper({
             : `Edit value ${value}`
         }
         className={cn(
-          "relative flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-xl px-2",
+          "relative flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] px-2",
           "bg-muted/60 transition-colors",
           editing && "hidden"
         )}
@@ -1251,14 +1326,14 @@ function NumberStepper({
           {value}
         </span>
         {suffix && (
-          <span className="mt-0.5 text-[9px] font-medium tracking-wider text-muted-foreground/45 uppercase">
+          <span className="mt-0.5 text-[9px] font-medium text-muted-foreground/45 uppercase">
             {suffix}
           </span>
         )}
       </button>
 
       {editing && (
-        <div className="flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-xl bg-muted/80 px-2 ring-1 ring-foreground/20">
+        <div className="flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] bg-muted/80 px-2 ring-1 ring-foreground/20">
           <input
             ref={inputRef}
             type="text"
@@ -1280,7 +1355,7 @@ function NumberStepper({
             }
           />
           {suffix && (
-            <span className="mt-0.5 text-[9px] font-medium tracking-wider text-muted-foreground/45 uppercase">
+            <span className="mt-0.5 text-[9px] font-medium text-muted-foreground/45 uppercase">
               {suffix}
             </span>
           )}
@@ -1293,7 +1368,7 @@ function NumberStepper({
         disabled={value >= max}
         aria-label={label ? `Increase ${label}` : "Increase"}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-xl",
+          "flex h-10 w-10 items-center justify-center rounded-[10px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
@@ -1315,7 +1390,7 @@ function SegmentedControl({
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex gap-0.5 rounded-xl bg-muted/60 p-0.5">
+    <div className="flex gap-0.5 rounded-[10px] bg-muted/60 p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}

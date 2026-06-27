@@ -63,6 +63,10 @@ describe("Open Food Facts client", () => {
             carbohydrates_100g: "18.05",
             fat_100g: 7.06,
           },
+          nutriments_estimated: {
+            calcium_100g: 0.004,
+            iron_100g: 0.001,
+          },
         },
         { product_name: "Missing code" },
       ],
@@ -82,6 +86,11 @@ describe("Open Food Facts client", () => {
       protein: 20.3,
       carbs: 18.1,
       fat: 7.1,
+      nutrients: expect.any(Array),
+      extraNutrients: expect.arrayContaining([
+        { key: "calcium", name: "Calcium", per100g: 0.004, unit: "mg" },
+        { key: "iron", name: "Iron", per100g: 0.001, unit: "mg" },
+      ]),
     })
   })
 
@@ -172,6 +181,12 @@ describe("Open Food Facts client", () => {
 
   test("getFoodDetail returns null when the proxy response has no valid product", async () => {
     actionMock.mockResolvedValueOnce({ status: 0 })
+
+    await expect(getFoodDetail("missing")).resolves.toBeNull()
+  })
+
+  test("getFoodDetail returns null for legacy proxy 404 errors", async () => {
+    actionMock.mockRejectedValueOnce(new Error("Open Food Facts request failed: 404"))
 
     await expect(getFoodDetail("missing")).resolves.toBeNull()
   })

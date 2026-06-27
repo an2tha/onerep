@@ -22,6 +22,15 @@ const MUTATION_REGISTRY = {
   "logs.water.setDay": api.logs.water.setDay,
   "logs.water.addEntry": api.logs.water.addEntry,
   "logs.water.removeEntry": api.logs.water.removeEntry,
+  "logs.supplements.setDay": api.logs.supplements.setDay,
+  "logs.supplements.addEntry": api.logs.supplements.addEntry,
+  "logs.supplements.removeEntry": api.logs.supplements.removeEntry,
+  "logs.supplements.saveItem": api.logs.supplements.saveItem,
+  "logs.supplements.setItemActive": api.logs.supplements.setItemActive,
+  "logs.supplements.removeItem": api.logs.supplements.removeItem,
+  "logs.supplements.logTaken": api.logs.supplements.logTaken,
+  "logs.supplements.markSkipped": api.logs.supplements.markSkipped,
+  "logs.supplements.removeLog": api.logs.supplements.removeLog,
   "logs.workouts.completion": api.logs.workouts.completion,
   "bodyProgress.save": api.bodyProgress.save,
   "bodyProgress.remove": api.bodyProgress.remove,
@@ -30,6 +39,7 @@ const MUTATION_REGISTRY = {
   "users.users.setPrivacySettings": api.users.users.setPrivacySettings,
   "users.users.setWaterGoal": api.users.users.setWaterGoal,
   "users.users.setWeightUnit": api.users.users.setWeightUnit,
+  "users.users.setFoodSearchLanguage": api.users.users.setFoodSearchLanguage,
   "users.users.setDashboardSettings": api.users.users.setDashboardSettings,
   "users.users.setCustomGoals": api.users.users.setCustomGoals,
   "users.users.setMacroCycling": api.users.users.setMacroCycling,
@@ -40,6 +50,8 @@ const MUTATION_REGISTRY = {
   "logs.presets.create": api.logs.presets.create,
   "logs.presets.update": api.logs.presets.update,
   "logs.presets.remove": api.logs.presets.remove,
+  "logs.mealPresets.create": api.logs.mealPresets.create,
+  "logs.mealPresets.remove": api.logs.mealPresets.remove,
   "logs.recipes.save": api.logs.recipes.save,
   "logs.recipes.remove": api.logs.recipes.remove,
 } as const
@@ -61,7 +73,9 @@ export function setOfflineQueueOwner(ownerId: string | null) {
     localStorage.setItem(OWNER_KEY, ownerId)
     const queue = readOfflineQueue()
     if (queue.some((job) => !job.ownerId)) {
-      writeOfflineQueue(queue.map((job) => (job.ownerId ? job : { ...job, ownerId })))
+      writeOfflineQueue(
+        queue.map((job) => (job.ownerId ? job : { ...job, ownerId }))
+      )
       return
     }
   } else {
@@ -99,7 +113,10 @@ export function clearOfflineQueue() {
   emitQueueChanged()
 }
 
-export function enqueueOfflineMutation(name: OfflineMutationName, args: unknown) {
+export function enqueueOfflineMutation(
+  name: OfflineMutationName,
+  args: unknown
+) {
   const id =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
@@ -131,11 +148,14 @@ export function subscribeOfflineQueue(listener: () => void) {
 export function isOfflineLikeError(error: unknown) {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true
   const message = error instanceof Error ? error.message : String(error)
-  return /network|fetch|offline|disconnected|failed to send|websocket/i.test(message)
+  return /network|fetch|offline|disconnected|failed to send|websocket/i.test(
+    message
+  )
 }
 
 export async function flushOfflineQueue() {
-  if (flushing || !hasStorage()) return { flushed: 0, remaining: readOfflineQueue().length }
+  if (flushing || !hasStorage())
+    return { flushed: 0, remaining: readOfflineQueue().length }
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     return { flushed: 0, remaining: readOfflineQueue().length }
   }
@@ -170,7 +190,9 @@ export async function flushOfflineQueue() {
         })
 
         if (isOfflineLikeError(error)) {
-          const currentIndex = queue.findIndex((queuedJob) => queuedJob.id === job.id)
+          const currentIndex = queue.findIndex(
+            (queuedJob) => queuedJob.id === job.id
+          )
           remaining.push(...queue.slice(currentIndex + 1))
           break
         }
@@ -191,6 +213,8 @@ export function getOfflineQueueSummary() {
   return {
     total: visibleJobs.length,
     oldestAt: visibleJobs[0]?.createdAt ?? null,
-    lastError: [...visibleJobs].reverse().find((job) => job.lastError)?.lastError ?? null,
+    lastError:
+      [...visibleJobs].reverse().find((job) => job.lastError)?.lastError ??
+      null,
   }
 }

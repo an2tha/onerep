@@ -11,6 +11,12 @@ const presetBody = {
   items: [],
   exerciseData: {},
 };
+const mealPresetBody = {
+  name: "Protected meal preset",
+  meal: "breakfast",
+  signature: "protected-meal",
+  entries: [],
+};
 const recipeIngredient = {
   id: "ingredient-1",
   name: "Chicken breast",
@@ -199,6 +205,77 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: { date: "2026-06-25", id: "water-1" },
   },
   {
+    name: "logs.supplements.setDay",
+    kind: "mutation",
+    fn: api.logs.supplements.setDay,
+    args: { date: "2026-06-25", entries: [] },
+  },
+  {
+    name: "logs.supplements.addEntry",
+    kind: "mutation",
+    fn: api.logs.supplements.addEntry,
+    args: {
+      date: "2026-06-25",
+      entry: {
+        id: "creatine-1",
+        kind: "creatine",
+        amount: 5,
+        unit: "g",
+        loggedAt: "2026-06-25T08:00:00.000Z",
+      },
+    },
+  },
+  {
+    name: "logs.supplements.removeEntry",
+    kind: "mutation",
+    fn: api.logs.supplements.removeEntry,
+    args: { date: "2026-06-25", id: "creatine-1" },
+  },
+  {
+    name: "logs.supplements.saveItem",
+    kind: "mutation",
+    fn: api.logs.supplements.saveItem,
+    args: {
+      name: "Protected supplement",
+      category: "creatine",
+      form: "powder",
+      servingLabel: "5 g",
+      defaultServingQuantity: 5,
+      active: true,
+      schedule: { type: "daily" },
+      nutrientsPerServing: { creatine: 5 },
+      source: "manual",
+    },
+  },
+  {
+    name: "logs.supplements.setItemActive",
+    kind: "mutation",
+    fn: api.logs.supplements.setItemActive,
+    args: { id: fakeId, active: false },
+  },
+  {
+    name: "logs.supplements.logTaken",
+    kind: "mutation",
+    fn: api.logs.supplements.logTaken,
+    args: {
+      supplementId: fakeId,
+      date: "2026-06-25",
+      servingMultiplier: 1,
+    },
+  },
+  {
+    name: "logs.supplements.markSkipped",
+    kind: "mutation",
+    fn: api.logs.supplements.markSkipped,
+    args: { supplementId: fakeId, date: "2026-06-25" },
+  },
+  {
+    name: "logs.supplements.removeLog",
+    kind: "mutation",
+    fn: api.logs.supplements.removeLog,
+    args: { logId: fakeId },
+  },
+  {
     name: "logs.presets.create",
     kind: "mutation",
     fn: api.logs.presets.create,
@@ -214,6 +291,18 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     name: "logs.presets.remove",
     kind: "mutation",
     fn: api.logs.presets.remove,
+    args: { id: fakeId },
+  },
+  {
+    name: "logs.mealPresets.create",
+    kind: "mutation",
+    fn: api.logs.mealPresets.create,
+    args: mealPresetBody,
+  },
+  {
+    name: "logs.mealPresets.remove",
+    kind: "mutation",
+    fn: api.logs.mealPresets.remove,
     args: { id: fakeId },
   },
   {

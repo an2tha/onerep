@@ -7,18 +7,24 @@ import {
   useState,
 } from "react"
 import { createRoot } from "react-dom/client"
-import { createBrowserRouter, Outlet, useLocation } from "react-router"
+import {
+  createBrowserRouter,
+  Outlet,
+  useLocation,
+  useSearchParams,
+} from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
-import {
-  ConvexBetterAuthProvider,
-  type AuthClient,
-} from "@convex-dev/better-auth/react"
+import { ClerkProvider, HandleSSOCallback, useAuth } from "@clerk/react"
+import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { convexClient } from "@/lib/convex"
-import { authClient } from "@/lib/auth-client"
 
 import "./index.css"
+
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
+  | string
+  | undefined
 
 const posthogToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
 if (posthogToken) {
@@ -42,8 +48,10 @@ import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
 import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
-import Foods from "./pages/Foods.tsx"
+import FoodReview from "./pages/FoodReview.tsx"
+import Nutrition from "./pages/Nutrition.tsx"
 import Water from "./pages/Water.tsx"
+import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import Progress from "./pages/Progress.tsx"
 import Settings from "./pages/Settings.tsx"
@@ -59,11 +67,37 @@ function shouldShowBottomBar(pathname: string) {
   return (
     pathname === "/" ||
     pathname === "/foods" ||
+    pathname === "/nutrition" ||
     pathname === "/workouts" ||
     pathname === "/water" ||
+    pathname === "/supplements" ||
     pathname === "/progress" ||
     pathname === "/exercises" ||
     pathname === "/settings"
+  )
+}
+
+function MissingClerkConfig() {
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-xl items-center bg-background px-5 text-foreground">
+      <section className="w-full rounded-[24px] border border-border/70 bg-card p-5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
+        <p className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
+          Configuration
+        </p>
+        <h1 className="mt-2 text-[1.35rem] leading-tight font-semibold tracking-tight">
+          Clerk publishable key is missing
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+          Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to the mobile Vite
+          environment, then restart the dev server.
+        </p>
+        <div className="mt-4 rounded-[16px] bg-muted/55 px-3 py-2.5">
+          <code className="text-[12px] text-foreground/80">
+            VITE_CLERK_PUBLISHABLE_KEY=pk_...
+          </code>
+        </div>
+      </section>
+    </main>
   )
 }
 
@@ -186,6 +220,54 @@ function NavSync() {
   )
 }
 
+function SSOCallback() {
+  const navigate = useSmoothNavigate()
+  const [searchParams] = useSearchParams()
+  const nextPath =
+    searchParams.get("next") === "onboarding" ? "/onboarding" : "/"
+
+  function navigateInApp(destination: string) {
+    if (destination.startsWith("http")) {
+      window.location.href = destination
+      return
+    }
+
+    navigate(destination, { replace: true })
+  }
+
+  return (
+    <div className="min-h-svh bg-background text-foreground">
+      <HandleSSOCallback
+        navigateToApp={({ decorateUrl }) => {
+          navigateInApp(decorateUrl(nextPath))
+        }}
+        navigateToSignIn={() => navigate("/login", { replace: true })}
+        navigateToSignUp={() => navigate("/login", { replace: true })}
+      />
+
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+          <img
+            src="/app-icon.svg"
+            alt=""
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+          />
+          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+            OneRep
+          </h1>
+        </header>
+
+        <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
+          <p className="mt-4 text-[14px] font-semibold tracking-tight">
+            Finishing sign in...
+          </p>
+        </section>
+      </main>
+    </div>
+  )
+}
+
 const router = createBrowserRouter([
   {
     element: <NavSync />,
@@ -272,8 +354,18 @@ const router = createBrowserRouter([
         path: "/foods",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Foods">
-              <Foods />
+            <ErrorBoundary label="Nutrition">
+              <Nutrition />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/nutrition",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Nutrition">
+              <Nutrition />
             </ErrorBoundary>
           </AuthGuard>
         ),
@@ -289,10 +381,30 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/supplements",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Supplements">
+              <Supplements />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/foods/search",
         element: (
           <AuthGuard>
             <SearchFoods />
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/foods/review/:id",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Food Review">
+              <FoodReview />
+            </ErrorBoundary>
           </AuthGuard>
         ),
       },
@@ -327,6 +439,10 @@ const router = createBrowserRouter([
         element: <Login />,
       },
       {
+        path: "/sso-callback",
+        element: <SSOCallback />,
+      },
+      {
         path: "/reset-password",
         element: <ResetPassword />,
       },
@@ -354,19 +470,24 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConvexBetterAuthProvider
-      client={convexClient}
-      authClient={authClient as unknown as AuthClient}
-    >
-      <PostHogProvider client={posthog}>
-        <ThemeProvider>
-          <ErrorBoundary label="the app">
-            <OfflineSyncIndicator />
-            <RouterProvider router={router} />
-            <Toaster position="top-center" richColors />
-          </ErrorBoundary>
-        </ThemeProvider>
-      </PostHogProvider>
-    </ConvexBetterAuthProvider>
+    {clerkPublishableKey ? (
+      <ClerkProvider publishableKey={clerkPublishableKey}>
+        <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
+          <PostHogProvider client={posthog}>
+            <ThemeProvider>
+              <ErrorBoundary label="the app">
+                <OfflineSyncIndicator />
+                <RouterProvider router={router} />
+                <Toaster position="top-center" richColors />
+              </ErrorBoundary>
+            </ThemeProvider>
+          </PostHogProvider>
+        </ConvexProviderWithClerk>
+      </ClerkProvider>
+    ) : (
+      <ThemeProvider>
+        <MissingClerkConfig />
+      </ThemeProvider>
+    )}
   </StrictMode>
 )
