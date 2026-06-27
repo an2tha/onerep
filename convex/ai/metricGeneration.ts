@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, env } from "../_generated/server";
 import { getAuthUser } from "../lib/auth";
+import { consumeAiUsageOrThrow } from "./usage";
 
 const MAX_PROMPT_CHARS = 600;
 const MAX_METRICS = 80;
@@ -203,7 +204,7 @@ export const generateMetricSet = action({
     maxResults: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<MetricGenerationResult> => {
-    await getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
 
     const prompt = args.prompt.trim().slice(0, MAX_PROMPT_CHARS);
     if (prompt.length < 2) throw new Error("Describe what you want to track.");
@@ -218,6 +219,8 @@ export const generateMetricSet = action({
       MAX_RESULTS,
       DEFAULT_MAX_RESULTS,
     );
+
+    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     if (catalog.length === 0) {
       return {

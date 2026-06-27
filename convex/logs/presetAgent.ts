@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, env } from "../_generated/server";
+import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
 
 const MAX_INPUT_CHARS = 8_000;
@@ -295,12 +296,14 @@ async function draftWithOpenAI(text: string, fallbackName: string) {
 export const createFromText = action({
   args: { text: v.string() },
   handler: async (ctx, args): Promise<AgentPresetDraft> => {
-    await getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
 
     const text = args.text.trim().slice(0, MAX_INPUT_CHARS);
     if (text.length < 8) {
       throw new Error("Paste a workout plan with at least one exercise.");
     }
+
+    await consumeAiUsageOrThrow(ctx, user._id, "workout_preset");
 
     const fallback = fallbackDraftFromText(text);
 
