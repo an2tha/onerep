@@ -54,6 +54,7 @@ export async function deleteUserDataBatch(
     ["supplementIntakeLogs", "by_userId_and_date"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
+    ["aiUsage", "by_userId_month"],
     ["snapUsage", "by_userId_date"],
     ["activeWorkouts", "by_userId"],
     ["exercises", "by_userId"],

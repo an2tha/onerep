@@ -28,6 +28,39 @@ const metricArgs = {
 };
 
 describe("AI monthly usage quota", () => {
+  test("getMonthlyUsage returns the authenticated user's monthly progress", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-usage-query-user";
+
+    await expect(
+      t.query(api.ai.usage.getMonthlyUsage, {}),
+    ).resolves.toMatchObject({
+      count: 0,
+      remaining: 150,
+      limit: 150,
+    });
+
+    await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "food_snap",
+    });
+    await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+      userId,
+      source: "workout_preset",
+    });
+
+    const usage = await t
+      .withIdentity({ tokenIdentifier: userId })
+      .query(api.ai.usage.getMonthlyUsage, {});
+
+    expect(usage).toMatchObject({
+      count: 2,
+      remaining: 148,
+      limit: 150,
+    });
+    expect(usage.month).toMatch(/^\d{4}-\d{2}$/);
+  });
+
   test("allows 150 AI requests per authenticated user per month", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-quota-user";
