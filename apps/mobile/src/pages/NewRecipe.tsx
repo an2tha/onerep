@@ -955,7 +955,7 @@ function SearchOverlay({
         <div className="desktop-canvas flex min-h-svh flex-col bg-background">
           <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
             <div
-              className="flex items-center gap-3 px-4 pb-3"
+              className="flex items-center gap-3 px-[var(--app-page-x)] pb-4"
               style={{
                 paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
               }}
@@ -999,10 +999,10 @@ function SearchOverlay({
               </div>
             </div>
 
-            <div className="mx-4 h-px bg-border/40" />
+            <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
 
             <div
-              className="flex-1 overflow-y-auto px-4 pt-2 [&::-webkit-scrollbar]:hidden"
+              className="flex-1 overflow-y-auto px-[var(--app-page-x)] pt-3 [&::-webkit-scrollbar]:hidden"
               style={{
                 paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
               }}
@@ -1268,7 +1268,7 @@ export default function NewRecipe() {
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
           {/* ── Header ────────────────────────────────────────────────── */}
           <header
-            className="flex items-center gap-3 px-4 pb-4 md:px-8"
+            className="flex items-center gap-3 px-[var(--app-page-x)] pb-4 md:px-8"
             style={{
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
@@ -1287,7 +1287,22 @@ export default function NewRecipe() {
             <button
               onClick={handleSave}
               disabled={!canSave || saved}
-              className="app-button app-button-primary h-10 px-4 text-[12px] disabled:opacity-25"
+              className="app-header-icon-action disabled:opacity-25 md:hidden"
+              aria-label="Save recipe"
+            >
+              {saved ? (
+                <Check
+                  weight="bold"
+                  style={{ color: APP_ACCENT_COLORS.complete }}
+                />
+              ) : (
+                <Check weight="bold" />
+              )}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!canSave || saved}
+              className="app-button app-button-primary hidden h-10 px-4 text-[12px] disabled:opacity-25 md:inline-flex"
             >
               {saved ? (
                 <Check
@@ -1303,7 +1318,7 @@ export default function NewRecipe() {
           </header>
 
           {/* ── Recipe name ─────────────────────────────────────────────── */}
-          <div className="px-5 pb-5 md:px-8">
+          <div className="px-[var(--app-page-x)] pb-6 md:px-8">
             <input
               type="text"
               value={name}
@@ -1325,7 +1340,7 @@ export default function NewRecipe() {
 
           {/* ── Ingredient list ─────────────────────────────────────────── */}
           <div
-            className="flex-1 overflow-y-auto px-4 md:px-8 [&::-webkit-scrollbar]:hidden"
+            className="flex-1 overflow-y-auto px-[var(--app-page-x)] md:px-8 [&::-webkit-scrollbar]:hidden"
             style={{
               paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
             }}

@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
@@ -422,6 +423,7 @@ export default function Water() {
   const [dateKey, setDateKey] = useState(todayKey)
   const [addOpen, setAddOpen] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
+  useBottomBarAction(() => setAddOpen(true))
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
@@ -568,9 +570,9 @@ export default function Water() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="app-header px-4 md:px-8 short-phone:pb-3">
+        <header className="app-header px-[var(--app-page-x)] md:px-8 short-phone:pb-4">
           <div>
             <button
               type="button"
@@ -606,7 +608,7 @@ export default function Water() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-8 short-phone:gap-2.5">
+        <div className="flex flex-col gap-4 px-[var(--app-page-x)] md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-8 short-phone:gap-3">
           <ProgressCard
             totalMl={totalMl}
             goalMl={goalMl}
