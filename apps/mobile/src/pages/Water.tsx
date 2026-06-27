@@ -574,7 +574,7 @@ export default function Water() {
           <div>
             <button
               type="button"
-              onClick={() => navigate("/foods")}
+              onClick={() => navigate("/nutrition")}
               className="mb-1 flex min-h-9 items-center gap-1 rounded-full pr-3 text-[11px] font-semibold text-muted-foreground/60 transition-colors active:text-foreground"
               aria-label="Back to Nutrition"
             >
