@@ -1,16 +1,11 @@
 import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
-  Aperture,
   Barbell,
-  Barcode,
   CaretRight,
   Copy,
   Fire,
   Heart,
-  Lock,
-  LockOpen,
-  MagnifyingGlass,
   PencilSimple,
   Plus,
   Trash,
@@ -18,16 +13,16 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { Card } from "@repo/ui"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { SectionHeader as MobileSectionHeader } from "@/components/mobile-ui"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
+  compactCardioSummary,
+  hasCardioDetails,
   normalizePresetCard,
   todayIso,
   type CachedWorkoutLog,
@@ -39,9 +34,17 @@ import {
   computeWeeklyMuscleVolume,
   buildCatalogMap,
   type MuscleSets,
-  type WorkoutLogRecord,
 } from "@/lib/muscle-volume"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
+import {
+  getLoggedExerciseId,
+  toWorkoutLogRecords,
+  type WorkoutHistoryLog,
+} from "@/lib/exercise-history"
+import {
+  APP_ACCENT_COLORS,
+  MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
+} from "@/lib/design-tokens"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,23 +145,19 @@ function TrainingConsistencyCard({
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-border/55 bg-card px-4 pt-3.5 pb-4 short-phone:rounded-[18px] short-phone:pt-3 short-phone:pb-3.5">
+    <div className="app-surface overflow-hidden px-4 pt-3.5 pb-4 short-phone:pt-3 short-phone:pb-3.5">
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <p className="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-            Training
-          </p>
-          <p className="mt-0.5 text-[15px] font-bold tracking-tight">
-            Consistency
-          </p>
+          <p className="app-eyebrow">Training</p>
+          <p className="mt-0.5 text-[15px] font-bold">Consistency</p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
               Streak
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tracking-tight tabular-nums">
+            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
               {streak}
               <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
                 days
@@ -166,10 +165,10 @@ function TrainingConsistencyCard({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
               This week
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tracking-tight tabular-nums">
+            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
               {thisWeek}
               <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
                 / 7
@@ -205,7 +204,7 @@ function TrainingConsistencyCard({
                 background: isFuture
                   ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
                   : hasWorkout
-                    ? "color-mix(in srgb, var(--accent-workout) 78%, transparent)"
+                    ? "color-mix(in srgb, var(--foreground) 72%, transparent)"
                     : isToday
                       ? "color-mix(in srgb, var(--foreground) 10%, transparent)"
                       : "color-mix(in srgb, var(--foreground) 5%, transparent)",
@@ -219,32 +218,83 @@ function TrainingConsistencyCard({
       </div>
 
       {/* Footer */}
-      <div className="mt-2.5 flex items-center justify-between text-[10px] text-muted-foreground/35">
-        <span>{last28Count} workouts last 28 days</span>
-        <span className="flex items-center gap-1.5">
-          <span
-            className="inline-block h-2 w-2 rounded-sm"
-            style={{ background: "var(--accent-workout)" }}
-          />
-          Workout
-        </span>
-      </div>
+      <p className="mt-2.5 text-[10px] text-muted-foreground/35">
+        {last28Count} workouts last 28 days
+      </p>
     </div>
   )
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-
-function SectionHeader({
-  title,
-  sub,
-  action,
+function TrainingMetricTile({
+  label,
+  value,
+  detail,
+  icon,
+  complete,
 }: {
-  title: string
-  sub?: string
-  action?: React.ReactNode
+  label: string
+  value: string | number
+  detail: string
+  icon: React.ReactNode
+  complete?: boolean
 }) {
-  return <MobileSectionHeader title={title} subtitle={sub} action={action} />
+  return (
+    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-bold text-muted-foreground/66">
+          {label}
+        </p>
+        <span
+          className={cn(
+            "text-muted-foreground/56",
+            complete && "text-foreground/70"
+          )}
+        >
+          {icon}
+        </span>
+      </div>
+      <p className="mt-1.5 text-[1.35rem] leading-none font-extrabold tabular-nums">
+        {value}
+      </p>
+      <p className="mt-1 text-[10.5px] leading-4 font-semibold text-muted-foreground/52">
+        {detail}
+      </p>
+    </div>
+  )
+}
+
+function PresetSteps({
+  preset,
+  limit = 4,
+}: {
+  preset: WorkoutPresetCard
+  limit?: number
+}) {
+  const visible = preset.steps.slice(0, limit)
+  const hidden = Math.max(0, preset.steps.length - visible.length)
+
+  return (
+    <div className="mt-3 space-y-1.5">
+      {visible.map((step, i) => (
+        <div
+          key={`${preset.id}-${step}-${i}`}
+          className="flex items-center gap-2.5 rounded-[0.7rem] bg-foreground/[0.035] px-2.5 py-2"
+        >
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.45rem] bg-foreground/[0.07] text-[10px] font-bold text-muted-foreground/66">
+            {i + 1}
+          </span>
+          <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground/78">
+            {step}
+          </span>
+        </div>
+      ))}
+      {hidden > 0 && (
+        <p className="px-1 text-[10.5px] font-semibold text-muted-foreground/48">
+          +{hidden} more movement{hidden === 1 ? "" : "s"}
+        </p>
+      )}
+    </div>
+  )
 }
 
 // ─── Confirm delete sheet ─────────────────────────────────────────────────────
@@ -264,7 +314,7 @@ function ConfirmDeleteSheet({
       onClick={onCancel}
     >
       <div
-        className="sheet-panel w-full max-w-sm rounded-t-3xl border-t border-border bg-background px-5 pt-5 shadow-2xl"
+        className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
         }}
@@ -279,13 +329,13 @@ function ConfirmDeleteSheet({
         <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={onConfirm}
-            className="h-12 w-full rounded-xl bg-destructive text-sm font-semibold text-white transition-opacity active:opacity-75"
+            className="app-button app-button-danger h-12 w-full"
           >
             Delete preset
           </button>
           <button
             onClick={onCancel}
-            className="h-12 w-full rounded-xl text-sm font-medium text-muted-foreground transition-colors active:text-foreground"
+            className="app-button app-button-quiet h-12 w-full"
           >
             Keep it
           </button>
@@ -310,53 +360,62 @@ function WorkoutLogSummary({
 }: {
   log: CachedWorkoutLog
   slot: 1 | 2
-  onEdit: () => void
+  onEdit?: () => void
 }) {
-  const completedExercises = log.exercises.filter((e) =>
-    e.sets.some((s) => s.completed)
+  const completedExercises = log.exercises.filter(
+    (e) => hasCardioDetails(e.cardio) || (e.sets ?? []).some((s) => s.completed)
   )
   const totalSets = log.exercises.reduce(
-    (acc, e) => acc + e.sets.filter((s) => s.completed).length,
+    (acc, e) => acc + (e.sets ?? []).filter((s) => s.completed).length,
     0
   )
+  const cardioCount = completedExercises.filter((e) =>
+    hasCardioDetails(e.cardio)
+  ).length
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-green-600 uppercase dark:text-green-400">
+          <span className="rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-bold text-muted-foreground/70 uppercase">
             Done
           </span>
           <span className="text-[11px] text-muted-foreground">
             Workout {slot} · {fmtDuration(log.durationSeconds)}
           </span>
         </div>
-        <button
-          onClick={onEdit}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/50 transition-colors active:bg-muted/50 active:text-foreground"
-          aria-label="Edit workout"
-        >
-          <PencilSimple size={13} />
-        </button>
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="app-icon-button h-10 w-10 bg-muted/45"
+            aria-label="Edit workout"
+          >
+            <PencilSimple size={13} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-1.5">
         {completedExercises.map((ex) => {
-          const done = ex.sets.filter((s) => s.completed).length
-          const total = ex.sets.length
+          const isCardio = hasCardioDetails(ex.cardio)
+          const done = (ex.sets ?? []).filter((s) => s.completed).length
+          const total = ex.sets?.length ?? 0
+          const id = getLoggedExerciseId(ex) ?? ex.name
           return (
             <div
-              key={ex.exerciseId}
-              className="flex items-center gap-3 rounded-xl bg-green-500/[0.07] px-3.5 py-2.5"
+              key={id}
+              className="flex items-center gap-3 rounded-xl bg-muted/35 px-3.5 py-2.5"
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-500/25 text-[9px] font-bold text-green-600 dark:text-green-400">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/65">
                 ✓
               </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-green-700 dark:text-green-300">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/78">
                 {ex.name}
               </span>
-              <span className="shrink-0 text-[11px] text-green-600/60 tabular-nums dark:text-green-400/60">
-                {done}/{total}
+              <span className="max-w-[12rem] shrink truncate text-right text-[11px] text-muted-foreground/58 tabular-nums">
+                {isCardio
+                  ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
+                  : `${done}/${total}`}
               </span>
             </div>
           )
@@ -366,6 +425,7 @@ function WorkoutLogSummary({
       <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
+          {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
         </span>
         <span>
           {new Date(log.completedAt).toLocaleTimeString("en-US", {
@@ -385,7 +445,7 @@ function WorkoutLogCarousel({
   onEdit,
 }: {
   logs: [CachedWorkoutLog, CachedWorkoutLog]
-  onEdit: (slot: 1 | 2) => void
+  onEdit?: (slot: 1 | 2) => void
 }) {
   const [slide, setSlide] = useState(0)
   const [touching, setTouching] = useState(false)
@@ -423,7 +483,7 @@ function WorkoutLogCarousel({
               <WorkoutLogSummary
                 log={log}
                 slot={(i + 1) as 1 | 2}
-                onEdit={() => onEdit((i + 1) as 1 | 2)}
+                onEdit={onEdit ? () => onEdit((i + 1) as 1 | 2) : undefined}
               />
             </div>
           ))}
@@ -533,76 +593,65 @@ type DragState = {
 
 // ─── Muscle volume card ──────────────────────────────────────────────────────
 
-const MUSCLE_COLORS: Record<string, string> = {
-  quadriceps: "#38bdf8",
-  glutes: "#f59e0b",
-  hamstrings: "#a78bfa",
-  chest: "#f87171",
-  back: "#34d399",
-  shoulders: "#fb923c",
-  biceps: "#e879f9",
-  triceps: "#818cf8",
-  core: "#facc15",
-  calves: "#6ee7b7",
-}
+const MUSCLE_COLORS: Record<string, string> = { ...ONE_REP_MUSCLE_COLORS }
 
 function muscleColor(muscle: string): string {
-  return MUSCLE_COLORS[muscle.toLowerCase()] ?? "#94a3b8"
+  return MUSCLE_COLORS[muscle.toLowerCase()] ?? APP_ACCENT_COLORS.neutral
 }
 
 function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   if (muscleVolume.length === 0) {
     return (
-      <Card>
-        <div className="px-4 py-5 text-center">
-          <p className="text-[12px] text-muted-foreground/40">
-            No workouts logged this week yet
-          </p>
-        </div>
-      </Card>
+      <div className="app-surface p-4 text-center">
+        <p className="text-[12px] text-muted-foreground/40">
+          No workouts logged this week yet
+        </p>
+      </div>
     )
   }
 
   const maxSets = Math.max(...muscleVolume.map((m) => m.effectiveSets))
 
   return (
-    <Card>
-      <div className="px-4 py-3.5">
-        <div className="flex flex-col gap-2.5">
-          {muscleVolume.map((item) => {
-            const pct = maxSets > 0 ? (item.effectiveSets / maxSets) * 100 : 0
-            const color = muscleColor(item.muscle)
-            return (
-              <div key={item.muscle}>
-                <div className="mb-1 flex items-center justify-between">
-                  <span className="text-[12px] font-medium text-foreground/80 capitalize">
-                    {item.muscle}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground/50 tabular-nums">
-                    {item.primarySets}p
-                    {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
-                    sets
-                  </span>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
-                  <div
-                    className="motion-progress-fill h-full rounded-full"
-                    style={{
-                      width: `${pct}%`,
-                      backgroundColor: color,
-                      opacity: 0.7,
-                    }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <p className="mt-3 text-[10px] text-muted-foreground/30">
-          p = primary sets · s = secondary sets (secondary counts 0.5×)
-        </p>
+    <div className="app-surface p-4">
+      <div className="mb-3">
+        <p className="app-section-title">Volume</p>
+        <p className="app-section-subtitle">This week · sets per muscle</p>
       </div>
-    </Card>
+      <div className="flex flex-col gap-2.5">
+        {muscleVolume.map((item) => {
+          const pct = maxSets > 0 ? (item.effectiveSets / maxSets) * 100 : 0
+          const color = muscleColor(item.muscle)
+          return (
+            <div key={item.muscle}>
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[12px] font-bold text-foreground/78 capitalize">
+                  {item.muscle}
+                </span>
+                <span className="text-[10.5px] font-semibold text-muted-foreground/50 tabular-nums">
+                  {item.primarySets}p
+                  {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
+                  sets
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
+                <div
+                  className="motion-progress-fill h-full rounded-full"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: color,
+                    opacity: 0.74,
+                  }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <p className="mt-3 text-[10px] text-muted-foreground/35">
+        p = primary sets · s = secondary sets (secondary counts 0.5×)
+      </p>
+    </div>
   )
 }
 
@@ -727,12 +776,10 @@ export default function Workouts() {
     ? [todayLog as unknown as CachedWorkoutLog]
     : []
 
-  const [locked, setLocked] = useState(false)
   const [routineEditMode, setRoutineEditMode] = useState(false)
   const [showSecondWorkoutSheet, setShowSecondWorkoutSheet] = useState(false)
   const [pickRoutineDay, setPickRoutineDay] = useState<Day | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  const [snapOffline, setSnapOffline] = useState(false)
   useBottomBarAction(() => setAddOpen(true))
 
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -759,7 +806,7 @@ export default function Workouts() {
     return new Set(workoutHistory.map((log) => log.date as string))
   }, [workoutHistory])
 
-  // ── Muscle volume ────────────────────────────────────────────────────────
+  // ── Muscle analytics ─────────────────────────────────────────────────────
   const [exerciseCatalog, setExerciseCatalog] = useState<
     Map<
       string,
@@ -768,58 +815,54 @@ export default function Workouts() {
   >(new Map())
   const catalogFetched = useRef<string>("")
 
-  const thisWeekLogs = useMemo(() => {
+  const workoutRecords = useMemo(() => {
     if (!workoutHistory) return []
-    const now = new Date()
-    const todayStr = now.toISOString().slice(0, 10)
-    const dow = now.getUTCDay()
-    const daysFromMon = dow === 0 ? 6 : dow - 1
-    const mon = new Date(now)
-    mon.setUTCDate(now.getUTCDate() - daysFromMon)
-    const fromStr = mon.toISOString().slice(0, 10)
-    return workoutHistory.filter(
-      (log) => log.date >= fromStr && log.date <= todayStr
-    )
+    return toWorkoutLogRecords(workoutHistory as WorkoutHistoryLog[])
   }, [workoutHistory])
 
-  const thisWeekExerciseIds = useMemo(() => {
+  const analyticsExerciseIds = useMemo(() => {
     const ids = new Set<string>()
-    for (const log of thisWeekLogs) {
-      for (const ex of log.exercises) ids.add(ex.id)
+    for (const log of workoutRecords) {
+      for (const exercise of log.exercises) {
+        ids.add(exercise.id)
+        if (ids.size >= 100) return Array.from(ids)
+      }
     }
     return Array.from(ids)
-  }, [thisWeekLogs])
+  }, [workoutRecords])
 
   useEffect(() => {
-    const key = thisWeekExerciseIds.sort().join(",")
-    if (!key || key === catalogFetched.current) return
+    const key = [...analyticsExerciseIds].sort().join(",")
+    if (!key) {
+      catalogFetched.current = ""
+      setExerciseCatalog(new Map())
+      return
+    }
+    if (key === catalogFetched.current) return
+
     catalogFetched.current = key
-    void resolveExerciseIds(thisWeekExerciseIds).then((result) => {
+    void resolveExerciseIds(analyticsExerciseIds).then((result) => {
       const map = new Map<string, Exercise>()
       for (const [id, ex] of Object.entries(result)) {
         map.set(id, { ...ex, id })
       }
       setExerciseCatalog(map)
     })
-  }, [thisWeekExerciseIds])
+  }, [analyticsExerciseIds])
 
   const muscleVolume = useMemo(() => {
-    if (thisWeekLogs.length === 0 || exerciseCatalog.size === 0) return []
+    if (workoutRecords.length === 0 || exerciseCatalog.size === 0) return []
     const catalog = buildCatalogMap(Array.from(exerciseCatalog.values()))
-    const logs: WorkoutLogRecord[] = thisWeekLogs.map((log) => ({
-      date: log.date,
-      exercises: (
-        log.exercises as unknown as Array<{
-          id: string
-          sets: Array<{ completed?: boolean }>
-        }>
-      ).map((ex) => ({
-        id: ex.id,
-        sets: ex.sets.map((set) => ({ completed: Boolean(set.completed) })),
-      })),
-    }))
-    return computeWeeklyMuscleVolume(logs, catalog, new Date())
-  }, [thisWeekLogs, exerciseCatalog])
+    return computeWeeklyMuscleVolume(workoutRecords, catalog, new Date())
+  }, [workoutRecords, exerciseCatalog])
+
+  const trainingStatsDate = useMemo(() => {
+    const date = new Date()
+    date.setUTCHours(12, 0, 0, 0)
+    return date
+  }, [])
+  const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
+  const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
 
   const hasMoved =
     drag !== null &&
@@ -849,7 +892,7 @@ export default function Workouts() {
   }
 
   function onSlotPressStart(day: Day) {
-    if (locked || !routineEditMode || (!routine[day] && !routine2[day])) return
+    if (!routineEditMode || (!routine[day] && !routine2[day])) return
     setPressingDay(day)
     slotPressTimer.current = setTimeout(() => {
       setPressingDay(null)
@@ -893,7 +936,7 @@ export default function Workouts() {
     e: React.PointerEvent<HTMLDivElement>,
     presetId: string
   ) {
-    if (locked || !routineEditMode) return
+    if (!routineEditMode) return
     e.currentTarget.setPointerCapture(e.pointerId)
 
     setPressingPreset(presetId)
@@ -943,7 +986,7 @@ export default function Workouts() {
     if (drag && hasMoved) {
       const day = hitDay(e.clientX, e.clientY)
 
-      if (day && !locked) {
+      if (day) {
         if (!routine[day]) {
           // Slot 1 is empty — fill it
           const nextRoutine = { ...routine, [day]: drag.presetId }
@@ -1008,107 +1051,183 @@ export default function Workouts() {
     void removePresetMutation({ id: id as Id<"presets"> })
   }
 
+  function handlePrimaryTrainingAction() {
+    if (workoutLogs.length === 0 && todayPreset) {
+      navigate(`/workout/active/${todayPreset.id}`)
+      return
+    }
+    if (workoutLogs.length === 1 && todayPreset2) {
+      navigate(`/workout/active/${todayPreset2.id}?slot=2`)
+      return
+    }
+    setAddOpen(true)
+  }
+
+  const heroTitle =
+    workoutLogs.length === 2
+      ? "Training complete"
+      : workoutLogs.length === 1
+        ? todayPreset2
+          ? todayPreset2.name
+          : "One workout logged"
+        : todayPreset
+          ? todayPreset.name
+          : "Rest day"
+  const heroDetail =
+    workoutLogs.length === 2
+      ? "Both workout slots are complete today."
+      : workoutLogs.length === 1
+        ? todayPreset2
+          ? `Next: ${todayPreset2.duration}`
+          : "Add a second session if today needs one."
+        : todayPreset
+          ? `${todayPreset.steps.length} exercises · ${todayPreset.duration}`
+          : "No workout scheduled. Log an open session anytime."
+  const heroActionLabel =
+    workoutLogs.length === 2
+      ? "Done"
+      : workoutLogs.length === 0 && todayPreset
+        ? "Start"
+        : workoutLogs.length === 1 && todayPreset2
+          ? "Start next"
+          : "Add"
+
   // ── Ghost ─────────────────────────────────────────────────────────────────
 
   const ghostPreset = drag ? presets.find((p) => p.id === drag.presetId) : null
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:pr-8 md:pl-72">
-      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
-        <header className="px-4 pt-[var(--app-safe-top)] pb-5 md:px-6 md:pt-10 short-phone:pb-3">
-          <p className="text-[10px] font-medium tracking-[0.22em] text-muted-foreground/60 uppercase">
-            Diary
-          </p>
-          <h1 className="mt-1 text-[1.65rem] leading-[1.12] font-semibold tracking-tight md:text-[1.9rem] short-phone:text-[1.5rem]">
-            Workouts
-          </h1>
+    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
+      <main className="app-page">
+        <header className="app-header">
+          <div className="min-w-0">
+            <p className="app-eyebrow">Training</p>
+            <h1 className="app-title">Workouts</h1>
+            <p className="mt-1 text-[12px] text-muted-foreground/60">
+              Plan sessions, start lifts, and review exercises in one place.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="app-button app-header-action bg-foreground text-background"
+            aria-label="Add workout"
+          >
+            <Plus size={13} weight="bold" /> Add
+          </button>
         </header>
 
-        <div className="flex flex-col gap-5 px-4 md:grid md:grid-cols-2 md:items-start md:gap-5 md:px-6 short-phone:gap-4">
-          {/* ── Today's workout ─────────────────────────────────────── */}
-          <section>
-            <SectionHeader
-              title="Today's workout"
-              sub={today}
-              action={
-                workoutLogs.length === 1 && (
-                  <span className="text-[10px] text-muted-foreground/60">
+        <section className="app-surface p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="app-eyebrow">Today · {today}</p>
+              <p className="mt-2 truncate text-[2.05rem] leading-none font-extrabold tracking-tight">
+                {heroTitle}
+              </p>
+              <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+                {heroDetail}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handlePrimaryTrainingAction}
+              disabled={workoutLogs.length === 2}
+              className={cn(
+                "app-button app-button-quiet shrink-0",
+                workoutLogs.length === 2 && "opacity-50"
+              )}
+            >
+              {heroActionLabel}
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <TrainingMetricTile
+              label="Week"
+              value={workoutsThisWeek}
+              detail={`${workoutLogs.length}/2 today`}
+              icon={<Barbell size={14} weight="bold" />}
+              complete={workoutsThisWeek > 0}
+            />
+            <TrainingMetricTile
+              label="Streak"
+              value={trainingStreak}
+              detail="days in a row"
+              icon={<Heart size={14} weight="bold" />}
+              complete={trainingStreak > 0}
+            />
+            <TrainingMetricTile
+              label="Presets"
+              value={presets.length}
+              detail="ready sessions"
+              icon={<Fire size={14} weight="bold" />}
+              complete={presets.length > 0}
+            />
+          </div>
+        </section>
+
+        <section className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+          <div className="grid min-w-0 content-start gap-3">
+            <div className="app-surface p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="app-section-title">Today's workout</p>
+                  <p className="app-section-subtitle">
+                    {workoutLogs.length === 2
+                      ? "Both sessions complete"
+                      : workoutLogs.length === 1
+                        ? "Session one complete"
+                        : todayPreset
+                          ? todayPreset.duration
+                          : "Open training"}
+                  </p>
+                </div>
+                {workoutLogs.length === 1 && (
+                  <span className="rounded-full bg-foreground/[0.055] px-2.5 py-1 text-[10px] font-bold text-muted-foreground/62">
                     1 of 2 done
                   </span>
-                )
-              }
-            />
-            <Card>
+                )}
+              </div>
+
               {workoutLogs.length === 2 ? (
-                /* ── Two workouts done — carousel ── */
-                <div className="px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-                  <WorkoutLogCarousel
-                    logs={workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]}
-                    onEdit={(slot) => {
-                      const p = slot === 1 ? todayPreset : todayPreset2
-                      navigate(
-                        p
-                          ? `/workout/active/${p.id}?slot=${slot}`
-                          : `/workout/active?slot=${slot}`
-                      )
-                    }}
-                  />
-                </div>
+                <WorkoutLogCarousel
+                  logs={workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]}
+                />
               ) : workoutLogs.length === 1 ? (
-                /* ── One workout done — show summary + 2nd workout ── */
-                <div className="flex flex-col gap-3.5 px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-                  <WorkoutLogSummary
-                    log={workoutLogs[0]}
-                    slot={1}
-                    onEdit={() =>
-                      navigate(
-                        todayPreset
-                          ? `/workout/active/${todayPreset.id}?slot=1`
-                          : `/workout/active?slot=1`
-                      )
-                    }
-                  />
+                <div className="space-y-3.5">
+                  <WorkoutLogSummary log={workoutLogs[0]} slot={1} />
 
                   {todayPreset2 ? (
-                    /* Scheduled 2nd preset from routine2 */
-                    <div className="flex animate-in flex-col gap-3 border-t border-border/30 pt-3.5 duration-300 fade-in-0 slide-in-from-bottom-2">
-                      <div className="flex items-baseline justify-between">
-                        <div>
-                          <p className="text-base font-semibold tracking-tight">
+                    <div className="border-t border-border/35 pt-3.5">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[15px] font-bold">
                             {todayPreset2.name}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          <p className="mt-0.5 text-[11px] text-muted-foreground/56">
                             Workout 2 · {todayPreset2.duration}
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        {todayPreset2.steps.map((step, i) => (
-                          <div
-                            key={step}
-                            className="flex items-center gap-3 rounded-xl bg-muted/30 px-3.5 py-2.5 text-sm"
-                          >
-                            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground">
-                              {i + 1}
-                            </span>
-                            <span className="font-medium">{step}</span>
-                          </div>
-                        ))}
+                      <PresetSteps preset={todayPreset2} limit={3} />
+                      <div className="mt-3">
+                        <SwipeToStart
+                          onComplete={() =>
+                            navigate(
+                              `/workout/active/${todayPreset2.id}?slot=2`
+                            )
+                          }
+                          label="Start second workout"
+                          variant="default"
+                        />
                       </div>
-                      <SwipeToStart
-                        onComplete={() =>
-                          navigate(`/workout/active/${todayPreset2.id}?slot=2`)
-                        }
-                        label="Start second workout"
-                        variant="default"
-                      />
                     </div>
                   ) : (
-                    /* Generic add — no preset assigned to slot 2 */
                     <button
+                      type="button"
                       onClick={() => setShowSecondWorkoutSheet(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-dashed border-border/60 py-3 text-[13px] font-medium text-muted-foreground transition-all active:bg-muted/20 active:text-foreground"
+                      className="app-empty w-full justify-center py-3 text-[13px] font-semibold transition-colors active:bg-muted/20 active:text-foreground"
                     >
                       <Plus size={13} weight="bold" />
                       Add second workout
@@ -1116,36 +1235,23 @@ export default function Workouts() {
                   )}
                 </div>
               ) : todayPreset ? (
-                /* ── No workout yet — show preset(s) ── */
-                <div className="px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-                  <div className="mb-3.5 flex items-baseline justify-between">
-                    <div>
-                      <p className="text-xl font-semibold tracking-tight">
+                <div>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[1.25rem] leading-tight font-extrabold tracking-tight">
                         {todayPreset.name}
                       </p>
                       {todayPreset2 && (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/56">
                           + {todayPreset2.name} after
                         </p>
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/56">
                       {todayPreset.duration}
                     </span>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    {todayPreset.steps.map((step, i) => (
-                      <div
-                        key={step}
-                        className="flex items-center gap-3 rounded-xl bg-muted/30 px-3.5 py-3 text-sm"
-                      >
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-muted-foreground">
-                          {i + 1}
-                        </span>
-                        <span className="font-medium">{step}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <PresetSteps preset={todayPreset} />
                   <div className="mt-4">
                     <SwipeToStart
                       onComplete={() =>
@@ -1157,363 +1263,324 @@ export default function Workouts() {
                   </div>
                 </div>
               ) : (
-                /* ── Rest day ── */
-                <div className="flex flex-col items-center gap-1.5 px-4 py-8 text-center">
-                  <p className="text-sm font-medium">Rest day</p>
-                  <p className="text-xs text-muted-foreground">
-                    No workout scheduled for today
+                <div className="rounded-[0.9rem] bg-foreground/[0.035] px-4 py-5 text-center">
+                  <p className="text-[14px] font-bold">Rest day</p>
+                  <p className="mt-1 text-[12px] text-muted-foreground/58">
+                    No workout scheduled for today.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/workout/active")}
+                    className="app-button app-button-quiet mt-4"
+                  >
+                    Log open workout
+                  </button>
                 </div>
               )}
-            </Card>
-          </section>
+            </div>
 
-          {/* ── Your routine ────────────────────────────────────────── */}
-          <section>
-            <SectionHeader
-              title="Your routine"
-              sub={
-                !routineEditMode
-                  ? "Read-only"
-                  : locked
-                    ? "Locked"
-                    : "Drag to assign · drop again for a 2nd workout"
-              }
-              action={
+            <div className="app-surface p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="app-section-title">Routine</p>
+                  <p className="app-section-subtitle">
+                    Drag presets while editing
+                  </p>
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setRoutineEditMode((value) => !value)}
                     className={cn(
-                      "min-h-10 rounded-full px-3 text-[12px] font-semibold transition-colors",
+                      "app-button transition-colors",
                       routineEditMode
-                        ? "bg-foreground text-background"
-                        : "bg-muted text-foreground"
+                        ? "app-button-primary"
+                        : "app-button-quiet"
                     )}
                   >
-                    {routineEditMode ? "Done" : "Edit routine"}
+                    {routineEditMode ? "Done" : "Edit"}
                   </button>
-                  {routineEditMode && (
-                    <button
-                      onClick={() => setLocked((l) => !l)}
-                      className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-full border transition-all duration-200",
-                        locked
-                          ? "border-foreground/25 bg-foreground/[0.06] text-foreground"
-                          : "border-border text-muted-foreground active:text-foreground"
-                      )}
-                      aria-label={locked ? "Unlock routine" : "Lock routine"}
-                    >
-                      {locked ? (
-                        <Lock size={12} weight="fill" />
-                      ) : (
-                        <LockOpen size={12} />
-                      )}
-                    </button>
-                  )}
                 </div>
-              }
-            />
+              </div>
 
-            <div className="-mx-0.5 overflow-x-auto px-0.5">
-              <div
-                className="flex gap-2 pb-1"
-                style={{ minWidth: "max-content" }}
-              >
-                {DAYS.map((day) => {
-                  const preset =
-                    presets.find((p) => p.id === routine[day]) ?? null
-                  const preset2 =
-                    presets.find((p) => p.id === routine2[day]) ?? null
-                  const isToday = day === today
-                  const isOver =
-                    overDay === day && hasMoved && !locked && routineEditMode
-                  // When hovering over a day that already has slot 1, indicate slot 2 will be filled
-                  const isSlot2Drop = isOver && !!preset
-                  const isRemoving = removingDays.has(day)
-                  const isPressing = pressingDay === day
-                  const FocusIcon = preset ? FOCUS_ICON[preset.focus] : null
-                  const FocusIcon2 = preset2 ? FOCUS_ICON[preset2.focus] : null
+              <div className="min-w-0">
+                <div className="grid min-w-0 grid-cols-7 gap-1 pb-1 md:gap-1.5 md:pb-0">
+                  {DAYS.map((day) => {
+                    const preset =
+                      presets.find((p) => p.id === routine[day]) ?? null
+                    const preset2 =
+                      presets.find((p) => p.id === routine2[day]) ?? null
+                    const isToday = day === today
+                    const isOver =
+                      overDay === day && hasMoved && routineEditMode
+                    const isSlot2Drop = isOver && !!preset
+                    const isRemoving = removingDays.has(day)
+                    const isPressing = pressingDay === day
+                    const FocusIcon = preset ? FOCUS_ICON[preset.focus] : null
+                    const FocusIcon2 = preset2
+                      ? FOCUS_ICON[preset2.focus]
+                      : null
 
-                  return (
-                    <div
-                      key={day}
-                      ref={(el) => {
-                        slotRefs.current[day] = el
-                      }}
-                      className={cn(
-                        "relative flex w-[80px] shrink-0 flex-col items-center gap-2 overflow-hidden rounded-[20px] border py-3 transition-all duration-200 short-phone:w-[72px] short-phone:rounded-[18px] short-phone:py-2.5",
-                        isToday &&
-                          !isOver &&
-                          "border-foreground/30 bg-foreground/[0.04] ring-1 ring-foreground/10",
-                        !isToday && !isOver && "border-border",
-                        isOver &&
-                          !isSlot2Drop &&
-                          "scale-[1.04] border-foreground/40 bg-foreground/[0.07]",
-                        isSlot2Drop &&
-                          "scale-[1.04] border-primary/50 bg-primary/[0.06]"
-                      )}
-                    >
-                      {isPressing && (
-                        <div
-                          className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-destructive"
-                          style={{
-                            animation: `sweep-delete ${SLOT_PRESS_MS}ms linear forwards`,
-                          }}
-                        />
-                      )}
-
-                      {/* Slot-2 drop badge — animated in when hovering a full slot */}
-                      {isSlot2Drop && (
-                        <div className="absolute top-1.5 right-1.5 flex h-4 w-4 animate-in items-center justify-center rounded-full bg-primary text-[8px] font-black text-primary-foreground duration-150 zoom-in-50">
-                          +2
-                        </div>
-                      )}
-
-                      {routineEditMode && !locked && (preset || preset2) && (
-                        <button
-                          type="button"
-                          onClick={() => removeSlot(day)}
-                          className="text-destructive-foreground absolute top-1.5 right-1.5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-destructive shadow-sm"
-                          aria-label={`Remove workout from ${day}`}
-                        >
-                          <X size={11} weight="bold" />
-                        </button>
-                      )}
-
-                      <span
+                    return (
+                      <div
+                        key={day}
+                        ref={(el) => {
+                          slotRefs.current[day] = el
+                        }}
                         className={cn(
-                          "text-[9.5px] font-bold tracking-[0.16em] uppercase",
-                          isToday ? "text-foreground" : "text-muted-foreground"
+                          "relative flex min-h-[4.65rem] min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] px-0.5 py-2 transition-all duration-200 md:min-h-[5.5rem] md:gap-2 md:px-1 md:py-3",
+                          isToday && !isOver && "bg-foreground/[0.07]",
+                          isOver && "scale-[1.04] bg-foreground/[0.1]"
                         )}
                       >
-                        {day}
-                      </span>
+                        {isPressing && (
+                          <div
+                            className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-destructive"
+                            style={{
+                              animation: `sweep-delete ${SLOT_PRESS_MS}ms linear forwards`,
+                            }}
+                          />
+                        )}
 
-                      {preset && FocusIcon ? (
-                        <button
-                          disabled={locked}
-                          onPointerDown={() => onSlotPressStart(day)}
-                          onPointerUp={onSlotPressEnd}
-                          onPointerLeave={onSlotPressEnd}
-                          onPointerCancel={onSlotPressEnd}
+                        {isSlot2Drop && (
+                          <div className="absolute top-1.5 right-1.5 flex h-4 w-4 animate-in items-center justify-center rounded-full bg-foreground text-[8px] font-black text-background duration-150 zoom-in-50">
+                            +2
+                          </div>
+                        )}
+
+                        {routineEditMode && (preset || preset2) && (
+                          <button
+                            type="button"
+                            onClick={() => removeSlot(day)}
+                            className="app-icon-button absolute top-1 right-1 z-10 h-8 w-8 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
+                            aria-label={`Remove workout from ${day}`}
+                          >
+                            <X size={11} weight="bold" />
+                          </button>
+                        )}
+
+                        <span
                           className={cn(
-                            "flex w-full flex-col items-center gap-0 transition-all duration-200",
-                            isRemoving && "scale-50 opacity-0"
+                            "text-[9.5px] font-bold uppercase",
+                            isToday
+                              ? "text-foreground"
+                              : "text-muted-foreground/62"
                           )}
                         >
-                          {/* Slot 1 */}
-                          <div className="flex w-full flex-col items-center gap-1 pb-1">
-                            <FocusIcon
-                              size={preset2 ? 11 : 15}
-                              weight="duotone"
-                              className="text-foreground/50"
-                            />
-                            <span
-                              className={cn(
-                                "max-w-[68px] truncate px-1 text-center leading-tight font-semibold text-foreground/70",
-                                preset2 ? "text-[8.5px]" : "text-[9.5px]"
-                              )}
-                            >
-                              {preset.name}
-                            </span>
-                          </div>
+                          {day}
+                        </span>
 
-                          {/* Slot 2 — animated in when present */}
-                          {preset2 && FocusIcon2 && (
-                            <div className="flex w-full animate-in flex-col items-center gap-1 duration-200 fade-in-0 slide-in-from-bottom-1">
-                              <div className="mb-1 h-px w-[54px] rounded-full bg-border/60" />
-                              <FocusIcon2
-                                size={11}
+                        {preset && FocusIcon ? (
+                          <button
+                            type="button"
+                            onPointerDown={() => onSlotPressStart(day)}
+                            onPointerUp={onSlotPressEnd}
+                            onPointerLeave={onSlotPressEnd}
+                            onPointerCancel={onSlotPressEnd}
+                            className={cn(
+                              "flex w-full flex-col items-center gap-0 transition-all duration-200",
+                              isRemoving && "scale-50 opacity-0"
+                            )}
+                          >
+                            <div className="flex w-full flex-col items-center gap-1 pb-1">
+                              <FocusIcon
+                                size={preset2 ? 11 : 15}
                                 weight="duotone"
-                                className="text-primary/70"
+                                className="text-foreground/55"
                               />
-                              <span className="max-w-[68px] truncate px-1 text-center text-[8.5px] leading-tight font-semibold text-primary/80">
-                                {preset2.name}
+                              <span
+                                className={cn(
+                                  "max-w-full truncate px-1 text-center leading-tight font-bold text-foreground/72",
+                                  preset2 ? "text-[8.5px]" : "text-[9.5px]"
+                                )}
+                              >
+                                {preset.name}
                               </span>
                             </div>
-                          )}
-                        </button>
-                      ) : routineEditMode && !locked ? (
-                        <button
-                          type="button"
-                          onClick={() => setPickRoutineDay(day)}
-                          className="flex min-h-10 flex-col items-center justify-center gap-1 px-2 text-[10px] font-semibold text-muted-foreground transition-colors active:text-foreground"
-                        >
-                          <Plus size={14} weight="bold" />
-                          Add
-                        </button>
-                      ) : (
-                        <span className="py-1.5 text-[10px] text-muted-foreground/35">
-                          Rest
-                        </span>
-                      )}
-                    </div>
-                  )
-                })}
+
+                            {preset2 && FocusIcon2 && (
+                              <div className="flex w-full animate-in flex-col items-center gap-1 duration-200 fade-in-0 slide-in-from-bottom-1">
+                                <div className="mb-1 h-px w-7 rounded-full bg-border/55 md:w-[54px]" />
+                                <FocusIcon2
+                                  size={11}
+                                  weight="duotone"
+                                  className="text-foreground/55"
+                                />
+                                <span className="max-w-full truncate px-1 text-center text-[8.5px] leading-tight font-bold text-foreground/72">
+                                  {preset2.name}
+                                </span>
+                              </div>
+                            )}
+                          </button>
+                        ) : routineEditMode ? (
+                          <button
+                            type="button"
+                            onClick={() => setPickRoutineDay(day)}
+                            className="flex min-h-10 flex-col items-center justify-center gap-1 px-2 text-[10px] font-bold text-muted-foreground/62 transition-colors active:text-foreground"
+                          >
+                            <Plus size={14} weight="bold" />
+                            Add
+                          </button>
+                        ) : (
+                          <span className="py-1.5 text-[10px] text-muted-foreground/35">
+                            Rest
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </section>
 
-          {/* ── Your presets ────────────────────────────────────────── */}
-          <section>
-            <SectionHeader
-              title="Your presets"
-              sub={
-                routineEditMode
-                  ? "Drag to assign or reorder"
-                  : "Open a preset or edit routine first"
-              }
-            />
+            {muscleVolume.length > 0 && (
+              <MuscleVolumeCard muscleVolume={muscleVolume} />
+            )}
+          </div>
 
-            <div className="flex flex-col gap-2">
-              {syncing && presets.length === 0 && (
-                <>
-                  {[0, 1, 2].map((i) => (
-                    <div
-                      key={i}
-                      className="h-[72px] animate-pulse rounded-[20px] bg-muted/50 short-phone:h-[66px] short-phone:rounded-[18px]"
-                    />
-                  ))}
-                </>
-              )}
-              {presets.map((preset, idx) => {
-                const FocusIcon = FOCUS_ICON[preset.focus]
-                const isDraggingThis = drag?.presetId === preset.id && hasMoved
-                const isDropTarget =
-                  dragOverIdx === idx &&
-                  hasMoved &&
-                  drag?.presetId !== preset.id
-                const isPressing = pressingPreset === preset.id
+          <div className="grid min-w-0 content-start gap-3">
+            <div className="app-surface p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="app-section-title">Presets</p>
+                  <p className="app-section-subtitle">
+                    Build and assign reusable sessions
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate("/workouts/new")}
+                  className="app-button app-button-quiet h-9"
+                >
+                  New
+                </button>
+              </div>
 
-                return (
-                  <div key={preset.id} className="relative">
-                    {isDropTarget && (
-                      <div className="absolute inset-x-3 -top-1 h-0.5 rounded-full bg-foreground/30" />
-                    )}
+              <div className="flex flex-col gap-2">
+                {syncing && presets.length === 0 && (
+                  <>
+                    {[0, 1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="h-[62px] animate-pulse rounded-[0.8rem] bg-foreground/[0.04]"
+                      />
+                    ))}
+                  </>
+                )}
+                {presets.map((preset, idx) => {
+                  const FocusIcon = FOCUS_ICON[preset.focus]
+                  const isDraggingThis =
+                    drag?.presetId === preset.id && hasMoved
+                  const isDropTarget =
+                    dragOverIdx === idx &&
+                    hasMoved &&
+                    drag?.presetId !== preset.id
+                  const isPressing = pressingPreset === preset.id
 
-                    <div
-                      ref={(el) => {
-                        presetRefs.current[idx] = el
-                      }}
-                      className={cn(
-                        "relative touch-pan-y overflow-hidden rounded-[20px] transition-all duration-150 select-none short-phone:rounded-[18px]",
-                        isDraggingThis && "scale-[0.98] opacity-40",
-                        isDropTarget && "scale-[1.01]"
-                      )}
-                      onPointerDown={
-                        locked || !routineEditMode
-                          ? undefined
-                          : (e) => onPresetPointerDown(e, preset.id)
-                      }
-                      onPointerMove={
-                        locked || !routineEditMode
-                          ? undefined
-                          : onPresetPointerMove
-                      }
-                      onPointerUp={
-                        locked || !routineEditMode
-                          ? undefined
-                          : onPresetPointerUp
-                      }
-                      onPointerCancel={
-                        locked || !routineEditMode
-                          ? undefined
-                          : onPresetPointerUp
-                      }
-                    >
-                      {isPressing && (
-                        <div
-                          className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
-                          style={{
-                            animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
-                          }}
-                        />
+                  return (
+                    <div key={preset.id} className="relative">
+                      {isDropTarget && (
+                        <div className="absolute inset-x-3 -top-1 h-0.5 rounded-full bg-foreground/30" />
                       )}
 
-                      <Card>
-                        <div className="flex items-center gap-2 px-3 py-2.5">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/50">
+                      <div
+                        ref={(el) => {
+                          presetRefs.current[idx] = el
+                        }}
+                        className={cn(
+                          "relative touch-pan-y overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] transition-all duration-150 select-none",
+                          isDraggingThis && "scale-[0.98] opacity-40",
+                          isDropTarget && "scale-[1.01] bg-foreground/[0.07]"
+                        )}
+                        onPointerDown={
+                          !routineEditMode
+                            ? undefined
+                            : (e) => onPresetPointerDown(e, preset.id)
+                        }
+                        onPointerMove={
+                          !routineEditMode ? undefined : onPresetPointerMove
+                        }
+                        onPointerUp={
+                          !routineEditMode ? undefined : onPresetPointerUp
+                        }
+                        onPointerCancel={
+                          !routineEditMode ? undefined : onPresetPointerUp
+                        }
+                      >
+                        {isPressing && (
+                          <div
+                            className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
+                            style={{
+                              animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
+                            }}
+                          />
+                        )}
+
+                        <div className="flex items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
+                          <span className="app-icon-button pointer-events-none h-8 w-8 shrink-0 bg-foreground/[0.055]">
                             <FocusIcon
-                              size={13}
+                              size={14}
                               weight="duotone"
-                              className="text-foreground/60"
+                              className="text-foreground/62"
                             />
-                          </div>
+                          </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[12.5px] leading-none font-semibold">
+                            <p className="truncate text-[12.5px] leading-tight font-bold">
                               {preset.name}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/55">
                               {preset.steps.length} exercises ·{" "}
                               {preset.duration}
                             </p>
                           </div>
                           <button
+                            type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
                             aria-label={`Edit ${preset.name}`}
                           >
                             <PencilSimple size={12} />
                           </button>
                           <button
+                            type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => duplicatePreset(preset)}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
                             aria-label={`Duplicate ${preset.name}`}
                           >
                             <Copy size={12} />
                           </button>
                           <button
+                            type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setConfirmDeleteId(preset.id)}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-destructive/70 transition-colors active:bg-destructive/10 active:text-destructive"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-destructive/70"
                             aria-label={`Delete ${preset.name}`}
                           >
                             <Trash size={12} />
                           </button>
                         </div>
-                      </Card>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-
-              <button
-                onClick={() => navigate("/workouts/new")}
-                className="flex items-center justify-center gap-2 rounded-[20px] border border-dashed border-border/60 py-3 text-[13px] font-medium text-muted-foreground transition-colors active:bg-muted/20 active:text-foreground short-phone:rounded-[18px]"
-              >
-                <Plus size={13} />
-                New preset
-              </button>
+                  )
+                })}
+              </div>
             </div>
-          </section>
 
-          {/* ── Training consistency ─────────────────────────────────── */}
-          {workoutHistory !== undefined && workoutDates.size > 0 && (
-            <section>
-              <SectionHeader title="Consistency" sub="Last 28 days" />
+            {workoutHistory !== undefined && workoutDates.size > 0 && (
               <TrainingConsistencyCard workoutDates={workoutDates} />
-            </section>
-          )}
-
-          {/* ── Muscle volume ────────────────────────────────────────── */}
-          {thisWeekLogs.length > 0 && (
-            <section>
-              <SectionHeader title="Volume" sub="This week · sets per muscle" />
-              <MuscleVolumeCard muscleVolume={muscleVolume} />
-            </section>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
+        </section>
+      </main>
 
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {hasMoved && ghostPreset && GhostIcon && drag && (
         <div
-          className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl border border-border/60 bg-background/95 px-3 py-2 shadow-2xl shadow-black/20 backdrop-blur-sm"
+          className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-background/95 px-3 py-2 shadow-2xl shadow-black/20 backdrop-blur-sm"
           style={{ left: drag.x - 80, top: drag.y - 20, minWidth: 150 }}
         >
           <GhostIcon
@@ -1575,103 +1642,40 @@ export default function Workouts() {
           }}
         >
           <div className="px-4 pt-1 pb-4">
-            {/* Primary — Log Workout (inverted, full-width) */}
-            <button
-              onClick={() => {
-                setAddOpen(false)
-                navigate("/workout/active")
-              }}
-              className="relative mb-2 w-full overflow-hidden rounded-[20px] bg-foreground px-5 pt-4 pb-5 text-left text-background transition-opacity active:opacity-75 short-phone:rounded-[18px] short-phone:pt-3.5 short-phone:pb-4"
-            >
-              {/* Subtle grid texture */}
-              <div
-                className="pointer-events-none absolute inset-0 opacity-[0.04]"
-                style={{
-                  backgroundImage:
-                    "repeating-linear-gradient(0deg, currentColor 0, currentColor 1px, transparent 1px, transparent 28px), repeating-linear-gradient(90deg, currentColor 0, currentColor 1px, transparent 1px, transparent 28px)",
-                }}
-              />
-              <p className="relative text-[9px] font-semibold tracking-[0.18em] uppercase opacity-40">
-                Quick start
-              </p>
-              <p className="relative mt-1.5 text-[17px] leading-snug font-semibold tracking-tight">
-                Log Workout
-              </p>
-              <Barbell
-                size={18}
-                weight="fill"
-                className="absolute right-4 bottom-4 opacity-20"
-              />
-            </button>
-
-            {/* Secondary actions */}
-            <div className="overflow-hidden rounded-[20px] border border-border/50 short-phone:rounded-[18px]">
+            <div className="app-surface overflow-hidden">
               <button
                 onClick={() => {
                   setAddOpen(false)
-                  navigate("/camera?mode=barcode")
+                  navigate("/workout/active")
                 }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
+                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
               >
-                <div className="flex items-center gap-2.5">
-                  <Barcode
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">Scan Barcode</span>
-                </div>
-                <CaretRight size={11} className="text-muted-foreground/30" />
-              </button>
-              <div className="mx-4 h-px bg-border/50" />
-              <button
-                onClick={() => {
-                  if (!navigator.onLine) {
-                    setSnapOffline(true)
-                    return
-                  }
-                  setSnapOffline(false)
-                  setAddOpen(false)
-                  navigate("/camera")
-                }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Aperture
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">Snap and Log</span>
-                </div>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
+                    <Barbell size={16} weight="bold" />
+                  </span>
+                  <span className="text-[13px] font-semibold">Log workout</span>
+                </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
               <div className="mx-4 h-px bg-border/50" />
               <button
                 onClick={() => {
                   setAddOpen(false)
-                  navigate("/foods/search")
+                  navigate("/workouts/new")
                 }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
+                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
               >
-                <div className="flex items-center gap-2.5">
-                  <MagnifyingGlass
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">Search Food</span>
-                </div>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
+                    <Plus size={16} weight="bold" />
+                  </span>
+                  <span className="text-[13px] font-semibold">New preset</span>
+                </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
             </div>
           </div>
-
-          {snapOffline && (
-            <div className="mx-4 mb-1 flex items-center gap-2 rounded-xl bg-destructive/10 px-3.5 py-2.5">
-              <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-destructive" />
-              <p className="text-[12px] font-medium text-destructive">
-                No internet connection. Connect and try again.
-              </p>
-            </div>
-          )}
         </MobileSheet>
       )}
     </div>

@@ -1,13 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { authComponent } from "../auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 
 // ── getDay ────────────────────────────────────────────────────────────────────
 
 export const getDay = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
-    const user = await authComponent.safeGetAuthUser(ctx);
+    const user = await safeGetAuthUser(ctx);
     if (!user) return [];
 
     const doc = await ctx.db
@@ -35,7 +35,7 @@ export const setDay = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const existing = await ctx.db
@@ -76,7 +76,7 @@ export const addEntry = mutation({
     }),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const existing = await ctx.db
@@ -113,7 +113,7 @@ export const removeEntry = mutation({
     id: v.string(),
   },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
     const existing = await ctx.db

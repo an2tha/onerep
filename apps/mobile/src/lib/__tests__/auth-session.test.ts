@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test"
 import {
   clearLocalStorageCache,
   clearUnauthenticatedLocalState,
+  handleUnauthenticatedSession,
   isUnauthenticatedError,
 } from "../auth-session"
 
@@ -59,7 +60,6 @@ describe("auth session helpers", () => {
   test("clears app-owned local storage keys only", () => {
     localStorage.setItem("onerep:offline-mutation-queue:v1", "[]")
     localStorage.setItem("onerep_custom_meal_categories", "[]")
-    localStorage.setItem("better-auth.session", "token")
     localStorage.setItem("convex:auth", "token")
     localStorage.setItem("theme", "dark")
     localStorage.setItem("external:keep", "value")
@@ -68,7 +68,6 @@ describe("auth session helpers", () => {
 
     expect(localStorage.getItem("onerep:offline-mutation-queue:v1")).toBeNull()
     expect(localStorage.getItem("onerep_custom_meal_categories")).toBeNull()
-    expect(localStorage.getItem("better-auth.session")).toBeNull()
     expect(localStorage.getItem("convex:auth")).toBeNull()
     expect(localStorage.getItem("theme")).toBeNull()
     expect(localStorage.getItem("external:keep")).toBe("value")
@@ -80,6 +79,22 @@ describe("auth session helpers", () => {
     clearUnauthenticatedLocalState()
 
     expect(localStorage.getItem("onerep:offline-owner:v1")).toBeNull()
+    expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
+  })
+
+  test("signs out the auth client before redirecting to login", async () => {
+    const events: string[] = []
+
+    await handleUnauthenticatedSession({
+      signOut: async () => {
+        events.push("signOut")
+      },
+      navigate: (to, options) => {
+        events.push(`navigate:${String(to)}:${String(options?.replace)}`)
+      },
+    })
+
+    expect(events).toEqual(["signOut", "navigate:/login:true"])
     expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
   })
 })

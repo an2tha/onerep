@@ -2,26 +2,35 @@ import {
   useEffect,
   useState,
   type FormEvent,
-  type ReactNode,
-  type SVGProps,
 } from "react"
-import { authClient } from "@/lib/auth-client"
-import {
-  getAuthCallbackUrl,
-  rememberPendingVerification,
-} from "@/lib/auth-redirects"
+import { useAuth, useSignIn, useSignUp } from "@clerk/react"
+import { AppleLogo, GoogleLogo } from "@phosphor-icons/react"
+import { getAuthCallbackUrl } from "@/lib/auth-redirects"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 
 type LoginMode = "signin" | "signup"
+type OAuthStrategy = "oauth_google" | "oauth_apple"
 
 const FIELD_CLASS =
-  "block rounded-[20px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:rounded-[18px] short-phone:py-2.5"
+  "block rounded-[10px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:py-2.5"
 const LABEL_CLASS =
   "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
 const INPUT_CLASS =
-  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium tracking-tight text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+const CODE_INPUT_CLASS =
+  "mt-2 min-h-10 w-full bg-transparent text-[22px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/25 disabled:opacity-60"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
+const SSO_CALLBACK_PATH = "/sso-callback"
+
+const OAUTH_PROVIDERS: {
+  label: string
+  strategy: OAuthStrategy
+  icon: typeof GoogleLogo
+}[] = [
+  { label: "Google", strategy: "oauth_google", icon: GoogleLogo },
+  { label: "Apple", strategy: "oauth_apple", icon: AppleLogo },
+]
 
 const INTRO_SLIDES = [
   {
@@ -41,184 +50,83 @@ const INTRO_SLIDES = [
   },
 ]
 
-function isEmailNotVerified(
-  error: { status?: number; code?: string; message?: string } | null | undefined
-) {
-  const message = error?.message?.toLowerCase() ?? ""
-
-  return (
-    error?.code === "EMAIL_NOT_VERIFIED" ||
-    (error?.status === 403 && message.includes("verified"))
-  )
-}
-
-function IntroSvgShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="relative mx-auto flex h-56 w-full items-center justify-center rounded-[30px] border border-border/60 bg-card shadow-sm shadow-black/[0.03] dark:shadow-black/20 short-phone:h-44 short-phone:rounded-[24px]">
-      <div className="pointer-events-none absolute inset-4 rounded-[22px] border border-border/35 short-phone:inset-3 short-phone:rounded-[18px]" />
-      {children}
-    </div>
-  )
-}
-
-function TrackSvg(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 260 190" fill="none" aria-hidden="true" {...props}>
-      <rect
-        x="48"
-        y="42"
-        width="164"
-        height="106"
-        rx="26"
-        className="fill-muted/60"
-      />
-      <rect
-        x="68"
-        y="61"
-        width="124"
-        height="24"
-        rx="12"
-        className="fill-background"
-      />
-      <rect
-        x="68"
-        y="96"
-        width="55"
-        height="33"
-        rx="16"
-        className="fill-background"
-      />
-      <rect
-        x="137"
-        y="96"
-        width="55"
-        height="33"
-        rx="16"
-        className="fill-background"
-      />
-      <path
-        d="M89 73h48M88 112h15M157 112h18"
-        stroke="currentColor"
-        strokeWidth="7"
-        strokeLinecap="round"
-      />
-      <circle cx="182" cy="73" r="5" className="fill-foreground" />
-      <path
-        d="M72 148h116"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        className="opacity-15"
-      />
-    </svg>
-  )
-}
-
-function OfflineSvg(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 260 190" fill="none" aria-hidden="true" {...props}>
-      <rect
-        x="91"
-        y="28"
-        width="78"
-        height="134"
-        rx="28"
-        className="fill-muted/60"
-      />
-      <rect
-        x="105"
-        y="45"
-        width="50"
-        height="82"
-        rx="18"
-        className="fill-background"
-      />
-      <path
-        d="M115 77h30M115 94h22"
-        stroke="currentColor"
-        strokeWidth="7"
-        strokeLinecap="round"
-      />
-      <circle cx="130" cy="144" r="5" className="fill-foreground" />
-      <path
-        d="M62 72c17-18 39-28 68-28s51 10 68 28"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
-        className="opacity-20"
-      />
-      <path
-        d="M79 92c13-13 30-20 51-20s38 7 51 20"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeLinecap="round"
-        className="opacity-20"
-      />
-      <path
-        d="M105 86l50 50"
-        stroke="currentColor"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
-
-function PrivacySvg(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 260 190" fill="none" aria-hidden="true" {...props}>
-      <path
-        d="M130 33l70 25v43c0 39-28 66-70 82-42-16-70-43-70-82V58l70-25z"
-        className="fill-muted/60"
-      />
-      <path
-        d="M100 92V78c0-18 12-31 30-31s30 13 30 31v14"
-        stroke="currentColor"
-        strokeWidth="9"
-        strokeLinecap="round"
-      />
-      <rect
-        x="89"
-        y="88"
-        width="82"
-        height="54"
-        rx="21"
-        className="fill-background"
-      />
-      <circle cx="130" cy="113" r="7" className="fill-foreground" />
-      <path
-        d="M130 120v12"
-        stroke="currentColor"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-      <path
-        d="M98 158h64"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        className="opacity-15"
-      />
-    </svg>
-  )
+function clerkErrorMessage(error: unknown, fallback: string) {
+  if (!error) return fallback
+  if (typeof error === "object" && error !== null) {
+    const maybeError = error as {
+      longMessage?: unknown
+      message?: unknown
+      errors?: { longMessage?: unknown; message?: unknown }[]
+    }
+    const nested = maybeError.errors?.[0]
+    const message =
+      nested?.longMessage ??
+      nested?.message ??
+      maybeError.longMessage ??
+      maybeError.message
+    if (typeof message === "string" && message.length > 0) return message
+  }
+  return fallback
 }
 
 function IntroIllustration({ index }: { index: number }) {
-  const svgClass = "relative h-full w-full text-foreground"
+  const rows = [
+    [
+      ["Breakfast", "620 kcal", "var(--accent-food)"],
+      ["Workout", "Upper A", "var(--accent-workout)"],
+      ["Water", "1.5 L", "var(--accent-water)"],
+    ],
+    [
+      ["Offline queue", "2 saved", "var(--accent-supplement)"],
+      ["Last sync", "12:44", "var(--accent-water)"],
+      ["Next", "Push when online", "var(--muted-foreground)"],
+    ],
+    [
+      ["Analytics", "Off", "var(--accent-progress)"],
+      ["Export", "Ready", "var(--accent-supplement)"],
+      ["Device", "Local cache", "var(--muted-foreground)"],
+    ],
+  ][index]
 
   return (
-    <IntroSvgShell>
-      {index === 0 && <TrackSvg className={svgClass} />}
-      {index === 1 && <OfflineSvg className={svgClass} />}
-      {index === 2 && <PrivacySvg className={svgClass} />}
-    </IntroSvgShell>
+    <div
+      className="app-rail-surface mx-auto w-full max-w-[19rem] px-4 py-3.5"
+      style={{ "--rail-color": rows[0][2] } as React.CSSProperties}
+    >
+      <div className="mb-3 flex items-baseline justify-between">
+        <span className="app-eyebrow text-muted-foreground/60">
+          Today ledger
+        </span>
+        <span className="text-[10px] font-semibold text-muted-foreground/45">
+          OneRep
+        </span>
+      </div>
+      <div className="divide-y divide-border/35">
+        {rows.map(([label, value, color]) => (
+          <div key={label} className="flex items-center gap-3 py-2.5">
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: color }}
+            />
+            <span className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold">
+              {label}
+            </span>
+            <span className="text-[12px] font-semibold text-muted-foreground/65 tabular-nums">
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
 export default function Login() {
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
-  const { data: session, isPending } = authClient.useSession()
+  const { isLoaded: authLoaded, isSignedIn } = useAuth()
+  const { signIn } = useSignIn()
+  const { signUp } = useSignUp()
   const [mode, setMode] = useState<LoginMode>("signin")
   const [showIntro, setShowIntro] = useState(() => {
     if (typeof window === "undefined") return false
@@ -228,20 +136,32 @@ export default function Login() {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [verificationCode, setVerificationCode] = useState("")
+  const [verificationMode, setVerificationMode] = useState<
+    "signup" | "signin" | null
+  >(null)
+  const [pendingEmail, setPendingEmail] = useState("")
   const [error, setError] = useState<string | undefined>()
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
+  const [oauthLoading, setOauthLoading] = useState<OAuthStrategy | null>(null)
+  const submitting = loading || oauthLoading !== null
 
   useEffect(() => {
-    if (!isPending && session) {
+    if (authLoaded && isSignedIn) {
       navigate("/", { replace: true })
     }
-  }, [session, isPending, navigate])
+  }, [authLoaded, isSignedIn, navigate])
 
   function switchMode(nextMode: LoginMode) {
     setMode(nextMode)
     setError(undefined)
     setMessage(undefined)
+    setVerificationCode("")
+    setVerificationMode(null)
+    setPendingEmail("")
+    void signIn?.reset()
+    void signUp?.reset()
   }
 
   function finishIntro(nextMode: LoginMode) {
@@ -261,108 +181,157 @@ export default function Login() {
     finishIntro("signup")
   }
 
-  async function handlePasswordReset() {
+  function handlePasswordReset() {
     setError(undefined)
     setMessage(undefined)
     const trimmed = email.trim()
-    if (!trimmed) {
-      setError("Enter your email first")
-      return
-    }
-
-    setLoading(true)
-    try {
-      const { error } = await authClient.requestPasswordReset({
-        email: trimmed,
-        redirectTo: getAuthCallbackUrl("/reset-password"),
-      })
-      if (error) {
-        setError(error.message ?? "Could not send reset email")
-        return
-      }
-      setMessage("If that email has an account, a reset link is on the way.")
-    } finally {
-      setLoading(false)
-    }
+    navigate(
+      trimmed
+        ? `/reset-password?email=${encodeURIComponent(trimmed)}`
+        : "/reset-password",
+      { replace: false }
+    )
   }
 
-  async function handleVerificationEmail(
-    targetEmail = email.trim(),
-    options?: { next?: string; redirect?: boolean }
-  ) {
-    const trimmed = targetEmail.trim()
-    if (!trimmed) {
-      setError("Enter your email first")
-      return
-    }
-
-    const next = options?.next
+  async function handleOAuth(strategy: OAuthStrategy) {
+    const provider = OAUTH_PROVIDERS.find((item) => item.strategy === strategy)
+    const providerLabel = provider?.label ?? "OAuth"
+    const finalPath = mode === "signup" ? "/onboarding" : "/"
     const callbackPath =
-      next === "onboarding"
-        ? "/email-verified?next=onboarding"
-        : "/email-verified"
+      mode === "signup"
+        ? `${SSO_CALLBACK_PATH}?next=onboarding`
+        : SSO_CALLBACK_PATH
 
-    setLoading(true)
     setError(undefined)
     setMessage(undefined)
+    setVerificationCode("")
+    setVerificationMode(null)
+    setPendingEmail("")
+    setOauthLoading(strategy)
+
     try {
-      const { error } = await authClient.sendVerificationEmail({
-        email: trimmed,
-        callbackURL: getAuthCallbackUrl(callbackPath),
-      })
-      if (error) {
-        setError(error.message ?? "Could not send verification email")
-        return
+      const result =
+        mode === "signup"
+          ? await signUp.sso({
+              strategy,
+              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
+              redirectUrl: getAuthCallbackUrl(finalPath),
+            })
+          : await signIn.sso({
+              strategy,
+              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
+              redirectUrl: getAuthCallbackUrl(finalPath),
+            })
+
+      if (result.error) {
+        setError(
+          clerkErrorMessage(
+            result.error,
+            `Could not continue with ${providerLabel}`
+          )
+        )
       }
-      rememberPendingVerification(trimmed, next)
-      if (options?.redirect) {
-        navigate("/verify-email-required", { replace: true })
-        return
-      }
-      setMessage("Verification email sent. Check your inbox.")
+    } catch (error) {
+      setError(
+        clerkErrorMessage(error, `Could not continue with ${providerLabel}`)
+      )
     } finally {
-      setLoading(false)
+      setOauthLoading(null)
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (verificationMode) {
+      await handleVerificationSubmit()
+      return
+    }
+
     setError(undefined)
     setMessage(undefined)
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail) {
+      setError("Enter your email")
+      return
+    }
+
     setLoading(true)
 
     try {
       if (mode === "signin") {
-        const { data, error } = await authClient.signIn.email({
-          email,
+        const { error } = await signIn.password({
+          identifier: trimmedEmail,
           password,
         })
         if (error) {
-          if (isEmailNotVerified(error)) {
-            await handleVerificationEmail(email, { redirect: true })
+          setError(clerkErrorMessage(error, "Sign in failed"))
+          return
+        }
+
+        if (signIn.status === "complete") {
+          const finalized = await signIn.finalize()
+          if (finalized.error) {
+            setError(clerkErrorMessage(finalized.error, "Sign in failed"))
             return
           }
-          setError(error.message ?? "Sign in failed")
+          posthog.identify(trimmedEmail, { email: trimmedEmail })
+          posthog.capture("user_signed_in", { method: "email" })
+          navigate("/", { replace: true })
           return
         }
-        posthog.identify(data?.user?.id ?? email, { email })
-        posthog.capture("user_signed_in", { method: "email" })
+
+        if (
+          signIn.status === "needs_second_factor" ||
+          signIn.status === "needs_client_trust"
+        ) {
+          const sent = await signIn.mfa.sendEmailCode()
+          if (sent.error) {
+            setError(clerkErrorMessage(sent.error, "Could not send code"))
+            return
+          }
+          setPendingEmail(trimmedEmail)
+          setVerificationMode("signin")
+          return
+        }
+
+        setError("Sign in needs another verification step.")
+        return
       } else {
-        const displayName = name.trim() || email.split("@")[0]
-        const { data, error } = await authClient.signUp.email({
-          email,
+        const displayName = name.trim() || trimmedEmail.split("@")[0]
+        const [firstName, ...restName] = displayName.split(/\s+/)
+        const { error } = await signUp.password({
+          emailAddress: trimmedEmail,
           password,
-          name: displayName,
-          callbackURL: getAuthCallbackUrl("/email-verified?next=onboarding"),
+          firstName,
+          ...(restName.length > 0 ? { lastName: restName.join(" ") } : {}),
         })
         if (error) {
-          setError(error.message ?? "Sign up failed")
+          setError(clerkErrorMessage(error, "Sign up failed"))
           return
         }
-        posthog.identify(data?.user?.id ?? email, { email, name: displayName })
-        posthog.capture("user_signed_up", { method: "email" })
-        rememberPendingVerification(email.trim(), "onboarding")
-        navigate("/verify-email-required", { replace: true })
+
+        if (signUp.status === "complete") {
+          const finalized = await signUp.finalize()
+          if (finalized.error) {
+            setError(clerkErrorMessage(finalized.error, "Sign up failed"))
+            return
+          }
+          posthog.identify(trimmedEmail, {
+            email: trimmedEmail,
+            name: displayName,
+          })
+          posthog.capture("user_signed_up", { method: "email" })
+          navigate("/onboarding", { replace: true })
+          return
+        }
+
+        const sent = await signUp.verifications.sendEmailCode()
+        if (sent.error) {
+          setError(clerkErrorMessage(sent.error, "Could not send code"))
+          return
+        }
+        setPendingEmail(trimmedEmail)
+        setVerificationMode("signup")
         return
       }
     } finally {
@@ -370,10 +339,84 @@ export default function Login() {
     }
   }
 
-  async function handleManualVerificationEmail() {
-    await handleVerificationEmail(email, {
-      redirect: true,
-    })
+  async function handleVerificationSubmit() {
+    setError(undefined)
+    setMessage(undefined)
+    if (!verificationCode.trim()) {
+      setError("Enter the code from your email")
+      return
+    }
+
+    setLoading(true)
+    try {
+      if (verificationMode === "signup") {
+        const verified = await signUp.verifications.verifyEmailCode({
+          code: verificationCode.trim(),
+        })
+        if (verified.error) {
+          setError(clerkErrorMessage(verified.error, "Verification failed"))
+          return
+        }
+        if (signUp.status !== "complete") {
+          setError("Sign up needs another verification step.")
+          return
+        }
+        const finalized = await signUp.finalize()
+        if (finalized.error) {
+          setError(clerkErrorMessage(finalized.error, "Sign up failed"))
+          return
+        }
+        posthog.identify(pendingEmail, { email: pendingEmail, name })
+        posthog.capture("user_signed_up", { method: "email" })
+        navigate("/onboarding", { replace: true })
+        return
+      }
+
+      if (verificationMode === "signin") {
+        const verified = await signIn.mfa.verifyEmailCode({
+          code: verificationCode.trim(),
+        })
+        if (verified.error) {
+          setError(clerkErrorMessage(verified.error, "Verification failed"))
+          return
+        }
+        if (signIn.status !== "complete") {
+          setError("Sign in needs another verification step.")
+          return
+        }
+        const finalized = await signIn.finalize()
+        if (finalized.error) {
+          setError(clerkErrorMessage(finalized.error, "Sign in failed"))
+          return
+        }
+        posthog.identify(pendingEmail, { email: pendingEmail })
+        posthog.capture("user_signed_in", { method: "email" })
+        navigate("/", { replace: true })
+        return
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendCode() {
+    if (!verificationMode) return
+    setLoading(true)
+    setError(undefined)
+    setMessage(undefined)
+    try {
+      const result =
+        verificationMode === "signup"
+          ? await signUp?.verifications.sendEmailCode()
+          : await signIn?.mfa.sendEmailCode()
+      if (result?.error) {
+        setError(clerkErrorMessage(result.error, "Could not send code"))
+        return
+      }
+      setMessage("A fresh code is on the way.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (showIntro) {
@@ -390,7 +433,7 @@ export default function Login() {
                 alt=""
                 className="h-8 w-8 rounded-full"
               />
-              <span className="text-[13px] font-semibold tracking-tight">
+              <span className="text-[13px] font-semibold">
                 OneRep
               </span>
             </div>
@@ -403,10 +446,10 @@ export default function Login() {
             <IntroIllustration index={introIndex} />
 
             <div className="mt-8 text-center short-phone:mt-5">
-              <p className="text-[10px] font-semibold tracking-[0.24em] text-muted-foreground/60 uppercase">
+              <p className="app-eyebrow text-muted-foreground/65">
                 {slide.kicker}
               </p>
-              <h1 className="mt-3 text-[2rem] leading-tight font-semibold tracking-tight short-phone:mt-2 short-phone:text-[1.72rem]">
+              <h1 className="app-display mt-3 text-[2.15rem] short-phone:mt-2 short-phone:text-[1.72rem]">
                 {slide.title}
               </h1>
               <p className="mx-auto mt-3 max-w-[240px] text-[14px] leading-6 text-muted-foreground/70 short-phone:mt-2 short-phone:text-[13px] short-phone:leading-5">
@@ -421,7 +464,7 @@ export default function Login() {
                   type="button"
                   aria-label={`Show ${item.kicker}`}
                   onClick={() => setIntroIndex(index)}
-                  className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/45"
+                  className="flex h-10 w-10 items-center justify-center rounded-[8px] transition-colors active:bg-muted/45"
                 >
                   <span
                     className={[
@@ -440,14 +483,14 @@ export default function Login() {
             <button
               type="button"
               onClick={handleIntroNext}
-              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 short-phone:h-12 short-phone:rounded-[20px]"
+              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 short-phone:h-12"
             >
               {isLastSlide ? "Get started" : "Next"}
             </button>
             <button
               type="button"
               onClick={() => finishIntro("signin")}
-              className="h-[48px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
+              className="h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
             >
               Sign in
             </button>
@@ -466,13 +509,13 @@ export default function Login() {
             alt=""
             className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="rounded-[28px] border border-border/70 bg-card p-3.5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3">
-          <div className="mb-3 grid grid-cols-2 rounded-full bg-muted/65 p-1 short-phone:mb-2.5">
+        <section className="app-rail-surface p-3.5 short-phone:p-3">
+          <div className="app-segmented mb-3 grid-cols-2 short-phone:mb-2.5">
             {(["signin", "signup"] as LoginMode[]).map((item) => {
               const active = mode === item
               return (
@@ -482,11 +525,12 @@ export default function Login() {
                   aria-pressed={active}
                   onClick={() => switchMode(item)}
                   className={[
-                    "h-10 rounded-full text-[12px] font-semibold tracking-tight transition-all short-phone:h-9",
+                    "app-segmented-button h-10 text-[12px] transition-all short-phone:h-9",
                     active
                       ? "bg-background text-foreground shadow-sm shadow-black/[0.04]"
                       : "text-muted-foreground active:text-foreground",
                   ].join(" ")}
+                  data-active={active}
                 >
                   {item === "signin" ? "Sign in" : "Sign up"}
                 </button>
@@ -498,7 +542,35 @@ export default function Login() {
             onSubmit={handleSubmit}
             className="space-y-2.5 short-phone:space-y-2"
           >
-            {mode === "signup" && (
+            {verificationMode ? (
+              <>
+                <div className="rounded-[10px] border border-border/60 bg-background px-4 py-3">
+                  <p className={LABEL_CLASS}>Email code</p>
+                  <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground/65">
+                    Enter the 6-digit code sent to{" "}
+                    {pendingEmail || "your email"}.
+                  </p>
+                </div>
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>Code</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={verificationCode}
+                    onChange={(event) =>
+                      setVerificationCode(event.target.value)
+                    }
+                    placeholder="123456"
+                    maxLength={6}
+                    pattern="[0-9]*"
+                    required
+                    autoComplete="one-time-code"
+                    disabled={submitting}
+                    className={CODE_INPUT_CLASS}
+                  />
+                </label>
+              </>
+            ) : mode === "signup" ? (
               <label className={FIELD_CLASS}>
                 <span className={LABEL_CLASS}>Name</span>
                 <input
@@ -508,59 +580,59 @@ export default function Login() {
                   placeholder="Your name"
                   required
                   autoComplete="name"
-                  disabled={loading}
+                  disabled={submitting}
                   className={INPUT_CLASS}
                 />
               </label>
+            ) : null}
+
+            {!verificationMode && (
+              <>
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>Email</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    autoComplete="email"
+                    disabled={submitting}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+
+                <label className={FIELD_CLASS}>
+                  <span className={LABEL_CLASS}>Password</span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete={
+                      mode === "signin" ? "current-password" : "new-password"
+                    }
+                    disabled={submitting}
+                    className={INPUT_CLASS}
+                  />
+                </label>
+              </>
             )}
 
-            <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                disabled={loading}
-                className={INPUT_CLASS}
-              />
-            </label>
+            {mode === "signup" && !verificationMode && (
+              <div id="clerk-captcha" />
+            )}
 
-            <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                required
-                autoComplete={
-                  mode === "signin" ? "current-password" : "new-password"
-                }
-                disabled={loading}
-                className={INPUT_CLASS}
-              />
-            </label>
-
-            {mode === "signin" && (
+            {mode === "signin" && !verificationMode && (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
                 <button
                   type="button"
                   onClick={handlePasswordReset}
-                  disabled={loading}
+                  disabled={submitting}
                   className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
                 >
                   Forgot password?
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleManualVerificationEmail()}
-                  disabled={loading}
-                  className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
-                >
-                  Resend verification
                 </button>
               </div>
             )}
@@ -568,45 +640,117 @@ export default function Login() {
             {error && (
               <p
                 role="alert"
-                className="rounded-[18px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
+                className="rounded-[10px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
               >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="rounded-[18px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+              <p className="rounded-[10px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
                 {message}
               </p>
             )}
 
             <button
               type="submit"
-              disabled={loading}
-              className="h-[52px] w-full rounded-[22px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12 short-phone:rounded-[20px]"
+              disabled={submitting}
+              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
             >
               {loading
-                ? mode === "signin"
-                  ? "Signing in…"
-                  : "Creating…"
-                : mode === "signin"
-                  ? "Sign in"
-                  : "Create account"}
+                ? verificationMode
+                  ? "Checking…"
+                  : mode === "signin"
+                    ? "Signing in…"
+                    : "Creating…"
+                : verificationMode
+                  ? "Verify code"
+                  : mode === "signin"
+                    ? "Sign in"
+                    : "Create account"}
             </button>
           </form>
 
-          <p className="mt-4 text-center text-[13px] text-muted-foreground/60 short-phone:mt-3">
-            {mode === "signin" ? "New here?" : "Have an account?"}{" "}
-            <button
-              type="button"
-              onClick={() =>
-                switchMode(mode === "signin" ? "signup" : "signin")
-              }
-              className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60"
-            >
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
+          {verificationMode ? (
+            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground/60 short-phone:mt-3">
+              <button
+                type="button"
+                onClick={() => void handleResendCode()}
+                disabled={submitting}
+                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+              >
+                Resend code
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode(mode)}
+                disabled={submitting}
+                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+              >
+                Start over
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 space-y-3 short-phone:mt-3 short-phone:space-y-2.5">
+                <div
+                  className="flex items-center gap-3 px-1"
+                  aria-hidden="true"
+                >
+                  <span className="h-px flex-1 bg-border/70" />
+                  <span className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/45 uppercase">
+                    or
+                  </span>
+                  <span className="h-px flex-1 bg-border/70" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {OAUTH_PROVIDERS.map((provider) => {
+                    const Icon = provider.icon
+                    const isProviderLoading = oauthLoading === provider.strategy
+
+                    return (
+                      <button
+                        key={provider.strategy}
+                        type="button"
+                        onClick={() => void handleOAuth(provider.strategy)}
+                        disabled={submitting}
+                        aria-label={`Continue with ${provider.label}`}
+                        className="flex h-12 items-center justify-center gap-2 rounded-[10px] border border-border/70 bg-background text-[13px] font-semibold text-foreground transition-colors active:bg-muted/55 disabled:opacity-50 short-phone:h-11"
+                      >
+                        <Icon
+                          size={18}
+                          weight={
+                            provider.strategy === "oauth_apple"
+                              ? "fill"
+                              : "bold"
+                          }
+                          aria-hidden="true"
+                        />
+                        <span>
+                          {isProviderLoading ? "Opening..." : provider.label}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <p className="mt-4 text-center text-[13px] text-muted-foreground/60 short-phone:mt-3">
+                {mode === "signin" ? "New here?" : "Have an account?"}{" "}
+                <button
+                  type="button"
+                  onClick={() =>
+                    switchMode(mode === "signin" ? "signup" : "signin")
+                  }
+                  disabled={submitting}
+                  className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+                >
+                  {mode === "signin" ? "Sign up" : "Sign in"}
+                </button>
+              </p>
+            </>
+          )}
         </section>
       </main>
     </div>

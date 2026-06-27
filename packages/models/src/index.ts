@@ -8,3 +8,4 @@ export * from "./presets";
 export * from "./schedules";
 export * from "./workoutLogs";
 export * from "./foods";
+export * from "./supplements";

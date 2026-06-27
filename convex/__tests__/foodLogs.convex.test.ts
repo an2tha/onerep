@@ -20,6 +20,68 @@ describe("foodLogs Convex functions", () => {
     ).rejects.toThrow();
   });
 
+  test("getRecent returns bounded authenticated logs in descending date order", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "food-recent-user" }, async () => {
+      await t.mutation(api.logs.foodLogs.setDay, {
+        date: "2024-01-14",
+        entries: [
+          {
+            id: "a",
+            name: "Day 1",
+            calories: 100,
+            protein: 1,
+            carbs: 2,
+            fat: 3,
+            meal: "breakfast",
+            loggedAt: "2024-01-14T08:00:00.000Z",
+          },
+        ],
+      });
+      await t.mutation(api.logs.foodLogs.setDay, {
+        date: "2024-01-15",
+        entries: [
+          {
+            id: "b",
+            name: "Day 2",
+            calories: 200,
+            protein: 2,
+            carbs: 3,
+            fat: 4,
+            meal: "breakfast",
+            loggedAt: "2024-01-15T08:00:00.000Z",
+          },
+        ],
+      });
+      await t.mutation(api.logs.foodLogs.setDay, {
+        date: "2024-01-16",
+        entries: [
+          {
+            id: "c",
+            name: "Day 3",
+            calories: 300,
+            protein: 3,
+            carbs: 4,
+            fat: 5,
+            meal: "breakfast",
+            loggedAt: "2024-01-16T08:00:00.000Z",
+          },
+        ],
+      });
+
+      const recent = await t.query(api.logs.foodLogs.getRecent, {
+        beforeOrOn: "2024-01-16",
+        limit: 2,
+      });
+
+      expect(recent.map((day) => day.date)).toEqual([
+        "2024-01-16",
+        "2024-01-15",
+      ]);
+    });
+  });
+
   test("inserts a new food log document", async () => {
     const t = convexTest(schema, modules);
     const userId = "food-test-user";

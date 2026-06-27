@@ -3,6 +3,7 @@ import {
   getCompletedSetCountsByExercise,
   getExerciseIdsFromHistory,
   getLoggedExerciseId,
+  toWorkoutLogRecords,
 } from "../exercise-history"
 
 describe("exercise history helpers", () => {
@@ -60,5 +61,42 @@ describe("exercise history helpers", () => {
       "bench-press": 2,
       "legacy-squat": 2,
     })
+  })
+
+  test("normalizes history logs for muscle analytics", () => {
+    expect(
+      toWorkoutLogRecords([
+        {
+          date: "2026-04-15",
+          exercises: [
+            {
+              id: "bench-press",
+              sets: [{ completed: true }, { completed: 0 }],
+            },
+            {
+              exerciseId: "legacy-squat",
+              sets: [{ completed: "yes" }],
+            },
+            {
+              sets: [{ completed: true }],
+            },
+          ],
+        },
+      ])
+    ).toEqual([
+      {
+        date: "2026-04-15",
+        exercises: [
+          {
+            id: "bench-press",
+            sets: [{ completed: true }, { completed: false }],
+          },
+          {
+            id: "legacy-squat",
+            sets: [{ completed: true }],
+          },
+        ],
+      },
+    ])
   })
 })

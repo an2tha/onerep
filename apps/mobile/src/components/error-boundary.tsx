@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
+import { useClerk } from "@clerk/react"
 import { ArrowCounterClockwise, Warning } from "@phosphor-icons/react"
 import {
   handleUnauthenticatedSession,
@@ -11,11 +12,15 @@ interface Props {
   label?: string
 }
 
+type ErrorBoundaryInnerProps = Props & {
+  signOut?: () => void | Promise<void>
+}
+
 interface State {
   error: Error | null
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
   state: State = { error: null }
 
   static getDerivedStateFromError(error: Error): State {
@@ -25,7 +30,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack)
     if (isUnauthenticatedError(error)) {
-      handleUnauthenticatedSession()
+      void handleUnauthenticatedSession({ signOut: this.props.signOut })
     }
   }
 
@@ -70,4 +75,9 @@ export class ErrorBoundary extends Component<Props, State> {
       </div>
     )
   }
+}
+
+export function ErrorBoundary(props: Props) {
+  const { signOut } = useClerk()
+  return <ErrorBoundaryInner {...props} signOut={signOut} />
 }

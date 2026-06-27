@@ -8,14 +8,19 @@ import {
   currentDateKey,
   defaultFoodPortion,
   detectTimeZone,
+  findSmartMealPresetSuggestion,
+  foodLogEntriesFromMealPreset,
   foodPortionLabel,
   gramsFromFoodPortion,
+  mealEntriesSignature,
+  mealPresetTemplateEntries,
   nutritionDetailTotals,
   parseFoodPortionLabel,
   readAllMealCategories,
   addMealCategory,
   removeMealCategory,
   type FoodLogEntry,
+  type MealPreset,
 } from "../food-log";
 
 // ── DEFAULT_MEAL_CATEGORIES ───────────────────────────────────────────────────
@@ -153,6 +158,130 @@ describe("nutritionDetailTotals", () => {
     expect(totals.fiber).toBe(2);
     expect(totals.sodium).toBe(400);
     expect(totals.calcium).toBe(40);
+  });
+
+  test("uses logged quantity grams when calories and macros are unavailable", () => {
+    const totals = nutritionDetailTotals([
+      foodEntry({
+        quantityGrams: 150,
+        openFoodFacts: {
+          code: "quantity",
+          nutriments: {
+            fiber_100g: 4,
+          },
+        },
+      }),
+    ]);
+
+    expect(totals.fiber).toBe(6);
+  });
+});
+
+describe("smart meal preset helpers", () => {
+  const breakfastEntries = [
+    foodEntry({
+      id: "oats-1",
+      name: "Oats (60 g)",
+      calories: 230,
+      protein: 8,
+      carbs: 38,
+      fat: 4,
+      loggedAt: "2026-06-20T07:30:00.000Z",
+      meal: "breakfast",
+    }),
+    foodEntry({
+      id: "coffee-1",
+      name: "Coffee",
+      calories: 20,
+      protein: 1,
+      carbs: 2,
+      fat: 0,
+      loggedAt: "2026-06-20T07:35:00.000Z",
+      meal: "breakfast",
+    }),
+  ];
+
+  function breakfastPreset(): MealPreset {
+    const entries = mealPresetTemplateEntries(breakfastEntries);
+    return {
+      _id: "preset-1",
+      name: "Usual Breakfast",
+      meal: "breakfast",
+      signature: mealEntriesSignature(entries),
+      entries,
+      updatedAt: 10,
+    };
+  }
+
+  test("suggests saving a meal repeated across recent logs", () => {
+    const suggestion = findSmartMealPresetSuggestion({
+      recentDays: [
+        { date: "2026-06-21", entries: breakfastEntries },
+        {
+          date: "2026-06-20",
+          entries: breakfastEntries
+            .map((entry) => ({
+              ...entry,
+              id: `${entry.id}-again`,
+              loggedAt: "2026-06-20T08:00:00.000Z",
+            }))
+            .reverse(),
+        },
+      ],
+      presets: [],
+      todayEntries: [],
+      currentMeal: "breakfast",
+    });
+
+    expect(suggestion?.kind).toBe("save");
+    if (suggestion?.kind !== "save") return;
+    expect(suggestion.name).toBe("Usual Breakfast");
+    expect(suggestion.count).toBe(2);
+    expect(suggestion.entries.map((entry) => entry.name)).toEqual([
+      "Oats (60 g)",
+      "Coffee",
+    ]);
+  });
+
+  test("suggests logging the saved usual meal for the current meal window", () => {
+    const preset = breakfastPreset();
+    const suggestion = findSmartMealPresetSuggestion({
+      recentDays: [],
+      presets: [preset],
+      todayEntries: [],
+      currentMeal: "breakfast",
+    });
+
+    expect(suggestion?.kind).toBe("log");
+    if (suggestion?.kind !== "log") return;
+    expect(suggestion.preset.name).toBe("Usual Breakfast");
+    expect(suggestion.mealLabel).toBe("Breakfast");
+  });
+
+  test("does not suggest logging a saved usual meal already in today's diary", () => {
+    const preset = breakfastPreset();
+    const suggestion = findSmartMealPresetSuggestion({
+      recentDays: [],
+      presets: [preset],
+      todayEntries: breakfastEntries,
+      currentMeal: "breakfast",
+    });
+
+    expect(suggestion).toBeNull();
+  });
+
+  test("creates fresh food log entries from a meal preset", () => {
+    const preset = breakfastPreset();
+    const entries = foodLogEntriesFromMealPreset(preset, {
+      meal: "lunch",
+      loggedAt: "2026-06-22T12:00:00.000Z",
+    });
+
+    expect(entries).toHaveLength(2);
+    expect(entries[0].id).toBeTruthy();
+    expect(entries[0].meal).toBe("lunch");
+    expect(entries[0].loggedAt).toBe("2026-06-22T12:00:00.000Z");
+    expect(entries[0].name).toBe("Oats (60 g)");
   });
 });
 

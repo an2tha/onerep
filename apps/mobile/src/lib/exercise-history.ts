@@ -1,3 +1,5 @@
+import type { WorkoutLogRecord } from "./muscle-volume"
+
 export type ExerciseHistoryEntry = {
   id?: unknown
   exerciseId?: unknown
@@ -6,6 +8,10 @@ export type ExerciseHistoryEntry = {
 
 export type WorkoutHistoryEntry = {
   exercises?: ExerciseHistoryEntry[]
+}
+
+export type WorkoutHistoryLog = WorkoutHistoryEntry & {
+  date: string
 }
 
 export function getLoggedExerciseId(exercise: ExerciseHistoryEntry) {
@@ -53,4 +59,27 @@ export function getCompletedSetCountsByExercise(
   }
 
   return counts
+}
+
+export function toWorkoutLogRecords(
+  history: WorkoutHistoryLog[]
+): WorkoutLogRecord[] {
+  return history.map((log) => ({
+    date: log.date,
+    exercises: (log.exercises ?? [])
+      .map((exercise) => {
+        const id = getLoggedExerciseId(exercise)
+        if (!id) return null
+
+        return {
+          id,
+          sets: (exercise.sets ?? []).map((set) => ({
+            completed: Boolean(set.completed),
+          })),
+        }
+      })
+      .filter((exercise): exercise is WorkoutLogRecord["exercises"][number] =>
+        Boolean(exercise)
+      ),
+  }))
 }

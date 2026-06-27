@@ -1,12 +1,12 @@
 import { mutation, query } from "../_generated/server";
 import type { GenericMutationCtx, GenericQueryCtx } from "convex/server";
 import type { DataModel } from "../_generated/dataModel";
-import { authComponent } from "../auth";
+import { getAuthUser } from "../lib/auth";
 
 async function requireUser(
   ctx: GenericMutationCtx<DataModel> | GenericQueryCtx<DataModel>,
 ) {
-  const user = await authComponent.getAuthUser(ctx);
+  const user = await getAuthUser(ctx);
   if (!user) throw new Error("Not authenticated");
   return user;
 }

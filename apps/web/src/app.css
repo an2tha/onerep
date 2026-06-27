@@ -677,6 +677,7 @@ h1 {
 .detail-section,
 .workflow-section,
 .truth-section,
+.pricing-section,
 .screen-row,
 .cta-panel {
   margin-bottom: 96px;
@@ -707,6 +708,7 @@ h2 {
 
 .principle-card,
 .detail-card,
+.price-card,
 .mini-dashboard,
 .cta-panel {
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
@@ -761,6 +763,8 @@ h2 {
 
 .principle-card p,
 .screen-copy p,
+.pricing-copy > p,
+.price-card p,
 .cta-panel p {
   position: relative;
   z-index: 1;
@@ -956,6 +960,277 @@ h2 {
   margin-top: 0.55em;
   border-radius: 50%;
   background: var(--foreground);
+  content: "";
+  flex: 0 0 auto;
+}
+
+.pricing-section {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(24px, 4vw, 46px);
+  border: 1px solid color-mix(in srgb, var(--foreground) 9%, transparent);
+  border-radius: 42px;
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      color-mix(in srgb, var(--foreground) 11%, transparent),
+      transparent 22rem
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--foreground) 4%, transparent) 0 1px,
+      transparent 1px 18px
+    ),
+    var(--background);
+}
+
+.pricing-section::before {
+  position: absolute;
+  right: clamp(18px, 4vw, 54px);
+  top: -0.18em;
+  color: color-mix(in srgb, var(--foreground) 4%, transparent);
+  content: "$5";
+  font-size: clamp(8rem, 18vw, 19rem);
+  font-weight: 800;
+  letter-spacing: -0.13em;
+  line-height: 0.8;
+  pointer-events: none;
+}
+
+.pricing-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.78fr) minmax(280px, 1fr);
+  gap: clamp(22px, 5vw, 72px);
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.pricing-copy h2 {
+  max-width: 680px;
+}
+
+.pricing-copy > p {
+  max-width: 680px;
+  margin: 0 0 18px;
+  font-size: clamp(1.02rem, 1.7vw, 1.2rem);
+}
+
+.pricing-cards {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.price-card {
+  position: relative;
+  min-height: 370px;
+  overflow: hidden;
+  padding: clamp(22px, 3vw, 30px);
+  border-radius: 34px;
+}
+
+.price-card::after {
+  position: absolute;
+  right: -0.08em;
+  bottom: -0.18em;
+  color: color-mix(in srgb, var(--foreground) 4%, transparent);
+  content: attr(data-ghost);
+  font-size: clamp(7rem, 14vw, 13rem);
+  font-weight: 800;
+  letter-spacing: -0.12em;
+  line-height: 0.8;
+}
+
+.primary-plan {
+  min-height: 370px;
+}
+
+.free-card::after {
+  content: "FREE";
+}
+
+.free-card .price-tag strong {
+  color: currentColor;
+}
+
+[data-theme="dark"] .free-card.primary-plan {
+  color: #050505;
+  border-color: color-mix(in srgb, white 72%, transparent);
+  background: white;
+  box-shadow: 0 26px 86px color-mix(in srgb, white 16%, transparent);
+}
+
+[data-theme="dark"] .free-card.primary-plan::after {
+  color: color-mix(in srgb, black 7%, transparent);
+}
+
+.ai-card.secondary-plan {
+  align-self: stretch;
+  min-height: auto;
+  width: 100%;
+  padding: 22px 24px;
+  color: var(--background);
+  background:
+    radial-gradient(
+      circle at 78% 18%,
+      color-mix(in srgb, var(--background) 16%, transparent),
+      transparent 16rem
+    ),
+    var(--foreground);
+}
+
+.ai-card.secondary-plan::after {
+  right: 0;
+  bottom: 0;
+  color: color-mix(in srgb, var(--background) 8%, transparent);
+  content: "AI";
+  font-size: clamp(3.4rem, 8vw, 5.4rem);
+}
+
+.ai-card.secondary-plan .price-tag {
+  margin-bottom: 12px;
+}
+
+.ai-card.secondary-plan .price-tag strong {
+  font-size: clamp(3rem, 8vw, 4.8rem);
+}
+
+.ai-card.secondary-plan .price-tag span {
+  margin-bottom: 0.62rem;
+  font-size: 0.88rem;
+}
+
+[data-theme="dark"] .ai-card.secondary-plan {
+  color: var(--foreground);
+  border-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+  background:
+    radial-gradient(
+      circle at 78% 18%,
+      color-mix(in srgb, var(--foreground) 9%, transparent),
+      transparent 16rem
+    ),
+    color-mix(in srgb, var(--card) 92%, transparent);
+}
+
+[data-theme="dark"] .ai-card.secondary-plan::after {
+  color: color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+.price-card-top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(34px, 6vw, 68px);
+}
+
+.price-card-top span {
+  color: color-mix(in srgb, currentColor 62%, transparent);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.price-card-top strong {
+  max-width: 13rem;
+  color: color-mix(in srgb, currentColor 74%, transparent);
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  line-height: 1.35;
+  text-align: right;
+  text-transform: uppercase;
+}
+
+.price-tag {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.price-tag strong {
+  font-size: clamp(5.6rem, 12vw, 10rem);
+  font-weight: 800;
+  letter-spacing: -0.14em;
+  line-height: 0.76;
+}
+
+.price-tag span {
+  margin-bottom: 0.8rem;
+  color: color-mix(in srgb, currentColor 62%, transparent);
+  font-size: 0.94rem;
+  font-weight: 850;
+}
+
+.price-action-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.price-subscribe {
+  min-height: 44px;
+  margin-bottom: 0.38rem;
+  color: var(--foreground);
+  background: var(--background);
+  box-shadow: none;
+}
+
+.price-subscribe:hover {
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--shadow) 56%, transparent);
+}
+
+[data-theme="dark"] .ai-card.secondary-plan .price-subscribe {
+  color: var(--background);
+  background: var(--foreground);
+}
+
+.price-card p {
+  max-width: 520px;
+  margin-bottom: 22px;
+  color: color-mix(in srgb, currentColor 66%, transparent);
+}
+
+.price-card ul {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.price-card li {
+  display: flex;
+  gap: 10px;
+  color: color-mix(in srgb, currentColor 68%, transparent);
+  font-size: 0.95rem;
+  font-weight: 680;
+  line-height: 1.38;
+}
+
+.price-card li::before {
+  width: 7px;
+  height: 7px;
+  margin-top: 0.48em;
+  border: 1px solid currentColor;
+  border-radius: 50%;
   content: "";
   flex: 0 0 auto;
 }
@@ -1433,6 +1708,8 @@ h2 {
   .workflow-grid,
   .truth-section,
   .truth-columns,
+  .pricing-copy,
+  .pricing-cards,
   .split-page,
   .copy-grid,
   .support-grid,
@@ -1519,6 +1796,15 @@ h2 {
 
   .screen-cards {
     min-height: 510px;
+  }
+
+  .price-card {
+    min-height: 320px;
+  }
+
+  .ai-card.secondary-plan {
+    min-height: auto;
+    width: 100%;
   }
 
   .screen-cards img {
