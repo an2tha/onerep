@@ -8,9 +8,10 @@ import {
   Ruler,
   X,
 } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { toast } from "sonner"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
@@ -659,11 +660,12 @@ function MetricSearchSheet({
   onAddMetric: (id: string) => void
   onRemoveMetric: (id: string) => void
   onAddCustomMetric: (title: string) => void
-  onAiGenerate: (prompt: string) => void
+  onAiGenerate: (prompt: string) => Promise<void> | void
   onClose: () => void
 }) {
   const [query, setQuery] = useState("")
   const [aiPrompt, setAiPrompt] = useState("")
+  const [aiBusy, setAiBusy] = useState(false)
   const normalizedQuery = query.trim().toLowerCase()
   const visibleMetrics = normalizedQuery
     ? metrics.filter((metric) =>
@@ -720,13 +722,20 @@ function MetricSearchSheet({
               />
               <button
                 type="button"
-                onClick={() => {
-                  onAiGenerate(aiPrompt)
-                  setAiPrompt("")
+                disabled={aiBusy}
+                onClick={async () => {
+                  if (aiBusy) return
+                  setAiBusy(true)
+                  try {
+                    await onAiGenerate(aiPrompt)
+                    setAiPrompt("")
+                  } finally {
+                    setAiBusy(false)
+                  }
                 }}
-                className="app-button app-button-primary h-10 shrink-0 px-3 text-[12px]"
+                className="app-button app-button-primary h-10 shrink-0 px-3 text-[12px] disabled:opacity-45"
               >
-                Generate
+                {aiBusy ? "Generating" : "Generate"}
               </button>
             </div>
           </div>
@@ -916,6 +925,7 @@ export default function Progress() {
     limit: 30,
   })
   const goals = useQuery(api.users.users.getEffectiveGoals, { date: todayKey })
+  const generateMetricSet = useAction(api.ai.metricGeneration.generateMetricSet)
 
   const generateUploadUrl = useMutation(api.bodyProgress.generateUploadUrl)
   const saveMeasurement = useOfflineMutation(
@@ -944,6 +954,7 @@ export default function Progress() {
   )
   const [sheetOpen, setSheetOpen] = useState(false)
   const [metricSheetOpen, setMetricSheetOpen] = useState(false)
+  useBottomBarAction(() => setSheetOpen(true))
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [...DEFAULT_METRIC_IDS]
     try {
@@ -1407,40 +1418,48 @@ export default function Progress() {
     addMetric(metric.id)
   }
 
-  function aiGenerateMetrics(prompt: string) {
+  async function aiGenerateMetrics(prompt: string) {
     const clean = prompt.trim()
-    const terms = clean.toLowerCase().split(/\W+/).filter(Boolean)
-    const matches = metricCatalog
-      .map((metric) => {
-        const haystack = [
-          metric.title,
-          metric.group,
-          metric.description,
-          ...metric.keywords,
-        ]
-          .join(" ")
-          .toLowerCase()
-        return {
-          id: metric.id,
-          score: terms.reduce(
-            (score, term) => score + (haystack.includes(term) ? 1 : 0),
-            0
-          ),
-        }
-      })
-      .filter((match) => match.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 4)
-      .map((match) => match.id)
-
-    if (matches.length > 0) {
-      setSelectedMetricIds((current) => [...new Set([...current, ...matches])])
-      toast.success("Generated metric set")
+    if (!clean) {
+      toast.message("Describe what you want to track")
       return
     }
 
-    addCustomMetric(clean || "AI custom metric")
-    toast.message("Added a custom metric idea")
+    try {
+      const result = await generateMetricSet({
+        subapp: "progress",
+        prompt: clean,
+        maxResults: 4,
+        metrics: metricCatalog.map((metric) => ({
+          id: metric.id,
+          title: metric.title,
+          group: metric.group,
+          description: metric.description,
+          keywords: metric.keywords,
+        })),
+      })
+
+      if (result.metricIds.length > 0) {
+        setSelectedMetricIds((current) => [
+          ...new Set([...current, ...result.metricIds]),
+        ])
+      }
+      if (result.customMetricTitle) addCustomMetric(result.customMetricTitle)
+
+      if (result.metricIds.length > 0 || result.customMetricTitle) {
+        toast.success(
+          result.source === "openai"
+            ? "AI generated metric set"
+            : "Generated metric set"
+        )
+        return
+      }
+
+      toast.message("No matching metrics found")
+    } catch (error) {
+      console.error("Failed to generate metrics:", error)
+      toast.error("Could not generate metrics")
+    }
   }
 
   return (
