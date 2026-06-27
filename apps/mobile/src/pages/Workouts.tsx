@@ -1352,7 +1352,7 @@ export default function Workouts() {
                           <button
                             type="button"
                             onClick={() => removeSlot(day)}
-                            className="app-icon-button absolute top-1 right-1 z-10 h-6 w-6 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
+                            className="app-icon-button absolute top-1 right-1 z-10 h-8 w-8 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
                             aria-label={`Remove workout from ${day}`}
                           >
                             <X size={11} weight="bold" />
@@ -1539,7 +1539,7 @@ export default function Workouts() {
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            className="app-icon-button h-8 w-8 shrink-0 bg-transparent md:h-9 md:w-9"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
                             aria-label={`Edit ${preset.name}`}
                           >
                             <PencilSimple size={12} />
@@ -1548,7 +1548,7 @@ export default function Workouts() {
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => duplicatePreset(preset)}
-                            className="app-icon-button h-8 w-8 shrink-0 bg-transparent md:h-9 md:w-9"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
                             aria-label={`Duplicate ${preset.name}`}
                           >
                             <Copy size={12} />
@@ -1557,7 +1557,7 @@ export default function Workouts() {
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setConfirmDeleteId(preset.id)}
-                            className="app-icon-button h-8 w-8 shrink-0 bg-transparent text-destructive/70 md:h-9 md:w-9"
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-destructive/70"
                             aria-label={`Delete ${preset.name}`}
                           >
                             <Trash size={12} />

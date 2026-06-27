@@ -113,6 +113,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
       pathname.startsWith("/nutrition") ||
       pathname.startsWith("/water") ||
       pathname.startsWith("/supplements") ||
+      pathname.startsWith("/progress") ||
       pathname.startsWith("/workouts") ||
       pathname.startsWith("/exercises") ||
       pathname.startsWith("/workout"))
