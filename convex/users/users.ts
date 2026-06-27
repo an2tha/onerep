@@ -465,6 +465,7 @@ export const exportMyData = query({
     const [
       preferences,
       recipes,
+      mealPresets,
       onboardingProfiles,
       healthProfiles,
       presets,
@@ -477,6 +478,7 @@ export const exportMyData = query({
       supplementIntakeLogs,
       bodyMeasurements,
       dailyCheckIns,
+      aiUsage,
       activeWorkouts,
       customExercises,
     ] = await Promise.all([
@@ -486,6 +488,10 @@ export const exportMyData = query({
         .collect(),
       ctx.db
         .query("recipes")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("mealPresets")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
@@ -537,6 +543,10 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
+        .query("aiUsage")
+        .withIndex("by_userId_month", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
         .query("activeWorkouts")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
@@ -556,6 +566,7 @@ export const exportMyData = query({
       data: {
         preferences,
         recipes,
+        mealPresets,
         onboardingProfiles,
         healthProfiles,
         presets,
@@ -568,6 +579,7 @@ export const exportMyData = query({
         supplementIntakeLogs,
         bodyMeasurements,
         dailyCheckIns,
+        aiUsage,
         activeWorkouts,
         customExercises,
       },
