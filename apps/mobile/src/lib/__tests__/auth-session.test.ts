@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test"
 import {
   clearLocalStorageCache,
   clearUnauthenticatedLocalState,
+  handleUnauthenticatedSession,
   isUnauthenticatedError,
 } from "../auth-session"
 
@@ -78,6 +79,22 @@ describe("auth session helpers", () => {
     clearUnauthenticatedLocalState()
 
     expect(localStorage.getItem("onerep:offline-owner:v1")).toBeNull()
+    expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
+  })
+
+  test("signs out the auth client before redirecting to login", async () => {
+    const events: string[] = []
+
+    await handleUnauthenticatedSession({
+      signOut: async () => {
+        events.push("signOut")
+      },
+      navigate: (to, options) => {
+        events.push(`navigate:${String(to)}:${String(options?.replace)}`)
+      },
+    })
+
+    expect(events).toEqual(["signOut", "navigate:/login:true"])
     expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
   })
 })
