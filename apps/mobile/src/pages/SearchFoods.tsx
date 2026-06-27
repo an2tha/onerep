@@ -272,7 +272,7 @@ export default function SearchFoods() {
       <div className="desktop-canvas flex min-h-svh flex-col bg-background">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
           <div
-            className="flex items-center gap-3 px-4 pb-3"
+            className="flex items-center gap-3 px-[var(--app-page-x)] pb-4"
             style={{
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
@@ -319,10 +319,10 @@ export default function SearchFoods() {
             </div>
           </div>
 
-          <div className="mx-4 h-px bg-border/40" />
+          <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
 
           <div
-            className="flex-1 overflow-y-auto px-4 pt-2 [&::-webkit-scrollbar]:hidden"
+            className="flex-1 overflow-y-auto px-[var(--app-page-x)] pt-3 [&::-webkit-scrollbar]:hidden"
             style={{
               paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
             }}

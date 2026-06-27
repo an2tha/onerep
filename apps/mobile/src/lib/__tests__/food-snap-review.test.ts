@@ -4,6 +4,7 @@ import {
   mapSnapDetectionsToReviewItems,
   parseSnapQuantityGrams,
   snapDetectionsFromAiResult,
+  toConvexSafe,
   type FoodSearchFn,
 } from "../food-snap-review"
 import type { FoodResult } from "@repo/models"
@@ -58,6 +59,23 @@ describe("snap review helpers", () => {
     ])
   })
 
+  test("keeps AI-provided search queries for broader matching", () => {
+    const detections = snapDetectionsFromAiResult({
+      ingredients: [
+        {
+          name: "Grilled chicken pieces",
+          quantityInGrams: "120 g",
+          searchQueries: ["chicken breast", "cooked chicken", "grilled chicken"],
+        },
+      ],
+    })
+
+    expect(detections[0]).toMatchObject({
+      name: "Grilled chicken pieces",
+      searchQueries: ["chicken breast", "cooked chicken", "grilled chicken"],
+    })
+  })
+
   test("maps detections to searchable food entries and keeps misses reviewable", async () => {
     const search: FoodSearchFn = async (query) =>
       query === "Chicken breast" ? [food({ id: "chicken" })] : []
@@ -86,6 +104,63 @@ describe("snap review helpers", () => {
     })
   })
 
+  test("uses AI-ranked provided matches before client fallback search", async () => {
+    const rice = food({ id: "rice", code: "rice", name: "White rice" })
+    const chicken = food({ id: "chicken", code: "chicken" })
+    const search: FoodSearchFn = async () => {
+      throw new Error("client search should not run")
+    }
+
+    const items = await mapSnapDetectionsToReviewItems(
+      [{ id: "row-rice", name: "rice side", estimatedGrams: 90 }],
+      search,
+      {
+        providedMatches: [
+          {
+            detectionIndex: 0,
+            food: rice,
+            alternatives: [rice, chicken],
+          },
+        ],
+      }
+    )
+
+    expect(items[0]).toMatchObject({
+      food: { id: "rice" },
+      alternatives: [{ id: "rice" }, { id: "chicken" }],
+      selected: true,
+      grams: 90,
+    })
+  })
+
+  test("searches AI query alternatives when the detected label misses", async () => {
+    const calls: string[] = []
+    const search: FoodSearchFn = async (query) => {
+      calls.push(query)
+      return query === "white rice" ? [food({ id: "rice", name: "White rice" })] : []
+    }
+
+    const items = await mapSnapDetectionsToReviewItems(
+      [
+        {
+          id: "row-rice",
+          name: "rice side",
+          estimatedGrams: 90,
+          searchQueries: ["cooked rice", "white rice"],
+        },
+      ],
+      search
+    )
+
+    expect(calls).toContain("rice side")
+    expect(calls).toContain("white rice")
+    expect(items[0]).toMatchObject({
+      food: { id: "rice" },
+      selected: true,
+      grams: 90,
+    })
+  })
+
   test("builds scaled food log entries from confirmed snap rows", () => {
     const entry = buildSnapFoodLogEntry(
       {
@@ -109,6 +184,21 @@ describe("snap review helpers", () => {
       meal: "lunch",
       foodCode: "chicken-code",
       quantityGrams: 150,
+    })
+  })
+
+  test("removes nested undefined values before writing Open Food Facts data", () => {
+    expect(
+      toConvexSafe({
+        code: "abc",
+        image_url: undefined,
+        nutriments: { proteins_100g: 10, missing: undefined },
+        tags: ["food", undefined, "snap"],
+      })
+    ).toEqual({
+      code: "abc",
+      nutriments: { proteins_100g: 10 },
+      tags: ["food", "snap"],
     })
   })
 })

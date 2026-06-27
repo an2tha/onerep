@@ -17,6 +17,7 @@ import {
   PintGlass,
   Play,
   Plus,
+  Sparkle,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -60,6 +61,7 @@ import {
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { useAiFeatureGate } from "@/lib/ai-access"
 import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
 import {
   compactCardioSummary,
@@ -78,6 +80,8 @@ import {
   nutritionDetailTotals,
   offsetDateKey,
   type FoodLogEntry,
+  type Recipe,
+  type RecipeIngredient,
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
 import {
@@ -280,6 +284,25 @@ function totalsForEntries(entries: FoodLogEntry[]) {
       protein: acc.protein + entry.protein,
       carbs: acc.carbs + entry.carbs,
       fat: acc.fat + entry.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  )
+}
+
+function totalsForRecipe(ingredients: RecipeIngredient[]) {
+  return ingredients.reduce(
+    (acc, ingredient) => ({
+      calories:
+        acc.calories +
+        Math.round((ingredient.caloriesPer100 * ingredient.grams) / 100),
+      protein:
+        acc.protein +
+        Math.round((ingredient.proteinPer100 * ingredient.grams) / 100),
+      carbs:
+        acc.carbs +
+        Math.round((ingredient.carbsPer100 * ingredient.grams) / 100),
+      fat:
+        acc.fat + Math.round((ingredient.fatPer100 * ingredient.grams) / 100),
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
@@ -2421,13 +2444,15 @@ function SortableWidget({
         zIndex: isDragging ? 50 : undefined,
       }}
       className={cn(
-        "relative flex min-h-0",
-        size === "full" ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
+        "relative flex min-h-0 shrink-0 snap-center basis-[min(84vw,20rem)] md:shrink md:basis-auto md:snap-none",
+        size === "full"
+          ? "basis-[min(90vw,22rem)] md:col-span-2 md:row-span-2"
+          : "md:col-span-1 md:row-span-1"
       )}
     >
       {children}
       {editMode && (
-        <div className="pointer-events-none absolute inset-0 z-10 flex overflow-hidden rounded-[12px]">
+        <div className="pointer-events-none absolute inset-0 z-10 hidden overflow-hidden rounded-[12px] md:flex">
           {/* drag handle */}
           <button
             {...attributes}
@@ -2471,6 +2496,7 @@ export default function App() {
   const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
   const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
+  const recipesQuery = useQuery(api.logs.recipes.list, {})
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
   const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
@@ -2533,6 +2559,61 @@ export default function App() {
   }, [preferences])
 
   const [editMode, setEditMode] = useState(false)
+  const statsScrollRef = useRef<HTMLDivElement | null>(null)
+  const [statsScrollIndicator, setStatsScrollIndicator] = useState({
+    visible: false,
+    leftPct: 0,
+    thumbPct: 30,
+  })
+
+  function updateStatsScrollIndicator() {
+    const el = statsScrollRef.current
+    if (!el) {
+      setStatsScrollIndicator({ visible: false, leftPct: 0, thumbPct: 30 })
+      return
+    }
+
+    const maxScroll = el.scrollWidth - el.clientWidth
+    const visible = maxScroll > 2
+    const progress = visible
+      ? Math.max(0, Math.min(1, el.scrollLeft / maxScroll))
+      : 0
+    const thumbPct = visible
+      ? Math.max(18, Math.min(70, (el.clientWidth / el.scrollWidth) * 100))
+      : 100
+    const leftPct = progress * (100 - thumbPct)
+
+    setStatsScrollIndicator((current) => {
+      if (
+        current.visible === visible &&
+        Math.abs(current.leftPct - leftPct) < 0.25 &&
+        Math.abs(current.thumbPct - thumbPct) < 0.25
+      ) {
+        return current
+      }
+
+      return { visible, leftPct, thumbPct }
+    })
+  }
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(updateStatsScrollIndicator)
+    const el = statsScrollRef.current
+    let resizeObserver: ResizeObserver | undefined
+
+    if (el && typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(updateStatsScrollIndicator)
+      resizeObserver.observe(el)
+      Array.from(el.children).forEach((child) => resizeObserver?.observe(child))
+    }
+
+    window.addEventListener("resize", updateStatsScrollIndicator)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      resizeObserver?.disconnect()
+      window.removeEventListener("resize", updateStatsScrollIndicator)
+    }
+  }, [widgetLayout.length])
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -2595,6 +2676,10 @@ export default function App() {
   const foodEntries = useMemo(
     () => (foodLogs ?? []) as FoodLogEntry[],
     [foodLogs]
+  )
+  const recipes = useMemo(
+    () => (recipesQuery ?? []) as unknown as Recipe[],
+    [recipesQuery]
   )
   const waterEntries = useMemo(
     () =>
@@ -2659,7 +2744,37 @@ export default function App() {
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setHomeAddOpen(true))
+
+  function openSnapCamera() {
+    if (!requireAiAccess()) return
+    if (!navigator.onLine) {
+      setSnapOffline(true)
+      return
+    }
+    setSnapOffline(false)
+    setHomeAddOpen(false)
+    navigate("/camera")
+  }
+
+  function logRecipeFromQuickAdd(recipe: Recipe) {
+    const totals = totalsForRecipe(recipe.ingredients)
+    void setDay({
+      date: selectedDate,
+      entries: [
+        ...foodEntries,
+        {
+          id: Math.random().toString(36).slice(2),
+          name: recipe.name,
+          ...totals,
+          loggedAt: new Date().toISOString(),
+          meal: defaultMeal(),
+        },
+      ],
+    })
+    setHomeAddOpen(false)
+  }
 
   const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
   const waterGoalMl = preferences?.waterGoalMl ?? 2500
@@ -2993,7 +3108,7 @@ export default function App() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex max-w-lg flex-col pb-24 md:max-w-6xl md:pb-10">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         <TodayHeader
           dateLabel={dateLabel}
           salutation={salutation}
@@ -3053,7 +3168,11 @@ export default function App() {
                   items={widgetLayout.map((widget) => widget.id)}
                   strategy={rectSortingStrategy}
                 >
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div
+                    ref={statsScrollRef}
+                    onScroll={updateStatsScrollIndicator}
+                    className="app-scroll-strip -mx-[var(--app-page-x)] mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-[calc(var(--app-page-x)+1rem)] pb-2 scroll-px-[calc(var(--app-page-x)+1rem)] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 md:scroll-px-0"
+                  >
                     {widgetLayout.map((widget) => (
                       <SortableWidget
                         key={widget.id}
@@ -3067,6 +3186,25 @@ export default function App() {
                         />
                       </SortableWidget>
                     ))}
+                    <div
+                      aria-hidden="true"
+                      className="w-[calc(var(--app-page-x)+2rem)] shrink-0 md:hidden"
+                    />
+                  </div>
+                  <div
+                    className={cn(
+                      "home-scroll-hint md:hidden",
+                      !statsScrollIndicator.visible && "opacity-0"
+                    )}
+                    style={
+                      {
+                        "--scroll-thumb-left": `${statsScrollIndicator.leftPct}%`,
+                        "--scroll-thumb-width": `${statsScrollIndicator.thumbPct}%`,
+                      } as React.CSSProperties
+                    }
+                    aria-hidden="true"
+                  >
+                    <div className="home-scroll-hint-thumb" />
                   </div>
                 </SortableContext>
               </DndContext>
@@ -3098,6 +3236,7 @@ export default function App() {
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
             <div className="app-surface mb-3 overflow-hidden">
@@ -3125,15 +3264,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={() => {
-                  if (!navigator.onLine) {
-                    setSnapOffline(true)
-                    return
-                  }
-                  setSnapOffline(false)
-                  setHomeAddOpen(false)
-                  navigate("/camera")
-                }}
+                onClick={openSnapCamera}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
                 <span className="flex min-w-0 items-center gap-3">
@@ -3146,6 +3277,30 @@ export default function App() {
                     </span>
                     <span className="block text-[11.5px] text-muted-foreground/60">
                       Estimate from photo
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
+              </button>
+
+              <button
+                onClick={() => {
+                  if (!requireAiAccess()) return
+                  setHomeAddOpen(false)
+                  navigate("/foods?describe=1")
+                }}
+                className="flex w-full items-center justify-between gap-3 border-t border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                    <Sparkle size={16} weight="fill" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Describe meal
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      AI builds a temporary recipe
                     </span>
                   </span>
                 </span>
@@ -3187,6 +3342,40 @@ export default function App() {
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
+              {recipes.length > 0 && (
+                <>
+                  <div className="mx-4 h-px bg-border/50" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
+                      Saved recipes
+                    </p>
+                  </div>
+                  {recipes.slice(0, 5).map((recipe) => {
+                    const totals = totalsForRecipe(recipe.ingredients)
+                    return (
+                      <button
+                        key={recipe._id ?? recipe.name}
+                        onClick={() => logRecipeFromQuickAdd(recipe)}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-muted/40"
+                      >
+                        <div className="min-w-0 text-left">
+                          <p className="truncate text-[13px] font-medium">
+                            {recipe.name}
+                          </p>
+                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                            {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                            {recipe.ingredients.length === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <CaretRight
+                          size={11}
+                          className="shrink-0 text-muted-foreground/30"
+                        />
+                      </button>
+                    )
+                  })}
+                </>
+              )}
               <div className="mx-4 h-px bg-border/50" />
               <button
                 onClick={() => {
@@ -3282,6 +3471,8 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {aiAccessModal}
     </div>
   )
 }

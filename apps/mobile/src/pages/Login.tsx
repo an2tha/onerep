@@ -29,7 +29,6 @@ const OAUTH_PROVIDERS: {
   icon: typeof GoogleLogo
 }[] = [
   { label: "Google", strategy: "oauth_google", icon: GoogleLogo },
-  { label: "Apple", strategy: "oauth_apple", icon: AppleLogo },
 ]
 
 const INTRO_SLIDES = [
@@ -90,14 +89,14 @@ function IntroIllustration({ index }: { index: number }) {
 
   return (
     <div
-      className="app-rail-surface mx-auto w-full max-w-[19rem] px-4 py-3.5"
+      className="mx-auto px-4 py-3.5 w-full max-w-[19rem] app-rail-surface"
       style={{ "--rail-color": rows[0][2] } as React.CSSProperties}
     >
-      <div className="mb-3 flex items-baseline justify-between">
-        <span className="app-eyebrow text-muted-foreground/60">
+      <div className="flex justify-between items-baseline mb-3">
+        <span className="text-muted-foreground/60 app-eyebrow">
           Today ledger
         </span>
-        <span className="text-[10px] font-semibold text-muted-foreground/45">
+        <span className="font-semibold text-[10px] text-muted-foreground/45">
           OneRep
         </span>
       </div>
@@ -105,13 +104,13 @@ function IntroIllustration({ index }: { index: number }) {
         {rows.map(([label, value, color]) => (
           <div key={label} className="flex items-center gap-3 py-2.5">
             <span
-              className="h-2 w-2 shrink-0 rounded-full"
+              className="rounded-full w-2 h-2 shrink-0"
               style={{ backgroundColor: color }}
             />
-            <span className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold">
+            <span className="flex-1 min-w-0 font-semibold text-[13px] text-left truncate">
               {label}
             </span>
-            <span className="text-[12px] font-semibold text-muted-foreground/65 tabular-nums">
+            <span className="font-semibold tabular-nums text-[12px] text-muted-foreground/65">
               {value}
             </span>
           </div>
@@ -424,47 +423,47 @@ export default function Login() {
     const isLastSlide = introIndex === INTRO_SLIDES.length - 1
 
     return (
-      <div className="min-h-svh bg-background text-foreground">
-        <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem] short-phone:px-5">
-          <header className="flex items-center justify-center pt-4 short-phone:pt-1">
+      <div className="bg-background min-h-svh text-foreground">
+        <main className="py-[var(--app-safe-bottom-lg)] flex flex-col mx-auto px-5 short-phone:px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
+          <header className="flex justify-center items-center pt-4 short-phone:pt-1">
             <div className="flex items-center gap-2.5">
               <img
                 src="/app-icon.svg"
                 alt=""
-                className="h-8 w-8 rounded-full"
+                className="rounded-full w-8 h-8"
               />
-              <span className="text-[13px] font-semibold">
+              <span className="font-semibold text-[13px]">
                 OneRep
               </span>
             </div>
           </header>
 
           <section
-            className="flex flex-1 flex-col justify-center"
+            className="flex flex-col flex-1 justify-center"
             aria-live="polite"
           >
             <IntroIllustration index={introIndex} />
 
-            <div className="mt-8 text-center short-phone:mt-5">
-              <p className="app-eyebrow text-muted-foreground/65">
+            <div className="mt-8 short-phone:mt-5 text-center">
+              <p className="text-muted-foreground/65 app-eyebrow">
                 {slide.kicker}
               </p>
-              <h1 className="app-display mt-3 text-[2.15rem] short-phone:mt-2 short-phone:text-[1.72rem]">
+              <h1 className="mt-3 short-phone:mt-2 text-[2.15rem] short-phone:text-[1.72rem] app-display">
                 {slide.title}
               </h1>
-              <p className="mx-auto mt-3 max-w-[240px] text-[14px] leading-6 text-muted-foreground/70 short-phone:mt-2 short-phone:text-[13px] short-phone:leading-5">
+              <p className="mx-auto mt-3 short-phone:mt-2 max-w-[240px] text-[14px] text-muted-foreground/70 short-phone:text-[13px] leading-6 short-phone:leading-5">
                 {slide.body}
               </p>
             </div>
 
-            <div className="mt-8 flex justify-center gap-2 short-phone:mt-5">
+            <div className="flex justify-center gap-2 mt-8 short-phone:mt-5">
               {INTRO_SLIDES.map((item, index) => (
                 <button
                   key={item.kicker}
                   type="button"
                   aria-label={`Show ${item.kicker}`}
                   onClick={() => setIntroIndex(index)}
-                  className="flex h-10 w-10 items-center justify-center rounded-[8px] transition-colors active:bg-muted/45"
+                  className="flex justify-center items-center active:bg-muted/45 rounded-[8px] w-10 h-10 transition-colors"
                 >
                   <span
                     className={[
@@ -483,14 +482,14 @@ export default function Login() {
             <button
               type="button"
               onClick={handleIntroNext}
-              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 short-phone:h-12"
+              className="bg-foreground active:opacity-75 rounded-[10px] w-full h-[52px] short-phone:h-12 font-semibold text-[15px] text-background transition-opacity"
             >
               {isLastSlide ? "Get started" : "Next"}
             </button>
             <button
               type="button"
               onClick={() => finishIntro("signin")}
-              className="h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
+              className="active:bg-muted/50 rounded-[10px] w-full h-[48px] short-phone:h-10 font-semibold text-[14px] text-muted-foreground active:text-foreground transition-colors"
             >
               Sign in
             </button>
@@ -501,21 +500,21 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
-        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+    <div className="bg-background min-h-svh text-foreground">
+      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
+        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
           />
-          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1 className="mt-4 short-phone:mt-3 text-[1.8rem] short-phone:text-[1.45rem] app-display">
             OneRep
           </h1>
         </header>
 
-        <section className="app-rail-surface p-3.5 short-phone:p-3">
-          <div className="app-segmented mb-3 grid-cols-2 short-phone:mb-2.5">
+        <section className="p-3.5 short-phone:p-3 app-rail-surface">
+          <div className="grid-cols-2 mb-3 short-phone:mb-2.5 app-segmented">
             {(["signin", "signup"] as LoginMode[]).map((item) => {
               const active = mode === item
               return (
@@ -544,9 +543,9 @@ export default function Login() {
           >
             {verificationMode ? (
               <>
-                <div className="rounded-[10px] border border-border/60 bg-background px-4 py-3">
+                <div className="bg-background px-4 py-3 border border-border/60 rounded-[10px]">
                   <p className={LABEL_CLASS}>Email code</p>
-                  <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground/65">
+                  <p className="mt-1.5 text-[13px] text-muted-foreground/65 leading-5">
                     Enter the 6-digit code sent to{" "}
                     {pendingEmail || "your email"}.
                   </p>
@@ -625,12 +624,12 @@ export default function Login() {
             )}
 
             {mode === "signin" && !verificationMode && (
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
+              <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 px-1">
                 <button
                   type="button"
                   onClick={handlePasswordReset}
                   disabled={submitting}
-                  className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
+                  className="flex items-center disabled:opacity-50 min-h-10 font-semibold text-[12.5px] text-muted-foreground/65 active:text-foreground text-left transition-colors"
                 >
                   Forgot password?
                 </button>
@@ -640,14 +639,14 @@ export default function Login() {
             {error && (
               <p
                 role="alert"
-                className="rounded-[10px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
+                className="bg-destructive/8 px-3.5 py-2.5 border border-destructive/20 rounded-[10px] font-medium text-[12.5px] text-destructive"
               >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="rounded-[10px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+              <p className="bg-muted/55 px-3.5 py-2.5 border border-foreground/10 rounded-[10px] font-medium text-[12.5px] text-muted-foreground">
                 {message}
               </p>
             )}
@@ -655,7 +654,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={submitting}
-              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
+              className="bg-foreground active:opacity-75 disabled:opacity-50 rounded-[10px] w-full h-[52px] short-phone:h-12 font-semibold text-[15px] text-background transition-opacity"
             >
               {loading
                 ? verificationMode
@@ -672,12 +671,12 @@ export default function Login() {
           </form>
 
           {verificationMode ? (
-            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground/60 short-phone:mt-3">
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-4 short-phone:mt-3 text-[13px] text-muted-foreground/60">
               <button
                 type="button"
                 onClick={() => void handleResendCode()}
                 disabled={submitting}
-                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+                className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
               >
                 Resend code
               </button>
@@ -685,26 +684,26 @@ export default function Login() {
                 type="button"
                 onClick={() => switchMode(mode)}
                 disabled={submitting}
-                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+                className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
               >
                 Start over
               </button>
             </div>
           ) : (
             <>
-              <div className="mt-4 space-y-3 short-phone:mt-3 short-phone:space-y-2.5">
+              <div className="space-y-3 short-phone:space-y-2.5 mt-4 short-phone:mt-3">
                 <div
                   className="flex items-center gap-3 px-1"
                   aria-hidden="true"
                 >
-                  <span className="h-px flex-1 bg-border/70" />
-                  <span className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/45 uppercase">
+                  <span className="flex-1 bg-border/70 h-px" />
+                  <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase tracking-[0.2em]">
                     or
                   </span>
-                  <span className="h-px flex-1 bg-border/70" />
+                  <span className="flex-1 bg-border/70 h-px" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="gap-2 grid grid-cols-1">
                   {OAUTH_PROVIDERS.map((provider) => {
                     const Icon = provider.icon
                     const isProviderLoading = oauthLoading === provider.strategy
@@ -716,7 +715,7 @@ export default function Login() {
                         onClick={() => void handleOAuth(provider.strategy)}
                         disabled={submitting}
                         aria-label={`Continue with ${provider.label}`}
-                        className="flex h-12 items-center justify-center gap-2 rounded-[10px] border border-border/70 bg-background text-[13px] font-semibold text-foreground transition-colors active:bg-muted/55 disabled:opacity-50 short-phone:h-11"
+                        className="flex justify-center items-center gap-2 bg-background active:bg-muted/55 disabled:opacity-50 border border-border/70 rounded-[10px] h-12 short-phone:h-11 font-semibold text-[13px] text-foreground transition-colors"
                       >
                         <Icon
                           size={18}
@@ -736,7 +735,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <p className="mt-4 text-center text-[13px] text-muted-foreground/60 short-phone:mt-3">
+              <p className="mt-4 short-phone:mt-3 text-[13px] text-muted-foreground/60 text-center">
                 {mode === "signin" ? "New here?" : "Have an account?"}{" "}
                 <button
                   type="button"
@@ -744,7 +743,7 @@ export default function Login() {
                     switchMode(mode === "signin" ? "signup" : "signin")
                   }
                   disabled={submitting}
-                  className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+                  className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
                 >
                   {mode === "signin" ? "Sign up" : "Sign in"}
                 </button>
