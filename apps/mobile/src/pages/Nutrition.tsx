@@ -10,6 +10,7 @@ import {
   Pill,
   PintGlass,
   Plus,
+  Sparkle,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -38,6 +39,7 @@ import {
   MACRO_COLORS,
   MICRO_COLORS,
 } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 type WaterLogEntry = {
   id: string
@@ -553,6 +555,7 @@ export default function Nutrition() {
   const [microsOpen, setMicrosOpen] = useState(false)
   const [customWaterOpen, setCustomWaterOpen] = useState(false)
   const [customWaterAmount, setCustomWaterAmount] = useState(350)
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setAddOpen(true))
 
   const preferences = useQuery(api.users.users.getPreferences, {})
@@ -687,7 +690,15 @@ export default function Nutrition() {
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="app-button app-header-action bg-foreground text-background"
+            className="app-header-icon-action md:hidden"
+            aria-label="Add nutrition entry"
+          >
+            <Plus weight="bold" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="app-button hidden bg-foreground text-background md:inline-flex"
             aria-label="Add nutrition entry"
           >
             <Plus size={13} weight="bold" /> Add
@@ -716,7 +727,7 @@ export default function Nutrition() {
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
             <GoalTile
               label="Intake"
               value={`${pct(intakeTotals.calories, calorieTarget)}%`}
@@ -822,7 +833,7 @@ export default function Nutrition() {
                 suffix="ml"
                 color={APP_ACCENT_COLORS.water}
               />
-              <div className="mt-3 grid grid-cols-2 gap-2 min-[390px]:grid-cols-4">
+              <div className="mt-4 grid grid-cols-2 gap-2.5 min-[430px]:grid-cols-4">
                 {QUICK_WATER.map((amount) => (
                   <button
                     key={amount}
@@ -894,6 +905,7 @@ export default function Nutrition() {
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
             <div className="app-surface overflow-hidden">
@@ -914,7 +926,15 @@ export default function Nutrition() {
                   label: "Snap meal",
                   detail: "Estimate from photo",
                   Icon: Aperture,
+                  requiresAiAccess: true,
                   action: () => navigate("/camera"),
+                },
+                {
+                  label: "Describe meal",
+                  detail: "AI builds a temporary recipe",
+                  Icon: Sparkle,
+                  requiresAiAccess: true,
+                  action: () => navigate("/foods?describe=1"),
                 },
                 {
                   label: "Add 250 ml water",
@@ -928,11 +948,12 @@ export default function Nutrition() {
                   Icon: Pill,
                   action: () => navigate("/supplements"),
                 },
-              ].map(({ label, detail, Icon, action }, index) => (
+              ].map(({ label, detail, Icon, action, requiresAiAccess }, index) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => {
+                    if (requiresAiAccess && !requireAiAccess()) return
                     setAddOpen(false)
                     action()
                   }}
@@ -961,6 +982,8 @@ export default function Nutrition() {
           </div>
         </MobileSheet>
       )}
+
+      {aiAccessModal}
     </div>
   )
 }

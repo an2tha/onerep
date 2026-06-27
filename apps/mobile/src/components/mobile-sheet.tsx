@@ -226,7 +226,9 @@ export function MobileSheet({
             />
           </button>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto px-1">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
+          {children}
+        </div>
         {bottom && <div className="shrink-0">{bottom}</div>}
       </div>
     </div>

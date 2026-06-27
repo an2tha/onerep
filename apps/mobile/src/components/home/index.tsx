@@ -80,9 +80,9 @@ export function TodayHeader({
   action?: ReactNode
 }) {
   return (
-    <header className="motion-item flex items-start justify-between gap-4 px-4 pt-[var(--app-safe-top)] pb-5 md:px-8 md:pt-10 md:pb-6 short-phone:pb-3">
+    <header className="motion-item flex items-start justify-between gap-3 px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-6 md:px-8 md:pt-10 md:pb-6 short-phone:pb-4">
       <div className="min-w-0">
-        <h1 className="app-title mt-3 max-w-[14ch] text-[2rem] md:max-w-none short-phone:mt-2 short-phone:text-[1.58rem]">
+        <h1 className="app-title mt-3 max-w-[18ch] text-[2rem] leading-[1.02] md:max-w-none short-phone:mt-2 short-phone:text-[1.7rem]">
           {salutation}, {firstName}.
         </h1>
       </div>
@@ -118,8 +118,8 @@ export function DailyLedgerHero({
   const overTarget = caloriesLeft < 0
 
   return (
-    <section className="home-dashboard-card motion-card mx-4 overflow-hidden md:mx-8">
-      <div className="p-3.5 md:p-4 short-phone:p-3">
+    <section className="home-dashboard-card motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
+      <div className="p-4 md:p-4 short-phone:p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="app-eyebrow home-ledger-eyebrow">Daily budget</p>
@@ -168,7 +168,7 @@ export function DailyLedgerHero({
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-2 gap-1.5">
+        <div className="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2">
           <button
             type="button"
             onClick={water.onClick}
@@ -247,7 +247,7 @@ export function TodayTimeline({
   onDeleteEvent?: (event: TimelineEvent) => void
 }) {
   return (
-    <section className="mx-4 mt-5 md:mx-8 short-phone:mt-3">
+    <section className="mx-[var(--app-page-x)] mt-6 md:mx-8 short-phone:mt-4">
       <SectionHeader
         title="Today’s ledger"
         action={
@@ -355,25 +355,30 @@ export function InsightWidgets({
   onToggleEdit: () => void
 }) {
   return (
-    <section className="mx-4 mt-5 md:mx-8 short-phone:mt-3">
-      <SectionHeader
-        title="Stats preview"
-        subtitle="Reorder the cards you care about."
-        action={
-          <button
-            type="button"
-            onClick={onToggleEdit}
-            className={cn(
-              "app-button shrink-0",
-              editMode
-                ? "bg-foreground text-background"
-                : "bg-muted text-foreground"
-            )}
-          >
-            {editMode ? "Done" : "Customize"}
-          </button>
-        }
-      />
+    <section className="mx-[var(--app-page-x)] mt-6 md:mx-8 short-phone:mt-4">
+      <div className="motion-item app-section-header">
+        <div className="min-w-0">
+          <h2 className="app-section-title">Stats preview</h2>
+          <p className="app-section-subtitle md:hidden">
+            Swipe sideways to see every card.
+          </p>
+          <p className="app-section-subtitle hidden md:block">
+            Reorder the cards you care about.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onToggleEdit}
+          className={cn(
+            "app-button hidden shrink-0 md:inline-flex",
+            editMode
+              ? "bg-foreground text-background"
+              : "bg-muted text-foreground"
+          )}
+        >
+          {editMode ? "Done" : "Customize"}
+        </button>
+      </div>
       {children}
     </section>
   )

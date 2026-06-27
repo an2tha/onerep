@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -46,7 +47,7 @@ export function useBottomBarAction(action?: BottomBarAction) {
     actionRef.current = action
   }, [action])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!setBottomBarAction || !enabled) return
 
     setBottomBarAction(() => actionRef.current?.())
@@ -99,25 +100,22 @@ function isActive(pathname: string, path: string) {
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
-export function BottomBar({ onAdd }: { onAdd?: () => void }) {
+type ChromeTransitionState = "previous" | "previous-ready" | "loading" | "ready"
+
+export function BottomBar({
+  pathname: pathnameOverride,
+  chromeState,
+}: {
+  pathname?: string
+  chromeState?: ChromeTransitionState
+}) {
   const navigate = useSmoothNavigate()
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const pathname = pathnameOverride ?? location.pathname
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
   const activeIdx = TABS.findIndex((t) => isActive(pathname, t.path))
-  const showQuickAdd =
-    Boolean(onAdd) &&
-    (pathname === "/" ||
-      pathname.startsWith("/foods") ||
-      pathname.startsWith("/nutrition") ||
-      pathname.startsWith("/water") ||
-      pathname.startsWith("/supplements") ||
-      pathname.startsWith("/progress") ||
-      pathname.startsWith("/workouts") ||
-      pathname.startsWith("/exercises") ||
-      pathname.startsWith("/workout"))
-
   // useEffect (post-paint) so the browser renders the old pill position first,
   // giving the CSS transition a start value to animate from.
   // offsetLeft / offsetWidth are already relative to the positioned container —
@@ -131,70 +129,65 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-x-0 bottom-[var(--app-safe-bottom)] z-40 flex items-center justify-center px-2 lg:hidden">
+      <div
+        className="app-route-chrome pointer-events-none fixed inset-x-0 bottom-[var(--app-safe-bottom)] z-40 flex items-center justify-center px-3 lg:hidden"
+        data-route-chrome={chromeState}
+      >
         {/* position:relative so offsetLeft on buttons is relative to this element */}
-        <div className="mobile-tabbar motion-card relative flex w-full max-w-[calc(100vw-1rem)] items-center gap-0.5 px-1 py-1.5 backdrop-blur-xl">
-          {/* Sliding pill — always in DOM so the CSS transition has a start value */}
-          <div
-            className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-[8px] bg-foreground/[0.075] will-change-[left,width]"
-            style={{
-              left: pill?.left ?? 0,
-              width: pill?.width ?? 0,
-              opacity: pill && activeIdx >= 0 ? 1 : 0,
-              transition:
-                "left var(--motion-medium) var(--motion-ease-out), width var(--motion-medium) var(--motion-ease-out), opacity var(--motion-fast) var(--motion-ease-standard)",
-            }}
-          />
+        <div className="relative w-full max-w-[28rem]">
+          <div className="mobile-tabbar motion-card pointer-events-auto relative grid w-full grid-cols-5 items-center gap-1 px-1.5 py-1.5 backdrop-blur-xl">
+            {/* Sliding pill — always in DOM so the CSS transition has a start value */}
+            <div
+              className="absolute top-1.5 h-[calc(100%-0.75rem)] rounded-[14px] bg-foreground/[0.075] will-change-[left,width]"
+              style={{
+                left: pill?.left ?? 0,
+                width: pill?.width ?? 0,
+                opacity: pill && activeIdx >= 0 ? 1 : 0,
+                transition:
+                  "left var(--motion-medium) var(--motion-ease-out), width var(--motion-medium) var(--motion-ease-out), opacity var(--motion-fast) var(--motion-ease-standard)",
+              }}
+            />
 
-          {TABS.map(({ path, Icon, label }, idx) => {
-            const active = isActive(pathname, path)
-            return (
-              <button
-                key={path}
-                ref={(el) => {
-                  tabRefs.current[idx] = el
-                }}
-                onClick={() => {
-                  if (!active) navigate(path, { motion: "switch" })
-                }}
-                className={cn(
-                  "motion-pressable relative flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-[8px] px-1.5",
-                  active
-                    ? "text-foreground"
-                    : "text-muted-foreground active:bg-foreground/[0.05]"
-                )}
-              >
-                <Icon
-                  size={17}
-                  weight={active ? "fill" : "regular"}
-                  className="shrink-0"
-                />
-                {active && (
-                  <span className="mobile-tabbar-active-label motion-pop truncate text-[11px] font-medium">
-                    {label}
-                  </span>
-                )}
-              </button>
-            )
-          })}
+            {TABS.map(({ path, Icon, label }, idx) => {
+              const active = isActive(pathname, path)
+              return (
+                <button
+                  key={path}
+                  ref={(el) => {
+                    tabRefs.current[idx] = el
+                  }}
+                  onClick={() => {
+                    if (!active) navigate(path, { motion: "switch" })
+                  }}
+                  className={cn(
+                    "motion-pressable relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-[14px] px-1",
+                    active
+                      ? "text-foreground"
+                      : "text-muted-foreground active:bg-foreground/[0.05]"
+                  )}
+                >
+                  <Icon
+                    size={19}
+                    weight={active ? "fill" : "regular"}
+                    className="shrink-0"
+                  />
+                  {active && (
+                    <span className="mobile-tabbar-active-label motion-pop hidden max-w-full truncate text-[10px] leading-none font-bold min-[390px]:block">
+                      {label}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
 
-          {/* Plus — visible on all tab pages */}
-          {showQuickAdd && (
-            <>
-              <div className="mx-1 h-4 w-px bg-border/60" />
-              <button
-                onClick={onAdd}
-                className="motion-pressable flex h-10 w-10 items-center justify-center rounded-[8px] text-muted-foreground active:bg-foreground/[0.07] active:text-foreground"
-                aria-label="Add"
-              >
-                <Plus size={15} />
-              </button>
-            </>
-          )}
         </div>
       </div>
 
-      <aside className="desktop-sidebar motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex">
+      <aside
+        className="app-route-chrome desktop-sidebar motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex"
+        data-route-chrome={chromeState}
+      >
         <button
           onClick={() => {
             if (pathname !== "/") navigate("/", { motion: "switch" })
@@ -228,16 +221,31 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
           })}
         </nav>
 
-        {onAdd && showQuickAdd && (
-          <button
-            onClick={onAdd}
-            className="motion-pressable mt-3 flex h-12 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-foreground text-[13px] font-bold text-background active:opacity-85"
-          >
-            <Plus size={15} weight="bold" />
-            Quick add
-          </button>
-        )}
       </aside>
+    </>
+  )
+}
+
+export function PersistentQuickAdd({ onAdd }: { onAdd: () => void }) {
+  const actionRef = useRef(onAdd)
+
+  useEffect(() => {
+    actionRef.current = onAdd
+  }, [onAdd])
+
+  function handleClick() {
+    actionRef.current()
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        className="motion-pressable fixed bottom-9 left-9 z-50 hidden h-12 w-[12.5rem] items-center justify-center gap-2 rounded-[10px] bg-foreground text-[13px] font-bold text-background active:opacity-85 lg:flex"
+      >
+        <Plus size={15} weight="bold" />
+        Quick add
+      </button>
     </>
   )
 }

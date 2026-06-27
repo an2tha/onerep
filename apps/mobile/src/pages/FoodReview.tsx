@@ -124,7 +124,7 @@ export default function FoodReview() {
 
   if (loading || failed || !item) {
     return (
-      <main className="desktop-canvas min-h-svh bg-background px-4 text-foreground">
+      <main className="desktop-canvas min-h-svh bg-background px-[var(--app-page-x)] text-foreground">
         <section className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center py-[var(--app-safe-bottom-lg)]">
           <div className="app-surface p-5 text-center">
             {loading ? (

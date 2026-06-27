@@ -38,9 +38,14 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
+import { toast } from "sonner"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import type { FoodResult } from "@repo/models"
-import { getFoodByBarcode, searchFoods } from "@/lib/openfoodfacts"
+import {
+  getFoodByBarcode,
+  rankAndFilterFoodResults,
+  searchFoodsAccurate,
+} from "@/lib/openfoodfacts"
 import {
   buildSnapFoodLogEntry,
   clampSnapGrams,
@@ -48,10 +53,13 @@ import {
   mapSnapDetectionsToReviewItems,
   scaleFoodForGrams,
   snapDetectionsFromAiResult,
+  toConvexSafe,
   type SnapAiResult,
+  type SnapFoodMatch,
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,10 +72,14 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 export default function SnapAndLog() {
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
+  const { hasAiAccess, aiAccessLoading, requireAiAccess, aiAccessModal } =
+    useAiFeatureGate()
   const [params] = useSearchParams()
   const initialMode = (params.get("mode") as ScreenMode | null) ?? "snap"
 
   const date = currentDateKey()
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
   const setDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
@@ -92,6 +104,7 @@ export default function SnapAndLog() {
   const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle")
   const [snapReviewItems, setSnapReviewItems] = useState<SnapReviewItem[]>([])
   const [snapRaw, setSnapRaw] = useState<string | null>(null)
+  const [snapLogging, setSnapLogging] = useState(false)
 
   // Barcode results
   const [barcodeScanning, setBarcodeScanning] = useState(false)
@@ -102,6 +115,22 @@ export default function SnapAndLog() {
   const [meal, setMeal] = useState<MealType>(defaultMeal())
   const [added, setAdded] = useState<string | null>(null)
   const useNativeCapture = Capacitor.isNativePlatform()
+
+  useEffect(() => {
+    if (mode === "snap" && !aiAccessLoading && !hasAiAccess) {
+      requireAiAccess()
+    }
+  }, [mode, aiAccessLoading, hasAiAccess, requireAiAccess])
+
+  const snapSearchFoods = useCallback(
+    (query: string, limit?: number, language?: string) =>
+      searchFoodsAccurate(query, {
+        limit: limit ?? 12,
+        fetchLimit: Math.max(limit ?? 12, 60),
+        language: language ?? foodSearchLanguage,
+      }),
+    [foodSearchLanguage]
+  )
 
   // ── Camera stream ─────────────────────────────────────────────────────────
 
@@ -258,6 +287,8 @@ export default function SnapAndLog() {
   }
 
   async function processSnapBlob(blob: Blob) {
+    if (!requireAiAccess()) return
+
     setSnapPhase("uploading")
     try {
       const arrayBuffer = await blob.arrayBuffer()
@@ -270,19 +301,31 @@ export default function SnapAndLog() {
       const result = (await convexClient.action(api.logs.snap.snap, {
         base64Image,
         mimeType: blob.type || "image/jpeg",
-      })) as { aiResult?: SnapAiResult }
+        language: foodSearchLanguage,
+      })) as unknown as {
+        aiResult?: SnapAiResult
+        matches?: SnapFoodMatch[]
+      }
 
       const aiResult = result.aiResult ?? {}
       const detections = snapDetectionsFromAiResult(aiResult)
       const reviewItems = await mapSnapDetectionsToReviewItems(
         detections,
-        searchFoods
+        snapSearchFoods,
+        {
+          language: foodSearchLanguage,
+          perQueryLimit: 12,
+          maxAlternatives: 8,
+          rankResults: rankAndFilterFoodResults,
+          providedMatches: result.matches,
+        }
       )
 
       setSnapReviewItems(reviewItems)
       setSnapRaw(detections.map((detection) => detection.name).join(", "))
       setSnapPhase("results")
-    } catch {
+    } catch (error) {
+      console.error("Failed to process snapped meal:", error)
       setSnapPhase("error")
     }
   }
@@ -332,6 +375,8 @@ export default function SnapAndLog() {
       snapPhase === "uploading"
     )
       return
+
+    if (mode === "snap" && !requireAiAccess()) return
     void hapticMedium()
     setFired(true)
     setTimeout(() => setFired(false), 500)
@@ -380,7 +425,7 @@ export default function SnapAndLog() {
       quantityGrams: 100,
       servingLabel: item.serving,
       imageUrl: item.imageUrl,
-      openFoodFacts: item.openFoodFacts,
+      openFoodFacts: toConvexSafe(item.openFoodFacts),
     })
 
     const existingEntries = foodLogs ?? []
@@ -397,29 +442,45 @@ export default function SnapAndLog() {
   }
 
   async function handleConfirmSnapLog() {
+    if (snapLogging) return
+
     const entries = snapReviewItems
       .map((item) => buildSnapFoodLogEntry(item, meal))
       .filter((entry): entry is FoodLogEntry => entry !== null)
 
-    if (entries.length === 0) return
+    if (entries.length === 0) {
+      toast.message("Pick at least one matched food to log")
+      return
+    }
 
-    const existingEntries = foodLogs ?? []
-    await setDay({ date, entries: [...existingEntries, ...entries] })
+    setSnapLogging(true)
+    try {
+      const existingEntries = foodLogs ?? []
+      await setDay({ date, entries: [...existingEntries, ...entries] })
 
-    posthog.capture("food_logged_from_camera", {
-      food_count: entries.length,
-      detected_count: snapReviewItems.length,
-      meal,
-      source: "snap_review",
-    })
+      posthog.capture("food_logged_from_camera", {
+        food_count: entries.length,
+        detected_count: snapReviewItems.length,
+        meal,
+        source: "snap_review",
+      })
 
-    setAdded("snap-review")
-    setTimeout(() => {
-      setAdded(null)
-      setSnapPhase("idle")
-      setSnapReviewItems([])
-      setSnapRaw(null)
-    }, 900)
+      setAdded("snap-review")
+      toast.success(
+        entries.length === 1 ? "Meal logged" : `${entries.length} foods logged`
+      )
+      setTimeout(() => {
+        setAdded(null)
+        setSnapPhase("idle")
+        setSnapReviewItems([])
+        setSnapRaw(null)
+      }, 900)
+    } catch (error) {
+      console.error("Failed to log snapped meal:", error)
+      toast.error("Could not log meal")
+    } finally {
+      setSnapLogging(false)
+    }
   }
 
   function updateSnapReviewItem(
@@ -434,6 +495,8 @@ export default function SnapAndLog() {
   // ── Mode switch reset ─────────────────────────────────────────────────────
 
   function switchMode(m: ScreenMode) {
+    if (m === "snap" && !requireAiAccess()) return
+
     setMode(m)
     setSnapPhase("idle")
     setSnapReviewItems([])
@@ -706,6 +769,7 @@ export default function SnapAndLog() {
           meal={meal}
           onMealChange={setMeal}
           added={added}
+          snapLogging={snapLogging}
           onAdd={handleAdd}
           onConfirmSnap={handleConfirmSnapLog}
           onSnapItemChange={updateSnapReviewItem}
@@ -726,6 +790,8 @@ export default function SnapAndLog() {
           }}
         />
       )}
+
+      {aiAccessModal}
     </div>
   )
 }
@@ -742,6 +808,7 @@ type ResultsSheetProps = {
   meal: MealType
   onMealChange: (m: MealType) => void
   added: string | null
+  snapLogging: boolean
   onAdd: (item: FoodResult) => void
   onConfirmSnap: () => void
   onSnapItemChange: (
@@ -763,6 +830,7 @@ function ResultsSheet({
   meal,
   onMealChange,
   added,
+  snapLogging,
   onAdd,
   onConfirmSnap,
   onSnapItemChange,
@@ -901,7 +969,7 @@ function ResultsSheet({
               <button
                 type="button"
                 onClick={snapCanLog ? onConfirmSnap : onSearchManually}
-                disabled={snapLogged}
+                disabled={snapLogged || snapLogging}
                 className="flex min-h-11 w-full items-center justify-center rounded-[12px] px-4 text-[13px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50"
                 style={{
                   backgroundColor: snapLogged
@@ -916,13 +984,15 @@ function ResultsSheet({
                       : "rgba(255,255,255,0.75)",
                 }}
               >
-                {snapLogged
-                  ? "Logged"
-                  : !snapCanLog
-                    ? "Search manually"
-                    : selectedSnapCount === 1
-                      ? "Log 1 food"
-                      : `Log ${selectedSnapCount} foods`}
+                {snapLogging
+                  ? "Logging…"
+                  : snapLogged
+                    ? "Logged"
+                    : !snapCanLog
+                      ? "Search manually"
+                      : selectedSnapCount === 1
+                        ? "Log 1 food"
+                        : `Log ${selectedSnapCount} foods`}
               </button>
             </div>
           )}
@@ -1052,33 +1122,46 @@ function SnapReviewRow({
           }
         />
 
-        {item.alternatives.length > 1 && (
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
-            {item.alternatives.slice(0, 4).map((alternative) => {
-              const active = food?.id === alternative.id
-              return (
-                <button
-                  key={alternative.id}
-                  type="button"
-                  onClick={() =>
-                    onChange((current) => ({
-                      ...current,
-                      food: alternative,
-                      selected: true,
-                    }))
-                  }
-                  className="min-h-8 max-w-[9.5rem] shrink-0 rounded-[9px] px-2.5 text-[10.5px] font-semibold transition-all active:scale-[0.985]"
-                  style={{
-                    backgroundColor: active
-                      ? "rgba(255,255,255,0.9)"
-                      : "rgba(255,255,255,0.08)",
-                    color: active ? "#000" : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  <span className="block truncate">{alternative.name}</span>
-                </button>
-              )
-            })}
+        {item.alternatives.length > 0 && (!food || item.alternatives.length > 1) && (
+          <div className="mt-2">
+            <p className="mb-1 text-[9.5px] font-bold tracking-[0.12em] text-white/28 uppercase">
+              More matches
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+              {item.alternatives.slice(0, 8).map((alternative) => {
+                const active = food?.id === alternative.id
+                return (
+                  <button
+                    key={alternative.id}
+                    type="button"
+                    onClick={() =>
+                      onChange((current) => ({
+                        ...current,
+                        food: alternative,
+                        selected: true,
+                      }))
+                    }
+                    className="min-h-9 max-w-[11rem] shrink-0 rounded-[9px] px-2.5 text-left text-[10.5px] font-semibold transition-all active:scale-[0.985]"
+                    style={{
+                      backgroundColor: active
+                        ? "rgba(255,255,255,0.9)"
+                        : "rgba(255,255,255,0.08)",
+                      color: active ? "#000" : "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    <span className="block truncate">{alternative.name}</span>
+                    {alternative.brand && (
+                      <span
+                        className="block truncate text-[9.5px]"
+                        style={{ opacity: active ? 0.58 : 0.48 }}
+                      >
+                        {alternative.brand}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

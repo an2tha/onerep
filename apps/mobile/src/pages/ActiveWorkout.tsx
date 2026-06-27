@@ -65,6 +65,7 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui"
 import { EXERCISE_CATEGORY_COLORS } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -4109,6 +4110,7 @@ export default function ActiveWorkout() {
   const posthog = usePostHog()
   const [searchParams] = useSearchParams()
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
 
   const presets = useQuery(api.logs.presets.list, {})
   const logCompletion = useOfflineMutation(
@@ -4394,6 +4396,10 @@ export default function ActiveWorkout() {
     }
   }, [isInitialized, presetId, posthog])
 
+  function openAiWorkoutSheet(target: AiWorkoutSheetTarget) {
+    if (requireAiAccess()) setAiSheetTarget(target)
+  }
+
   async function resolveAiDraftExercises(
     draftExercises: AgentWorkoutExerciseDraft[]
   ) {
@@ -4412,6 +4418,7 @@ export default function ActiveWorkout() {
   }
 
   async function handleAiWorkoutChange(text: string, mode: AiWorkoutMode) {
+    if (!requireAiAccess()) return
     if (!text.trim()) return
 
     setAiUpdating(true)
@@ -4770,8 +4777,8 @@ export default function ActiveWorkout() {
 
   return (
     <div className="dark desktop-canvas min-h-svh bg-background md:px-8">
-      <div className="mx-auto flex max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
-        <div className="workout-live-header sticky top-0 z-30 bg-background/96 px-4 backdrop-blur-xl md:px-8">
+      <div className="mx-auto flex w-full max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
+        <div className="workout-live-header sticky top-0 z-30 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:px-8">
           <div
             className="flex items-center justify-between gap-3"
             style={{
@@ -4781,15 +4788,15 @@ export default function ActiveWorkout() {
             }}
           >
             <button
+              type="button"
+              aria-label="Abort workout"
+              title="Abort workout"
               onClick={() => setConfirmAbort(true)}
-              className="min-h-11 rounded-full border border-border bg-card px-4 text-[13px] font-bold text-muted-foreground transition-colors active:bg-muted/70"
+              className="motion-pressable inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-0 text-[13px] font-bold text-muted-foreground transition-colors active:text-foreground md:min-w-0 md:px-1"
             >
-              End later
+              <X size={22} weight="bold" className="md:hidden" />
+              <span className="hidden md:inline">Abort</span>
             </button>
-            <span className="inline-flex min-h-8 items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.08] px-3 text-[12px] font-extrabold text-primary">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Live workout
-            </span>
           </div>
           <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pb-4">
             <div className="min-w-0">
@@ -4798,7 +4805,7 @@ export default function ActiveWorkout() {
                   ? `Exercise ${activeExerciseIndex} of ${uniqueExerciseIds.length}`
                   : "Active workout"}
               </p>
-              <h1 className="truncate text-[40px] leading-[0.96] font-extrabold tracking-[-0.06em] text-foreground">
+              <h1 className="truncate text-[clamp(2rem,10vw,2.5rem)] leading-[0.98] font-extrabold tracking-[-0.04em] text-foreground">
                 {activeExerciseName}
               </h1>
             </div>
@@ -4816,7 +4823,7 @@ export default function ActiveWorkout() {
               <p className="text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
                 {rest.remaining !== null ? "Rest remaining" : "Elapsed"}
               </p>
-              <div className="mt-1 text-[58px] leading-[0.86] font-extrabold tracking-[-0.06em] tabular-nums">
+              <div className="mt-1 text-[clamp(2.75rem,14vw,3.625rem)] leading-[0.9] font-extrabold tracking-[-0.045em] tabular-nums">
                 {formatElapsed(rest.remaining ?? elapsed)}
               </div>
             </div>
@@ -4888,7 +4895,7 @@ export default function ActiveWorkout() {
             </div>
           </div>
         </div>
-        <div className="flex flex-col gap-4 px-4 pt-4 md:px-8">
+        <div className="flex flex-col gap-4 px-[var(--app-page-x)] pt-5 md:px-8">
           <div className="flex flex-col gap-3 md:gap-2.5">
             {items.map((item) => {
               if (item.kind === "solo") {
@@ -4921,7 +4928,7 @@ export default function ActiveWorkout() {
                       })
                     }
                     onAiChange={() =>
-                      setAiSheetTarget({
+                      openAiWorkoutSheet({
                         exerciseId: item.exerciseId,
                         exerciseName: ex.name,
                       })
@@ -4956,7 +4963,7 @@ export default function ActiveWorkout() {
                 lastSessionMap,
                 (exId, name) => setHistorySheet({ exerciseId: exId, name }),
                 (exId, name) =>
-                  setAiSheetTarget({ exerciseId: exId, exerciseName: name }),
+                  openAiWorkoutSheet({ exerciseId: exId, exerciseName: name }),
                 nextTarget
               )
             })}
@@ -4969,7 +4976,7 @@ export default function ActiveWorkout() {
             Add exercise
           </button>
           <button
-            onClick={() => setAiSheetTarget({})}
+            onClick={() => openAiWorkoutSheet({})}
             disabled={aiUpdating}
             className="app-empty h-14 w-full justify-center border-dashed border-border/60 bg-transparent text-[13px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/25 active:text-foreground disabled:opacity-45"
           >
@@ -5047,6 +5054,8 @@ export default function ActiveWorkout() {
           onClose={() => setHistorySheet(null)}
         />
       )}
+
+      {aiAccessModal}
     </div>
   )
 }

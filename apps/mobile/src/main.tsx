@@ -5,12 +5,13 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react"
 import { createRoot } from "react-dom/client"
 import {
   createBrowserRouter,
-  Outlet,
   useLocation,
+  useOutlet,
   useSearchParams,
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
@@ -61,8 +62,16 @@ import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
-import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
-import { clearRouteMotion, useSmoothNavigate } from "./lib/navigation"
+import {
+  BottomBar,
+  BottomBarActionProvider,
+  PersistentQuickAdd,
+} from "./components/bottom-bar"
+import {
+  clearRouteMotion,
+  prefersReducedMotion,
+  useSmoothNavigate,
+} from "./lib/navigation"
 
 function shouldShowBottomBar(pathname: string) {
   return (
@@ -76,6 +85,140 @@ function shouldShowBottomBar(pathname: string) {
     pathname === "/exercises" ||
     pathname === "/settings"
   )
+}
+
+const ROUTE_CROSSFADE_MS = 240
+const ROUTE_MIN_READY_MS = 80
+const ROUTE_FONT_WAIT_MS = 220
+const ROUTE_IMAGE_WAIT_MS = 300
+const ROUTE_LOADING_MARKER_WAIT_MS = 500
+
+type RouteTransitionState = {
+  from: ReactNode
+  fromKey: string
+  fromPathname: string
+  toKey: string
+  ready: boolean
+}
+
+function waitForMs(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted || ms <= 0) {
+      resolve()
+      return
+    }
+
+    const timeout = window.setTimeout(resolve, ms)
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeout)
+        resolve()
+      },
+      { once: true }
+    )
+  })
+}
+
+function waitForNextPaint(signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+async function waitForRouteImages(frame: HTMLElement, signal: AbortSignal) {
+  const images = Array.from(frame.querySelectorAll("img")).filter(
+    (image) => !image.complete
+  )
+
+  if (images.length === 0) return
+
+  await Promise.race([
+    Promise.all(
+      images.map(
+        (image) =>
+          new Promise<void>((resolve) => {
+            const done = () => resolve()
+            image.addEventListener("load", done, { once: true })
+            image.addEventListener("error", done, { once: true })
+          })
+      )
+    ).then(() => undefined),
+    waitForMs(ROUTE_IMAGE_WAIT_MS, signal),
+  ])
+}
+
+function hasRouteLoadingMarkers(frame: HTMLElement) {
+  return Boolean(
+    frame.querySelector(
+      '[role="status"], [aria-busy="true"], .animate-spin, .animate-pulse'
+    )
+  )
+}
+
+function waitForRouteLoadingMarkers(frame: HTMLElement, signal: AbortSignal) {
+  if (!hasRouteLoadingMarkers(frame)) return Promise.resolve()
+
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+
+    let maxTimeout: number | undefined
+    const observer = new MutationObserver(check)
+
+    function cleanup() {
+      observer.disconnect()
+      if (maxTimeout != null) window.clearTimeout(maxTimeout)
+      signal.removeEventListener("abort", finish)
+    }
+
+    function finish() {
+      cleanup()
+      resolve()
+    }
+
+    function check() {
+      if (!hasRouteLoadingMarkers(frame)) finish()
+    }
+
+    observer.observe(frame, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ["aria-busy", "class", "role"],
+    })
+    maxTimeout = window.setTimeout(finish, ROUTE_LOADING_MARKER_WAIT_MS)
+    signal.addEventListener("abort", finish, { once: true })
+    check()
+  })
+}
+
+async function waitForRouteContent(frame: HTMLElement, signal: AbortSignal) {
+  const startedAt = performance.now()
+
+  await waitForNextPaint(signal)
+
+  if (document.fonts?.ready) {
+    await Promise.race([
+      document.fonts.ready,
+      waitForMs(ROUTE_FONT_WAIT_MS, signal),
+    ])
+  }
+
+  await waitForRouteImages(frame, signal)
+  await waitForRouteLoadingMarkers(frame, signal)
+
+  const elapsed = performance.now() - startedAt
+  await waitForMs(ROUTE_MIN_READY_MS - elapsed, signal)
 }
 
 function MissingClerkConfig() {
@@ -105,9 +248,16 @@ function MissingClerkConfig() {
 function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
+  const outlet = useOutlet()
   const [bottomBarAction, setBottomBarActionState] = useState<
     (() => void) | undefined
   >()
+  const [routeTransition, setRouteTransition] =
+    useState<RouteTransitionState | null>(null)
+  const activeRouteFrameRef = useRef<HTMLDivElement | null>(null)
+  const previousOutletRef = useRef<ReactNode>(outlet)
+  const previousLocationKeyRef = useRef(location.key)
+  const previousPathnameRef = useRef(location.pathname)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
@@ -119,6 +269,10 @@ function NavSync() {
     setBottomBarActionState(() => action)
   }, [])
 
+  const fallbackQuickAddAction = useCallback(() => {
+    navigate("/foods/search", { motion: "forward" })
+  }, [navigate])
+
   useEffect(() => {
     function clearHold() {
       if (holdTimer.current != null) {
@@ -128,7 +282,7 @@ function NavSync() {
     }
 
     function isInteractive(target: EventTarget | null) {
-      return target instanceof HTMLElement
+      return target instanceof Element
         ? Boolean(
             target.closest(
               "button, a, [role='button'], input, select, textarea, label"
@@ -173,6 +327,64 @@ function NavSync() {
     clearRouteMotion()
   }, [location.key])
 
+  useLayoutEffect(() => {
+    const previousKey = previousLocationKeyRef.current
+    const previousOutlet = previousOutletRef.current
+
+    if (previousKey !== location.key) {
+      setRouteTransition(
+        previousOutlet && !prefersReducedMotion()
+          ? {
+              from: previousOutlet,
+              fromKey: previousKey,
+              fromPathname: previousPathnameRef.current,
+              toKey: location.key,
+              ready: false,
+            }
+          : null
+      )
+      previousLocationKeyRef.current = location.key
+      previousPathnameRef.current = location.pathname
+    }
+
+    previousOutletRef.current = outlet
+  }, [location.key, outlet])
+
+  useEffect(() => {
+    if (!routeTransition || routeTransition.toKey !== location.key) return
+
+    const abortController = new AbortController()
+    let finishTimeout: number | undefined
+
+    async function finishWhenReady() {
+      const frame = activeRouteFrameRef.current
+      if (frame) {
+        await waitForRouteContent(frame, abortController.signal)
+      }
+
+      if (abortController.signal.aborted) return
+
+      setRouteTransition((current) =>
+        current && current.toKey === location.key
+          ? { ...current, ready: true }
+          : current
+      )
+
+      finishTimeout = window.setTimeout(() => {
+        setRouteTransition((current) =>
+          current?.toKey === location.key ? null : current
+        )
+      }, ROUTE_CROSSFADE_MS + 80)
+    }
+
+    void finishWhenReady()
+
+    return () => {
+      abortController.abort()
+      if (finishTimeout != null) window.clearTimeout(finishTimeout)
+    }
+  }, [location.key, routeTransition?.toKey])
+
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
     touchStartX.current = touch.clientX
@@ -205,6 +417,19 @@ function NavSync() {
     }
   }
 
+  const previousChromePathname = routeTransition?.fromPathname
+  const showPreviousChrome = Boolean(
+    previousChromePathname && shouldShowBottomBar(previousChromePathname)
+  )
+  const currentChromeState = routeTransition
+    ? routeTransition.ready
+      ? "ready"
+      : "loading"
+    : undefined
+  const previousChromeState = routeTransition?.ready
+    ? "previous-ready"
+    : "previous"
+
   return (
     <BottomBarActionProvider onActionChange={setBottomBarAction}>
       <div
@@ -212,11 +437,45 @@ function NavSync() {
         onTouchEnd={handleTouchEnd}
         className="app-route-shell"
       >
-        <div key={location.key} className="app-route-frame">
-          <Outlet />
+        <div className="app-route-stack">
+          {routeTransition?.from && (
+            <div
+              key={`from-${routeTransition.fromKey}`}
+              className="app-route-frame app-route-frame-previous"
+              data-route-ready={routeTransition.ready ? "true" : undefined}
+              aria-hidden="true"
+            >
+              {routeTransition.from}
+            </div>
+          )}
+          <div
+            key={location.key}
+            ref={activeRouteFrameRef}
+            className="app-route-frame app-route-frame-current"
+            data-route-loading={
+              routeTransition && !routeTransition.ready ? "true" : undefined
+            }
+            data-route-ready={routeTransition?.ready ? "true" : undefined}
+          >
+            {outlet}
+          </div>
         </div>
       </div>
-      {showBottomBar && <BottomBar onAdd={bottomBarAction} />}
+      {showPreviousChrome && previousChromePathname && (
+        <BottomBar
+          pathname={previousChromePathname}
+          chromeState={previousChromeState}
+        />
+      )}
+      {showBottomBar && (
+        <BottomBar
+          pathname={location.pathname}
+          chromeState={currentChromeState}
+        />
+      )}
+      {showBottomBar && (
+        <PersistentQuickAdd onAdd={bottomBarAction ?? fallbackQuickAddAction} />
+      )}
     </BottomBarActionProvider>
   )
 }

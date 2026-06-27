@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router"
 import {
   Aperture,
   Barbell,
@@ -12,6 +13,7 @@ import {
   PencilSimple,
   PintGlass,
   Plus,
+  Sparkle,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -20,6 +22,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { convexClient } from "@/lib/convex"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
@@ -59,6 +62,15 @@ import {
   MICRO_COLORS,
   tint,
 } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
+import {
+  clampSnapGrams,
+  snapDetectionsFromAiResult,
+  type SnapAiResult,
+  type SnapFoodMatch,
+} from "@/lib/food-snap-review"
+import type { FoodResult } from "@repo/models"
+import { toast } from "sonner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -136,8 +148,8 @@ function FoodActionRow({
   onSnap: () => void
 }) {
   return (
-    <section className="px-4 pb-4 md:px-8 short-phone:pb-3">
-      <div className="food-search-shell flex min-h-12 items-center gap-1.5 px-2 py-1.5 short-phone:min-h-11">
+    <section className="px-[var(--app-page-x)] pb-5 md:px-8 short-phone:pb-4">
+      <div className="food-search-shell flex min-h-14 items-center gap-2 px-2.5 py-2 short-phone:min-h-12">
         <button
           type="button"
           onClick={onSearch}
@@ -1004,6 +1016,61 @@ function roundRecipeMicro(value: number) {
   return Math.round(value * 100) / 100
 }
 
+function recipeIngredientFromAiFood(
+  food: FoodResult,
+  grams: number
+): RecipeIngredient {
+  const r = (value: number) => Math.round(value * 10) / 10
+  const safeGrams = clampSnapGrams(grams)
+  return {
+    id: Math.random().toString(36).slice(2),
+    name: food.name,
+    grams: safeGrams,
+    displayAmount: safeGrams,
+    displayUnit: "g",
+    servingLabel: food.serving,
+    caloriesPer100: Number(food.calories) || 0,
+    proteinPer100: r(Number(food.protein) || 0),
+    carbsPer100: r(Number(food.carbs) || 0),
+    fatPer100: r(Number(food.fat) || 0),
+  }
+}
+
+function tempRecipeFromAiDescription(
+  result: { aiResult?: SnapAiResult; matches?: SnapFoodMatch[] },
+  fallbackName: string
+): Recipe | null {
+  const aiResult = result.aiResult ?? {}
+  const detections = snapDetectionsFromAiResult(aiResult)
+  const matchesByIndex = new Map(
+    (result.matches ?? []).map((match) => [match.detectionIndex, match])
+  )
+  const ingredients = detections
+    .map((detection, index) => {
+      const match = matchesByIndex.get(index)
+      const food = match?.food ?? null
+      if (!food) return null
+      return recipeIngredientFromAiFood(
+        food,
+        detection.estimatedGrams ?? 100
+      )
+    })
+    .filter((ingredient): ingredient is RecipeIngredient => ingredient !== null)
+
+  if (ingredients.length === 0) return null
+
+  const rawName =
+    typeof aiResult.foodName === "string" && aiResult.foodName.trim()
+      ? aiResult.foodName.trim()
+      : fallbackName.trim()
+
+  return {
+    name: rawName.slice(0, 48) || "Described meal",
+    createdAt: new Date().toISOString(),
+    ingredients,
+  }
+}
+
 function recipeTotals(ingredients: RecipeIngredient[]) {
   const totals = ingredients.reduce(
     (acc, i) => {
@@ -1047,6 +1114,83 @@ const RECIPE_MACRO_PILLS = [
   { label: "F", key: "fat" as const, color: MACRO_COLORS.fat },
 ]
 
+// ─── Describe-to-log sheet ───────────────────────────────────────────────────
+
+function DescribeMealSheet({
+  busy,
+  onSubmit,
+  onClose,
+}: {
+  busy: boolean
+  onSubmit: (text: string) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState("")
+  const canSubmit = text.trim().length >= 4 && !busy
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[3px]"
+        onClick={busy ? undefined : onClose}
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[26px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.2)]"
+        style={{
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+        }}
+      >
+        <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-foreground/10" />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
+            <Sparkle size={15} weight="fill" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] leading-snug font-semibold">
+              Describe to log
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-muted-foreground/58">
+              Tell AI what you ate. It will split the meal into ingredients and
+              create a temporary recipe you can review before logging.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="app-icon-button h-9 w-9 disabled:opacity-40"
+            aria-label="Close describe meal"
+          >
+            <X size={13} weight="bold" />
+          </button>
+        </div>
+
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          disabled={busy}
+          placeholder="e.g. chicken burrito bowl with rice, black beans, salsa, cheese, and guacamole"
+          className="min-h-36 w-full resize-none rounded-2xl border border-border/50 bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/35 focus:border-foreground/20 disabled:opacity-60"
+        />
+
+        <button
+          type="button"
+          disabled={!canSubmit}
+          onClick={() => onSubmit(text.trim())}
+          className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
+        >
+          <Sparkle
+            size={14}
+            weight="fill"
+            className={busy ? "animate-spin" : undefined}
+          />
+          {busy ? "Building recipe…" : "Create temporary recipe"}
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ─── Recipe log sheet ─────────────────────────────────────────────────────────
 
 function RecipeLogSheet({
@@ -1068,12 +1212,7 @@ function RecipeLogSheet({
         className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
         onClick={onClose}
       />
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)]"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-      >
+      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 pb-[calc(var(--app-safe-bottom-lg)+5.25rem)] shadow-[0_-16px_50px_rgba(0,0,0,0.18)] md:pb-6">
         <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-foreground/10" />
         <p className="text-[15px] leading-snug font-semibold">Log to…</p>
         <p className="mb-0.5 truncate text-[11.5px] text-muted-foreground/45">
@@ -1488,6 +1627,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
 
 export default function Foods() {
   const navigate = useSmoothNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
@@ -1537,12 +1677,68 @@ export default function Foods() {
   const [addOpen, setAddOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  const [describeOpen, setDescribeOpen] = useState(false)
+  const [describeBusy, setDescribeBusy] = useState(false)
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null)
   const [dismissedSmartMealKeys, setDismissedSmartMealKeys] = useState<
     string[]
   >([])
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setAddOpen(true))
+
+  function openSnapCamera() {
+    if (!requireAiAccess()) return
+    if (!navigator.onLine) {
+      setSnapOffline(true)
+      return
+    }
+    setSnapOffline(false)
+    setAddOpen(false)
+    navigate("/camera")
+  }
+
+  function openDescribeMeal() {
+    if (!requireAiAccess()) return
+    setAddOpen(false)
+    setDescribeOpen(true)
+  }
+
+  useEffect(() => {
+    if (searchParams.get("describe") !== "1") return
+    if (requireAiAccess()) {
+      setAddOpen(false)
+      setDescribeOpen(true)
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete("describe")
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams, requireAiAccess])
+
+  async function handleDescribeMeal(text: string) {
+    if (describeBusy || !requireAiAccess()) return
+    setDescribeBusy(true)
+    try {
+      const result = (await convexClient.action(
+        (api.logs.snap as any).describeText,
+        {
+          text,
+          language: preferences?.foodSearchLanguage ?? "en",
+        }
+      )) as unknown as { aiResult?: SnapAiResult; matches?: SnapFoodMatch[] }
+      const recipe = tempRecipeFromAiDescription(result, text)
+      if (!recipe) {
+        toast.message("I couldn't match enough ingredients to log that meal")
+        return
+      }
+      setDescribeOpen(false)
+      setLoggingRecipe(recipe)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not parse meal")
+    } finally {
+      setDescribeBusy(false)
+    }
+  }
 
   const apiGoals = useMemo(() => {
     if (!goalsRes) return null
@@ -1622,9 +1818,9 @@ export default function Foods() {
 
   return (
     <div className="desktop-canvas min-h-svh overflow-x-hidden bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="app-header px-4 md:px-8 short-phone:pb-2">
+        <header className="app-header px-[var(--app-page-x)] md:px-8 short-phone:pb-4">
           <div>
             <p className="app-eyebrow">
               Diary
@@ -1642,7 +1838,7 @@ export default function Foods() {
               <CalendarBlank size={15} />
             </button>
             <button
-              onClick={() => navigate("/camera")}
+              onClick={openSnapCamera}
               aria-label="Snap meal"
               className="app-icon-button"
             >
@@ -1661,17 +1857,10 @@ export default function Foods() {
         <FoodActionRow
           onSearch={() => navigate("/foods/search")}
           onScan={() => navigate("/camera?mode=barcode")}
-          onSnap={() => {
-            if (!navigator.onLine) {
-              setSnapOffline(true)
-              return
-            }
-            setSnapOffline(false)
-            navigate("/camera")
-          }}
+          onSnap={openSnapCamera}
         />
 
-        <div className="app-grid px-4 md:px-8 short-phone:gap-3">
+        <div className="app-grid px-[var(--app-page-x)] md:px-8 short-phone:gap-3">
           {smartMealSuggestion && (
             <section className="md:col-span-2">
               <SmartMealPresetCard
@@ -1794,6 +1983,16 @@ export default function Foods() {
       {/* History sheet */}
       {historyOpen && <HistorySheet onClose={() => setHistoryOpen(false)} />}
 
+      {describeOpen && (
+        <DescribeMealSheet
+          busy={describeBusy}
+          onSubmit={(text) => {
+            void handleDescribeMeal(text)
+          }}
+          onClose={() => setDescribeOpen(false)}
+        />
+      )}
+
       {/* Recipe log sheet */}
       {loggingRecipe && (
         <RecipeLogSheet
@@ -1825,6 +2024,7 @@ export default function Foods() {
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
             <div className="mb-3 app-surface overflow-hidden">
@@ -1852,15 +2052,7 @@ export default function Foods() {
               </button>
 
               <button
-                onClick={() => {
-                  if (!navigator.onLine) {
-                    setSnapOffline(true)
-                    return
-                  }
-                  setSnapOffline(false)
-                  setAddOpen(false)
-                  navigate("/camera")
-                }}
+                onClick={openSnapCamera}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
                 <span className="flex min-w-0 items-center gap-3">
@@ -1873,6 +2065,26 @@ export default function Foods() {
                     </span>
                     <span className="block text-[11.5px] text-muted-foreground/60">
                       Estimate from photo
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
+              </button>
+
+              <button
+                onClick={openDescribeMeal}
+                className="flex w-full items-center justify-between gap-3 border-t border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                    <Sparkle size={16} weight="fill" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Describe meal
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      AI builds a temporary recipe
                     </span>
                   </span>
                 </span>
@@ -1914,6 +2126,43 @@ export default function Foods() {
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
+              {recipes.length > 0 && (
+                <>
+                  <div className="mx-4 h-px bg-border/50" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
+                      Saved recipes
+                    </p>
+                  </div>
+                  {recipes.slice(0, 5).map((recipe) => {
+                    const totals = recipeTotals(recipe.ingredients)
+                    return (
+                      <button
+                        key={recipe._id ?? recipe.name}
+                        onClick={() => {
+                          setAddOpen(false)
+                          setLoggingRecipe(recipe)
+                        }}
+                        className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-muted/40"
+                      >
+                        <div className="min-w-0 text-left">
+                          <p className="truncate text-[13px] font-medium">
+                            {recipe.name}
+                          </p>
+                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                            {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                            {recipe.ingredients.length === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <CaretRight
+                          size={11}
+                          className="shrink-0 text-muted-foreground/30"
+                        />
+                      </button>
+                    )
+                  })}
+                </>
+              )}
               <div className="mx-4 h-px bg-border/50" />
               <button
                 onClick={() => {
@@ -1944,6 +2193,8 @@ export default function Foods() {
           )}
         </MobileSheet>
       )}
+
+      {aiAccessModal}
     </div>
   )
 }

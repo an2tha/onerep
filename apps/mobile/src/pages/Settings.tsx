@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
 import { useClerk, useUser } from "@clerk/react"
-import {
-  CheckoutButton,
-  usePlans,
-  useSubscription,
-} from "@clerk/react/experimental"
+import { CheckoutButton, usePlans } from "@clerk/react/experimental"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { cn } from "@/lib/utils"
@@ -32,19 +28,18 @@ import {
   syncPushReminders,
   type ReminderSettings,
 } from "@/lib/reminders"
+import {
+  AI_ACCESS_PLAN_ID,
+  AI_ACCESS_PLAN_SLUG,
+  getActiveAiAccessSubscriptionItem,
+  useAiAccessSubscription,
+} from "@/lib/ai-access"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
 type Theme = "light" | "dark"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const AI_ACCESS_PLAN_SLUG =
-  (import.meta.env.VITE_CLERK_AI_PLAN_SLUG as string | undefined) ??
-  "ai-access"
-const AI_ACCESS_PLAN_ID = import.meta.env.VITE_CLERK_AI_PLAN_ID as
-  | string
-  | undefined
-
 /**
  * Determine the current UI theme.
  *
@@ -101,7 +96,7 @@ type WeightUnit = "kg" | "lbs"
 type FoodSearchLanguage = "en" | "es" | "fr" | "de" | "it" | "pt"
 
 const SETTINGS_SECTION_TRIGGER_CLASS =
-  "app-rail-surface px-4 py-3 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-2.5"
+  "app-rail-surface px-4 py-3.5 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-3"
 const SETTINGS_PANEL_CLASS = "app-surface overflow-hidden rounded-t-none"
 
 /**
@@ -124,7 +119,11 @@ export default function Settings({
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
-  const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
+  const aiAccess = useAiAccessSubscription()
+  const aiUsage = useQuery(
+    api.ai.usage.getMonthlyUsage,
+    aiAccess.hasAiAccess ? {} : "skip"
+  )
 
   const setDashboardSettings = useOfflineMutation(
     api.users.users.setDashboardSettings,
@@ -206,6 +205,8 @@ export default function Settings({
   const [pushReminders, setPushRemindersState] = useState<ReminderSettings>(
     mergeReminderSettings(null)
   )
+  const [remindersHydrated, setRemindersHydrated] = useState(false)
+  const remindersHydratedRef = useRef(false)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
     if (typeof window === "undefined") return true
     return localStorage.getItem("onerep:analytics-enabled") !== "false"
@@ -220,6 +221,16 @@ export default function Settings({
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [theme, setThemeState] = useState<Theme>("light")
+  const targetsAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+  const remindersAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  )
+  const targetsAutosaveInitialized = useRef(false)
+  const remindersAutosaveInitialized = useRef(false)
+  const lastAutosavedTargets = useRef("")
+  const lastAutosavedReminders = useRef("")
 
   // Initialize theme
   useEffect(() => {
@@ -242,13 +253,15 @@ export default function Settings({
     if (preferences?.workoutAdjustmentEnabled !== undefined) {
       setWorkoutAdjustmentEnabled(preferences.workoutAdjustmentEnabled)
     }
-    if (preferences?.pushReminders || preferences?.bodyReminder) {
+    if (preferences !== undefined && !remindersHydratedRef.current) {
       setPushRemindersState(
         mergeReminderSettings({
-          ...(preferences.pushReminders ?? {}),
-          body: preferences.pushReminders?.body ?? preferences.bodyReminder,
+          ...(preferences?.pushReminders ?? {}),
+          body: preferences?.pushReminders?.body ?? preferences?.bodyReminder,
         })
       )
+      remindersHydratedRef.current = true
+      setRemindersHydrated(true)
     }
     if (preferences?.privacySettings) {
       setAnalyticsEnabled(preferences.privacySettings.analyticsEnabled)
@@ -286,6 +299,102 @@ export default function Settings({
     }
     setGoalsInitialized(true)
   }, [effectiveGoals])
+
+  useEffect(() => {
+    if (!goalsInitialized || !remindersHydrated) return
+
+    const payload = {
+      calories,
+      protein,
+      carbs,
+      fat,
+      waterGoal,
+      workoutFocus,
+      weightUnit,
+      foodSearchLanguage,
+    }
+    const key = JSON.stringify(payload)
+
+    if (!targetsAutosaveInitialized.current) {
+      targetsAutosaveInitialized.current = true
+      lastAutosavedTargets.current = key
+      return
+    }
+    if (key === lastAutosavedTargets.current) return
+
+    if (targetsAutosaveTimer.current) {
+      clearTimeout(targetsAutosaveTimer.current)
+    }
+    targetsAutosaveTimer.current = setTimeout(() => {
+      void (async () => {
+        try {
+          await setCustomGoals({ calories, protein, carbs, fat })
+          await setWaterGoal({ goalMl: waterGoal })
+          await setDashboardSettings({ workoutFocus })
+          await setWeightUnit({ unit: weightUnit })
+          await setFoodSearchLanguage({ language: foodSearchLanguage })
+          lastAutosavedTargets.current = key
+        } catch (error) {
+          console.error("Failed to autosave target settings:", error)
+        }
+      })()
+    }, 450)
+
+    return () => {
+      if (targetsAutosaveTimer.current) {
+        clearTimeout(targetsAutosaveTimer.current)
+      }
+    }
+  }, [
+    goalsInitialized,
+    remindersHydrated,
+    calories,
+    protein,
+    carbs,
+    fat,
+    waterGoal,
+    workoutFocus,
+    weightUnit,
+    foodSearchLanguage,
+    setCustomGoals,
+    setWaterGoal,
+    setDashboardSettings,
+    setWeightUnit,
+    setFoodSearchLanguage,
+  ])
+
+  useEffect(() => {
+    if (!remindersHydrated) return
+
+    const key = JSON.stringify(pushReminders)
+    if (!remindersAutosaveInitialized.current) {
+      remindersAutosaveInitialized.current = true
+      lastAutosavedReminders.current = key
+      return
+    }
+    if (key === lastAutosavedReminders.current) return
+
+    if (remindersAutosaveTimer.current) {
+      clearTimeout(remindersAutosaveTimer.current)
+    }
+    remindersAutosaveTimer.current = setTimeout(() => {
+      void (async () => {
+        try {
+          await setPushReminders({ reminders: pushReminders })
+          await syncPushReminders(pushReminders)
+          lastAutosavedReminders.current = key
+        } catch (error) {
+          console.error("Failed to autosave notification settings:", error)
+        }
+      })()
+    }, 450)
+
+    return () => {
+      if (remindersAutosaveTimer.current) {
+        clearTimeout(remindersAutosaveTimer.current)
+      }
+    }
+  }, [remindersHydrated, pushReminders, setPushReminders])
 
   useEffect(() => {
     const refresh = () => setOfflineQueueTotal(getOfflineQueueSummary().total)
@@ -506,11 +615,11 @@ export default function Settings({
     }
   }
 
-  const settingsContentReady = goalsInitialized
+  const settingsContentReady = goalsInitialized && remindersHydrated
 
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
-      <main className="mx-auto min-h-svh w-full max-w-2xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-8 md:pt-10 md:pb-12">
+      <main className="mx-auto min-h-svh w-full max-w-2xl px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:px-8 md:pt-10 md:pb-12">
         {/* Header */}
         <div className="mb-5 px-1 pt-1 md:mb-6 md:px-0 md:pt-0">
           <h1 className="app-title text-[24px] md:mt-1 short-phone:text-[21px]">
@@ -520,11 +629,11 @@ export default function Settings({
 
         {settingsContentReady ? (
           <>
-            <div className="space-y-2.5 short-phone:space-y-2">
+            <div className="space-y-3 short-phone:space-y-2.5">
               <Accordion
                 type="multiple"
                 defaultValue={["profile", "targets", "reminders"]}
-                className="space-y-2.5 short-phone:space-y-2"
+                className="space-y-3 short-phone:space-y-2.5"
               >
                 {/* Account Section */}
                 <AccordionItem value="profile" className="border-none">
@@ -563,10 +672,14 @@ export default function Settings({
                           )}
                         </button>
                       </div>
+                      {aiAccess.hasAiAccess && (
+                        <>
+                          <RowDivider />
+                          <AiUsageProgress usage={aiUsage} />
+                        </>
+                      )}
                       <RowDivider />
-                      <AiUsageProgress usage={aiUsage} />
-                      <RowDivider />
-                      <AiAccessBillingCard />
+                      <AiAccessBillingCard aiAccess={aiAccess} />
                       <RowDivider />
                       <button
                         onClick={() => {
@@ -693,11 +806,6 @@ export default function Settings({
                         />
                       </SettingsRow>
                     </div>
-                    <SectionSaveButton
-                      label="Save targets"
-                      saving={saving}
-                      onClick={handleSaveTargets}
-                    />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -996,11 +1104,6 @@ export default function Settings({
                         }
                       />
                     </div>
-                    <SectionSaveButton
-                      label="Save notifications"
-                      saving={saving}
-                      onClick={handleSaveNotifications}
-                    />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -1173,39 +1276,45 @@ function ReminderRow({
   const timeValue = `${String(reminder.hour).padStart(2, "0")}:${String(reminder.minute).padStart(2, "0")}`
 
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
-      <div>
+    <div className="flex flex-col gap-3 px-4 py-3.5 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between short-phone:py-3">
+      <div className="min-w-0">
         <span className="block text-[14px] text-foreground/80">{label}</span>
         <span className="mt-0.5 block text-[10.5px] text-muted-foreground/45">
           {reminder.enabled ? formatReminderLabel(reminder) : "Off"}
         </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex w-full items-center justify-between gap-2 min-[430px]:w-auto min-[430px]:justify-end">
         <input
           type="time"
           value={timeValue}
           onChange={(e) => {
             const [hour, minute] = e.target.value.split(":").map(Number)
-            onChange({ hour, minute })
+            if (Number.isFinite(hour) && Number.isFinite(minute)) {
+              onChange({ hour, minute })
+            }
           }}
-          className="h-10 rounded-[10px] bg-muted/60 px-2 text-[12px] font-semibold outline-none"
+          className="h-10 min-w-0 flex-1 rounded-[10px] bg-muted/60 px-3 text-[12px] font-semibold outline-none min-[430px]:w-[6.75rem] min-[430px]:flex-none"
         />
         <button
           type="button"
+          role="switch"
+          aria-checked={reminder.enabled}
           onClick={() => {
             hapticSelection()
             onChange({ enabled: !reminder.enabled })
           }}
           aria-label={`${reminder.enabled ? "Disable" : "Enable"} ${label} reminder`}
           className={cn(
-            "relative h-10 w-16 rounded-full transition-colors",
-            reminder.enabled ? "bg-foreground" : "bg-muted"
+            "relative h-8 w-[3.25rem] shrink-0 rounded-full transition-colors",
+            reminder.enabled
+              ? "bg-foreground"
+              : "bg-muted/80 ring-1 ring-border/30"
           )}
         >
           <span
             className={cn(
-              "absolute top-1 h-8 w-8 rounded-full bg-background shadow-sm transition-transform",
-              reminder.enabled ? "translate-x-6" : "translate-x-1"
+              "absolute top-1 left-1 h-6 w-6 rounded-full bg-background shadow-sm transition-transform",
+              reminder.enabled ? "translate-x-5" : "translate-x-0"
             )}
           />
         </button>
@@ -1222,9 +1331,9 @@ function SettingsRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
-      <span className="text-[14px] text-foreground/80">{label}</span>
-      {children}
+    <div className="flex flex-col items-stretch gap-3 px-4 py-4 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between short-phone:py-3.5">
+      <span className="text-[14px] font-medium text-foreground/80">{label}</span>
+      <div className="min-w-0 min-[430px]:shrink-0">{children}</div>
     </div>
   )
 }
@@ -1302,9 +1411,12 @@ function formatBillingDate(value?: Date | string | number | null) {
   })
 }
 
-function AiAccessBillingCard() {
+function AiAccessBillingCard({
+  aiAccess,
+}: {
+  aiAccess: ReturnType<typeof useAiAccessSubscription>
+}) {
   const plans = usePlans({ for: "user", pageSize: 20 })
-  const subscription = useSubscription({ for: "user" })
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
   const [canceling, setCanceling] = useState(false)
 
@@ -1314,23 +1426,19 @@ function AiAccessBillingCard() {
       (AI_ACCESS_PLAN_ID ? plan.id === AI_ACCESS_PLAN_ID : false)
   )
   const planId = AI_ACCESS_PLAN_ID ?? aiPlan?.id
-  const aiSubscriptionItem = subscription.data?.subscriptionItems.find(
-    (item) =>
-      (item.plan.slug === AI_ACCESS_PLAN_SLUG ||
-        (AI_ACCESS_PLAN_ID ? item.plan.id === AI_ACCESS_PLAN_ID : false)) &&
-      item.status !== "ended" &&
-      !item.canceledAt
+  const aiSubscriptionItem = getActiveAiAccessSubscriptionItem(
+    aiAccess.subscription
   )
   const upgraded = Boolean(aiSubscriptionItem)
   const nextPaymentDate = formatBillingDate(aiSubscriptionItem?.nextPayment?.date)
-  const loadingBilling = plans.isLoading || subscription.isLoading
+  const loadingBilling = plans.isLoading || aiAccess.isLoading
 
   async function handleCancelPlan() {
     if (!aiSubscriptionItem || canceling) return
     setCanceling(true)
     try {
       await aiSubscriptionItem.cancel({})
-      await subscription.revalidate?.()
+      await aiAccess.revalidate?.()
       setConfirmCancelOpen(false)
       toast.success("AI Access canceled")
     } catch (error) {
@@ -1392,11 +1500,11 @@ function AiAccessBillingCard() {
             planPeriod="month"
             for="user"
             onSubscriptionComplete={() => {
-              void subscription.revalidate?.()
+              void aiAccess.revalidate?.()
               toast.success("AI Access enabled")
             }}
             checkoutProps={{
-              onClose: () => void subscription.revalidate?.(),
+              onClose: () => void aiAccess.revalidate?.(),
             }}
           >
             <button
@@ -1531,20 +1639,20 @@ function NumberStepper({
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex w-full items-center justify-end gap-1.5 min-[430px]:w-auto">
       {/* Decrement */}
       <button
         onClick={decrement}
         disabled={value <= min}
         aria-label={label ? `Decrease ${label}` : "Decrease"}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-[10px]",
+          "flex h-11 w-11 items-center justify-center rounded-[12px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >
-        <Minus size={13} weight="bold" />
+        <Minus size={14} weight="bold" />
       </button>
 
       {/* Value display / inline edit */}
@@ -1563,7 +1671,7 @@ function NumberStepper({
             : `Edit value ${value}`
         }
         className={cn(
-          "relative flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] px-2",
+          "relative flex min-h-11 min-w-[72px] flex-col items-center justify-center rounded-[12px] px-2",
           "bg-muted/60 transition-colors",
           editing && "hidden"
         )}
@@ -1579,7 +1687,7 @@ function NumberStepper({
       </button>
 
       {editing && (
-        <div className="flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] bg-muted/80 px-2 ring-1 ring-foreground/20">
+        <div className="flex min-h-11 min-w-[72px] flex-col items-center justify-center rounded-[12px] bg-muted/80 px-2 ring-1 ring-foreground/20">
           <input
             ref={inputRef}
             type="text"
@@ -1614,13 +1722,13 @@ function NumberStepper({
         disabled={value >= max}
         aria-label={label ? `Increase ${label}` : "Increase"}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-[10px]",
+          "flex h-11 w-11 items-center justify-center rounded-[12px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >
-        <Plus size={13} weight="bold" />
+        <Plus size={14} weight="bold" />
       </button>
     </div>
   )
@@ -1636,7 +1744,7 @@ function SegmentedControl({
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="flex gap-0.5 rounded-[10px] bg-muted/60 p-0.5">
+    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(3.1rem,1fr))] gap-1 rounded-[12px] bg-muted/60 p-1 min-[430px]:w-auto min-[430px]:auto-cols-fr min-[430px]:grid-flow-col min-[430px]:grid-cols-none">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -1645,7 +1753,7 @@ function SegmentedControl({
             onChange(opt.value)
           }}
           className={cn(
-            "min-h-10 rounded-[9px] px-3 text-[12px] font-semibold transition-all duration-150",
+            "min-h-10 rounded-[10px] px-2.5 text-[12px] font-semibold transition-all duration-150",
             value === opt.value
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground/45 active:text-foreground/60"
