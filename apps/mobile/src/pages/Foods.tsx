@@ -33,6 +33,7 @@ import {
   defaultMeal,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
+  stripUndefined,
   type FoodLogEntry,
   type MealPreset,
   type Recipe,
@@ -190,9 +191,11 @@ function FoodActionRow({
 function SwipeRow({
   entry,
   onDelete,
+  onEditRecipe,
 }: {
   entry: FoodLogEntry
   onDelete: () => void
+  onEditRecipe?: () => void
 }) {
   return (
     <SlideToDeleteRow
@@ -204,6 +207,19 @@ function SwipeRow({
       <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
         {entry.name}
       </p>
+      {onEditRecipe && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEditRecipe()
+          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/55 transition-opacity active:opacity-70"
+          aria-label={`Edit recipe for ${entry.name}`}
+        >
+          <PencilSimple size={11} weight="bold" />
+        </button>
+      )}
       <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
         {entry.calories}
       </span>
@@ -217,10 +233,12 @@ function DiaryEntries({
   entries,
   dateKey: _dateKey,
   onDelete,
+  onEditRecipe,
 }: {
   entries: FoodLogEntry[]
   dateKey: string
   onDelete?: (index: number) => void
+  onEditRecipe?: (entry: FoodLogEntry) => void
 }) {
   const sorted = entries
     .map((entry, index) => ({ entry, index }))
@@ -268,6 +286,11 @@ function DiaryEntries({
                   key={`${entry.id}-${index}`}
                   entry={entry}
                   onDelete={() => onDelete(index)}
+                  onEditRecipe={
+                    onEditRecipe && (entry.recipeId || entry.recipeDraft)
+                      ? () => onEditRecipe(entry)
+                      : undefined
+                  }
                 />
               ) : (
                 <div
@@ -316,10 +339,12 @@ function TodayDiaryCard({
   entries,
   dateKey,
   onDelete,
+  onEditRecipe,
 }: {
   entries: FoodLogEntry[]
   dateKey: string
   onDelete: (index: number) => void
+  onEditRecipe?: (entry: FoodLogEntry) => void
 }) {
   return (
     <div
@@ -342,7 +367,12 @@ function TodayDiaryCard({
           </p>
         </div>
       ) : (
-        <DiaryEntries entries={entries} dateKey={dateKey} onDelete={onDelete} />
+        <DiaryEntries
+          entries={entries}
+          dateKey={dateKey}
+          onDelete={onDelete}
+          onEditRecipe={onEditRecipe}
+        />
       )}
     </div>
   )
@@ -1196,10 +1226,12 @@ function DescribeMealSheet({
 function RecipeLogSheet({
   recipe,
   onLog,
+  onEdit,
   onClose,
 }: {
   recipe: Recipe
   onLog: (meal: string) => void
+  onEdit?: () => void
   onClose: () => void
 }) {
   const categories = DEFAULT_MEAL_CATEGORIES
@@ -1218,10 +1250,19 @@ function RecipeLogSheet({
         <p className="mb-0.5 truncate text-[11.5px] text-muted-foreground/45">
           {recipe.name}
         </p>
-        <p className="mb-4 text-[11px] text-muted-foreground/30 tabular-nums">
+        <p className="mb-3 text-[11px] text-muted-foreground/30 tabular-nums">
           {totals.calories} kcal · P{totals.protein} C{totals.carbs} F
           {totals.fat}g
         </p>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="mb-3 flex min-h-10 w-full items-center justify-center rounded-2xl bg-muted px-4 text-[13px] font-semibold text-foreground/75 transition-opacity active:opacity-75"
+          >
+            Edit recipe
+          </button>
+        )}
         <div className="flex flex-col gap-1.5">
           {categories.map((cat) => (
             <button
@@ -1704,6 +1745,21 @@ export default function Foods() {
     setDescribeOpen(true)
   }
 
+  function editRecipeFromLogEntry(entry: FoodLogEntry) {
+    const replaceFoodLogEntry = { date: todayKey, entryId: entry.id }
+    if (entry.recipeId) {
+      navigate(`/foods/recipe/${entry.recipeId}`, {
+        state: { replaceFoodLogEntry },
+      })
+      return
+    }
+    if (entry.recipeDraft) {
+      navigate("/foods/recipe/new", {
+        state: { draftRecipe: entry.recipeDraft, replaceFoodLogEntry },
+      })
+    }
+  }
+
   useEffect(() => {
     if (searchParams.get("describe") !== "1") return
     if (requireAiAccess()) {
@@ -1890,6 +1946,7 @@ export default function Foods() {
                   entries: todayEntries.filter((_, i) => i !== index),
                 })
               }}
+              onEditRecipe={editRecipeFromLogEntry}
             />
           </section>
 
@@ -1999,18 +2056,36 @@ export default function Foods() {
           recipe={loggingRecipe}
           onLog={(meal) => {
             const totals = recipeTotals(loggingRecipe.ingredients)
-            const entry = {
+            const entry = stripUndefined({
               id: Math.random().toString(36).slice(2),
               name: loggingRecipe.name,
               ...totals,
               loggedAt: new Date().toISOString(),
               meal,
-            }
+              recipeId: loggingRecipe._id,
+              recipeDraft: loggingRecipe._id
+                ? undefined
+                : {
+                    name: loggingRecipe.name,
+                    ingredients: loggingRecipe.ingredients,
+                  },
+            })
             void setDay({
               date: todayKey,
               entries: [...todayEntries, entry],
             })
             setLoggingRecipe(null)
+          }}
+          onEdit={() => {
+            const recipe = loggingRecipe
+            setLoggingRecipe(null)
+            if (recipe._id) {
+              navigate(`/foods/recipe/${recipe._id}`)
+              return
+            }
+            navigate("/foods/recipe/new", {
+              state: { draftRecipe: recipe },
+            })
           }}
           onClose={() => setLoggingRecipe(null)}
         />
@@ -2137,28 +2212,46 @@ export default function Foods() {
                   {recipes.slice(0, 5).map((recipe) => {
                     const totals = recipeTotals(recipe.ingredients)
                     return (
-                      <button
+                      <div
                         key={recipe._id ?? recipe.name}
-                        onClick={() => {
-                          setAddOpen(false)
-                          setLoggingRecipe(recipe)
-                        }}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-muted/40"
+                        className="flex w-full items-center gap-1 px-2 py-1"
                       >
-                        <div className="min-w-0 text-left">
-                          <p className="truncate text-[13px] font-medium">
-                            {recipe.name}
-                          </p>
-                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                            {totals.calories} kcal · {recipe.ingredients.length} ingredient
-                            {recipe.ingredients.length === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                        <CaretRight
-                          size={11}
-                          className="shrink-0 text-muted-foreground/30"
-                        />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddOpen(false)
+                            setLoggingRecipe(recipe)
+                          }}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                        >
+                          <div className="min-w-0 text-left">
+                            <p className="truncate text-[13px] font-medium">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {recipe.ingredients.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <CaretRight
+                            size={11}
+                            className="shrink-0 text-muted-foreground/30"
+                          />
+                        </button>
+                        {recipe._id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddOpen(false)
+                              navigate(`/foods/recipe/${recipe._id}`)
+                            }}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                            aria-label={`Edit ${recipe.name}`}
+                          >
+                            <PencilSimple size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </>

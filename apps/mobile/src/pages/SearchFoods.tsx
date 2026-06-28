@@ -13,6 +13,7 @@ import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
 import {
   currentDateKey,
+  detectTimeZone,
   DEFAULT_MEAL_CATEGORIES,
   defaultMeal,
   foodPortionLabel,
@@ -152,12 +153,11 @@ export default function SearchFoods() {
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
   const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
 
-  const date = currentDateKey()
   const preferences = useQuery(api.users.users.getPreferences)
-  const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useOfflineMutation(
-    api.logs.foodLogs.setDay,
-    "logs.foodLogs.setDay"
+  const date = currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const addFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
   )
 
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
@@ -207,7 +207,7 @@ export default function SearchFoods() {
     item: FoodSearchItem,
     grams = 100,
     micros: LogMicros = {},
-    meal = "breakfast",
+    meal = defaultMeal(),
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
@@ -237,8 +237,7 @@ export default function SearchFoods() {
       ...micros,
     })
 
-    const existingEntries = foodLogs ?? []
-    await setDay({ date, entries: [...existingEntries, entry] })
+    await addFoodEntry({ date, entry })
 
     posthog.capture("food_logged", {
       food_name: item.name,

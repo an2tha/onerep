@@ -6,17 +6,425 @@ import { getAuthUser } from "../lib/auth";
 
 const MAX_SNAPS_PER_DAY = 10;
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_CANDIDATES_PER_DETECTION = 10;
+const MAX_ALTERNATIVES_PER_DETECTION = 8;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const DEFAULT_OPENFOODFACTS_URL = "https://world.openfoodfacts.org";
+const PRODUCT_FIELDS = [
+  "code",
+  "product_name",
+  "product_name_en",
+  "generic_name",
+  "brands",
+  "quantity",
+  "serving_size",
+  "serving_quantity",
+  "image_url",
+  "image_front_url",
+  "image_front_small_url",
+  "image_front_thumb_url",
+  "selected_images",
+  "nutriments",
+  "nutriments_estimated",
+  "nutriscore_grade",
+  "nova_group",
+].join(",");
 
 interface Ingredient {
   name: string;
   quantityInGrams: string;
+  searchQueries?: string[];
 }
 
 interface AnalyzeResult {
   foodName?: string;
   ingredients?: Ingredient[];
   estimatedQuantity?: string;
+  searchQueries?: string[];
+}
+
+type SnapSearchDetection = {
+  index: number;
+  name: string;
+  searchQueries: string[];
+};
+
+type FoodMatchResult = {
+  detectionIndex: number;
+  detectedName: string;
+  food: FoodResult | null;
+  alternatives: FoodResult[];
+};
+
+type FoodResult = {
+  id: string;
+  source: "openfoodfacts";
+  code: string;
+  name: string;
+  brand?: string;
+  serving: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  imageUrl?: string;
+  openFoodFacts: Record<string, unknown>;
+};
+
+function cleanText(value: unknown, maxLength = 80) {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+}
+
+function cleanSearchQueries(value: unknown) {
+  const values = Array.isArray(value) ? value : [];
+  const seen = new Set<string>();
+  const queries: string[] = [];
+  for (const item of values) {
+    const query = cleanText(item, 80);
+    const key = query.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    queries.push(query);
+    if (queries.length >= 5) break;
+  }
+  return queries;
+}
+
+function normalizeIngredient(value: unknown): Ingredient | null {
+  if (!value || typeof value !== "object") return null;
+  const input = value as Record<string, unknown>;
+  const name = cleanText(input.name, 80);
+  if (!name) return null;
+  const quantityInGrams = cleanText(input.quantityInGrams, 32);
+  const searchQueries = cleanSearchQueries(input.searchQueries);
+  return {
+    name,
+    quantityInGrams: quantityInGrams || "100 g",
+    ...(searchQueries.length > 0 ? { searchQueries } : {}),
+  };
+}
+
+function stripUndefined(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  if (value === null) return value;
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripUndefined(item))
+      .filter((item) => item !== undefined);
+  }
+  if (typeof value === "object") {
+    const output: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      const cleaned = stripUndefined(child);
+      if (cleaned !== undefined) output[key] = cleaned;
+    }
+    return output;
+  }
+  return value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function toNumber(value: unknown): number {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const parsed = Number(
+    String(value)
+      .replace(",", ".")
+      .replace(/[^0-9.-]/g, ""),
+  );
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function firstNumber(...values: unknown[]): number {
+  for (const value of values) {
+    const parsed = toNumber(value);
+    if (parsed !== 0) return parsed;
+  }
+  return 0;
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value))
+      return String(value);
+  }
+}
+
+function cleanUnknown(value?: string): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.trim();
+  if (!normalized || normalized.toLowerCase() === "unknown") return undefined;
+  return normalized;
+}
+
+function titleCaseName(value: string): string {
+  return value.replace(/\S+/g, (word) => {
+    if (/^[A-Z0-9&.'-]+$/.test(word) && word.length <= 4) return word;
+    return word
+      .toLowerCase()
+      .replace(
+        /^([\p{L}\p{N}])|([\s'’\-/])([\p{L}\p{N}])/gu,
+        (match, first, sep, next) =>
+          first ? first.toUpperCase() : `${sep}${next.toUpperCase()}`,
+      );
+  });
+}
+
+function selectedImageUrl(product: Record<string, unknown>): string | undefined {
+  const selectedImages = asRecord(product.selected_images);
+  const front = asRecord(selectedImages.front);
+  for (const groupName of ["display", "small", "thumb"]) {
+    const group = asRecord(front[groupName]);
+    const url = firstString(...Object.values(group));
+    if (url) return url;
+  }
+}
+
+function productImageUrl(product: Record<string, unknown>): string | undefined {
+  return firstString(
+    product.image_front_small_url,
+    product.image_front_thumb_url,
+    product.image_front_url,
+    product.image_url,
+    selectedImageUrl(product),
+  );
+}
+
+function nutrientValue(product: Record<string, unknown>, key: string): number {
+  const nutriments = asRecord(product.nutriments);
+  const estimated = asRecord(product.nutriments_estimated);
+  return firstNumber(
+    nutriments[`${key}_100g`],
+    nutriments[key],
+    estimated[`${key}_100g`],
+    estimated[key],
+  );
+}
+
+function servingLabel(product: Record<string, unknown>): string {
+  return firstString(product.serving_size, product.quantity) ?? "100 g";
+}
+
+function productName(product: Record<string, unknown>): string {
+  return titleCaseName(
+    firstString(
+      product.product_name_en,
+      product.product_name,
+      product.generic_name,
+      product.code,
+      product._id,
+    ) ?? "Food",
+  );
+}
+
+function productToFoodResult(raw: unknown): FoodResult | null {
+  const product = asRecord(raw);
+  const code = firstString(product.code, product._id);
+  if (!code) return null;
+
+  const calories = nutrientValue(product, "energy-kcal");
+  const protein = nutrientValue(product, "proteins");
+  const carbs = nutrientValue(product, "carbohydrates");
+  const fat = nutrientValue(product, "fat");
+  const openFoodFacts = stripUndefined({
+    code,
+    product_name: firstString(product.product_name),
+    product_name_en: firstString(product.product_name_en),
+    generic_name: firstString(product.generic_name),
+    brands: firstString(product.brands),
+    quantity: firstString(product.quantity),
+    serving_size: firstString(product.serving_size, product.serving),
+    serving_quantity: firstString(product.serving_quantity, product.servingQuantity),
+    image_url: firstString(product.image_url),
+    image_front_url: firstString(product.image_front_url),
+    image_front_small_url: firstString(product.image_front_small_url),
+    image_front_thumb_url: firstString(product.image_front_thumb_url),
+    selected_images: product.selected_images,
+    nutriments: product.nutriments,
+    nutriments_estimated: product.nutriments_estimated,
+    nutriscore_grade: firstString(product.nutriscore_grade),
+    nova_group: firstString(product.nova_group),
+  }) as Record<string, unknown>;
+
+  return stripUndefined({
+    id: code,
+    source: "openfoodfacts" as const,
+    code,
+    name: productName(product),
+    brand: cleanUnknown(firstString(product.brands)),
+    serving: servingLabel(product),
+    calories: Math.round(calories),
+    protein: Math.round(protein * 10) / 10,
+    carbs: Math.round(carbs * 10) / 10,
+    fat: Math.round(fat * 10) / 10,
+    imageUrl: productImageUrl(product),
+    openFoodFacts,
+  }) as FoodResult;
+}
+
+function dedupeFoods(results: FoodResult[]): FoodResult[] {
+  const seen = new Set<string>();
+  const deduped: FoodResult[] = [];
+  for (const result of results) {
+    if (seen.has(result.code)) continue;
+    seen.add(result.code);
+    deduped.push(result);
+  }
+  return deduped;
+}
+
+function normalizeSearchKey(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function searchQueriesForDetection(detection: SnapSearchDetection) {
+  const seen = new Set<string>();
+  const queries: string[] = [];
+  for (const query of [detection.name, ...detection.searchQueries]) {
+    const clean = cleanText(query, 80);
+    const key = normalizeSearchKey(clean);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    queries.push(clean);
+    if (queries.length >= 5) break;
+  }
+  return queries;
+}
+
+function detectionsFromAnalysis(aiResult: AnalyzeResult): SnapSearchDetection[] {
+  const ingredients = aiResult.ingredients ?? [];
+  if (ingredients.length > 0) {
+    return ingredients.slice(0, 8).map((ingredient, index) => ({
+      index,
+      name: ingredient.name,
+      searchQueries: ingredient.searchQueries ?? [],
+    }));
+  }
+  if (!aiResult.foodName) return [];
+  return [
+    {
+      index: 0,
+      name: aiResult.foodName,
+      searchQueries: aiResult.searchQueries ?? [],
+    },
+  ];
+}
+
+async function searchOpenFoodFacts(
+  query: string,
+  language?: string,
+): Promise<FoodResult[]> {
+  const baseUrl = (
+    process.env.OPENFOODFACTS_URL ?? DEFAULT_OPENFOODFACTS_URL
+  ).replace(/\/+$/, "");
+  const url = new URL(`${baseUrl}/cgi/search.pl`);
+  url.searchParams.set("search_terms", query);
+  url.searchParams.set("search_simple", "1");
+  url.searchParams.set("action", "process");
+  url.searchParams.set("json", "1");
+  url.searchParams.set("sort_by", "unique_scans_n");
+  url.searchParams.set("page_size", String(MAX_CANDIDATES_PER_DETECTION));
+  url.searchParams.set("fields", PRODUCT_FIELDS);
+
+  const normalizedLanguage = language?.trim().toLowerCase();
+  if (normalizedLanguage) {
+    url.searchParams.set("tagtype_0", "languages");
+    url.searchParams.set("tag_contains_0", "contains");
+    url.searchParams.set("tag_0", normalizedLanguage);
+    url.searchParams.set("lc", normalizedLanguage);
+  }
+
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "User-Agent": "OneRep/1.0 Convex snap matcher",
+  };
+  const token = process.env.OPENFOODFACTS_AUTH_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(url, { headers });
+  if (!response.ok) return [];
+  const data = (await response.json()) as { products?: unknown[] };
+  return (data.products ?? [])
+    .map(productToFoodResult)
+    .filter((item): item is FoodResult => item !== null)
+    .filter((item) => normalizeSearchKey(item.name).length > 0);
+}
+
+async function analyzeFoodDescriptionWithOpenAI(
+  text: string,
+  apiKey: string,
+): Promise<AnalyzeResult> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.15,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You convert meal descriptions into temporary nutrition recipes. Respond with JSON only.
+Break mixed meals into visible/probable ingredients. Prefer useful ingredients for nutrition logging over dish names. For each ingredient, estimate edible grams and include 3-5 Open Food Facts search queries: generic food name, cooked/raw state, common alternate names, and simpler fallbacks.
+Shape:
+{
+  "foodName": "short temporary recipe name",
+  "estimatedQuantity": null,
+  "searchQueries": [],
+  "ingredients": [
+    { "name": "ingredient", "quantityInGrams": "grams or range", "searchQueries": ["best query", "generic query", "alternate query"] }
+  ]
+}
+Always include foodName, estimatedQuantity, searchQueries, and ingredients keys.`,
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            description: text,
+            instruction:
+              "Break this meal down into ingredients for a temporary recipe to log once.",
+          }),
+        },
+      ],
+      max_tokens: 900,
+    }),
+  });
+
+  if (!response.ok) throw new Error("OpenAI description parsing failed");
+  const data = (await response.json()) as {
+    choices: { message: { content: string } }[];
+  };
+  return normalizeAnalyzeResult(JSON.parse(data.choices[0].message.content));
+}
+
+function normalizeAnalyzeResult(value: unknown): AnalyzeResult {
+  const raw = asRecord(value);
+  const foodName = cleanText(raw.foodName, 80);
+  const estimatedQuantity = cleanText(raw.estimatedQuantity, 32);
+  const searchQueries = cleanSearchQueries(raw.searchQueries);
+  const ingredients = Array.isArray(raw.ingredients)
+    ? raw.ingredients
+        .map(normalizeIngredient)
+        .filter((item): item is Ingredient => item !== null)
+        .slice(0, 8)
+    : [];
+
+  return {
+    ...(foodName ? { foodName } : {}),
+    ...(estimatedQuantity ? { estimatedQuantity } : {}),
+    ...(searchQueries.length > 0 ? { searchQueries } : {}),
+    ...(ingredients.length > 0 ? { ingredients } : {}),
+  };
 }
 
 async function analyzeImageWithOpenAI(
@@ -34,24 +442,34 @@ async function analyzeImageWithOpenAI(
       messages: [
         {
           role: "system",
-          content: `You are an ingredient analysis assistant. Respond with a JSON object only.
-- Single food: { "foodName": "<name>", "estimatedQuantity": "<qty>", "ingredients": null }
-- Multiple/dish: { "ingredients": [{ "name": "<name>", "quantityInGrams": "<g>" }], "foodName": null, "estimatedQuantity": null }
-Always include all three keys.`,
+          content: `You are a careful meal photo parser for nutrition logging. Respond with JSON only.
+Prefer a list of visible foods/ingredients over a single dish name unless the image is truly one single food.
+For every ingredient, include 3-5 short searchQueries that would work well in Open Food Facts: generic food name, cooked/raw state, common alternate names, and simpler fallback names. Do not include brands unless visible on packaging.
+Estimate edible grams conservatively. If uncertain, give a reasonable gram range like "80-120 g".
+Shape:
+{
+  "foodName": "single food name or null",
+  "estimatedQuantity": "single food grams or null",
+  "searchQueries": ["single food query", "alternate query"],
+  "ingredients": [
+    { "name": "specific visible food", "quantityInGrams": "grams or range", "searchQueries": ["best query", "generic query", "alternate query"] }
+  ]
+}
+Always include foodName, estimatedQuantity, searchQueries, and ingredients keys.`,
         },
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Analyze this image. Respond with JSON only, all three keys: "foodName", "estimatedQuantity", "ingredients". Unused fields = null.`,
+              text: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients/search queries.`,
             },
-            { type: "image_url", image_url: { url: imageData, detail: "low" } },
+            { type: "image_url", image_url: { url: imageData, detail: "high" } },
           ],
         },
       ],
       response_format: { type: "json_object" },
-      max_tokens: 512,
+      max_tokens: 800,
     }),
   });
 
@@ -60,19 +478,153 @@ Always include all three keys.`,
     choices: { message: { content: string } }[];
   };
 
-  const raw = JSON.parse(data.choices[0].message.content) as {
-    foodName?: string | null;
-    ingredients?: Ingredient[] | null;
-    estimatedQuantity?: string | null;
-  };
+  return normalizeAnalyzeResult(JSON.parse(data.choices[0].message.content));
+}
 
-  return {
-    ...(raw.foodName ? { foodName: raw.foodName } : {}),
-    ...(raw.ingredients ? { ingredients: raw.ingredients } : {}),
-    ...(raw.estimatedQuantity
-      ? { estimatedQuantity: raw.estimatedQuantity }
-      : {}),
+async function chooseBestFoodsWithOpenAI(
+  apiKey: string,
+  groups: Array<{
+    detection: SnapSearchDetection;
+    candidates: FoodResult[];
+  }>,
+) {
+  const candidatesForPrompt = groups.map(({ detection, candidates }) => ({
+    detectionIndex: detection.index,
+    detectedName: detection.name,
+    searchQueries: searchQueriesForDetection(detection),
+    candidates: candidates.map((candidate) => ({
+      code: candidate.code,
+      name: candidate.name,
+      brand: candidate.brand ?? null,
+      serving: candidate.serving,
+      calories: candidate.calories,
+      protein: candidate.protein,
+      carbs: candidate.carbs,
+      fat: candidate.fat,
+    })),
+  }));
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model:
+        (env as unknown as Record<string, string | undefined>)
+          .OPENAI_SNAP_MATCH_MODEL ?? "gpt-4o-mini",
+      temperature: 0.05,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You pick the best Open Food Facts product for each meal-photo food detection. Return JSON only. Choose a candidate code only if it plausibly matches the detected food and cooked/raw state. Prefer generic/basic entries over irrelevant branded packaged products when the photo shows unpackaged food. If no candidate is plausible, use null. Do not invent codes.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            responseShape: {
+              matches: [
+                {
+                  detectionIndex: 0,
+                  selectedCode: "candidate code or null",
+                },
+              ],
+            },
+            detections: candidatesForPrompt,
+          }),
+        },
+      ],
+      max_tokens: 700,
+    }),
+  });
+
+  if (!response.ok) throw new Error("OpenAI snap matching failed");
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
   };
+  const rawContent = data.choices?.[0]?.message?.content;
+  if (!rawContent) return new Map<number, string | null>();
+
+  const parsed = JSON.parse(rawContent) as { matches?: unknown[] };
+  const selected = new Map<number, string | null>();
+  for (const match of parsed.matches ?? []) {
+    if (!match || typeof match !== "object") continue;
+    const input = match as Record<string, unknown>;
+    const detectionIndex = Number(input.detectionIndex);
+    if (!Number.isInteger(detectionIndex)) continue;
+    const selectedCode =
+      typeof input.selectedCode === "string" && input.selectedCode.trim()
+        ? input.selectedCode.trim()
+        : null;
+    selected.set(detectionIndex, selectedCode);
+  }
+  return selected;
+}
+
+async function buildFoodMatches(
+  aiResult: AnalyzeResult,
+  apiKey: string,
+  language?: string,
+): Promise<FoodMatchResult[]> {
+  const detections = detectionsFromAnalysis(aiResult);
+  if (detections.length === 0) return [];
+
+  const groups = await Promise.all(
+    detections.map(async (detection) => {
+      const settled = await Promise.allSettled(
+        searchQueriesForDetection(detection).map((query) =>
+          searchOpenFoodFacts(query, language),
+        ),
+      );
+      const results = settled.flatMap((result) =>
+        result.status === "fulfilled" ? result.value : [],
+      );
+      return {
+        detection,
+        candidates: dedupeFoods(results).slice(
+          0,
+          MAX_CANDIDATES_PER_DETECTION,
+        ),
+      };
+    }),
+  );
+
+  let selectedByDetection = new Map<number, string | null>();
+  if (groups.some((group) => group.candidates.length > 0)) {
+    try {
+      selectedByDetection = await chooseBestFoodsWithOpenAI(apiKey, groups);
+    } catch (error) {
+      console.warn("Falling back to first snap search result", error);
+    }
+  }
+
+  return groups.map(({ detection, candidates }) => {
+    const selectedCode = selectedByDetection.get(detection.index);
+    const selectedFood =
+      selectedCode === null
+        ? null
+        : candidates.find((candidate) => candidate.code === selectedCode) ??
+          candidates[0] ??
+          null;
+    const alternatives = selectedFood
+      ? [
+          selectedFood,
+          ...candidates.filter(
+            (candidate) => candidate.code !== selectedFood.code,
+          ),
+        ]
+      : candidates;
+
+    return {
+      detectionIndex: detection.index,
+      detectedName: detection.name,
+      food: selectedFood,
+      alternatives: alternatives.slice(0, MAX_ALTERNATIVES_PER_DETECTION),
+    };
+  });
 }
 
 export const consumeSnapQuota = internalMutation({
@@ -119,10 +671,30 @@ function utcDateKey() {
 
 // ── snap ──────────────────────────────────────────────────────────────────────
 
+async function runAiMealAnalysis({
+  apiKey,
+  aiResult,
+  language,
+}: {
+  apiKey: string;
+  aiResult: AnalyzeResult;
+  language?: string;
+}) {
+  const matches = await buildFoodMatches(aiResult, apiKey, language);
+  return {
+    aiResult,
+    matches,
+    foods: matches
+      .map((match) => match.food)
+      .filter((food): food is FoodResult => food !== null),
+  };
+}
+
 export const snap = action({
   args: {
     base64Image: v.string(),
     mimeType: v.optional(v.string()),
+    language: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
@@ -147,12 +719,44 @@ export const snap = action({
       });
     if (!quota.allowed) throw new Error("Daily photo analysis limit reached");
 
+    // One app-level AI usage count covers both OpenAI calls in this action:
+    // photo parsing first, then candidate selection from search results.
     await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
-
     const aiResult = await analyzeImageWithOpenAI(imageData, apiKey);
+    return await runAiMealAnalysis({
+      apiKey,
+      aiResult,
+      language: args.language,
+    });
+  },
+});
 
-    return { aiResult, foods: [] };
+export const describeText = action({
+  args: {
+    text: v.string(),
+    language: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const apiKey = env.OPENAI_API_KEY;
+    if (!apiKey) throw new Error("Meal description AI is not configured");
+
+    const text = args.text.trim().slice(0, 2_000);
+    if (text.length < 4) throw new Error("Describe what you ate.");
+
+    // One app-level AI usage count covers description parsing plus candidate
+    // selection from search results.
+    await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
+
+    const aiResult = await analyzeFoodDescriptionWithOpenAI(text, apiKey);
+    return await runAiMealAnalysis({
+      apiKey,
+      aiResult,
+      language: args.language,
+    });
   },
 });
