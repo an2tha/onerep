@@ -19,6 +19,7 @@ const EVENT_NAME = "onerep:offline-queue-changed"
 
 const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,
+  "logs.foodLogs.addEntry": api.logs.foodLogs.addEntry,
   "logs.water.setDay": api.logs.water.setDay,
   "logs.water.addEntry": api.logs.water.addEntry,
   "logs.water.removeEntry": api.logs.water.removeEntry,

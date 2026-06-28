@@ -10,6 +10,8 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import {
   currentDateKey,
+  defaultMeal,
+  detectTimeZone,
   foodPortionLabel,
   stripUndefined,
   type FoodPortion,
@@ -32,11 +34,11 @@ export default function FoodReview() {
   const [failed, setFailed] = useState(false)
   const [added, setAdded] = useState(false)
 
-  const date = currentDateKey()
-  const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useOfflineMutation(
-    api.logs.foodLogs.setDay,
-    "logs.foodLogs.setDay"
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const date = currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const addFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
   )
 
   useEffect(() => {
@@ -80,7 +82,7 @@ export default function FoodReview() {
     food: FoodResult,
     grams = 100,
     micros: LogMicros = {},
-    meal = "breakfast",
+    meal = defaultMeal(),
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
@@ -109,7 +111,7 @@ export default function FoodReview() {
       ...micros,
     })
 
-    await setDay({ date, entries: [...(foodLogs ?? []), entry] })
+    await addFoodEntry({ date, entry })
     posthog.capture("food_logged", {
       food_name: food.name,
       calories: Math.round(Number(food.calories) * factor),

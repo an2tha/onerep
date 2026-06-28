@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "react-router"
+import { useLocation, useParams } from "react-router"
 import {
   ArrowLeft,
   CaretDown,
@@ -22,8 +22,10 @@ import {
   gramsFromFoodPortion,
   stripUndefined,
   type FoodPortion,
+  type FoodLogEntry,
   type FoodPortionUnit,
   type LogMicros,
+  type Recipe,
   type RecipeIngredient,
 } from "@/lib/food-log"
 import { useQuery } from "convex/react"
@@ -38,6 +40,13 @@ import {
 } from "@/lib/design-tokens"
 
 type SearchState = "idle" | "loading" | "done" | "error"
+type RecipeRouteState = {
+  draftRecipe?: Pick<Recipe, "name" | "ingredients">
+  replaceFoodLogEntry?: {
+    date: string
+    entryId: string
+  }
+}
 type AddedState = { itemId: string }
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
 type StoredRecipeIngredient = Omit<RecipeIngredient, "displayUnit"> & {
@@ -940,6 +949,7 @@ function SearchOverlay({
       detail,
       selectedPortion
     )
+    setDetailItem(null)
     setAdded({ itemId: item.id })
     if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
     addedTimeoutRef.current = setTimeout(() => setAdded(null), 1800)
@@ -1048,57 +1058,66 @@ function SearchOverlay({
                     {results.map((item) => {
                       const isAdded = added?.itemId === item.id
                       return (
-                        <button
+                        <div
                           key={item.id}
-                          onClick={() => setDetailItem(item)}
                           className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30 md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
                         >
-                          <CalorieBadge calories={Number(item.calories)} />
+                          <button
+                            type="button"
+                            onClick={() => setDetailItem(item)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          >
+                            <CalorieBadge calories={Number(item.calories)} />
 
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13.5px] leading-snug font-medium">
-                              {item.name}
-                            </p>
-                            <div className="mt-0.5 flex items-center gap-1.5">
-                              {item.brand && (
-                                <span className="truncate text-[10.5px] text-muted-foreground/40">
-                                  {item.brand}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13.5px] leading-snug font-medium">
+                                {item.name}
+                              </p>
+                              <div className="mt-0.5 flex items-center gap-1.5">
+                                {item.brand && (
+                                  <span className="truncate text-[10.5px] text-muted-foreground/40">
+                                    {item.brand}
+                                  </span>
+                                )}
+                                {item.brand && (
+                                  <span className="text-[10px] text-muted-foreground/25">
+                                    ·
+                                  </span>
+                                )}
+                                <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
+                                  {item.serving}
                                 </span>
-                              )}
-                              {item.brand && (
-                                <span className="text-[10px] text-muted-foreground/25">
-                                  ·
-                                </span>
-                              )}
-                              <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
-                                {item.serving}
-                              </span>
+                              </div>
+                              <div className="mt-1 flex gap-2.5">
+                                <MacroPill
+                                  label="P"
+                                  value={Number(item.protein)}
+                                  color={MACRO_COLORS.protein}
+                                />
+                                <MacroPill
+                                  label="C"
+                                  value={Number(item.carbs)}
+                                  color={MACRO_COLORS.carbs}
+                                />
+                                <MacroPill
+                                  label="F"
+                                  value={Number(item.fat)}
+                                  color={MACRO_COLORS.fat}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-1 flex gap-2.5">
-                              <MacroPill
-                                label="P"
-                                value={Number(item.protein)}
-                                color={MACRO_COLORS.protein}
-                              />
-                              <MacroPill
-                                label="C"
-                                value={Number(item.carbs)}
-                                color={MACRO_COLORS.carbs}
-                              />
-                              <MacroPill
-                                label="F"
-                                value={Number(item.fat)}
-                                color={MACRO_COLORS.fat}
-                              />
-                            </div>
-                          </div>
+                          </button>
 
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation()
+                          <button
+                            type="button"
+                            onClick={() => {
                               if (!isAdded) handleAdd(item)
                             }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985]"
+                            disabled={isAdded}
+                            aria-label={
+                              isAdded ? `${item.name} added` : `Add ${item.name}`
+                            }
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985] disabled:opacity-60"
                           >
                             {isAdded ? (
                               <span className="text-[11px] text-foreground/60">
@@ -1109,8 +1128,8 @@ function SearchOverlay({
                                 +
                               </span>
                             )}
-                          </div>
-                        </button>
+                          </button>
+                        </div>
                       )
                     })}
                   </div>
@@ -1186,11 +1205,24 @@ function MacroPill({
 export default function NewRecipe() {
   const navigate = useSmoothNavigate()
   const { id } = useParams<{ id?: string }>()
+  const location = useLocation()
+  const routeState = (location.state as RecipeRouteState | null) ?? null
+  const draftRecipe = !id ? (routeState?.draftRecipe ?? null) : null
+  const editLogTarget = routeState?.replaceFoodLogEntry ?? null
+  const draftInitialized = useRef(false)
 
   const recipesQuery = useQuery(api.logs.recipes.list, {})
+  const targetFoodLogs = useQuery(
+    api.logs.foodLogs.getDay,
+    editLogTarget ? { date: editLogTarget.date } : "skip"
+  )
   const saveRecipeMutation = useOfflineMutation(
     api.logs.recipes.save,
     "logs.recipes.save"
+  )
+  const setFoodDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
   )
 
   const initial =
@@ -1208,21 +1240,58 @@ export default function NewRecipe() {
     if (initial) {
       setName(initial.name)
       setIngredients(normalizeRecipeIngredients(initial.ingredients))
+      draftInitialized.current = true
+      return
     }
-  }, [initial])
+
+    if (!id && draftRecipe && !draftInitialized.current) {
+      setName(draftRecipe.name ?? "")
+      setIngredients(normalizeRecipeIngredients(draftRecipe.ingredients))
+      draftInitialized.current = true
+    }
+  }, [draftRecipe, id, initial])
 
   const totals = recipeTotals(ingredients)
   const totalCal = totals.calories || 1
   const microTotals = useMemo(() => recipeMicros(ingredients), [ingredients])
+  const targetEntries = (targetFoodLogs ?? []) as FoodLogEntry[]
 
   async function handleSave() {
     setSaved(true)
     try {
-      await saveRecipeMutation({
+      const recipeName = name.trim() || "My Recipe"
+      const cleanedIngredients = stripUndefined(ingredients)
+      const savedRecipeId = await saveRecipeMutation({
         id: id as Id<"recipes"> | undefined,
-        name: name.trim() || "My Recipe",
-        ingredients: stripUndefined(ingredients),
+        name: recipeName,
+        ingredients: cleanedIngredients,
       })
+      const nextRecipeId =
+        id ?? (typeof savedRecipeId === "string" ? savedRecipeId : undefined)
+
+      if (editLogTarget && targetFoodLogs !== undefined) {
+        const nextTotals = recipeTotals(cleanedIngredients)
+        await setFoodDay({
+          date: editLogTarget.date,
+          entries: targetEntries.map((entry) =>
+            entry.id === editLogTarget.entryId
+              ? stripUndefined({
+                  ...entry,
+                  name: recipeName,
+                  ...nextTotals,
+                  recipeId: nextRecipeId,
+                  recipeDraft: nextRecipeId
+                    ? undefined
+                    : {
+                        name: recipeName,
+                        ingredients: cleanedIngredients,
+                      },
+                })
+              : entry
+          ),
+        })
+      }
+
       navigate(-1)
     } catch (err) {
       console.error("Failed to save recipe:", err)
@@ -1257,10 +1326,12 @@ export default function NewRecipe() {
         ...microsPer100(micros, selectedPortion.grams),
       }),
     ])
-    setSearchOpen(false)
   }
 
-  const canSave = ingredients.length > 0 && name.trim().length > 0
+  const canSave =
+    ingredients.length > 0 &&
+    name.trim().length > 0 &&
+    (!editLogTarget || targetFoodLogs !== undefined)
 
   return (
     <>
