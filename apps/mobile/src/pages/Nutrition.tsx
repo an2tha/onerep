@@ -7,6 +7,7 @@ import {
   CheckCircle,
   ForkKnife,
   MagnifyingGlass,
+  PencilSimple,
   Pill,
   PintGlass,
   Plus,
@@ -24,9 +25,12 @@ import {
   currentDateKey,
   defaultMeal,
   nutritionDetailTotals,
+  stripUndefined,
   DEFAULT_MEAL_CATEGORIES,
   type FoodLogEntry,
   type FoodMicronutrientKey,
+  type Recipe,
+  type RecipeIngredient,
 } from "@/lib/food-log"
 import {
   buildSupplementDayPlan,
@@ -196,6 +200,25 @@ function totalFood(entries: FoodLogEntry[]) {
       protein: acc.protein + entry.protein,
       carbs: acc.carbs + entry.carbs,
       fat: acc.fat + entry.fat,
+    }),
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  )
+}
+
+function totalsForRecipe(ingredients: RecipeIngredient[]) {
+  return ingredients.reduce(
+    (acc, ingredient) => ({
+      calories:
+        acc.calories +
+        Math.round((ingredient.caloriesPer100 * ingredient.grams) / 100),
+      protein:
+        acc.protein +
+        Math.round((ingredient.proteinPer100 * ingredient.grams) / 100),
+      carbs:
+        acc.carbs +
+        Math.round((ingredient.carbsPer100 * ingredient.grams) / 100),
+      fat:
+        acc.fat + Math.round((ingredient.fatPer100 * ingredient.grams) / 100),
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
@@ -566,11 +589,16 @@ export default function Nutrition() {
     date: todayKey,
   })
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: todayKey })
+  const recipesQuery = useQuery(api.logs.recipes.list, {})
   const waterLogs = useQuery(api.logs.water.getDay, { date: todayKey })
   const supplementOverviewRaw = useQuery(api.logs.supplements.getOverview, {
     date: todayKey,
   })
 
+  const setFoodDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
+  )
   const addWaterEntry = useOfflineMutation(
     api.logs.water.addEntry,
     "logs.water.addEntry"
@@ -581,6 +609,10 @@ export default function Nutrition() {
   )
 
   const entries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
+  const recipes = useMemo(
+    () => (recipesQuery ?? []) as unknown as Recipe[],
+    [recipesQuery]
+  )
   const waterEntries = (waterLogs ?? []) as WaterLogEntry[]
   const overview = useMemo(
     () =>
@@ -665,6 +697,40 @@ export default function Nutrition() {
         loggedAt: new Date().toISOString(),
       },
     })
+  }
+
+  function logRecipe(recipe: Recipe) {
+    const totals = totalsForRecipe(recipe.ingredients)
+    void setFoodDay({
+      date: todayKey,
+      entries: [
+        ...entries,
+        stripUndefined({
+          id: crypto.randomUUID(),
+          name: recipe.name,
+          ...totals,
+          loggedAt: new Date().toISOString(),
+          meal: defaultMeal(),
+          recipeId: recipe._id,
+        }),
+      ],
+    })
+    setAddOpen(false)
+  }
+
+  function editRecipeFromLogEntry(entry: FoodLogEntry) {
+    const replaceFoodLogEntry = { date: todayKey, entryId: entry.id }
+    if (entry.recipeId) {
+      navigate(`/foods/recipe/${entry.recipeId}`, {
+        state: { replaceFoodLogEntry },
+      })
+      return
+    }
+    if (entry.recipeDraft) {
+      navigate("/foods/recipe/new", {
+        state: { draftRecipe: entry.recipeDraft, replaceFoodLogEntry },
+      })
+    }
   }
 
   function takeSupplement(plan: SupplementDayPlanItem) {
@@ -786,7 +852,7 @@ export default function Nutrition() {
                       key={entry.id}
                       className="flex items-center justify-between gap-3"
                     >
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate text-[13px] font-bold">
                           {entry.name}
                         </p>
@@ -794,6 +860,16 @@ export default function Nutrition() {
                           {timeLabel(entry.loggedAt)}
                         </p>
                       </div>
+                      {(entry.recipeId || entry.recipeDraft) && (
+                        <button
+                          type="button"
+                          onClick={() => editRecipeFromLogEntry(entry)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/55 transition-opacity active:opacity-70"
+                          aria-label={`Edit recipe for ${entry.name}`}
+                        >
+                          <PencilSimple size={12} weight="bold" />
+                        </button>
+                      )}
                       <span className="shrink-0 text-[12px] font-bold tabular-nums">
                         {fmt(entry.calories)} kcal
                       </span>
@@ -978,6 +1054,57 @@ export default function Nutrition() {
                   <CaretRight size={12} className="text-muted-foreground/35" />
                 </button>
               ))}
+              {recipes.length > 0 && (
+                <>
+                  <div className="border-t border-border/40 px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
+                      Saved recipes
+                    </p>
+                  </div>
+                  {recipes.slice(0, 5).map((recipe) => {
+                    const totals = totalsForRecipe(recipe.ingredients)
+                    return (
+                      <div
+                        key={recipe._id ?? recipe.name}
+                        className="flex w-full items-center gap-1 px-2 py-1"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => logRecipe(recipe)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                        >
+                          <div className="min-w-0 text-left">
+                            <p className="truncate text-[13px] font-medium">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {recipe.ingredients.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <CaretRight
+                            size={11}
+                            className="shrink-0 text-muted-foreground/30"
+                          />
+                        </button>
+                        {recipe._id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddOpen(false)
+                              navigate(`/foods/recipe/${recipe._id}`)
+                            }}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                            aria-label={`Edit ${recipe.name}`}
+                          >
+                            <PencilSimple size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              )}
             </div>
           </div>
         </MobileSheet>

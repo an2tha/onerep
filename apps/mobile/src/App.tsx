@@ -79,6 +79,7 @@ import {
   detectTimeZone,
   nutritionDetailTotals,
   offsetDateKey,
+  stripUndefined,
   type FoodLogEntry,
   type Recipe,
   type RecipeIngredient,
@@ -1000,6 +1001,21 @@ function SwipeRow({
   entry: FoodLogEntry
   onDelete: () => void
 }) {
+  const navigate = useSmoothNavigate()
+  const canEditRecipe = Boolean(entry.recipeId || entry.recipeDraft)
+
+  function editRecipe() {
+    if (entry.recipeId) {
+      navigate(`/foods/recipe/${entry.recipeId}`)
+      return
+    }
+    if (entry.recipeDraft) {
+      navigate("/foods/recipe/new", {
+        state: { draftRecipe: entry.recipeDraft },
+      })
+    }
+  }
+
   return (
     <SlideToDeleteRow
       deleteLabel={`Delete ${entry.name}`}
@@ -1010,6 +1026,19 @@ function SwipeRow({
       <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
         {entry.name}
       </p>
+      {canEditRecipe && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            editRecipe()
+          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/55 transition-opacity active:opacity-70"
+          aria-label={`Edit recipe for ${entry.name}`}
+        >
+          <PencilSimple size={11} weight="bold" />
+        </button>
+      )}
       <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
         {entry.calories}
       </span>
@@ -2764,13 +2793,14 @@ export default function App() {
       date: selectedDate,
       entries: [
         ...foodEntries,
-        {
+        stripUndefined({
           id: Math.random().toString(36).slice(2),
           name: recipe.name,
           ...totals,
           loggedAt: new Date().toISOString(),
           meal: defaultMeal(),
-        },
+          recipeId: recipe._id,
+        }),
       ],
     })
     setHomeAddOpen(false)
@@ -3353,25 +3383,43 @@ export default function App() {
                   {recipes.slice(0, 5).map((recipe) => {
                     const totals = totalsForRecipe(recipe.ingredients)
                     return (
-                      <button
+                      <div
                         key={recipe._id ?? recipe.name}
-                        onClick={() => logRecipeFromQuickAdd(recipe)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3 transition-colors active:bg-muted/40"
+                        className="flex w-full items-center gap-1 px-2 py-1"
                       >
-                        <div className="min-w-0 text-left">
-                          <p className="truncate text-[13px] font-medium">
-                            {recipe.name}
-                          </p>
-                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                            {totals.calories} kcal · {recipe.ingredients.length} ingredient
-                            {recipe.ingredients.length === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                        <CaretRight
-                          size={11}
-                          className="shrink-0 text-muted-foreground/30"
-                        />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => logRecipeFromQuickAdd(recipe)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                        >
+                          <div className="min-w-0 text-left">
+                            <p className="truncate text-[13px] font-medium">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {recipe.ingredients.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <CaretRight
+                            size={11}
+                            className="shrink-0 text-muted-foreground/30"
+                          />
+                        </button>
+                        {recipe._id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHomeAddOpen(false)
+                              navigate(`/foods/recipe/${recipe._id}`)
+                            }}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                            aria-label={`Edit ${recipe.name}`}
+                          >
+                            <PencilSimple size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
                     )
                   })}
                 </>
