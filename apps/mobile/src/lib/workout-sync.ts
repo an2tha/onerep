@@ -77,8 +77,13 @@ export type WorkoutPresetCard = {
   steps: string[]
 }
 
-export type Day = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+export const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
+export type Day = (typeof WEEK_DAYS)[number]
 export type Routine = Record<Day, string | null>
+export type ScheduleRoutines = {
+  primary: Routine
+  secondary: Routine
+}
 
 const METERS_PER_MILE = 1609.344
 
@@ -182,6 +187,51 @@ export function compactCardioSummary(
     .join(" · ")
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+export function emptyRoutine(): Routine {
+  return WEEK_DAYS.reduce((routine, day) => {
+    routine[day] = null
+    return routine
+  }, {} as Routine)
+}
+
+export function normalizeRoutine(input: unknown): Routine {
+  const record = isRecord(input) ? input : {}
+  return WEEK_DAYS.reduce((routine, day) => {
+    const value = record[day]
+    routine[day] = typeof value === "string" && value.length > 0 ? value : null
+    return routine
+  }, emptyRoutine())
+}
+
+export function normalizeScheduleRoutines(input: unknown): ScheduleRoutines {
+  const record = isRecord(input) ? input : null
+  if (record && isRecord(record.primary)) {
+    return {
+      primary: normalizeRoutine(record.primary),
+      secondary: normalizeRoutine(record.secondary),
+    }
+  }
+
+  return {
+    primary: normalizeRoutine(input),
+    secondary: emptyRoutine(),
+  }
+}
+
+export function scheduleRoutinePayload(
+  primary: Routine,
+  secondary: Routine
+): ScheduleRoutines {
+  return {
+    primary: normalizeRoutine(primary),
+    secondary: normalizeRoutine(secondary),
+  }
+}
+
 export function normalizePresetCard(input: {
   id: string
   name: string
@@ -202,4 +252,21 @@ export function normalizePresetCard(input: {
         ? input.steps
         : ["Warm up 5 min"],
   }
+}
+
+export function movePresetById<T extends { id: string }>(
+  presets: T[],
+  id: string,
+  direction: "up" | "down"
+): T[] {
+  const fromIndex = presets.findIndex((preset) => preset.id === id)
+  if (fromIndex === -1) return presets
+
+  const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1
+  if (toIndex < 0 || toIndex >= presets.length) return presets
+
+  const next = [...presets]
+  const [item] = next.splice(fromIndex, 1)
+  next.splice(toIndex, 0, item)
+  return next
 }

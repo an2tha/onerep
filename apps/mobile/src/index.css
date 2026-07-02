@@ -204,22 +204,21 @@ html[data-route-native="true"] .app-route-frame {
 }
 
 .app-route-frame-animated {
-  animation: none;
-  will-change: auto;
+  animation: app-route-enter-forward var(--motion-route)
+    var(--motion-ease-out) both;
+  will-change: opacity, transform;
 }
 
 .app-route-frame-animated[data-route-motion="back"] {
-  animation-name: none;
+  animation-name: app-route-enter-back;
 }
 
 .app-route-frame-animated[data-route-motion="switch"] {
-  animation-name: none;
-  animation-duration: 0ms;
+  animation-name: app-route-enter-switch;
 }
 
 .app-route-frame-animated[data-route-motion="replace"] {
-  animation-name: none;
-  animation-duration: 0ms;
+  animation-name: app-route-enter-replace;
 }
 
 html[data-route-native="true"] .app-route-frame-animated {
@@ -1385,28 +1384,43 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   }
 
   .motion-page {
-    animation: none;
+    animation-name: motion-page-settle;
+    animation-duration: var(--motion-route);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
   }
 
   .motion-card {
-    animation: none;
+    animation-name: motion-card-settle;
+    animation-duration: var(--motion-slow);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
     animation-delay: var(--motion-delay, 0ms);
     transform-origin: center bottom;
   }
 
   [data-slot="card"] {
-    animation: none;
+    animation-name: motion-card-settle;
+    animation-duration: var(--motion-slow);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
     animation-delay: var(--motion-delay, 0ms);
     transform-origin: center bottom;
   }
 
   .motion-item {
-    animation: none;
+    animation-name: motion-page-settle;
+    animation-duration: var(--motion-medium);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
     animation-delay: var(--motion-delay, 0ms);
   }
 
   .motion-pop {
-    animation: none;
+    animation-name: motion-pop;
+    animation-duration: var(--motion-medium);
+    animation-timing-function: var(--motion-ease-emphasized);
+    animation-fill-mode: both;
     transform-origin: center;
   }
 
@@ -1450,7 +1464,7 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
 }
 
 [data-motion-stagger] > * {
-  animation: none;
+  animation-delay: var(--motion-delay, 0ms);
 }
 
 [data-motion-stagger] > :nth-child(1) {

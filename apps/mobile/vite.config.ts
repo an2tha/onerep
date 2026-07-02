@@ -1,10 +1,11 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig, type Plugin } from "vite"
+import { defineConfig, loadEnv, type Plugin } from "vite"
 
 const uiRoot = path.resolve(__dirname, "../../packages/ui/src")
 const appRoot = path.resolve(__dirname, "./src")
+const envRoot = path.resolve(__dirname, "../../")
 
 // Redirect `@/...` imports that originate from inside packages/ui/src
 // to that package's own src root, not the app's src root.
@@ -23,13 +24,55 @@ function uiAliasPlugin(): Plugin {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
-  envDir: "../../",
-  plugins: [uiAliasPlugin(), react(), tailwindcss()],
-  resolve: {
-    alias: {
-      "@": appRoot,
-      "@repo/ui": uiRoot,
+export default defineConfig(({ command, mode }) => {
+  const env = { ...loadEnv(mode, envRoot, ""), ...process.env }
+  if (command === "build" && mode === "production") {
+    if (env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_")) {
+      throw new Error(
+        "Production mobile builds require a live Clerk publishable key. Set VITE_CLERK_PUBLISHABLE_KEY to pk_live_..."
+      )
+    }
+    if (env.CONVEX_DEPLOYMENT?.startsWith("dev:")) {
+      throw new Error(
+        "Production mobile builds require a production Convex deployment. CONVEX_DEPLOYMENT must not start with dev:."
+      )
+    }
+  }
+
+  return {
+    envDir: envRoot,
+    plugins: [uiAliasPlugin(), react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined
+            if (
+              /node_modules\/(?:@remix-run|react|react-dom|react-router|scheduler)\//.test(
+                id
+              )
+            ) {
+              return "react-vendor"
+            }
+            if (id.includes("@clerk") || id.includes("convex")) {
+              return "auth-data"
+            }
+            if (id.includes("@capacitor") || id.includes("@ionic")) {
+              return "native"
+            }
+            if (id.includes("@zxing")) return "scanner"
+            if (id.includes("@phosphor-icons")) return "icons"
+            if (id.includes("posthog")) return "analytics"
+            return "vendor"
+          },
+        },
+      },
     },
-  },
+    resolve: {
+      alias: {
+        "@": appRoot,
+        "@repo/ui": uiRoot,
+      },
+    },
+  }
 })

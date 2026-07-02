@@ -1,13 +1,18 @@
 import {
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from "react"
+import { useSearchParams } from "react-router"
 import { useAuth, useSignIn, useSignUp } from "@clerk/react"
-import { AppleLogo, GoogleLogo } from "@phosphor-icons/react"
+import { AppleLogo, Eye, EyeSlash, GoogleLogo } from "@phosphor-icons/react"
 import { getAuthCallbackUrl } from "@/lib/auth-redirects"
+import { safeAuthRedirectPath } from "@/lib/auth-session"
+import { isAlreadySignedInError } from "@/lib/clerk-errors"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 
 type LoginMode = "signin" | "signup"
 type OAuthStrategy = "oauth_google" | "oauth_apple"
@@ -121,21 +126,43 @@ function IntroIllustration({ index }: { index: number }) {
   )
 }
 
+function AuthRedirectFallback() {
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center bg-background px-5 text-center">
+      <section className="app-rail-surface p-5">
+        <div className="mx-auto mb-4 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <h1 className="text-[1.25rem] font-semibold tracking-tight">
+          Opening OneRep
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+          Your sign-in is ready. Sending you back to where you left off.
+        </p>
+      </section>
+    </main>
+  )
+}
+
 export default function Login() {
   const navigate = useSmoothNavigate()
+  const [searchParams] = useSearchParams()
   const posthog = usePostHog()
   const { isLoaded: authLoaded, isSignedIn } = useAuth()
   const { signIn } = useSignIn()
   const { signUp } = useSignUp()
-  const [mode, setMode] = useState<LoginMode>("signin")
+  const requestedMode =
+    searchParams.get("mode") === "signup" ? "signup" : "signin"
+  const nextPath = safeAuthRedirectPath(searchParams.get("next"))
+  const [mode, setMode] = useState<LoginMode>(requestedMode)
   const [showIntro, setShowIntro] = useState(() => {
+    if (searchParams.has("mode")) return false
     if (typeof window === "undefined") return false
-    return localStorage.getItem(PRELOGIN_SEEN_KEY) !== "true"
+    return safeLocalStorageGet(PRELOGIN_SEEN_KEY) !== "true"
   })
   const [introIndex, setIntroIndex] = useState(0)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [verificationCode, setVerificationCode] = useState("")
   const [verificationMode, setVerificationMode] = useState<
     "signup" | "signin" | null
@@ -145,13 +172,27 @@ export default function Login() {
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<OAuthStrategy | null>(null)
+  const authActionRef = useRef(false)
   const submitting = loading || oauthLoading !== null
+  const redirectingSignedInUser = authLoaded && isSignedIn
 
   useEffect(() => {
-    if (authLoaded && isSignedIn) {
-      navigate("/", { replace: true })
+    if (redirectingSignedInUser) {
+      navigate(nextPath, { replace: true })
     }
-  }, [authLoaded, isSignedIn, navigate])
+  }, [navigate, nextPath, redirectingSignedInUser])
+
+  function redirectIfSignedIn() {
+    if (!isSignedIn) return false
+    navigate(nextPath, { replace: true })
+    return true
+  }
+
+  function redirectIfAlreadySignedIn(error: unknown) {
+    if (!isAlreadySignedInError(error)) return false
+    navigate(nextPath, { replace: true })
+    return true
+  }
 
   function switchMode(nextMode: LoginMode) {
     setMode(nextMode)
@@ -160,13 +201,14 @@ export default function Login() {
     setVerificationCode("")
     setVerificationMode(null)
     setPendingEmail("")
+    setShowPassword(false)
     void signIn?.reset()
     void signUp?.reset()
   }
 
   function finishIntro(nextMode: LoginMode) {
     if (typeof window !== "undefined") {
-      localStorage.setItem(PRELOGIN_SEEN_KEY, "true")
+      safeLocalStorageSet(PRELOGIN_SEEN_KEY, "true")
     }
     switchMode(nextMode)
     setShowIntro(false)
@@ -194,19 +236,24 @@ export default function Login() {
   }
 
   async function handleOAuth(strategy: OAuthStrategy) {
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
     const provider = OAUTH_PROVIDERS.find((item) => item.strategy === strategy)
     const providerLabel = provider?.label ?? "OAuth"
-    const finalPath = mode === "signup" ? "/onboarding" : "/"
+    const finalPath = mode === "signup" ? "/onboarding" : nextPath
     const callbackPath =
       mode === "signup"
         ? `${SSO_CALLBACK_PATH}?next=onboarding`
-        : SSO_CALLBACK_PATH
+        : `${SSO_CALLBACK_PATH}?next=${encodeURIComponent(nextPath)}`
 
+    authActionRef.current = true
     setError(undefined)
     setMessage(undefined)
     setVerificationCode("")
     setVerificationMode(null)
     setPendingEmail("")
+    setShowPassword(false)
     setOauthLoading(strategy)
 
     try {
@@ -224,6 +271,7 @@ export default function Login() {
             })
 
       if (result.error) {
+        if (redirectIfAlreadySignedIn(result.error)) return
         setError(
           clerkErrorMessage(
             result.error,
@@ -232,16 +280,20 @@ export default function Login() {
         )
       }
     } catch (error) {
+      if (redirectIfAlreadySignedIn(error)) return
       setError(
         clerkErrorMessage(error, `Could not continue with ${providerLabel}`)
       )
     } finally {
+      authActionRef.current = false
       setOauthLoading(null)
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (redirectIfSignedIn()) return
+
     if (verificationMode) {
       await handleVerificationSubmit()
       return
@@ -254,7 +306,9 @@ export default function Login() {
       setError("Enter your email")
       return
     }
+    if (authActionRef.current || submitting) return
 
+    authActionRef.current = true
     setLoading(true)
 
     try {
@@ -264,6 +318,7 @@ export default function Login() {
           password,
         })
         if (error) {
+          if (redirectIfAlreadySignedIn(error)) return
           setError(clerkErrorMessage(error, "Sign in failed"))
           return
         }
@@ -271,12 +326,13 @@ export default function Login() {
         if (signIn.status === "complete") {
           const finalized = await signIn.finalize()
           if (finalized.error) {
+            if (redirectIfAlreadySignedIn(finalized.error)) return
             setError(clerkErrorMessage(finalized.error, "Sign in failed"))
             return
           }
           posthog.identify(trimmedEmail, { email: trimmedEmail })
           posthog.capture("user_signed_in", { method: "email" })
-          navigate("/", { replace: true })
+          navigate(nextPath, { replace: true })
           return
         }
 
@@ -306,6 +362,7 @@ export default function Login() {
           ...(restName.length > 0 ? { lastName: restName.join(" ") } : {}),
         })
         if (error) {
+          if (redirectIfAlreadySignedIn(error)) return
           setError(clerkErrorMessage(error, "Sign up failed"))
           return
         }
@@ -313,6 +370,7 @@ export default function Login() {
         if (signUp.status === "complete") {
           const finalized = await signUp.finalize()
           if (finalized.error) {
+            if (redirectIfAlreadySignedIn(finalized.error)) return
             setError(clerkErrorMessage(finalized.error, "Sign up failed"))
             return
           }
@@ -335,11 +393,15 @@ export default function Login() {
         return
       }
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
   }
 
   async function handleVerificationSubmit() {
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
     setError(undefined)
     setMessage(undefined)
     if (!verificationCode.trim()) {
@@ -347,6 +409,7 @@ export default function Login() {
       return
     }
 
+    authActionRef.current = true
     setLoading(true)
     try {
       if (verificationMode === "signup") {
@@ -354,6 +417,7 @@ export default function Login() {
           code: verificationCode.trim(),
         })
         if (verified.error) {
+          if (redirectIfAlreadySignedIn(verified.error)) return
           setError(clerkErrorMessage(verified.error, "Verification failed"))
           return
         }
@@ -363,6 +427,7 @@ export default function Login() {
         }
         const finalized = await signUp.finalize()
         if (finalized.error) {
+          if (redirectIfAlreadySignedIn(finalized.error)) return
           setError(clerkErrorMessage(finalized.error, "Sign up failed"))
           return
         }
@@ -377,6 +442,7 @@ export default function Login() {
           code: verificationCode.trim(),
         })
         if (verified.error) {
+          if (redirectIfAlreadySignedIn(verified.error)) return
           setError(clerkErrorMessage(verified.error, "Verification failed"))
           return
         }
@@ -386,21 +452,27 @@ export default function Login() {
         }
         const finalized = await signIn.finalize()
         if (finalized.error) {
+          if (redirectIfAlreadySignedIn(finalized.error)) return
           setError(clerkErrorMessage(finalized.error, "Sign in failed"))
           return
         }
         posthog.identify(pendingEmail, { email: pendingEmail })
         posthog.capture("user_signed_in", { method: "email" })
-        navigate("/", { replace: true })
+        navigate(nextPath, { replace: true })
         return
       }
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
   }
 
   async function handleResendCode() {
     if (!verificationMode) return
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
+    authActionRef.current = true
     setLoading(true)
     setError(undefined)
     setMessage(undefined)
@@ -410,13 +482,22 @@ export default function Login() {
           ? await signUp?.verifications.sendEmailCode()
           : await signIn?.mfa.sendEmailCode()
       if (result?.error) {
+        if (redirectIfAlreadySignedIn(result.error)) return
         setError(clerkErrorMessage(result.error, "Could not send code"))
         return
       }
       setMessage("A fresh code is on the way.")
+    } catch (error) {
+      if (redirectIfAlreadySignedIn(error)) return
+      setError(clerkErrorMessage(error, "Could not send code"))
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
+  }
+
+  if (redirectingSignedInUser) {
+    return <AuthRedirectFallback />
   }
 
   if (showIntro) {
@@ -555,6 +636,7 @@ export default function Login() {
                   <span className={LABEL_CLASS}>Code</span>
                   <input
                     type="text"
+                    name="one-time-code"
                     inputMode="numeric"
                     value={verificationCode}
                     onChange={(event) =>
@@ -575,6 +657,7 @@ export default function Login() {
                 <span className={LABEL_CLASS}>Name</span>
                 <input
                   type="text"
+                  name="name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Your name"
@@ -592,6 +675,7 @@ export default function Login() {
                   <span className={LABEL_CLASS}>Email</span>
                   <input
                     type="email"
+                    name="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
@@ -604,18 +688,37 @@ export default function Login() {
 
                 <label className={FIELD_CLASS}>
                   <span className={LABEL_CLASS}>Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="••••••••"
-                    required
-                    autoComplete={
-                      mode === "signin" ? "current-password" : "new-password"
-                    }
-                    disabled={submitting}
-                    className={INPUT_CLASS}
-                  />
+                  <span className="flex items-center gap-2">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      required
+                      autoComplete={
+                        mode === "signin" ? "current-password" : "new-password"
+                      }
+                      disabled={submitting}
+                      className={INPUT_CLASS}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      disabled={submitting}
+                      className="mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground/60 transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-40"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? (
+                        <EyeSlash size={18} weight="bold" />
+                      ) : (
+                        <Eye size={18} weight="bold" />
+                      )}
+                    </button>
+                  </span>
                 </label>
               </>
             )}

@@ -110,3 +110,26 @@ export function reorderLayout(
   next.splice(toIndex, 0, item)
   return next
 }
+
+export function moveWidgetById(
+  layout: WidgetConfig[],
+  id: WidgetId,
+  direction: "up" | "down"
+): WidgetConfig[] {
+  const fromIndex = layout.findIndex((widget) => widget.id === id)
+  if (fromIndex === -1) return layout
+
+  const toIndex = direction === "up" ? fromIndex - 1 : fromIndex + 1
+  return reorderLayout(layout, fromIndex, toIndex)
+}
+
+export function isDefaultLayout(layout: WidgetConfig[]) {
+  const resolved = resolveLayout(layout)
+  return (
+    resolved.length === DEFAULT_LAYOUT.length &&
+    resolved.every((widget, index) => {
+      const defaultWidget = DEFAULT_LAYOUT[index]
+      return widget.id === defaultWidget.id && widget.size === defaultWidget.size
+    })
+  )
+}

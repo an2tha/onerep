@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
+  Barcode,
+  Camera,
   Fire,
   MagnifyingGlass,
   Warning,
   X,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
+import { useSearchParams } from "react-router"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { isBrowserOnline } from "@/lib/offline-queue"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { foodCapturePath } from "@/lib/food-capture"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
@@ -15,14 +21,27 @@ import {
   currentDateKey,
   DEFAULT_MEAL_CATEGORIES,
   defaultMeal,
-  foodPortionLabel,
+  foodLogEntryFromFoodResult,
   logMicrosFromFoodDetail,
-  stripUndefined,
   type FoodPortion,
   type LogMicros,
 } from "@/lib/food-log"
 import { searchFoods } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
+import {
+  foodSearchParamsForQuery,
+  normalizeFoodSearchQuery,
+  readFoodSearchQuery,
+} from "@/lib/food-search-url"
+import {
+  POPULAR_FOOD_SEARCHES,
+  clearRecentFoodSearches,
+  nextRecentFoodSearches,
+  readRecentFoodSearches,
+  visiblePopularFoodSearches,
+  writeRecentFoodSearches,
+} from "@/lib/food-search-recents"
+import { rankAndFilterFoodSearchResults } from "@/lib/food-search-ranking"
 import type { FoodDetail } from "@repo/models"
 import { APP_ACCENT_COLORS, MACRO_COLORS } from "@/lib/design-tokens"
 
@@ -31,78 +50,6 @@ type AddedState = { itemId: string }
 
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
 
-function normalizeSearchText(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-}
-
-function singularizeToken(token: string): string {
-  if (token.length <= 3) return token
-  if (token.endsWith("ies")) return `${token.slice(0, -3)}y`
-  if (/(?:ches|shes|sses|xes|zes|oes)$/.test(token)) return token.slice(0, -2)
-  if (token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1)
-  return token
-}
-
-function normalizedTokens(value: string): string[] {
-  return normalizeSearchText(value)
-    .split(" ")
-    .filter(Boolean)
-    .map(singularizeToken)
-}
-
-function resultReferenceKey(item: FoodSearchItem): string {
-  return normalizedTokens(item.name).join(" ")
-}
-
-function isUnknownBrand(brand?: string): boolean {
-  const normalized = normalizeSearchText(brand ?? "")
-  return normalized === "" || normalized === "unknown"
-}
-
-function relevanceScore(item: FoodSearchItem, query: string, index: number) {
-  const queryTokens = normalizedTokens(query)
-  if (queryTokens.length === 0) return -index
-
-  const nameTokens = normalizedTokens(item.name)
-  const brandTokens = normalizedTokens(item.brand ?? "")
-  const queryKey = queryTokens.join(" ")
-  const nameKey = nameTokens.join(" ")
-
-  let score = 0
-  if (nameKey === queryKey) score += 1000
-  if (nameKey.startsWith(queryKey)) score += 650
-  if (nameKey.includes(queryKey)) score += 350
-
-  let nameMatches = 0
-  let anyMatches = 0
-  for (const token of queryTokens) {
-    if (nameTokens.includes(token)) {
-      score += 140
-      nameMatches += 1
-      anyMatches += 1
-    } else if (nameTokens.some((nameToken) => nameToken.startsWith(token))) {
-      score += 90
-      nameMatches += 1
-      anyMatches += 1
-    } else if (brandTokens.includes(token)) {
-      score += 35
-      anyMatches += 1
-    }
-  }
-
-  if (nameMatches === queryTokens.length) score += 280
-  else if (anyMatches === queryTokens.length) score += 90
-  if (!isUnknownBrand(item.brand)) score += 35
-
-  score -= Math.min(nameTokens.length, 12) * 2
-  return score - index * 0.001
-}
-
 function shouldOpenReviewAsPage() {
   return !(
     typeof window !== "undefined" &&
@@ -110,47 +57,34 @@ function shouldOpenReviewAsPage() {
   )
 }
 
-function rankAndFilterResults(
-  items: FoodSearchItem[],
-  query: string
-): FoodSearchItem[] {
-  const knownReferenceKeys = new Set(
-    items
-      .filter((item) => !isUnknownBrand(item.brand))
-      .map(resultReferenceKey)
-      .filter(Boolean)
-  )
-
-  return items
-    .filter((item) => {
-      if (!isUnknownBrand(item.brand)) return true
-      const key = resultReferenceKey(item)
-      return !key || !knownReferenceKeys.has(key)
-    })
-    .map((item, index) => ({
-      item,
-      score: relevanceScore(item, query, index),
-      index,
-    }))
-    .sort((a, b) => b.score - a.score || a.index - b.index)
-    .map(({ item }) => item)
-}
-
 const MEAL_CATEGORIES = DEFAULT_MEAL_CATEGORIES
-
 export default function SearchFoods() {
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const searchParamsString = searchParams.toString()
+  const urlQuery = useMemo(
+    () => readFoodSearchQuery(new URLSearchParams(searchParamsString)),
+    [searchParamsString]
+  )
 
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const urlSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const addingFoodRef = useRef<string | null>(null)
 
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(() => urlQuery)
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [searchState, setSearchState] = useState<SearchState>("idle")
   const [added, setAdded] = useState<AddedState | null>(null)
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
   const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
+  const [addingFoodId, setAddingFoodId] = useState<string | null>(null)
+  const [snapOffline, setSnapOffline] = useState(false)
+  const [searchAttempt, setSearchAttempt] = useState(0)
+  const [recentSearches, setRecentSearches] = useState(() =>
+    readRecentFoodSearches()
+  )
 
   const date = currentDateKey()
   const preferences = useQuery(api.users.users.getPreferences)
@@ -161,6 +95,30 @@ export default function SearchFoods() {
   )
 
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
+
+  useEffect(() => {
+    setQuery((current) => (current === urlQuery ? current : urlQuery))
+  }, [urlQuery])
+
+  useEffect(() => {
+    const normalizedQuery = normalizeFoodSearchQuery(query)
+    if (normalizedQuery === urlQuery) return
+
+    if (urlSyncRef.current) clearTimeout(urlSyncRef.current)
+    urlSyncRef.current = setTimeout(() => {
+      setSearchParams(
+        foodSearchParamsForQuery(
+          new URLSearchParams(searchParamsString),
+          normalizedQuery
+        ),
+        { replace: true }
+      )
+    }, 180)
+
+    return () => {
+      if (urlSyncRef.current) clearTimeout(urlSyncRef.current)
+    }
+  }, [query, searchParamsString, setSearchParams, urlQuery])
 
   // Debounce: update debouncedQuery 380ms after the user stops typing
   useEffect(() => {
@@ -183,6 +141,11 @@ export default function SearchFoods() {
         )
         setSearchResults(results ?? [])
         setSearchState("done")
+        setRecentSearches((current) => {
+          const next = nextRecentFoodSearches(current, q)
+          writeRecentFoodSearches(next)
+          return next
+        })
       } catch {
         setSearchResults([])
         setSearchState("error")
@@ -191,10 +154,11 @@ export default function SearchFoods() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, preferences?.foodSearchLanguage])
+  }, [query, preferences?.foodSearchLanguage, searchAttempt])
 
   const results = useMemo(
-    () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
+    () =>
+      rankAndFilterFoodSearchResults(searchResults ?? [], debouncedQuery || query),
     [searchResults, debouncedQuery, query]
   )
 
@@ -211,45 +175,36 @@ export default function SearchFoods() {
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
-    const factor = grams / 100
-    const round = (v: number) => Math.round(v * factor * 10) / 10
+    if (addingFoodRef.current) return
 
-    const product = detail?.openFoodFacts ?? item.openFoodFacts
-    const entry = stripUndefined({
-      id: Math.random().toString(36).slice(2),
-      name:
-        grams === 100 && !portion
-          ? item.name
-          : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
-      calories: Math.round(Number(item.calories) * factor),
-      protein: round(Number(item.protein)),
-      carbs: round(Number(item.carbs)),
-      fat: round(Number(item.fat)),
-      loggedAt: new Date().toISOString(),
-      meal,
-      source: "openfoodfacts" as const,
-      foodCode: item.code,
-      quantityGrams: grams,
-      servingGrams: detail?.servingGrams ?? undefined,
-      servingLabel: detail?.servingLabel ?? item.serving,
-      imageUrl: detail?.imageUrl ?? item.imageUrl,
-      openFoodFacts: product,
-      ...micros,
-    })
+    addingFoodRef.current = item.id
+    setAddingFoodId(item.id)
+    try {
+      const entry = foodLogEntryFromFoodResult(item, {
+        grams,
+        micros,
+        meal,
+        detail,
+        portion,
+      })
 
-    const existingEntries = foodLogs ?? []
-    await setDay({ date, entries: [...existingEntries, entry] })
+      const existingEntries = foodLogs ?? []
+      await setDay({ date, entries: [...existingEntries, entry] })
 
-    posthog.capture("food_logged", {
-      food_name: item.name,
-      calories: Math.round(Number(item.calories) * factor),
-      grams,
-      meal,
-      source: "search",
-    })
+      posthog.capture("food_logged", {
+        food_name: item.name,
+        calories: entry.calories,
+        grams,
+        meal,
+        source: "search",
+      })
 
-    setAdded({ itemId: item.id })
-    setTimeout(() => setAdded(null), 1800)
+      setAdded({ itemId: item.id })
+      setTimeout(() => setAdded(null), 1800)
+    } finally {
+      addingFoodRef.current = null
+      setAddingFoodId(null)
+    }
   }
 
   const showEmpty =
@@ -266,6 +221,49 @@ export default function SearchFoods() {
 
     setDetailItem(item)
   }
+
+  function handleScanBarcode() {
+    setSnapOffline(false)
+    navigate(foodCapturePath("barcode"))
+  }
+
+  function handleSnapMeal() {
+    if (!isBrowserOnline()) {
+      setSnapOffline(true)
+      return
+    }
+
+    setSnapOffline(false)
+    navigate(foodCapturePath("snap"))
+  }
+
+  const quickActions = (
+    <FoodSearchQuickActions
+      offline={snapOffline}
+      onScan={handleScanBarcode}
+      onSnap={handleSnapMeal}
+    />
+  )
+
+  function chooseSearchSuggestion(suggestion: string) {
+    setQuery(suggestion)
+    inputRef.current?.focus()
+  }
+
+  function clearRecentSearches() {
+    clearRecentFoodSearches()
+    setRecentSearches([])
+  }
+
+  function retrySearch() {
+    if (query.trim().length < 2) return
+    setSearchAttempt((current) => current + 1)
+  }
+
+  const fallbackSuggestions = visiblePopularFoodSearches(
+    recentSearches,
+    POPULAR_FOOD_SEARCHES
+  )
 
   return (
     <>
@@ -297,6 +295,7 @@ export default function SearchFoods() {
               <input
                 ref={inputRef}
                 type="text"
+                name="food-search-query"
                 placeholder="Search foods…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -305,6 +304,7 @@ export default function SearchFoods() {
               />
               {query.length > 0 && (
                 <button
+                  type="button"
                   onClick={() => {
                     setQuery("")
                     setDebouncedQuery("")
@@ -328,31 +328,76 @@ export default function SearchFoods() {
             }}
           >
             {searchState === "idle" && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <MagnifyingGlass
-                  size={18}
-                  className="shrink-0 text-muted-foreground/35"
+              <div className="mt-8">
+                <div className="app-empty justify-center text-center">
+                  <MagnifyingGlass
+                    size={18}
+                    className="shrink-0 text-muted-foreground/35"
+                  />
+                  <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                    Type a food, brand, or barcode number.
+                  </p>
+                </div>
+                {recentSearches.length > 0 && (
+                  <SearchSuggestionChips
+                    label="Recent"
+                    suggestions={recentSearches}
+                    onChoose={chooseSearchSuggestion}
+                    onClear={clearRecentSearches}
+                  />
+                )}
+                <SearchSuggestionChips
+                  label="Popular"
+                  suggestions={visiblePopularFoodSearches(
+                    recentSearches,
+                    POPULAR_FOOD_SEARCHES
+                  )}
+                  onChoose={chooseSearchSuggestion}
                 />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
-                  Type a food, brand, or barcode number.
-                </p>
+                {quickActions}
               </div>
             )}
 
             {searchState === "error" && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <Warning size={18} className="shrink-0 text-destructive/70" />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
-                  Food search failed. Check your connection and try again.
-                </p>
+              <div className="mt-8">
+                <div className="app-empty justify-center text-center">
+                  <Warning
+                    size={18}
+                    className="shrink-0 text-destructive/70"
+                  />
+                  <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                    Food search failed. Check your connection and try again.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={retrySearch}
+                    className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
+                  >
+                    Retry search
+                  </button>
+                </div>
+                <SearchSuggestionChips
+                  label="Try instead"
+                  suggestions={fallbackSuggestions}
+                  onChoose={chooseSearchSuggestion}
+                />
+                {quickActions}
               </div>
             )}
 
             {showEmpty && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
-                  No results for "{query}"
-                </p>
+              <div className="mt-8">
+                <div className="app-empty justify-center text-center">
+                  <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                    No results for "{query}"
+                  </p>
+                </div>
+                <SearchSuggestionChips
+                  label="Try instead"
+                  suggestions={fallbackSuggestions}
+                  onChoose={chooseSearchSuggestion}
+                />
+                {quickActions}
               </div>
             )}
 
@@ -364,6 +409,7 @@ export default function SearchFoods() {
                 <div className="app-ledger md:grid md:grid-cols-2 md:gap-0">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
+                    const isAdding = addingFoodId === item.id
                     return (
                       <div
                         key={item.id}
@@ -418,15 +464,22 @@ export default function SearchFoods() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!isAdded) setPendingItem(item)
+                            if (!isAdded && !addingFoodId) setPendingItem(item)
                           }}
-                          disabled={isAdded}
+                          disabled={isAdded || addingFoodId !== null}
+                          aria-busy={isAdding}
                           aria-label={
-                            isAdded ? `${item.name} added` : `Add ${item.name}`
+                            isAdding
+                              ? `Adding ${item.name}`
+                              : isAdded
+                                ? `${item.name} added`
+                                : `Add ${item.name}`
                           }
                           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 transition-all active:scale-[0.985] disabled:opacity-60"
                         >
-                          {isAdded ? (
+                          {isAdding ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-foreground/15 border-t-foreground/45" />
+                          ) : isAdded ? (
                             <span className="text-[11px] text-foreground/60">
                               ✓
                             </span>
@@ -449,7 +502,9 @@ export default function SearchFoods() {
       {detailItem && (
         <FoodDetailSheet
           item={detailItem}
-          added={added?.itemId === detailItem.id}
+          added={
+            added?.itemId === detailItem.id || addingFoodId === detailItem.id
+          }
           onAdd={(item, grams, micros, meal, detail, portion) => {
             void handleAdd(
               detailItem,
@@ -458,7 +513,7 @@ export default function SearchFoods() {
               meal,
               detail ?? detailItem,
               portion
-            )
+            ).catch(reportOfflineMutationError)
           }}
           onClose={() => setDetailItem(null)}
         />
@@ -467,8 +522,8 @@ export default function SearchFoods() {
       {pendingItem && (
         <MealSelectSheet
           item={pendingItem}
-          onSelect={(meal) => {
-            void handleAdd(
+          onSelect={async (meal) => {
+            await handleAdd(
               pendingItem,
               100,
               logMicrosFromFoodDetail(pendingItem, 100),
@@ -479,6 +534,91 @@ export default function SearchFoods() {
           }}
           onClose={() => setPendingItem(null)}
         />
+      )}
+    </>
+  )
+}
+
+function SearchSuggestionChips({
+  label,
+  suggestions,
+  onChoose,
+  onClear,
+}: {
+  label: string
+  suggestions: string[]
+  onChoose: (suggestion: string) => void
+  onClear?: () => void
+}) {
+  if (suggestions.length === 0) return null
+
+  return (
+    <div className="mt-3">
+      <div className="mb-1.5 flex items-center justify-between px-1">
+        <p className="app-eyebrow text-muted-foreground/45">{label}</p>
+        {onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className="min-h-7 px-1 text-[11px] font-semibold text-muted-foreground/45 active:text-foreground/70"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap justify-center gap-2">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => onChoose(suggestion)}
+            className="min-h-9 rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FoodSearchQuickActions({
+  offline,
+  onScan,
+  onSnap,
+}: {
+  offline: boolean
+  onScan: () => void
+  onSnap: () => void
+}) {
+  return (
+    <>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={onScan}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-border/55 bg-muted/45 px-3 text-[12.5px] font-semibold text-foreground/80 transition-all active:scale-[0.985] active:bg-muted/70"
+        >
+          <Barcode size={16} weight="bold" />
+          Scan barcode
+        </button>
+        <button
+          type="button"
+          onClick={onSnap}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-border/55 bg-muted/45 px-3 text-[12.5px] font-semibold text-foreground/80 transition-all active:scale-[0.985] active:bg-muted/70"
+        >
+          <Camera size={16} weight="bold" />
+          Snap meal
+        </button>
+      </div>
+      {offline && (
+        <div className="mt-2 flex items-center gap-2 rounded-[10px] border border-destructive/15 bg-destructive/8 px-3 py-2 text-left">
+          <Warning size={13} weight="bold" className="shrink-0 text-destructive" />
+          <p className="text-[11.5px] leading-4 font-medium text-destructive">
+            Snap meal needs an internet connection. Search and barcode scan are
+            still available.
+          </p>
+        </div>
       )}
     </>
   )
@@ -531,27 +671,39 @@ function MealSelectSheet({
   onClose,
 }: {
   item: FoodSearchItem
-  onSelect: (meal: string) => void
+  onSelect: (meal: string) => Promise<void>
   onClose: () => void
 }) {
   const categories = MEAL_CATEGORIES
   const suggested = defaultMeal()
   const titleId = `meal-select-${item.id}`
+  const [savingMeal, setSavingMeal] = useState<string | null>(null)
+
+  async function selectMeal(meal: string) {
+    if (savingMeal) return
+    setSavingMeal(meal)
+    try {
+      await onSelect(meal)
+    } catch (error) {
+      reportOfflineMutationError(error)
+      setSavingMeal(null)
+    }
+  }
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape" && !savingMeal) onClose()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose])
+  }, [onClose, savingMeal])
 
   return (
     <>
       <div
         className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
-        onClick={onClose}
+        onClick={savingMeal ? undefined : onClose}
       />
       <div
         role="dialog"
@@ -576,7 +728,10 @@ function MealSelectSheet({
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => onSelect(cat.id)}
+              type="button"
+              onClick={() => void selectMeal(cat.id)}
+              disabled={Boolean(savingMeal)}
+              aria-busy={savingMeal === cat.id}
               className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
@@ -594,14 +749,18 @@ function MealSelectSheet({
               >
                 {cat.label}
               </span>
-              {cat.id === suggested && (
+              {savingMeal === cat.id ? (
+                <span className="text-[10px] font-medium text-muted-foreground/50">
+                  saving
+                </span>
+              ) : cat.id === suggested ? (
                 <span
                   className="text-[10px] font-medium"
                   style={{ color: cat.color, opacity: 0.6 }}
                 >
                   suggested
                 </span>
-              )}
+              ) : null}
             </button>
           ))}
         </div>

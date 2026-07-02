@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import {
   dateToIso,
+  localNoon,
   subtractDays,
   calcStreak,
   calcWorkoutsThisWeek,
@@ -19,6 +20,10 @@ describe("dateToIso", () => {
     expect(dateToIso(mkDate("2026-04-15"))).toBe("2026-04-15")
   })
 
+  test("uses the local calendar day instead of the UTC date", () => {
+    expect(dateToIso(new Date(2026, 0, 1, 0, 30))).toBe("2026-01-01")
+  })
+
   test("zero-pads month and day", () => {
     expect(dateToIso(mkDate("2026-01-05"))).toBe("2026-01-05")
   })
@@ -26,6 +31,20 @@ describe("dateToIso", () => {
   test("handles year boundary", () => {
     expect(dateToIso(mkDate("2025-12-31"))).toBe("2025-12-31")
     expect(dateToIso(mkDate("2026-01-01"))).toBe("2026-01-01")
+  })
+})
+
+describe("localNoon", () => {
+  test("normalizes a copy to local noon", () => {
+    const original = new Date(2026, 0, 1, 0, 30, 45, 123)
+    const normalized = localNoon(original)
+
+    expect(dateToIso(normalized)).toBe("2026-01-01")
+    expect(normalized.getHours()).toBe(12)
+    expect(normalized.getMinutes()).toBe(0)
+    expect(normalized.getSeconds()).toBe(0)
+    expect(normalized.getMilliseconds()).toBe(0)
+    expect(original.getHours()).toBe(0)
   })
 })
 
@@ -57,6 +76,11 @@ describe("subtractDays", () => {
 })
 
 describe("calcStreak", () => {
+  test("counts today's workout using the local calendar day", () => {
+    const earlyLocalMorning = new Date(2026, 0, 1, 0, 30)
+    expect(calcStreak(new Set(["2026-01-01"]), earlyLocalMorning)).toBe(1)
+  })
+
   test("returns 0 when today has no workout", () => {
     const dates = new Set(["2026-04-13", "2026-04-14"])
     expect(calcStreak(dates, REF)).toBe(0)
@@ -95,6 +119,11 @@ describe("calcStreak", () => {
 
 describe("calcWorkoutsThisWeek", () => {
   // REF = Wednesday 2026-04-15; week Mon 2026-04-13 … Sun 2026-04-19
+  test("counts local early-morning workouts in the correct week", () => {
+    const earlyLocalMonday = new Date(2026, 0, 5, 0, 30)
+    expect(calcWorkoutsThisWeek(new Set(["2026-01-05"]), earlyLocalMonday)).toBe(1)
+  })
+
   test("returns 0 with no workouts", () => {
     expect(calcWorkoutsThisWeek(new Set(), REF)).toBe(0)
   })
@@ -137,6 +166,13 @@ describe("calcWorkoutsThisWeek", () => {
 })
 
 describe("buildCalendarDays", () => {
+  test("ends on the local calendar day for early-morning users", () => {
+    expect(buildCalendarDays(new Date(2026, 0, 1, 0, 30), 2)).toEqual([
+      "2025-12-31",
+      "2026-01-01",
+    ])
+  })
+
   test("returns the correct number of days", () => {
     expect(buildCalendarDays(REF, 28)).toHaveLength(28)
     expect(buildCalendarDays(REF, 7)).toHaveLength(7)

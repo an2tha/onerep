@@ -14,9 +14,20 @@ import { toast } from "sonner"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
-import type { BodyMeasurementEntry } from "@/lib/body-progress"
+import {
+  bodyMeasurementCarryForwardDraft,
+  localDateInputValue,
+  type BodyMeasurementEntry,
+} from "@/lib/body-progress"
 import { api } from "../../../../convex/_generated/api"
-import { cn } from "@/lib/utils"
+import type { Id } from "../../../../convex/_generated/dataModel"
+import {
+  cn,
+  createClientId,
+  logDevError,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+} from "@/lib/utils"
 import { APP_ACCENT_COLORS } from "@/lib/design-tokens"
 import { rollingAvg, sparklinePoints } from "@/lib/progress-metrics"
 
@@ -130,6 +141,8 @@ function MeasurementField({
       <div className="flex items-center rounded-[10px] border border-border/55 bg-background px-3">
         <input
           type="text"
+          name={`body-measurement-${label.toLowerCase().replace(/\s+/g, "-")}`}
+          aria-label={`${label} measurement in ${unit}`}
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -147,13 +160,15 @@ type MeasurementDraft = Omit<
 > & { photoFile?: File }
 
 function MeasurementSheet({
+  lastEntry,
   onClose,
   onSave,
 }: {
+  lastEntry?: BodyMeasurementEntry | null
   onClose: () => void
-  onSave: (entry: MeasurementDraft) => void
+  onSave: (entry: MeasurementDraft) => Promise<void> | void
 }) {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateInputValue()
   const [loggedAt, setLoggedAt] = useState(today)
   const [weightKg, setWeightKg] = useState("")
   const [bodyFatPct, setBodyFatPct] = useState("")
@@ -168,8 +183,14 @@ function MeasurementSheet({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [photoFile, setPhotoFile] = useState<File | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const saveRef = React.useRef(false)
+  const carryForward = useMemo(
+    () => bodyMeasurementCarryForwardDraft(lastEntry),
+    [lastEntry]
+  )
 
   function toNumber(value: string) {
     const trimmed = value.trim()
@@ -194,21 +215,71 @@ function MeasurementSheet({
     }
   }
 
+  function useLastMeasurement() {
+    if (!carryForward) return
+    setWeightKg(carryForward.weightKg)
+    setBodyFatPct(carryForward.bodyFatPct)
+    setWaistCm(carryForward.waistCm)
+    setHipsCm(carryForward.hipsCm)
+    setChestCm(carryForward.chestCm)
+    setArmsCm(carryForward.armsCm)
+    setThighsCm(carryForward.thighsCm)
+    setCalvesCm(carryForward.calvesCm)
+    setNeckCm(carryForward.neckCm)
+    if (carryForward.hasAdvancedMeasurements) setShowAdvanced(true)
+    toast.message(
+      `${carryForward.filledCount} value${
+        carryForward.filledCount === 1 ? "" : "s"
+      } copied`
+    )
+  }
+
   const canSave =
-    Boolean(toNumber(weightKg)) ||
-    Boolean(toNumber(bodyFatPct)) ||
-    Boolean(toNumber(waistCm)) ||
-    Boolean(toNumber(hipsCm)) ||
-    Boolean(toNumber(chestCm)) ||
-    Boolean(toNumber(armsCm)) ||
-    Boolean(toNumber(thighsCm)) ||
-    Boolean(toNumber(calvesCm)) ||
-    Boolean(toNumber(neckCm)) ||
-    Boolean(photoDataUrl)
+    !saving &&
+    (Boolean(toNumber(weightKg)) ||
+      Boolean(toNumber(bodyFatPct)) ||
+      Boolean(toNumber(waistCm)) ||
+      Boolean(toNumber(hipsCm)) ||
+      Boolean(toNumber(chestCm)) ||
+      Boolean(toNumber(armsCm)) ||
+      Boolean(toNumber(thighsCm)) ||
+      Boolean(toNumber(calvesCm)) ||
+      Boolean(toNumber(neckCm)) ||
+      Boolean(photoDataUrl))
+
+  async function handleSave() {
+    if (!canSave || saveRef.current) return
+    saveRef.current = true
+    setSaving(true)
+    try {
+      await onSave({
+        loggedAt,
+        weightKg: toNumber(weightKg),
+        bodyFatPct: toNumber(bodyFatPct),
+        waistCm: toNumber(waistCm),
+        hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
+        chestCm: chestCm ? toNumber(chestCm) : undefined,
+        armsCm: armsCm ? toNumber(armsCm) : undefined,
+        thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
+        calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
+        neckCm: neckCm ? toNumber(neckCm) : undefined,
+        notes: notes.trim() || undefined,
+        photoFile,
+        photoTakenAt: photoFile ? Date.now() : undefined,
+      })
+    } catch {
+      // Parent save handlers own user-facing error copy.
+    } finally {
+      saveRef.current = false
+      setSaving(false)
+    }
+  }
 
   return (
     <MobileSheet
-      onClose={onClose}
+      onClose={saving ? () => {} : onClose}
+      closeOnBackdrop={!saving}
+      showHandle={!saving}
       overlayClassName="bg-black/45 backdrop-blur-[5px]"
       panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
       panelStyle={{
@@ -218,9 +289,27 @@ function MeasurementSheet({
       <div className="px-4 pt-1">
         <div className="mb-4 border-b border-border/45 pb-4">
           <p className="app-eyebrow">Daily check-in</p>
-          <h2 className="mt-1.5 text-[1.35rem] leading-tight font-semibold">
-            Body measurements
-          </h2>
+          <div className="mt-1.5 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-[1.35rem] leading-tight font-semibold">
+                Body measurements
+              </h2>
+              {carryForward && lastEntry && (
+                <p className="mt-1 text-[11px] font-medium text-muted-foreground/45">
+                  Last {formatMeasurementDate(lastEntry.loggedAt)}
+                </p>
+              )}
+            </div>
+            {carryForward && (
+              <button
+                type="button"
+                onClick={useLastMeasurement}
+                className="app-button app-button-secondary h-9 shrink-0 px-3 text-[11px]"
+              >
+                Use last
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2.5 short-phone:gap-2">
@@ -293,6 +382,8 @@ function MeasurementSheet({
             </span>
             <input
               type="file"
+              name="progress-photo"
+              aria-label="Progress photo"
               accept="image/*"
               capture="environment"
               className="hidden"
@@ -312,6 +403,7 @@ function MeasurementSheet({
                     setPhotoDataUrl(undefined)
                     setPhotoFile(undefined)
                   }}
+                  aria-label="Remove progress photo"
                   className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-[10px] bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
                 >
                   <X size={14} weight="bold" />
@@ -335,6 +427,8 @@ function MeasurementSheet({
             </span>
             <input
               type="date"
+              name="body-measurement-date"
+              aria-label="Body measurement date"
               value={loggedAt}
               onChange={(event) => setLoggedAt(event.target.value)}
               className="app-input h-11"
@@ -357,24 +451,9 @@ function MeasurementSheet({
 
         <div className="mt-4 flex gap-2">
           <button
-            onClick={() => {
-              if (!canSave) return
-              onSave({
-                loggedAt,
-                weightKg: toNumber(weightKg),
-                bodyFatPct: toNumber(bodyFatPct),
-                waistCm: toNumber(waistCm),
-                hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
-                chestCm: chestCm ? toNumber(chestCm) : undefined,
-                armsCm: armsCm ? toNumber(armsCm) : undefined,
-                thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
-                calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
-                neckCm: neckCm ? toNumber(neckCm) : undefined,
-                notes: notes.trim() || undefined,
-                photoFile,
-                photoTakenAt: photoFile ? Date.now() : undefined,
-              })
-            }}
+            onClick={handleSave}
+            disabled={!canSave}
+            aria-busy={saving}
             className={cn(
               "app-button flex-1 py-3 text-[13px] transition-colors",
               canSave
@@ -382,10 +461,11 @@ function MeasurementSheet({
                 : "bg-muted text-muted-foreground/40"
             )}
           >
-            Save check-in
+            {saving ? "Saving..." : "Save check-in"}
           </button>
           <button
-            onClick={onClose}
+            onClick={saving ? undefined : onClose}
+            disabled={saving}
             className="app-button app-button-quiet px-4 py-3 text-[13px]"
           >
             Cancel
@@ -702,6 +782,8 @@ function MetricSearchSheet({
             />
             <input
               type="search"
+              name="metric-library-search"
+              aria-label="Search progress metrics"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search metrics: volume, waist, protein, streak..."
@@ -715,6 +797,8 @@ function MetricSearchSheet({
             </p>
             <div className="mt-2 flex gap-2">
               <input
+                name="metric-ai-prompt"
+                aria-label="Describe a metric to generate"
                 value={aiPrompt}
                 onChange={(event) => setAiPrompt(event.target.value)}
                 placeholder="e.g. fat loss, bench progress, consistency"
@@ -790,6 +874,8 @@ function MetricSearchSheet({
             </p>
             <div className="mt-2 flex gap-2">
               <input
+                name="custom-progress-metric"
+                aria-label="Custom progress metric name"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Type a metric name"
@@ -958,7 +1044,7 @@ export default function Progress() {
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [...DEFAULT_METRIC_IDS]
     try {
-      const saved = window.localStorage.getItem(SELECTED_METRICS_KEY)
+      const saved = safeLocalStorageGet(SELECTED_METRICS_KEY)
       const parsed = saved ? JSON.parse(saved) : null
       return Array.isArray(parsed) && parsed.length > 0
         ? parsed.filter((id): id is string => typeof id === "string")
@@ -970,7 +1056,7 @@ export default function Progress() {
   const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>(() => {
     if (typeof window === "undefined") return []
     try {
-      const saved = window.localStorage.getItem(CUSTOM_METRICS_KEY)
+      const saved = safeLocalStorageGet(CUSTOM_METRICS_KEY)
       const parsed = saved ? JSON.parse(saved) : null
       return Array.isArray(parsed)
         ? parsed.filter(
@@ -991,7 +1077,7 @@ export default function Progress() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    window.localStorage.setItem(
+    safeLocalStorageSet(
       SELECTED_METRICS_KEY,
       JSON.stringify(selectedMetricIds)
     )
@@ -999,7 +1085,7 @@ export default function Progress() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    window.localStorage.setItem(
+    safeLocalStorageSet(
       CUSTOM_METRICS_KEY,
       JSON.stringify(customMetrics)
     )
@@ -1457,7 +1543,7 @@ export default function Progress() {
 
       toast.message("No matching metrics found")
     } catch (error) {
-      console.error("Failed to generate metrics:", error)
+      logDevError("Failed to generate metrics:", error)
       toast.error("Could not generate metrics")
     }
   }
@@ -1704,7 +1790,7 @@ export default function Progress() {
                                 clientId: entry.clientId,
                               })
                             } catch (err) {
-                              console.error(
+                              logDevError(
                                 "Failed to remove measurement:",
                                 err
                               )
@@ -1798,6 +1884,8 @@ export default function Progress() {
                 />
                 <input
                   type="search"
+                  name="strength-trend-exercise-search"
+                  aria-label="Search strength trend exercise"
                   value={exerciseQuery}
                   onChange={(event) => setExerciseQuery(event.target.value)}
                   placeholder="Search exercise"
@@ -1948,12 +2036,12 @@ export default function Progress() {
 
       {sheetOpen && (
         <MeasurementSheet
+          lastEntry={latest}
           onClose={() => setSheetOpen(false)}
           onSave={async ({ photoFile, ...entry }) => {
-            const clientId = crypto.randomUUID()
-            setSheetOpen(false)
+            const clientId = createClientId()
             try {
-              let photoStorageId: string | undefined
+              let photoStorageId: Id<"_storage"> | undefined
               if (photoFile) {
                 const uploadUrl = await generateUploadUrl()
                 const response = await fetch(uploadUrl, {
@@ -1962,13 +2050,15 @@ export default function Progress() {
                   body: photoFile,
                 })
                 if (!response.ok) throw new Error("Photo upload failed")
-                photoStorageId = (await response.json()).storageId as string
+                photoStorageId = (await response.json()).storageId as Id<"_storage">
               }
               await saveMeasurement({ clientId, ...entry, photoStorageId })
               toast.success("Measurement saved")
+              setSheetOpen(false)
             } catch (err) {
-              console.error("Failed to save measurement:", err)
+              logDevError("Failed to save measurement:", err)
               toast.error("Could not save measurement")
+              throw err
             }
           }}
         />

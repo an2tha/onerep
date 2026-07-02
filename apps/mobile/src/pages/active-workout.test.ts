@@ -12,6 +12,12 @@
  */
 
 import { describe, test, expect } from "bun:test"
+import { readFileSync } from "node:fs"
+
+const ACTIVE_WORKOUT_SOURCE = readFileSync(
+  new URL("./ActiveWorkout.tsx", import.meta.url),
+  "utf8"
+)
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -148,12 +154,12 @@ describe("handleFinish – weight parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("string weight is parsed as float", () => {
-    const sets: RawSet[] = [{ weight: "80" as any, reps: 8, completed: true }]
+    const sets: RawSet[] = [{ weight: "80", reps: 8, completed: true }]
     expect(mapSets(sets)[0].weight).toBe(80)
   })
 
   test("string float weight is parsed correctly", () => {
-    const sets: RawSet[] = [{ weight: "82.5" as any, reps: 8, completed: true }]
+    const sets: RawSet[] = [{ weight: "82.5", reps: 8, completed: true }]
     expect(mapSets(sets)[0].weight).toBe(82.5)
   })
 
@@ -164,13 +170,13 @@ describe("handleFinish – weight parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("empty string weight falls back to 0", () => {
-    const sets: RawSet[] = [{ weight: "" as any, reps: 8, completed: true }]
+    const sets: RawSet[] = [{ weight: "", reps: 8, completed: true }]
     expect(mapSets(sets)[0].weight).toBe(0)
   })
 
   test("non-numeric string weight falls back to 0", () => {
     const sets: RawSet[] = [
-      { weight: "bodyweight" as any, reps: 8, completed: true },
+      { weight: "bodyweight", reps: 8, completed: true },
     ]
     expect(mapSets(sets)[0].weight).toBe(0)
   })
@@ -188,7 +194,7 @@ describe("handleFinish – reps parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("string reps is parsed as float", () => {
-    const sets: RawSet[] = [{ weight: 80, reps: "8" as any, completed: true }]
+    const sets: RawSet[] = [{ weight: 80, reps: "8", completed: true }]
     expect(mapSets(sets)[0].reps).toBe(8)
   })
 
@@ -198,13 +204,13 @@ describe("handleFinish – reps parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("empty string reps falls back to 0", () => {
-    const sets: RawSet[] = [{ weight: 80, reps: "" as any, completed: true }]
+    const sets: RawSet[] = [{ weight: 80, reps: "", completed: true }]
     expect(mapSets(sets)[0].reps).toBe(0)
   })
 
   test("non-numeric string reps falls back to 0", () => {
     const sets: RawSet[] = [
-      { weight: 80, reps: "AMRAP" as any, completed: true },
+      { weight: 80, reps: "AMRAP", completed: true },
     ]
     expect(mapSets(sets)[0].reps).toBe(0)
   })
@@ -220,24 +226,24 @@ describe("handleFinish – mapped set shape", () => {
 
   test("mapped set does NOT include rpe field", () => {
     const sets: RawSet[] = [{ weight: 80, reps: 8, rpe: 8, completed: true }]
-    const mapped = mapSets(sets)[0] as any
-    expect(mapped.rpe).toBeUndefined()
+    const mapped = mapSets(sets)[0]
+    expect("rpe" in mapped).toBe(false)
   })
 
   test("mapped set does NOT include leftReps field", () => {
     const sets: RawSet[] = [
       { weight: 80, leftReps: 10, rightReps: 10, completed: true },
     ]
-    const mapped = mapSets(sets)[0] as any
-    expect(mapped.leftReps).toBeUndefined()
+    const mapped = mapSets(sets)[0]
+    expect("leftReps" in mapped).toBe(false)
   })
 
   test("mapped set does NOT include rightReps field", () => {
     const sets: RawSet[] = [
       { weight: 80, leftReps: 10, rightReps: 10, completed: true },
     ]
-    const mapped = mapSets(sets)[0] as any
-    expect(mapped.rightReps).toBeUndefined()
+    const mapped = mapSets(sets)[0]
+    expect("rightReps" in mapped).toBe(false)
   })
 
   test("mapped set includes completed field", () => {
@@ -261,17 +267,17 @@ describe("handleFinish – exercise log shape", () => {
       { weight: 100, reps: 5, completed: true },
     ])
     expect(log.id).toBe("ex-123")
-    expect((log as any).exerciseId).toBeUndefined()
+    expect("exerciseId" in log).toBe(false)
   })
 
   test("exercise log does NOT include trackRpe field", () => {
-    const log = mapExercise("ex-1", "Bench Press", []) as any
-    expect(log.trackRpe).toBeUndefined()
+    const log = mapExercise("ex-1", "Bench Press", [])
+    expect("trackRpe" in log).toBe(false)
   })
 
   test("exercise log does NOT include trackUnilateral field", () => {
-    const log = mapExercise("ex-1", "Curl", []) as any
-    expect(log.trackUnilateral).toBeUndefined()
+    const log = mapExercise("ex-1", "Curl", [])
+    expect("trackUnilateral" in log).toBe(false)
   })
 
   test("exercise name is preserved in the log", () => {
@@ -371,5 +377,82 @@ describe("parseFloat(String(x)) regression cases", () => {
       expect(typeof result).toBe("number")
       expect(isNaN(result)).toBe(false)
     }
+  })
+})
+
+describe("active workout sync production safeguards", () => {
+  test("debounced sync surfaces visible status and retry affordance", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'type WorkoutSyncStatus = "idle" | "pending" | "saving" | "saved" | "error"'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('role="status"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('aria-live="polite"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'aria-label="Retry active workout sync"'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'onClick={() => syncToConvex({ immediate: true })}'
+    )
+  })
+
+  test("in-flight saves do not clear newer workout changes", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const dirtyVersionRef = useRef(0)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("dirtyVersionRef.current += 1")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "const syncVersion = dirtyVersionRef.current"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "if (dirtyVersionRef.current === syncVersion)"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toMatch(
+      /setWorkoutSyncError\(\s*"Workout changes are not synced\. Check your connection and retry\."\s*\)/
+    )
+  })
+
+  test("finish and abort confirmations prevent duplicate submissions", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("onFinish: () => Promise<void>")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("onConfirm: () => Promise<void>")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const [finishing, setFinishing]")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const [aborting, setAborting]")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("await onFinish()")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("await onConfirm()")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={finishing}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={aborting}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      '{finishing ? "Finishing..." : "Finish workout"}'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      '{aborting ? "Aborting..." : "Abort workout"}'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'toast.error("Failed to finish workout. Please try again.")'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'toast.error("Failed to abort workout. Please try again.")'
+    )
+  })
+
+  test("AI workout updates prevent duplicate submissions", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const aiUpdatingRef = useRef(false)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "if (aiUpdatingRef.current || aiUpdating) return"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aiUpdatingRef.current = true")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aiUpdatingRef.current = false")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={aiUpdating}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={loading}")
+  })
+
+  test("Apple Health import loading is single-flight and announced", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "const appleHealthLoadingRef = useRef(false)"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "if (appleHealthLoadingRef.current || appleHealthLoading) return"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("appleHealthLoadingRef.current = true")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("appleHealthLoadingRef.current = false")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={appleHealthLoading}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={appleHealthLoading}")
   })
 })

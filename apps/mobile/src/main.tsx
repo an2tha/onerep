@@ -1,14 +1,17 @@
 import {
   StrictMode,
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react"
-import { createRoot } from "react-dom/client"
+import { createRoot, type Root } from "react-dom/client"
 import {
   createBrowserRouter,
+  Link,
   Outlet,
   useLocation,
   useSearchParams,
@@ -16,11 +19,20 @@ import {
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
+import { toast } from "sonner"
 import { ClerkProvider, HandleSSOCallback, useAuth } from "@clerk/react"
 import { ConvexProviderWithClerk } from "convex/react-clerk"
 import { convexClient } from "@/lib/convex"
+import { cn, safeLocalStorageGet } from "@/lib/utils"
+import { safeAuthRedirectPath } from "@/lib/auth-session"
 
 import "./index.css"
+
+declare global {
+  interface Window {
+    __onerepReactRoot?: Root
+  }
+}
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
   | string
@@ -32,37 +44,49 @@ if (posthogToken) {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
     defaults: "2026-01-30",
   })
-  if (localStorage.getItem("onerep:analytics-enabled") === "false") {
+  if (safeLocalStorageGet("onerep:analytics-enabled") === "false") {
     posthog.opt_out_capturing()
   }
 }
-import App from "./App.tsx"
-import Exercises from "./pages/Exercises.tsx"
-import EmailVerified from "./pages/EmailVerified.tsx"
-import Login from "./pages/Login.tsx"
-import Onboarding from "./pages/Onboarding.tsx"
-import ResetPassword from "./pages/ResetPassword.tsx"
-import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
-import Workouts from "./pages/Workouts.tsx"
-import NewPreset from "./pages/NewPreset.tsx"
-import ActiveWorkout from "./pages/ActiveWorkout.tsx"
-import SnapAndLog from "./pages/SnapAndLog.tsx"
-import SearchFoods from "./pages/SearchFoods.tsx"
-import FoodReview from "./pages/FoodReview.tsx"
-import Foods from "./pages/Foods.tsx"
-import Nutrition from "./pages/Nutrition.tsx"
-import Water from "./pages/Water.tsx"
-import Supplements from "./pages/Supplements.tsx"
-import NewRecipe from "./pages/NewRecipe.tsx"
-import Progress from "./pages/Progress.tsx"
-import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
-import { clearRouteMotion, useSmoothNavigate } from "./lib/navigation"
+import {
+  clearRouteMotion,
+  getRouteMotion,
+  useSmoothNavigate,
+} from "./lib/navigation"
+import {
+  activateWaitingServiceWorker,
+  registerAppServiceWorker,
+  reloadWhenServiceWorkerControlsPage,
+} from "./lib/service-worker"
+
+const App = lazy(() => import("./App.tsx"))
+const Exercises = lazy(() => import("./pages/Exercises.tsx"))
+const EmailVerified = lazy(() => import("./pages/EmailVerified.tsx"))
+const Login = lazy(() => import("./pages/Login.tsx"))
+const Onboarding = lazy(() => import("./pages/Onboarding.tsx"))
+const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"))
+const VerifyEmailRequired = lazy(
+  () => import("./pages/VerifyEmailRequired.tsx")
+)
+const Workouts = lazy(() => import("./pages/Workouts.tsx"))
+const NewPreset = lazy(() => import("./pages/NewPreset.tsx"))
+const ActiveWorkout = lazy(() => import("./pages/ActiveWorkout.tsx"))
+const SnapAndLog = lazy(() => import("./pages/SnapAndLog.tsx"))
+const SearchFoods = lazy(() => import("./pages/SearchFoods.tsx"))
+const FoodReview = lazy(() => import("./pages/FoodReview.tsx"))
+const Foods = lazy(() => import("./pages/Foods.tsx"))
+const Nutrition = lazy(() => import("./pages/Nutrition.tsx"))
+const Water = lazy(() => import("./pages/Water.tsx"))
+const Supplements = lazy(() => import("./pages/Supplements.tsx"))
+const NewRecipe = lazy(() => import("./pages/NewRecipe.tsx"))
+const Progress = lazy(() => import("./pages/Progress.tsx"))
+const Settings = lazy(() => import("./pages/Settings.tsx"))
 
 function shouldShowBottomBar(pathname: string) {
   return (
@@ -102,6 +126,46 @@ function MissingClerkConfig() {
   )
 }
 
+function RouteFallback() {
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 text-center">
+      <section className="app-rail-surface p-5">
+        <div className="mx-auto mb-4 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <h1 className="text-[1.25rem] font-semibold tracking-tight">
+          Loading OneRep
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+          Preparing your mobile workspace.
+        </p>
+      </section>
+    </main>
+  )
+}
+
+function NotFound() {
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center bg-background px-5 py-[var(--app-safe-bottom-lg)] text-foreground">
+      <section className="rounded-[24px] border border-border/70 bg-card p-5 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
+        <p className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
+          Not found
+        </p>
+        <h1 className="mt-2 text-[1.35rem] leading-tight font-semibold tracking-tight">
+          This page is not available
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+          Check the link or return to OneRep.
+        </p>
+        <Link
+          to="/"
+          className="mt-5 flex min-h-11 w-full items-center justify-center rounded-[14px] bg-foreground px-4 text-[14px] font-semibold text-background active:opacity-85"
+        >
+          Go to OneRep
+        </Link>
+      </section>
+    </main>
+  )
+}
+
 function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
@@ -114,6 +178,7 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
+  const routeMotion = getRouteMotion()
 
   const setBottomBarAction = useCallback((action?: () => void) => {
     setBottomBarActionState(() => action)
@@ -212,7 +277,14 @@ function NavSync() {
         onTouchEnd={handleTouchEnd}
         className="app-route-shell"
       >
-        <div key={location.key} className="app-route-frame">
+        <div
+          key={location.key}
+          className={cn(
+            "app-route-frame",
+            routeMotion && "app-route-frame-animated"
+          )}
+          data-route-motion={routeMotion}
+        >
           <Outlet />
         </div>
       </div>
@@ -224,8 +296,9 @@ function NavSync() {
 function SSOCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
+  const rawNext = searchParams.get("next")
   const nextPath =
-    searchParams.get("next") === "onboarding" ? "/onboarding" : "/"
+    rawNext === "onboarding" ? "/onboarding" : safeAuthRedirectPath(rawNext)
 
   function navigateInApp(destination: string) {
     if (destination.startsWith("http")) {
@@ -400,6 +473,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/search-foods",
+        element: (
+          <AuthGuard>
+            <SearchFoods />
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/foods/review/:id",
         element: (
           <AuthGuard>
@@ -465,11 +546,24 @@ const router = createBrowserRouter([
           </AuthGuard>
         ),
       },
+      {
+        path: "*",
+        element: <NotFound />,
+      },
     ],
   },
 ])
 
-createRoot(document.getElementById("root")!).render(
+const rootElement = document.getElementById("root")
+if (!rootElement) {
+  throw new Error("Missing root element")
+}
+
+const root =
+  window.__onerepReactRoot ??
+  (window.__onerepReactRoot = createRoot(rootElement))
+
+root.render(
   <StrictMode>
     {clerkPublishableKey ? (
       <ClerkProvider publishableKey={clerkPublishableKey}>
@@ -478,7 +572,9 @@ createRoot(document.getElementById("root")!).render(
             <ThemeProvider>
               <ErrorBoundary label="the app">
                 <OfflineSyncIndicator />
-                <RouterProvider router={router} />
+                <Suspense fallback={<RouteFallback />}>
+                  <RouterProvider router={router} />
+                </Suspense>
                 <Toaster position="top-center" richColors />
               </ErrorBoundary>
             </ThemeProvider>
@@ -492,3 +588,18 @@ createRoot(document.getElementById("root")!).render(
     )}
   </StrictMode>
 )
+
+if (import.meta.env.PROD) {
+  reloadWhenServiceWorkerControlsPage()
+  void registerAppServiceWorker({
+    onUpdate(registration) {
+      toast("Update ready", {
+        description: "Refresh OneRep to use the latest version.",
+        action: {
+          label: "Refresh",
+          onClick: () => activateWaitingServiceWorker(registration),
+        },
+      })
+    },
+  })
+}

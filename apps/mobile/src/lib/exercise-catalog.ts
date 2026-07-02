@@ -221,8 +221,22 @@ export const EXERCISES: Exercise[] = [
   },
 ]
 
+const POPULAR_EXERCISE_SEARCH_IDS = ["e1", "e2", "e3", "e4", "e9", "e17"]
+
 export function getExerciseById(id: string) {
   return EXERCISES.find((e) => e.id === id) ?? null
+}
+
+export function visiblePopularExerciseSearches(
+  addedIds: string[],
+  exercises: Exercise[] = EXERCISES
+) {
+  const added = new Set(addedIds)
+  const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]))
+
+  return POPULAR_EXERCISE_SEARCH_IDS.map((id) => byId.get(id)).filter(
+    (exercise): exercise is Exercise => Boolean(exercise && !added.has(exercise.id))
+  )
 }
 
 function exerciseMatchesQuery(exercise: Exercise, query: string): boolean {

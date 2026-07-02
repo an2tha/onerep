@@ -8,9 +8,26 @@ import {
 } from "@clerk/react/experimental"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
-import { cn } from "@/lib/utils"
+import {
+  cn,
+  logDevWarn,
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+} from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { hapticTap, hapticSelection, hapticMedium } from "@/lib/haptics"
+import {
+  hapticTap,
+  hapticSelection,
+  hapticMedium,
+  hapticsEnabled,
+  setHapticsEnabled,
+} from "@/lib/haptics"
+import {
+  oneRepExportDocument,
+  oneRepExportFilename,
+  shareOrDownloadJsonExport,
+} from "@/lib/data-export"
 import {
   Accordion,
   AccordionItem,
@@ -32,6 +49,11 @@ import {
   syncPushReminders,
   type ReminderSettings,
 } from "@/lib/reminders"
+import {
+  isPwaStandalone,
+  pwaInstallCopy,
+  type PwaBeforeInstallPromptEvent,
+} from "@/lib/pwa-install"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
@@ -55,7 +77,7 @@ const AI_ACCESS_PLAN_ID = import.meta.env.VITE_CLERK_AI_PLAN_ID as
 function getStoredTheme(): Theme {
   if (typeof window === "undefined") return "light"
   return (
-    (localStorage.getItem("theme") as Theme) ||
+    (safeLocalStorageGet("theme") as Theme) ||
     (window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light")
@@ -71,7 +93,7 @@ function getStoredTheme(): Theme {
  */
 function setTheme(theme: Theme) {
   if (typeof document === "undefined") return
-  localStorage.setItem("theme", theme)
+  safeLocalStorageSet("theme", theme)
   if (theme === "dark") {
     document.documentElement.classList.add("dark")
   } else {
@@ -208,22 +230,64 @@ export default function Settings({
   )
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
     if (typeof window === "undefined") return true
-    return localStorage.getItem("onerep:analytics-enabled") !== "false"
+    return safeLocalStorageGet("onerep:analytics-enabled") !== "false"
   })
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
   const [offlineQueueTotal, setOfflineQueueTotal] = useState(0)
+  const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [resettingOnboarding, setResettingOnboarding] = useState(false)
   const [theme, setThemeState] = useState<Theme>("light")
+  const [hapticsOn, setHapticsOn] = useState(() => {
+    if (typeof window === "undefined") return true
+    return hapticsEnabled()
+  })
+  const [pwaInstallPrompt, setPwaInstallPrompt] =
+    useState<PwaBeforeInstallPromptEvent | null>(null)
+  const [pwaInstalled, setPwaInstalled] = useState(() => {
+    if (typeof window === "undefined") return false
+    return isPwaStandalone(window)
+  })
+  const pwaCopy = pwaInstallCopy({
+    hasPrompt: pwaInstallPrompt !== null,
+    installed: pwaInstalled,
+  })
 
   // Initialize theme
   useEffect(() => {
     setThemeState(getStoredTheme())
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    function handleBeforeInstallPrompt(event: Event) {
+      event.preventDefault()
+      if (isPwaStandalone(window)) return
+      setPwaInstallPrompt(event as PwaBeforeInstallPromptEvent)
+      setPwaInstalled(false)
+    }
+
+    function handleAppInstalled() {
+      setPwaInstallPrompt(null)
+      setPwaInstalled(true)
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
+    window.addEventListener("appinstalled", handleAppInstalled)
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      )
+      window.removeEventListener("appinstalled", handleAppInstalled)
+    }
   }, [])
 
   useEffect(() => {
@@ -306,6 +370,13 @@ export default function Settings({
     setThemeState(nextTheme)
   }
 
+  function handleHapticsChange(enabled: boolean) {
+    if (enabled) hapticSelection()
+    setHapticsOn(enabled)
+    setHapticsEnabled(enabled)
+    toast.success(enabled ? "Haptics enabled" : "Haptics disabled")
+  }
+
   async function runSectionSave(action: () => Promise<void>, success: string) {
     if (saving) return
     hapticTap()
@@ -318,17 +389,6 @@ export default function Settings({
     } finally {
       setSaving(false)
     }
-  }
-
-  async function handleSaveGoals() {
-    await runSectionSave(async () => {
-      await setCustomGoals({
-        calories,
-        protein,
-        carbs,
-        fat,
-      })
-    }, "Goals saved")
   }
 
   async function handleSaveWaterGoal() {
@@ -389,7 +449,10 @@ export default function Settings({
         personalizedInsightsEnabled,
       })
 
-      localStorage.setItem("onerep:analytics-enabled", String(analyticsEnabled))
+      safeLocalStorageSet(
+        "onerep:analytics-enabled",
+        String(analyticsEnabled)
+      )
       if (analyticsEnabled) posthog.opt_in_capturing()
       else posthog.opt_out_capturing()
     }, "Privacy settings saved")
@@ -402,7 +465,7 @@ export default function Settings({
     try {
       clearOfflineQueue()
       await signOut()
-      localStorage.removeItem(PRELOGIN_SEEN_KEY)
+      safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
       posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
@@ -413,9 +476,19 @@ export default function Settings({
   }
 
   async function handleResetOnboarding() {
+    if (resettingOnboarding) return
     hapticTap()
-    await clearOnboarding({})
-    navigate("/onboarding", { replace: true })
+    setResettingOnboarding(true)
+    try {
+      await clearOnboarding({})
+      navigate("/onboarding", { replace: true })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not reset onboarding"
+      )
+    } finally {
+      setResettingOnboarding(false)
+    }
   }
 
   function updateReminder(
@@ -429,21 +502,53 @@ export default function Settings({
   }
 
   async function handleFlushOfflineQueue() {
+    if (syncingOfflineQueue) return
     hapticTap()
-    const result = await flushOfflineQueue()
-    setOfflineQueueTotal(result.remaining)
-    if (result.remaining === 0) toast.success("Offline changes synced")
-    else
-      toast.message(
-        `${result.remaining} change${result.remaining === 1 ? "" : "s"} still waiting`
-      )
+    setSyncingOfflineQueue(true)
+    try {
+      const result = await flushOfflineQueue()
+      setOfflineQueueTotal(result.remaining)
+      if (result.remaining === 0) toast.success("Offline changes synced")
+      else
+        toast.message(
+          `${result.remaining} change${result.remaining === 1 ? "" : "s"} still waiting`
+        )
+    } catch (error) {
+      setOfflineQueueTotal(getOfflineQueueSummary().total)
+      toast.error(error instanceof Error ? error.message : "Sync failed")
+    } finally {
+      setSyncingOfflineQueue(false)
+    }
+  }
+
+  async function handleInstallApp() {
+    hapticTap()
+    if (!pwaInstallPrompt) {
+      toast.message(pwaCopy.description)
+      return
+    }
+
+    const prompt = pwaInstallPrompt
+    setPwaInstallPrompt(null)
+    try {
+      await prompt.prompt()
+      const choice = await prompt.userChoice
+      if (choice.outcome === "accepted") {
+        toast.success("OneRep install started")
+      } else {
+        toast.message("Install dismissed")
+      }
+    } catch (error) {
+      setPwaInstallPrompt(prompt)
+      toast.error(error instanceof Error ? error.message : "Install failed")
+    }
   }
 
   function handleClearLocalData() {
     hapticMedium()
     clearOfflineQueue()
-    localStorage.removeItem("onerep:analytics-enabled")
-    localStorage.removeItem("theme")
+    safeLocalStorageRemove("onerep:analytics-enabled")
+    safeLocalStorageRemove("theme")
     setOfflineQueueTotal(0)
     toast.success("Local cached settings cleared")
   }
@@ -456,18 +561,21 @@ export default function Settings({
         api.users.users.exportMyData,
         {}
       )
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: "application/json",
+      const exportedAt = new Date()
+      const exportDocument = await oneRepExportDocument(exportData, {
+        date: exportedAt,
       })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `onerep-export-${new Date().toISOString().slice(0, 10)}.json`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
-      toast.success("Export downloaded")
+      const delivery = await shareOrDownloadJsonExport(
+        exportDocument,
+        oneRepExportFilename(exportedAt)
+      )
+      if (delivery !== "cancelled") {
+        toast.success(
+          delivery === "shared"
+            ? "Export shared with checksum"
+            : "Export downloaded with checksum"
+        )
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed")
     } finally {
@@ -569,11 +677,13 @@ export default function Settings({
                       <AiAccessBillingCard />
                       <RowDivider />
                       <button
+                        type="button"
                         onClick={() => {
                           hapticTap()
                           handleLogout()
                         }}
                         disabled={loggingOut}
+                        aria-busy={loggingOut}
                         className="flex w-full items-center justify-between px-4 py-4 text-left text-muted-foreground transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
@@ -689,6 +799,17 @@ export default function Settings({
                             { value: "de", label: "DE" },
                             { value: "it", label: "IT" },
                             { value: "pt", label: "PT" },
+                          ]}
+                        />
+                      </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Haptics">
+                        <SegmentedControl
+                          value={hapticsOn ? "on" : "off"}
+                          onChange={(v) => handleHapticsChange(v === "on")}
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
                           ]}
                         />
                       </SettingsRow>
@@ -831,7 +952,7 @@ export default function Settings({
                 </AccordionItem>
 
                 {/* Nutrition Logic Section */}
-                <AccordionItem value="nutrition-logic" className="hidden">
+                <AccordionItem value="nutrition-logic" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Nutrition Logic
@@ -1005,7 +1126,7 @@ export default function Settings({
                 </AccordionItem>
 
                 {/* Privacy Section */}
-                <AccordionItem value="privacy" className="hidden">
+                <AccordionItem value="privacy" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Privacy & Offline
@@ -1039,12 +1160,40 @@ export default function Settings({
                       <RowDivider />
                       <button
                         type="button"
+                        onClick={handleInstallApp}
+                        disabled={pwaCopy.disabled}
+                        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-55"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[14px] font-medium">
+                            Install app
+                          </span>
+                          <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/45">
+                            {pwaCopy.description}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="rounded-full bg-muted/70 px-2 py-1 text-[10px] font-bold tracking-wide text-muted-foreground/65 uppercase">
+                            {pwaCopy.statusLabel}
+                          </span>
+                          <span className="app-button app-button-quiet pointer-events-none min-h-8 px-3 text-[11px]">
+                            {pwaCopy.actionLabel}
+                          </span>
+                        </span>
+                      </button>
+                      <RowDivider />
+                      <button
+                        type="button"
                         onClick={handleFlushOfflineQueue}
-                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                        disabled={syncingOfflineQueue}
+                        aria-busy={syncingOfflineQueue}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span>
                           <span className="block text-[14px] font-medium">
-                            Sync offline queue
+                            {syncingOfflineQueue
+                              ? "Syncing offline queue..."
+                              : "Sync offline queue"}
                           </span>
                           <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
                             {offlineQueueTotal} pending change
@@ -1061,6 +1210,7 @@ export default function Settings({
                         type="button"
                         onClick={handleExportData}
                         disabled={exporting}
+                        aria-busy={exporting}
                         className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
@@ -1097,7 +1247,7 @@ export default function Settings({
                 </AccordionItem>
 
                 {/* Data Section */}
-                <AccordionItem value="data" className="hidden">
+                <AccordionItem value="data" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Data
@@ -1106,11 +1256,16 @@ export default function Settings({
                   <AccordionContent className="!h-auto px-0 pt-1">
                     <div className={SETTINGS_PANEL_CLASS}>
                       <button
+                        type="button"
                         onClick={handleResetOnboarding}
-                        className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
+                        disabled={resettingOnboarding}
+                        aria-busy={resettingOnboarding}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
-                          Reset onboarding
+                          {resettingOnboarding
+                            ? "Resetting onboarding..."
+                            : "Reset onboarding"}
                         </span>
                       </button>
                       <RowDivider />
@@ -1134,6 +1289,7 @@ export default function Settings({
                           type="button"
                           onClick={handleDeleteAccount}
                           disabled={deleteConfirmText !== "DELETE" || deleting}
+                          aria-busy={deleting}
                           className="text-destructive-foreground w-full rounded-xl bg-destructive px-3 py-3 text-[13px] font-bold transition-opacity active:opacity-75 disabled:opacity-35"
                         >
                           {deleting
@@ -1151,9 +1307,15 @@ export default function Settings({
           <div
             role="status"
             aria-label="Loading settings"
-            className="flex min-h-[45svh] items-center justify-center"
+            className="flex min-h-[45svh] flex-col items-center justify-center px-6 text-center"
           >
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+            <p className="mt-4 text-[14px] font-semibold tracking-tight">
+              Loading settings
+            </p>
+            <p className="mt-1 max-w-[16rem] text-[12px] leading-4 text-muted-foreground/60">
+              Syncing your preferences, goals, and account controls.
+            </p>
           </div>
         )}
       </main>
@@ -1325,6 +1487,17 @@ function AiAccessBillingCard() {
   const nextPaymentDate = formatBillingDate(aiSubscriptionItem?.nextPayment?.date)
   const loadingBilling = plans.isLoading || subscription.isLoading
 
+  async function revalidateAiAccess(reason: "complete" | "close") {
+    try {
+      await subscription.revalidate?.()
+    } catch (error) {
+      logDevWarn(`Failed to refresh AI Access after checkout ${reason}`, error)
+      if (reason === "complete") {
+        toast.error("AI Access is enabled, but billing status did not refresh")
+      }
+    }
+  }
+
   async function handleCancelPlan() {
     if (!aiSubscriptionItem || canceling) return
     setCanceling(true)
@@ -1381,6 +1554,7 @@ function AiAccessBillingCard() {
                 setConfirmCancelOpen(true)
               }}
               disabled={canceling}
+              aria-busy={canceling}
               className="min-h-11 rounded-xl border border-destructive/20 bg-destructive/10 px-3 text-[13px] font-bold text-destructive transition-opacity active:opacity-70 disabled:opacity-50"
             >
               {canceling ? "Canceling…" : "Cancel AI Access"}
@@ -1392,11 +1566,11 @@ function AiAccessBillingCard() {
             planPeriod="month"
             for="user"
             onSubscriptionComplete={() => {
-              void subscription.revalidate?.()
+              void revalidateAiAccess("complete")
               toast.success("AI Access enabled")
             }}
             checkoutProps={{
-              onClose: () => void subscription.revalidate?.(),
+              onClose: () => void revalidateAiAccess("close"),
             }}
           >
             <button
@@ -1448,6 +1622,7 @@ function AiAccessBillingCard() {
                 type="button"
                 onClick={handleCancelPlan}
                 disabled={canceling}
+                aria-busy={canceling}
                 className="min-h-11 rounded-xl bg-destructive px-3 text-[13px] font-bold text-destructive-foreground transition-opacity active:opacity-75 disabled:opacity-50"
               >
                 {canceling ? "Canceling…" : "Cancel plan"}

@@ -2,7 +2,9 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
+  CaretDown,
   CaretRight,
+  CaretUp,
   Copy,
   Fire,
   Heart,
@@ -11,19 +13,24 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { cn, logDevWarn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   compactCardioSummary,
+  emptyRoutine,
   hasCardioDetails,
+  movePresetById,
   normalizePresetCard,
+  normalizeScheduleRoutines,
+  scheduleRoutinePayload,
   todayIso,
   type CachedWorkoutLog,
   type Routine,
@@ -96,15 +103,7 @@ const DEFAULT_PRESETS: WorkoutPresetCard[] = [
   },
 ]
 
-const EMPTY_ROUTINE: Routine = {
-  Mon: null,
-  Tue: null,
-  Wed: null,
-  Thu: null,
-  Fri: null,
-  Sat: null,
-  Sun: null,
-}
+const EMPTY_ROUTINE: Routine = emptyRoutine()
 
 const SLOT_PRESS_MS = 450
 const PRESET_PRESS_MS = 3500
@@ -121,6 +120,7 @@ function todayDay(): Day {
 
 import {
   dateToIso,
+  localNoon,
   calcStreak,
   calcWorkoutsThisWeek,
   buildCalendarDays,
@@ -133,8 +133,7 @@ function TrainingConsistencyCard({
 }: {
   workoutDates: Set<string>
 }) {
-  const today = new Date()
-  today.setUTCHours(12, 0, 0, 0)
+  const today = localNoon()
 
   const calendarDays = buildCalendarDays(today, 28)
   const todayIso = dateToIso(today)
@@ -305,13 +304,26 @@ function ConfirmDeleteSheet({
   onCancel,
 }: {
   preset: WorkoutPresetCard
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
   onCancel: () => void
 }) {
+  const [deleting, setDeleting] = useState(false)
+
+  async function confirmDelete() {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await onConfirm()
+    } catch (error) {
+      reportOfflineMutationError(error)
+      setDeleting(false)
+    }
+  }
+
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px]"
-      onClick={onCancel}
+      onClick={deleting ? undefined : onCancel}
     >
       <div
         className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
@@ -328,14 +340,19 @@ function ConfirmDeleteSheet({
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <button
-            onClick={onConfirm}
-            className="app-button app-button-danger h-12 w-full"
+            type="button"
+            onClick={() => void confirmDelete()}
+            disabled={deleting}
+            aria-busy={deleting}
+            className="app-button app-button-danger h-12 w-full disabled:opacity-60"
           >
-            Delete preset
+            {deleting ? "Deleting..." : "Delete preset"}
           </button>
           <button
+            type="button"
             onClick={onCancel}
-            className="app-button app-button-quiet h-12 w-full"
+            disabled={deleting}
+            className="app-button app-button-quiet h-12 w-full disabled:opacity-50"
           >
             Keep it
           </button>
@@ -676,9 +693,13 @@ export default function Workouts() {
     "logs.presets.remove"
   )
 
-  function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
-    void setSchedule({
-      routine: nextRoutine as Record<string, string | null>,
+  function persist(
+    nextPresets: WorkoutPresetCard[],
+    nextRoutine: Routine,
+    nextRoutine2 = routine2
+  ) {
+    return setSchedule({
+      routine: scheduleRoutinePayload(nextRoutine, nextRoutine2),
       presetOrder: nextPresets.map((p) => p.id),
     })
   }
@@ -757,15 +778,9 @@ export default function Workouts() {
     if (routineReady.current || schedule === undefined) return
     routineReady.current = true
     if (schedule) {
-      setRoutine({
-        Mon: schedule.routine?.Mon ?? null,
-        Tue: schedule.routine?.Tue ?? null,
-        Wed: schedule.routine?.Wed ?? null,
-        Thu: schedule.routine?.Thu ?? null,
-        Fri: schedule.routine?.Fri ?? null,
-        Sat: schedule.routine?.Sat ?? null,
-        Sun: schedule.routine?.Sun ?? null,
-      } as Routine)
+      const savedRoutine = normalizeScheduleRoutines(schedule.routine)
+      setRoutine(savedRoutine.primary)
+      setRoutine2(savedRoutine.secondary)
     }
   }, [schedule])
 
@@ -792,6 +807,9 @@ export default function Workouts() {
 
   const [pressingPreset, setPressingPreset] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [duplicatingPresetId, setDuplicatingPresetId] = useState<string | null>(
+    null
+  )
   const presetPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const slotRefs = useRef<Partial<Record<Day, HTMLDivElement | null>>>({})
@@ -841,13 +859,17 @@ export default function Workouts() {
     if (key === catalogFetched.current) return
 
     catalogFetched.current = key
-    void resolveExerciseIds(analyticsExerciseIds).then((result) => {
-      const map = new Map<string, Exercise>()
-      for (const [id, ex] of Object.entries(result)) {
-        map.set(id, { ...ex, id })
-      }
-      setExerciseCatalog(map)
-    })
+    void resolveExerciseIds(analyticsExerciseIds)
+      .then((result) => {
+        const map = new Map<string, Exercise>()
+        for (const [id, ex] of Object.entries(result)) {
+          map.set(id, { ...ex, id })
+        }
+        setExerciseCatalog(map)
+      })
+      .catch((error) => {
+        logDevWarn("Failed to resolve workout analytics exercises", error)
+      })
   }, [analyticsExerciseIds])
 
   const muscleVolume = useMemo(() => {
@@ -857,9 +879,7 @@ export default function Workouts() {
   }, [workoutRecords, exerciseCatalog])
 
   const trainingStatsDate = useMemo(() => {
-    const date = new Date()
-    date.setUTCHours(12, 0, 0, 0)
-    return date
+    return localNoon()
   }, [])
   const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
   const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
@@ -875,11 +895,17 @@ export default function Workouts() {
     setTimeout(() => {
       // Remove slot 2 first if it has something; otherwise remove slot 1
       if (routine2[day]) {
-        setRoutine2((r) => ({ ...r, [day]: null }))
+        const nextRoutine2 = { ...routine2, [day]: null }
+        setRoutine2(nextRoutine2)
+        void persist(presets, routine, nextRoutine2).catch(
+          reportOfflineMutationError
+        )
       } else {
         setRoutine((r) => {
           const next = { ...r, [day]: null }
-          void persist(presets, next)
+          void persist(presets, next, routine2).catch(
+            reportOfflineMutationError
+          )
           return next
         })
       }
@@ -991,10 +1017,14 @@ export default function Workouts() {
           // Slot 1 is empty — fill it
           const nextRoutine = { ...routine, [day]: drag.presetId }
           setRoutine(nextRoutine)
-          void persist(presets, nextRoutine)
+          void persist(presets, nextRoutine).catch(reportOfflineMutationError)
         } else {
           // Slot 1 is taken — fill (or replace) slot 2
-          setRoutine2((r) => ({ ...r, [day]: drag.presetId }))
+          const nextRoutine2 = { ...routine2, [day]: drag.presetId }
+          setRoutine2(nextRoutine2)
+          void persist(presets, routine, nextRoutine2).catch(
+            reportOfflineMutationError
+          )
         }
       } else {
         // Reorder within the presets list
@@ -1006,7 +1036,9 @@ export default function Workouts() {
             const [item] = next.splice(from, 1)
             next.splice(toIdx, 0, item)
             setLocalOrder(next.map((p) => p.id))
-            persist(next, routine)
+            void persist(next, routine, routine2).catch(
+              reportOfflineMutationError
+            )
           }
         }
       }
@@ -1019,21 +1051,29 @@ export default function Workouts() {
 
   // ── Delete confirmed ──────────────────────────────────────────────────────
 
-  function duplicatePreset(preset: WorkoutPresetCard) {
+  async function duplicatePreset(preset: WorkoutPresetCard) {
+    if (duplicatingPresetId !== null) return
     const source = serverPresets?.find(
       (item) => (item._id as string) === preset.id
     )
-    void createPresetMutation({
-      name: `${preset.name} copy`,
-      items: (source?.items as unknown[]) ?? [],
-      exerciseData: source?.exerciseData ?? {},
-      focus: source?.focus ?? preset.focus,
-      duration: source?.duration ?? preset.duration,
-      steps: source?.steps ?? preset.steps,
-    })
+    setDuplicatingPresetId(preset.id)
+    try {
+      await createPresetMutation({
+        name: `${preset.name} copy`,
+        items: (source?.items as unknown[]) ?? [],
+        exerciseData: source?.exerciseData ?? {},
+        focus: source?.focus ?? preset.focus,
+        duration: source?.duration ?? preset.duration,
+        steps: source?.steps ?? preset.steps,
+      })
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      setDuplicatingPresetId(null)
+    }
   }
 
-  function deletePreset(id: string) {
+  async function deletePreset(id: string) {
     const nextPresets = presets.filter((p) => p.id !== id)
     const nextRoutine = { ...routine }
     const nextRoutine2 = { ...routine2 }
@@ -1045,10 +1085,19 @@ export default function Workouts() {
     setLocalOrder(nextPresets.map((p) => p.id))
     setRoutine(nextRoutine)
     setRoutine2(nextRoutine2)
-    setConfirmDeleteId(null)
 
-    persist(nextPresets, nextRoutine)
-    void removePresetMutation({ id: id as Id<"presets"> })
+    await persist(nextPresets, nextRoutine, nextRoutine2)
+    await removePresetMutation({ id: id as Id<"presets"> })
+    setConfirmDeleteId(null)
+  }
+
+  function movePreset(presetId: string, direction: "up" | "down") {
+    const nextPresets = movePresetById(presets, presetId, direction)
+    if (nextPresets === presets) return
+    setLocalOrder(nextPresets.map((p) => p.id))
+    void persist(nextPresets, routine, routine2).catch(
+      reportOfflineMutationError
+    )
   }
 
   function handlePrimaryTrainingAction() {
@@ -1476,6 +1525,7 @@ export default function Workouts() {
                     hasMoved &&
                     drag?.presetId !== preset.id
                   const isPressing = pressingPreset === preset.id
+                  const duplicatingThis = duplicatingPresetId === preset.id
 
                   return (
                     <div key={preset.id} className="relative">
@@ -1516,7 +1566,7 @@ export default function Workouts() {
                           />
                         )}
 
-                        <div className="flex items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
+                        <div className="flex flex-wrap items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
                           <span className="app-icon-button pointer-events-none h-8 w-8 shrink-0 bg-foreground/[0.055]">
                             <FocusIcon
                               size={14}
@@ -1533,13 +1583,40 @@ export default function Workouts() {
                               {preset.duration}
                             </p>
                           </div>
+                          {routineEditMode && (
+                            <div className="flex shrink-0 items-center gap-0.5">
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => movePreset(preset.id, "up")}
+                                disabled={idx === 0 || duplicatingThis}
+                                className="app-icon-button h-8 w-8 shrink-0 bg-transparent disabled:opacity-20"
+                                aria-label={`Move ${preset.name} earlier`}
+                              >
+                                <CaretUp size={11} weight="bold" />
+                              </button>
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => movePreset(preset.id, "down")}
+                                disabled={
+                                  idx === presets.length - 1 || duplicatingThis
+                                }
+                                className="app-icon-button h-8 w-8 shrink-0 bg-transparent disabled:opacity-20"
+                                aria-label={`Move ${preset.name} later`}
+                              >
+                                <CaretDown size={11} weight="bold" />
+                              </button>
+                            </div>
+                          )}
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                            disabled={duplicatingThis}
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent disabled:opacity-35"
                             aria-label={`Edit ${preset.name}`}
                           >
                             <PencilSimple size={12} />
@@ -1547,11 +1624,17 @@ export default function Workouts() {
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => duplicatePreset(preset)}
-                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                            onClick={() => void duplicatePreset(preset)}
+                            disabled={duplicatingPresetId !== null}
+                            aria-busy={duplicatingThis}
+                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent disabled:opacity-35"
                             aria-label={`Duplicate ${preset.name}`}
                           >
-                            <Copy size={12} />
+                            {duplicatingThis ? (
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
+                            ) : (
+                              <Copy size={12} />
+                            )}
                           </button>
                           <button
                             type="button"
@@ -1611,7 +1694,9 @@ export default function Workouts() {
           onPick={(presetId) => {
             const nextRoutine = { ...routine, [pickRoutineDay]: presetId }
             setRoutine(nextRoutine)
-            void persist(presets, nextRoutine)
+            void persist(presets, nextRoutine, routine2).catch(
+              reportOfflineMutationError
+            )
             setPickRoutineDay(null)
           }}
           onClose={() => setPickRoutineDay(null)}
