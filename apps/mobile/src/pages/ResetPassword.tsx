@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
 import { useSignIn } from "@clerk/react"
+import { Eye, EyeSlash } from "@phosphor-icons/react"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const FIELD_CLASS =
@@ -9,6 +10,8 @@ const LABEL_CLASS =
   "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
 const INPUT_CLASS =
   "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+const PASSWORD_CHANGED_MESSAGE =
+  "Password changed. Sign in with the new password."
 
 function clerkErrorMessage(error: unknown, fallback: string) {
   if (!error) return fallback
@@ -29,6 +32,58 @@ function clerkErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+function PasswordInput({
+  label,
+  name,
+  value,
+  onChange,
+  visible,
+  onToggleVisible,
+  disabled,
+}: {
+  label: string
+  name: string
+  value: string
+  onChange: (value: string) => void
+  visible: boolean
+  onToggleVisible: () => void
+  disabled: boolean
+}) {
+  return (
+    <label className={FIELD_CLASS}>
+      <span className={LABEL_CLASS}>{label}</span>
+      <span className="flex items-center gap-2">
+        <input
+          type={visible ? "text" : "password"}
+          name={name}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="••••••••"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          disabled={disabled}
+          className={INPUT_CLASS}
+        />
+        <button
+          type="button"
+          onClick={onToggleVisible}
+          disabled={disabled}
+          className="mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground/60 transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-40"
+          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+          aria-pressed={visible}
+        >
+          {visible ? (
+            <EyeSlash size={18} weight="bold" />
+          ) : (
+            <Eye size={18} weight="bold" />
+          )}
+        </button>
+      </span>
+    </label>
+  )
+}
+
 export default function ResetPassword() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
@@ -37,13 +92,17 @@ export default function ResetPassword() {
   const [code, setCode] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [codeSent, setCodeSent] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
+  const resetActionRef = useRef(false)
 
   async function sendCode(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
+    if (resetActionRef.current || loading) return
     setError(undefined)
     setMessage(undefined)
 
@@ -52,6 +111,7 @@ export default function ResetPassword() {
       setError("Enter your email")
       return
     }
+    resetActionRef.current = true
     setLoading(true)
     try {
       const created = await signIn.create({ identifier: trimmedEmail })
@@ -68,13 +128,17 @@ export default function ResetPassword() {
 
       setCodeSent(true)
       setMessage("Reset code sent. Check your email.")
+    } catch (error) {
+      setError(clerkErrorMessage(error, "Could not send reset code"))
     } finally {
+      resetActionRef.current = false
       setLoading(false)
     }
   }
 
   async function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (resetActionRef.current || loading) return
     setError(undefined)
     setMessage(undefined)
 
@@ -91,6 +155,7 @@ export default function ResetPassword() {
       return
     }
 
+    resetActionRef.current = true
     setLoading(true)
     try {
       const verified = await signIn.resetPasswordEmailCode.verifyCode({
@@ -117,11 +182,18 @@ export default function ResetPassword() {
       setCode("")
       setNewPassword("")
       setConfirmPassword("")
-      setMessage("Password changed. Sign in with the new password.")
+      setShowNewPassword(false)
+      setShowConfirmPassword(false)
+      setMessage(PASSWORD_CHANGED_MESSAGE)
+    } catch (error) {
+      setError(clerkErrorMessage(error, "Could not reset password"))
     } finally {
+      resetActionRef.current = false
       setLoading(false)
     }
   }
+
+  const passwordChanged = message === PASSWORD_CHANGED_MESSAGE
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -161,6 +233,7 @@ export default function ResetPassword() {
                 <span className={LABEL_CLASS}>Email</span>
                 <input
                   type="email"
+                  name="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="you@example.com"
@@ -172,12 +245,13 @@ export default function ResetPassword() {
               </label>
             )}
 
-            {codeSent && !message && (
+            {codeSent && !passwordChanged && (
               <>
                 <label className={FIELD_CLASS}>
                   <span className={LABEL_CLASS}>Code</span>
                   <input
                     type="text"
+                    name="one-time-code"
                     inputMode="numeric"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
@@ -189,37 +263,29 @@ export default function ResetPassword() {
                   />
                 </label>
 
-                <label className={FIELD_CLASS}>
-                  <span className={LABEL_CLASS}>New password</span>
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    placeholder="••••••••"
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    disabled={loading}
-                    className={INPUT_CLASS}
-                  />
-                </label>
+                <PasswordInput
+                  label="New password"
+                  name="new-password"
+                  value={newPassword}
+                  onChange={setNewPassword}
+                  visible={showNewPassword}
+                  onToggleVisible={() =>
+                    setShowNewPassword((visible) => !visible)
+                  }
+                  disabled={loading}
+                />
 
-                <label className={FIELD_CLASS}>
-                  <span className={LABEL_CLASS}>Confirm password</span>
-                  <input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) =>
-                      setConfirmPassword(event.target.value)
-                    }
-                    placeholder="••••••••"
-                    required
-                    minLength={8}
-                    autoComplete="new-password"
-                    disabled={loading}
-                    className={INPUT_CLASS}
-                  />
-                </label>
+                <PasswordInput
+                  label="Confirm password"
+                  name="confirm-password"
+                  value={confirmPassword}
+                  onChange={setConfirmPassword}
+                  visible={showConfirmPassword}
+                  onToggleVisible={() =>
+                    setShowConfirmPassword((visible) => !visible)
+                  }
+                  disabled={loading}
+                />
               </>
             )}
 
@@ -238,7 +304,7 @@ export default function ResetPassword() {
               </p>
             )}
 
-            {message === "Password changed. Sign in with the new password." ? (
+            {passwordChanged ? (
               <button
                 type="button"
                 onClick={() => navigate("/login", { replace: true })}
@@ -250,6 +316,7 @@ export default function ResetPassword() {
               <button
                 type="submit"
                 disabled={loading}
+                aria-busy={loading}
                 className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
               >
                 {loading
@@ -263,11 +330,12 @@ export default function ResetPassword() {
             )}
           </form>
 
-          {codeSent && !message && (
+          {codeSent && !passwordChanged && (
             <button
               type="button"
               onClick={() => void sendCode()}
               disabled={loading}
+              aria-busy={loading}
               className="mt-2 h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:h-10"
             >
               Resend code

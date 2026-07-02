@@ -429,17 +429,6 @@ function roundNutrient(value: number) {
   return Math.round(value * 100) / 100
 }
 
-function numberFromValue(value: unknown): number {
-  if (value === null || value === undefined || value === "") return 0
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0
-  const parsed = Number(
-    String(value)
-      .replace(",", ".")
-      .replace(/[^0-9.-]/g, "")
-  )
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
 function normalizeMass(
   value: number,
   fromUnit: string,
@@ -737,6 +726,15 @@ export function buildSupplementDayPlan({
         return a.preferredSort - b.preferredSort
       return a.item.name.localeCompare(b.item.name)
     })
+}
+
+export function loggableSupplementPlanItems(plan: SupplementDayPlanItem[]) {
+  return plan.filter(
+    (entry) =>
+      entry.isScheduled &&
+      (entry.state === "due" || entry.state === "missed") &&
+      Boolean(entry.item._id)
+  )
 }
 
 export function supplementConsistency(

@@ -8,8 +8,11 @@ import {
   currentDateKey,
   defaultFoodPortion,
   detectTimeZone,
+  foodLogEntryFromFoodResult,
+  buildFoodHistoryDaySummaries,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
+  foodLogEntriesFromHistoryMeal,
   foodPortionLabel,
   gramsFromFoodPortion,
   mealEntriesSignature,
@@ -97,6 +100,84 @@ describe("food portion units", () => {
     const portion = defaultFoodPortion("100 g", "Orange juice");
     expect(portion).toEqual({ amount: 100, unit: "ml", grams: 100 });
     expect(foodPortionLabel(portion)).toBe("100 ml");
+  });
+});
+
+describe("foodLogEntryFromFoodResult", () => {
+  const food = {
+    id: "code-123",
+    code: "123",
+    name: "Greek Yogurt",
+    brand: "Test Dairy",
+    calories: 120,
+    protein: 10,
+    carbs: 8,
+    fat: 4,
+    serving: "100 g",
+    source: "openfoodfacts" as const,
+    imageUrl: "https://example.com/yogurt.jpg",
+    openFoodFacts: {
+      code: "123",
+      product_name: "Greek Yogurt",
+      nutriments: {
+        "energy-kcal_100g": 120,
+        fiber_100g: 1,
+      },
+    },
+  };
+
+  test("creates a basic OpenFoodFacts food log entry", () => {
+    const entry = foodLogEntryFromFoodResult(food, {
+      meal: "lunch",
+      loggedAt: "2026-02-03T10:11:12.000Z",
+    });
+
+    expect(entry.id).toBeTruthy();
+    expect(entry.name).toBe("Greek Yogurt");
+    expect(entry.calories).toBe(120);
+    expect(entry.protein).toBe(10);
+    expect(entry.carbs).toBe(8);
+    expect(entry.fat).toBe(4);
+    expect(entry.loggedAt).toBe("2026-02-03T10:11:12.000Z");
+    expect(entry.meal).toBe("lunch");
+    expect(entry.source).toBe("openfoodfacts");
+    expect(entry.foodCode).toBe("123");
+    expect(entry.quantityGrams).toBe(100);
+    expect(entry.servingLabel).toBe("100 g");
+    expect(entry.imageUrl).toBe("https://example.com/yogurt.jpg");
+    expect(entry.openFoodFacts?.code).toBe("123");
+  });
+
+  test("scales macros, labels custom portions, and keeps micronutrients", () => {
+    const entry = foodLogEntryFromFoodResult(food, {
+      grams: 150,
+      micros: { fiber: 3.5, sodium: 80 },
+      meal: "snack",
+      portion: { amount: 150, unit: "g", grams: 150 },
+      detail: {
+        ...food,
+        servingGrams: 125,
+        servingLabel: "1 cup",
+        nutrients: [],
+        extraNutrients: [],
+        imageUrl: "https://example.com/detail.jpg",
+        openFoodFacts: { code: "detail", nutriments: {} },
+      },
+    });
+
+    expect(entry.name).toBe("Greek Yogurt (150 g)");
+    expect(entry.calories).toBe(180);
+    expect(entry.protein).toBe(15);
+    expect(entry.carbs).toBe(12);
+    expect(entry.fat).toBe(6);
+    expect(entry.fiber).toBe(3.5);
+    expect(entry.sodium).toBe(80);
+    expect(entry.meal).toBe("snack");
+    expect(entry.quantityGrams).toBe(150);
+    expect(entry.servingGrams).toBe(125);
+    expect(entry.servingLabel).toBe("1 cup");
+    expect(entry.imageUrl).toBe("https://example.com/detail.jpg");
+    expect(entry.openFoodFacts?.code).toBe("detail");
   });
 });
 
@@ -285,6 +366,91 @@ describe("smart meal preset helpers", () => {
   });
 });
 
+// ── food history helpers ─────────────────────────────────────────────────────
+
+describe("food history helpers", () => {
+  const breakfastEntries = [
+    foodEntry({
+      id: "oats-history",
+      name: "Oats",
+      calories: 230,
+      protein: 8,
+      carbs: 38,
+      fat: 4,
+      loggedAt: "2026-06-29T07:30:00.000Z",
+      meal: "breakfast",
+    }),
+    foodEntry({
+      id: "coffee-history",
+      name: "Coffee",
+      calories: 20,
+      protein: 1,
+      carbs: 2,
+      fat: 0,
+      loggedAt: "2026-06-29T07:35:00.000Z",
+      meal: "breakfast",
+    }),
+  ];
+
+  const lunchEntries = [
+    foodEntry({
+      id: "bowl-history",
+      name: "Chicken bowl",
+      calories: 620,
+      protein: 45,
+      carbs: 70,
+      fat: 16,
+      loggedAt: "2026-06-29T12:20:00.000Z",
+      meal: "lunch",
+    }),
+  ];
+
+  test("summarizes recent days and excludes the current day", () => {
+    const summaries = buildFoodHistoryDaySummaries(
+      [
+        { date: "2026-06-30", entries: lunchEntries },
+        { date: "2026-06-29", entries: [...lunchEntries, ...breakfastEntries] },
+      ],
+      { excludeDate: "2026-06-30" },
+    );
+
+    expect(summaries).toHaveLength(1);
+    expect(summaries[0].date).toBe("2026-06-29");
+    expect(summaries[0].calories).toBe(870);
+    expect(summaries[0].meals.map((meal) => meal.meal)).toEqual([
+      "breakfast",
+      "lunch",
+    ]);
+    expect(summaries[0].meals[0].itemSummary).toBe("Oats, Coffee");
+  });
+
+  test("drops empty days and sorts by newest date", () => {
+    const summaries = buildFoodHistoryDaySummaries([
+      { date: "2026-06-27", entries: [] },
+      { date: "2026-06-28", entries: breakfastEntries },
+      { date: "2026-06-29", entries: lunchEntries },
+    ]);
+
+    expect(summaries.map((summary) => summary.date)).toEqual([
+      "2026-06-29",
+      "2026-06-28",
+    ]);
+  });
+
+  test("copies a historical meal as fresh food log entries", () => {
+    const copied = foodLogEntriesFromHistoryMeal(breakfastEntries, {
+      meal: "snack",
+      loggedAt: "2026-06-30T15:00:00.000Z",
+    });
+
+    expect(copied).toHaveLength(2);
+    expect(copied[0].id).not.toBe("oats-history");
+    expect(copied[0].meal).toBe("snack");
+    expect(copied[0].loggedAt).toBe("2026-06-30T15:00:00.000Z");
+    expect(copied.map((entry) => entry.name)).toEqual(["Oats", "Coffee"]);
+  });
+});
+
 // ── detectTimeZone ────────────────────────────────────────────────────────────
 
 describe("detectTimeZone", () => {
@@ -358,6 +524,14 @@ describe("dateForOffset", () => {
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
+  test("uses the provided reference date and timezone", () => {
+    const reference = new Date("2026-01-01T01:00:00.000Z");
+    expect(dateForOffset(0, "UTC", reference)).toBe("2026-01-01");
+    expect(dateForOffset(0, "America/Los_Angeles", reference)).toBe(
+      "2025-12-31",
+    );
+  });
+
   test("tomorrow is 1 day ahead of today", () => {
     const today = dateForOffset(0, "UTC");
     const tomorrow = dateForOffset(1, "UTC");
@@ -383,6 +557,20 @@ describe("currentDateKey", () => {
     const result = currentDateKey("UTC");
     const expected = dateForOffset(0, "UTC");
     expect(result).toBe(expected);
+  });
+
+  test("defaults to the device local calendar date", () => {
+    expect(currentDateKey(undefined, new Date(2026, 0, 1, 0, 30))).toBe(
+      "2026-01-01",
+    );
+  });
+
+  test("preserves explicit timezone behavior", () => {
+    const reference = new Date("2026-01-01T01:00:00.000Z");
+    expect(currentDateKey("UTC", reference)).toBe("2026-01-01");
+    expect(currentDateKey("America/Los_Angeles", reference)).toBe(
+      "2025-12-31",
+    );
   });
 });
 

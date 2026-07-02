@@ -18,16 +18,25 @@ import {
   Timer,
   Wind,
   X,
+  type Icon,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { cn, createClientId, logDevWarn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
   resolveExerciseIds,
   searchExercises,
+  visiblePopularExerciseSearches,
   type Exercise,
   type ExerciseCategory,
 } from "@/lib/exercise-catalog"
+import {
+  readRecentExerciseSearches,
+  rememberRecentExerciseSearch,
+  visibleRecentExerciseSearches,
+  type RecentExerciseSearch,
+} from "@/lib/exercise-search-recents"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -102,11 +111,11 @@ type AgentPresetDraft = {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORY_ICON: Record<Category, React.FC<any>> = {
-  strength: Barbell as React.FC<any>,
-  cardio: Fire as React.FC<any>,
-  mobility: Wind as React.FC<any>,
-  core: Sparkle as React.FC<any>,
+const CATEGORY_ICON: Record<Category, Icon> = {
+  strength: Barbell,
+  cardio: Fire,
+  mobility: Wind,
+  core: Sparkle,
 }
 
 const CATEGORY_COLOR: Record<Category, string> = {
@@ -153,7 +162,7 @@ const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function uid() {
-  return Math.random().toString(36).slice(2)
+  return createClientId()
 }
 
 type WeightUnit = "kg" | "lbs"
@@ -483,7 +492,9 @@ function RestTimerSheet({
             <span className="text-[13px] font-semibold">Rest Timer</span>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close rest timer"
             className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/60 transition-colors active:bg-muted/60 active:text-foreground"
           >
             <X size={16} weight="bold" />
@@ -493,7 +504,10 @@ function RestTimerSheet({
           {REST_OPTS.map((s) => (
             <button
               key={s}
+              type="button"
               onClick={() => onSelect(s)}
+              aria-pressed={s === current}
+              aria-label={`Set rest to ${formatRest(s)}`}
               className={cn(
                 "h-12 rounded-xl text-[13px] font-semibold tracking-tight transition-all active:scale-[0.985]",
                 s === current
@@ -516,6 +530,8 @@ function RestTimerSheet({
               </span>
               <input
                 type="number"
+                name="custom-rest-minutes"
+                aria-label="Custom rest minutes"
                 min="0"
                 inputMode="numeric"
                 value={minutes}
@@ -529,6 +545,8 @@ function RestTimerSheet({
               </span>
               <input
                 type="number"
+                name="custom-rest-seconds"
+                aria-label="Custom rest seconds"
                 min="0"
                 max="59"
                 inputMode="numeric"
@@ -538,6 +556,7 @@ function RestTimerSheet({
               />
             </label>
             <button
+              type="button"
               onClick={() => onSelect(clampRestInput(minutes, secs))}
               className="h-11 shrink-0 rounded-xl bg-foreground px-4 text-[13px] font-semibold text-background transition-opacity active:opacity-80"
             >
@@ -594,6 +613,7 @@ function SetRow({
 
         {/* Type — tap to cycle */}
         <button
+          type="button"
           onClick={cycleType}
           className="flex h-12 w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 transition-all select-none active:scale-[0.985]"
           style={{ backgroundColor: cfg.bg }}
@@ -612,6 +632,8 @@ function SetRow({
         <div className="flex flex-1 flex-col gap-0.5">
           <input
             type="number"
+            name={`preset-set-${index + 1}-weight`}
+            aria-label={`Set ${index + 1} weight in ${unit}`}
             inputMode="decimal"
             value={toDisplay(set.weight, unit)}
             onChange={(e) =>
@@ -642,6 +664,8 @@ function SetRow({
               <div className="flex min-w-0 flex-col gap-0.5">
                 <input
                   type="number"
+                  name={`preset-set-${index + 1}-left-reps`}
+                  aria-label={`Set ${index + 1} left reps`}
                   inputMode="numeric"
                   value={set.leftReps}
                   onChange={(e) =>
@@ -657,6 +681,8 @@ function SetRow({
               <div className="flex min-w-0 flex-col gap-0.5">
                 <input
                   type="number"
+                  name={`preset-set-${index + 1}-right-reps`}
+                  aria-label={`Set ${index + 1} right reps`}
                   inputMode="numeric"
                   value={set.rightReps}
                   onChange={(e) =>
@@ -674,6 +700,8 @@ function SetRow({
             <div className="flex flex-1 flex-col gap-0.5">
               <input
                 type="number"
+                name={`preset-set-${index + 1}-reps`}
+                aria-label={`Set ${index + 1} reps`}
                 inputMode="numeric"
                 value={set.reps}
                 onChange={(e) => onUpdate({ ...set, reps: e.target.value })}
@@ -691,6 +719,8 @@ function SetRow({
             <div className="flex flex-1 animate-in flex-col gap-0.5 duration-200 fade-in-0 slide-in-from-right-1">
               <input
                 type="number"
+                name={`preset-set-${index + 1}-rpe`}
+                aria-label={`Set ${index + 1} RPE`}
                 inputMode="decimal"
                 value={set.rpe}
                 onChange={(e) => onUpdate({ ...set, rpe: e.target.value })}
@@ -709,7 +739,9 @@ function SetRow({
 
         {/* Rest */}
         <button
+          type="button"
           onClick={() => setShowRest(true)}
+          aria-label={`Set ${index + 1} rest time`}
           className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 transition-all active:scale-[0.985] active:bg-muted"
         >
           <div className="flex items-center gap-1">
@@ -1017,7 +1049,11 @@ function SearchSheet({
   const [searchState, setSearchState] = useState<
     "idle" | "loading" | "done" | "error"
   >("idle")
+  const [searchAttempt, setSearchAttempt] = useState(0)
   const [remoteExercises, setRemoteExercises] = useState<Exercise[]>([])
+  const [recentExercises, setRecentExercises] = useState(() =>
+    readRecentExerciseSearches()
+  )
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1030,7 +1066,11 @@ function SearchSheet({
   function toggleFilter(cat: Category) {
     setActiveFilters((s) => {
       const next = new Set(s)
-      next.has(cat) ? next.delete(cat) : next.add(cat)
+      if (next.has(cat)) {
+        next.delete(cat)
+      } else {
+        next.add(cat)
+      }
       return next
     })
   }
@@ -1064,9 +1104,19 @@ function SearchSheet({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [activeFilters, query])
+  }, [activeFilters, query, searchAttempt])
 
   const filtered = remoteExercises
+  const recentSuggestions = visibleRecentExerciseSearches(
+    addedIds,
+    recentExercises
+  )
+  const recentSuggestionIds = new Set(
+    recentSuggestions.map((exercise) => exercise.id)
+  )
+  const popularSuggestions = visiblePopularExerciseSearches(addedIds).filter(
+    (exercise) => !recentSuggestionIds.has(exercise.id)
+  )
 
   const FILTERS: { cat: Category; label: string }[] = [
     { cat: "strength", label: "Strength" },
@@ -1074,6 +1124,24 @@ function SearchSheet({
     { cat: "mobility", label: "Mobility" },
     { cat: "core", label: "Core" },
   ]
+
+  function chooseSuggestion(exercise: ExerciseSearchSuggestion) {
+    setActiveFilters(new Set())
+    setQuery(exercise.name)
+    inputRef.current?.focus()
+  }
+
+  function retrySearch() {
+    setSearchAttempt((current) => current + 1)
+  }
+
+  function handleToggle(exercise: Exercise) {
+    const alreadyAdded = addedIds.includes(exercise.id)
+    onToggle(exercise)
+    if (!alreadyAdded) {
+      setRecentExercises(rememberRecentExerciseSearch(exercise))
+    }
+  }
 
   return (
     <div
@@ -1095,6 +1163,8 @@ function SearchSheet({
             <input
               ref={inputRef}
               type="search"
+              name="preset-exercise-search"
+              aria-label="Search exercises"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
@@ -1102,7 +1172,9 @@ function SearchSheet({
             />
             {query && (
               <button
+                type="button"
                 onClick={() => setQuery("")}
+                aria-label="Clear exercise search"
                 className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground/40 active:text-foreground"
               >
                 <X size={13} weight="bold" />
@@ -1110,6 +1182,7 @@ function SearchSheet({
             )}
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="min-h-10 shrink-0 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
@@ -1169,31 +1242,125 @@ function SearchSheet({
                   key={ex.id}
                   exercise={ex}
                   added={addedIds.includes(ex.id)}
-                  onAdd={() => onToggle(ex)}
+                  onAdd={() => handleToggle(ex)}
                   onBodyClick={() => onBodyClick(ex)}
                 />
               ))}
             </div>
           ) : searchState === "done" ? (
-            <div className="flex flex-col items-center gap-2 py-20">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                No exercises found
-              </p>
-              <p className="text-[11px] text-muted-foreground/50">
-                Try a different search or filter
-              </p>
+            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-[13px] font-semibold text-muted-foreground">
+                  No exercises found
+                </p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  Try a different search or filter
+                </p>
+              </div>
+              <ExerciseSuggestionGroups
+                recentSuggestions={recentSuggestions}
+                popularSuggestions={popularSuggestions}
+                onChoose={chooseSuggestion}
+              />
             </div>
           ) : searchState === "error" ? (
-            <div className="flex flex-col items-center gap-2 py-20">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                Search failed
-              </p>
-              <p className="text-[11px] text-muted-foreground/50">
-                Check your connection and try again
-              </p>
+            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-[13px] font-semibold text-muted-foreground">
+                  Search failed
+                </p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  Check your connection and try again
+                </p>
+                <button
+                  type="button"
+                  onClick={retrySearch}
+                  className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
+                >
+                  Retry search
+                </button>
+              </div>
+              <ExerciseSuggestionGroups
+                recentSuggestions={recentSuggestions}
+                popularSuggestions={popularSuggestions}
+                onChoose={chooseSuggestion}
+              />
             </div>
           ) : null}
         </div>
+      </div>
+    </div>
+  )
+}
+
+type ExerciseSearchSuggestion =
+  | Exercise
+  | RecentExerciseSearch
+
+function ExerciseSuggestionGroups({
+  recentSuggestions,
+  popularSuggestions,
+  onChoose,
+}: {
+  recentSuggestions: RecentExerciseSearch[]
+  popularSuggestions: Exercise[]
+  onChoose: (exercise: ExerciseSearchSuggestion) => void
+}) {
+  if (recentSuggestions.length === 0 && popularSuggestions.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-4">
+      <ExerciseSuggestionChips
+        label="Recent"
+        suggestions={recentSuggestions}
+        onChoose={onChoose}
+      />
+      <ExerciseSuggestionChips
+        label="Try instead"
+        suggestions={popularSuggestions}
+        onChoose={onChoose}
+      />
+    </div>
+  )
+}
+
+function ExerciseSuggestionChips({
+  label,
+  suggestions,
+  onChoose,
+}: {
+  label: string
+  suggestions: ExerciseSearchSuggestion[]
+  onChoose: (exercise: ExerciseSearchSuggestion) => void
+}) {
+  if (suggestions.length === 0) return null
+
+  return (
+    <div className="w-full">
+      <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+        {label}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {suggestions.map((exercise) => {
+          const Icon = CATEGORY_ICON[exercise.category]
+          return (
+            <button
+              key={exercise.id}
+              type="button"
+              onClick={() => onChoose(exercise)}
+              className="flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+            >
+              <Icon
+                size={11}
+                weight="fill"
+                style={{ color: CATEGORY_COLOR[exercise.category] }}
+              />
+              {exercise.name}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -1419,6 +1586,8 @@ function PastePresetSheet({
           )}
 
           <textarea
+            name="preset-import-text"
+            aria-label="Workout plan text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             disabled={loading}
@@ -1432,6 +1601,7 @@ function PastePresetSheet({
             <button
               onClick={() => void onGenerate(text.trim(), mode)}
               disabled={!canGenerate}
+              aria-busy={loading}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
             >
               <Sparkle
@@ -1493,6 +1663,8 @@ export default function NewPreset() {
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const dragRef = useRef<DragInfo | null>(null)
   const dropTargetRef = useRef<DropTarget>(null)
+  const savingRef = useRef(false)
+  const generatingPresetRef = useRef(false)
 
   const addedIds = items.flatMap((item) =>
     item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
@@ -1539,12 +1711,16 @@ export default function NewPreset() {
         item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       )
       if (ids.length > 0) {
-        void resolveExerciseIds(ids).then((lookup) => {
-          setExerciseLookup((prev) => ({
-            ...prev,
-            ...(lookup as Record<string, Exercise>),
-          }))
-        })
+        void resolveExerciseIds(ids)
+          .then((lookup) => {
+            setExerciseLookup((prev) => ({
+              ...prev,
+              ...(lookup as Record<string, Exercise>),
+            }))
+          })
+          .catch((error) => {
+            logDevWarn("Failed to resolve preset exercises", error)
+          })
       }
     }
   }, [presetId, presets])
@@ -1554,6 +1730,15 @@ export default function NewPreset() {
   // ── Save ──────────────────────────────────────────────────
 
   async function handleSave() {
+    if (
+      savingRef.current ||
+      saving ||
+      loadingPreset ||
+      addedIds.length === 0
+    ) {
+      return
+    }
+    savingRef.current = true
     const summary = buildSummary(
       presetName.trim() || "Untitled Preset",
       items,
@@ -1578,7 +1763,7 @@ export default function NewPreset() {
     setSaving(true)
     try {
       if (presetId) {
-        await updatePreset({ id: presetId as any, ...input })
+        await updatePreset({ id: presetId as Id<"presets">, ...input })
       } else {
         await createPreset(input)
       }
@@ -1593,13 +1778,16 @@ export default function NewPreset() {
         error instanceof Error ? error.message : "Could not save preset"
       )
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
   async function handleGenerateFromText(text: string, mode: AgentPresetMode) {
     if (!text.trim()) return
+    if (generatingPresetRef.current || generatingPreset) return
 
+    generatingPresetRef.current = true
     setGeneratingPreset(true)
     try {
       const draft = (await createPresetDraft({ text })) as AgentPresetDraft
@@ -1689,6 +1877,7 @@ export default function NewPreset() {
         error instanceof Error ? error.message : "Could not create preset"
       )
     } finally {
+      generatingPresetRef.current = false
       setGeneratingPreset(false)
     }
   }
@@ -1709,6 +1898,7 @@ export default function NewPreset() {
     if (addedIds.includes(id)) {
       removeExercise(id)
     } else {
+      rememberRecentExerciseSearch(ex)
       setExerciseLookup((prev) => ({ ...prev, [id]: ex }))
       setItems((prev) => [...prev, { kind: "solo", exerciseId: id }])
       setExData((prev) => ({
@@ -2027,6 +2217,7 @@ export default function NewPreset() {
           <button
             onClick={() => void handleSave()}
             disabled={addedIds.length === 0 || saving || loadingPreset}
+            aria-busy={saving}
             className="ml-auto flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-foreground transition-colors active:bg-muted/45 disabled:text-muted-foreground/30"
           >
             <FloppyDisk
@@ -2041,6 +2232,8 @@ export default function NewPreset() {
         {/* ── Hero: Preset name ────────────────────────── */}
         <div className="px-5 pt-2 pb-5 md:px-8">
           <input
+            name="preset-name"
+            aria-label="Preset name"
             value={presetName}
             onChange={(e) => setPresetName(e.target.value)}
             placeholder={
@@ -2137,6 +2330,7 @@ export default function NewPreset() {
           <button
             onClick={() => setPasteOpen(true)}
             disabled={loadingPreset || generatingPreset}
+            aria-busy={generatingPreset}
             className="app-empty flex min-h-14 w-full items-center gap-3 border-dashed border-border/60 bg-transparent transition-all active:scale-[0.985] active:bg-muted/20 disabled:opacity-45"
           >
             <div className="ml-4 flex h-10 w-10 items-center justify-center rounded-[8px] bg-muted/70 text-foreground">

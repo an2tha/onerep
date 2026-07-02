@@ -3,6 +3,8 @@ import {
   resolveLayout,
   buildRows,
   reorderLayout,
+  moveWidgetById,
+  isDefaultLayout,
   DEFAULT_LAYOUT,
   ALL_WIDGET_IDS,
   type WidgetConfig,
@@ -212,5 +214,63 @@ describe("reorderLayout", () => {
   test("out-of-bounds toIndex returns original layout", () => {
     const result = reorderLayout(base, 0, 99)
     expect(result).toEqual(base)
+  })
+})
+
+// ─── moveWidgetById ──────────────────────────────────────────────────────────
+
+describe("moveWidgetById", () => {
+  const base: WidgetConfig[] = [
+    { id: "food", size: "small" },
+    { id: "water", size: "small" },
+    { id: "workout", size: "small" },
+  ]
+
+  test("moves a widget up by id", () => {
+    expect(moveWidgetById(base, "workout", "up").map((w) => w.id)).toEqual([
+      "food",
+      "workout",
+      "water",
+    ])
+  })
+
+  test("moves a widget down by id", () => {
+    expect(moveWidgetById(base, "food", "down").map((w) => w.id)).toEqual([
+      "water",
+      "food",
+      "workout",
+    ])
+  })
+
+  test("keeps first widget in place when moving up", () => {
+    expect(moveWidgetById(base, "food", "up")).toEqual(base)
+  })
+
+  test("keeps last widget in place when moving down", () => {
+    expect(moveWidgetById(base, "workout", "down")).toEqual(base)
+  })
+
+  test("ignores missing widget ids", () => {
+    expect(moveWidgetById(base, "progress", "up")).toEqual(base)
+  })
+})
+
+// ─── isDefaultLayout ─────────────────────────────────────────────────────────
+
+describe("isDefaultLayout", () => {
+  test("returns true for the canonical default", () => {
+    expect(isDefaultLayout(DEFAULT_LAYOUT)).toBe(true)
+  })
+
+  test("returns true for default order even if stored sizes are stale", () => {
+    expect(
+      isDefaultLayout(DEFAULT_LAYOUT.map((widget) => ({ ...widget, size: "full" })))
+    ).toBe(true)
+  })
+
+  test("returns false for a reordered layout", () => {
+    expect(isDefaultLayout(moveWidgetById(DEFAULT_LAYOUT, "food", "down"))).toBe(
+      false
+    )
   })
 })
