@@ -2,18 +2,24 @@
  * Pure helpers for training-consistency calculations.
  */
 
-/** Format a Date as YYYY-MM-DD using UTC. */
+import { localDateKey } from "./utils"
+
+/** Format a Date as YYYY-MM-DD using the local calendar day. */
 export function dateToIso(date: Date): string {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0")
-  const d = String(date.getUTCDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
+  return localDateKey(date)
+}
+
+/** Return a copy normalized to local noon for calendar-day calculations. */
+export function localNoon(date: Date = new Date()): Date {
+  const normalized = new Date(date)
+  normalized.setHours(12, 0, 0, 0)
+  return normalized
 }
 
 /** Return a new Date offset by `days` (negative = past). */
 export function subtractDays(date: Date, days: number): Date {
   const d = new Date(date)
-  d.setUTCDate(d.getUTCDate() - days)
+  d.setDate(d.getDate() - days)
   return d
 }
 
@@ -23,8 +29,7 @@ export function subtractDays(date: Date, days: number): Date {
  */
 export function calcStreak(workoutDates: Set<string>, today: Date): number {
   let streak = 0
-  let cursor = new Date(today)
-  cursor.setUTCHours(12, 0, 0, 0)
+  let cursor = localNoon(today)
   while (workoutDates.has(dateToIso(cursor))) {
     streak++
     cursor = subtractDays(cursor, 1)
@@ -37,10 +42,9 @@ export function calcStreak(workoutDates: Set<string>, today: Date): number {
  * Days in the future (after `today`) are excluded.
  */
 export function calcWorkoutsThisWeek(workoutDates: Set<string>, today: Date): number {
-  const ref = new Date(today)
-  ref.setUTCHours(12, 0, 0, 0)
+  const ref = localNoon(today)
   const todayIso = dateToIso(ref)
-  const dow = ref.getUTCDay() // 0 = Sun
+  const dow = ref.getDay() // 0 = Sun
   const startOfWeek = subtractDays(ref, dow === 0 ? 6 : dow - 1) // back to Monday
 
   let count = 0
@@ -56,8 +60,7 @@ export function calcWorkoutsThisWeek(workoutDates: Set<string>, today: Date): nu
  * oldest first, ending on (and including) `today`.
  */
 export function buildCalendarDays(today: Date, days: number): string[] {
-  const ref = new Date(today)
-  ref.setUTCHours(12, 0, 0, 0)
+  const ref = localNoon(today)
   const result: string[] = []
   for (let i = days - 1; i >= 0; i--) {
     result.push(dateToIso(subtractDays(ref, i)))

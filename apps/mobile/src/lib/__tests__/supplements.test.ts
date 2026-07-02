@@ -3,6 +3,7 @@ import {
   buildSupplementDayPlan,
   completedSupplementCount,
   formatSupplementAmount,
+  loggableSupplementPlanItems,
   mergeNutritionTotals,
   scaleSupplementNutrients,
   supplementDraftFromFoodDetail,
@@ -159,6 +160,85 @@ describe("supplement helpers", () => {
         isTrainingDay: false,
       })[0].state
     ).toBe("missed")
+  })
+
+  test("selects only scheduled due or missed supplements for batch logging", () => {
+    const items: SupplementItem[] = [
+      {
+        _id: "due-supplement",
+        name: "Creatine",
+        category: "creatine",
+        form: "powder",
+        servingLabel: "5 g",
+        defaultServingQuantity: 5,
+        active: true,
+        schedule: { type: "daily", preferredTime: "20:00" },
+        nutrientsPerServing: { creatine: 5 },
+        source: "manual",
+      },
+      {
+        _id: "missed-supplement",
+        name: "Magnesium",
+        category: "vitamin_mineral",
+        form: "capsule",
+        servingLabel: "1 capsule",
+        defaultServingQuantity: 1,
+        active: true,
+        schedule: { type: "daily", preferredTime: "08:00" },
+        nutrientsPerServing: { magnesium: 120 },
+        source: "manual",
+      },
+      {
+        _id: "taken-supplement",
+        name: "Vitamin D",
+        category: "vitamin_mineral",
+        form: "capsule",
+        servingLabel: "1 capsule",
+        defaultServingQuantity: 1,
+        active: true,
+        schedule: { type: "daily", preferredTime: "07:00" },
+        nutrientsPerServing: { vitaminD: 25 },
+        source: "manual",
+      },
+      {
+        _id: "optional-supplement",
+        name: "Caffeine",
+        category: "caffeine_pre_workout",
+        form: "capsule",
+        servingLabel: "1 capsule",
+        defaultServingQuantity: 1,
+        active: true,
+        schedule: { type: "none" },
+        nutrientsPerServing: { caffeine: 100 },
+        source: "manual",
+      },
+    ]
+    const logs: SupplementIntakeLog[] = [
+      {
+        _id: "taken-log",
+        supplementId: "taken-supplement",
+        date: "2026-06-25",
+        status: "taken",
+        loggedAt: "2026-06-25T07:00:00.000Z",
+        servingMultiplier: 1,
+        servingLabel: "1 capsule",
+        name: "Vitamin D",
+        category: "vitamin_mineral",
+        nutrients: { vitaminD: 25 },
+      },
+    ]
+
+    const plan = buildSupplementDayPlan({
+      items,
+      logs,
+      date: "2026-06-25",
+      today: "2026-06-25",
+      isTrainingDay: false,
+      now: new Date("2026-06-25T12:00:00"),
+    })
+
+    expect(loggableSupplementPlanItems(plan).map((entry) => entry.item._id))
+      .toEqual(["missed-supplement", "due-supplement"])
   })
 
   test("normalizes OpenFoodFacts detail into an editable supplement draft", () => {

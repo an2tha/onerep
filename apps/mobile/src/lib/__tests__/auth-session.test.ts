@@ -4,6 +4,8 @@ import {
   clearUnauthenticatedLocalState,
   handleUnauthenticatedSession,
   isUnauthenticatedError,
+  loginPathForAuthRedirect,
+  safeAuthRedirectPath,
 } from "../auth-session"
 
 class MemoryStorage {
@@ -47,6 +49,13 @@ function installStorage() {
   return storage
 }
 
+function setWindowLocation(pathname: string, search = "", hash = "") {
+  Object.defineProperty(globalThis, "window", {
+    value: { localStorage, location: { pathname, search, hash } },
+    configurable: true,
+  })
+}
+
 describe("auth session helpers", () => {
   beforeEach(() => {
     installStorage()
@@ -82,19 +91,193 @@ describe("auth session helpers", () => {
     expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
   })
 
+  test("sanitizes auth redirect paths to in-app routes only", () => {
+    expect(safeAuthRedirectPath("/foods?tab=history#meal")).toBe(
+      "/foods?tab=history#meal"
+    )
+    expect(safeAuthRedirectPath("https://evil.example/foods")).toBe("/")
+    expect(safeAuthRedirectPath("//evil.example/foods")).toBe("/")
+    expect(safeAuthRedirectPath("/login?next=/foods")).toBe("/")
+    expect(safeAuthRedirectPath("/sso-callback?next=/foods")).toBe("/")
+  })
+
+  test("builds a login path that preserves the protected route", () => {
+    setWindowLocation("/foods", "?tab=history", "#meal")
+
+    expect(loginPathForAuthRedirect()).toBe(
+      "/login?next=%2Ffoods%3Ftab%3Dhistory%23meal"
+    )
+  })
+
   test("signs out the auth client before redirecting to login", async () => {
     const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 10_000
 
-    await handleUnauthenticatedSession({
-      signOut: async () => {
-        events.push("signOut")
-      },
-      navigate: (to, options) => {
-        events.push(`navigate:${String(to)}:${String(options?.replace)}`)
-      },
-    })
+    try {
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("signOut")
+        },
+        navigate: (to, options) => {
+          events.push(`navigate:${String(to)}:${String(options?.replace)}`)
+        },
+      })
+    } finally {
+      Date.now = originalNow
+    }
 
     expect(events).toEqual(["signOut", "navigate:/login:true"])
     expect(localStorage.getItem("onerep:prelogin-onboarding-seen")).toBe("true")
+  })
+
+  test("redirects unauthenticated protected routes to login with next path", async () => {
+    const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 12_500
+    setWindowLocation("/water", "?from=widget")
+
+    try {
+      await handleUnauthenticatedSession({
+        navigate: (to, options) => {
+          events.push(`navigate:${String(to)}:${String(options?.replace)}`)
+        },
+      })
+    } finally {
+      Date.now = originalNow
+    }
+
+    expect(events).toEqual([
+      "navigate:/login?next=%2Fwater%3Ffrom%3Dwidget:true",
+    ])
+  })
+
+  test("suppresses duplicate unauthenticated redirects during the cooldown", async () => {
+    const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 20_000
+
+    try {
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("first:signOut")
+        },
+        navigate: () => {
+          events.push("first:navigate")
+        },
+      })
+      Date.now = () => 20_500
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("second:signOut")
+        },
+        navigate: () => {
+          events.push("second:navigate")
+        },
+      })
+    } finally {
+      Date.now = originalNow
+    }
+
+    expect(events).toEqual(["first:signOut", "first:navigate"])
+  })
+
+  test("allows changed protected routes during the redirect cooldown", async () => {
+    const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 21_000
+    setWindowLocation("/water")
+
+    try {
+      await handleUnauthenticatedSession({
+        navigate: (to) => {
+          events.push(`first:${String(to)}`)
+        },
+      })
+      Date.now = () => 21_500
+      setWindowLocation("/foods/search", "?q=rice")
+      await handleUnauthenticatedSession({
+        navigate: (to) => {
+          events.push(`second:${String(to)}`)
+        },
+      })
+    } finally {
+      Date.now = originalNow
+    }
+
+    expect(events).toEqual([
+      "first:/login?next=%2Fwater",
+      "second:/login?next=%2Ffoods%2Fsearch%3Fq%3Drice",
+    ])
+  })
+
+  test("allows future unauthenticated recovery after the cooldown", async () => {
+    const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 30_000
+
+    try {
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("first:signOut")
+        },
+        navigate: () => {
+          events.push("first:navigate")
+        },
+      })
+      Date.now = () => 32_500
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("second:signOut")
+        },
+        navigate: () => {
+          events.push("second:navigate")
+        },
+      })
+    } finally {
+      Date.now = originalNow
+    }
+
+    expect(events).toEqual([
+      "first:signOut",
+      "first:navigate",
+      "second:signOut",
+      "second:navigate",
+    ])
+  })
+
+  test("ignores overlapping unauthenticated redirects while sign-out is running", async () => {
+    const events: string[] = []
+    const originalNow = Date.now
+    Date.now = () => 40_000
+    let releaseSignOut: (() => void) | undefined
+
+    try {
+      const first = handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("first:signOut")
+          await new Promise<void>((resolve) => {
+            releaseSignOut = resolve
+          })
+        },
+        navigate: () => {
+          events.push("first:navigate")
+        },
+      })
+      await handleUnauthenticatedSession({
+        signOut: async () => {
+          events.push("second:signOut")
+        },
+        navigate: () => {
+          events.push("second:navigate")
+        },
+      })
+      releaseSignOut?.()
+      await first
+    } finally {
+      Date.now = originalNow
+    }
+
+    expect(events).toEqual(["first:signOut", "first:navigate"])
   })
 })

@@ -10,14 +10,23 @@ import {
   Pill,
   PintGlass,
   Plus,
+  Warning,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { cn } from "@/lib/utils"
+import { cn, createClientId } from "@/lib/utils"
+import { isBrowserOnline } from "@/lib/offline-queue"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import {
+  canStartFoodCapture,
+  foodCapturePath,
+  type FoodCaptureMode,
+} from "@/lib/food-capture"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   currentDateKey,
@@ -387,11 +396,13 @@ function CustomWaterSheet({
   onAmountChange,
   onAdd,
   onClose,
+  saving,
 }: {
   amount: number
   onAmountChange: (amount: number) => void
-  onAdd: () => void
+  onAdd: () => Promise<boolean>
   onClose: () => void
+  saving: boolean
 }) {
   function setClamped(next: number) {
     onAmountChange(Math.max(1, Math.min(5000, Math.round(next))))
@@ -415,7 +426,9 @@ function CustomWaterSheet({
           <button
             type="button"
             onClick={() => setClamped(amount - 50)}
-            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
+            disabled={saving}
+            aria-label="Decrease custom water amount"
+            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold disabled:opacity-45"
           >
             −
           </button>
@@ -423,12 +436,15 @@ function CustomWaterSheet({
             <span className="sr-only">Water amount in milliliters</span>
             <input
               type="number"
+              name="nutrition-custom-water-ml"
+              aria-label="Custom water amount in milliliters"
               inputMode="numeric"
               min={1}
               max={5000}
               value={amount}
+              disabled={saving}
               onChange={(event) => setClamped(Number(event.target.value) || 0)}
-              className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none"
+              className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none disabled:opacity-55"
             />
             <span className="mt-1 block text-[11px] font-semibold text-muted-foreground/55">
               milliliters
@@ -437,7 +453,9 @@ function CustomWaterSheet({
           <button
             type="button"
             onClick={() => setClamped(amount + 50)}
-            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
+            disabled={saving}
+            aria-label="Increase custom water amount"
+            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold disabled:opacity-45"
           >
             +
           </button>
@@ -448,7 +466,8 @@ function CustomWaterSheet({
               key={preset}
               type="button"
               onClick={() => setClamped(preset)}
-              className="app-button app-button-quiet justify-center"
+              disabled={saving}
+              className="app-button app-button-quiet justify-center disabled:opacity-45"
             >
               {fmtWater(preset)}
             </button>
@@ -456,10 +475,12 @@ function CustomWaterSheet({
         </div>
         <button
           type="button"
-          onClick={onAdd}
-          className="app-button mt-4 min-h-11 w-full justify-center bg-foreground text-background"
+          onClick={() => void onAdd()}
+          disabled={saving}
+          aria-busy={saving}
+          className="app-button mt-4 min-h-11 w-full justify-center bg-foreground text-background disabled:opacity-60"
         >
-          Add {fmtWater(amount)}
+          {saving ? "Adding..." : `Add ${fmtWater(amount)}`}
         </button>
       </div>
     </MobileSheet>
@@ -509,9 +530,13 @@ function GoalTile({
 function SupplementRow({
   plan,
   onTake,
+  disabled,
+  saving,
 }: {
   plan: SupplementDayPlanItem
   onTake: (plan: SupplementDayPlanItem) => void
+  disabled: boolean
+  saving: boolean
 }) {
   const taken = plan.state === "taken"
   const skipped = plan.state === "skipped"
@@ -538,11 +563,30 @@ function SupplementRow({
         <button
           type="button"
           onClick={() => onTake(plan)}
-          className="app-button app-button-quiet h-9 shrink-0"
+          disabled={disabled}
+          aria-busy={saving}
+          className="app-button app-button-quiet h-9 shrink-0 disabled:opacity-50"
         >
-          Take
+          {saving ? "Taking..." : "Take"}
         </button>
       )}
+    </div>
+  )
+}
+
+function FoodCaptureOfflineNotice({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-[10px] border border-destructive/15 bg-destructive/8 px-3 py-2 text-left",
+        className
+      )}
+    >
+      <Warning size={13} weight="bold" className="shrink-0 text-destructive" />
+      <p className="text-[11.5px] leading-4 font-medium text-destructive">
+        Snap meal needs an internet connection. Search and barcode scan are
+        still available.
+      </p>
     </div>
   )
 }
@@ -553,7 +597,17 @@ export default function Nutrition() {
   const [microsOpen, setMicrosOpen] = useState(false)
   const [customWaterOpen, setCustomWaterOpen] = useState(false)
   const [customWaterAmount, setCustomWaterAmount] = useState(350)
-  useBottomBarAction(() => setAddOpen(true))
+  const [snapOffline, setSnapOffline] = useState(false)
+  const [loggingWaterAmount, setLoggingWaterAmount] = useState<number | null>(
+    null
+  )
+  const [loggingSupplementId, setLoggingSupplementId] = useState<string | null>(
+    null
+  )
+  useBottomBarAction(() => {
+    setSnapOffline(false)
+    setAddOpen(true)
+  })
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const timeZone = preferences?.lastActiveTimezone || "UTC"
@@ -652,26 +706,54 @@ export default function Nutrition() {
     .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
     .slice(0, 3)
 
-  function addWater(amountMl: number) {
-    if (amountMl <= 0) return
-    void addWaterEntry({
-      date: todayKey,
-      entry: {
-        id: crypto.randomUUID(),
-        amountMl,
-        loggedAt: new Date().toISOString(),
-      },
-    })
+  async function addWater(amountMl: number) {
+    if (amountMl <= 0 || loggingWaterAmount !== null) return false
+    setLoggingWaterAmount(amountMl)
+    try {
+      await addWaterEntry({
+        date: todayKey,
+        entry: {
+          id: createClientId(),
+          amountMl,
+          loggedAt: new Date().toISOString(),
+        },
+      })
+      return true
+    } catch (error) {
+      reportOfflineMutationError(error)
+      return false
+    } finally {
+      setLoggingWaterAmount(null)
+    }
   }
 
-  function takeSupplement(plan: SupplementDayPlanItem) {
-    if (!plan.item._id) return
-    void logSupplementTaken({
-      supplementId: plan.item._id,
-      date: todayKey,
-      loggedAt: new Date().toISOString(),
-      servingMultiplier: 1,
-    })
+  function startFoodCapture(mode: FoodCaptureMode) {
+    if (!canStartFoodCapture(mode, isBrowserOnline())) {
+      setSnapOffline(true)
+      return false
+    }
+
+    setSnapOffline(false)
+    navigate(foodCapturePath(mode))
+    return true
+  }
+
+  async function takeSupplement(plan: SupplementDayPlanItem) {
+    if (!plan.item._id || loggingSupplementId !== null) return
+    const supplementId = plan.item._id
+    setLoggingSupplementId(supplementId)
+    try {
+      await logSupplementTaken({
+        supplementId: supplementId as Id<"supplementItems">,
+        date: todayKey,
+        loggedAt: new Date().toISOString(),
+        servingMultiplier: 1,
+      })
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      setLoggingSupplementId(null)
+    }
   }
 
   return (
@@ -686,7 +768,10 @@ export default function Nutrition() {
           </div>
           <button
             type="button"
-            onClick={() => setAddOpen(true)}
+            onClick={() => {
+              setSnapOffline(false)
+              setAddOpen(true)
+            }}
             className="app-button app-header-action bg-foreground text-background"
             aria-label="Add nutrition entry"
           >
@@ -790,9 +875,43 @@ export default function Nutrition() {
                   ))}
                 </div>
               ) : (
-                <p className="text-[12px] leading-5 text-muted-foreground/58">
-                  No food logged yet. Search, scan, or snap a meal.
-                </p>
+                <div>
+                  <p className="text-[12px] leading-5 text-muted-foreground/58">
+                    No food logged yet.
+                  </p>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5">
+                    {[
+                      {
+                        label: "Search",
+                        Icon: MagnifyingGlass,
+                        action: () => navigate("/foods/search"),
+                      },
+                      {
+                        label: "Scan",
+                        Icon: Barcode,
+                        action: () => startFoodCapture("barcode"),
+                      },
+                      {
+                        label: "Snap",
+                        Icon: Aperture,
+                        action: () => startFoodCapture("snap"),
+                      },
+                    ].map(({ label, Icon, action }) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={action}
+                        className="flex min-h-10 items-center justify-center gap-1.5 rounded-[9px] border border-border/45 bg-muted/35 px-2 text-[11.5px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/60"
+                      >
+                        <Icon size={13} weight="bold" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {snapOffline && (
+                    <FoodCaptureOfflineNotice className="mt-2" />
+                  )}
+                </div>
               )}
             </div>
 
@@ -827,15 +946,20 @@ export default function Nutrition() {
                   <button
                     key={amount}
                     type="button"
-                    onClick={() => addWater(amount)}
-                    className="app-button app-button-quiet justify-center"
+                    onClick={() => void addWater(amount)}
+                    disabled={loggingWaterAmount !== null}
+                    aria-busy={loggingWaterAmount === amount}
+                    className="app-button app-button-quiet justify-center disabled:opacity-50"
                   >
-                    +{fmtWater(amount)}
+                    {loggingWaterAmount === amount
+                      ? "Adding..."
+                      : `+${fmtWater(amount)}`}
                   </button>
                 ))}
                 <button
                   type="button"
                   onClick={() => setCustomWaterOpen(true)}
+                  disabled={loggingWaterAmount !== null}
                   className="app-button app-button-quiet justify-center"
                 >
                   Custom
@@ -860,7 +984,9 @@ export default function Nutrition() {
                     <SupplementRow
                       key={plan.item._id ?? plan.item.name}
                       plan={plan}
-                      onTake={takeSupplement}
+                      onTake={(nextPlan) => void takeSupplement(nextPlan)}
+                      disabled={loggingSupplementId !== null}
+                      saving={loggingSupplementId === plan.item._id}
                     />
                   ))}
                 </div>
@@ -878,11 +1004,15 @@ export default function Nutrition() {
         <CustomWaterSheet
           amount={customWaterAmount}
           onAmountChange={setCustomWaterAmount}
-          onAdd={() => {
-            addWater(customWaterAmount)
-            setCustomWaterOpen(false)
+          onAdd={async () => {
+            const saved = await addWater(customWaterAmount)
+            if (saved) setCustomWaterOpen(false)
+            return saved
           }}
-          onClose={() => setCustomWaterOpen(false)}
+          onClose={() => {
+            if (loggingWaterAmount === null) setCustomWaterOpen(false)
+          }}
+          saving={loggingWaterAmount !== null}
         />
       )}
 
@@ -908,13 +1038,13 @@ export default function Nutrition() {
                   label: "Scan barcode",
                   detail: "Packaged food",
                   Icon: Barcode,
-                  action: () => navigate("/camera?mode=barcode"),
+                  action: () => startFoodCapture("barcode"),
                 },
                 {
                   label: "Snap meal",
                   detail: "Estimate from photo",
                   Icon: Aperture,
-                  action: () => navigate("/camera"),
+                  action: () => startFoodCapture("snap"),
                 },
                 {
                   label: "Add 250 ml water",
@@ -933,8 +1063,7 @@ export default function Nutrition() {
                   key={label}
                   type="button"
                   onClick={() => {
-                    setAddOpen(false)
-                    action()
+                    if (action() !== false) setAddOpen(false)
                   }}
                   className={cn(
                     "flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35",
@@ -957,6 +1086,9 @@ export default function Nutrition() {
                   <CaretRight size={12} className="text-muted-foreground/35" />
                 </button>
               ))}
+              {snapOffline && (
+                <FoodCaptureOfflineNotice className="mx-3 mt-3 mb-3" />
+              )}
             </div>
           </div>
         </MobileSheet>

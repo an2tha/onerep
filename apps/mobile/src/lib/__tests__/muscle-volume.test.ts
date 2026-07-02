@@ -202,6 +202,21 @@ describe("computeMuscleVolume", () => {
 describe("computeWeeklyMuscleVolume", () => {
   const today = new Date("2026-04-15T12:00:00Z") // Wednesday
 
+  test("uses the local calendar day for early-morning weekly volume", () => {
+    const earlyLocalMonday = new Date(2026, 0, 5, 0, 30)
+    const logs = [
+      makeLog("2026-01-05", [makeExercise("squat", 3)]),
+      makeLog("2026-01-06", [makeExercise("squat", 4)]),
+    ]
+    const result = computeWeeklyMuscleVolume(
+      logs,
+      catalogMap,
+      earlyLocalMonday
+    )
+    const quads = result.find((m) => m.muscle === "quadriceps")!
+    expect(quads.primarySets).toBe(3)
+  })
+
   test("includes workouts from Monday to today", () => {
     const logs = [
       makeLog("2026-04-13", [makeExercise("squat", 3)]), // Monday ✓
@@ -241,6 +256,20 @@ describe("computeWeeklyMuscleVolume", () => {
 
 describe("computeMuscleRecovery", () => {
   const today = new Date("2026-04-15T12:00:00Z")
+
+  test("uses the local calendar day when checking future logs", () => {
+    const earlyLocalMorning = new Date(2026, 0, 1, 0, 30)
+    const logs = [
+      makeLog("2026-01-01", [makeExercise("bench", 2)]),
+      makeLog("2026-01-02", [makeExercise("bench", 5)]),
+    ]
+
+    const result = computeMuscleRecovery(logs, catalogMap, earlyLocalMorning)
+    const chest = result.find((m) => m.muscle === "chest")!
+
+    expect(chest.lastTrainedDate).toBe("2026-01-01")
+    expect(chest.primarySets).toBe(2)
+  })
 
   test("uses the most recent completed training day per muscle", () => {
     const logs = [

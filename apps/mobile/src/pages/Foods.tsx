@@ -15,22 +15,33 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { cn, createClientId } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { isBrowserOnline } from "@/lib/offline-queue"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import {
+  canStartFoodCapture,
+  foodCapturePath,
+  type FoodCaptureMode,
+} from "@/lib/food-capture"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   FOOD_MICRONUTRIENT_KEYS,
+  buildFoodHistoryDaySummaries,
   currentDateKey,
   defaultMeal,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
+  foodLogEntriesFromHistoryMeal,
   type FoodLogEntry,
+  type FoodHistoryDaySummary,
+  type FoodHistoryMealSummary,
   type MealPreset,
   type Recipe,
   type RecipeIngredient,
@@ -365,8 +376,8 @@ function SmartMealPresetCard({
   busy,
 }: {
   suggestion: SmartMealPresetSuggestion
-  onSave: () => void
-  onLog: () => void
+  onSave: () => Promise<void>
+  onLog: () => Promise<void>
   onDismiss: () => void
   busy: boolean
 }) {
@@ -415,8 +426,9 @@ function SmartMealPresetCard({
         <button
           type="button"
           onClick={onDismiss}
+          disabled={busy}
           aria-label="Dismiss smart meal suggestion"
-          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45"
+          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45 disabled:opacity-35"
         >
           <X size={10} weight="bold" />
         </button>
@@ -424,8 +436,9 @@ function SmartMealPresetCard({
 
       <button
         type="button"
-        onClick={isSave ? onSave : onLog}
+        onClick={() => void (isSave ? onSave() : onLog())}
         disabled={busy}
+        aria-busy={busy}
         className="mt-3 flex min-h-10 w-full items-center justify-center rounded-xl bg-foreground px-3 text-[12.5px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-55"
       >
         {busy
@@ -442,10 +455,40 @@ function SmartMealPresetCard({
 
 // ─── History sheet ────────────────────────────────────────────────────────────
 
-function HistorySheet({ onClose }: { onClose: () => void }) {
+function formatHistoryDate(dateKey: string) {
+  return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+function HistorySheet({
+  days,
+  onCopyMeal,
+  onClose,
+}: {
+  days: FoodHistoryDaySummary[]
+  onCopyMeal: (meal: FoodHistoryMealSummary) => Promise<void>
+  onClose: () => void
+}) {
+  const [copyingMealKey, setCopyingMealKey] = useState<string | null>(null)
+
+  async function copyMeal(meal: FoodHistoryMealSummary, key: string) {
+    if (copyingMealKey) return
+    setCopyingMealKey(key)
+    try {
+      await onCopyMeal(meal)
+      onClose()
+    } catch (error) {
+      reportOfflineMutationError(error)
+      setCopyingMealKey(null)
+    }
+  }
+
   return (
     <MobileSheet
-      onClose={onClose}
+      onClose={copyingMealKey ? () => {} : onClose}
       overlayClassName="bg-black/40 backdrop-blur-[4px]"
       panelClassName="mx-auto w-full max-w-sm rounded-t-[28px] bg-card shadow-[0_-20px_60px_rgba(0,0,0,0.2)] max-h-[88svh] flex flex-col"
       panelStyle={{
@@ -454,20 +497,99 @@ function HistorySheet({ onClose }: { onClose: () => void }) {
     >
       <div className="flex-1 overflow-y-auto px-4 pt-1 [&::-webkit-scrollbar]:hidden">
         <div className="mb-4 flex items-center justify-between">
-          <p className="text-[15px] font-semibold">History</p>
+          <div>
+            <p className="text-[15px] font-semibold">History</p>
+            <p className="mt-0.5 text-[11.5px] text-muted-foreground/45">
+              Copy meals you have logged before.
+            </p>
+          </div>
           <button
+            type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            disabled={Boolean(copyingMealKey)}
+            aria-label="Close food history"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60 disabled:opacity-45"
           >
             <X size={12} weight="bold" />
           </button>
         </div>
-        <div className="flex flex-col items-center gap-2 py-12 text-center">
-          <CalendarBlank size={28} className="text-muted-foreground/20" />
-          <p className="text-[13px] text-muted-foreground/40">
-            Visit Home to see past days
-          </p>
-        </div>
+        {days.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <CalendarBlank size={28} className="text-muted-foreground/20" />
+            <p className="text-[13px] text-muted-foreground/40">
+              Recent logged meals will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 pb-2">
+            {days.map((day) => (
+              <section
+                key={day.date}
+                className="app-rail-surface overflow-hidden"
+                style={
+                  { "--rail-color": "var(--accent-food)" } as React.CSSProperties
+                }
+              >
+                <div className="flex items-start justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold">
+                      {formatHistoryDate(day.date)}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
+                      {day.entries.length} item
+                      {day.entries.length === 1 ? "" : "s"} logged
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-[11px] font-bold text-muted-foreground/50 tabular-nums">
+                    {fmtKcal(day.calories)} kcal
+                  </span>
+                </div>
+                <div className="border-t border-border/35">
+                  {day.meals.map((meal, index) => {
+                    const copyKey = `${day.date}-${meal.meal}`
+                    const copying = copyingMealKey === copyKey
+                    return (
+                      <button
+                        key={copyKey}
+                        type="button"
+                        onClick={() => void copyMeal(meal, copyKey)}
+                        disabled={Boolean(copyingMealKey)}
+                        aria-busy={copying}
+                        className={cn(
+                          "flex min-h-[4.25rem] w-full items-center justify-between gap-3 bg-card px-4 py-3 text-left transition-colors active:bg-muted/35 disabled:opacity-60",
+                          index > 0 && "border-t border-border/35"
+                        )}
+                      >
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
+                            <ForkKnife size={15} weight="bold" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[13px] font-semibold">
+                              {meal.mealLabel}
+                            </span>
+                            <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground/55">
+                              {meal.itemSummary || "Meal items"}
+                            </span>
+                            <span className="mt-1 block text-[10.5px] text-muted-foreground/38 tabular-nums">
+                              {fmtKcal(meal.calories)} kcal · P
+                              {Math.round(meal.protein)} C
+                              {Math.round(meal.carbs)} F{Math.round(meal.fat)}g
+                            </span>
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted/45 px-2.5 py-1 text-[10.5px] font-bold text-muted-foreground/60">
+                          {copying ? "Copying" : "Copy"}
+                          <CaretRight size={10} weight="bold" />
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </MobileSheet>
   )
@@ -814,7 +936,10 @@ function MicronutrientsCard({
   return (
     <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-label={open ? "Collapse micronutrients" : "Expand micronutrients"}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <div className="min-w-0">
@@ -1055,18 +1180,30 @@ function RecipeLogSheet({
   onClose,
 }: {
   recipe: Recipe
-  onLog: (meal: string) => void
+  onLog: (meal: string) => Promise<void>
   onClose: () => void
 }) {
   const categories = DEFAULT_MEAL_CATEGORIES
   const suggested = defaultMeal()
   const totals = recipeTotals(recipe.ingredients)
+  const [savingMeal, setSavingMeal] = useState<string | null>(null)
+
+  async function selectMeal(meal: string) {
+    if (savingMeal) return
+    setSavingMeal(meal)
+    try {
+      await onLog(meal)
+    } catch (error) {
+      reportOfflineMutationError(error)
+      setSavingMeal(null)
+    }
+  }
 
   return (
     <>
       <div
         className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
-        onClick={onClose}
+        onClick={savingMeal ? undefined : onClose}
       />
       <div
         className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)]"
@@ -1087,7 +1224,10 @@ function RecipeLogSheet({
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => onLog(cat.id)}
+              type="button"
+              onClick={() => void selectMeal(cat.id)}
+              disabled={Boolean(savingMeal)}
+              aria-busy={savingMeal === cat.id}
               className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
@@ -1105,14 +1245,18 @@ function RecipeLogSheet({
               >
                 {cat.label}
               </span>
-              {cat.id === suggested && (
+              {savingMeal === cat.id ? (
+                <span className="text-[10px] font-medium text-muted-foreground/50">
+                  saving
+                </span>
+              ) : cat.id === suggested ? (
                 <span
                   className="text-[10px] font-medium"
                   style={{ color: cat.color, opacity: 0.6 }}
                 >
                   suggested
                 </span>
-              )}
+              ) : null}
             </button>
           ))}
         </div>
@@ -1173,6 +1317,7 @@ function RecipeCard({
 
       <div className="mt-3 flex gap-2">
         <button
+          type="button"
           onClick={onEdit}
           className="app-button app-button-secondary text-muted-foreground/70"
         >
@@ -1180,6 +1325,7 @@ function RecipeCard({
           Edit
         </button>
         <button
+          type="button"
           onClick={onDelete}
           className="app-button app-button-secondary px-3 text-muted-foreground/55"
           aria-label={`Delete ${recipe.name}`}
@@ -1187,6 +1333,7 @@ function RecipeCard({
           <Trash size={11} />
         </button>
         <button
+          type="button"
           onClick={onLog}
           className="app-button app-button-quiet flex-1"
         >
@@ -1231,7 +1378,9 @@ function GoalsCardWrapper({
           Daily goals
         </p>
         <button
+          type="button"
           onClick={() => setEditing((o) => !o)}
+          aria-expanded={editing}
           className="app-button app-button-quiet"
         >
           {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
@@ -1288,13 +1437,17 @@ function GoalsCardWrapper({
                 </div>
                 <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
                   <button
+                    type="button"
                     onClick={() => adjust(key, -step)}
+                    aria-label={`Decrease ${label.toLowerCase()} goal`}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">−</span>
                   </button>
                   <input
                     type="number"
+                    name={`food-goal-${key}`}
+                    aria-label={`${label} goal`}
                     value={draft[key]}
                     onChange={(e) => {
                       const v = parseInt(e.target.value)
@@ -1304,7 +1457,9 @@ function GoalsCardWrapper({
                     className="h-10 w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
                   />
                   <button
+                    type="button"
                     onClick={() => adjust(key, step)}
+                    aria-label={`Increase ${label.toLowerCase()} goal`}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">+</span>
@@ -1315,6 +1470,7 @@ function GoalsCardWrapper({
           </div>
           <div className="mt-3 flex items-center gap-2">
             <button
+              type="button"
               onClick={() => {
                 onSave(draft)
                 setEditing(false)
@@ -1325,6 +1481,7 @@ function GoalsCardWrapper({
             </button>
             {apiGoals && (
               <button
+                type="button"
                 onClick={() => {
                   const r = {
                     calories: apiGoals.target,
@@ -1386,11 +1543,13 @@ function WaterCard({ dateKey }: { dateKey: string }) {
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
     const entry = {
-      id: crypto.randomUUID(),
+      id: createClientId(),
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] }).catch(
+      reportOfflineMutationError
+    )
   }
 
   function addGlass() {
@@ -1410,7 +1569,9 @@ function WaterCard({ dateKey }: { dateKey: string }) {
     const sorted = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )
-    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
+    void setWaterDay({ date: dateKey, entries: sorted.slice(1) }).catch(
+      reportOfflineMutationError
+    )
   }
 
   return (
@@ -1421,6 +1582,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           Hydration
         </p>
         <button
+          type="button"
           onClick={() => navigate("/settings")}
           className="app-button app-button-quiet"
         >
@@ -1440,6 +1602,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           return (
             <button
               key={i}
+              type="button"
               onClick={filled ? removeLastEntry : () => fillToGlass(i)}
               onPointerEnter={() => setHoveredGlass(i)}
               onFocus={() => setHoveredGlass(i)}
@@ -1474,6 +1637,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           {fmtWater(totalMl)} / {fmtWater(goalMl)}
         </p>
         <button
+          type="button"
           onClick={addGlass}
           className="app-button app-button-quiet"
         >
@@ -1524,15 +1688,25 @@ export default function Foods() {
     beforeOrOn: todayKey,
     limit: 21,
   })
-  const todayEntries = (foodLogs ?? []) as FoodLogEntry[]
+  const todayEntries = useMemo(
+    () => (foodLogs ?? []) as FoodLogEntry[],
+    [foodLogs]
+  )
   const todaySupplementTotals = (supplementNutrition ??
     {}) as SupplementNutrients
   const recipes = (recipesQuery ?? []) as unknown as Recipe[]
-  const mealPresets = (mealPresetsQuery ?? []) as unknown as MealPreset[]
-  const recentFoodLogDays = (recentFoodLogs ?? []) as unknown as {
-    date: string
-    entries: FoodLogEntry[]
-  }[]
+  const mealPresets = useMemo(
+    () => (mealPresetsQuery ?? []) as unknown as MealPreset[],
+    [mealPresetsQuery]
+  )
+  const recentFoodLogDays = useMemo(
+    () =>
+      (recentFoodLogs ?? []) as unknown as {
+        date: string
+        entries: FoodLogEntry[]
+      }[],
+    [recentFoodLogs]
+  )
 
   const [addOpen, setAddOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -1580,6 +1754,14 @@ export default function Foods() {
       }),
     [dismissedSmartMealKeys, mealPresets, recentFoodLogDays, todayEntries]
   )
+  const historyDays = useMemo(
+    () =>
+      buildFoodHistoryDaySummaries(recentFoodLogDays, {
+        excludeDate: todayKey,
+        limit: 14,
+      }),
+    [recentFoodLogDays, todayKey]
+  )
 
   function dismissSmartMealSuggestion(key: string) {
     setDismissedSmartMealKeys((prev) =>
@@ -1587,8 +1769,19 @@ export default function Foods() {
     )
   }
 
+  function startFoodCapture(mode: FoodCaptureMode) {
+    if (!canStartFoodCapture(mode, isBrowserOnline())) {
+      setSnapOffline(true)
+      return false
+    }
+
+    setSnapOffline(false)
+    navigate(foodCapturePath(mode))
+    return true
+  }
+
   async function saveSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
-    if (suggestion.kind !== "save") return
+    if (suggestion.kind !== "save" || smartMealBusyKey !== null) return
     setSmartMealBusyKey(suggestion.key)
     try {
       await createMealPresetMutation({
@@ -1598,13 +1791,15 @@ export default function Foods() {
         entries: suggestion.entries,
       })
       dismissSmartMealSuggestion(suggestion.key)
+    } catch (error) {
+      reportOfflineMutationError(error)
     } finally {
       setSmartMealBusyKey(null)
     }
   }
 
   async function logSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
-    if (suggestion.kind !== "log") return
+    if (suggestion.kind !== "log" || smartMealBusyKey !== null) return
     setSmartMealBusyKey(suggestion.key)
     try {
       const presetEntries = foodLogEntriesFromMealPreset(suggestion.preset, {
@@ -1615,9 +1810,22 @@ export default function Foods() {
         entries: [...todayEntries, ...presetEntries],
       })
       dismissSmartMealSuggestion(suggestion.key)
+    } catch (error) {
+      reportOfflineMutationError(error)
     } finally {
       setSmartMealBusyKey(null)
     }
+  }
+
+  async function copyHistoryMeal(meal: FoodHistoryMealSummary) {
+    const copiedEntries = foodLogEntriesFromHistoryMeal(meal.entries, {
+      meal: meal.meal,
+      loggedAt: new Date().toISOString(),
+    })
+    await setDay({
+      date: todayKey,
+      entries: [...todayEntries, ...copiedEntries],
+    })
   }
 
   return (
@@ -1635,6 +1843,7 @@ export default function Foods() {
           </div>
           <div className="flex items-center gap-1.5 pb-0.5">
             <button
+              type="button"
               onClick={() => setHistoryOpen(true)}
               aria-label="Open food history"
               className="app-icon-button"
@@ -1642,13 +1851,15 @@ export default function Foods() {
               <CalendarBlank size={15} />
             </button>
             <button
-              onClick={() => navigate("/camera")}
+              type="button"
+              onClick={() => startFoodCapture("snap")}
               aria-label="Snap meal"
               className="app-icon-button"
             >
               <Aperture size={15} />
             </button>
             <button
+              type="button"
               onClick={() => navigate("/foods/search")}
               aria-label="Search foods"
               className="app-icon-button"
@@ -1660,15 +1871,8 @@ export default function Foods() {
 
         <FoodActionRow
           onSearch={() => navigate("/foods/search")}
-          onScan={() => navigate("/camera?mode=barcode")}
-          onSnap={() => {
-            if (!navigator.onLine) {
-              setSnapOffline(true)
-              return
-            }
-            setSnapOffline(false)
-            navigate("/camera")
-          }}
+          onScan={() => startFoodCapture("barcode")}
+          onSnap={() => startFoodCapture("snap")}
         />
 
         <div className="app-grid px-4 md:px-8 short-phone:gap-3">
@@ -1676,12 +1880,8 @@ export default function Foods() {
             <section className="md:col-span-2">
               <SmartMealPresetCard
                 suggestion={smartMealSuggestion}
-                onSave={() => {
-                  void saveSmartMealPreset(smartMealSuggestion)
-                }}
-                onLog={() => {
-                  void logSmartMealPreset(smartMealSuggestion)
-                }}
+                onSave={() => saveSmartMealPreset(smartMealSuggestion)}
+                onLog={() => logSmartMealPreset(smartMealSuggestion)}
                 onDismiss={() =>
                   dismissSmartMealSuggestion(smartMealSuggestion.key)
                 }
@@ -1699,7 +1899,7 @@ export default function Foods() {
                 void setDay({
                   date: todayKey,
                   entries: todayEntries.filter((_, i) => i !== index),
-                })
+                }).catch(reportOfflineMutationError)
               }}
             />
           </section>
@@ -1717,7 +1917,7 @@ export default function Foods() {
                 goals={goals}
                 apiGoals={apiGoals}
                 onSave={(g) => {
-                  void saveCustomGoals(g)
+                  void saveCustomGoals(g).catch(reportOfflineMutationError)
                 }}
               />
             </div>
@@ -1728,6 +1928,7 @@ export default function Foods() {
               title="Recipes"
               action={
                 <button
+                  type="button"
                   onClick={() => navigate("/foods/recipe/new")}
                   className="app-button app-button-quiet"
                 >
@@ -1738,6 +1939,7 @@ export default function Foods() {
             />
             {recipes.length === 0 ? (
               <button
+                type="button"
                 onClick={() => navigate("/foods/recipe/new")}
                 className="app-empty w-full transition-colors active:bg-muted/20"
               >
@@ -1767,7 +1969,7 @@ export default function Foods() {
                       if (recipe._id) {
                         void removeRecipeMutation({
                           id: recipe._id as Id<"recipes">,
-                        })
+                        }).catch(reportOfflineMutationError)
                       }
                     }}
                     onLog={() => setLoggingRecipe(recipe)}
@@ -1792,22 +1994,28 @@ export default function Foods() {
       </div>
 
       {/* History sheet */}
-      {historyOpen && <HistorySheet onClose={() => setHistoryOpen(false)} />}
+      {historyOpen && (
+        <HistorySheet
+          days={historyDays}
+          onCopyMeal={copyHistoryMeal}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
 
       {/* Recipe log sheet */}
       {loggingRecipe && (
         <RecipeLogSheet
           recipe={loggingRecipe}
-          onLog={(meal) => {
+          onLog={async (meal) => {
             const totals = recipeTotals(loggingRecipe.ingredients)
             const entry = {
-              id: Math.random().toString(36).slice(2),
+              id: createClientId(),
               name: loggingRecipe.name,
               ...totals,
               loggedAt: new Date().toISOString(),
               meal,
             }
-            void setDay({
+            await setDay({
               date: todayKey,
               entries: [...todayEntries, entry],
             })
@@ -1829,9 +2037,9 @@ export default function Foods() {
           <div className="px-4 pt-1 pb-4">
             <div className="mb-3 app-surface overflow-hidden">
               <button
+                type="button"
                 onClick={() => {
-                  setAddOpen(false)
-                  navigate("/camera?mode=barcode")
+                  if (startFoodCapture("barcode") !== false) setAddOpen(false)
                 }}
                 className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
@@ -1852,14 +2060,9 @@ export default function Foods() {
               </button>
 
               <button
+                type="button"
                 onClick={() => {
-                  if (!navigator.onLine) {
-                    setSnapOffline(true)
-                    return
-                  }
-                  setSnapOffline(false)
-                  setAddOpen(false)
-                  navigate("/camera")
+                  if (startFoodCapture("snap") !== false) setAddOpen(false)
                 }}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
@@ -1882,6 +2085,7 @@ export default function Foods() {
 
             <div className="app-surface overflow-hidden">
               <button
+                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/foods/search")
@@ -1899,6 +2103,7 @@ export default function Foods() {
               </button>
               <div className="mx-4 h-px bg-border/50" />
               <button
+                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/foods/recipe/new")
@@ -1916,6 +2121,7 @@ export default function Foods() {
               </button>
               <div className="mx-4 h-px bg-border/50" />
               <button
+                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workout/active")

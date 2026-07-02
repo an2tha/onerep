@@ -151,12 +151,15 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
             return (
               <button
                 key={path}
+                type="button"
                 ref={(el) => {
                   tabRefs.current[idx] = el
                 }}
                 onClick={() => {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "motion-pressable relative flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-[8px] px-1.5",
                   active
@@ -183,6 +186,7 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
             <>
               <div className="mx-1 h-4 w-px bg-border/60" />
               <button
+                type="button"
                 onClick={onAdd}
                 className="motion-pressable flex h-10 w-10 items-center justify-center rounded-[8px] text-muted-foreground active:bg-foreground/[0.07] active:text-foreground"
                 aria-label="Add"
@@ -196,9 +200,12 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
       <aside className="desktop-sidebar motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex">
         <button
+          type="button"
           onClick={() => {
             if (pathname !== "/") navigate("/", { motion: "switch" })
           }}
+          aria-label="Go to Today"
+          aria-current={pathname === "/" ? "page" : undefined}
           className="motion-pressable mb-6 flex items-center gap-3 rounded-[9px] px-2 py-2 text-left active:bg-foreground/[0.05]"
         >
           <img src="/app-icon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
@@ -211,9 +218,11 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
             return (
               <button
                 key={path}
+                type="button"
                 onClick={() => {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "motion-pressable flex h-11 items-center gap-3 rounded-[9px] px-3 text-[13px] font-semibold",
                   active
@@ -230,7 +239,9 @@ export function BottomBar({ onAdd }: { onAdd?: () => void }) {
 
         {onAdd && showQuickAdd && (
           <button
+            type="button"
             onClick={onAdd}
+            aria-label="Quick add"
             className="motion-pressable mt-3 flex h-12 shrink-0 items-center justify-center gap-2 rounded-[10px] bg-foreground text-[13px] font-bold text-background active:opacity-85"
           >
             <Plus size={15} weight="bold" />
