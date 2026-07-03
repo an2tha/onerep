@@ -14,4 +14,13 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).toContain('aria-label="Quick add"')
     expect(SOURCE).toContain('aria-label="Go to Today"')
   })
+
+  test("mobile quick add exposes a long-press shortcut menu", () => {
+    expect(SOURCE).toContain('aria-controls="mobile-quick-actions"')
+    expect(SOURCE).toContain("aria-expanded={shortcutOpen}")
+    expect(SOURCE).toContain('role="menu"')
+    expect(SOURCE).toContain('role="menuitem"')
+    expect(SOURCE).toContain("Snap meal")
+    expect(SOURCE).toContain("Start workout")
+  })
 })
