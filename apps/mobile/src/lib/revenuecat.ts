@@ -26,6 +26,7 @@ export const REVENUECAT_API_KEY =
   "test_ZtFaeAWMEPSMwTZvghYNfBcMBvP"
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
+export const REVENUECAT_OFFERING_IDENTIFIER = "default"
 
 type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
 type AnyCustomerInfo = CustomerInfo | WebCustomerInfo
@@ -94,6 +95,12 @@ function getMonthlyPackage(offering: AnyOffering | null): AnyPackage | null {
     ) ??
     null
   )
+}
+
+function getConfiguredOffering<T extends { all: Record<string, AnyOffering>; current: AnyOffering | null }>(
+  offerings: T
+) {
+  return offerings.all[REVENUECAT_OFFERING_IDENTIFIER] ?? offerings.current
 }
 
 function hasOneRepPro(customerInfo: AnyCustomerInfo | null) {
@@ -194,7 +201,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         customerInfoPromise,
         offeringsPromise,
       ])
-      const currentOffering = offerings.current
+      const currentOffering = getConfiguredOffering(offerings)
       const monthlyPackage = getMonthlyPackage(currentOffering)
       setState((current) => ({
         ...current,
