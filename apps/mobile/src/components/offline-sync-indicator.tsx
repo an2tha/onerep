@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { CloudArrowUp, Warning, WifiSlash, X } from "@phosphor-icons/react"
-import { useAuth } from "@clerk/react"
 import { useConvexAuth } from "convex/react"
+import { useAppAuth } from "@/lib/auth-client"
 import {
   flushOfflineQueue,
   getOfflineQueueSummary,
@@ -21,7 +21,7 @@ function onlineNow() {
 }
 
 export function OfflineSyncIndicator() {
-  const { userId, isSignedIn } = useAuth()
+  const { userId, isSignedIn } = useAppAuth()
   const convexAuth = useConvexAuth()
   const [online, setOnline] = useState(onlineNow())
   const [summary, setSummary] = useState(getOfflineQueueSummary())

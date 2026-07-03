@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
-import { useAuth, useClerk } from "@clerk/react"
 import { ArrowCounterClockwise, Copy, Warning } from "@phosphor-icons/react"
 import {
   handleUnauthenticatedSession,
@@ -10,6 +9,7 @@ import {
   copyTextToClipboard,
 } from "@/lib/error-diagnostics"
 import { logDevError } from "@/lib/utils"
+import { signOutApp, useAppAuth } from "@/lib/auth-client"
 
 interface Props {
   children: ReactNode
@@ -153,14 +153,13 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
 }
 
 export function ErrorBoundary(props: Props) {
-  const { signOut } = useClerk()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn } = useAppAuth()
   return (
     <ErrorBoundaryInner
       {...props}
       isAuthLoaded={isLoaded}
       isSignedIn={isSignedIn}
-      signOut={signOut}
+      signOut={signOutApp}
     />
   )
 }

@@ -20,9 +20,9 @@ describe("auth form mobile accessibility and autofill", () => {
 
   test("reset password fields expose stable form names", () => {
     expect(RESET_SOURCE).toContain('name="email"')
-    expect(RESET_SOURCE).toContain('name="one-time-code"')
     expect(RESET_SOURCE).toContain('name="new-password"')
     expect(RESET_SOURCE).toContain('name="confirm-password"')
+    expect(RESET_SOURCE).toContain("token = searchParams.get")
   })
 
   test("login auth actions use a synchronous single-flight guard", () => {
@@ -34,6 +34,16 @@ describe("auth form mobile accessibility and autofill", () => {
     expect(LOGIN_SOURCE).toContain("authActionRef.current = false")
     expect(LOGIN_SOURCE).toContain("setOauthLoading(strategy)")
     expect(LOGIN_SOURCE).toContain("setLoading(true)")
+  })
+
+  test("login auth actions fail fast instead of spinning forever", () => {
+    expect(LOGIN_SOURCE).toContain("AUTH_ACTION_TIMEOUT_MS")
+    expect(LOGIN_SOURCE).toContain("withAuthActionTimeout")
+    expect(LOGIN_SOURCE).toContain("is taking too long")
+    expect(LOGIN_SOURCE).toContain("betterAuthErrorMessage")
+    expect(LOGIN_SOURCE).toContain(
+      'setError(betterAuthErrorMessage(error, "Authentication failed"))'
+    )
   })
 
   test("signed-in login redirect fallback explains the handoff", () => {

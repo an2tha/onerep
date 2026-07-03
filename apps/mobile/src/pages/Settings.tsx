@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
 import { CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
-import { useClerk, useUser } from "@clerk/react"
-import {
-  CheckoutButton,
-  usePlans,
-  useSubscription,
-} from "@clerk/react/experimental"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -37,6 +31,7 @@ import {
 import { toast } from "sonner"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
+import { signOutApp, useAppAuth } from "@/lib/auth-client"
 import {
   clearOfflineQueue,
   flushOfflineQueue,
@@ -54,18 +49,18 @@ import {
   pwaInstallCopy,
   type PwaBeforeInstallPromptEvent,
 } from "@/lib/pwa-install"
+import {
+  MONTHLY_PACKAGE_IDENTIFIER,
+  ONEREP_PRO_ENTITLEMENT,
+  revenueCatErrorMessage,
+  useRevenueCat,
+} from "@/lib/revenuecat"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
 type Theme = "light" | "dark"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const AI_ACCESS_PLAN_SLUG =
-  (import.meta.env.VITE_CLERK_AI_PLAN_SLUG as string | undefined) ??
-  "ai-access"
-const AI_ACCESS_PLAN_ID = import.meta.env.VITE_CLERK_AI_PLAN_ID as
-  | string
-  | undefined
 
 /**
  * Determine the current UI theme.
@@ -141,8 +136,12 @@ export default function Settings({
   onClose: () => void
 }) {
   const navigate = useSmoothNavigate()
-  const { signOut } = useClerk()
-  const { user } = useUser()
+  const { user } = useAppAuth()
+  const revenueCat = useRevenueCat({
+    userId: user?.id,
+    email: user?.email,
+    name: user?.name,
+  })
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
@@ -464,7 +463,7 @@ export default function Settings({
     setLoggingOut(true)
     try {
       clearOfflineQueue()
-      await signOut()
+      await signOutApp()
       safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
       posthog.reset()
       navigate("/login", { replace: true })
@@ -601,7 +600,7 @@ export default function Settings({
         throw new Error("Account has too much data to delete in one session")
 
       clearOfflineQueue()
-      await user?.delete()
+      await signOutApp()
 
       posthog.reset()
       navigate("/login", { replace: true })
@@ -646,11 +645,11 @@ export default function Settings({
                       <div className="flex items-center justify-between gap-4 px-4 py-4">
                         <div className="min-w-0">
                           <p className="truncate text-[15px] font-semibold">
-                            {user?.fullName || user?.firstName || "User"}
+                            {user?.name || "User"}
                           </p>
-                          {user?.primaryEmailAddress?.emailAddress && (
+                          {user?.email && (
                             <p className="mt-0.5 truncate text-[12px] text-muted-foreground/50">
-                              {user.primaryEmailAddress.emailAddress}
+                              {user.email}
                             </p>
                           )}
                         </div>
@@ -674,7 +673,7 @@ export default function Settings({
                       <RowDivider />
                       <AiUsageProgress usage={aiUsage} />
                       <RowDivider />
-                      <AiAccessBillingCard />
+                      <RevenueCatSubscriptionPanel revenueCat={revenueCat} />
                       <RowDivider />
                       <button
                         type="button"
@@ -1276,7 +1275,7 @@ export default function Settings({
                           </p>
                           <p className="mt-1 text-[11px] leading-snug text-muted-foreground/55">
                             Permanently removes your OneRep logs, settings,
-                            local offline queue, and Clerk account.
+                            local offline queue, and app account data.
                           </p>
                         </div>
                         <input
@@ -1454,183 +1453,151 @@ function AiUsageProgress({ usage }: { usage?: AiUsageSummary | null }) {
   )
 }
 
-function formatBillingDate(value?: Date | string | number | null) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })
-}
+function RevenueCatSubscriptionPanel({
+  revenueCat,
+}: {
+  revenueCat: ReturnType<typeof useRevenueCat>
+}) {
+  const [action, setAction] = useState<
+    "paywall" | "restore" | "refresh" | "customer-center" | null
+  >(null)
+  const active = revenueCat.hasOneRepPro
+  const loading = revenueCat.status === "loading"
+  const unsupported = revenueCat.status === "unsupported"
+  const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
+  const disabled = unsupported || loading || action !== null
 
-function AiAccessBillingCard() {
-  const plans = usePlans({ for: "user", pageSize: 20 })
-  const subscription = useSubscription({ for: "user" })
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
-  const [canceling, setCanceling] = useState(false)
-
-  const aiPlan = (plans.data ?? []).find(
-    (plan) =>
-      plan.slug === AI_ACCESS_PLAN_SLUG ||
-      (AI_ACCESS_PLAN_ID ? plan.id === AI_ACCESS_PLAN_ID : false)
-  )
-  const planId = AI_ACCESS_PLAN_ID ?? aiPlan?.id
-  const aiSubscriptionItem = subscription.data?.subscriptionItems.find(
-    (item) =>
-      (item.plan.slug === AI_ACCESS_PLAN_SLUG ||
-        (AI_ACCESS_PLAN_ID ? item.plan.id === AI_ACCESS_PLAN_ID : false)) &&
-      item.status !== "ended" &&
-      !item.canceledAt
-  )
-  const upgraded = Boolean(aiSubscriptionItem)
-  const nextPaymentDate = formatBillingDate(aiSubscriptionItem?.nextPayment?.date)
-  const loadingBilling = plans.isLoading || subscription.isLoading
-
-  async function revalidateAiAccess(reason: "complete" | "close") {
+  async function runRevenueCatAction(
+    nextAction: Exclude<typeof action, null>,
+    task: () => Promise<unknown>,
+    successMessage?: string
+  ) {
+    if (action) return
+    hapticMedium()
+    setAction(nextAction)
     try {
-      await subscription.revalidate?.()
+      await task()
+      if (successMessage) toast.success(successMessage)
     } catch (error) {
-      logDevWarn(`Failed to refresh AI Access after checkout ${reason}`, error)
-      if (reason === "complete") {
-        toast.error("AI Access is enabled, but billing status did not refresh")
-      }
-    }
-  }
-
-  async function handleCancelPlan() {
-    if (!aiSubscriptionItem || canceling) return
-    setCanceling(true)
-    try {
-      await aiSubscriptionItem.cancel({})
-      await subscription.revalidate?.()
-      setConfirmCancelOpen(false)
-      toast.success("AI Access canceled")
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not cancel AI Access"
+      const message = revenueCatErrorMessage(
+        error,
+        "Subscription action failed"
       )
+      if (message !== "Purchase canceled") {
+        toast.error(message)
+      }
     } finally {
-      setCanceling(false)
+      setAction(null)
     }
   }
 
   return (
     <div className="px-4 py-4">
-      <div className="rounded-[22px] border border-border/35 bg-muted/25 p-4">
+      <div className="rounded-[12px] border border-border/45 bg-muted/20 p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[14px] font-semibold text-foreground/88">
-              AI Access
+              OneRep Pro
             </p>
             <p className="mt-1 text-[11px] leading-snug text-muted-foreground/50">
-              Optional $5/month access for AI metric generation, workout drafts,
-              and food photo analysis.
+              Entitlement: {ONEREP_PRO_ENTITLEMENT}. Package:{" "}
+              {MONTHLY_PACKAGE_IDENTIFIER}.
             </p>
           </div>
           <span
             className={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
-              upgraded
+              active
                 ? "bg-foreground text-background"
                 : "bg-background text-muted-foreground ring-1 ring-border/35"
             )}
           >
-            {upgraded ? "Active" : "$5/mo"}
+            {active ? "Active" : monthlyPrice}
           </span>
         </div>
 
-        {upgraded ? (
-          <div className="mt-4 grid gap-2">
-            <p className="text-[11px] text-muted-foreground/48">
-              {nextPaymentDate
-                ? `Next billing date: ${nextPaymentDate}`
-                : "Your AI Access subscription is active."}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                hapticMedium()
-                setConfirmCancelOpen(true)
-              }}
-              disabled={canceling}
-              aria-busy={canceling}
-              className="min-h-11 rounded-xl border border-destructive/20 bg-destructive/10 px-3 text-[13px] font-bold text-destructive transition-opacity active:opacity-70 disabled:opacity-50"
-            >
-              {canceling ? "Canceling…" : "Cancel AI Access"}
-            </button>
-          </div>
-        ) : planId ? (
-          <CheckoutButton
-            planId={planId}
-            planPeriod="month"
-            for="user"
-            onSubscriptionComplete={() => {
-              void revalidateAiAccess("complete")
-              toast.success("AI Access enabled")
-            }}
-            checkoutProps={{
-              onClose: () => void revalidateAiAccess("close"),
-            }}
-          >
-            <button
-              type="button"
-              className="mt-4 min-h-11 w-full rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
-            >
-              Upgrade to AI Access
-            </button>
-          </CheckoutButton>
-        ) : (
+        {revenueCat.error && (
+          <p className="mt-3 rounded-[10px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
+            {revenueCat.error}
+          </p>
+        )}
+
+        {unsupported ? (
+          <p className="mt-3 rounded-[10px] bg-background px-3 py-2 text-[11px] font-medium text-muted-foreground/60">
+            Purchases, paywalls, and Customer Center are available in the iOS
+            and Android apps.
+          </p>
+        ) : null}
+
+        <div className="mt-4 grid gap-2">
           <button
             type="button"
-            disabled
-            className="mt-4 min-h-11 w-full rounded-xl bg-muted px-3 text-[13px] font-bold text-muted-foreground/55"
+            disabled={disabled}
+            aria-busy={action === "paywall"}
+            onClick={() =>
+              void runRevenueCatAction(
+                "paywall",
+                revenueCat.presentPaywall,
+                "Subscription status updated"
+              )
+            }
+            className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
           >
-            {loadingBilling ? "Loading billing…" : "AI plan unavailable"}
+            {action === "paywall"
+              ? "Opening..."
+              : active
+                ? "View Pro"
+                : "Upgrade to Pro"}
           </button>
-        )}
-      </div>
 
-      {confirmCancelOpen && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-background/72 px-5 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-ai-access-title"
-        >
-          <div className="w-full max-w-sm rounded-[26px] border border-border/45 bg-card p-5 shadow-2xl">
-            <p
-              id="cancel-ai-access-title"
-              className="text-[17px] font-bold tracking-tight"
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "restore"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "restore",
+                  revenueCat.restorePurchases,
+                  "Purchases restored"
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
-              Cancel AI Access?
-            </p>
-            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/62">
-              Your core OneRep features stay free. Canceling only removes the
-              paid AI allowance after Clerk finishes the subscription change.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmCancelOpen(false)}
-                disabled={canceling}
-                className="min-h-11 rounded-xl bg-muted px-3 text-[13px] font-bold text-foreground/75 transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                Keep plan
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelPlan}
-                disabled={canceling}
-                aria-busy={canceling}
-                className="min-h-11 rounded-xl bg-destructive px-3 text-[13px] font-bold text-destructive-foreground transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                {canceling ? "Canceling…" : "Cancel plan"}
-              </button>
-            </div>
+              {action === "restore" ? "..." : "Restore"}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "refresh"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "refresh",
+                  revenueCat.refresh,
+                  "Subscription refreshed"
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+            >
+              {action === "refresh" ? "..." : "Refresh"}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "customer-center"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "customer-center",
+                  revenueCat.presentCustomerCenter
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+            >
+              {action === "customer-center" ? "..." : "Manage"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

@@ -20,10 +20,10 @@ import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
 import { toast } from "sonner"
-import { ClerkProvider, HandleSSOCallback, useAuth } from "@clerk/react"
-import { ConvexProviderWithClerk } from "convex/react-clerk"
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { cn, safeLocalStorageGet } from "@/lib/utils"
+import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 
 import "./index.css"
@@ -31,12 +31,9 @@ import "./index.css"
 declare global {
   interface Window {
     __onerepReactRoot?: Root
+    __onerepSignOut?: () => void | Promise<void>
   }
 }
-
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
-  | string
-  | undefined
 
 const posthogToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
 if (posthogToken) {
@@ -102,39 +99,15 @@ function shouldShowBottomBar(pathname: string) {
   )
 }
 
-function MissingClerkConfig() {
-  return (
-    <main className="mx-auto flex min-h-svh w-full max-w-xl items-center bg-background px-5 text-foreground">
-      <section className="w-full rounded-[24px] border border-border/70 bg-card p-5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
-        <p className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
-          Configuration
-        </p>
-        <h1 className="mt-2 text-[1.35rem] leading-tight font-semibold tracking-tight">
-          Clerk publishable key is missing
-        </h1>
-        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
-          Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to the mobile Vite
-          environment, then restart the dev server.
-        </p>
-        <div className="mt-4 rounded-[16px] bg-muted/55 px-3 py-2.5">
-          <code className="text-[12px] text-foreground/80">
-            VITE_CLERK_PUBLISHABLE_KEY=pk_...
-          </code>
-        </div>
-      </section>
-    </main>
-  )
-}
-
 function RouteFallback() {
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 text-center">
-      <section className="app-rail-surface p-5">
-        <div className="mx-auto mb-4 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
-        <h1 className="text-[1.25rem] font-semibold tracking-tight">
+    <main className="flex flex-col justify-center mx-auto px-5 w-full max-w-sm min-h-svh text-center">
+      <section className="p-5 app-rail-surface">
+        <div className="mx-auto mb-4 border-2 border-foreground/20 border-t-foreground rounded-full w-5 h-5 animate-spin" />
+        <h1 className="font-semibold text-[1.25rem] tracking-tight">
           Loading OneRep
         </h1>
-        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+        <p className="mt-2 text-[13px] text-muted-foreground/70 leading-5">
           Preparing your mobile workspace.
         </p>
       </section>
@@ -144,20 +117,20 @@ function RouteFallback() {
 
 function NotFound() {
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center bg-background px-5 py-[var(--app-safe-bottom-lg)] text-foreground">
-      <section className="rounded-[24px] border border-border/70 bg-card p-5 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
-        <p className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
+    <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center bg-background mx-auto px-5 w-full max-w-sm min-h-svh text-foreground">
+      <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-5 border border-border/70 rounded-[24px] text-center">
+        <p className="font-bold text-[10px] text-muted-foreground/55 uppercase tracking-[0.16em]">
           Not found
         </p>
-        <h1 className="mt-2 text-[1.35rem] leading-tight font-semibold tracking-tight">
+        <h1 className="mt-2 font-semibold text-[1.35rem] leading-tight tracking-tight">
           This page is not available
         </h1>
-        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+        <p className="mt-2 text-[13px] text-muted-foreground/70 leading-5">
           Check the link or return to OneRep.
         </p>
         <Link
           to="/"
-          className="mt-5 flex min-h-11 w-full items-center justify-center rounded-[14px] bg-foreground px-4 text-[14px] font-semibold text-background active:opacity-85"
+          className="flex justify-center items-center bg-foreground active:opacity-85 mt-5 px-4 rounded-[14px] w-full min-h-11 font-semibold text-[14px] text-background"
         >
           Go to OneRep
         </Link>
@@ -293,7 +266,7 @@ function NavSync() {
   )
 }
 
-function SSOCallback() {
+function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const rawNext = searchParams.get("next")
@@ -309,31 +282,27 @@ function SSOCallback() {
     navigate(destination, { replace: true })
   }
 
-  return (
-    <div className="min-h-svh bg-background text-foreground">
-      <HandleSSOCallback
-        navigateToApp={({ decorateUrl }) => {
-          navigateInApp(decorateUrl(nextPath))
-        }}
-        navigateToSignIn={() => navigate("/login", { replace: true })}
-        navigateToSignUp={() => navigate("/login", { replace: true })}
-      />
+  useEffect(() => {
+    navigateInApp(nextPath)
+  }, [nextPath])
 
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
-        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+  return (
+    <div className="bg-background min-h-svh text-foreground">
+      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
+        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
           />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1 className="mt-4 short-phone:mt-3 font-semibold text-[1.65rem] short-phone:text-[1.45rem] tracking-tight">
             OneRep
           </h1>
         </header>
 
-        <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
-          <p className="mt-4 text-[14px] font-semibold tracking-tight">
+        <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-4 short-phone:p-3.5 border border-border/70 rounded-[28px] short-phone:rounded-[24px] text-center">
+          <div className="mx-auto border-2 border-muted-foreground/20 border-t-foreground rounded-full w-8 h-8 animate-spin" />
+          <p className="mt-4 font-semibold text-[14px] tracking-tight">
             Finishing sign in...
           </p>
         </section>
@@ -522,7 +491,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/sso-callback",
-        element: <SSOCallback />,
+        element: <AuthCallback />,
       },
       {
         path: "/reset-password",
@@ -563,29 +532,23 @@ const root =
   window.__onerepReactRoot ??
   (window.__onerepReactRoot = createRoot(rootElement))
 
+window.__onerepSignOut = signOutApp
+
 root.render(
   <StrictMode>
-    {clerkPublishableKey ? (
-      <ClerkProvider publishableKey={clerkPublishableKey}>
-        <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-          <PostHogProvider client={posthog}>
-            <ThemeProvider>
-              <ErrorBoundary label="the app">
-                <OfflineSyncIndicator />
-                <Suspense fallback={<RouteFallback />}>
-                  <RouterProvider router={router} />
-                </Suspense>
-                <Toaster position="top-center" richColors />
-              </ErrorBoundary>
-            </ThemeProvider>
-          </PostHogProvider>
-        </ConvexProviderWithClerk>
-      </ClerkProvider>
-    ) : (
-      <ThemeProvider>
-        <MissingClerkConfig />
-      </ThemeProvider>
-    )}
+    <ConvexBetterAuthProvider client={convexClient} authClient={providerAuthClient}>
+      <PostHogProvider client={posthog}>
+        <ThemeProvider>
+          <ErrorBoundary label="the app">
+            <OfflineSyncIndicator />
+            <Suspense fallback={<RouteFallback />}>
+              <RouterProvider router={router} />
+            </Suspense>
+            <Toaster position="top-center" richColors />
+          </ErrorBoundary>
+        </ThemeProvider>
+      </PostHogProvider>
+    </ConvexBetterAuthProvider>
   </StrictMode>
 )
 
