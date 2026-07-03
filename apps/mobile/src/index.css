@@ -51,6 +51,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.onerep-confetti-root {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  overflow: hidden;
+}
+
+.onerep-confetti-piece {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  border-radius: 999px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  animation: onerep-confetti-burst 980ms var(--motion-ease-out) forwards;
+  animation-delay: var(--delay);
+}
+
+@keyframes onerep-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6) rotate(0deg);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(
+        calc(-50% + var(--x)),
+        calc(-50% + var(--y) + 180px)
+      )
+      scale(1)
+      rotate(var(--r));
+  }
+}
+
 
 @media (min-width: 768px) {
   .desktop-canvas {
