@@ -116,6 +116,10 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
 }
 
 function createWebPaywallHost() {
+  let close: (() => void) | null = null
+  const closed = new Promise<never>((_, reject) => {
+    close = () => reject(new Error("Purchase canceled"))
+  })
   const overlay = document.createElement("div")
   overlay.className = "onerep-revenuecat-paywall-overlay"
   overlay.setAttribute("role", "dialog")
@@ -124,15 +128,24 @@ function createWebPaywallHost() {
   const panel = document.createElement("div")
   panel.className = "onerep-revenuecat-paywall-panel"
 
+  const closeButton = document.createElement("button")
+  closeButton.type = "button"
+  closeButton.className = "onerep-revenuecat-paywall-close"
+  closeButton.setAttribute("aria-label", "Close paywall")
+  closeButton.textContent = "×"
+  closeButton.addEventListener("click", () => close?.())
+
   const target = document.createElement("div")
   target.className = "onerep-revenuecat-paywall-target"
 
+  panel.appendChild(closeButton)
   panel.appendChild(target)
   overlay.appendChild(panel)
   document.body.appendChild(overlay)
   document.body.style.overflow = "hidden"
 
   return {
+    closed,
     target,
     remove() {
       overlay.remove()
@@ -393,15 +406,18 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     if (!purchases) throw new Error("Paywall is not ready yet")
     const host = createWebPaywallHost()
     try {
-      const result = await purchases.presentPaywall({
-        offering: (state.currentOffering as WebOffering | null) ?? undefined,
-        customerEmail: options.email ?? undefined,
-        htmlTarget: host.target,
-        purchaseHtmlTarget: host.target,
-        onBack: (closePaywall) => {
-          closePaywall()
-        },
-      })
+      const result = await Promise.race([
+        purchases.presentPaywall({
+          offering: (state.currentOffering as WebOffering | null) ?? undefined,
+          customerEmail: options.email ?? undefined,
+          htmlTarget: host.target,
+          purchaseHtmlTarget: host.target,
+          onBack: (closePaywall) => {
+            closePaywall()
+          },
+        }),
+        host.closed,
+      ])
       setState((current) => ({
         ...current,
         customerInfo: result.customerInfo,
