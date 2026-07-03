@@ -8,9 +8,6 @@ import {
   type PurchasesOffering,
   type PurchasesPackage,
 } from "@revenuecat/purchases-capacitor"
-import {
-  RevenueCatUI,
-} from "@revenuecat/purchases-capacitor-ui"
 import type {
   CustomerInfo as WebCustomerInfo,
   Offering as WebOffering,
@@ -328,33 +325,17 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     return customerInfo
   }, [isNative, options.email, refresh, state.monthlyPackage])
 
-  const presentCustomerCenter = useCallback(async () => {
-    if (isNative) {
-      await RevenueCatUI.presentCustomerCenter()
-      await refresh()
-      return
-    }
-    const url = state.customerInfo?.managementURL
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer")
-      return
-    }
-    throw new Error("No subscription management link is available yet")
-  }, [isNative, refresh, state.customerInfo?.managementURL])
-
   return useMemo(
     () => ({
       ...state,
       hasOneRepPro: hasOneRepPro(state.customerInfo),
       monthlyPrice: monthlyPriceString(state.monthlyPackage),
-      presentCustomerCenter,
       purchaseMonthly,
       refresh,
       restorePurchases,
       subscriptionManagementUrl: state.customerInfo?.managementURL ?? null,
     }),
     [
-      presentCustomerCenter,
       purchaseMonthly,
       refresh,
       restorePurchases,
