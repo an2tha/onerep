@@ -1993,7 +1993,7 @@ function ActiveSetRow({
   }
 
   const fieldCls = cn(
-    "h-12 w-full rounded-[10px] border px-3 text-center text-[17px] font-semibold tabular-nums transition-all outline-none",
+    "h-11 w-full rounded-md border px-3 text-center text-[16px] font-semibold tabular-nums transition-all outline-none",
     "placeholder:text-muted-foreground/30",
     "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
     set.completed
@@ -2002,7 +2002,7 @@ function ActiveSetRow({
     "disabled:pointer-events-none"
   )
   const compactFieldCls = cn(
-    "h-10 w-full rounded-[10px] border px-2.5 text-center text-[14px] font-semibold tabular-nums transition-all outline-none",
+    "h-9 w-full rounded-md border px-2.5 text-center text-[14px] font-semibold tabular-nums transition-all outline-none",
     "placeholder:text-muted-foreground/25",
     "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
     set.completed
@@ -2023,14 +2023,14 @@ function ActiveSetRow({
     <>
       <div
         className={cn(
-          "relative hidden items-center gap-2 px-3.5 py-2 transition-colors md:grid",
+          "relative hidden items-center gap-2 px-3 py-2 transition-colors md:grid",
           desktopGridClass,
           set.completed && "bg-muted/15",
           isNext && !set.completed && "bg-primary/[0.028]"
         )}
       >
         {isNext && !set.completed && (
-          <div className="absolute inset-y-2 left-0 w-1 rounded-r-full bg-primary/35" />
+          <div className="absolute inset-y-2 left-0 w-px rounded-r-full bg-primary/35" />
         )}
         <span className="text-center text-[12px] font-semibold text-muted-foreground/70 tabular-nums">
           {index + 1}
@@ -2040,7 +2040,7 @@ function ActiveSetRow({
           disabled={set.completed}
           aria-label={`Set mode: ${cfg.label}. Tap to change.`}
           title={`Set mode: ${cfg.label}`}
-          className="flex h-10 items-center justify-center rounded-[10px] px-2 text-[11px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
+          className="flex h-9 items-center justify-center rounded-md px-2 text-[11px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
           style={{
             backgroundColor: set.completed
               ? "color-mix(in srgb, var(--muted) 70%, transparent)"
@@ -2117,7 +2117,7 @@ function ActiveSetRow({
           <button
             onClick={() => setShowRest(true)}
             aria-label="Set rest timer"
-            className="flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-border/40 bg-muted/20 px-2 text-[12px] font-semibold text-muted-foreground/75 transition-colors active:bg-muted/50"
+            className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-border/35 bg-transparent px-2 text-[12px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/35"
           >
             <Timer size={13} />
             <span className="tabular-nums">{formatRest(set.restSeconds)}</span>
@@ -2129,10 +2129,10 @@ function ActiveSetRow({
             set.completed ? "Mark set incomplete" : "Mark set complete"
           }
           className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-[10px] border transition-colors active:bg-muted/60",
+            "flex h-9 w-9 items-center justify-center rounded-md border transition-colors active:bg-muted/45",
             set.completed
-              ? "border-primary/25 bg-primary/[0.10] text-primary"
-              : "border-border/40 bg-muted/15 text-muted-foreground/60"
+              ? "border-border/45 bg-muted/55 text-foreground/70"
+              : "border-border/35 bg-transparent text-muted-foreground/60"
           )}
         >
           <Check size={14} weight="bold" />
@@ -2142,7 +2142,7 @@ function ActiveSetRow({
             <button
               onClick={onDelete}
               aria-label="Delete set"
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
             >
               <X size={14} weight="bold" />
             </button>
@@ -2153,37 +2153,37 @@ function ActiveSetRow({
       <div
         className={cn(
           "relative px-3 py-3 transition-[background-color,transform,box-shadow] duration-300 md:hidden",
-          set.completed && "bg-muted/15",
-          isNext && !set.completed && "bg-primary/[0.028]",
-          completionPulse && "scale-[1.01]",
+          set.completed && "bg-muted/[0.12]",
+          isNext && !set.completed && "bg-muted/[0.10]",
+          completionPulse && "bg-muted/20",
           !set.completed && !isNext && "bg-background"
         )}
         style={
           completionPulse
             ? {
                 boxShadow:
-                  "inset 0 0 0 1px color-mix(in srgb, var(--border) 80%, transparent)",
+                  "inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent)",
               }
             : isNext && !set.completed
               ? {
                   boxShadow:
-                    "inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, transparent)",
+                    "inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent)",
                 }
               : undefined
         }
       >
         {isNext && !set.completed && (
-          <div className="absolute inset-y-3 left-0 w-1 rounded-r-full bg-primary/35" />
+          <div className="absolute inset-y-3 left-0 w-px rounded-r-full bg-foreground/25" />
         )}
         <div className="mb-2 flex items-center gap-2">
           <span
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] text-[12px] font-bold tabular-nums select-none",
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[12px] font-bold tabular-nums select-none",
               set.completed
-                ? "bg-muted/60 text-foreground/65"
+                ? "bg-muted/45 text-foreground/60"
                 : isNext
-                  ? "bg-primary/[0.09] text-primary"
-                  : "bg-muted/45 text-muted-foreground/70"
+                  ? "bg-muted/55 text-foreground/75"
+                  : "bg-muted/35 text-muted-foreground/65"
             )}
           >
             {index + 1}
@@ -2194,28 +2194,19 @@ function ActiveSetRow({
             aria-label={`Set mode: ${cfg.label}. Tap to change.`}
             title={`Set mode: ${cfg.label}`}
             className={cn(
-              "flex h-10 min-w-[6.25rem] shrink-0 items-center justify-center rounded-[10px] px-3 transition-all select-none active:scale-[0.985] disabled:pointer-events-none",
-              isNext && !set.completed && "ring-1 ring-primary/15"
+              "flex h-8 min-w-[5.5rem] shrink-0 items-center justify-center rounded-md border border-border/35 px-2.5 transition-colors select-none active:bg-muted/35 disabled:pointer-events-none"
             )}
-            style={{
-              backgroundColor: set.completed
-                ? "color-mix(in srgb, var(--muted) 70%, transparent)"
-                : cfg.bg,
-            }}
           >
             {set.completed ? (
               <Check size={15} weight="bold" className="text-foreground/65" />
             ) : (
-              <span
-                className="truncate text-[11.5px] font-bold"
-                style={{ color: cfg.color }}
-              >
+              <span className="truncate text-[11px] font-bold text-muted-foreground/75">
                 {cfg.label}
               </span>
             )}
           </button>
           {isNext && !set.completed && (
-            <span className="app-data-chip border-primary/20 bg-primary/[0.08] text-primary/80">
+            <span className="rounded-md bg-muted/45 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
               Next
             </span>
           )}
@@ -2223,10 +2214,10 @@ function ActiveSetRow({
             <button
               onClick={() => setShowRest(true)}
               aria-label="Set rest timer"
-              className="ml-auto flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-border/40 bg-muted/20 px-3 transition-all active:scale-[0.985] active:bg-muted/50"
+              className="ml-auto flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border/35 bg-transparent px-2.5 transition-colors active:bg-muted/35"
             >
               <Timer size={13} className="text-muted-foreground/55" />
-              <span className="text-[12px] font-semibold text-foreground/70 tabular-nums">
+              <span className="text-[11px] font-semibold text-foreground/65 tabular-nums">
                 {formatRest(set.restSeconds)}
               </span>
             </button>
@@ -2235,7 +2226,7 @@ function ActiveSetRow({
             <button
               onClick={onDelete}
               aria-label="Delete set"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
             >
               <X size={14} weight="bold" />
             </button>
@@ -2251,7 +2242,7 @@ function ActiveSetRow({
           )}
         >
           <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+            <span className="px-0.5 text-[10px] leading-none font-semibold text-muted-foreground/50">
               Weight
             </span>
             <WeightSelectorButton
@@ -2312,11 +2303,11 @@ function ActiveSetRow({
               set.completed ? "Mark set incomplete" : "Mark set complete"
             }
             className={cn(
-              "flex h-12 items-center justify-center rounded-[10px] border text-[13px] font-bold transition-all active:scale-[0.985]",
+              "flex h-11 items-center justify-center rounded-md border text-[13px] font-bold transition-colors active:bg-muted/35",
               fullWidthComplete ? "col-span-2 gap-2" : "w-full",
               set.completed
-                ? "border-primary/25 bg-primary/[0.10] text-primary shadow-sm"
-                : "border-border/40 bg-muted/15 text-muted-foreground/55 active:border-primary/25 active:bg-primary/[0.05] active:text-primary",
+                ? "border-border/45 bg-muted/55 text-foreground/70"
+                : "border-border/35 bg-transparent text-muted-foreground/55",
               completionPulse && "motion-set-complete"
             )}
           >
@@ -2925,9 +2916,9 @@ function ActiveExerciseCard({
       className={cn(
         "relative flex overflow-hidden transition-[opacity,transform] duration-150",
         inSuperset
-          ? "border-t border-border/45 bg-transparent first:border-t-0"
-          : "rounded-[20px] border bg-card md:rounded-[22px]",
-        !inSuperset && (allDone ? "border-primary/25" : "border-border/55"),
+          ? "border-t border-border/35 bg-transparent first:border-t-0"
+          : "rounded-[12px] border border-border/45 bg-card",
+        !inSuperset && allDone && "border-border/55",
         isDragging && "scale-[0.985] opacity-25"
       )}
     >
@@ -2937,34 +2928,24 @@ function ActiveExerciseCard({
       {showLineAfter && (
         <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
       )}
-      {!inSuperset && (
-        <div
-          className="w-[3px] shrink-0 transition-colors duration-300"
-          style={{
-            background: allDone
-              ? "color-mix(in srgb, var(--primary) 36%, transparent)"
-              : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
-          }}
-        />
-      )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={cn("px-3 py-3 sm:px-4 md:py-3", inSuperset && "pl-4")}>
-          <div className="flex items-start gap-2">
+        <div className={cn("px-3 py-2.5 md:py-3", inSuperset && "pl-4")}>
+          <div className="flex items-center gap-2">
             {dragHandlers && (
               <div
                 {...dragHandlers}
                 role="button"
                 aria-label="Reorder exercise"
-                className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:bg-muted/50 active:text-muted-foreground/70 md:h-9"
+                className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/30 transition-colors select-none active:cursor-grabbing active:bg-muted/35 active:text-muted-foreground/65"
               >
-                <DotsSixVertical size={15} weight="bold" />
+                <DotsSixVertical size={14} weight="bold" />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] leading-tight font-semibold tracking-tight md:text-[14.5px]">
+              <p className="truncate text-[14px] leading-tight font-semibold tracking-tight">
                 {exercise.name}
               </p>
-              <p className="mt-1 truncate text-[11.5px] text-muted-foreground/55 md:text-[11px]">
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/50">
                 {collapsed
                   ? isCardio
                     ? compactCardioSummary(
@@ -2977,10 +2958,10 @@ function ActiveExerciseCard({
             </div>
             <span
               className={cn(
-                "mt-0.5 shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold tracking-tight tabular-nums transition-colors",
+                "shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold tracking-tight tabular-nums transition-colors",
                 allDone
-                  ? "bg-primary/[0.10] text-primary"
-                  : "bg-muted/45 text-muted-foreground/70"
+                  ? "bg-muted/60 text-foreground/65"
+                  : "bg-muted/35 text-muted-foreground/65"
               )}
             >
               {isCardio
@@ -2990,7 +2971,7 @@ function ActiveExerciseCard({
                 : `${doneSets}/${data.sets.length}`}
             </span>
           </div>
-          <div className="mt-2.5 flex items-center gap-1.5">
+          <div className="mt-2 flex items-center gap-1">
             {!isCardio && (
               <>
                 <DropdownMenu>
@@ -2998,7 +2979,7 @@ function ActiveExerciseCard({
                     <button
                       type="button"
                       aria-label={`Tracking options for ${exercise.name}`}
-                      className="flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-border/45 bg-muted/20 px-3 text-[10.5px] font-bold tracking-[0.12em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:flex-none md:px-3.5"
+                      className="flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border border-border/35 bg-transparent px-2.5 text-[10px] font-bold tracking-[0.08em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/35 md:flex-none"
                     >
                       Track
                       <span className="truncate text-[11px] tracking-normal text-foreground/60">
@@ -3043,10 +3024,10 @@ function ActiveExerciseCard({
                       : "Add bar weight"
                   }
                   className={cn(
-                    "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[10.5px] font-bold tracking-[0.12em] uppercase transition-colors md:flex-none",
+                    "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors md:flex-none",
                     hasBarWeight
-                      ? "border-foreground/10 bg-foreground text-background"
-                      : "border-border/45 bg-muted/20 text-muted-foreground/70 active:bg-muted/50"
+                      ? "border-border/50 bg-muted/55 text-foreground/75"
+                      : "border-border/35 bg-transparent text-muted-foreground/65 active:bg-muted/35"
                   )}
                 >
                   <Barbell size={13} weight="bold" />
@@ -3054,7 +3035,7 @@ function ActiveExerciseCard({
                     {barLabel}
                   </span>
                   {hasBarWeight && (
-                    <span className="hidden max-w-20 truncate text-[10px] tracking-normal opacity-70 sm:inline">
+                    <span className="hidden max-w-20 truncate text-[10px] tracking-normal opacity-60 sm:inline">
                       {barModeLabel}
                     </span>
                   )}
@@ -3062,9 +3043,9 @@ function ActiveExerciseCard({
                 <button
                   onClick={onShowHistory}
                   aria-label="Open exercise history"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/55 transition-colors active:bg-muted/50 active:text-foreground"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors active:bg-muted/35 active:text-foreground"
                 >
-                  <ChartLine size={16} weight="bold" />
+                  <ChartLine size={15} weight="bold" />
                 </button>
               </>
             )}
@@ -3072,27 +3053,27 @@ function ActiveExerciseCard({
               <button
                 onClick={onAiChange}
                 aria-label={`AI change ${exercise.name}`}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/55 transition-colors active:bg-muted/50 active:text-foreground"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors active:bg-muted/35 active:text-foreground"
               >
-                <Sparkle size={15} weight="fill" />
+                <Sparkle size={14} weight="fill" />
               </button>
             )}
             <button
               onClick={onRemove}
               aria-label="Remove exercise"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/45 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
             >
-              <X size={16} weight="bold" />
+              <X size={15} weight="bold" />
             </button>
             <button
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground/60 transition-colors active:bg-muted/50 active:text-foreground"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/55 transition-colors active:bg-muted/35 active:text-foreground"
             >
               {collapsed ? (
-                <CaretDown size={16} weight="bold" />
+                <CaretDown size={15} weight="bold" />
               ) : (
-                <CaretUp size={16} weight="bold" />
+                <CaretUp size={15} weight="bold" />
               )}
             </button>
           </div>
@@ -3120,12 +3101,10 @@ function ActiveExerciseCard({
                   .join("  ")
                 return (
                   <div
-                    className="flex items-center gap-2 px-4 py-2.5"
+                    className="flex items-center gap-2 px-3 py-2"
                     style={{
                       borderTop:
-                        "1px solid color-mix(in srgb, var(--border) 65%, transparent)",
-                      background:
-                        "color-mix(in srgb, var(--muted) 18%, transparent)",
+                        "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
                     }}
                   >
                     <ClockCounterClockwise
@@ -3136,7 +3115,7 @@ function ActiveExerciseCard({
                         flexShrink: 0,
                       }}
                     />
-                    <span className="text-[11px] font-medium text-muted-foreground/50">
+                    <span className="text-[10.5px] font-medium text-muted-foreground/45">
                       {new Date(
                         `${lastSession.date}T12:00:00Z`
                       ).toLocaleDateString("en-US", {
@@ -3144,7 +3123,7 @@ function ActiveExerciseCard({
                         day: "numeric",
                       })}
                     </span>
-                    <span className="min-w-0 truncate text-[11px] text-muted-foreground/60 tabular-nums">
+                    <span className="min-w-0 truncate text-[10.5px] text-muted-foreground/55 tabular-nums">
                       {summary}
                     </span>
                   </div>
@@ -3161,12 +3140,12 @@ function ActiveExerciseCard({
                 <div
                   style={{
                     borderTop:
-                      "1px solid color-mix(in srgb, var(--border) 65%, transparent)",
+                      "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
                   }}
                 >
                   <div
                     className={cn(
-                      "hidden items-center gap-2 border-b border-border/30 bg-muted/15 px-3.5 py-2 text-[10px] font-bold tracking-[0.12em] text-muted-foreground/55 uppercase md:grid",
+                      "hidden items-center gap-2 border-b border-border/25 px-3 py-2 text-[10px] font-semibold text-muted-foreground/50 md:grid",
                       setGridClass(data.trackUnilateral, data.trackRpe)
                     )}
                   >
@@ -3223,14 +3202,14 @@ function ActiveExerciseCard({
                 </div>
                 <button
                   onClick={addSet}
-                  className="flex h-12 w-full items-center justify-center gap-2 text-muted-foreground/50 transition-colors active:bg-muted/30 active:text-foreground"
+                  className="flex h-10 w-full items-center justify-center gap-2 text-muted-foreground/45 transition-colors active:bg-muted/25 active:text-foreground"
                   style={{
                     borderTop:
-                      "1px solid color-mix(in srgb, var(--border) 55%, transparent)",
+                      "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
                   }}
                 >
                   <Plus size={14} weight="bold" />
-                  <span className="text-[11px] font-bold tracking-[0.14em] uppercase">
+                  <span className="text-[11px] font-semibold">
                     Add set
                   </span>
                 </button>
