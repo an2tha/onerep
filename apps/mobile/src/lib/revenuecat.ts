@@ -9,16 +9,13 @@ import {
   type PurchasesPackage,
 } from "@revenuecat/purchases-capacitor"
 import {
-  PaywallPresentationConfiguration,
   RevenueCatUI,
-  type PaywallResult,
 } from "@revenuecat/purchases-capacitor-ui"
 import type {
   CustomerInfo as WebCustomerInfo,
   Offering as WebOffering,
   Package as WebPackage,
   Purchases as WebPurchases,
-  PaywallPurchaseResult,
 } from "@revenuecat/purchases-js"
 
 export const REVENUECAT_API_KEY =
@@ -113,45 +110,6 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
     return monthlyPackage.product.priceString
   }
   return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
-}
-
-function createWebPaywallHost() {
-  let close: (() => void) | null = null
-  const closed = new Promise<never>((_, reject) => {
-    close = () => reject(new Error("Purchase canceled"))
-  })
-  const overlay = document.createElement("div")
-  overlay.className = "onerep-revenuecat-paywall-overlay"
-  overlay.setAttribute("role", "dialog")
-  overlay.setAttribute("aria-modal", "true")
-
-  const panel = document.createElement("div")
-  panel.className = "onerep-revenuecat-paywall-panel"
-
-  const closeButton = document.createElement("button")
-  closeButton.type = "button"
-  closeButton.className = "onerep-revenuecat-paywall-close"
-  closeButton.setAttribute("aria-label", "Close paywall")
-  closeButton.textContent = "×"
-  closeButton.addEventListener("click", () => close?.())
-
-  const target = document.createElement("div")
-  target.className = "onerep-revenuecat-paywall-target"
-
-  panel.appendChild(closeButton)
-  panel.appendChild(target)
-  overlay.appendChild(panel)
-  document.body.appendChild(overlay)
-  document.body.style.overflow = "hidden"
-
-  return {
-    closed,
-    target,
-    remove() {
-      overlay.remove()
-      document.body.style.overflow = ""
-    },
-  }
 }
 
 async function configureRevenueCat(appUserId: string) {
@@ -370,67 +328,6 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     return customerInfo
   }, [isNative, options.email, refresh, state.monthlyPackage])
 
-  const presentPaywall = useCallback(async (): Promise<
-    PaywallResult | PaywallPurchaseResult
-  > => {
-    if (isNative) {
-      const result = await RevenueCatUI.presentPaywallIfNeeded({
-        requiredEntitlementIdentifier: ONEREP_PRO_ENTITLEMENT,
-        offering: (state.currentOffering as PurchasesOffering | null) ?? undefined,
-        presentationConfiguration: PaywallPresentationConfiguration.DEFAULT,
-        displayCloseButton: true,
-        listener: {
-          onPurchaseCompleted({ customerInfo }) {
-            setState((current) => ({
-              ...current,
-              customerInfo,
-              error: null,
-              status: "ready",
-            }))
-          },
-          onRestoreCompleted({ customerInfo }) {
-            setState((current) => ({
-              ...current,
-              customerInfo,
-              error: null,
-              status: "ready",
-            }))
-          },
-        },
-      })
-      await refresh()
-      return result
-    }
-
-    const purchases = webPurchasesRef.current
-    if (!purchases) throw new Error("Paywall is not ready yet")
-    const host = createWebPaywallHost()
-    try {
-      const result = await Promise.race([
-        purchases.presentPaywall({
-          offering: (state.currentOffering as WebOffering | null) ?? undefined,
-          customerEmail: options.email ?? undefined,
-          htmlTarget: host.target,
-          purchaseHtmlTarget: host.target,
-          onBack: (closePaywall) => {
-            closePaywall()
-          },
-        }),
-        host.closed,
-      ])
-      setState((current) => ({
-        ...current,
-        customerInfo: result.customerInfo,
-        error: null,
-        status: "ready",
-      }))
-      await refresh()
-      return result
-    } finally {
-      host.remove()
-    }
-  }, [isNative, options.email, refresh, state.currentOffering])
-
   const presentCustomerCenter = useCallback(async () => {
     if (isNative) {
       await RevenueCatUI.presentCustomerCenter()
@@ -451,7 +348,6 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       hasOneRepPro: hasOneRepPro(state.customerInfo),
       monthlyPrice: monthlyPriceString(state.monthlyPackage),
       presentCustomerCenter,
-      presentPaywall,
       purchaseMonthly,
       refresh,
       restorePurchases,
@@ -459,7 +355,6 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     }),
     [
       presentCustomerCenter,
-      presentPaywall,
       purchaseMonthly,
       refresh,
       restorePurchases,

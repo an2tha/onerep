@@ -1459,7 +1459,7 @@ function RevenueCatSubscriptionPanel({
   revenueCat: ReturnType<typeof useRevenueCat>
 }) {
   const [action, setAction] = useState<
-    "paywall" | "restore" | "refresh" | "customer-center" | null
+    "purchase" | "restore" | "refresh" | "customer-center" | null
   >(null)
   const active = revenueCat.hasOneRepPro
   const loading = revenueCat.status === "loading"
@@ -1533,18 +1533,18 @@ function RevenueCatSubscriptionPanel({
           <button
             type="button"
             disabled={disabled}
-            aria-busy={action === "paywall"}
+            aria-busy={action === "purchase"}
             onClick={() =>
               void runRevenueCatAction(
-                "paywall",
-                revenueCat.presentPaywall,
+                "purchase",
+                revenueCat.purchaseMonthly,
                 "Subscription status updated"
               )
             }
             className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
           >
-            {action === "paywall"
-              ? "Opening..."
+            {action === "purchase"
+              ? "Starting checkout..."
               : active
                 ? "View Pro"
                 : "Upgrade to Pro"}
