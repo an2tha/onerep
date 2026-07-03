@@ -4,6 +4,11 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "CONVEX_DEPLOYMENT",
+        "VITE_CLERK_PUBLISHABLE_KEY",
+        "VITE_CONVEX_URL"
+      ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
     "lint": {

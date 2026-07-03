@@ -7,6 +7,7 @@ import {
   type FoodLogEntry,
   type MealType,
 } from "./food-log"
+import { createClientId } from "./utils"
 
 const DEFAULT_SNAP_GRAMS = 100
 const MAX_SNAP_GRAMS = 5000
@@ -382,9 +383,7 @@ export function scaleFoodForGrams(food: FoodResult, grams: number) {
 }
 
 function createFoodLogId() {
-  return (
-    globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)
-  )
+  return createClientId()
 }
 
 export function buildSnapFoodLogEntry(

@@ -1,13 +1,20 @@
 import {
   useEffect,
+  useRef,
   useState,
   type FormEvent,
 } from "react"
-import { useAuth, useSignIn, useSignUp } from "@clerk/react"
-import { AppleLogo, GoogleLogo } from "@phosphor-icons/react"
-import { getAuthCallbackUrl } from "@/lib/auth-redirects"
+import { useSearchParams } from "react-router"
+import { AppleLogo, Eye, EyeSlash, GoogleLogo } from "@phosphor-icons/react"
+import { safeAuthRedirectPath } from "@/lib/auth-session"
+import {
+  authClient,
+  betterAuthErrorMessage,
+  useAppAuth,
+} from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 
 type LoginMode = "signin" | "signup"
 type OAuthStrategy = "oauth_google" | "oauth_apple"
@@ -21,14 +28,16 @@ const INPUT_CLASS =
 const CODE_INPUT_CLASS =
   "mt-2 min-h-10 w-full bg-transparent text-[22px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/25 disabled:opacity-60"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const SSO_CALLBACK_PATH = "/sso-callback"
+const AUTH_ACTION_TIMEOUT_MS = 20_000
 
 const OAUTH_PROVIDERS: {
   label: string
   strategy: OAuthStrategy
   icon: typeof GoogleLogo
+  disabled?: boolean
 }[] = [
-  { label: "Google", strategy: "oauth_google", icon: GoogleLogo },
+  { label: "Google", strategy: "oauth_google", icon: GoogleLogo, disabled: true },
+  { label: "Apple", strategy: "oauth_apple", icon: AppleLogo },
 ]
 
 const INTRO_SLIDES = [
@@ -49,23 +58,25 @@ const INTRO_SLIDES = [
   },
 ]
 
-function clerkErrorMessage(error: unknown, fallback: string) {
-  if (!error) return fallback
-  if (typeof error === "object" && error !== null) {
-    const maybeError = error as {
-      longMessage?: unknown
-      message?: unknown
-      errors?: { longMessage?: unknown; message?: unknown }[]
-    }
-    const nested = maybeError.errors?.[0]
-    const message =
-      nested?.longMessage ??
-      nested?.message ??
-      maybeError.longMessage ??
-      maybeError.message
-    if (typeof message === "string" && message.length > 0) return message
+function authActionTimeoutMessage(label: string) {
+  return `${label} is taking too long. Check your connection and try again.`
+}
+
+async function withAuthActionTimeout<T>(label: string, action: Promise<T>) {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      action,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error(authActionTimeoutMessage(label)))
+        }, AUTH_ACTION_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
   }
-  return fallback
 }
 
 function IntroIllustration({ index }: { index: number }) {
@@ -89,14 +100,14 @@ function IntroIllustration({ index }: { index: number }) {
 
   return (
     <div
-      className="mx-auto px-4 py-3.5 w-full max-w-[19rem] app-rail-surface"
+      className="app-rail-surface mx-auto w-full max-w-[19rem] px-4 py-3.5"
       style={{ "--rail-color": rows[0][2] } as React.CSSProperties}
     >
-      <div className="flex justify-between items-baseline mb-3">
-        <span className="text-muted-foreground/60 app-eyebrow">
+      <div className="mb-3 flex items-baseline justify-between">
+        <span className="app-eyebrow text-muted-foreground/60">
           Today ledger
         </span>
-        <span className="font-semibold text-[10px] text-muted-foreground/45">
+        <span className="text-[10px] font-semibold text-muted-foreground/45">
           OneRep
         </span>
       </div>
@@ -104,13 +115,13 @@ function IntroIllustration({ index }: { index: number }) {
         {rows.map(([label, value, color]) => (
           <div key={label} className="flex items-center gap-3 py-2.5">
             <span
-              className="rounded-full w-2 h-2 shrink-0"
+              className="h-2 w-2 shrink-0 rounded-full"
               style={{ backgroundColor: color }}
             />
-            <span className="flex-1 min-w-0 font-semibold text-[13px] text-left truncate">
+            <span className="min-w-0 flex-1 truncate text-left text-[13px] font-semibold">
               {label}
             </span>
-            <span className="font-semibold tabular-nums text-[12px] text-muted-foreground/65">
+            <span className="text-[12px] font-semibold text-muted-foreground/65 tabular-nums">
               {value}
             </span>
           </div>
@@ -120,21 +131,41 @@ function IntroIllustration({ index }: { index: number }) {
   )
 }
 
+function AuthRedirectFallback() {
+  return (
+    <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center bg-background px-5 text-center">
+      <section className="app-rail-surface p-5">
+        <div className="mx-auto mb-4 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+        <h1 className="text-[1.25rem] font-semibold tracking-tight">
+          Opening OneRep
+        </h1>
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+          Your sign-in is ready. Sending you back to where you left off.
+        </p>
+      </section>
+    </main>
+  )
+}
+
 export default function Login() {
   const navigate = useSmoothNavigate()
+  const [searchParams] = useSearchParams()
   const posthog = usePostHog()
-  const { isLoaded: authLoaded, isSignedIn } = useAuth()
-  const { signIn } = useSignIn()
-  const { signUp } = useSignUp()
-  const [mode, setMode] = useState<LoginMode>("signin")
+  const { isLoaded: authLoaded, isSignedIn } = useAppAuth()
+  const requestedMode =
+    searchParams.get("mode") === "signup" ? "signup" : "signin"
+  const nextPath = safeAuthRedirectPath(searchParams.get("next"))
+  const [mode, setMode] = useState<LoginMode>(requestedMode)
   const [showIntro, setShowIntro] = useState(() => {
+    if (searchParams.has("mode")) return false
     if (typeof window === "undefined") return false
-    return localStorage.getItem(PRELOGIN_SEEN_KEY) !== "true"
+    return safeLocalStorageGet(PRELOGIN_SEEN_KEY) !== "true"
   })
   const [introIndex, setIntroIndex] = useState(0)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [verificationCode, setVerificationCode] = useState("")
   const [verificationMode, setVerificationMode] = useState<
     "signup" | "signin" | null
@@ -144,13 +175,21 @@ export default function Login() {
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<OAuthStrategy | null>(null)
+  const authActionRef = useRef(false)
   const submitting = loading || oauthLoading !== null
+  const redirectingSignedInUser = authLoaded && isSignedIn
 
   useEffect(() => {
-    if (authLoaded && isSignedIn) {
-      navigate("/", { replace: true })
+    if (redirectingSignedInUser) {
+      navigate(nextPath, { replace: true })
     }
-  }, [authLoaded, isSignedIn, navigate])
+  }, [navigate, nextPath, redirectingSignedInUser])
+
+  function redirectIfSignedIn() {
+    if (!isSignedIn) return false
+    navigate(nextPath, { replace: true })
+    return true
+  }
 
   function switchMode(nextMode: LoginMode) {
     setMode(nextMode)
@@ -159,13 +198,12 @@ export default function Login() {
     setVerificationCode("")
     setVerificationMode(null)
     setPendingEmail("")
-    void signIn?.reset()
-    void signUp?.reset()
+    setShowPassword(false)
   }
 
   function finishIntro(nextMode: LoginMode) {
     if (typeof window !== "undefined") {
-      localStorage.setItem(PRELOGIN_SEEN_KEY, "true")
+      safeLocalStorageSet(PRELOGIN_SEEN_KEY, "true")
     }
     switchMode(nextMode)
     setShowIntro(false)
@@ -193,54 +231,39 @@ export default function Login() {
   }
 
   async function handleOAuth(strategy: OAuthStrategy) {
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
     const provider = OAUTH_PROVIDERS.find((item) => item.strategy === strategy)
     const providerLabel = provider?.label ?? "OAuth"
-    const finalPath = mode === "signup" ? "/onboarding" : "/"
-    const callbackPath =
-      mode === "signup"
-        ? `${SSO_CALLBACK_PATH}?next=onboarding`
-        : SSO_CALLBACK_PATH
 
+    authActionRef.current = true
     setError(undefined)
     setMessage(undefined)
     setVerificationCode("")
     setVerificationMode(null)
     setPendingEmail("")
+    setShowPassword(false)
     setOauthLoading(strategy)
 
     try {
-      const result =
-        mode === "signup"
-          ? await signUp.sso({
-              strategy,
-              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
-              redirectUrl: getAuthCallbackUrl(finalPath),
-            })
-          : await signIn.sso({
-              strategy,
-              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
-              redirectUrl: getAuthCallbackUrl(finalPath),
-            })
-
-      if (result.error) {
-        setError(
-          clerkErrorMessage(
-            result.error,
-            `Could not continue with ${providerLabel}`
-          )
-        )
-      }
+      setError(
+        `${providerLabel} sign-in is not configured in Better Auth yet. Use email and password for now.`
+      )
     } catch (error) {
       setError(
-        clerkErrorMessage(error, `Could not continue with ${providerLabel}`)
+        betterAuthErrorMessage(error, `Could not continue with ${providerLabel}`)
       )
     } finally {
+      authActionRef.current = false
       setOauthLoading(null)
     }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (redirectIfSignedIn()) return
+
     if (verificationMode) {
       await handleVerificationSubmit()
       return
@@ -253,92 +276,65 @@ export default function Login() {
       setError("Enter your email")
       return
     }
+    if (authActionRef.current || submitting) return
 
+    authActionRef.current = true
     setLoading(true)
 
     try {
       if (mode === "signin") {
-        const { error } = await signIn.password({
-          identifier: trimmedEmail,
-          password,
-        })
+        const { error } = await withAuthActionTimeout(
+          "Sign in",
+          authClient.signIn.email({
+            email: trimmedEmail,
+            password,
+            rememberMe: true,
+          })
+        )
         if (error) {
-          setError(clerkErrorMessage(error, "Sign in failed"))
+          setError(betterAuthErrorMessage(error, "Sign in failed"))
           return
         }
 
-        if (signIn.status === "complete") {
-          const finalized = await signIn.finalize()
-          if (finalized.error) {
-            setError(clerkErrorMessage(finalized.error, "Sign in failed"))
-            return
-          }
-          posthog.identify(trimmedEmail, { email: trimmedEmail })
-          posthog.capture("user_signed_in", { method: "email" })
-          navigate("/", { replace: true })
-          return
-        }
-
-        if (
-          signIn.status === "needs_second_factor" ||
-          signIn.status === "needs_client_trust"
-        ) {
-          const sent = await signIn.mfa.sendEmailCode()
-          if (sent.error) {
-            setError(clerkErrorMessage(sent.error, "Could not send code"))
-            return
-          }
-          setPendingEmail(trimmedEmail)
-          setVerificationMode("signin")
-          return
-        }
-
-        setError("Sign in needs another verification step.")
+        posthog.identify(trimmedEmail, { email: trimmedEmail })
+        posthog.capture("user_signed_in", { method: "email" })
+        navigate(nextPath, { replace: true })
         return
       } else {
         const displayName = name.trim() || trimmedEmail.split("@")[0]
-        const [firstName, ...restName] = displayName.split(/\s+/)
-        const { error } = await signUp.password({
-          emailAddress: trimmedEmail,
-          password,
-          firstName,
-          ...(restName.length > 0 ? { lastName: restName.join(" ") } : {}),
-        })
-        if (error) {
-          setError(clerkErrorMessage(error, "Sign up failed"))
-          return
-        }
-
-        if (signUp.status === "complete") {
-          const finalized = await signUp.finalize()
-          if (finalized.error) {
-            setError(clerkErrorMessage(finalized.error, "Sign up failed"))
-            return
-          }
-          posthog.identify(trimmedEmail, {
-            email: trimmedEmail,
+        const { error } = await withAuthActionTimeout(
+          "Sign up",
+          authClient.signUp.email({
             name: displayName,
+            email: trimmedEmail,
+            password,
           })
-          posthog.capture("user_signed_up", { method: "email" })
-          navigate("/onboarding", { replace: true })
+        )
+        if (error) {
+          setError(betterAuthErrorMessage(error, "Sign up failed"))
           return
         }
 
-        const sent = await signUp.verifications.sendEmailCode()
-        if (sent.error) {
-          setError(clerkErrorMessage(sent.error, "Could not send code"))
-          return
-        }
-        setPendingEmail(trimmedEmail)
-        setVerificationMode("signup")
+        posthog.identify(trimmedEmail, {
+          email: trimmedEmail,
+          name: displayName,
+        })
+        posthog.capture("user_signed_up", { method: "email" })
+        navigate("/onboarding", { replace: true })
         return
       }
+    } catch (error) {
+      setError(betterAuthErrorMessage(error, "Authentication failed"))
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
   }
 
   async function handleVerificationSubmit() {
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
     setError(undefined)
     setMessage(undefined)
     if (!verificationCode.trim()) {
@@ -346,76 +342,42 @@ export default function Login() {
       return
     }
 
+    authActionRef.current = true
     setLoading(true)
     try {
-      if (verificationMode === "signup") {
-        const verified = await signUp.verifications.verifyEmailCode({
-          code: verificationCode.trim(),
-        })
-        if (verified.error) {
-          setError(clerkErrorMessage(verified.error, "Verification failed"))
-          return
-        }
-        if (signUp.status !== "complete") {
-          setError("Sign up needs another verification step.")
-          return
-        }
-        const finalized = await signUp.finalize()
-        if (finalized.error) {
-          setError(clerkErrorMessage(finalized.error, "Sign up failed"))
-          return
-        }
-        posthog.identify(pendingEmail, { email: pendingEmail, name })
-        posthog.capture("user_signed_up", { method: "email" })
-        navigate("/onboarding", { replace: true })
-        return
-      }
-
-      if (verificationMode === "signin") {
-        const verified = await signIn.mfa.verifyEmailCode({
-          code: verificationCode.trim(),
-        })
-        if (verified.error) {
-          setError(clerkErrorMessage(verified.error, "Verification failed"))
-          return
-        }
-        if (signIn.status !== "complete") {
-          setError("Sign in needs another verification step.")
-          return
-        }
-        const finalized = await signIn.finalize()
-        if (finalized.error) {
-          setError(clerkErrorMessage(finalized.error, "Sign in failed"))
-          return
-        }
-        posthog.identify(pendingEmail, { email: pendingEmail })
-        posthog.capture("user_signed_in", { method: "email" })
-        navigate("/", { replace: true })
-        return
-      }
+      setVerificationMode(null)
+      setVerificationCode("")
+      setMessage("Email verification codes are not required right now.")
+    } catch (error) {
+      setError(betterAuthErrorMessage(error, "Verification failed"))
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
   }
 
   async function handleResendCode() {
     if (!verificationMode) return
+    if (authActionRef.current || submitting) return
+    if (redirectIfSignedIn()) return
+
+    authActionRef.current = true
     setLoading(true)
     setError(undefined)
     setMessage(undefined)
     try {
-      const result =
-        verificationMode === "signup"
-          ? await signUp?.verifications.sendEmailCode()
-          : await signIn?.mfa.sendEmailCode()
-      if (result?.error) {
-        setError(clerkErrorMessage(result.error, "Could not send code"))
-        return
-      }
-      setMessage("A fresh code is on the way.")
+      setVerificationMode(null)
+      setMessage("Email verification codes are not required right now.")
+    } catch (error) {
+      setError(betterAuthErrorMessage(error, "Could not send code"))
     } finally {
+      authActionRef.current = false
       setLoading(false)
     }
+  }
+
+  if (redirectingSignedInUser) {
+    return <AuthRedirectFallback />
   }
 
   if (showIntro) {
@@ -423,47 +385,47 @@ export default function Login() {
     const isLastSlide = introIndex === INTRO_SLIDES.length - 1
 
     return (
-      <div className="bg-background min-h-svh text-foreground">
-        <main className="py-[var(--app-safe-bottom-lg)] flex flex-col mx-auto px-5 short-phone:px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
-          <header className="flex justify-center items-center pt-4 short-phone:pt-1">
+      <div className="min-h-svh bg-background text-foreground">
+        <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem] short-phone:px-5">
+          <header className="flex items-center justify-center pt-4 short-phone:pt-1">
             <div className="flex items-center gap-2.5">
               <img
                 src="/app-icon.svg"
                 alt=""
-                className="rounded-full w-8 h-8"
+                className="h-8 w-8 rounded-full"
               />
-              <span className="font-semibold text-[13px]">
+              <span className="text-[13px] font-semibold">
                 OneRep
               </span>
             </div>
           </header>
 
           <section
-            className="flex flex-col flex-1 justify-center"
+            className="flex flex-1 flex-col justify-center"
             aria-live="polite"
           >
             <IntroIllustration index={introIndex} />
 
-            <div className="mt-8 short-phone:mt-5 text-center">
-              <p className="text-muted-foreground/65 app-eyebrow">
+            <div className="mt-8 text-center short-phone:mt-5">
+              <p className="app-eyebrow text-muted-foreground/65">
                 {slide.kicker}
               </p>
-              <h1 className="mt-3 short-phone:mt-2 text-[2.15rem] short-phone:text-[1.72rem] app-display">
+              <h1 className="app-display mt-3 text-[2.15rem] short-phone:mt-2 short-phone:text-[1.72rem]">
                 {slide.title}
               </h1>
-              <p className="mx-auto mt-3 short-phone:mt-2 max-w-[240px] text-[14px] text-muted-foreground/70 short-phone:text-[13px] leading-6 short-phone:leading-5">
+              <p className="mx-auto mt-3 max-w-[240px] text-[14px] leading-6 text-muted-foreground/70 short-phone:mt-2 short-phone:text-[13px] short-phone:leading-5">
                 {slide.body}
               </p>
             </div>
 
-            <div className="flex justify-center gap-2 mt-8 short-phone:mt-5">
+            <div className="mt-8 flex justify-center gap-2 short-phone:mt-5">
               {INTRO_SLIDES.map((item, index) => (
                 <button
                   key={item.kicker}
                   type="button"
                   aria-label={`Show ${item.kicker}`}
                   onClick={() => setIntroIndex(index)}
-                  className="flex justify-center items-center active:bg-muted/45 rounded-[8px] w-10 h-10 transition-colors"
+                  className="flex h-10 w-10 items-center justify-center rounded-[8px] transition-colors active:bg-muted/45"
                 >
                   <span
                     className={[
@@ -482,14 +444,14 @@ export default function Login() {
             <button
               type="button"
               onClick={handleIntroNext}
-              className="bg-foreground active:opacity-75 rounded-[10px] w-full h-[52px] short-phone:h-12 font-semibold text-[15px] text-background transition-opacity"
+              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 short-phone:h-12"
             >
               {isLastSlide ? "Get started" : "Next"}
             </button>
             <button
               type="button"
               onClick={() => finishIntro("signin")}
-              className="active:bg-muted/50 rounded-[10px] w-full h-[48px] short-phone:h-10 font-semibold text-[14px] text-muted-foreground active:text-foreground transition-colors"
+              className="h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground short-phone:h-10"
             >
               Sign in
             </button>
@@ -500,21 +462,21 @@ export default function Login() {
   }
 
   return (
-    <div className="bg-background min-h-svh text-foreground">
-      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
-        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
+    <div className="min-h-svh bg-background text-foreground">
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 short-phone:mt-3 text-[1.8rem] short-phone:text-[1.45rem] app-display">
+          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="p-3.5 short-phone:p-3 app-rail-surface">
-          <div className="grid-cols-2 mb-3 short-phone:mb-2.5 app-segmented">
+        <section className="app-rail-surface p-3.5 short-phone:p-3">
+          <div className="app-segmented mb-3 grid-cols-2 short-phone:mb-2.5">
             {(["signin", "signup"] as LoginMode[]).map((item) => {
               const active = mode === item
               return (
@@ -543,9 +505,9 @@ export default function Login() {
           >
             {verificationMode ? (
               <>
-                <div className="bg-background px-4 py-3 border border-border/60 rounded-[10px]">
+                <div className="rounded-[10px] border border-border/60 bg-background px-4 py-3">
                   <p className={LABEL_CLASS}>Email code</p>
-                  <p className="mt-1.5 text-[13px] text-muted-foreground/65 leading-5">
+                  <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground/65">
                     Enter the 6-digit code sent to{" "}
                     {pendingEmail || "your email"}.
                   </p>
@@ -554,6 +516,7 @@ export default function Login() {
                   <span className={LABEL_CLASS}>Code</span>
                   <input
                     type="text"
+                    name="one-time-code"
                     inputMode="numeric"
                     value={verificationCode}
                     onChange={(event) =>
@@ -574,6 +537,7 @@ export default function Login() {
                 <span className={LABEL_CLASS}>Name</span>
                 <input
                   type="text"
+                  name="name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Your name"
@@ -591,6 +555,7 @@ export default function Login() {
                   <span className={LABEL_CLASS}>Email</span>
                   <input
                     type="email"
+                    name="email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
@@ -603,33 +568,48 @@ export default function Login() {
 
                 <label className={FIELD_CLASS}>
                   <span className={LABEL_CLASS}>Password</span>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="••••••••"
-                    required
-                    autoComplete={
-                      mode === "signin" ? "current-password" : "new-password"
-                    }
-                    disabled={submitting}
-                    className={INPUT_CLASS}
-                  />
+                  <span className="flex items-center gap-2">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••"
+                      required
+                      autoComplete={
+                        mode === "signin" ? "current-password" : "new-password"
+                      }
+                      disabled={submitting}
+                      className={INPUT_CLASS}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      disabled={submitting}
+                      className="mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground/60 transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-40"
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showPassword}
+                    >
+                      {showPassword ? (
+                        <EyeSlash size={18} weight="bold" />
+                      ) : (
+                        <Eye size={18} weight="bold" />
+                      )}
+                    </button>
+                  </span>
                 </label>
               </>
             )}
 
-            {mode === "signup" && !verificationMode && (
-              <div id="clerk-captcha" />
-            )}
-
             {mode === "signin" && !verificationMode && (
-              <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 px-1">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
                 <button
                   type="button"
                   onClick={handlePasswordReset}
                   disabled={submitting}
-                  className="flex items-center disabled:opacity-50 min-h-10 font-semibold text-[12.5px] text-muted-foreground/65 active:text-foreground text-left transition-colors"
+                  className="flex min-h-10 items-center text-left text-[12.5px] font-semibold text-muted-foreground/65 transition-colors active:text-foreground disabled:opacity-50"
                 >
                   Forgot password?
                 </button>
@@ -639,14 +619,14 @@ export default function Login() {
             {error && (
               <p
                 role="alert"
-                className="bg-destructive/8 px-3.5 py-2.5 border border-destructive/20 rounded-[10px] font-medium text-[12.5px] text-destructive"
+                className="rounded-[10px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
               >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="bg-muted/55 px-3.5 py-2.5 border border-foreground/10 rounded-[10px] font-medium text-[12.5px] text-muted-foreground">
+              <p className="rounded-[10px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
                 {message}
               </p>
             )}
@@ -654,7 +634,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={submitting}
-              className="bg-foreground active:opacity-75 disabled:opacity-50 rounded-[10px] w-full h-[52px] short-phone:h-12 font-semibold text-[15px] text-background transition-opacity"
+              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
             >
               {loading
                 ? verificationMode
@@ -671,12 +651,12 @@ export default function Login() {
           </form>
 
           {verificationMode ? (
-            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-4 short-phone:mt-3 text-[13px] text-muted-foreground/60">
+            <div className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground/60 short-phone:mt-3">
               <button
                 type="button"
                 onClick={() => void handleResendCode()}
                 disabled={submitting}
-                className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
+                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
               >
                 Resend code
               </button>
@@ -684,38 +664,43 @@ export default function Login() {
                 type="button"
                 onClick={() => switchMode(mode)}
                 disabled={submitting}
-                className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
+                className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
               >
                 Start over
               </button>
             </div>
           ) : (
             <>
-              <div className="space-y-3 short-phone:space-y-2.5 mt-4 short-phone:mt-3">
+              <div className="mt-4 space-y-3 short-phone:mt-3 short-phone:space-y-2.5">
                 <div
                   className="flex items-center gap-3 px-1"
                   aria-hidden="true"
                 >
-                  <span className="flex-1 bg-border/70 h-px" />
-                  <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase tracking-[0.2em]">
+                  <span className="h-px flex-1 bg-border/70" />
+                  <span className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground/45 uppercase">
                     or
                   </span>
-                  <span className="flex-1 bg-border/70 h-px" />
+                  <span className="h-px flex-1 bg-border/70" />
                 </div>
 
-                <div className="gap-2 grid grid-cols-1">
+                <div className="grid grid-cols-2 gap-2">
                   {OAUTH_PROVIDERS.map((provider) => {
                     const Icon = provider.icon
                     const isProviderLoading = oauthLoading === provider.strategy
+                    const disabled = submitting || Boolean(provider.disabled)
 
                     return (
                       <button
                         key={provider.strategy}
                         type="button"
-                        onClick={() => void handleOAuth(provider.strategy)}
-                        disabled={submitting}
+                        onClick={() => {
+                          if (provider.disabled) return
+                          void handleOAuth(provider.strategy)
+                        }}
+                        disabled={disabled}
                         aria-label={`Continue with ${provider.label}`}
-                        className="flex justify-center items-center gap-2 bg-background active:bg-muted/55 disabled:opacity-50 border border-border/70 rounded-[10px] h-12 short-phone:h-11 font-semibold text-[13px] text-foreground transition-colors"
+                        aria-disabled={disabled}
+                        className="flex h-12 items-center justify-center gap-2 rounded-[10px] border border-border/70 bg-background text-[13px] font-semibold text-foreground transition-colors active:bg-muted/55 disabled:opacity-50 short-phone:h-11"
                       >
                         <Icon
                           size={18}
@@ -727,7 +712,11 @@ export default function Login() {
                           aria-hidden="true"
                         />
                         <span>
-                          {isProviderLoading ? "Opening..." : provider.label}
+                          {isProviderLoading
+                            ? "Opening..."
+                            : provider.disabled
+                              ? `${provider.label} soon`
+                              : provider.label}
                         </span>
                       </button>
                     )
@@ -735,7 +724,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <p className="mt-4 short-phone:mt-3 text-[13px] text-muted-foreground/60 text-center">
+              <p className="mt-4 text-center text-[13px] text-muted-foreground/60 short-phone:mt-3">
                 {mode === "signin" ? "New here?" : "Have an account?"}{" "}
                 <button
                   type="button"
@@ -743,7 +732,7 @@ export default function Login() {
                     switchMode(mode === "signin" ? "signup" : "signin")
                   }
                   disabled={submitting}
-                  className="inline-flex items-center active:opacity-60 disabled:opacity-50 px-1 min-h-10 font-semibold text-foreground/85 transition-opacity"
+                  className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
                 >
                   {mode === "signin" ? "Sign up" : "Sign in"}
                 </button>

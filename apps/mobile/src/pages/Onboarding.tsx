@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   Barbell,
@@ -27,7 +27,7 @@ import {
   mapOnboardingGoalToCalorieGoal,
 } from "@/lib/health-goals"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { cn } from "@/lib/utils"
+import { cn, safeLocalStorageRemove } from "@/lib/utils"
 import { api } from "../../../../convex/_generated/api"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 
@@ -818,6 +818,7 @@ export default function Onboarding() {
   const [waterGoalMl, setWaterGoalMl] = useState(2500)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const savingRef = useRef(false)
 
   const calorieGoal = draft.goal
     ? mapOnboardingGoalToCalorieGoal(draft.goal)
@@ -935,8 +936,9 @@ export default function Onboarding() {
       return
     }
 
-    if (!draft.goal || !profile.sex || saving) return
+    if (!draft.goal || !profile.sex || savingRef.current || saving) return
 
+    savingRef.current = true
     setSaving(true)
     try {
       await Promise.all([
@@ -956,9 +958,7 @@ export default function Onboarding() {
         saveWeightUnit({ unit: weightUnit }),
         saveWaterGoal({ goalMl: waterGoalMl }),
       ])
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(POST_SIGNUP_ONBOARDING_KEY)
-      }
+      safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       navigate("/", { replace: true })
     } catch (error) {
       setSaveError(
@@ -966,6 +966,7 @@ export default function Onboarding() {
           ? error.message
           : "Could not save onboarding. Try again."
       )
+      savingRef.current = false
       setSaving(false)
     }
   }
@@ -1082,6 +1083,7 @@ export default function Onboarding() {
               type="button"
               onClick={goNext}
               disabled={saving || !stepReady}
+              aria-busy={saving}
               className="min-h-12 rounded-[10px] bg-foreground px-6 text-[14px] font-semibold text-background transition-transform active:scale-[0.985] disabled:opacity-50"
             >
               {saving

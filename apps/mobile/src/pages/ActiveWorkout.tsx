@@ -23,7 +23,14 @@ import {
   Wind,
   X,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import {
+  cn,
+  createClientId,
+  logDevError,
+  logDevWarn,
+  safeSessionStorageRemove,
+  safeSessionStorageSet,
+} from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { sparklinePoints } from "@/lib/progress-metrics"
 import olympicBarPng from "@/assets/bars/bar-olympic.png"
@@ -32,9 +39,17 @@ import trapBarPng from "@/assets/bars/bar-trap.png"
 import {
   resolveExerciseIds,
   searchExercises,
+  visiblePopularExerciseSearches,
   type Exercise,
   type ExerciseCategory,
 } from "@/lib/exercise-catalog"
+import {
+  readRecentExerciseSearches,
+  rememberRecentExerciseSearch,
+  visibleRecentExerciseSearches,
+  type RecentExerciseSearch,
+} from "@/lib/exercise-search-recents"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { api } from "../../../../convex/_generated/api"
 import {
   calcPaceSecondsPerKm,
@@ -72,6 +87,7 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 type Category = ExerciseCategory
 type SetType = "working" | "warmup" | "failure" | "myoreps" | "drop"
 type WeightUnit = "kg" | "lbs"
+type WorkoutSyncStatus = "idle" | "pending" | "saving" | "saved" | "error"
 type BarType = "olympic" | "womens" | "ez" | "trap" | "custom"
 type HeartRateZoneKey =
   | "zone1Seconds"
@@ -323,7 +339,7 @@ const HEART_RATE_ZONES: Array<{
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function uid() {
-  return Math.random().toString(36).slice(2)
+  return createClientId()
 }
 
 function formatRest(s: number) {
@@ -1124,7 +1140,12 @@ function RestTimerSheet({
             <Timer size={14} className="text-muted-foreground/60" />
             <span className="text-[14px] font-bold">Rest timer</span>
           </div>
-          <button onClick={onClose} className="app-icon-button">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close rest timer"
+            className="app-icon-button"
+          >
             <X size={13} weight="bold" />
           </button>
         </div>
@@ -1132,6 +1153,7 @@ function RestTimerSheet({
           {REST_OPTS.map((s) => (
             <button
               key={s}
+              type="button"
               onClick={() => onSelect(s)}
               className={cn(
                 "h-[52px] rounded-[10px] text-[14px] font-black tabular-nums transition-all active:scale-[0.985]",
@@ -2254,6 +2276,7 @@ function CardioDetailsPanel({
     AppleHealthWorkout[]
   >([])
   const [showAppleHealthWorkouts, setShowAppleHealthWorkouts] = useState(false)
+  const appleHealthLoadingRef = useRef(false)
 
   function update(patch: Partial<CardioExerciseState>) {
     onUpdate({ ...cardio, ...patch })
@@ -2284,6 +2307,8 @@ function CardioDetailsPanel({
   }
 
   async function loadAppleHealthWorkouts() {
+    if (appleHealthLoadingRef.current || appleHealthLoading) return
+    appleHealthLoadingRef.current = true
     setAppleHealthLoading(true)
     setAppleHealthError(null)
     try {
@@ -2319,6 +2344,7 @@ function CardioDetailsPanel({
           : "Could not read Apple Health workouts."
       )
     } finally {
+      appleHealthLoadingRef.current = false
       setAppleHealthLoading(false)
     }
   }
@@ -2361,6 +2387,7 @@ function CardioDetailsPanel({
               type="button"
               onClick={loadAppleHealthWorkouts}
               disabled={appleHealthLoading}
+              aria-busy={appleHealthLoading}
               className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[10px] font-black text-background transition-opacity active:opacity-80 disabled:opacity-55"
             >
               <AppleLogo size={13} weight="fill" />
@@ -2386,8 +2413,11 @@ function CardioDetailsPanel({
             </div>
             <button
               type="button"
-              onClick={() => setShowAppleHealthWorkouts(false)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted"
+              onClick={() =>
+                appleHealthLoading ? undefined : setShowAppleHealthWorkouts(false)
+              }
+              disabled={appleHealthLoading}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
               aria-label="Close Apple Health workouts"
             >
               <X size={12} weight="bold" />
@@ -2854,7 +2884,11 @@ function ActiveExerciseCard({
               <>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-border/45 bg-muted/20 px-3 text-[10.5px] font-bold tracking-[0.12em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:flex-none md:px-3.5">
+                    <button
+                      type="button"
+                      aria-label={`Tracking options for ${exercise.name}`}
+                      className="flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-border/45 bg-muted/20 px-3 text-[10.5px] font-bold tracking-[0.12em] text-muted-foreground/70 uppercase transition-colors active:bg-muted/50 md:flex-none md:px-3.5"
+                    >
                       Track
                       <span className="truncate text-[11px] tracking-normal text-foreground/60">
                         {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
@@ -3444,7 +3478,11 @@ function AddExerciseSheet({
   const [searchState, setSearchState] = useState<
     "idle" | "loading" | "done" | "error"
   >("idle")
+  const [searchAttempt, setSearchAttempt] = useState(0)
   const [remoteExercises, setRemoteExercises] = useState<Exercise[]>([])
+  const [recentExercises, setRecentExercises] = useState(() =>
+    readRecentExerciseSearches()
+  )
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -3489,14 +3527,41 @@ function AddExerciseSheet({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [activeFilters, query])
+  }, [activeFilters, query, searchAttempt])
   const filtered = remoteExercises
+  const recentSuggestions = visibleRecentExerciseSearches(
+    addedIds,
+    recentExercises
+  )
+  const recentSuggestionIds = new Set(
+    recentSuggestions.map((exercise) => exercise.id)
+  )
+  const popularSuggestions = visiblePopularExerciseSearches(addedIds).filter(
+    (exercise) => !recentSuggestionIds.has(exercise.id)
+  )
   const FILTERS: { cat: Category; label: string }[] = [
     { cat: "strength", label: "Strength" },
     { cat: "cardio", label: "Cardio" },
     { cat: "mobility", label: "Mobility" },
     { cat: "core", label: "Core" },
   ]
+
+  function chooseSuggestion(exercise: ExerciseSearchSuggestion) {
+    setActiveFilters(new Set())
+    setQuery(exercise.name)
+    inputRef.current?.focus()
+  }
+
+  function retrySearch() {
+    setSearchAttempt((current) => current + 1)
+  }
+
+  function addAndRememberExercise(exercise: Exercise) {
+    onAdd(exercise)
+    setRecentExercises(rememberRecentExerciseSearch(exercise))
+    onClose()
+  }
+
   return (
     <div
       className="sheet-overlay fixed inset-0 z-40 md:flex md:justify-center md:bg-black/40 md:backdrop-blur-sm"
@@ -3606,8 +3671,7 @@ function AddExerciseSheet({
                     <button
                       onClick={() => {
                         if (!already) {
-                          onAdd(ex)
-                          onClose()
+                          addAndRememberExercise(ex)
                         }
                       }}
                       disabled={already}
@@ -3628,25 +3692,119 @@ function AddExerciseSheet({
               })}
             </div>
           ) : searchState === "done" ? (
-            <div className="flex flex-col items-center gap-2 py-20">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                No exercises found
-              </p>
-              <p className="text-[11px] text-muted-foreground/50">
-                Try a different search or filter
-              </p>
+            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-[13px] font-semibold text-muted-foreground">
+                  No exercises found
+                </p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  Try a different search or filter
+                </p>
+              </div>
+              <ExerciseSuggestionGroups
+                recentSuggestions={recentSuggestions}
+                popularSuggestions={popularSuggestions}
+                onChoose={chooseSuggestion}
+              />
             </div>
           ) : searchState === "error" ? (
-            <div className="flex flex-col items-center gap-2 py-20">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                Search failed
-              </p>
-              <p className="text-[11px] text-muted-foreground/50">
-                Check your connection and try again
-              </p>
+            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-[13px] font-semibold text-muted-foreground">
+                  Search failed
+                </p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  Check your connection and try again
+                </p>
+                <button
+                  type="button"
+                  onClick={retrySearch}
+                  className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
+                >
+                  Retry search
+                </button>
+              </div>
+              <ExerciseSuggestionGroups
+                recentSuggestions={recentSuggestions}
+                popularSuggestions={popularSuggestions}
+                onChoose={chooseSuggestion}
+              />
             </div>
           ) : null}
         </div>
+      </div>
+    </div>
+  )
+}
+
+type ExerciseSearchSuggestion =
+  | Exercise
+  | RecentExerciseSearch
+
+function ExerciseSuggestionGroups({
+  recentSuggestions,
+  popularSuggestions,
+  onChoose,
+}: {
+  recentSuggestions: RecentExerciseSearch[]
+  popularSuggestions: Exercise[]
+  onChoose: (exercise: ExerciseSearchSuggestion) => void
+}) {
+  if (recentSuggestions.length === 0 && popularSuggestions.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="flex w-full flex-col gap-4">
+      <ExerciseSuggestionChips
+        label="Recent"
+        suggestions={recentSuggestions}
+        onChoose={onChoose}
+      />
+      <ExerciseSuggestionChips
+        label="Try instead"
+        suggestions={popularSuggestions}
+        onChoose={onChoose}
+      />
+    </div>
+  )
+}
+
+function ExerciseSuggestionChips({
+  label,
+  suggestions,
+  onChoose,
+}: {
+  label: string
+  suggestions: ExerciseSearchSuggestion[]
+  onChoose: (exercise: ExerciseSearchSuggestion) => void
+}) {
+  if (suggestions.length === 0) return null
+
+  return (
+    <div className="w-full">
+      <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+        {label}
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {suggestions.map((exercise) => {
+          const Icon = CATEGORY_ICON[exercise.category]
+          return (
+            <button
+              key={exercise.id}
+              type="button"
+              onClick={() => onChoose(exercise)}
+              className="flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+            >
+              <Icon
+                size={11}
+                weight="fill"
+                style={{ color: CATEGORY_COLOR[exercise.category] }}
+              />
+              {exercise.name}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -3756,6 +3914,7 @@ function AiWorkoutSheet({
             <button
               onClick={() => void onGenerate(text.trim(), activeMode)}
               disabled={!canGenerate}
+              aria-busy={loading}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
             >
               <Sparkle
@@ -3795,14 +3954,26 @@ function FinishSheet({
   elapsed: number
   totalSets: number
   doneSets: number
-  onFinish: () => void
+  onFinish: () => Promise<void>
   onCancel: () => void
 }) {
   const allDone = doneSets >= totalSets
+  const [finishing, setFinishing] = useState(false)
+
+  async function confirmFinish() {
+    if (finishing) return
+    setFinishing(true)
+    try {
+      await onFinish()
+    } catch {
+      setFinishing(false)
+    }
+  }
+
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={onCancel}
+      onClick={finishing ? undefined : onCancel}
     >
       <div
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
@@ -3855,14 +4026,19 @@ function FinishSheet({
         </div>
         <div className="flex flex-col gap-2 px-6 pt-4">
           <button
-            onClick={onFinish}
-            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80"
+            type="button"
+            onClick={() => void confirmFinish()}
+            disabled={finishing}
+            aria-busy={finishing}
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
           >
-            Finish workout
+            {finishing ? "Finishing..." : "Finish workout"}
           </button>
           <button
+            type="button"
             onClick={onCancel}
-            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
+            disabled={finishing}
+            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground disabled:opacity-50"
           >
             Keep going
           </button>
@@ -3876,13 +4052,25 @@ function AbortSheet({
   onConfirm,
   onCancel,
 }: {
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
   onCancel: () => void
 }) {
+  const [aborting, setAborting] = useState(false)
+
+  async function confirmAbort() {
+    if (aborting) return
+    setAborting(true)
+    try {
+      await onConfirm()
+    } catch {
+      setAborting(false)
+    }
+  }
+
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={onCancel}
+      onClick={aborting ? undefined : onCancel}
     >
       <div
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
@@ -3904,14 +4092,19 @@ function AbortSheet({
         </div>
         <div className="flex flex-col gap-2 px-6 pt-4">
           <button
-            onClick={onConfirm}
-            className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80"
+            type="button"
+            onClick={() => void confirmAbort()}
+            disabled={aborting}
+            aria-busy={aborting}
+            className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80 disabled:opacity-60"
           >
-            Abort workout
+            {aborting ? "Aborting..." : "Abort workout"}
           </button>
           <button
+            type="button"
             onClick={onCancel}
-            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
+            disabled={aborting}
+            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground disabled:opacity-50"
           >
             Keep going
           </button>
@@ -4143,6 +4336,9 @@ export default function ActiveWorkout() {
     exerciseId: string
     name: string
   } | null>(null)
+  const [workoutSyncStatus, setWorkoutSyncStatus] =
+    useState<WorkoutSyncStatus>("idle")
+  const [workoutSyncError, setWorkoutSyncError] = useState("")
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -4156,7 +4352,9 @@ export default function ActiveWorkout() {
   const syncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isSyncingRef = useRef(false)
   const isDirtyRef = useRef(false)
+  const dirtyVersionRef = useRef(0)
   const abortingRef = useRef(false)
+  const aiUpdatingRef = useRef(false)
   // Refs to capture current state for sync
   const itemsRef = useRef(items)
   const exDataRef = useRef(exData)
@@ -4166,11 +4364,17 @@ export default function ActiveWorkout() {
   // Keep refs in sync with state
   useEffect(() => {
     itemsRef.current = items
-    if (!abortingRef.current) isDirtyRef.current = true
+    if (!abortingRef.current) {
+      isDirtyRef.current = true
+      dirtyVersionRef.current += 1
+    }
   }, [items])
   useEffect(() => {
     exDataRef.current = exData
-    if (!abortingRef.current) isDirtyRef.current = true
+    if (!abortingRef.current) {
+      isDirtyRef.current = true
+      dirtyVersionRef.current += 1
+    }
   }, [exData])
   useEffect(() => {
     elapsedRef.current = elapsed
@@ -4215,6 +4419,16 @@ export default function ActiveWorkout() {
   }, [workoutHistory])
   const progressPct =
     totalSets > 0 ? `${Math.round((doneSets / totalSets) * 100)}%` : "0%"
+  const workoutSyncLabel =
+    workoutSyncStatus === "pending"
+      ? "Save pending"
+      : workoutSyncStatus === "saving"
+        ? "Saving workout"
+        : workoutSyncStatus === "saved"
+          ? "Workout saved"
+          : workoutSyncStatus === "error"
+            ? "Sync failed"
+            : ""
 
   // Find the next set to highlight
   const nextTarget = useMemo(
@@ -4240,34 +4454,53 @@ export default function ActiveWorkout() {
     nextTarget?.kind === "set" ? nextTarget.setIndex + 1 : doneSets + 1
 
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
-  const syncToConvex = useCallback(() => {
-    if (abortingRef.current) return
-    if (!isDirtyRef.current) return
-    if (isSyncingRef.current) return
-
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current)
-    }
-
-    syncTimeoutRef.current = setTimeout(async () => {
+  const syncToConvex = useCallback(
+    (options: { immediate?: boolean } = {}) => {
       if (abortingRef.current) return
       if (!isDirtyRef.current) return
-      isSyncingRef.current = true
-      try {
-        await updateActive({
-          slot: slotRef.current,
-          items: itemsRef.current,
-          exerciseData: exDataRef.current,
-          elapsedSeconds: elapsedRef.current,
-        })
-        isDirtyRef.current = false
-      } catch (err) {
-        console.warn("Failed to sync workout to Convex:", err)
-      } finally {
-        isSyncingRef.current = false
+      if (isSyncingRef.current) return
+
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current)
       }
-    }, 500) // Debounce 500ms
-  }, [updateActive])
+      setWorkoutSyncStatus("pending")
+
+      syncTimeoutRef.current = setTimeout(async () => {
+        if (abortingRef.current) return
+        if (!isDirtyRef.current) return
+        isSyncingRef.current = true
+        syncTimeoutRef.current = null
+        try {
+          while (!abortingRef.current && isDirtyRef.current) {
+            const syncVersion = dirtyVersionRef.current
+            setWorkoutSyncStatus("saving")
+            await updateActive({
+              slot: slotRef.current,
+              items: itemsRef.current,
+              exerciseData: exDataRef.current,
+              elapsedSeconds: elapsedRef.current,
+            })
+            if (dirtyVersionRef.current === syncVersion) {
+              isDirtyRef.current = false
+              setWorkoutSyncError("")
+              setWorkoutSyncStatus("saved")
+            } else {
+              setWorkoutSyncStatus("pending")
+            }
+          }
+        } catch (err) {
+          logDevWarn("Failed to sync workout to Convex:", err)
+          setWorkoutSyncError(
+            "Workout changes are not synced. Check your connection and retry."
+          )
+          setWorkoutSyncStatus("error")
+        } finally {
+          isSyncingRef.current = false
+        }
+      }, options.immediate ? 0 : 500) // Debounce 500ms
+    },
+    [updateActive]
+  )
 
   // ── Load from Convex or preset on mount ────────────────────────────────────
   useEffect(() => {
@@ -4295,12 +4528,16 @@ export default function ActiveWorkout() {
         i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
       )
       if (ids.length > 0) {
-        void resolveExerciseIds(ids).then((lookup) => {
-          setExerciseLookup((prev) => ({
-            ...prev,
-            ...(lookup as Record<string, Exercise>),
-          }))
-        })
+        void resolveExerciseIds(ids)
+          .then((lookup) => {
+            setExerciseLookup((prev) => ({
+              ...prev,
+              ...(lookup as Record<string, Exercise>),
+            }))
+          })
+          .catch((error) => {
+            logDevWarn("Failed to resolve active workout exercises", error)
+          })
       }
       return
     }
@@ -4328,12 +4565,16 @@ export default function ActiveWorkout() {
           i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
         )
         if (ids.length > 0) {
-          void resolveExerciseIds(ids).then((lookup) => {
-            setExerciseLookup((prev) => ({
-              ...prev,
-              ...(lookup as Record<string, Exercise>),
-            }))
-          })
+          void resolveExerciseIds(ids)
+            .then((lookup) => {
+              setExerciseLookup((prev) => ({
+                ...prev,
+                ...(lookup as Record<string, Exercise>),
+              }))
+            })
+            .catch((error) => {
+              logDevWarn("Failed to resolve preset workout exercises", error)
+            })
         }
       }
     }
@@ -4350,15 +4591,13 @@ export default function ActiveWorkout() {
       i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
     )
     if (ids.length > 0) {
-      if (typeof window !== "undefined") {
-        window.sessionStorage.removeItem(ABORTED_WORKOUT_SLOT_KEY)
-      }
+      safeSessionStorageRemove(ABORTED_WORKOUT_SLOT_KEY)
       void createActive({
         slot,
         presetId: presetId ?? undefined,
         items,
         exerciseData: exData,
-      })
+      }).catch(reportOfflineMutationError)
     }
   }, [
     isInitialized,
@@ -4375,7 +4614,7 @@ export default function ActiveWorkout() {
   useEffect(() => {
     if (!isInitialized) return
     syncToConvex()
-  }, [isInitialized, items, exData])
+  }, [isInitialized, items, exData, syncToConvex])
 
   // Sync elapsed time every 5 seconds
   useEffect(() => {
@@ -4420,7 +4659,9 @@ export default function ActiveWorkout() {
   async function handleAiWorkoutChange(text: string, mode: AiWorkoutMode) {
     if (!requireAiAccess()) return
     if (!text.trim()) return
+    if (aiUpdatingRef.current || aiUpdating) return
 
+    aiUpdatingRef.current = true
     setAiUpdating(true)
     try {
       const draft = (await createWorkoutDraft({ text })) as AgentWorkoutDraft
@@ -4544,6 +4785,7 @@ export default function ActiveWorkout() {
         error instanceof Error ? error.message : "Could not update workout"
       )
     } finally {
+      aiUpdatingRef.current = false
       setAiUpdating(false)
     }
   }
@@ -4721,7 +4963,7 @@ export default function ActiveWorkout() {
       })
       navigate(-1)
     } catch (err) {
-      console.error("Failed to finish workout:", err)
+      logDevError("Failed to finish workout:", err)
       // Fallback to old method if Convex fails
       try {
         await logCompletion({
@@ -4731,7 +4973,9 @@ export default function ActiveWorkout() {
         })
         navigate(-1)
       } catch (fallbackErr) {
-        console.error("Failed to log workout as fallback:", fallbackErr)
+        logDevError("Failed to log workout as fallback:", fallbackErr)
+        toast.error("Failed to finish workout. Please try again.")
+        throw fallbackErr
       }
     }
   }
@@ -4859,11 +5103,36 @@ export default function ActiveWorkout() {
                       Slot 2
                     </span>
                   )}
+                  {workoutSyncStatus !== "idle" && (
+                    <span
+                      role="status"
+                      aria-live="polite"
+                      title={workoutSyncError || undefined}
+                      className={cn(
+                        "rounded-[8px] px-2 py-0.5 text-[9px] font-bold uppercase",
+                        workoutSyncStatus === "error"
+                          ? "bg-destructive/15 text-destructive"
+                          : "bg-muted/55 text-muted-foreground/80"
+                      )}
+                    >
+                      {workoutSyncLabel}
+                    </span>
+                  )}
                 </div>
                 <p className="mt-1 truncate text-[12px] font-semibold text-foreground/70">
                   {nextSetLabel}
                 </p>
               </div>
+              {workoutSyncStatus === "error" && (
+                <button
+                  type="button"
+                  onClick={() => syncToConvex({ immediate: true })}
+                  className="min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[11px] font-extrabold text-destructive"
+                  aria-label="Retry active workout sync"
+                >
+                  Retry
+                </button>
+              )}
               <div className="ml-auto flex h-11 shrink-0 overflow-hidden rounded-[10px] border border-border/45 bg-muted/35 text-[11px] font-bold">
                 {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                   <button
@@ -4978,6 +5247,7 @@ export default function ActiveWorkout() {
           <button
             onClick={() => openAiWorkoutSheet({})}
             disabled={aiUpdating}
+            aria-busy={aiUpdating}
             className="app-empty h-14 w-full justify-center border-dashed border-border/60 bg-transparent text-[13px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/25 active:text-foreground disabled:opacity-45"
           >
             <Sparkle
@@ -5025,22 +5295,18 @@ export default function ActiveWorkout() {
                 syncTimeoutRef.current = null
               }
               await abortActive({ slot })
-              if (typeof window !== "undefined") {
-                window.sessionStorage.setItem(
-                  ABORTED_WORKOUT_SLOT_KEY,
-                  String(slot)
-                )
-              }
+              safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
               navigate(-1)
             } catch (err) {
               abortingRef.current = false
-              console.error("Failed to abort workout in Convex:", err)
+              logDevError("Failed to abort workout in Convex:", err)
               // Clear pending sync timer on error
               if (syncTimeoutRef.current) {
                 clearTimeout(syncTimeoutRef.current)
                 syncTimeoutRef.current = null
               }
               toast.error("Failed to abort workout. Please try again.")
+              throw err
             }
           }}
           onCancel={() => setConfirmAbort(false)}

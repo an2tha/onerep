@@ -1,5 +1,13 @@
 import { describe, test, expect } from "bun:test";
-import { todayIso, normalizePresetCard } from "../workout-sync";
+import {
+  emptyRoutine,
+  movePresetById,
+  normalizePresetCard,
+  normalizeRoutine,
+  normalizeScheduleRoutines,
+  scheduleRoutinePayload,
+  todayIso,
+} from "../workout-sync";
 
 describe("todayIso", () => {
   test("returns a string in YYYY-MM-DD format", () => {
@@ -126,6 +134,82 @@ describe("normalizePresetCard", () => {
         duration: "45 min",
         steps: ["Step 1", "Step 2"],
       });
+    });
+  });
+});
+
+describe("movePresetById", () => {
+  const presets = [
+    { id: "push", name: "Push" },
+    { id: "pull", name: "Pull" },
+    { id: "legs", name: "Legs" },
+  ];
+
+  test("moves a preset up by id", () => {
+    expect(movePresetById(presets, "pull", "up").map((p) => p.id)).toEqual([
+      "pull",
+      "push",
+      "legs",
+    ]);
+  });
+
+  test("moves a preset down by id", () => {
+    expect(movePresetById(presets, "pull", "down").map((p) => p.id)).toEqual([
+      "push",
+      "legs",
+      "pull",
+    ]);
+  });
+
+  test("does not move past list boundaries", () => {
+    expect(movePresetById(presets, "push", "up")).toBe(presets);
+    expect(movePresetById(presets, "legs", "down")).toBe(presets);
+  });
+
+  test("unknown preset id leaves the list unchanged", () => {
+    expect(movePresetById(presets, "missing", "up")).toBe(presets);
+  });
+
+  test("does not mutate the original list", () => {
+    movePresetById(presets, "push", "down");
+    expect(presets.map((p) => p.id)).toEqual(["push", "pull", "legs"]);
+  });
+});
+
+describe("schedule routine persistence", () => {
+  test("normalizes a legacy flat routine as the primary slot", () => {
+    const result = normalizeScheduleRoutines({
+      Mon: "push",
+      Tue: null,
+      Wed: "",
+      Extra: "ignored",
+    });
+
+    expect(result.primary.Mon).toBe("push");
+    expect(result.primary.Tue).toBeNull();
+    expect(result.primary.Wed).toBeNull();
+    expect(result.secondary).toEqual(emptyRoutine());
+  });
+
+  test("normalizes primary and secondary routine slots", () => {
+    const result = normalizeScheduleRoutines({
+      primary: { Mon: "push", Tue: "pull" },
+      secondary: { Mon: "cardio", Tue: null },
+    });
+
+    expect(result.primary.Mon).toBe("push");
+    expect(result.primary.Tue).toBe("pull");
+    expect(result.secondary.Mon).toBe("cardio");
+    expect(result.secondary.Tue).toBeNull();
+  });
+
+  test("builds a payload that preserves the second workout per day", () => {
+    const primary = normalizeRoutine({ Mon: "push" });
+    const secondary = normalizeRoutine({ Mon: "cardio" });
+
+    expect(scheduleRoutinePayload(primary, secondary)).toEqual({
+      primary: { ...emptyRoutine(), Mon: "push" },
+      secondary: { ...emptyRoutine(), Mon: "cardio" },
     });
   });
 });

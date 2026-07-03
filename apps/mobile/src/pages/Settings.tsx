@@ -1,12 +1,27 @@
 import React, { useState, useEffect, useRef } from "react"
 import { CaretRight, Minus, Plus, Sun, Moon } from "@phosphor-icons/react"
-import { useClerk, useUser } from "@clerk/react"
-import { CheckoutButton, usePlans } from "@clerk/react/experimental"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
-import { cn } from "@/lib/utils"
+import {
+  cn,
+  logDevWarn,
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+} from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { hapticTap, hapticSelection, hapticMedium } from "@/lib/haptics"
+import {
+  hapticTap,
+  hapticSelection,
+  hapticMedium,
+  hapticsEnabled,
+  setHapticsEnabled,
+} from "@/lib/haptics"
+import {
+  oneRepExportDocument,
+  oneRepExportFilename,
+  shareOrDownloadJsonExport,
+} from "@/lib/data-export"
 import {
   Accordion,
   AccordionItem,
@@ -16,6 +31,7 @@ import {
 import { toast } from "sonner"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
+import { signOutApp, useAppAuth } from "@/lib/auth-client"
 import {
   clearOfflineQueue,
   flushOfflineQueue,
@@ -29,17 +45,23 @@ import {
   type ReminderSettings,
 } from "@/lib/reminders"
 import {
-  AI_ACCESS_PLAN_ID,
-  AI_ACCESS_PLAN_SLUG,
-  getActiveAiAccessSubscriptionItem,
-  useAiAccessSubscription,
-} from "@/lib/ai-access"
+  isPwaStandalone,
+  pwaInstallCopy,
+  type PwaBeforeInstallPromptEvent,
+} from "@/lib/pwa-install"
+import {
+  MONTHLY_PACKAGE_IDENTIFIER,
+  ONEREP_PRO_ENTITLEMENT,
+  revenueCatErrorMessage,
+  useRevenueCat,
+} from "@/lib/revenuecat"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
 type Theme = "light" | "dark"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
+
 /**
  * Determine the current UI theme.
  *
@@ -50,7 +72,7 @@ const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
 function getStoredTheme(): Theme {
   if (typeof window === "undefined") return "light"
   return (
-    (localStorage.getItem("theme") as Theme) ||
+    (safeLocalStorageGet("theme") as Theme) ||
     (window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
       : "light")
@@ -66,7 +88,7 @@ function getStoredTheme(): Theme {
  */
 function setTheme(theme: Theme) {
   if (typeof document === "undefined") return
-  localStorage.setItem("theme", theme)
+  safeLocalStorageSet("theme", theme)
   if (theme === "dark") {
     document.documentElement.classList.add("dark")
   } else {
@@ -96,7 +118,7 @@ type WeightUnit = "kg" | "lbs"
 type FoodSearchLanguage = "en" | "es" | "fr" | "de" | "it" | "pt"
 
 const SETTINGS_SECTION_TRIGGER_CLASS =
-  "app-rail-surface px-4 py-3.5 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-3"
+  "app-rail-surface px-4 py-3 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-2.5"
 const SETTINGS_PANEL_CLASS = "app-surface overflow-hidden rounded-t-none"
 
 /**
@@ -114,16 +136,16 @@ export default function Settings({
   onClose: () => void
 }) {
   const navigate = useSmoothNavigate()
-  const { signOut } = useClerk()
-  const { user } = useUser()
+  const { user } = useAppAuth()
+  const revenueCat = useRevenueCat({
+    userId: user?.id,
+    email: user?.email,
+    name: user?.name,
+  })
   const preferences = useQuery(api.users.users.getPreferences)
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
-  const aiAccess = useAiAccessSubscription()
-  const aiUsage = useQuery(
-    api.ai.usage.getMonthlyUsage,
-    aiAccess.hasAiAccess ? {} : "skip"
-  )
+  const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
 
   const setDashboardSettings = useOfflineMutation(
     api.users.users.setDashboardSettings,
@@ -205,36 +227,66 @@ export default function Settings({
   const [pushReminders, setPushRemindersState] = useState<ReminderSettings>(
     mergeReminderSettings(null)
   )
-  const [remindersHydrated, setRemindersHydrated] = useState(false)
-  const remindersHydratedRef = useRef(false)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
     if (typeof window === "undefined") return true
-    return localStorage.getItem("onerep:analytics-enabled") !== "false"
+    return safeLocalStorageGet("onerep:analytics-enabled") !== "false"
   })
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
   const [offlineQueueTotal, setOfflineQueueTotal] = useState(0)
+  const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
 
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [resettingOnboarding, setResettingOnboarding] = useState(false)
   const [theme, setThemeState] = useState<Theme>("light")
-  const targetsAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
-  const remindersAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  )
-  const targetsAutosaveInitialized = useRef(false)
-  const remindersAutosaveInitialized = useRef(false)
-  const lastAutosavedTargets = useRef("")
-  const lastAutosavedReminders = useRef("")
+  const [hapticsOn, setHapticsOn] = useState(() => {
+    if (typeof window === "undefined") return true
+    return hapticsEnabled()
+  })
+  const [pwaInstallPrompt, setPwaInstallPrompt] =
+    useState<PwaBeforeInstallPromptEvent | null>(null)
+  const [pwaInstalled, setPwaInstalled] = useState(() => {
+    if (typeof window === "undefined") return false
+    return isPwaStandalone(window)
+  })
+  const pwaCopy = pwaInstallCopy({
+    hasPrompt: pwaInstallPrompt !== null,
+    installed: pwaInstalled,
+  })
 
   // Initialize theme
   useEffect(() => {
     setThemeState(getStoredTheme())
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    function handleBeforeInstallPrompt(event: Event) {
+      event.preventDefault()
+      if (isPwaStandalone(window)) return
+      setPwaInstallPrompt(event as PwaBeforeInstallPromptEvent)
+      setPwaInstalled(false)
+    }
+
+    function handleAppInstalled() {
+      setPwaInstallPrompt(null)
+      setPwaInstalled(true)
+    }
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
+    window.addEventListener("appinstalled", handleAppInstalled)
+    return () => {
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt
+      )
+      window.removeEventListener("appinstalled", handleAppInstalled)
+    }
   }, [])
 
   useEffect(() => {
@@ -253,15 +305,13 @@ export default function Settings({
     if (preferences?.workoutAdjustmentEnabled !== undefined) {
       setWorkoutAdjustmentEnabled(preferences.workoutAdjustmentEnabled)
     }
-    if (preferences !== undefined && !remindersHydratedRef.current) {
+    if (preferences?.pushReminders || preferences?.bodyReminder) {
       setPushRemindersState(
         mergeReminderSettings({
-          ...(preferences?.pushReminders ?? {}),
-          body: preferences?.pushReminders?.body ?? preferences?.bodyReminder,
+          ...(preferences.pushReminders ?? {}),
+          body: preferences.pushReminders?.body ?? preferences.bodyReminder,
         })
       )
-      remindersHydratedRef.current = true
-      setRemindersHydrated(true)
     }
     if (preferences?.privacySettings) {
       setAnalyticsEnabled(preferences.privacySettings.analyticsEnabled)
@@ -301,102 +351,6 @@ export default function Settings({
   }, [effectiveGoals])
 
   useEffect(() => {
-    if (!goalsInitialized || !remindersHydrated) return
-
-    const payload = {
-      calories,
-      protein,
-      carbs,
-      fat,
-      waterGoal,
-      workoutFocus,
-      weightUnit,
-      foodSearchLanguage,
-    }
-    const key = JSON.stringify(payload)
-
-    if (!targetsAutosaveInitialized.current) {
-      targetsAutosaveInitialized.current = true
-      lastAutosavedTargets.current = key
-      return
-    }
-    if (key === lastAutosavedTargets.current) return
-
-    if (targetsAutosaveTimer.current) {
-      clearTimeout(targetsAutosaveTimer.current)
-    }
-    targetsAutosaveTimer.current = setTimeout(() => {
-      void (async () => {
-        try {
-          await setCustomGoals({ calories, protein, carbs, fat })
-          await setWaterGoal({ goalMl: waterGoal })
-          await setDashboardSettings({ workoutFocus })
-          await setWeightUnit({ unit: weightUnit })
-          await setFoodSearchLanguage({ language: foodSearchLanguage })
-          lastAutosavedTargets.current = key
-        } catch (error) {
-          console.error("Failed to autosave target settings:", error)
-        }
-      })()
-    }, 450)
-
-    return () => {
-      if (targetsAutosaveTimer.current) {
-        clearTimeout(targetsAutosaveTimer.current)
-      }
-    }
-  }, [
-    goalsInitialized,
-    remindersHydrated,
-    calories,
-    protein,
-    carbs,
-    fat,
-    waterGoal,
-    workoutFocus,
-    weightUnit,
-    foodSearchLanguage,
-    setCustomGoals,
-    setWaterGoal,
-    setDashboardSettings,
-    setWeightUnit,
-    setFoodSearchLanguage,
-  ])
-
-  useEffect(() => {
-    if (!remindersHydrated) return
-
-    const key = JSON.stringify(pushReminders)
-    if (!remindersAutosaveInitialized.current) {
-      remindersAutosaveInitialized.current = true
-      lastAutosavedReminders.current = key
-      return
-    }
-    if (key === lastAutosavedReminders.current) return
-
-    if (remindersAutosaveTimer.current) {
-      clearTimeout(remindersAutosaveTimer.current)
-    }
-    remindersAutosaveTimer.current = setTimeout(() => {
-      void (async () => {
-        try {
-          await setPushReminders({ reminders: pushReminders })
-          await syncPushReminders(pushReminders)
-          lastAutosavedReminders.current = key
-        } catch (error) {
-          console.error("Failed to autosave notification settings:", error)
-        }
-      })()
-    }, 450)
-
-    return () => {
-      if (remindersAutosaveTimer.current) {
-        clearTimeout(remindersAutosaveTimer.current)
-      }
-    }
-  }, [remindersHydrated, pushReminders, setPushReminders])
-
-  useEffect(() => {
     const refresh = () => setOfflineQueueTotal(getOfflineQueueSummary().total)
     refresh()
     window.addEventListener("online", refresh)
@@ -415,6 +369,13 @@ export default function Settings({
     setThemeState(nextTheme)
   }
 
+  function handleHapticsChange(enabled: boolean) {
+    if (enabled) hapticSelection()
+    setHapticsOn(enabled)
+    setHapticsEnabled(enabled)
+    toast.success(enabled ? "Haptics enabled" : "Haptics disabled")
+  }
+
   async function runSectionSave(action: () => Promise<void>, success: string) {
     if (saving) return
     hapticTap()
@@ -427,17 +388,6 @@ export default function Settings({
     } finally {
       setSaving(false)
     }
-  }
-
-  async function handleSaveGoals() {
-    await runSectionSave(async () => {
-      await setCustomGoals({
-        calories,
-        protein,
-        carbs,
-        fat,
-      })
-    }, "Goals saved")
   }
 
   async function handleSaveWaterGoal() {
@@ -498,7 +448,10 @@ export default function Settings({
         personalizedInsightsEnabled,
       })
 
-      localStorage.setItem("onerep:analytics-enabled", String(analyticsEnabled))
+      safeLocalStorageSet(
+        "onerep:analytics-enabled",
+        String(analyticsEnabled)
+      )
       if (analyticsEnabled) posthog.opt_in_capturing()
       else posthog.opt_out_capturing()
     }, "Privacy settings saved")
@@ -510,8 +463,8 @@ export default function Settings({
     setLoggingOut(true)
     try {
       clearOfflineQueue()
-      await signOut()
-      localStorage.removeItem(PRELOGIN_SEEN_KEY)
+      await signOutApp()
+      safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
       posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
@@ -522,9 +475,19 @@ export default function Settings({
   }
 
   async function handleResetOnboarding() {
+    if (resettingOnboarding) return
     hapticTap()
-    await clearOnboarding({})
-    navigate("/onboarding", { replace: true })
+    setResettingOnboarding(true)
+    try {
+      await clearOnboarding({})
+      navigate("/onboarding", { replace: true })
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not reset onboarding"
+      )
+    } finally {
+      setResettingOnboarding(false)
+    }
   }
 
   function updateReminder(
@@ -538,21 +501,53 @@ export default function Settings({
   }
 
   async function handleFlushOfflineQueue() {
+    if (syncingOfflineQueue) return
     hapticTap()
-    const result = await flushOfflineQueue()
-    setOfflineQueueTotal(result.remaining)
-    if (result.remaining === 0) toast.success("Offline changes synced")
-    else
-      toast.message(
-        `${result.remaining} change${result.remaining === 1 ? "" : "s"} still waiting`
-      )
+    setSyncingOfflineQueue(true)
+    try {
+      const result = await flushOfflineQueue()
+      setOfflineQueueTotal(result.remaining)
+      if (result.remaining === 0) toast.success("Offline changes synced")
+      else
+        toast.message(
+          `${result.remaining} change${result.remaining === 1 ? "" : "s"} still waiting`
+        )
+    } catch (error) {
+      setOfflineQueueTotal(getOfflineQueueSummary().total)
+      toast.error(error instanceof Error ? error.message : "Sync failed")
+    } finally {
+      setSyncingOfflineQueue(false)
+    }
+  }
+
+  async function handleInstallApp() {
+    hapticTap()
+    if (!pwaInstallPrompt) {
+      toast.message(pwaCopy.description)
+      return
+    }
+
+    const prompt = pwaInstallPrompt
+    setPwaInstallPrompt(null)
+    try {
+      await prompt.prompt()
+      const choice = await prompt.userChoice
+      if (choice.outcome === "accepted") {
+        toast.success("OneRep install started")
+      } else {
+        toast.message("Install dismissed")
+      }
+    } catch (error) {
+      setPwaInstallPrompt(prompt)
+      toast.error(error instanceof Error ? error.message : "Install failed")
+    }
   }
 
   function handleClearLocalData() {
     hapticMedium()
     clearOfflineQueue()
-    localStorage.removeItem("onerep:analytics-enabled")
-    localStorage.removeItem("theme")
+    safeLocalStorageRemove("onerep:analytics-enabled")
+    safeLocalStorageRemove("theme")
     setOfflineQueueTotal(0)
     toast.success("Local cached settings cleared")
   }
@@ -565,18 +560,21 @@ export default function Settings({
         api.users.users.exportMyData,
         {}
       )
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: "application/json",
+      const exportedAt = new Date()
+      const exportDocument = await oneRepExportDocument(exportData, {
+        date: exportedAt,
       })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement("a")
-      link.href = url
-      link.download = `onerep-export-${new Date().toISOString().slice(0, 10)}.json`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(url)
-      toast.success("Export downloaded")
+      const delivery = await shareOrDownloadJsonExport(
+        exportDocument,
+        oneRepExportFilename(exportedAt)
+      )
+      if (delivery !== "cancelled") {
+        toast.success(
+          delivery === "shared"
+            ? "Export shared with checksum"
+            : "Export downloaded with checksum"
+        )
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Export failed")
     } finally {
@@ -602,7 +600,7 @@ export default function Settings({
         throw new Error("Account has too much data to delete in one session")
 
       clearOfflineQueue()
-      await user?.delete()
+      await signOutApp()
 
       posthog.reset()
       navigate("/login", { replace: true })
@@ -615,11 +613,11 @@ export default function Settings({
     }
   }
 
-  const settingsContentReady = goalsInitialized && remindersHydrated
+  const settingsContentReady = goalsInitialized
 
   return (
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
-      <main className="mx-auto min-h-svh w-full max-w-2xl px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:px-8 md:pt-10 md:pb-12">
+      <main className="mx-auto min-h-svh w-full max-w-2xl px-4 pt-[var(--app-safe-top)] pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:px-8 md:pt-10 md:pb-12">
         {/* Header */}
         <div className="mb-5 px-1 pt-1 md:mb-6 md:px-0 md:pt-0">
           <h1 className="app-title text-[24px] md:mt-1 short-phone:text-[21px]">
@@ -629,11 +627,11 @@ export default function Settings({
 
         {settingsContentReady ? (
           <>
-            <div className="space-y-3 short-phone:space-y-2.5">
+            <div className="space-y-2.5 short-phone:space-y-2">
               <Accordion
                 type="multiple"
                 defaultValue={["profile", "targets", "reminders"]}
-                className="space-y-3 short-phone:space-y-2.5"
+                className="space-y-2.5 short-phone:space-y-2"
               >
                 {/* Account Section */}
                 <AccordionItem value="profile" className="border-none">
@@ -647,11 +645,11 @@ export default function Settings({
                       <div className="flex items-center justify-between gap-4 px-4 py-4">
                         <div className="min-w-0">
                           <p className="truncate text-[15px] font-semibold">
-                            {user?.fullName || user?.firstName || "User"}
+                            {user?.name || "User"}
                           </p>
-                          {user?.primaryEmailAddress?.emailAddress && (
+                          {user?.email && (
                             <p className="mt-0.5 truncate text-[12px] text-muted-foreground/50">
-                              {user.primaryEmailAddress.emailAddress}
+                              {user.email}
                             </p>
                           )}
                         </div>
@@ -672,21 +670,19 @@ export default function Settings({
                           )}
                         </button>
                       </div>
-                      {aiAccess.hasAiAccess && (
-                        <>
-                          <RowDivider />
-                          <AiUsageProgress usage={aiUsage} />
-                        </>
-                      )}
                       <RowDivider />
-                      <AiAccessBillingCard aiAccess={aiAccess} />
+                      <AiUsageProgress usage={aiUsage} />
+                      <RowDivider />
+                      <RevenueCatSubscriptionPanel revenueCat={revenueCat} />
                       <RowDivider />
                       <button
+                        type="button"
                         onClick={() => {
                           hapticTap()
                           handleLogout()
                         }}
                         disabled={loggingOut}
+                        aria-busy={loggingOut}
                         className="flex w-full items-center justify-between px-4 py-4 text-left text-muted-foreground transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
@@ -805,7 +801,23 @@ export default function Settings({
                           ]}
                         />
                       </SettingsRow>
+                      <RowDivider />
+                      <SettingsRow label="Haptics">
+                        <SegmentedControl
+                          value={hapticsOn ? "on" : "off"}
+                          onChange={(v) => handleHapticsChange(v === "on")}
+                          options={[
+                            { value: "off", label: "Off" },
+                            { value: "on", label: "On" },
+                          ]}
+                        />
+                      </SettingsRow>
                     </div>
+                    <SectionSaveButton
+                      label="Save targets"
+                      saving={saving}
+                      onClick={handleSaveTargets}
+                    />
                   </AccordionContent>
                 </AccordionItem>
 
@@ -939,7 +951,7 @@ export default function Settings({
                 </AccordionItem>
 
                 {/* Nutrition Logic Section */}
-                <AccordionItem value="nutrition-logic" className="hidden">
+                <AccordionItem value="nutrition-logic" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Nutrition Logic
@@ -1104,11 +1116,16 @@ export default function Settings({
                         }
                       />
                     </div>
+                    <SectionSaveButton
+                      label="Save notifications"
+                      saving={saving}
+                      onClick={handleSaveNotifications}
+                    />
                   </AccordionContent>
                 </AccordionItem>
 
                 {/* Privacy Section */}
-                <AccordionItem value="privacy" className="hidden">
+                <AccordionItem value="privacy" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Privacy & Offline
@@ -1142,12 +1159,40 @@ export default function Settings({
                       <RowDivider />
                       <button
                         type="button"
+                        onClick={handleInstallApp}
+                        disabled={pwaCopy.disabled}
+                        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-55"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-[14px] font-medium">
+                            Install app
+                          </span>
+                          <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/45">
+                            {pwaCopy.description}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="rounded-full bg-muted/70 px-2 py-1 text-[10px] font-bold tracking-wide text-muted-foreground/65 uppercase">
+                            {pwaCopy.statusLabel}
+                          </span>
+                          <span className="app-button app-button-quiet pointer-events-none min-h-8 px-3 text-[11px]">
+                            {pwaCopy.actionLabel}
+                          </span>
+                        </span>
+                      </button>
+                      <RowDivider />
+                      <button
+                        type="button"
                         onClick={handleFlushOfflineQueue}
-                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60"
+                        disabled={syncingOfflineQueue}
+                        aria-busy={syncingOfflineQueue}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span>
                           <span className="block text-[14px] font-medium">
-                            Sync offline queue
+                            {syncingOfflineQueue
+                              ? "Syncing offline queue..."
+                              : "Sync offline queue"}
                           </span>
                           <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
                             {offlineQueueTotal} pending change
@@ -1164,6 +1209,7 @@ export default function Settings({
                         type="button"
                         onClick={handleExportData}
                         disabled={exporting}
+                        aria-busy={exporting}
                         className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
@@ -1200,7 +1246,7 @@ export default function Settings({
                 </AccordionItem>
 
                 {/* Data Section */}
-                <AccordionItem value="data" className="hidden">
+                <AccordionItem value="data" className="border-none">
                   <AccordionTrigger className={SETTINGS_SECTION_TRIGGER_CLASS}>
                     <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
                       Data
@@ -1209,11 +1255,16 @@ export default function Settings({
                   <AccordionContent className="!h-auto px-0 pt-1">
                     <div className={SETTINGS_PANEL_CLASS}>
                       <button
+                        type="button"
                         onClick={handleResetOnboarding}
-                        className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60"
+                        disabled={resettingOnboarding}
+                        aria-busy={resettingOnboarding}
+                        className="flex w-full items-center justify-between px-4 py-4 text-left text-destructive transition-opacity active:opacity-60 disabled:opacity-50"
                       >
                         <span className="text-[14px] font-medium">
-                          Reset onboarding
+                          {resettingOnboarding
+                            ? "Resetting onboarding..."
+                            : "Reset onboarding"}
                         </span>
                       </button>
                       <RowDivider />
@@ -1224,7 +1275,7 @@ export default function Settings({
                           </p>
                           <p className="mt-1 text-[11px] leading-snug text-muted-foreground/55">
                             Permanently removes your OneRep logs, settings,
-                            local offline queue, and Clerk account.
+                            local offline queue, and app account data.
                           </p>
                         </div>
                         <input
@@ -1237,6 +1288,7 @@ export default function Settings({
                           type="button"
                           onClick={handleDeleteAccount}
                           disabled={deleteConfirmText !== "DELETE" || deleting}
+                          aria-busy={deleting}
                           className="text-destructive-foreground w-full rounded-xl bg-destructive px-3 py-3 text-[13px] font-bold transition-opacity active:opacity-75 disabled:opacity-35"
                         >
                           {deleting
@@ -1254,9 +1306,15 @@ export default function Settings({
           <div
             role="status"
             aria-label="Loading settings"
-            className="flex min-h-[45svh] items-center justify-center"
+            className="flex min-h-[45svh] flex-col items-center justify-center px-6 text-center"
           >
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+            <p className="mt-4 text-[14px] font-semibold tracking-tight">
+              Loading settings
+            </p>
+            <p className="mt-1 max-w-[16rem] text-[12px] leading-4 text-muted-foreground/60">
+              Syncing your preferences, goals, and account controls.
+            </p>
           </div>
         )}
       </main>
@@ -1276,45 +1334,39 @@ function ReminderRow({
   const timeValue = `${String(reminder.hour).padStart(2, "0")}:${String(reminder.minute).padStart(2, "0")}`
 
   return (
-    <div className="flex flex-col gap-3 px-4 py-3.5 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between short-phone:py-3">
-      <div className="min-w-0">
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
+      <div>
         <span className="block text-[14px] text-foreground/80">{label}</span>
         <span className="mt-0.5 block text-[10.5px] text-muted-foreground/45">
           {reminder.enabled ? formatReminderLabel(reminder) : "Off"}
         </span>
       </div>
-      <div className="flex w-full items-center justify-between gap-2 min-[430px]:w-auto min-[430px]:justify-end">
+      <div className="flex items-center gap-2">
         <input
           type="time"
           value={timeValue}
           onChange={(e) => {
             const [hour, minute] = e.target.value.split(":").map(Number)
-            if (Number.isFinite(hour) && Number.isFinite(minute)) {
-              onChange({ hour, minute })
-            }
+            onChange({ hour, minute })
           }}
-          className="h-10 min-w-0 flex-1 rounded-[10px] bg-muted/60 px-3 text-[12px] font-semibold outline-none min-[430px]:w-[6.75rem] min-[430px]:flex-none"
+          className="h-10 rounded-[10px] bg-muted/60 px-2 text-[12px] font-semibold outline-none"
         />
         <button
           type="button"
-          role="switch"
-          aria-checked={reminder.enabled}
           onClick={() => {
             hapticSelection()
             onChange({ enabled: !reminder.enabled })
           }}
           aria-label={`${reminder.enabled ? "Disable" : "Enable"} ${label} reminder`}
           className={cn(
-            "relative h-8 w-[3.25rem] shrink-0 rounded-full transition-colors",
-            reminder.enabled
-              ? "bg-foreground"
-              : "bg-muted/80 ring-1 ring-border/30"
+            "relative h-10 w-16 rounded-full transition-colors",
+            reminder.enabled ? "bg-foreground" : "bg-muted"
           )}
         >
           <span
             className={cn(
-              "absolute top-1 left-1 h-6 w-6 rounded-full bg-background shadow-sm transition-transform",
-              reminder.enabled ? "translate-x-5" : "translate-x-0"
+              "absolute top-1 h-8 w-8 rounded-full bg-background shadow-sm transition-transform",
+              reminder.enabled ? "translate-x-6" : "translate-x-1"
             )}
           />
         </button>
@@ -1331,9 +1383,9 @@ function SettingsRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-3 px-4 py-4 min-[430px]:flex-row min-[430px]:items-center min-[430px]:justify-between short-phone:py-3.5">
-      <span className="text-[14px] font-medium text-foreground/80">{label}</span>
-      <div className="min-w-0 min-[430px]:shrink-0">{children}</div>
+    <div className="flex items-center justify-between gap-3 px-4 py-3.5 short-phone:py-3">
+      <span className="text-[14px] text-foreground/80">{label}</span>
+      {children}
     </div>
   )
 }
@@ -1401,169 +1453,151 @@ function AiUsageProgress({ usage }: { usage?: AiUsageSummary | null }) {
   )
 }
 
-function formatBillingDate(value?: Date | string | number | null) {
-  if (!value) return null
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return null
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function AiAccessBillingCard({
-  aiAccess,
+function RevenueCatSubscriptionPanel({
+  revenueCat,
 }: {
-  aiAccess: ReturnType<typeof useAiAccessSubscription>
+  revenueCat: ReturnType<typeof useRevenueCat>
 }) {
-  const plans = usePlans({ for: "user", pageSize: 20 })
-  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
-  const [canceling, setCanceling] = useState(false)
+  const [action, setAction] = useState<
+    "paywall" | "restore" | "refresh" | "customer-center" | null
+  >(null)
+  const active = revenueCat.hasOneRepPro
+  const loading = revenueCat.status === "loading"
+  const unsupported = revenueCat.status === "unsupported"
+  const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
+  const disabled = unsupported || loading || action !== null
 
-  const aiPlan = (plans.data ?? []).find(
-    (plan) =>
-      plan.slug === AI_ACCESS_PLAN_SLUG ||
-      (AI_ACCESS_PLAN_ID ? plan.id === AI_ACCESS_PLAN_ID : false)
-  )
-  const planId = AI_ACCESS_PLAN_ID ?? aiPlan?.id
-  const aiSubscriptionItem = getActiveAiAccessSubscriptionItem(
-    aiAccess.subscription
-  )
-  const upgraded = Boolean(aiSubscriptionItem)
-  const nextPaymentDate = formatBillingDate(aiSubscriptionItem?.nextPayment?.date)
-  const loadingBilling = plans.isLoading || aiAccess.isLoading
-
-  async function handleCancelPlan() {
-    if (!aiSubscriptionItem || canceling) return
-    setCanceling(true)
+  async function runRevenueCatAction(
+    nextAction: Exclude<typeof action, null>,
+    task: () => Promise<unknown>,
+    successMessage?: string
+  ) {
+    if (action) return
+    hapticMedium()
+    setAction(nextAction)
     try {
-      await aiSubscriptionItem.cancel({})
-      await aiAccess.revalidate?.()
-      setConfirmCancelOpen(false)
-      toast.success("AI Access canceled")
+      await task()
+      if (successMessage) toast.success(successMessage)
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not cancel AI Access"
+      const message = revenueCatErrorMessage(
+        error,
+        "Subscription action failed"
       )
+      if (message !== "Purchase canceled") {
+        toast.error(message)
+      }
     } finally {
-      setCanceling(false)
+      setAction(null)
     }
   }
 
   return (
     <div className="px-4 py-4">
-      <div className="rounded-[22px] border border-border/35 bg-muted/25 p-4">
+      <div className="rounded-[12px] border border-border/45 bg-muted/20 p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-[14px] font-semibold text-foreground/88">
-              AI Access
+              OneRep Pro
             </p>
             <p className="mt-1 text-[11px] leading-snug text-muted-foreground/50">
-              Optional $5/month access for AI metric generation, workout drafts,
-              and food photo analysis.
+              Entitlement: {ONEREP_PRO_ENTITLEMENT}. Package:{" "}
+              {MONTHLY_PACKAGE_IDENTIFIER}.
             </p>
           </div>
           <span
             className={cn(
               "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
-              upgraded
+              active
                 ? "bg-foreground text-background"
                 : "bg-background text-muted-foreground ring-1 ring-border/35"
             )}
           >
-            {upgraded ? "Active" : "$5/mo"}
+            {active ? "Active" : monthlyPrice}
           </span>
         </div>
 
-        {upgraded ? (
-          <div className="mt-4 grid gap-2">
-            <p className="text-[11px] text-muted-foreground/48">
-              {nextPaymentDate
-                ? `Next billing date: ${nextPaymentDate}`
-                : "Your AI Access subscription is active."}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                hapticMedium()
-                setConfirmCancelOpen(true)
-              }}
-              disabled={canceling}
-              className="min-h-11 rounded-xl border border-destructive/20 bg-destructive/10 px-3 text-[13px] font-bold text-destructive transition-opacity active:opacity-70 disabled:opacity-50"
-            >
-              {canceling ? "Canceling…" : "Cancel AI Access"}
-            </button>
-          </div>
-        ) : planId ? (
-          <CheckoutButton
-            planId={planId}
-            planPeriod="month"
-            for="user"
-            onSubscriptionComplete={() => {
-              void aiAccess.revalidate?.()
-              toast.success("AI Access enabled")
-            }}
-            checkoutProps={{
-              onClose: () => void aiAccess.revalidate?.(),
-            }}
-          >
-            <button
-              type="button"
-              className="mt-4 min-h-11 w-full rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
-            >
-              Upgrade to AI Access
-            </button>
-          </CheckoutButton>
-        ) : (
+        {revenueCat.error && (
+          <p className="mt-3 rounded-[10px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
+            {revenueCat.error}
+          </p>
+        )}
+
+        {unsupported ? (
+          <p className="mt-3 rounded-[10px] bg-background px-3 py-2 text-[11px] font-medium text-muted-foreground/60">
+            Purchases, paywalls, and Customer Center are available in the iOS
+            and Android apps.
+          </p>
+        ) : null}
+
+        <div className="mt-4 grid gap-2">
           <button
             type="button"
-            disabled
-            className="mt-4 min-h-11 w-full rounded-xl bg-muted px-3 text-[13px] font-bold text-muted-foreground/55"
+            disabled={disabled}
+            aria-busy={action === "paywall"}
+            onClick={() =>
+              void runRevenueCatAction(
+                "paywall",
+                revenueCat.presentPaywall,
+                "Subscription status updated"
+              )
+            }
+            className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
           >
-            {loadingBilling ? "Loading billing…" : "AI plan unavailable"}
+            {action === "paywall"
+              ? "Opening..."
+              : active
+                ? "View Pro"
+                : "Upgrade to Pro"}
           </button>
-        )}
-      </div>
 
-      {confirmCancelOpen && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-background/72 px-5 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="cancel-ai-access-title"
-        >
-          <div className="w-full max-w-sm rounded-[26px] border border-border/45 bg-card p-5 shadow-2xl">
-            <p
-              id="cancel-ai-access-title"
-              className="text-[17px] font-bold tracking-tight"
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "restore"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "restore",
+                  revenueCat.restorePurchases,
+                  "Purchases restored"
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
-              Cancel AI Access?
-            </p>
-            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/62">
-              Your core OneRep features stay free. Canceling only removes the
-              paid AI allowance after Clerk finishes the subscription change.
-            </p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmCancelOpen(false)}
-                disabled={canceling}
-                className="min-h-11 rounded-xl bg-muted px-3 text-[13px] font-bold text-foreground/75 transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                Keep plan
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelPlan}
-                disabled={canceling}
-                className="min-h-11 rounded-xl bg-destructive px-3 text-[13px] font-bold text-destructive-foreground transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                {canceling ? "Canceling…" : "Cancel plan"}
-              </button>
-            </div>
+              {action === "restore" ? "..." : "Restore"}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "refresh"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "refresh",
+                  revenueCat.refresh,
+                  "Subscription refreshed"
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+            >
+              {action === "refresh" ? "..." : "Refresh"}
+            </button>
+            <button
+              type="button"
+              disabled={disabled}
+              aria-busy={action === "customer-center"}
+              onClick={() =>
+                void runRevenueCatAction(
+                  "customer-center",
+                  revenueCat.presentCustomerCenter
+                )
+              }
+              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+            >
+              {action === "customer-center" ? "..." : "Manage"}
+            </button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -1639,20 +1673,20 @@ function NumberStepper({
   }
 
   return (
-    <div className="flex w-full items-center justify-end gap-1.5 min-[430px]:w-auto">
+    <div className="flex items-center gap-1">
       {/* Decrement */}
       <button
         onClick={decrement}
         disabled={value <= min}
         aria-label={label ? `Decrease ${label}` : "Decrease"}
         className={cn(
-          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+          "flex h-10 w-10 items-center justify-center rounded-[10px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >
-        <Minus size={14} weight="bold" />
+        <Minus size={13} weight="bold" />
       </button>
 
       {/* Value display / inline edit */}
@@ -1671,7 +1705,7 @@ function NumberStepper({
             : `Edit value ${value}`
         }
         className={cn(
-          "relative flex min-h-11 min-w-[72px] flex-col items-center justify-center rounded-[12px] px-2",
+          "relative flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] px-2",
           "bg-muted/60 transition-colors",
           editing && "hidden"
         )}
@@ -1687,7 +1721,7 @@ function NumberStepper({
       </button>
 
       {editing && (
-        <div className="flex min-h-11 min-w-[72px] flex-col items-center justify-center rounded-[12px] bg-muted/80 px-2 ring-1 ring-foreground/20">
+        <div className="flex min-h-10 min-w-[62px] flex-col items-center justify-center rounded-[10px] bg-muted/80 px-2 ring-1 ring-foreground/20">
           <input
             ref={inputRef}
             type="text"
@@ -1722,13 +1756,13 @@ function NumberStepper({
         disabled={value >= max}
         aria-label={label ? `Increase ${label}` : "Increase"}
         className={cn(
-          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+          "flex h-10 w-10 items-center justify-center rounded-[10px]",
           "bg-muted/60 text-foreground/70 transition-all",
           "active:scale-[0.985] active:bg-muted",
           "disabled:pointer-events-none disabled:opacity-25"
         )}
       >
-        <Plus size={14} weight="bold" />
+        <Plus size={13} weight="bold" />
       </button>
     </div>
   )
@@ -1744,7 +1778,7 @@ function SegmentedControl({
   options: { value: string; label: string }[]
 }) {
   return (
-    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(3.1rem,1fr))] gap-1 rounded-[12px] bg-muted/60 p-1 min-[430px]:w-auto min-[430px]:auto-cols-fr min-[430px]:grid-flow-col min-[430px]:grid-cols-none">
+    <div className="flex gap-0.5 rounded-[10px] bg-muted/60 p-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -1753,7 +1787,7 @@ function SegmentedControl({
             onChange(opt.value)
           }}
           className={cn(
-            "min-h-10 rounded-[10px] px-2.5 text-[12px] font-semibold transition-all duration-150",
+            "min-h-10 rounded-[9px] px-3 text-[12px] font-semibold transition-all duration-150",
             value === opt.value
               ? "bg-card text-foreground shadow-sm"
               : "text-muted-foreground/45 active:text-foreground/60"

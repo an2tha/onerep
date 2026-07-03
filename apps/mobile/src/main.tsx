@@ -17,15 +17,18 @@ import {
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
-import { ClerkProvider, HandleSSOCallback, useAuth } from "@clerk/react"
-import { ConvexProviderWithClerk } from "convex/react-clerk"
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
+import { providerAuthClient, signOutApp } from "@/lib/auth-client"
+import { safeAuthRedirectPath } from "@/lib/auth-session"
 
 import "./index.css"
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as
-  | string
-  | undefined
+declare global {
+  interface Window {
+    __onerepSignOut?: () => void | Promise<void>
+  }
+}
 
 const posthogToken = import.meta.env.VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
 if (posthogToken) {
@@ -219,30 +222,6 @@ async function waitForRouteContent(frame: HTMLElement, signal: AbortSignal) {
 
   const elapsed = performance.now() - startedAt
   await waitForMs(ROUTE_MIN_READY_MS - elapsed, signal)
-}
-
-function MissingClerkConfig() {
-  return (
-    <main className="mx-auto flex min-h-svh w-full max-w-xl items-center bg-background px-5 text-foreground">
-      <section className="w-full rounded-[24px] border border-border/70 bg-card p-5 shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30">
-        <p className="text-[10px] font-bold tracking-[0.16em] text-muted-foreground/55 uppercase">
-          Configuration
-        </p>
-        <h1 className="mt-2 text-[1.35rem] leading-tight font-semibold tracking-tight">
-          Clerk publishable key is missing
-        </h1>
-        <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
-          Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to the mobile Vite
-          environment, then restart the dev server.
-        </p>
-        <div className="mt-4 rounded-[16px] bg-muted/55 px-3 py-2.5">
-          <code className="text-[12px] text-foreground/80">
-            VITE_CLERK_PUBLISHABLE_KEY=pk_...
-          </code>
-        </div>
-      </section>
-    </main>
-  )
 }
 
 function NavSync() {
@@ -480,31 +459,17 @@ function NavSync() {
   )
 }
 
-function SSOCallback() {
+function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const nextPath =
-    searchParams.get("next") === "onboarding" ? "/onboarding" : "/"
+  const nextPath = safeAuthRedirectPath(searchParams.get("next"))
 
-  function navigateInApp(destination: string) {
-    if (destination.startsWith("http")) {
-      window.location.href = destination
-      return
-    }
-
-    navigate(destination, { replace: true })
-  }
+  useEffect(() => {
+    navigate(nextPath, { replace: true })
+  }, [navigate, nextPath])
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <HandleSSOCallback
-        navigateToApp={({ decorateUrl }) => {
-          navigateInApp(decorateUrl(nextPath))
-        }}
-        navigateToSignIn={() => navigate("/login", { replace: true })}
-        navigateToSignUp={() => navigate("/login", { replace: true })}
-      />
-
       <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
         <header className="mb-8 flex flex-col items-center short-phone:mb-5">
           <img
@@ -700,7 +665,7 @@ const router = createBrowserRouter([
       },
       {
         path: "/sso-callback",
-        element: <SSOCallback />,
+        element: <AuthCallback />,
       },
       {
         path: "/reset-password",
@@ -730,24 +695,21 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    {clerkPublishableKey ? (
-      <ClerkProvider publishableKey={clerkPublishableKey}>
-        <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-          <PostHogProvider client={posthog}>
-            <ThemeProvider>
-              <ErrorBoundary label="the app">
-                <OfflineSyncIndicator />
-                <RouterProvider router={router} />
-                <Toaster position="top-center" richColors />
-              </ErrorBoundary>
-            </ThemeProvider>
-          </PostHogProvider>
-        </ConvexProviderWithClerk>
-      </ClerkProvider>
-    ) : (
-      <ThemeProvider>
-        <MissingClerkConfig />
-      </ThemeProvider>
-    )}
+    <ConvexBetterAuthProvider
+      client={convexClient}
+      authClient={providerAuthClient}
+    >
+      <PostHogProvider client={posthog}>
+        <ThemeProvider>
+          <ErrorBoundary label="the app">
+            <OfflineSyncIndicator />
+            <RouterProvider router={router} />
+            <Toaster position="top-center" richColors />
+          </ErrorBoundary>
+        </ThemeProvider>
+      </PostHogProvider>
+    </ConvexBetterAuthProvider>
   </StrictMode>
 )
+
+window.__onerepSignOut = signOutApp

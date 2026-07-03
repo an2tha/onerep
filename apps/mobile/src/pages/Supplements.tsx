@@ -6,7 +6,6 @@ import {
   CaretLeft,
   CaretRight,
   Check,
-  Clock,
   MagnifyingGlass,
   PencilSimple,
   Pill,
@@ -16,11 +15,14 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
+import { toast } from "sonner"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
   currentDateKey,
   foodPortionLabel,
@@ -42,6 +44,7 @@ import {
   defaultSupplementDraft,
   formatNutrientValue,
   formatSupplementNutrient,
+  loggableSupplementPlanItems,
   scaleSupplementNutrients,
   supplementCategoryDetail,
   supplementConsistency,
@@ -89,13 +92,13 @@ const EDITOR_NUTRIENT_KEYS: SupplementNutrientKey[] = [
 ]
 
 const WEEKDAYS = [
-  { id: 1, label: "M" },
-  { id: 2, label: "T" },
-  { id: 3, label: "W" },
-  { id: 4, label: "T" },
-  { id: 5, label: "F" },
-  { id: 6, label: "S" },
-  { id: 0, label: "S" },
+  { id: 1, label: "M", full: "Monday" },
+  { id: 2, label: "T", full: "Tuesday" },
+  { id: 3, label: "W", full: "Wednesday" },
+  { id: 4, label: "T", full: "Thursday" },
+  { id: 5, label: "F", full: "Friday" },
+  { id: 6, label: "S", full: "Saturday" },
+  { id: 0, label: "S", full: "Sunday" },
 ]
 
 type Overview = {
@@ -412,6 +415,7 @@ function TodayRow({
   onCustom,
   onSkip,
   onOpen,
+  taking,
 }: {
   plan: ReturnType<typeof buildSupplementDayPlan>[number]
   consistency: ReturnType<typeof supplementConsistency>
@@ -419,9 +423,9 @@ function TodayRow({
   onCustom: () => void
   onSkip: () => void
   onOpen: () => void
+  taking: boolean
 }) {
   const { item, state, logs } = plan
-  const detail = supplementCategoryDetail(item.category)
   const latest = [...logs].sort((a, b) =>
     b.loggedAt.localeCompare(a.loggedAt)
   )[0]
@@ -493,11 +497,12 @@ function TodayRow({
             <button
               type="button"
               onClick={onTake}
-              disabled={state === "taken"}
+              disabled={state === "taken" || taking}
+              aria-busy={taking}
               className="app-button app-button-primary min-h-10 disabled:opacity-45"
             >
               <Check size={12} weight="bold" />
-              {state === "taken" ? "Taken" : "Taken now"}
+              {taking ? "Logging..." : state === "taken" ? "Taken" : "Taken now"}
             </button>
             <button
               type="button"
@@ -533,6 +538,7 @@ function CatalogRow({
   onQuickLog,
   onToggleActive,
   onDelete,
+  quickLogging,
 }: {
   item: SupplementItem
   consistency: ReturnType<typeof supplementConsistency>
@@ -541,6 +547,7 @@ function CatalogRow({
   onQuickLog: () => void
   onToggleActive: () => void
   onDelete: () => void
+  quickLogging: boolean
 }) {
   const detail = supplementCategoryDetail(item.category)
   const nutrientCount = Object.values(item.nutrientsPerServing ?? {}).filter(
@@ -579,10 +586,16 @@ function CatalogRow({
         <button
           type="button"
           onClick={onQuickLog}
-          className="app-icon-button h-9 w-9"
+          disabled={quickLogging}
+          aria-busy={quickLogging}
+          className="app-icon-button h-9 w-9 disabled:opacity-45"
           aria-label={`Log ${item.name}`}
         >
-          <Check size={11} weight="bold" />
+          {quickLogging ? (
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
+          ) : (
+            <Check size={11} weight="bold" />
+          )}
         </button>
         <button
           type="button"
@@ -796,6 +809,7 @@ function ItemSheet({
 
   async function runSearch(event?: React.FormEvent<HTMLFormElement>) {
     event?.preventDefault()
+    if (searchBusy) return
     const query = searchQuery.trim()
     if (query.length < 2) {
       setSearchResults([])
@@ -829,6 +843,7 @@ function ItemSheet({
   }
 
   async function importSearchResult(result: FoodResult) {
+    if (importingCode) return
     setImportingCode(result.code)
     setSearchError(null)
     try {
@@ -842,6 +857,7 @@ function ItemSheet({
   }
 
   async function importBarcode() {
+    if (barcodeBusy) return
     const code = draft.barcode?.trim()
     if (!code) return
     setBarcodeBusy(true)
@@ -861,6 +877,7 @@ function ItemSheet({
   }
 
   async function submit() {
+    if (saving) return
     if (!draft.name.trim() || !draft.servingLabel.trim()) return
     const finalDraft =
       draft.source === "openfoodfacts" && nutrientScaleBase
@@ -898,7 +915,9 @@ function ItemSheet({
   return (
     <>
       <MobileSheet
-        onClose={onClose}
+        onClose={saving ? () => {} : onClose}
+        closeOnBackdrop={!saving}
+        showHandle={!saving}
         overlayClassName="bg-black/40 backdrop-blur-[4px]"
         panelClassName="mx-auto w-full max-w-lg overflow-hidden rounded-t-[28px] bg-card shadow-[0_-20px_60px_rgba(0,0,0,0.2)]"
         maxHeight="92svh"
@@ -914,6 +933,7 @@ function ItemSheet({
                 type="button"
                 onClick={submit}
                 disabled={saving}
+                aria-busy={saving}
                 className="app-button app-button-primary min-h-11 w-full"
               >
                 {saving ? "Saving..." : "Save supplement"}
@@ -938,7 +958,9 @@ function ItemSheet({
               <p className="truncate text-[15px] font-semibold">{title}</p>
             </div>
             <button
-              onClick={onClose}
+              type="button"
+              onClick={saving ? undefined : onClose}
+              disabled={saving}
               className="app-icon-button h-10 w-10"
               aria-label="Close"
             >
@@ -995,6 +1017,8 @@ function ItemSheet({
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                     <input
+                      name="supplement-product-search"
+                      aria-label="Supplement product search"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Creatine, whey, magnesium..."
@@ -1003,6 +1027,7 @@ function ItemSheet({
                     <button
                       type="submit"
                       disabled={searchBusy}
+                      aria-busy={searchBusy}
                       className="app-icon-button h-11 w-11 disabled:opacity-40"
                       aria-label="Search OpenFoodFacts"
                     >
@@ -1017,6 +1042,8 @@ function ItemSheet({
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                     <input
+                      name="supplement-product-barcode"
+                      aria-label="Supplement product barcode"
                       value={draft.barcode ?? ""}
                       inputMode="numeric"
                       onChange={(e) => update("barcode", e.target.value)}
@@ -1026,6 +1053,7 @@ function ItemSheet({
                       type="button"
                       onClick={importBarcode}
                       disabled={barcodeBusy}
+                      aria-busy={barcodeBusy}
                       className="app-icon-button h-11 w-11 disabled:opacity-40"
                       aria-label="Lookup barcode"
                     >
@@ -1083,7 +1111,8 @@ function ItemSheet({
                       <button
                         type="button"
                         onClick={() => importSearchResult(result)}
-                        disabled={importingCode === result.code}
+                        disabled={importingCode !== null}
+                        aria-busy={importingCode === result.code}
                         className="app-button app-button-secondary min-h-9 shrink-0 px-3 text-[11px] disabled:opacity-45"
                       >
                         <Plus size={11} weight="bold" />
@@ -1117,6 +1146,8 @@ function ItemSheet({
                     Name
                   </span>
                   <input
+                    name="supplement-name"
+                    aria-label="Supplement name"
                     value={draft.name}
                     onChange={(e) => update("name", e.target.value)}
                     className="h-11 rounded-xl bg-muted/45 px-3 text-[13px] outline-none"
@@ -1129,6 +1160,8 @@ function ItemSheet({
                       Brand
                     </span>
                     <input
+                      name="supplement-brand"
+                      aria-label="Supplement brand"
                       value={draft.brand ?? ""}
                       onChange={(e) => update("brand", e.target.value)}
                       className="h-11 rounded-xl bg-muted/45 px-3 text-[13px] outline-none"
@@ -1140,6 +1173,8 @@ function ItemSheet({
                     </span>
                     <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
                       <input
+                        name="supplement-barcode"
+                        aria-label="Supplement barcode"
                         value={draft.barcode ?? ""}
                         inputMode="numeric"
                         onChange={(e) => update("barcode", e.target.value)}
@@ -1149,6 +1184,7 @@ function ItemSheet({
                         type="button"
                         onClick={importBarcode}
                         disabled={barcodeBusy}
+                        aria-busy={barcodeBusy}
                         className="app-icon-button h-11 w-11 disabled:opacity-40"
                         aria-label="Lookup barcode"
                       >
@@ -1170,6 +1206,8 @@ function ItemSheet({
                       Category
                     </span>
                     <select
+                      name="supplement-category"
+                      aria-label="Supplement category"
                       value={draft.category}
                       onChange={(e) =>
                         updateCategory(e.target.value as SupplementCategory)
@@ -1188,6 +1226,8 @@ function ItemSheet({
                       Form
                     </span>
                     <select
+                      name="supplement-form"
+                      aria-label="Supplement form"
                       value={draft.form}
                       onChange={(e) =>
                         updateForm(e.target.value as SupplementForm)
@@ -1208,6 +1248,8 @@ function ItemSheet({
                     Serving size
                   </span>
                   <input
+                    name="supplement-serving-size"
+                    aria-label="Supplement serving size"
                     value={draft.servingLabel}
                     placeholder={servingLabelForForm(draft.form)}
                     onChange={(e) => updateServingLabel(e.target.value)}
@@ -1291,6 +1333,8 @@ function ItemSheet({
                     Notes
                   </span>
                   <textarea
+                    name="supplement-notes"
+                    aria-label="Supplement notes"
                     value={draft.notes ?? ""}
                     onChange={(e) => update("notes", e.target.value)}
                     rows={3}
@@ -1343,6 +1387,8 @@ function ScheduleEditor({
             Schedule
           </span>
           <select
+            name="supplement-schedule-type"
+            aria-label="Supplement schedule"
             value={draft.schedule.type}
             onChange={(e) =>
               setSchedule({ type: e.target.value as SupplementScheduleType })
@@ -1368,6 +1414,8 @@ function ScheduleEditor({
           </span>
           <input
             type="time"
+            name="supplement-preferred-time"
+            aria-label="Supplement preferred time"
             value={draft.schedule.preferredTime ?? ""}
             onChange={(e) => setSchedule({ preferredTime: e.target.value })}
             className="h-10 rounded-xl bg-background/80 px-2 text-[12px] outline-none"
@@ -1389,6 +1437,8 @@ function ScheduleEditor({
                   else days.add(day.id)
                   setSchedule({ weekdays: [...days].sort((a, b) => a - b) })
                 }}
+                aria-pressed={active}
+                aria-label={`${active ? "Remove" : "Add"} ${day.full} schedule day`}
                 className={cn(
                   "h-8 rounded-[9px] text-[11px] font-bold",
                   active
@@ -1479,6 +1529,8 @@ function LogSheet({
               -
             </button>
             <input
+              name="supplement-serving-multiplier"
+              aria-label="Supplement serving multiplier"
               value={multiplier}
               inputMode="decimal"
               onChange={(e) => setMultiplier(e.target.value)}
@@ -1699,11 +1751,24 @@ function ConfirmDeleteSheet({
 }: {
   item: SupplementItem
   onCancel: () => void
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
 }) {
+  const [deleting, setDeleting] = useState(false)
+
+  async function confirmDelete() {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await onConfirm()
+    } catch (error) {
+      reportOfflineMutationError(error)
+      setDeleting(false)
+    }
+  }
+
   return (
     <MobileSheet
-      onClose={onCancel}
+      onClose={deleting ? () => {} : onCancel}
       overlayClassName="bg-black/45 backdrop-blur-[6px]"
       panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
       panelStyle={{
@@ -1721,15 +1786,18 @@ function ConfirmDeleteSheet({
         <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
-            onClick={onConfirm}
-            className="h-12 w-full rounded-xl bg-destructive text-[14px] font-bold text-white transition-opacity active:opacity-80"
+            onClick={() => void confirmDelete()}
+            disabled={deleting}
+            aria-busy={deleting}
+            className="h-12 w-full rounded-xl bg-destructive text-[14px] font-bold text-white transition-opacity active:opacity-80 disabled:opacity-60"
           >
-            Delete supplement
+            {deleting ? "Deleting..." : "Delete supplement"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80"
+            disabled={deleting}
+            className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1773,6 +1841,8 @@ export default function Supplements() {
   const [dateKey, setDateKey] = useState(todayKey)
   const [tab, setTab] = useState<"today" | "catalog">("today")
   const [sheet, setSheet] = useState<SheetMode>(null)
+  const [bulkLogging, setBulkLogging] = useState(false)
+  const [quickLoggingId, setQuickLoggingId] = useState<string | null>(null)
   const [confirmDeleteItem, setConfirmDeleteItem] =
     useState<SupplementItem | null>(null)
 
@@ -1841,6 +1911,11 @@ export default function Supplements() {
     () => [...overview.logs, ...overview.recentLogs],
     [overview.logs, overview.recentLogs]
   )
+  const remainingScheduledPlans = useMemo(
+    () => loggableSupplementPlanItems(dayPlan),
+    [dayPlan]
+  )
+  const remainingScheduledCount = remainingScheduledPlans.length
   const dateLabel = formatDateLabel(dateKey, todayKey)
   const isToday = dateKey === todayKey
 
@@ -1850,7 +1925,7 @@ export default function Supplements() {
   ) {
     await saveItem(
       stripUndefined({
-        id,
+        id: id as Id<"supplementItems"> | undefined,
         ...draft,
         nutrientsPerServing: cleanSupplementNutrients(
           draft.nutrientsPerServing
@@ -1859,41 +1934,79 @@ export default function Supplements() {
     )
   }
 
-  function takeNow(item: SupplementItem, servingMultiplier = 1) {
-    if (!item._id) return Promise.resolve()
-    return logTaken({
-      supplementId: item._id,
-      date: dateKey,
-      loggedAt: new Date().toISOString(),
-      servingMultiplier,
-    }) as Promise<void>
+  async function takeNow(item: SupplementItem, servingMultiplier = 1) {
+    if (!item._id || quickLoggingId !== null) return
+    const supplementId = item._id
+    setQuickLoggingId(supplementId)
+    try {
+      await logTaken({
+        supplementId: supplementId as Id<"supplementItems">,
+        date: dateKey,
+        loggedAt: new Date().toISOString(),
+        servingMultiplier,
+      })
+    } finally {
+      setQuickLoggingId(null)
+    }
+  }
+
+  async function takeRemainingScheduled() {
+    if (bulkLogging || remainingScheduledPlans.length === 0) return
+
+    setBulkLogging(true)
+    try {
+      const loggedAt = new Date().toISOString()
+      for (const plan of remainingScheduledPlans) {
+        if (!plan.item._id) continue
+        await logTaken({
+          supplementId: plan.item._id as Id<"supplementItems">,
+          date: dateKey,
+          loggedAt,
+          servingMultiplier: 1,
+        })
+      }
+      toast.success(
+        `${remainingScheduledPlans.length} supplement${
+          remainingScheduledPlans.length === 1 ? "" : "s"
+        } logged`
+      )
+    } catch {
+      toast.error("Could not log remaining supplements")
+    } finally {
+      setBulkLogging(false)
+    }
   }
 
   function skipItem(item: SupplementItem) {
     if (!item._id) return
     void markSkipped({
-      supplementId: item._id,
+      supplementId: item._id as Id<"supplementItems">,
       date: dateKey,
       loggedAt: new Date().toISOString(),
-    })
+    }).catch(reportOfflineMutationError)
   }
 
   function toggleActive(item: SupplementItem) {
     if (!item._id) return
-    void setItemActive({ id: item._id, active: !item.active })
+    void setItemActive({
+      id: item._id as Id<"supplementItems">,
+      active: !item.active,
+    }).catch(reportOfflineMutationError)
   }
 
   function deleteLog(logId: string) {
-    void removeLog({ logId })
+    void removeLog({ logId: logId as Id<"supplementIntakeLogs"> }).catch(
+      reportOfflineMutationError
+    )
   }
 
   function deleteDayEntry(id: string) {
-    void removeEntry({ date: dateKey, id })
+    void removeEntry({ date: dateKey, id }).catch(reportOfflineMutationError)
   }
 
-  function deleteSupplement(item: SupplementItem) {
+  async function deleteSupplement(item: SupplementItem) {
     if (!item._id) return
-    void removeItem({ id: item._id })
+    await removeItem({ id: item._id as Id<"supplementItems"> })
     setConfirmDeleteItem(null)
     if (sheet?.kind === "detail" && sheet.item._id === item._id) {
       setSheet(null)
@@ -1988,17 +2101,38 @@ export default function Supplements() {
                       : "Rest-day schedules are active."
                   }
                   action={
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTab("catalog")
-                        setSheet({ kind: "edit" })
-                      }}
-                      className="app-button app-button-secondary"
-                    >
-                      <Plus size={11} weight="bold" />
-                      Add
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {remainingScheduledCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void takeRemainingScheduled().catch(
+                              reportOfflineMutationError
+                            )
+                          }
+                          disabled={bulkLogging}
+                          aria-busy={bulkLogging}
+                          className="app-button app-button-primary px-3 disabled:opacity-45"
+                          aria-label={`Log ${remainingScheduledCount} remaining scheduled supplement${
+                            remainingScheduledCount === 1 ? "" : "s"
+                          }`}
+                        >
+                          <Check size={11} weight="bold" />
+                          {bulkLogging ? "Logging" : `Take ${remainingScheduledCount}`}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTab("catalog")
+                          setSheet({ kind: "edit" })
+                        }}
+                        className="app-button app-button-secondary"
+                      >
+                        <Plus size={11} weight="bold" />
+                        Add
+                      </button>
+                    </div>
                   }
                 />
                 {activeItems.length === 0 ? (
@@ -2019,7 +2153,12 @@ export default function Supplements() {
                           allLogs,
                           todayKey
                         )}
-                        onTake={() => void takeNow(plan.item)}
+                        onTake={() =>
+                          void takeNow(plan.item).catch(
+                            reportOfflineMutationError
+                          )
+                        }
+                        taking={quickLoggingId === plan.item._id}
                         onCustom={() =>
                           setSheet({ kind: "log", item: plan.item })
                         }
@@ -2112,7 +2251,10 @@ export default function Supplements() {
                         )}
                         onEdit={() => setSheet({ kind: "edit", item })}
                         onOpen={() => setSheet({ kind: "detail", item })}
-                        onQuickLog={() => void takeNow(item)}
+                        onQuickLog={() =>
+                          void takeNow(item).catch(reportOfflineMutationError)
+                        }
+                        quickLogging={quickLoggingId === item._id}
                         onToggleActive={() => toggleActive(item)}
                         onDelete={() => setConfirmDeleteItem(item)}
                       />
@@ -2145,7 +2287,9 @@ export default function Supplements() {
           item={sheet.item}
           date={dateKey}
           onClose={() => setSheet(null)}
-          onLog={(multiplier) => takeNow(sheet.item, multiplier)}
+          onLog={(multiplier) =>
+            takeNow(sheet.item, multiplier).catch(reportOfflineMutationError)
+          }
         />
       )}
       {sheet?.kind === "detail" && (

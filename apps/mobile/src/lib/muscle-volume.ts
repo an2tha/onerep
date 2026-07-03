@@ -5,6 +5,8 @@
  * exercise catalog's primaryMuscles / secondaryMuscles metadata.
  */
 
+import { localDateKey } from "./utils"
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type MuscleSets = {
@@ -75,7 +77,7 @@ export function normaliseMuscle(name: string): string {
 }
 
 function isoDate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  return localDateKey(date)
 }
 
 function daysBetweenIso(fromIso: string, toIso: string): number {

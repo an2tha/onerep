@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -736,7 +737,7 @@ export default function Nutrition() {
   function takeSupplement(plan: SupplementDayPlanItem) {
     if (!plan.item._id) return
     void logSupplementTaken({
-      supplementId: plan.item._id,
+      supplementId: plan.item._id as Id<"supplementItems">,
       date: todayKey,
       loggedAt: new Date().toISOString(),
       servingMultiplier: 1,
