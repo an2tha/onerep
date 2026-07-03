@@ -1,15 +1,17 @@
+import { useEffect, useState } from "react"
 import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/plugins"
 import type { AuthClient } from "@convex-dev/better-auth/react"
 import { createAuthClient } from "better-auth/react"
 
 const convexSiteUrl = import.meta.env.VITE_CONVEX_SITE_URL as string | undefined
+const AUTH_LOAD_TIMEOUT_MS = 6500
 
-if (!convexSiteUrl) {
-  throw new Error("Missing VITE_CONVEX_SITE_URL")
-}
+export const authServiceConfigured = Boolean(convexSiteUrl)
 
 export const authClient = createAuthClient({
-  baseURL: convexSiteUrl,
+  baseURL:
+    convexSiteUrl ??
+    (typeof window !== "undefined" ? window.location.origin : undefined),
   plugins: [
     convexClient(),
     crossDomainClient({
@@ -36,8 +38,31 @@ export function betterAuthErrorMessage(error: unknown, fallback: string) {
 
 export function useAppAuth() {
   const session = authClient.useSession()
+  const [loadTimedOut, setLoadTimedOut] = useState(false)
+
+  useEffect(() => {
+    if (!authServiceConfigured || !session.isPending) {
+      setLoadTimedOut(false)
+      return
+    }
+
+    const timeout = window.setTimeout(
+      () => setLoadTimedOut(true),
+      AUTH_LOAD_TIMEOUT_MS
+    )
+    return () => window.clearTimeout(timeout)
+  }, [session.isPending])
+
   return {
-    isLoaded: !session.isPending,
+    authLoadTimedOut: loadTimedOut,
+    authServiceConfigured,
+    authServiceError:
+      !authServiceConfigured
+        ? "Authentication is not configured for this build."
+        : loadTimedOut
+          ? "Authentication is taking too long to respond. Check your connection and try again."
+          : null,
+    isLoaded: !session.isPending || loadTimedOut || !authServiceConfigured,
     isSignedIn: Boolean(session.data?.session),
     userId: session.data?.user?.id ?? null,
     user: session.data?.user ?? null,

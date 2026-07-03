@@ -455,4 +455,31 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={appleHealthLoading}")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={appleHealthLoading}")
   })
+
+  test("active workouts recover locally and ask before resuming", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("type LocalActiveWorkoutDraft")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("ACTIVE_WORKOUT_DRAFT_PREFIX")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("readActiveWorkoutDraft(slot)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("writeActiveWorkoutDraft({")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("clearActiveWorkoutDraft(slot)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("You have an active workout")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("Resume workout")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("Discard workout")
+  })
+
+  test("rest timers persist across app close", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("REST_TIMER_PREFIX")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("function useRestCountdown(storageKey: string)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageSet(storageKey")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageGet(storageKey)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageRemove(storageKey)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const rest = useRestCountdown(restTimerKey(slot))")
+  })
+
+  test("active set completion has visible and haptic feedback", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("const [completedPulseKey, setCompletedPulseKey]")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("setCompletedPulseKey(pulseKey)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("hapticMedium()")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("completedPulseKey && \"motion-success-pop\"")
+  })
 })
