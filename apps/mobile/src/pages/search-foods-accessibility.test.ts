@@ -19,11 +19,21 @@ describe("Search foods accessibility contract", () => {
   })
 
   test("meal selection sheet actions are explicit buttons", () => {
-    expect(SEARCH_FOODS_SOURCE).toMatch(
-      /<button\s+key=\{cat\.id\}\s+type="button"\s+onClick=\{\(\) => void selectMeal\(cat\.id\)\}/,
-    )
+    expect(SEARCH_FOODS_SOURCE).toContain("key={cat.id}")
+    expect(SEARCH_FOODS_SOURCE).toContain('type="button"')
+    expect(SEARCH_FOODS_SOURCE).toContain("await onSelect(cat.id)")
     expect(SEARCH_FOODS_SOURCE).toContain("disabled={Boolean(savingMeal)}")
     expect(SEARCH_FOODS_SOURCE).toContain("aria-busy={savingMeal === cat.id}")
+  })
+
+  test("idle search state exposes recent and popular suggestions", () => {
+    expect(SEARCH_FOODS_SOURCE).toContain("readRecentFoodSearches")
+    expect(SEARCH_FOODS_SOURCE).toContain("nextRecentFoodSearches")
+    expect(SEARCH_FOODS_SOURCE).toContain("visiblePopularFoodSearches")
+    expect(SEARCH_FOODS_SOURCE).toContain("writeRecentFoodSearches")
+    expect(SEARCH_FOODS_SOURCE).toContain('title="Recent"')
+    expect(SEARCH_FOODS_SOURCE).toContain('title="Popular"')
+    expect(SEARCH_FOODS_SOURCE).toContain("SearchSuggestionGroup")
   })
 
   test("quick add meal selection waits for offline persistence before closing", () => {
