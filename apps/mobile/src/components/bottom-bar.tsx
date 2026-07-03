@@ -18,6 +18,7 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { hapticTap } from "@/lib/haptics"
 
 type BottomBarAction = () => void
 type BottomBarActionSetter = (action?: BottomBarAction) => void
@@ -156,6 +157,8 @@ export function BottomBar({
                   ref={(el) => {
                     tabRefs.current[idx] = el
                   }}
+                  aria-label={label}
+                  aria-current={active ? "page" : undefined}
                   onClick={() => {
                     if (!active) navigate(path, { motion: "switch" })
                   }}
@@ -192,6 +195,7 @@ export function BottomBar({
           onClick={() => {
             if (pathname !== "/") navigate("/", { motion: "switch" })
           }}
+          aria-label="Go to Today"
           className="motion-pressable mb-6 flex items-center gap-3 rounded-[9px] px-2 py-2 text-left active:bg-foreground/[0.05]"
         >
           <img src="/app-icon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
@@ -204,6 +208,7 @@ export function BottomBar({
             return (
               <button
                 key={path}
+                aria-current={active ? "page" : undefined}
                 onClick={() => {
                   if (!active) navigate(path, { motion: "switch" })
                 }}
@@ -234,13 +239,24 @@ export function PersistentQuickAdd({ onAdd }: { onAdd: () => void }) {
   }, [onAdd])
 
   function handleClick() {
+    hapticTap()
     actionRef.current()
   }
 
   return (
     <>
       <button
+        type="button"
         onClick={handleClick}
+        aria-label="Add"
+        className="motion-pressable fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(var(--app-safe-bottom)+5.75rem)] z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-[0_14px_34px_color-mix(in_srgb,var(--foreground)_24%,transparent)] transition-transform active:scale-95 lg:hidden"
+      >
+        <Plus size={22} weight="bold" />
+      </button>
+      <button
+        type="button"
+        onClick={handleClick}
+        aria-label="Quick add"
         className="motion-pressable fixed bottom-9 left-9 z-50 hidden h-12 w-[12.5rem] items-center justify-center gap-2 rounded-[10px] bg-foreground text-[13px] font-bold text-background active:opacity-85 lg:flex"
       >
         <Plus size={15} weight="bold" />
