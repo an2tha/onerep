@@ -51,6 +51,62 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+.onerep-revenuecat-paywall-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: color-mix(in srgb, black 54%, transparent);
+  padding: max(1.25rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  backdrop-filter: blur(18px);
+}
+
+.onerep-revenuecat-paywall-panel {
+  width: min(100%, 28rem);
+  max-height: min(52rem, calc(100svh - 2.5rem));
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, white 12%, transparent);
+  border-radius: 1.5rem;
+  background: #0f0e0c;
+  box-shadow:
+    0 2rem 6rem color-mix(in srgb, black 42%, transparent),
+    0 0 0 1px color-mix(in srgb, black 42%, transparent);
+}
+
+.onerep-revenuecat-paywall-target {
+  min-height: min(48rem, calc(100svh - 2.5rem));
+  max-height: min(52rem, calc(100svh - 2.5rem));
+  overflow: auto;
+  background: #0f0e0c;
+}
+
+.onerep-revenuecat-paywall-target > * {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 520px) {
+  .onerep-revenuecat-paywall-overlay {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .onerep-revenuecat-paywall-panel,
+  .onerep-revenuecat-paywall-target {
+    width: 100%;
+    max-height: 100svh;
+    min-height: 100svh;
+    border-radius: 0;
+  }
+}
+
 @media (min-width: 768px) {
   .desktop-canvas {
     background: var(--background);
