@@ -2,9 +2,7 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
-  CaretDown,
   CaretRight,
-  CaretUp,
   Copy,
   Fire,
   Heart,
@@ -13,24 +11,19 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { cn, logDevWarn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   compactCardioSummary,
-  emptyRoutine,
   hasCardioDetails,
-  movePresetById,
   normalizePresetCard,
-  normalizeScheduleRoutines,
-  scheduleRoutinePayload,
   todayIso,
   type CachedWorkoutLog,
   type Routine,
@@ -103,7 +96,15 @@ const DEFAULT_PRESETS: WorkoutPresetCard[] = [
   },
 ]
 
-const EMPTY_ROUTINE: Routine = emptyRoutine()
+const EMPTY_ROUTINE: Routine = {
+  Mon: null,
+  Tue: null,
+  Wed: null,
+  Thu: null,
+  Fri: null,
+  Sat: null,
+  Sun: null,
+}
 
 const SLOT_PRESS_MS = 450
 const PRESET_PRESS_MS = 3500
@@ -120,7 +121,6 @@ function todayDay(): Day {
 
 import {
   dateToIso,
-  localNoon,
   calcStreak,
   calcWorkoutsThisWeek,
   buildCalendarDays,
@@ -133,7 +133,8 @@ function TrainingConsistencyCard({
 }: {
   workoutDates: Set<string>
 }) {
-  const today = localNoon()
+  const today = new Date()
+  today.setUTCHours(12, 0, 0, 0)
 
   const calendarDays = buildCalendarDays(today, 28)
   const todayIso = dateToIso(today)
@@ -144,32 +145,32 @@ function TrainingConsistencyCard({
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
   return (
-    <div className="app-surface overflow-hidden px-4 pt-3.5 pb-4 short-phone:pt-3 short-phone:pb-3.5">
+    <div className="px-4 pt-3.5 short-phone:pt-3 pb-4 short-phone:pb-3.5 overflow-hidden app-surface">
       {/* Header row */}
-      <div className="mb-3 flex items-start justify-between">
+      <div className="flex justify-between items-start mb-3">
         <div>
           <p className="app-eyebrow">Training</p>
-          <p className="mt-0.5 text-[15px] font-bold">Consistency</p>
+          <p className="mt-0.5 font-bold text-[15px]">Consistency</p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
+            <p className="font-semibold text-[10px] text-muted-foreground/40 uppercase">
               Streak
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
+            <p className="mt-0.5 font-black tabular-nums text-[22px] leading-none">
               {streak}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
+              <span className="ml-0.5 font-medium text-[11px] text-muted-foreground/40">
                 days
               </span>
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
+            <p className="font-semibold text-[10px] text-muted-foreground/40 uppercase">
               This week
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
+            <p className="mt-0.5 font-black tabular-nums text-[22px] leading-none">
               {thisWeek}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
+              <span className="ml-0.5 font-medium text-[11px] text-muted-foreground/40">
                 / 7
               </span>
             </p>
@@ -178,11 +179,11 @@ function TrainingConsistencyCard({
       </div>
 
       {/* Day-of-week labels */}
-      <div className="mb-1 grid grid-cols-7 gap-1 px-0.5">
+      <div className="gap-1 grid grid-cols-7 mb-1 px-0.5">
         {dayLabels.map((l, i) => (
           <p
             key={i}
-            className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase"
+            className="font-semibold text-[8px] text-muted-foreground/30 text-center uppercase"
           >
             {l}
           </p>
@@ -190,7 +191,7 @@ function TrainingConsistencyCard({
       </div>
 
       {/* 4 weeks × 7 days grid */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="gap-1 grid grid-cols-7">
         {calendarDays.map((iso) => {
           const isToday = iso === todayIso
           const hasWorkout = workoutDates.has(iso)
@@ -198,7 +199,7 @@ function TrainingConsistencyCard({
           return (
             <div
               key={iso}
-              className="aspect-square rounded-md transition-colors"
+              className="rounded-md aspect-square transition-colors"
               style={{
                 background: isFuture
                   ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
@@ -238,9 +239,9 @@ function TrainingMetricTile({
   complete?: boolean
 }) {
   return (
-    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-bold text-muted-foreground/66">
+    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+      <div className="flex justify-between items-center gap-2">
+        <p className="font-bold text-[10px] text-muted-foreground/66">
           {label}
         </p>
         <span
@@ -252,10 +253,10 @@ function TrainingMetricTile({
           {icon}
         </span>
       </div>
-      <p className="mt-1.5 text-[1.35rem] leading-none font-extrabold tabular-nums">
+      <p className="mt-1.5 font-extrabold tabular-nums text-[1.35rem] leading-none">
         {value}
       </p>
-      <p className="mt-1 text-[10.5px] leading-4 font-semibold text-muted-foreground/52">
+      <p className="mt-1 font-semibold text-[10.5px] text-muted-foreground/52 leading-4">
         {detail}
       </p>
     </div>
@@ -273,22 +274,22 @@ function PresetSteps({
   const hidden = Math.max(0, preset.steps.length - visible.length)
 
   return (
-    <div className="mt-3 space-y-1.5">
+    <div className="space-y-1.5 mt-3">
       {visible.map((step, i) => (
         <div
           key={`${preset.id}-${step}-${i}`}
-          className="flex items-center gap-2.5 rounded-[0.7rem] bg-foreground/[0.035] px-2.5 py-2"
+          className="flex items-center gap-2.5 bg-foreground/[0.035] px-2.5 py-2 rounded-[0.7rem]"
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.45rem] bg-foreground/[0.07] text-[10px] font-bold text-muted-foreground/66">
+          <span className="flex justify-center items-center bg-foreground/[0.07] rounded-[0.45rem] w-5 h-5 font-bold text-[10px] text-muted-foreground/66 shrink-0">
             {i + 1}
           </span>
-          <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground/78">
+          <span className="min-w-0 font-semibold text-[12.5px] text-foreground/78 truncate">
             {step}
           </span>
         </div>
       ))}
       {hidden > 0 && (
-        <p className="px-1 text-[10.5px] font-semibold text-muted-foreground/48">
+        <p className="px-1 font-semibold text-[10.5px] text-muted-foreground/48">
           +{hidden} more movement{hidden === 1 ? "" : "s"}
         </p>
       )}
@@ -304,55 +305,37 @@ function ConfirmDeleteSheet({
   onCancel,
 }: {
   preset: WorkoutPresetCard
-  onConfirm: () => Promise<void>
+  onConfirm: () => void
   onCancel: () => void
 }) {
-  const [deleting, setDeleting] = useState(false)
-
-  async function confirmDelete() {
-    if (deleting) return
-    setDeleting(true)
-    try {
-      await onConfirm()
-    } catch (error) {
-      reportOfflineMutationError(error)
-      setDeleting(false)
-    }
-  }
-
   return (
     <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px]"
-      onClick={deleting ? undefined : onCancel}
+      className="z-50 fixed inset-0 flex justify-center items-end bg-black/30 backdrop-blur-[2px] sheet-overlay"
+      onClick={onCancel}
     >
       <div
-        className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
+        className="bg-background px-5 pt-5 border-border border-t w-full max-w-sm sheet-panel app-sheet-panel"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
-        <h2 className="text-base font-semibold">Delete "{preset.name}"?</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
+        <div className="mx-auto mb-5 bg-border rounded-full w-10 h-1" />
+        <h2 className="font-semibold text-base">Delete "{preset.name}"?</h2>
+        <p className="mt-1.5 text-muted-foreground text-sm">
           This preset will be permanently removed. Any routine days using it
           will be cleared.
         </p>
-        <div className="mt-6 flex flex-col gap-2">
+        <div className="flex flex-col gap-2 mt-6">
           <button
-            type="button"
-            onClick={() => void confirmDelete()}
-            disabled={deleting}
-            aria-busy={deleting}
-            className="app-button app-button-danger h-12 w-full disabled:opacity-60"
+            onClick={onConfirm}
+            className="w-full h-12 app-button app-button-danger"
           >
-            {deleting ? "Deleting..." : "Delete preset"}
+            Delete preset
           </button>
           <button
-            type="button"
             onClick={onCancel}
-            disabled={deleting}
-            className="app-button app-button-quiet h-12 w-full disabled:opacity-50"
+            className="w-full h-12 app-button app-button-quiet"
           >
             Keep it
           </button>
@@ -392,9 +375,9 @@ function WorkoutLogSummary({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-bold text-muted-foreground/70 uppercase">
+          <span className="bg-muted/55 px-2 py-0.5 rounded-full font-bold text-[10px] text-muted-foreground/70 uppercase">
             Done
           </span>
           <span className="text-[11px] text-muted-foreground">
@@ -404,7 +387,7 @@ function WorkoutLogSummary({
         {onEdit && (
           <button
             onClick={onEdit}
-            className="app-icon-button h-10 w-10 bg-muted/45"
+            className="bg-muted/45 w-10 h-10 app-icon-button"
             aria-label="Edit workout"
           >
             <PencilSimple size={13} />
@@ -421,15 +404,15 @@ function WorkoutLogSummary({
           return (
             <div
               key={id}
-              className="flex items-center gap-3 rounded-xl bg-muted/35 px-3.5 py-2.5"
+              className="flex items-center gap-3 bg-muted/35 px-3.5 py-2.5 rounded-xl"
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/65">
+              <span className="flex justify-center items-center bg-foreground/10 rounded-full w-5 h-5 font-bold text-[9px] text-foreground/65 shrink-0">
                 ✓
               </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/78">
+              <span className="flex-1 min-w-0 font-medium text-[13px] text-foreground/78 truncate">
                 {ex.name}
               </span>
-              <span className="max-w-[12rem] shrink truncate text-right text-[11px] text-muted-foreground/58 tabular-nums">
+              <span className="max-w-[12rem] tabular-nums text-[11px] text-muted-foreground/58 text-right truncate shrink">
                 {isCardio
                   ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
                   : `${done}/${total}`}
@@ -439,7 +422,7 @@ function WorkoutLogSummary({
         })}
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
+      <div className="flex justify-between items-center text-[10px] text-muted-foreground/50">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
           {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
@@ -482,7 +465,7 @@ function WorkoutLogCarousel({
     <div className="flex flex-col gap-3">
       {/* Slides */}
       <div
-        className="overflow-hidden rounded-xl"
+        className="rounded-xl overflow-hidden"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -508,7 +491,7 @@ function WorkoutLogCarousel({
       </div>
 
       {/* Dot indicators */}
-      <div className="flex items-center justify-center gap-1.5">
+      <div className="flex justify-center items-center gap-1.5">
         {logs.map((_, i) => (
           <button
             key={i}
@@ -544,24 +527,24 @@ function PickSecondWorkoutSheet({
 
   return (
     <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[3px]"
+      className="z-50 fixed inset-0 flex justify-center items-end bg-black/40 backdrop-blur-[3px] sheet-overlay"
       onClick={onClose}
     >
       <div
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+        className="bg-card shadow-2xl rounded-t-3xl w-full max-w-sm overflow-hidden sheet-panel"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.12]" />
+          <div className="bg-foreground/[0.12] rounded-full w-10 h-1" />
         </div>
-        <div className="flex items-center justify-between px-5 py-3">
-          <p className="text-[15px] font-semibold tracking-tight">{title}</p>
+        <div className="flex justify-between items-center px-5 py-3">
+          <p className="font-semibold text-[15px] tracking-tight">{title}</p>
           <button
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
+            className="flex justify-center items-center bg-muted/60 active:bg-muted rounded-full w-10 h-10 text-muted-foreground transition-colors"
           >
             <X size={12} weight="bold" />
           </button>
@@ -574,17 +557,17 @@ function PickSecondWorkoutSheet({
               <button
                 key={preset.id}
                 onClick={() => onPick(preset.id)}
-                className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted/70"
+                className="flex items-center gap-3 bg-muted/40 active:bg-muted/70 px-4 py-3.5 rounded-2xl text-left transition-colors"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
+                <div className="flex justify-center items-center bg-background/70 rounded-lg w-8 h-8 shrink-0">
                   <Icon
                     size={14}
                     weight="duotone"
                     className="text-foreground/60"
                   />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold">{preset.name}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-[13px]">{preset.name}</p>
                   <p className="text-[11px] text-muted-foreground">
                     {preset.steps.length} exercises · {preset.duration}
                   </p>
@@ -619,7 +602,7 @@ function muscleColor(muscle: string): string {
 function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   if (muscleVolume.length === 0) {
     return (
-      <div className="app-surface p-4 text-center">
+      <div className="p-4 text-center app-surface">
         <p className="text-[12px] text-muted-foreground/40">
           No workouts logged this week yet
         </p>
@@ -630,7 +613,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   const maxSets = Math.max(...muscleVolume.map((m) => m.effectiveSets))
 
   return (
-    <div className="app-surface p-4">
+    <div className="p-4 app-surface">
       <div className="mb-3">
         <p className="app-section-title">Volume</p>
         <p className="app-section-subtitle">This week · sets per muscle</p>
@@ -641,19 +624,19 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
           const color = muscleColor(item.muscle)
           return (
             <div key={item.muscle}>
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[12px] font-bold text-foreground/78 capitalize">
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-[12px] text-foreground/78 capitalize">
                   {item.muscle}
                 </span>
-                <span className="text-[10.5px] font-semibold text-muted-foreground/50 tabular-nums">
+                <span className="font-semibold tabular-nums text-[10.5px] text-muted-foreground/50">
                   {item.primarySets}p
                   {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
                   sets
                 </span>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
+              <div className="bg-foreground/[0.06] rounded-full w-full h-1.5 overflow-hidden">
                 <div
-                  className="motion-progress-fill h-full rounded-full"
+                  className="rounded-full h-full motion-progress-fill"
                   style={{
                     width: `${pct}%`,
                     backgroundColor: color,
@@ -693,13 +676,9 @@ export default function Workouts() {
     "logs.presets.remove"
   )
 
-  function persist(
-    nextPresets: WorkoutPresetCard[],
-    nextRoutine: Routine,
-    nextRoutine2 = routine2
-  ) {
-    return setSchedule({
-      routine: scheduleRoutinePayload(nextRoutine, nextRoutine2),
+  function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
+    void setSchedule({
+      routine: nextRoutine as Record<string, string | null>,
       presetOrder: nextPresets.map((p) => p.id),
     })
   }
@@ -778,9 +757,15 @@ export default function Workouts() {
     if (routineReady.current || schedule === undefined) return
     routineReady.current = true
     if (schedule) {
-      const savedRoutine = normalizeScheduleRoutines(schedule.routine)
-      setRoutine(savedRoutine.primary)
-      setRoutine2(savedRoutine.secondary)
+      setRoutine({
+        Mon: schedule.routine?.Mon ?? null,
+        Tue: schedule.routine?.Tue ?? null,
+        Wed: schedule.routine?.Wed ?? null,
+        Thu: schedule.routine?.Thu ?? null,
+        Fri: schedule.routine?.Fri ?? null,
+        Sat: schedule.routine?.Sat ?? null,
+        Sun: schedule.routine?.Sun ?? null,
+      } as Routine)
     }
   }, [schedule])
 
@@ -807,9 +792,6 @@ export default function Workouts() {
 
   const [pressingPreset, setPressingPreset] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [duplicatingPresetId, setDuplicatingPresetId] = useState<string | null>(
-    null
-  )
   const presetPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const slotRefs = useRef<Partial<Record<Day, HTMLDivElement | null>>>({})
@@ -859,17 +841,13 @@ export default function Workouts() {
     if (key === catalogFetched.current) return
 
     catalogFetched.current = key
-    void resolveExerciseIds(analyticsExerciseIds)
-      .then((result) => {
-        const map = new Map<string, Exercise>()
-        for (const [id, ex] of Object.entries(result)) {
-          map.set(id, { ...ex, id })
-        }
-        setExerciseCatalog(map)
-      })
-      .catch((error) => {
-        logDevWarn("Failed to resolve workout analytics exercises", error)
-      })
+    void resolveExerciseIds(analyticsExerciseIds).then((result) => {
+      const map = new Map<string, Exercise>()
+      for (const [id, ex] of Object.entries(result)) {
+        map.set(id, { ...ex, id })
+      }
+      setExerciseCatalog(map)
+    })
   }, [analyticsExerciseIds])
 
   const muscleVolume = useMemo(() => {
@@ -879,7 +857,9 @@ export default function Workouts() {
   }, [workoutRecords, exerciseCatalog])
 
   const trainingStatsDate = useMemo(() => {
-    return localNoon()
+    const date = new Date()
+    date.setUTCHours(12, 0, 0, 0)
+    return date
   }, [])
   const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
   const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
@@ -895,17 +875,11 @@ export default function Workouts() {
     setTimeout(() => {
       // Remove slot 2 first if it has something; otherwise remove slot 1
       if (routine2[day]) {
-        const nextRoutine2 = { ...routine2, [day]: null }
-        setRoutine2(nextRoutine2)
-        void persist(presets, routine, nextRoutine2).catch(
-          reportOfflineMutationError
-        )
+        setRoutine2((r) => ({ ...r, [day]: null }))
       } else {
         setRoutine((r) => {
           const next = { ...r, [day]: null }
-          void persist(presets, next, routine2).catch(
-            reportOfflineMutationError
-          )
+          void persist(presets, next)
           return next
         })
       }
@@ -1017,14 +991,10 @@ export default function Workouts() {
           // Slot 1 is empty — fill it
           const nextRoutine = { ...routine, [day]: drag.presetId }
           setRoutine(nextRoutine)
-          void persist(presets, nextRoutine).catch(reportOfflineMutationError)
+          void persist(presets, nextRoutine)
         } else {
           // Slot 1 is taken — fill (or replace) slot 2
-          const nextRoutine2 = { ...routine2, [day]: drag.presetId }
-          setRoutine2(nextRoutine2)
-          void persist(presets, routine, nextRoutine2).catch(
-            reportOfflineMutationError
-          )
+          setRoutine2((r) => ({ ...r, [day]: drag.presetId }))
         }
       } else {
         // Reorder within the presets list
@@ -1036,9 +1006,7 @@ export default function Workouts() {
             const [item] = next.splice(from, 1)
             next.splice(toIdx, 0, item)
             setLocalOrder(next.map((p) => p.id))
-            void persist(next, routine, routine2).catch(
-              reportOfflineMutationError
-            )
+            persist(next, routine)
           }
         }
       }
@@ -1051,29 +1019,21 @@ export default function Workouts() {
 
   // ── Delete confirmed ──────────────────────────────────────────────────────
 
-  async function duplicatePreset(preset: WorkoutPresetCard) {
-    if (duplicatingPresetId !== null) return
+  function duplicatePreset(preset: WorkoutPresetCard) {
     const source = serverPresets?.find(
       (item) => (item._id as string) === preset.id
     )
-    setDuplicatingPresetId(preset.id)
-    try {
-      await createPresetMutation({
-        name: `${preset.name} copy`,
-        items: (source?.items as unknown[]) ?? [],
-        exerciseData: source?.exerciseData ?? {},
-        focus: source?.focus ?? preset.focus,
-        duration: source?.duration ?? preset.duration,
-        steps: source?.steps ?? preset.steps,
-      })
-    } catch (error) {
-      reportOfflineMutationError(error)
-    } finally {
-      setDuplicatingPresetId(null)
-    }
+    void createPresetMutation({
+      name: `${preset.name} copy`,
+      items: (source?.items as unknown[]) ?? [],
+      exerciseData: source?.exerciseData ?? {},
+      focus: source?.focus ?? preset.focus,
+      duration: source?.duration ?? preset.duration,
+      steps: source?.steps ?? preset.steps,
+    })
   }
 
-  async function deletePreset(id: string) {
+  function deletePreset(id: string) {
     const nextPresets = presets.filter((p) => p.id !== id)
     const nextRoutine = { ...routine }
     const nextRoutine2 = { ...routine2 }
@@ -1085,19 +1045,10 @@ export default function Workouts() {
     setLocalOrder(nextPresets.map((p) => p.id))
     setRoutine(nextRoutine)
     setRoutine2(nextRoutine2)
-
-    await persist(nextPresets, nextRoutine, nextRoutine2)
-    await removePresetMutation({ id: id as Id<"presets"> })
     setConfirmDeleteId(null)
-  }
 
-  function movePreset(presetId: string, direction: "up" | "down") {
-    const nextPresets = movePresetById(presets, presetId, direction)
-    if (nextPresets === presets) return
-    setLocalOrder(nextPresets.map((p) => p.id))
-    void persist(nextPresets, routine, routine2).catch(
-      reportOfflineMutationError
-    )
+    persist(nextPresets, nextRoutine)
+    void removePresetMutation({ id: id as Id<"presets"> })
   }
 
   function handlePrimaryTrainingAction() {
@@ -1147,11 +1098,10 @@ export default function Workouts() {
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
+    <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
       <main className="app-page">
         <header className="app-header">
           <div className="min-w-0">
-            <p className="app-eyebrow">Training</p>
             <h1 className="app-title">Workouts</h1>
             <p className="mt-1 text-[12px] text-muted-foreground/60">
               Plan sessions, start lifts, and review exercises in one place.
@@ -1160,21 +1110,29 @@ export default function Workouts() {
           <button
             type="button"
             onClick={() => setAddOpen(true)}
-            className="app-button app-header-action bg-foreground text-background"
+            className="app-header-icon-action md:hidden"
+            aria-label="Add workout"
+          >
+            <Plus weight="bold" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="hidden bg-foreground text-background app-button md:inline-flex"
             aria-label="Add workout"
           >
             <Plus size={13} weight="bold" /> Add
           </button>
         </header>
 
-        <section className="app-surface p-4">
-          <div className="flex items-start justify-between gap-4">
+        <section className="p-4 app-surface">
+          <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
               <p className="app-eyebrow">Today · {today}</p>
-              <p className="mt-2 truncate text-[2.05rem] leading-none font-extrabold tracking-tight">
+              <p className="mt-2 font-extrabold text-[2.05rem] truncate leading-none tracking-tight">
                 {heroTitle}
               </p>
-              <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/58">
                 {heroDetail}
               </p>
             </div>
@@ -1191,7 +1149,7 @@ export default function Workouts() {
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
             <TrainingMetricTile
               label="Week"
               value={workoutsThisWeek}
@@ -1216,10 +1174,10 @@ export default function Workouts() {
           </div>
         </section>
 
-        <section className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-          <div className="grid min-w-0 content-start gap-3">
-            <div className="app-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+        <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+          <div className="content-start gap-3 grid min-w-0">
+            <div className="p-4 app-surface">
+              <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
                   <p className="app-section-title">Today's workout</p>
                   <p className="app-section-subtitle">
@@ -1233,7 +1191,7 @@ export default function Workouts() {
                   </p>
                 </div>
                 {workoutLogs.length === 1 && (
-                  <span className="rounded-full bg-foreground/[0.055] px-2.5 py-1 text-[10px] font-bold text-muted-foreground/62">
+                  <span className="bg-foreground/[0.055] px-2.5 py-1 rounded-full font-bold text-[10px] text-muted-foreground/62">
                     1 of 2 done
                   </span>
                 )}
@@ -1248,10 +1206,10 @@ export default function Workouts() {
                   <WorkoutLogSummary log={workoutLogs[0]} slot={1} />
 
                   {todayPreset2 ? (
-                    <div className="border-t border-border/35 pt-3.5">
-                      <div className="flex items-baseline justify-between gap-3">
+                    <div className="pt-3.5 border-border/35 border-t">
+                      <div className="flex justify-between items-baseline gap-3">
                         <div className="min-w-0">
-                          <p className="truncate text-[15px] font-bold">
+                          <p className="font-bold text-[15px] truncate">
                             {todayPreset2.name}
                           </p>
                           <p className="mt-0.5 text-[11px] text-muted-foreground/56">
@@ -1276,7 +1234,7 @@ export default function Workouts() {
                     <button
                       type="button"
                       onClick={() => setShowSecondWorkoutSheet(true)}
-                      className="app-empty w-full justify-center py-3 text-[13px] font-semibold transition-colors active:bg-muted/20 active:text-foreground"
+                      className="justify-center active:bg-muted/20 py-3 w-full font-semibold text-[13px] active:text-foreground transition-colors app-empty"
                     >
                       <Plus size={13} weight="bold" />
                       Add second workout
@@ -1285,18 +1243,18 @@ export default function Workouts() {
                 </div>
               ) : todayPreset ? (
                 <div>
-                  <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex justify-between items-baseline gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[1.25rem] leading-tight font-extrabold tracking-tight">
+                      <p className="font-extrabold text-[1.25rem] truncate leading-tight tracking-tight">
                         {todayPreset.name}
                       </p>
                       {todayPreset2 && (
-                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/56">
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/56 truncate">
                           + {todayPreset2.name} after
                         </p>
                       )}
                     </div>
-                    <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/56">
+                    <span className="font-semibold text-[11px] text-muted-foreground/56 shrink-0">
                       {todayPreset.duration}
                     </span>
                   </div>
@@ -1312,15 +1270,15 @@ export default function Workouts() {
                   </div>
                 </div>
               ) : (
-                <div className="rounded-[0.9rem] bg-foreground/[0.035] px-4 py-5 text-center">
-                  <p className="text-[14px] font-bold">Rest day</p>
+                <div className="bg-foreground/[0.035] px-4 py-5 rounded-[0.9rem] text-center">
+                  <p className="font-bold text-[14px]">Rest day</p>
                   <p className="mt-1 text-[12px] text-muted-foreground/58">
                     No workout scheduled for today.
                   </p>
                   <button
                     type="button"
                     onClick={() => navigate("/workout/active")}
-                    className="app-button app-button-quiet mt-4"
+                    className="mt-4 app-button app-button-quiet"
                   >
                     Log open workout
                   </button>
@@ -1328,8 +1286,8 @@ export default function Workouts() {
               )}
             </div>
 
-            <div className="app-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="p-4 app-surface">
+              <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
                   <p className="app-section-title">Routine</p>
                   <p className="app-section-subtitle">
@@ -1341,7 +1299,7 @@ export default function Workouts() {
                     type="button"
                     onClick={() => setRoutineEditMode((value) => !value)}
                     className={cn(
-                      "app-button transition-colors",
+                      "transition-colors app-button",
                       routineEditMode
                         ? "app-button-primary"
                         : "app-button-quiet"
@@ -1353,7 +1311,7 @@ export default function Workouts() {
               </div>
 
               <div className="min-w-0">
-                <div className="grid min-w-0 grid-cols-7 gap-1 pb-1 md:gap-1.5 md:pb-0">
+                <div className="gap-1 md:gap-1.5 grid grid-cols-7 pb-1 md:pb-0 min-w-0">
                   {DAYS.map((day) => {
                     const preset =
                       presets.find((p) => p.id === routine[day]) ?? null
@@ -1377,14 +1335,14 @@ export default function Workouts() {
                           slotRefs.current[day] = el
                         }}
                         className={cn(
-                          "relative flex min-h-[4.65rem] min-w-0 flex-col items-center gap-1.5 overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] px-0.5 py-2 transition-all duration-200 md:min-h-[5.5rem] md:gap-2 md:px-1 md:py-3",
+                          "relative flex flex-col items-center gap-1.5 md:gap-2 bg-foreground/[0.035] px-0.5 md:px-1 py-2 md:py-3 rounded-[0.8rem] min-w-0 min-h-[4.65rem] md:min-h-[5.5rem] overflow-hidden transition-all duration-200",
                           isToday && !isOver && "bg-foreground/[0.07]",
                           isOver && "scale-[1.04] bg-foreground/[0.1]"
                         )}
                       >
                         {isPressing && (
                           <div
-                            className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-destructive"
+                            className="bottom-0 absolute inset-x-0 bg-destructive h-[3px] origin-left"
                             style={{
                               animation: `sweep-delete ${SLOT_PRESS_MS}ms linear forwards`,
                             }}
@@ -1392,7 +1350,7 @@ export default function Workouts() {
                         )}
 
                         {isSlot2Drop && (
-                          <div className="absolute top-1.5 right-1.5 flex h-4 w-4 animate-in items-center justify-center rounded-full bg-foreground text-[8px] font-black text-background duration-150 zoom-in-50">
+                          <div className="top-1.5 right-1.5 absolute flex justify-center items-center bg-foreground rounded-full w-4 h-4 font-black text-[8px] text-background animate-in duration-150 zoom-in-50">
                             +2
                           </div>
                         )}
@@ -1401,7 +1359,7 @@ export default function Workouts() {
                           <button
                             type="button"
                             onClick={() => removeSlot(day)}
-                            className="app-icon-button absolute top-1 right-1 z-10 h-8 w-8 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
+                            className="top-1 md:top-1.5 right-1 md:right-1.5 z-10 absolute bg-background/80 w-8 md:w-9 h-8 md:h-9 text-destructive app-icon-button"
                             aria-label={`Remove workout from ${day}`}
                           >
                             <X size={11} weight="bold" />
@@ -1410,7 +1368,7 @@ export default function Workouts() {
 
                         <span
                           className={cn(
-                            "text-[9.5px] font-bold uppercase",
+                            "font-bold text-[9.5px] uppercase",
                             isToday
                               ? "text-foreground"
                               : "text-muted-foreground/62"
@@ -1427,11 +1385,11 @@ export default function Workouts() {
                             onPointerLeave={onSlotPressEnd}
                             onPointerCancel={onSlotPressEnd}
                             className={cn(
-                              "flex w-full flex-col items-center gap-0 transition-all duration-200",
+                              "flex flex-col items-center gap-0 w-full transition-all duration-200",
                               isRemoving && "scale-50 opacity-0"
                             )}
                           >
-                            <div className="flex w-full flex-col items-center gap-1 pb-1">
+                            <div className="flex flex-col items-center gap-1 pb-1 w-full">
                               <FocusIcon
                                 size={preset2 ? 11 : 15}
                                 weight="duotone"
@@ -1439,7 +1397,7 @@ export default function Workouts() {
                               />
                               <span
                                 className={cn(
-                                  "max-w-full truncate px-1 text-center leading-tight font-bold text-foreground/72",
+                                  "px-1 max-w-full font-bold text-foreground/72 text-center truncate leading-tight",
                                   preset2 ? "text-[8.5px]" : "text-[9.5px]"
                                 )}
                               >
@@ -1448,14 +1406,14 @@ export default function Workouts() {
                             </div>
 
                             {preset2 && FocusIcon2 && (
-                              <div className="flex w-full animate-in flex-col items-center gap-1 duration-200 fade-in-0 slide-in-from-bottom-1">
-                                <div className="mb-1 h-px w-7 rounded-full bg-border/55 md:w-[54px]" />
+                              <div className="slide-in-from-bottom-1 flex flex-col items-center gap-1 w-full animate-in duration-200 fade-in-0">
+                                <div className="mb-1 bg-border/55 rounded-full w-7 md:w-[54px] h-px" />
                                 <FocusIcon2
                                   size={11}
                                   weight="duotone"
                                   className="text-foreground/55"
                                 />
-                                <span className="max-w-full truncate px-1 text-center text-[8.5px] leading-tight font-bold text-foreground/72">
+                                <span className="px-1 max-w-full font-bold text-[8.5px] text-foreground/72 text-center truncate leading-tight">
                                   {preset2.name}
                                 </span>
                               </div>
@@ -1465,7 +1423,7 @@ export default function Workouts() {
                           <button
                             type="button"
                             onClick={() => setPickRoutineDay(day)}
-                            className="flex min-h-10 flex-col items-center justify-center gap-1 px-2 text-[10px] font-bold text-muted-foreground/62 transition-colors active:text-foreground"
+                            className="flex flex-col justify-center items-center gap-1 px-2 min-h-10 font-bold text-[10px] text-muted-foreground/62 active:text-foreground transition-colors"
                           >
                             <Plus size={14} weight="bold" />
                             Add
@@ -1487,9 +1445,9 @@ export default function Workouts() {
             )}
           </div>
 
-          <div className="grid min-w-0 content-start gap-3">
-            <div className="app-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="content-start gap-3 grid min-w-0">
+            <div className="p-4 app-surface">
+              <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
                   <p className="app-section-title">Presets</p>
                   <p className="app-section-subtitle">
@@ -1499,7 +1457,7 @@ export default function Workouts() {
                 <button
                   type="button"
                   onClick={() => navigate("/workouts/new")}
-                  className="app-button app-button-quiet h-9"
+                  className="h-9 app-button app-button-quiet"
                 >
                   New
                 </button>
@@ -1511,7 +1469,7 @@ export default function Workouts() {
                     {[0, 1, 2].map((i) => (
                       <div
                         key={i}
-                        className="h-[62px] animate-pulse rounded-[0.8rem] bg-foreground/[0.04]"
+                        className="bg-foreground/[0.04] rounded-[0.8rem] h-[62px] animate-pulse"
                       />
                     ))}
                   </>
@@ -1525,12 +1483,11 @@ export default function Workouts() {
                     hasMoved &&
                     drag?.presetId !== preset.id
                   const isPressing = pressingPreset === preset.id
-                  const duplicatingThis = duplicatingPresetId === preset.id
 
                   return (
                     <div key={preset.id} className="relative">
                       {isDropTarget && (
-                        <div className="absolute inset-x-3 -top-1 h-0.5 rounded-full bg-foreground/30" />
+                        <div className="-top-1 absolute inset-x-3 bg-foreground/30 rounded-full h-0.5" />
                       )}
 
                       <div
@@ -1538,7 +1495,7 @@ export default function Workouts() {
                           presetRefs.current[idx] = el
                         }}
                         className={cn(
-                          "relative touch-pan-y overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] transition-all duration-150 select-none",
+                          "relative bg-foreground/[0.035] rounded-[0.8rem] overflow-hidden transition-all duration-150 touch-pan-y select-none",
                           isDraggingThis && "scale-[0.98] opacity-40",
                           isDropTarget && "scale-[1.01] bg-foreground/[0.07]"
                         )}
@@ -1559,23 +1516,23 @@ export default function Workouts() {
                       >
                         {isPressing && (
                           <div
-                            className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
+                            className="bottom-0 z-10 absolute inset-x-0 bg-destructive h-[3px] origin-left"
                             style={{
                               animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
                             }}
                           />
                         )}
 
-                        <div className="flex flex-wrap items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
-                          <span className="app-icon-button pointer-events-none h-8 w-8 shrink-0 bg-foreground/[0.055]">
+                        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-2.5">
+                          <span className="bg-foreground/[0.055] w-8 h-8 pointer-events-none app-icon-button shrink-0">
                             <FocusIcon
                               size={14}
                               weight="duotone"
                               className="text-foreground/62"
                             />
                           </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[12.5px] leading-tight font-bold">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-[12.5px] truncate leading-tight">
                               {preset.name}
                             </p>
                             <p className="mt-0.5 text-[10.5px] text-muted-foreground/55">
@@ -1583,40 +1540,13 @@ export default function Workouts() {
                               {preset.duration}
                             </p>
                           </div>
-                          {routineEditMode && (
-                            <div className="flex shrink-0 items-center gap-0.5">
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => movePreset(preset.id, "up")}
-                                disabled={idx === 0 || duplicatingThis}
-                                className="app-icon-button h-8 w-8 shrink-0 bg-transparent disabled:opacity-20"
-                                aria-label={`Move ${preset.name} earlier`}
-                              >
-                                <CaretUp size={11} weight="bold" />
-                              </button>
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => movePreset(preset.id, "down")}
-                                disabled={
-                                  idx === presets.length - 1 || duplicatingThis
-                                }
-                                className="app-icon-button h-8 w-8 shrink-0 bg-transparent disabled:opacity-20"
-                                aria-label={`Move ${preset.name} later`}
-                              >
-                                <CaretDown size={11} weight="bold" />
-                              </button>
-                            </div>
-                          )}
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() =>
                               navigate(`/workouts/edit/${preset.id}`)
                             }
-                            disabled={duplicatingThis}
-                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent disabled:opacity-35"
+                            className="bg-transparent w-9 h-9 app-icon-button shrink-0"
                             aria-label={`Edit ${preset.name}`}
                           >
                             <PencilSimple size={12} />
@@ -1624,23 +1554,17 @@ export default function Workouts() {
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => void duplicatePreset(preset)}
-                            disabled={duplicatingPresetId !== null}
-                            aria-busy={duplicatingThis}
-                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent disabled:opacity-35"
+                            onClick={() => duplicatePreset(preset)}
+                            className="bg-transparent w-9 h-9 app-icon-button shrink-0"
                             aria-label={`Duplicate ${preset.name}`}
                           >
-                            {duplicatingThis ? (
-                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
-                            ) : (
-                              <Copy size={12} />
-                            )}
+                            <Copy size={12} />
                           </button>
                           <button
                             type="button"
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={() => setConfirmDeleteId(preset.id)}
-                            className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-destructive/70"
+                            className="bg-transparent w-9 h-9 text-destructive/70 app-icon-button shrink-0"
                             aria-label={`Delete ${preset.name}`}
                           >
                             <Trash size={12} />
@@ -1663,15 +1587,15 @@ export default function Workouts() {
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {hasMoved && ghostPreset && GhostIcon && drag && (
         <div
-          className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-background/95 px-3 py-2 shadow-2xl shadow-black/20 backdrop-blur-sm"
+          className="z-50 fixed flex items-center gap-2 bg-background/95 shadow-2xl shadow-black/20 backdrop-blur-sm px-3 py-2 rounded-xl pointer-events-none"
           style={{ left: drag.x - 80, top: drag.y - 20, minWidth: 150 }}
         >
           <GhostIcon
             size={13}
             weight="duotone"
-            className="shrink-0 text-foreground/50"
+            className="text-foreground/50 shrink-0"
           />
-          <span className="text-[12px] font-semibold">{ghostPreset.name}</span>
+          <span className="font-semibold text-[12px]">{ghostPreset.name}</span>
         </div>
       )}
 
@@ -1694,9 +1618,7 @@ export default function Workouts() {
           onPick={(presetId) => {
             const nextRoutine = { ...routine, [pickRoutineDay]: presetId }
             setRoutine(nextRoutine)
-            void persist(presets, nextRoutine, routine2).catch(
-              reportOfflineMutationError
-            )
+            void persist(presets, nextRoutine)
             setPickRoutineDay(null)
           }}
           onClose={() => setPickRoutineDay(null)}
@@ -1725,37 +1647,38 @@ export default function Workouts() {
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="app-surface overflow-hidden">
+            <div className="overflow-hidden app-surface">
               <button
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workout/active")
                 }}
-                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
+                className="flex justify-between items-center active:bg-muted/40 px-4 py-3.5 w-full text-left transition-colors"
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
+                <span className="flex items-center gap-3 min-w-0">
+                  <span className="bg-muted/55 w-9 h-9 text-muted-foreground/70 pointer-events-none app-icon-button">
                     <Barbell size={16} weight="bold" />
                   </span>
-                  <span className="text-[13px] font-semibold">Log workout</span>
+                  <span className="font-semibold text-[13px]">Log workout</span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
-              <div className="mx-4 h-px bg-border/50" />
+              <div className="mx-4 bg-border/50 h-px" />
               <button
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workouts/new")
                 }}
-                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
+                className="flex justify-between items-center active:bg-muted/40 px-4 py-3.5 w-full text-left transition-colors"
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
+                <span className="flex items-center gap-3 min-w-0">
+                  <span className="bg-muted/55 w-9 h-9 text-muted-foreground/70 pointer-events-none app-icon-button">
                     <Plus size={16} weight="bold" />
                   </span>
-                  <span className="text-[13px] font-semibold">New preset</span>
+                  <span className="font-semibold text-[13px]">New preset</span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>

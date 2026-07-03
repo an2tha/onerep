@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs"
 const MAIN_SOURCE = readFileSync(new URL("./main.tsx", import.meta.url), "utf8")
 
 describe("mobile route fallback contract", () => {
-  test("lazy route loading state renders explanatory copy", () => {
-    expect(MAIN_SOURCE).toContain("Loading OneRep")
-    expect(MAIN_SOURCE).toContain("Preparing your mobile workspace")
+  test("route transitions expose a loading state without replacing the app shell", () => {
+    expect(MAIN_SOURCE).toContain("app-route-frame-current")
+    expect(MAIN_SOURCE).toContain("data-route-loading")
+    expect(MAIN_SOURCE).toContain("waitForRouteContent")
   })
 
   test("app root uses Better Auth for Convex sessions", () => {

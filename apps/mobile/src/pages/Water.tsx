@@ -9,23 +9,13 @@ import {
 } from "@phosphor-icons/react"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { useBottomBarAction } from "@/components/bottom-bar"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey, offsetDateKey } from "@/lib/food-log"
-import {
-  CUSTOM_WATER_MAX_ML,
-  CUSTOM_WATER_MIN_ML,
-  fmtMl,
-  readRecentWaterAmounts,
-  rememberRecentWaterAmount,
-  validateCustomWaterAmount,
-  visibleRecentWaterAmounts,
-} from "@/lib/water-amounts"
 import { APP_ACCENT_COLORS, tint } from "@/lib/design-tokens"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { createClientId } from "@/lib/utils"
-import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,6 +39,14 @@ const WATER_COLOR = APP_ACCENT_COLORS.water
 const WATER_BG = tint(WATER_COLOR, 13)
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function fmtMl(ml: number): string {
+  if (ml >= 1000) {
+    const l = ml / 1000
+    return l % 1 === 0 ? `${l} L` : `${l.toFixed(1)} L`
+  }
+  return `${ml} ml`
+}
 
 function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -134,10 +132,8 @@ function ProgressCard({
           Today
         </p>
         <button
-          type="button"
           onClick={onEditGoal}
           className="flex min-h-10 items-center gap-1 rounded-full px-3 text-[10.5px] font-medium text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
-          aria-label="Edit daily water goal"
         >
           <PencilSimple size={10} />
           Goal
@@ -251,12 +247,10 @@ function GoalSheet({
   goalMl,
   onSave,
   onClose,
-  saving,
 }: {
   goalMl: number
-  onSave: (ml: number) => Promise<boolean>
+  onSave: (ml: number) => void
   onClose: () => void
-  saving: boolean
 }) {
   const [draft, setDraft] = useState(goalMl)
 
@@ -273,11 +267,8 @@ function GoalSheet({
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[15px] font-semibold">Daily goal</p>
           <button
-            type="button"
             onClick={onClose}
-            disabled={saving}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60 disabled:opacity-40"
-            aria-label="Close daily goal"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
@@ -290,32 +281,23 @@ function GoalSheet({
           </div>
           <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
             <button
-              type="button"
               onClick={() => setDraft((v) => Math.max(250, v - 250))}
-              disabled={saving}
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground disabled:opacity-40"
-              aria-label="Decrease daily water goal"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">−</span>
             </button>
             <input
               type="number"
-              name="water-goal-ml"
               value={draft}
-              disabled={saving}
               onChange={(e) => {
                 const n = parseInt(e.target.value)
                 if (!isNaN(n)) setDraft(Math.max(250, n))
               }}
-              aria-label="Daily water goal in ml"
-              className="h-10 w-20 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none disabled:opacity-55"
+              className="h-10 w-20 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
             />
             <button
-              type="button"
               onClick={() => setDraft((v) => v + 250)}
-              disabled={saving}
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground disabled:opacity-40"
-              aria-label="Increase daily water goal"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">+</span>
             </button>
@@ -323,16 +305,13 @@ function GoalSheet({
         </div>
 
         <button
-          type="button"
-          onClick={async () => {
-            const saved = await onSave(draft)
-            if (saved) onClose()
+          onClick={() => {
+            onSave(draft)
+            onClose()
           }}
-          disabled={saving}
-          aria-busy={saving}
-          className="mt-4 w-full rounded-xl bg-foreground py-3 text-[13px] font-semibold text-background active:opacity-75 disabled:opacity-60"
+          className="mt-4 w-full rounded-xl bg-foreground py-3 text-[13px] font-semibold text-background active:opacity-75"
         >
-          {saving ? "Saving..." : "Save"}
+          Save
         </button>
       </div>
     </MobileSheet>
@@ -344,42 +323,17 @@ function GoalSheet({
 function AddSheet({
   onAdd,
   onClose,
-  saving,
 }: {
-  onAdd: (ml: number) => Promise<boolean>
+  onAdd: (ml: number) => void
   onClose: () => void
-  saving: boolean
 }) {
   const [custom, setCustom] = useState("")
-  const [customError, setCustomError] = useState<string | null>(null)
-  const [recentAmounts, setRecentAmounts] = useState(() =>
-    readRecentWaterAmounts()
-  )
-  const quickAmountValues = QUICK_AMOUNTS.map(({ ml }) => ml)
-  const visibleRecentAmounts = visibleRecentWaterAmounts(
-    recentAmounts,
-    quickAmountValues
-  )
 
-  async function submit(ml: number, remember = false) {
-    if (ml > 0 && !saving) {
-      const saved = await onAdd(ml)
-      if (!saved) return
-      if (remember) {
-        setRecentAmounts(rememberRecentWaterAmount(ml))
-      }
+  function submit(ml: number) {
+    if (ml > 0) {
+      onAdd(ml)
       onClose()
     }
-  }
-
-  function submitCustom() {
-    if (saving) return
-    const result = validateCustomWaterAmount(custom)
-    if (result.error) {
-      setCustomError(result.error)
-      return
-    }
-    if (result.amountMl) void submit(result.amountMl, true)
   }
 
   return (
@@ -395,11 +349,8 @@ function AddSheet({
         <div className="mb-4 flex items-center justify-between">
           <p className="text-[15px] font-semibold">Log water</p>
           <button
-            type="button"
             onClick={onClose}
-            disabled={saving}
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60 disabled:opacity-40"
-            aria-label="Close water logger"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
@@ -413,40 +364,14 @@ function AddSheet({
           {QUICK_AMOUNTS.map(({ label, ml }) => (
             <button
               key={ml}
-              type="button"
-              onClick={() => void submit(ml)}
-              disabled={saving}
-              aria-busy={saving}
-              className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985] disabled:opacity-55"
+              onClick={() => submit(ml)}
+              className="min-h-10 rounded-xl px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
               style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
-              aria-label={`Log ${label} water`}
             >
               {label}
             </button>
           ))}
         </div>
-
-        {visibleRecentAmounts.length > 0 && (
-          <>
-            <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
-              Recent custom
-            </p>
-            <div className="mb-4 flex flex-wrap gap-2">
-              {visibleRecentAmounts.map((ml) => (
-                <button
-                  key={ml}
-                  type="button"
-                  onClick={() => void submit(ml, true)}
-                  disabled={saving}
-                  aria-busy={saving}
-                  className="min-h-10 rounded-xl border border-border/45 bg-muted/35 px-3.5 text-[12.5px] font-semibold text-foreground/72 transition-all active:scale-[0.985] active:bg-muted/60 disabled:opacity-55"
-                >
-                  {fmtMl(ml)}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
 
         {/* Custom amount */}
         <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
@@ -456,51 +381,32 @@ function AddSheet({
           <div className="flex flex-1 items-center rounded-xl bg-muted/50 px-3 py-2">
             <input
               type="number"
-              name="custom-water-ml"
               inputMode="numeric"
-              min={CUSTOM_WATER_MIN_ML}
-              max={CUSTOM_WATER_MAX_ML}
               placeholder="Amount in ml"
               value={custom}
-              disabled={saving}
-              onChange={(e) => {
-                setCustom(e.target.value)
-                setCustomError(null)
-              }}
+              onChange={(e) => setCustom(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  submitCustom()
+                  const n = parseInt(custom)
+                  if (!isNaN(n)) submit(n)
                 }
               }}
-              aria-invalid={customError ? true : undefined}
-              aria-describedby={customError ? "custom-water-error" : undefined}
-              aria-label="Custom water amount in ml"
-              className="flex-1 bg-transparent text-[13px] font-medium outline-none placeholder:text-muted-foreground/30 disabled:opacity-55"
+              className="flex-1 bg-transparent text-[13px] font-medium outline-none placeholder:text-muted-foreground/30"
             />
             <span className="ml-1 text-[11px] text-muted-foreground/35">
               ml
             </span>
           </div>
           <button
-            type="button"
-            onClick={submitCustom}
-            disabled={saving}
-            aria-busy={saving}
-            className="flex min-h-10 items-center justify-center rounded-xl bg-foreground px-4 text-background active:opacity-75 disabled:opacity-60"
-            aria-label="Log custom water amount"
+            onClick={() => {
+              const n = parseInt(custom)
+              if (!isNaN(n)) submit(n)
+            }}
+            className="flex min-h-10 items-center justify-center rounded-xl bg-foreground px-4 text-background active:opacity-75"
           >
             <Plus size={15} weight="bold" />
           </button>
         </div>
-        {customError && (
-          <p
-            id="custom-water-error"
-            role="alert"
-            className="mt-2 rounded-[10px] border border-destructive/15 bg-destructive/8 px-3 py-2 text-[11.5px] font-medium text-destructive"
-          >
-            {customError}
-          </p>
-        )}
       </div>
     </MobileSheet>
   )
@@ -517,8 +423,7 @@ export default function Water() {
   const [dateKey, setDateKey] = useState(todayKey)
   const [addOpen, setAddOpen] = useState(false)
   const [goalOpen, setGoalOpen] = useState(false)
-  const [addingAmountMl, setAddingAmountMl] = useState<number | null>(null)
-  const [savingGoal, setSavingGoal] = useState(false)
+  useBottomBarAction(() => setAddOpen(true))
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
   const setDay = useOfflineMutation(api.logs.water.setDay, "logs.water.setDay")
@@ -614,47 +519,31 @@ export default function Water() {
   const dateLabel = formatDateLabel(dateKey, todayKey)
   const isToday = dateKey === todayKey
 
-  async function addEntry(amountMl: number) {
-    if (addingAmountMl !== null) return false
+  function addEntry(amountMl: number) {
     const date = dateKey
     const entry: WaterLogEntry = {
-      id: createClientId(),
+      id: crypto.randomUUID(),
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    setAddingAmountMl(amountMl)
     // Update UI instantly
     setOptimisticEntries((prev) => [...prev, entry])
     // Sync to server in background, with error rollback
-    try {
-      await addEntryMutation({ date, entry })
-      if (pendingDeletedIdsRef.current.has(entry.id)) {
-        void persistDelete(date, entry.id)
-      }
-      return true
-    } catch (error) {
-      // Remove the optimistic entry on error
-      setOptimisticEntries((prev) => prev.filter((e) => e.id !== entry.id))
-      unmarkDeleted(entry.id)
-      reportOfflineMutationError(error)
-      return false
-    } finally {
-      setAddingAmountMl(null)
-    }
+    addEntryMutation({ date, entry })
+      .then(() => {
+        if (pendingDeletedIdsRef.current.has(entry.id)) {
+          void persistDelete(date, entry.id)
+        }
+      })
+      .catch(() => {
+        // Remove the optimistic entry on error
+        setOptimisticEntries((prev) => prev.filter((e) => e.id !== entry.id))
+        unmarkDeleted(entry.id)
+      })
   }
 
-  async function saveGoal(ml: number) {
-    if (savingGoal) return false
-    setSavingGoal(true)
-    try {
-      await setWaterGoal({ goalMl: ml })
-      return true
-    } catch (error) {
-      reportOfflineMutationError(error)
-      return false
-    } finally {
-      setSavingGoal(false)
-    }
+  function saveGoal(ml: number) {
+    void setWaterGoal({ goalMl: ml })
   }
 
   async function persistDelete(
@@ -671,27 +560,19 @@ export default function Water() {
 
   function deleteEntry(id: string) {
     const date = dateKey
-    const deletedEntry = entriesRef.current.find((entry) => entry.id === id)
-    const wasServerEntry = serverEntries.some((entry) => entry.id === id)
     const nextEntries = entriesRef.current.filter((entry) => entry.id !== id)
     markDeleted(id)
     setOptimisticEntries((prev) => prev.filter((e) => e.id !== id))
-    persistDelete(date, id, nextEntries).catch((error) => {
+    persistDelete(date, id, nextEntries).catch(() => {
       unmarkDeleted(id)
-      if (deletedEntry && !wasServerEntry) {
-        setOptimisticEntries((prev) =>
-          prev.some((entry) => entry.id === id) ? prev : [...prev, deletedEntry]
-        )
-      }
-      reportOfflineMutationError(error)
     })
   }
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="app-header px-4 md:px-8 short-phone:pb-3">
+        <header className="app-header px-[var(--app-page-x)] md:px-8 short-phone:pb-4">
           <div>
             <button
               type="button"
@@ -708,10 +589,8 @@ export default function Water() {
           {/* Date navigation */}
           <div className="flex items-center gap-1 pb-0.5">
             <button
-              type="button"
               onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
               className="app-icon-button"
-              aria-label="Previous day"
             >
               <CaretLeft size={13} weight="bold" />
             </button>
@@ -719,11 +598,9 @@ export default function Water() {
               {dateLabel}
             </span>
             <button
-              type="button"
               onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
               disabled={isToday}
               className="app-icon-button disabled:opacity-20"
-              aria-label="Next day"
             >
               <CaretRight size={13} weight="bold" />
             </button>
@@ -731,7 +608,7 @@ export default function Water() {
         </header>
 
         {/* Content */}
-        <div className="flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-8 short-phone:gap-2.5">
+        <div className="flex flex-col gap-4 px-[var(--app-page-x)] md:grid md:grid-cols-[minmax(0,1fr)_320px] md:items-start md:gap-5 md:px-8 short-phone:gap-3">
           <ProgressCard
             totalMl={totalMl}
             goalMl={goalMl}
@@ -752,23 +629,16 @@ export default function Water() {
               {QUICK_AMOUNTS.map(({ label, ml }) => (
                 <button
                   key={ml}
-                  type="button"
-                  onClick={() => void addEntry(ml)}
-                  disabled={addingAmountMl !== null}
-                  aria-busy={addingAmountMl === ml}
-                  className="min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985] disabled:opacity-55"
+                  onClick={() => addEntry(ml)}
+                  className="min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985]"
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
-                  aria-label={`Log ${label} water`}
                 >
-                  {addingAmountMl === ml ? "Adding..." : label}
+                  {label}
                 </button>
               ))}
               <button
-                type="button"
                 onClick={() => setAddOpen(true)}
-                disabled={addingAmountMl !== null}
-                className="flex min-h-10 items-center gap-1 rounded-[9px] px-3.5 text-[12.5px] font-medium text-muted-foreground/60 ring-1 ring-border/50 active:bg-foreground/[0.05] disabled:opacity-55"
-                aria-label="Log custom water"
+                className="flex min-h-10 items-center gap-1 rounded-[9px] px-3.5 text-[12.5px] font-medium text-muted-foreground/60 ring-1 ring-border/50 active:bg-foreground/[0.05]"
               >
                 <Plus size={11} weight="bold" />
                 Custom
@@ -782,22 +652,13 @@ export default function Water() {
 
       {/* Sheets */}
       {addOpen && (
-        <AddSheet
-          onAdd={addEntry}
-          onClose={() => {
-            if (addingAmountMl === null) setAddOpen(false)
-          }}
-          saving={addingAmountMl !== null}
-        />
+        <AddSheet onAdd={addEntry} onClose={() => setAddOpen(false)} />
       )}
       {goalOpen && (
         <GoalSheet
           goalMl={goalMl}
           onSave={saveGoal}
-          onClose={() => {
-            if (!savingGoal) setGoalOpen(false)
-          }}
-          saving={savingGoal}
+          onClose={() => setGoalOpen(false)}
         />
       )}
     </div>

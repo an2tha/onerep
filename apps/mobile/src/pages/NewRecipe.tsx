@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useParams } from "react-router"
+import { useLocation, useParams } from "react-router"
 import {
   ArrowLeft,
   CaretDown,
@@ -15,15 +15,6 @@ import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { searchFoods } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
-  POPULAR_FOOD_SEARCHES,
-  clearRecentFoodSearches,
-  nextRecentFoodSearches,
-  readRecentFoodSearches,
-  visiblePopularFoodSearches,
-  writeRecentFoodSearches,
-} from "@/lib/food-search-recents"
-import { rankAndFilterFoodSearchResults } from "@/lib/food-search-ranking"
-import {
   FOOD_PORTION_UNITS,
   amountFromFoodPortionGrams,
   defaultFoodPortion,
@@ -31,13 +22,14 @@ import {
   gramsFromFoodPortion,
   stripUndefined,
   type FoodPortion,
+  type FoodLogEntry,
   type FoodPortionUnit,
   type LogMicros,
+  type Recipe,
   type RecipeIngredient,
 } from "@/lib/food-log"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { toast } from "sonner"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
@@ -46,9 +38,15 @@ import {
   MACRO_COLORS,
   MICRO_COLORS,
 } from "@/lib/design-tokens"
-import { createClientId } from "@/lib/utils"
 
 type SearchState = "idle" | "loading" | "done" | "error"
+type RecipeRouteState = {
+  draftRecipe?: Pick<Recipe, "name" | "ingredients">
+  replaceFoodLogEntry?: {
+    date: string
+    entryId: string
+  }
+}
 type AddedState = { itemId: string }
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
 type StoredRecipeIngredient = Omit<RecipeIngredient, "displayUnit"> & {
@@ -96,6 +94,104 @@ function dominantMacroColor(ing: RecipeIngredient) {
   if (max === cP) return MACRO_COLORS.protein
   if (max === cC) return MACRO_COLORS.carbs
   return MACRO_COLORS.fat
+}
+
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+}
+
+function singularizeToken(token: string): string {
+  if (token.length <= 3) return token
+  if (token.endsWith("ies")) return `${token.slice(0, -3)}y`
+  if (/(?:ches|shes|sses|xes|zes|oes)$/.test(token)) return token.slice(0, -2)
+  if (token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1)
+  return token
+}
+
+function normalizedTokens(value: string): string[] {
+  return normalizeSearchText(value)
+    .split(" ")
+    .filter(Boolean)
+    .map(singularizeToken)
+}
+
+function resultReferenceKey(item: FoodSearchItem): string {
+  return normalizedTokens(item.name).join(" ")
+}
+
+function isUnknownBrand(brand?: string): boolean {
+  const normalized = normalizeSearchText(brand ?? "")
+  return normalized === "" || normalized === "unknown"
+}
+
+function relevanceScore(item: FoodSearchItem, query: string, index: number) {
+  const queryTokens = normalizedTokens(query)
+  if (queryTokens.length === 0) return -index
+
+  const nameTokens = normalizedTokens(item.name)
+  const brandTokens = normalizedTokens(item.brand ?? "")
+  const queryKey = queryTokens.join(" ")
+  const nameKey = nameTokens.join(" ")
+
+  let score = 0
+  if (nameKey === queryKey) score += 1000
+  if (nameKey.startsWith(queryKey)) score += 650
+  if (nameKey.includes(queryKey)) score += 350
+
+  let nameMatches = 0
+  let anyMatches = 0
+  for (const token of queryTokens) {
+    if (nameTokens.includes(token)) {
+      score += 140
+      nameMatches += 1
+      anyMatches += 1
+    } else if (nameTokens.some((nameToken) => nameToken.startsWith(token))) {
+      score += 90
+      nameMatches += 1
+      anyMatches += 1
+    } else if (brandTokens.includes(token)) {
+      score += 35
+      anyMatches += 1
+    }
+  }
+
+  if (nameMatches === queryTokens.length) score += 280
+  else if (anyMatches === queryTokens.length) score += 90
+  if (!isUnknownBrand(item.brand)) score += 35
+
+  score -= Math.min(nameTokens.length, 12) * 2
+  return score - index * 0.001
+}
+
+function rankAndFilterResults(
+  items: FoodSearchItem[],
+  query: string
+): FoodSearchItem[] {
+  const knownReferenceKeys = new Set(
+    items
+      .filter((item) => !isUnknownBrand(item.brand))
+      .map(resultReferenceKey)
+      .filter(Boolean)
+  )
+
+  return items
+    .filter((item) => {
+      if (!isUnknownBrand(item.brand)) return true
+      const key = resultReferenceKey(item)
+      return !key || !knownReferenceKeys.has(key)
+    })
+    .map((item, index) => ({
+      item,
+      score: relevanceScore(item, query, index),
+      index,
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map(({ item }) => item)
 }
 
 type MicroKey = keyof LogMicros
@@ -524,12 +620,10 @@ function IngredientCard({
 
           <div className="mt-3 flex items-center gap-1.5">
             <button
-              type="button"
               onPointerDown={(e) => {
                 e.preventDefault()
                 step(-1)
               }}
-              aria-label={`Decrease ${ingredient.name} amount`}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
             >
               <Minus size={11} weight="bold" />
@@ -539,8 +633,6 @@ function IngredientCard({
               <input
                 ref={inputRef}
                 type="text"
-                name={`ingredient-${ingredient.id}-amount`}
-                aria-label={`${ingredient.name} amount`}
                 inputMode="decimal"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
@@ -556,12 +648,10 @@ function IngredientCard({
               />
             ) : (
               <button
-                type="button"
                 onClick={() => {
                   setInputVal(String(amount))
                   setEditing(true)
                 }}
-                aria-label={`Edit ${ingredient.name} amount`}
                 className="h-10 min-w-[64px] rounded-lg bg-muted/50 px-2.5 text-center text-[12px] font-semibold text-muted-foreground/75 tabular-nums transition-colors active:bg-muted"
               >
                 {amount}
@@ -569,8 +659,6 @@ function IngredientCard({
             )}
 
             <select
-              name={`ingredient-${ingredient.id}-unit`}
-              aria-label={`${ingredient.name} unit`}
               value={unit}
               onChange={(e) => {
                 const nextUnit = e.target.value as FoodPortionUnit
@@ -589,12 +677,10 @@ function IngredientCard({
             </select>
 
             <button
-              type="button"
               onPointerDown={(e) => {
                 e.preventDefault()
                 step(1)
               }}
-              aria-label={`Increase ${ingredient.name} amount`}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
             >
               <Plus size={11} weight="bold" />
@@ -783,10 +869,6 @@ function SearchOverlay({
   const [added, setAdded] = useState<AddedState | null>(null)
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
   const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
-  const [searchAttempt, setSearchAttempt] = useState(0)
-  const [recentSearches, setRecentSearches] = useState(() =>
-    readRecentFoodSearches()
-  )
   const preferences = useQuery(api.users.users.getPreferences)
 
   useEffect(() => {
@@ -809,11 +891,6 @@ function SearchOverlay({
         )
         setSearchResults(results ?? [])
         setSearchState("done")
-        setRecentSearches((current) => {
-          const next = nextRecentFoodSearches(current, q)
-          writeRecentFoodSearches(next)
-          return next
-        })
       } catch {
         setSearchResults([])
         setSearchState("error")
@@ -822,11 +899,10 @@ function SearchOverlay({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, preferences?.foodSearchLanguage, searchAttempt])
+  }, [query, preferences?.foodSearchLanguage])
 
   const results = useMemo(
-    () =>
-      rankAndFilterFoodSearchResults(searchResults ?? [], debouncedQuery || query),
+    () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
     [searchResults, debouncedQuery, query]
   )
 
@@ -873,30 +949,11 @@ function SearchOverlay({
       detail,
       selectedPortion
     )
+    setDetailItem(null)
     setAdded({ itemId: item.id })
     if (addedTimeoutRef.current) clearTimeout(addedTimeoutRef.current)
     addedTimeoutRef.current = setTimeout(() => setAdded(null), 1800)
   }
-
-  function chooseSearchSuggestion(suggestion: string) {
-    setQuery(suggestion)
-    inputRef.current?.focus()
-  }
-
-  function clearRecentSearches() {
-    clearRecentFoodSearches()
-    setRecentSearches([])
-  }
-
-  function retrySearch() {
-    if (query.trim().length < 2) return
-    setSearchAttempt((current) => current + 1)
-  }
-
-  const fallbackSuggestions = visiblePopularFoodSearches(
-    recentSearches,
-    POPULAR_FOOD_SEARCHES
-  )
 
   const showEmpty =
     searchState === "done" && results.length === 0 && debouncedQuery !== ""
@@ -908,15 +965,13 @@ function SearchOverlay({
         <div className="desktop-canvas flex min-h-svh flex-col bg-background">
           <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
             <div
-              className="flex items-center gap-3 px-4 pb-3"
+              className="flex items-center gap-3 px-[var(--app-page-x)] pb-4"
               style={{
                 paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
               }}
             >
               <button
-                type="button"
                 onClick={onClose}
-                aria-label="Close ingredient search"
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
               >
                 <ArrowLeft size={15} weight="bold" />
@@ -934,17 +989,13 @@ function SearchOverlay({
                 <input
                   ref={inputRef}
                   type="text"
-                  name="ingredient-search-query"
                   placeholder="Search foods…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  aria-label="Search foods"
                   className="h-10 w-full rounded-xl bg-muted/60 pr-10 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
                 />
                 {query.length > 0 && (
                   <button
-                    type="button"
-                    aria-label="Clear search"
                     onClick={() => {
                       setQuery("")
                       setDebouncedQuery("")
@@ -958,82 +1009,43 @@ function SearchOverlay({
               </div>
             </div>
 
-            <div className="mx-4 h-px bg-border/40" />
+            <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
 
             <div
-              className="flex-1 overflow-y-auto px-4 pt-2 [&::-webkit-scrollbar]:hidden"
+              className="flex-1 overflow-y-auto px-[var(--app-page-x)] pt-3 [&::-webkit-scrollbar]:hidden"
               style={{
                 paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
               }}
             >
               {searchState === "idle" && (
-                <div className="pt-12">
-                  <div className="flex flex-col items-center justify-center gap-2 text-center">
-                    <MagnifyingGlass
-                      size={28}
-                      className="text-muted-foreground/20"
-                    />
-                    <p className="text-[13px] font-medium text-muted-foreground/40">
-                      Search millions of foods
-                    </p>
-                    <p className="text-[11px] text-muted-foreground/25">
-                      Powered by OneRep Foods
-                    </p>
-                  </div>
-                  {recentSearches.length > 0 && (
-                    <SearchSuggestionChips
-                      label="Recent"
-                      suggestions={recentSearches}
-                      onChoose={chooseSearchSuggestion}
-                      onClear={clearRecentSearches}
-                    />
-                  )}
-                  <SearchSuggestionChips
-                    label="Popular"
-                    suggestions={visiblePopularFoodSearches(
-                      recentSearches,
-                      POPULAR_FOOD_SEARCHES
-                    )}
-                    onChoose={chooseSearchSuggestion}
+                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
+                  <MagnifyingGlass
+                    size={28}
+                    className="text-muted-foreground/20"
                   />
+                  <p className="text-[13px] font-medium text-muted-foreground/40">
+                    Search millions of foods
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/25">
+                    Powered by OneRep Foods
+                  </p>
                 </div>
               )}
 
               {searchState === "error" && (
-                <div className="pt-12">
-                  <div className="flex flex-col items-center justify-center gap-2 text-center">
-                    <Warning size={28} className="text-muted-foreground/30" />
-                    <p className="text-[13px] font-medium text-muted-foreground/50">
-                      Search failed
-                    </p>
-                    <button
-                      type="button"
-                      onClick={retrySearch}
-                      className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
-                    >
-                      Retry search
-                    </button>
-                  </div>
-                  <SearchSuggestionChips
-                    label="Try instead"
-                    suggestions={fallbackSuggestions}
-                    onChoose={chooseSearchSuggestion}
-                  />
+                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
+                  <Warning size={28} className="text-muted-foreground/30" />
+                  <p className="text-[13px] font-medium text-muted-foreground/50">
+                    Search failed
+                  </p>
                 </div>
               )}
 
               {showEmpty && (
-                <div className="pt-12">
-                  <div className="flex flex-col items-center justify-center gap-2 text-center">
-                    <p className="text-[13px] font-medium text-muted-foreground/50">
-                      No results for "{query}"
-                    </p>
-                  </div>
-                  <SearchSuggestionChips
-                    label="Try instead"
-                    suggestions={fallbackSuggestions}
-                    onChoose={chooseSearchSuggestion}
-                  />
+                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
+                  <p className="text-[13px] font-medium text-muted-foreground/50">
+                    No results for "{query}"
+                  </p>
                 </div>
               )}
 
@@ -1046,57 +1058,66 @@ function SearchOverlay({
                     {results.map((item) => {
                       const isAdded = added?.itemId === item.id
                       return (
-                        <button
+                        <div
                           key={item.id}
-                          onClick={() => setDetailItem(item)}
                           className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30 md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
                         >
-                          <CalorieBadge calories={Number(item.calories)} />
+                          <button
+                            type="button"
+                            onClick={() => setDetailItem(item)}
+                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                          >
+                            <CalorieBadge calories={Number(item.calories)} />
 
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13.5px] leading-snug font-medium">
-                              {item.name}
-                            </p>
-                            <div className="mt-0.5 flex items-center gap-1.5">
-                              {item.brand && (
-                                <span className="truncate text-[10.5px] text-muted-foreground/40">
-                                  {item.brand}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13.5px] leading-snug font-medium">
+                                {item.name}
+                              </p>
+                              <div className="mt-0.5 flex items-center gap-1.5">
+                                {item.brand && (
+                                  <span className="truncate text-[10.5px] text-muted-foreground/40">
+                                    {item.brand}
+                                  </span>
+                                )}
+                                {item.brand && (
+                                  <span className="text-[10px] text-muted-foreground/25">
+                                    ·
+                                  </span>
+                                )}
+                                <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
+                                  {item.serving}
                                 </span>
-                              )}
-                              {item.brand && (
-                                <span className="text-[10px] text-muted-foreground/25">
-                                  ·
-                                </span>
-                              )}
-                              <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
-                                {item.serving}
-                              </span>
+                              </div>
+                              <div className="mt-1 flex gap-2.5">
+                                <MacroPill
+                                  label="P"
+                                  value={Number(item.protein)}
+                                  color={MACRO_COLORS.protein}
+                                />
+                                <MacroPill
+                                  label="C"
+                                  value={Number(item.carbs)}
+                                  color={MACRO_COLORS.carbs}
+                                />
+                                <MacroPill
+                                  label="F"
+                                  value={Number(item.fat)}
+                                  color={MACRO_COLORS.fat}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-1 flex gap-2.5">
-                              <MacroPill
-                                label="P"
-                                value={Number(item.protein)}
-                                color={MACRO_COLORS.protein}
-                              />
-                              <MacroPill
-                                label="C"
-                                value={Number(item.carbs)}
-                                color={MACRO_COLORS.carbs}
-                              />
-                              <MacroPill
-                                label="F"
-                                value={Number(item.fat)}
-                                color={MACRO_COLORS.fat}
-                              />
-                            </div>
-                          </div>
+                          </button>
 
-                          <div
-                            onClick={(e) => {
-                              e.stopPropagation()
+                          <button
+                            type="button"
+                            onClick={() => {
                               if (!isAdded) handleAdd(item)
                             }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985]"
+                            disabled={isAdded}
+                            aria-label={
+                              isAdded ? `${item.name} added` : `Add ${item.name}`
+                            }
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985] disabled:opacity-60"
                           >
                             {isAdded ? (
                               <span className="text-[11px] text-foreground/60">
@@ -1107,8 +1128,8 @@ function SearchOverlay({
                                 +
                               </span>
                             )}
-                          </div>
-                        </button>
+                          </button>
+                        </div>
                       )
                     })}
                   </div>
@@ -1135,51 +1156,6 @@ function SearchOverlay({
         />
       )}
     </>
-  )
-}
-
-function SearchSuggestionChips({
-  label,
-  suggestions,
-  onChoose,
-  onClear,
-}: {
-  label: string
-  suggestions: string[]
-  onChoose: (suggestion: string) => void
-  onClear?: () => void
-}) {
-  if (suggestions.length === 0) return null
-
-  return (
-    <div className="mt-4">
-      <div className="mb-1.5 flex items-center justify-between px-1">
-        <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
-          {label}
-        </p>
-        {onClear && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="min-h-7 px-1 text-[11px] font-semibold text-muted-foreground/45 active:text-foreground/70"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap justify-center gap-2">
-        {suggestions.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            onClick={() => onChoose(suggestion)}
-            className="min-h-9 rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
-          >
-            {suggestion}
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 
@@ -1229,11 +1205,24 @@ function MacroPill({
 export default function NewRecipe() {
   const navigate = useSmoothNavigate()
   const { id } = useParams<{ id?: string }>()
+  const location = useLocation()
+  const routeState = (location.state as RecipeRouteState | null) ?? null
+  const draftRecipe = !id ? (routeState?.draftRecipe ?? null) : null
+  const editLogTarget = routeState?.replaceFoodLogEntry ?? null
+  const draftInitialized = useRef(false)
 
   const recipesQuery = useQuery(api.logs.recipes.list, {})
+  const targetFoodLogs = useQuery(
+    api.logs.foodLogs.getDay,
+    editLogTarget ? { date: editLogTarget.date } : "skip"
+  )
   const saveRecipeMutation = useOfflineMutation(
     api.logs.recipes.save,
     "logs.recipes.save"
+  )
+  const setFoodDay = useOfflineMutation(
+    api.logs.foodLogs.setDay,
+    "logs.foodLogs.setDay"
   )
 
   const initial =
@@ -1245,40 +1234,68 @@ export default function NewRecipe() {
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const savingRef = useRef(false)
   const [showMicros, setShowMicros] = useState(false)
 
   useEffect(() => {
     if (initial) {
       setName(initial.name)
       setIngredients(normalizeRecipeIngredients(initial.ingredients))
+      draftInitialized.current = true
+      return
     }
-  }, [initial])
+
+    if (!id && draftRecipe && !draftInitialized.current) {
+      setName(draftRecipe.name ?? "")
+      setIngredients(normalizeRecipeIngredients(draftRecipe.ingredients))
+      draftInitialized.current = true
+    }
+  }, [draftRecipe, id, initial])
 
   const totals = recipeTotals(ingredients)
   const totalCal = totals.calories || 1
   const microTotals = useMemo(() => recipeMicros(ingredients), [ingredients])
+  const targetEntries = (targetFoodLogs ?? []) as FoodLogEntry[]
 
   async function handleSave() {
-    if (savingRef.current || saved || !canSave) return
-    savingRef.current = true
-    setSaving(true)
+    setSaved(true)
     try {
-      await saveRecipeMutation({
+      const recipeName = name.trim() || "My Recipe"
+      const cleanedIngredients = stripUndefined(ingredients)
+      const savedRecipeId = await saveRecipeMutation({
         id: id as Id<"recipes"> | undefined,
-        name: name.trim() || "My Recipe",
-        ingredients: stripUndefined(ingredients),
+        name: recipeName,
+        ingredients: cleanedIngredients,
       })
-      setSaved(true)
+      const nextRecipeId =
+        id ?? (typeof savedRecipeId === "string" ? savedRecipeId : undefined)
+
+      if (editLogTarget && targetFoodLogs !== undefined) {
+        const nextTotals = recipeTotals(cleanedIngredients)
+        await setFoodDay({
+          date: editLogTarget.date,
+          entries: targetEntries.map((entry) =>
+            entry.id === editLogTarget.entryId
+              ? stripUndefined({
+                  ...entry,
+                  name: recipeName,
+                  ...nextTotals,
+                  recipeId: nextRecipeId,
+                  recipeDraft: nextRecipeId
+                    ? undefined
+                    : {
+                        name: recipeName,
+                        ingredients: cleanedIngredients,
+                      },
+                })
+              : entry
+          ),
+        })
+      }
+
       navigate(-1)
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save recipe"
-      )
+    } catch (err) {
+      console.error("Failed to save recipe:", err)
       setSaved(false)
-      savingRef.current = false
-      setSaving(false)
     }
   }
 
@@ -1296,7 +1313,7 @@ export default function NewRecipe() {
     setIngredients((prev) => [
       ...prev,
       stripUndefined({
-        id: createClientId(),
+        id: Math.random().toString(36).slice(2),
         name: item.name,
         grams: selectedPortion.grams,
         displayAmount: selectedPortion.amount,
@@ -1309,10 +1326,12 @@ export default function NewRecipe() {
         ...microsPer100(micros, selectedPortion.grams),
       }),
     ])
-    setSearchOpen(false)
   }
 
-  const canSave = ingredients.length > 0 && name.trim().length > 0
+  const canSave =
+    ingredients.length > 0 &&
+    name.trim().length > 0 &&
+    (!editLogTarget || targetFoodLogs !== undefined)
 
   return (
     <>
@@ -1320,7 +1339,7 @@ export default function NewRecipe() {
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
           {/* ── Header ────────────────────────────────────────────────── */}
           <header
-            className="flex items-center gap-3 px-4 pb-4 md:px-8"
+            className="flex items-center gap-3 px-[var(--app-page-x)] pb-4 md:px-8"
             style={{
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
@@ -1338,13 +1357,25 @@ export default function NewRecipe() {
 
             <button
               onClick={handleSave}
-              disabled={!canSave || saving || saved}
-              aria-busy={saving}
-              className="app-button app-button-primary h-10 px-4 text-[12px] disabled:opacity-25"
+              disabled={!canSave || saved}
+              className="app-header-icon-action disabled:opacity-25 md:hidden"
+              aria-label="Save recipe"
             >
-              {saving ? (
-                <span className="h-3 w-3 animate-spin rounded-full border-2 border-background/20 border-t-background" />
-              ) : saved ? (
+              {saved ? (
+                <Check
+                  weight="bold"
+                  style={{ color: APP_ACCENT_COLORS.complete }}
+                />
+              ) : (
+                <Check weight="bold" />
+              )}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!canSave || saved}
+              className="app-button app-button-primary hidden h-10 px-4 text-[12px] disabled:opacity-25 md:inline-flex"
+            >
+              {saved ? (
                 <Check
                   size={12}
                   weight="bold"
@@ -1353,16 +1384,14 @@ export default function NewRecipe() {
               ) : (
                 <Check size={11} weight="bold" />
               )}
-              {saving ? "Saving..." : "Save"}
+              Save
             </button>
           </header>
 
           {/* ── Recipe name ─────────────────────────────────────────────── */}
-          <div className="px-5 pb-5 md:px-8">
+          <div className="px-[var(--app-page-x)] pb-6 md:px-8">
             <input
               type="text"
-              name="recipe-name"
-              aria-label="Recipe name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Untitled Recipe"
@@ -1382,7 +1411,7 @@ export default function NewRecipe() {
 
           {/* ── Ingredient list ─────────────────────────────────────────── */}
           <div
-            className="flex-1 overflow-y-auto px-4 md:px-8 [&::-webkit-scrollbar]:hidden"
+            className="flex-1 overflow-y-auto px-[var(--app-page-x)] md:px-8 [&::-webkit-scrollbar]:hidden"
             style={{
               paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
             }}
@@ -1473,17 +1502,10 @@ export default function NewRecipe() {
                 {/* Save button at bottom */}
                 <button
                   onClick={handleSave}
-                  disabled={!canSave || saving || saved}
-                  aria-busy={saving}
+                  disabled={!canSave || saved}
                   className="mt-4 w-full rounded-xl bg-foreground py-4 text-[14px] font-semibold text-background transition-all active:scale-[0.985] active:opacity-75 disabled:opacity-25"
                 >
-                  {saving
-                    ? "Saving..."
-                    : saved
-                      ? "Saved ✓"
-                      : initial
-                        ? "Save Changes"
-                        : "Save Recipe"}
+                  {saved ? "Saved ✓" : initial ? "Save Changes" : "Save Recipe"}
                 </button>
               </>
             )}

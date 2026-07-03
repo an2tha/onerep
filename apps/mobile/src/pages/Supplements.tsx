@@ -352,7 +352,7 @@ function SummaryStrip({
 
   return (
     <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 min-[430px]:flex-row min-[430px]:items-start min-[430px]:justify-between">
         <div>
           <p className="app-eyebrow">Today</p>
           <div className="mt-2 flex items-end gap-1">
@@ -364,7 +364,7 @@ function SummaryStrip({
             </span>
           </div>
         </div>
-        <div className="grid shrink-0 grid-cols-3 gap-2 text-center">
+        <div className="grid w-full grid-cols-3 gap-2 text-center min-[430px]:w-auto min-[430px]:shrink-0">
           {[
             ["Due", due],
             ["Missed", missed],
@@ -2017,8 +2017,8 @@ export default function Supplements() {
 
   return (
     <div className="supplement-ledger-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
-        <header className="flex items-end justify-between px-5 pt-[var(--app-safe-top)] pb-4 md:px-6 md:pt-10 short-phone:pb-3">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
+        <header className="flex items-end justify-between px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-5 md:px-6 md:pt-10 short-phone:pb-4">
           <div>
             <button
               type="button"
@@ -2056,7 +2056,7 @@ export default function Supplements() {
           </div>
         </header>
 
-        <div className="px-4 md:px-6">
+        <div className="px-[var(--app-page-x)] md:px-6">
           <div className="grid grid-cols-2 rounded-[14px] bg-muted/35 p-1">
             {[
               ["today", "Today"],
@@ -2082,7 +2082,7 @@ export default function Supplements() {
           </div>
         </div>
 
-        <div className="mt-3 flex flex-col gap-3 px-4 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start md:gap-5 md:px-6 short-phone:gap-2.5">
+        <div className="mt-4 flex flex-col gap-4 px-[var(--app-page-x)] md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start md:gap-5 md:px-6 short-phone:gap-3">
           {tab === "today" ? (
             <>
               <SummaryStrip

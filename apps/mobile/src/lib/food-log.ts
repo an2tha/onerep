@@ -42,6 +42,12 @@ export type FoodLogEntry = {
   servingLabel?: string
   imageUrl?: string
   openFoodFacts?: OpenFoodFactsProduct
+  // Recipe metadata for entries logged from a saved or AI-generated recipe
+  recipeId?: string
+  recipeDraft?: {
+    name: string
+    ingredients: RecipeIngredient[]
+  }
   // Optional micronutrients
   fiber?: number
   sugar?: number
@@ -148,6 +154,8 @@ export type LogMicros = Omit<
   | "servingLabel"
   | "imageUrl"
   | "openFoodFacts"
+  | "recipeId"
+  | "recipeDraft"
 >
 
 export const FOOD_MICRONUTRIENT_KEYS = [

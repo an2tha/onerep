@@ -2,10 +2,15 @@ import React, { useEffect, useMemo, useState } from "react"
 import {
   Barbell,
   Camera,
+  CaretRight,
   ChartLine,
   MagnifyingGlass,
+  PaperPlaneTilt,
   Plus,
+  Question,
   Ruler,
+  Sparkle,
+  TrashSimple,
   X,
 } from "@phosphor-icons/react"
 import { useAction, useMutation, useQuery } from "convex/react"
@@ -14,22 +19,13 @@ import { toast } from "sonner"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
-import {
-  bodyMeasurementCarryForwardDraft,
-  localDateInputValue,
-  type BodyMeasurementEntry,
-} from "@/lib/body-progress"
+import type { BodyMeasurementEntry } from "@/lib/body-progress"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import {
-  cn,
-  createClientId,
-  logDevError,
-  safeLocalStorageGet,
-  safeLocalStorageSet,
-} from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { APP_ACCENT_COLORS } from "@/lib/design-tokens"
-import { rollingAvg, sparklinePoints } from "@/lib/progress-metrics"
+import { rollingAvg } from "@/lib/progress-metrics"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 type GoalId = "lose" | "build" | "health" | "performance"
 
@@ -68,56 +64,445 @@ function goalDelta(entries: BodyMeasurementEntry[], goal: GoalId | null) {
 type MetricSeries = {
   values: number[]
   color: string
+  label?: string
   strokeWidth?: number
   opacity?: number
   dashed?: boolean
 }
 
+type MetricGraphPoint = {
+  date: string
+  value: number
+}
+
+type MetricGraphSeries = {
+  label: string
+  points: MetricGraphPoint[]
+  color: string
+  strokeWidth?: number
+  opacity?: number
+  dashed?: boolean
+}
+
+type MetricGraph = {
+  title: string
+  subtitle: string
+  unit?: string
+  yDigits?: number
+  emptyDetail?: string
+  series: MetricGraphSeries[]
+}
+
+function appendUnit(label: string, unit?: string) {
+  if (!unit) return label
+  return unit === "%" ? `${label}%` : `${label} ${unit}`
+}
+
+function formatAxisValue(value: number, unit?: string, digits = 1) {
+  if (!Number.isFinite(value)) return "—"
+  const normalized = Math.abs(value) < 0.000001 ? 0 : value
+  const abs = Math.abs(normalized)
+  const hasFraction = Math.abs(normalized - Math.round(normalized)) > 0.001
+  const displayDigits = digits === 0 && hasFraction ? 1 : abs >= 100 ? 0 : digits
+  return appendUnit(normalized.toFixed(displayDigits), unit)
+}
+
+function formatGraphMetricValue(
+  value: number,
+  graph?: Pick<MetricGraph, "unit" | "yDigits">
+) {
+  return appendUnit(fmtNumber(value, graph?.yDigits ?? 1), graph?.unit)
+}
+
+function formatGraphMetricDelta(value: number, graph?: MetricGraph) {
+  const normalized = Math.abs(value) < 0.000001 ? 0 : value
+  const sign = normalized > 0 ? "+" : ""
+  return `${sign}${formatGraphMetricValue(normalized, graph)}`
+}
+
 function MultiLineChart({
   series,
-  width = 240,
-  height = 96,
+  width = 320,
+  height = 180,
   sharedScale = true,
+  xLabels = [],
+  yUnit,
+  yDigits = 1,
+  showLegend = false,
+  interactive = false,
+  className,
 }: {
   series: MetricSeries[]
   width?: number
   height?: number
   sharedScale?: boolean
+  xLabels?: string[]
+  yUnit?: string
+  yDigits?: number
+  showLegend?: boolean
+  interactive?: boolean
+  className?: string
 }) {
-  if (series.every((s) => s.values.length === 0)) return null
+  const svgRef = React.useRef<SVGSVGElement>(null)
+  const [activeIndex, setActiveIndex] = React.useState<number | null>(null)
+  const visibleSeries = series
+    .map((item) => ({
+      ...item,
+      values: item.values.filter((value) => Number.isFinite(value)),
+    }))
+    .filter((item) => item.values.length > 0)
 
-  const allValues = sharedScale ? series.flatMap((s) => s.values) : []
-  const globalMin = sharedScale ? Math.min(...allValues) : undefined
-  const globalMax = sharedScale ? Math.max(...allValues) : undefined
+  if (visibleSeries.length === 0) return null
+
+  const allValues = sharedScale
+    ? visibleSeries.flatMap((item) => item.values)
+    : visibleSeries[0]?.values ?? []
+  if (allValues.length === 0) return null
+
+  const rawMinValue = Math.min(...allValues)
+  let minValue = rawMinValue
+  let maxValue = Math.max(...allValues)
+  const spread = maxValue - minValue
+  const padding =
+    spread === 0 ? Math.max(Math.abs(maxValue) * 0.08, 1) : spread * 0.08
+  minValue -= padding
+  maxValue += padding
+  if (rawMinValue >= 0) minValue = Math.max(0, minValue)
+
+  const yTicks = [maxValue, minValue + (maxValue - minValue) / 2, minValue]
+  const yTickLabels = yTicks.map((tick) =>
+    formatAxisValue(tick, yUnit, yDigits)
+  )
+  const axisLabelWidth = Math.min(
+    68,
+    Math.max(42, Math.max(...yTickLabels.map((label) => label.length)) * 4.3 + 12)
+  )
+  const plot = {
+    top: showLegend ? 26 : 12,
+    right: interactive ? 16 : 12,
+    bottom: interactive ? 32 : 28,
+    left: axisLabelWidth,
+  }
+  const plotWidth = width - plot.left - plot.right
+  const plotHeight = height - plot.top - plot.bottom
+  const maxLength = Math.max(...visibleSeries.map((item) => item.values.length))
+  const xTickIndexes = Array.from(
+    new Set([0, Math.floor((maxLength - 1) / 2), maxLength - 1])
+  ).filter((index) => index >= 0)
+
+  function xFor(index: number, length: number) {
+    if (length <= 1) return plot.left + plotWidth / 2
+    return plot.left + (index / (length - 1)) * plotWidth
+  }
+
+  function yFor(value: number, values: number[]) {
+    let localMin = minValue
+    let localMax = maxValue
+    if (!sharedScale) {
+      const rawLocalMin = Math.min(...values)
+      localMin = rawLocalMin
+      localMax = Math.max(...values)
+      const localSpread = localMax - localMin
+      const localPadding =
+        localSpread === 0
+          ? Math.max(Math.abs(localMax) * 0.08, 1)
+          : localSpread * 0.08
+      localMin -= localPadding
+      localMax += localPadding
+      if (rawLocalMin >= 0) localMin = Math.max(0, localMin)
+    }
+    return (
+      plot.top +
+      ((localMax - value) / (localMax - localMin || 1)) * plotHeight
+    )
+  }
+
+  function pointsFor(values: number[]) {
+    return values
+      .map(
+        (value, index) =>
+          `${xFor(index, values.length)},${yFor(value, values)}`
+      )
+      .join(" ")
+  }
+
+  function formatXAxisLabel(index: number) {
+    const label = xLabels[index]
+    if (!label) return index === 0 ? "Start" : "Now"
+    return formatMeasurementDate(label.slice(0, 10))
+  }
+
+  function clampIndex(index: number) {
+    return Math.min(maxLength - 1, Math.max(0, index))
+  }
+
+  function updateActiveIndex(event: React.PointerEvent<SVGSVGElement>) {
+    if (!interactive || !svgRef.current) return
+    const rect = svgRef.current.getBoundingClientRect()
+    const viewX = ((event.clientX - rect.left) / rect.width) * width
+    const ratio = (viewX - plot.left) / Math.max(1, plotWidth)
+    setActiveIndex(clampIndex(Math.round(ratio * (maxLength - 1))))
+  }
+
+  const displayIndex = interactive
+    ? clampIndex(activeIndex ?? maxLength - 1)
+    : null
+  const activeX =
+    displayIndex == null ? null : xFor(displayIndex, Math.max(1, maxLength))
+  const activeDateLabel =
+    displayIndex == null
+      ? ""
+      : xLabels[displayIndex]
+        ? formatMeasurementDate(xLabels[displayIndex].slice(0, 10))
+        : displayIndex === 0
+          ? "Start"
+          : "Now"
+  const activeValues =
+    displayIndex == null
+      ? []
+      : visibleSeries
+          .map((item) => {
+            const value = item.values[displayIndex]
+            if (value == null || !Number.isFinite(value)) return null
+            return {
+              item,
+              value,
+              x: xFor(displayIndex, item.values.length),
+              y: yFor(value, item.values),
+            }
+          })
+          .filter(
+            (
+              item
+            ): item is {
+              item: MetricSeries
+              value: number
+              x: number
+              y: number
+            } => Boolean(item)
+          )
+  const tooltipRows = activeValues.slice(0, 3)
+  const tooltipWidth = Math.min(
+    154,
+    Math.max(118, width - plot.left - plot.right - 16)
+  )
+  const tooltipHeight = 24 + tooltipRows.length * 13
+  const tooltipX =
+    activeX == null
+      ? 0
+      : activeX + tooltipWidth + 10 > width
+        ? Math.max(4, activeX - tooltipWidth - 10)
+        : activeX + 10
+  const tooltipY = Math.max(4, plot.top + 4)
 
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
-      className="h-28 w-full overflow-visible short-phone:h-24"
+      className={cn(
+        "block w-full max-w-full overflow-hidden text-muted-foreground/45",
+        interactive && "touch-none cursor-crosshair select-none",
+        className
+      )}
+      style={{ aspectRatio: `${width} / ${height}` }}
+      role="img"
+      aria-label="Progress line chart with scaled axes"
+      onPointerDown={interactive ? updateActiveIndex : undefined}
+      onPointerMove={interactive ? updateActiveIndex : undefined}
     >
-      {series.map((s, i) => {
-        if (s.values.length < 2) return null
-        const pts = sparklinePoints(
-          s.values,
-          width,
-          height,
-          globalMin,
-          globalMax
-        )
+      <rect width={width} height={height} fill="transparent" />
+
+      {showLegend && (
+        <g>
+          {visibleSeries.slice(0, 3).map((item, index) => (
+            <g
+              key={item.label ?? index}
+              transform={`translate(${plot.left + index * 86} 9)`}
+            >
+              <line
+                x1="0"
+                x2="13"
+                y1="0"
+                y2="0"
+                stroke={item.color}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={item.dashed ? "5 4" : undefined}
+              />
+              <text
+                x="18"
+                y="3"
+                fill="currentColor"
+                className="font-bold text-[8px] uppercase tracking-[0.12em]"
+              >
+                {item.label}
+              </text>
+            </g>
+          ))}
+        </g>
+      )}
+
+      {yTicks.map((tick, index) => {
+        const y = plot.top + (index / (yTicks.length - 1)) * plotHeight
         return (
-          <polyline
-            key={i}
-            fill="none"
-            stroke={s.color}
-            strokeWidth={s.strokeWidth ?? 2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity={s.opacity ?? 1}
-            strokeDasharray={s.dashed ? "5 4" : undefined}
-            points={pts}
-          />
+          <g key={`${tick}-${index}`}>
+            <line
+              x1={plot.left}
+              x2={width - plot.right}
+              y1={y}
+              y2={y}
+              stroke="currentColor"
+              strokeWidth="0.65"
+              opacity={index === yTicks.length - 1 ? 0.45 : 0.24}
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={plot.left - 7}
+              y={y + 3}
+              textAnchor="end"
+              fill="currentColor"
+              className="font-bold text-[8px] tabular-nums"
+              opacity="0.78"
+            >
+              {yTickLabels[index]}
+            </text>
+          </g>
         )
       })}
+
+      <line
+        x1={plot.left}
+        x2={plot.left}
+        y1={plot.top}
+        y2={height - plot.bottom}
+        stroke="currentColor"
+        strokeWidth="0.8"
+        opacity="0.4"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {xTickIndexes.map((index) => {
+        const x = xFor(index, maxLength)
+        return (
+          <g key={index}>
+            <line
+              x1={x}
+              x2={x}
+              y1={height - plot.bottom}
+              y2={height - plot.bottom + 4}
+              stroke="currentColor"
+              strokeWidth="0.8"
+              opacity="0.45"
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={x}
+              y={height - 9}
+              textAnchor="middle"
+              fill="currentColor"
+              className="font-bold text-[8px]"
+              opacity="0.72"
+            >
+              {formatXAxisLabel(index)}
+            </text>
+          </g>
+        )
+      })}
+
+      {visibleSeries.map((item, index) => {
+        const lastIndex = item.values.length - 1
+        const lastValue = item.values[lastIndex]
+        const lastX = xFor(lastIndex, item.values.length)
+        const lastY = yFor(lastValue, item.values)
+        return (
+          <g key={item.label ?? index}>
+            {item.values.length >= 2 && (
+              <polyline
+                fill="none"
+                stroke={item.color}
+                strokeWidth={item.strokeWidth ?? 2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={item.opacity ?? 1}
+                strokeDasharray={item.dashed ? "5 4" : undefined}
+                vectorEffect="non-scaling-stroke"
+                points={pointsFor(item.values)}
+              />
+            )}
+            <circle
+              cx={lastX}
+              cy={lastY}
+              r={item.strokeWidth ? item.strokeWidth + 0.8 : 3.2}
+              fill="var(--background)"
+              stroke={item.color}
+              strokeWidth="2"
+              vectorEffect="non-scaling-stroke"
+              opacity={item.opacity ?? 1}
+            />
+          </g>
+        )
+      })}
+
+      {interactive && activeX != null && activeValues.length > 0 && (
+        <g pointerEvents="none">
+          <line
+            x1={activeX}
+            x2={activeX}
+            y1={plot.top}
+            y2={height - plot.bottom}
+            stroke="currentColor"
+            strokeWidth="0.8"
+            opacity="0.55"
+            strokeDasharray="3 3"
+            vectorEffect="non-scaling-stroke"
+          />
+          {activeValues.map(({ item, value, x, y }) => (
+            <circle
+              key={`${item.label}-${value}`}
+              cx={x}
+              cy={y}
+              r="4.1"
+              fill="var(--background)"
+              stroke={item.color}
+              strokeWidth="2.2"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          <g>
+            <rect
+              x={tooltipX}
+              y={tooltipY}
+              width={tooltipWidth}
+              height={tooltipHeight}
+              rx="9"
+              fill="var(--background)"
+              stroke="currentColor"
+              strokeWidth="0.7"
+              opacity="0.96"
+              vectorEffect="non-scaling-stroke"
+            />
+            <text
+              x={tooltipX + 8}
+              y={tooltipY + 13}
+              fill="currentColor"
+              className="font-extrabold text-[8px]"
+            >
+              {activeDateLabel}
+            </text>
+            {tooltipRows.map(({ item, value }, index) => (
+              <text
+                key={`${item.label}-${index}`}
+                x={tooltipX + 8}
+                y={tooltipY + 27 + index * 13}
+                fill={item.color}
+                className="font-bold text-[8px] tabular-nums"
+              >
+                {item.label}: {formatAxisValue(value, yUnit, yDigits)}
+              </text>
+            ))}
+          </g>
+        </g>
+      )}
     </svg>
   )
 }
@@ -135,18 +520,16 @@ function MeasurementField({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
+      <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase tracking-[0.14em]">
         {label}
       </span>
-      <div className="flex items-center rounded-[10px] border border-border/55 bg-background px-3">
+      <div className="flex items-center bg-background px-3 border border-border/55 rounded-[10px]">
         <input
           type="text"
-          name={`body-measurement-${label.toLowerCase().replace(/\s+/g, "-")}`}
-          aria-label={`${label} measurement in ${unit}`}
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-11 min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
+          className="flex-1 bg-transparent outline-none min-w-0 h-11 font-medium tabular-nums text-[14px]"
         />
         <span className="text-[10px] text-muted-foreground/45">{unit}</span>
       </div>
@@ -160,15 +543,13 @@ type MeasurementDraft = Omit<
 > & { photoFile?: File }
 
 function MeasurementSheet({
-  lastEntry,
   onClose,
   onSave,
 }: {
-  lastEntry?: BodyMeasurementEntry | null
   onClose: () => void
-  onSave: (entry: MeasurementDraft) => Promise<void> | void
+  onSave: (entry: MeasurementDraft) => void
 }) {
-  const today = localDateInputValue()
+  const today = new Date().toISOString().slice(0, 10)
   const [loggedAt, setLoggedAt] = useState(today)
   const [weightKg, setWeightKg] = useState("")
   const [bodyFatPct, setBodyFatPct] = useState("")
@@ -183,14 +564,8 @@ function MeasurementSheet({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [photoFile, setPhotoFile] = useState<File | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
-  const [saving, setSaving] = useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-  const saveRef = React.useRef(false)
-  const carryForward = useMemo(
-    () => bodyMeasurementCarryForwardDraft(lastEntry),
-    [lastEntry]
-  )
 
   function toNumber(value: string) {
     const trimmed = value.trim()
@@ -215,71 +590,21 @@ function MeasurementSheet({
     }
   }
 
-  function useLastMeasurement() {
-    if (!carryForward) return
-    setWeightKg(carryForward.weightKg)
-    setBodyFatPct(carryForward.bodyFatPct)
-    setWaistCm(carryForward.waistCm)
-    setHipsCm(carryForward.hipsCm)
-    setChestCm(carryForward.chestCm)
-    setArmsCm(carryForward.armsCm)
-    setThighsCm(carryForward.thighsCm)
-    setCalvesCm(carryForward.calvesCm)
-    setNeckCm(carryForward.neckCm)
-    if (carryForward.hasAdvancedMeasurements) setShowAdvanced(true)
-    toast.message(
-      `${carryForward.filledCount} value${
-        carryForward.filledCount === 1 ? "" : "s"
-      } copied`
-    )
-  }
-
   const canSave =
-    !saving &&
-    (Boolean(toNumber(weightKg)) ||
-      Boolean(toNumber(bodyFatPct)) ||
-      Boolean(toNumber(waistCm)) ||
-      Boolean(toNumber(hipsCm)) ||
-      Boolean(toNumber(chestCm)) ||
-      Boolean(toNumber(armsCm)) ||
-      Boolean(toNumber(thighsCm)) ||
-      Boolean(toNumber(calvesCm)) ||
-      Boolean(toNumber(neckCm)) ||
-      Boolean(photoDataUrl))
-
-  async function handleSave() {
-    if (!canSave || saveRef.current) return
-    saveRef.current = true
-    setSaving(true)
-    try {
-      await onSave({
-        loggedAt,
-        weightKg: toNumber(weightKg),
-        bodyFatPct: toNumber(bodyFatPct),
-        waistCm: toNumber(waistCm),
-        hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
-        chestCm: chestCm ? toNumber(chestCm) : undefined,
-        armsCm: armsCm ? toNumber(armsCm) : undefined,
-        thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
-        calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
-        neckCm: neckCm ? toNumber(neckCm) : undefined,
-        notes: notes.trim() || undefined,
-        photoFile,
-        photoTakenAt: photoFile ? Date.now() : undefined,
-      })
-    } catch {
-      // Parent save handlers own user-facing error copy.
-    } finally {
-      saveRef.current = false
-      setSaving(false)
-    }
-  }
+    Boolean(toNumber(weightKg)) ||
+    Boolean(toNumber(bodyFatPct)) ||
+    Boolean(toNumber(waistCm)) ||
+    Boolean(toNumber(hipsCm)) ||
+    Boolean(toNumber(chestCm)) ||
+    Boolean(toNumber(armsCm)) ||
+    Boolean(toNumber(thighsCm)) ||
+    Boolean(toNumber(calvesCm)) ||
+    Boolean(toNumber(neckCm)) ||
+    Boolean(photoDataUrl)
 
   return (
     <MobileSheet
-      onClose={saving ? () => {} : onClose}
-      closeOnBackdrop={!saving}
-      showHandle={!saving}
+      onClose={onClose}
       overlayClassName="bg-black/45 backdrop-blur-[5px]"
       panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
       panelStyle={{
@@ -287,32 +612,14 @@ function MeasurementSheet({
       }}
     >
       <div className="px-4 pt-1">
-        <div className="mb-4 border-b border-border/45 pb-4">
+        <div className="mb-4 pb-4 border-border/45 border-b">
           <p className="app-eyebrow">Daily check-in</p>
-          <div className="mt-1.5 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-[1.35rem] leading-tight font-semibold">
-                Body measurements
-              </h2>
-              {carryForward && lastEntry && (
-                <p className="mt-1 text-[11px] font-medium text-muted-foreground/45">
-                  Last {formatMeasurementDate(lastEntry.loggedAt)}
-                </p>
-              )}
-            </div>
-            {carryForward && (
-              <button
-                type="button"
-                onClick={useLastMeasurement}
-                className="app-button app-button-secondary h-9 shrink-0 px-3 text-[11px]"
-              >
-                Use last
-              </button>
-            )}
-          </div>
+          <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
+            Body measurements
+          </h2>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 short-phone:gap-2">
+        <div className="gap-2.5 short-phone:gap-2 grid grid-cols-2">
           {/* Core fields */}
           {[
             {
@@ -348,7 +655,7 @@ function MeasurementSheet({
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="col-span-2 flex items-center gap-1.5 py-1 text-[11px] font-medium text-muted-foreground/50 transition-colors active:text-foreground/60"
+            className="flex items-center gap-1.5 col-span-2 py-1 font-medium text-[11px] text-muted-foreground/50 active:text-foreground/60 transition-colors"
           >
             <span>{showAdvanced ? "▴" : "▾"}</span>
             {showAdvanced
@@ -376,14 +683,12 @@ function MeasurementSheet({
             ].map((field) => <MeasurementField key={field.label} {...field} />)}
 
           {/* Photo upload section */}
-          <div className="col-span-2 flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
+          <div className="flex flex-col gap-1.5 col-span-2">
+            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
               Progress Photo
             </span>
             <input
               type="file"
-              name="progress-photo"
-              aria-label="Progress photo"
               accept="image/*"
               capture="environment"
               className="hidden"
@@ -391,11 +696,11 @@ function MeasurementSheet({
               onChange={handlePhotoChange}
             />
             {photoDataUrl ? (
-              <div className="relative aspect-square w-full overflow-hidden rounded-[18px] border border-border/55">
+              <div className="relative border border-border/55 rounded-[18px] w-full aspect-square overflow-hidden">
                 <img
                   src={photoDataUrl}
                   alt="Progress"
-                  className="h-full w-full object-cover"
+                  className="w-full h-full object-cover"
                 />
                 <button
                   type="button"
@@ -403,8 +708,7 @@ function MeasurementSheet({
                     setPhotoDataUrl(undefined)
                     setPhotoFile(undefined)
                   }}
-                  aria-label="Remove progress photo"
-                  className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-[10px] bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
+                  className="top-2 right-2 absolute flex justify-center items-center bg-black/50 active:bg-black/70 backdrop-blur-md rounded-[10px] w-10 h-10 text-white transition-colors"
                 >
                   <X size={14} weight="bold" />
                 </button>
@@ -413,60 +717,72 @@ function MeasurementSheet({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="app-empty h-32 w-full flex-col justify-center text-muted-foreground/55 transition-colors active:bg-muted/30 active:text-foreground/60 short-phone:h-24"
+                className="flex-col justify-center active:bg-muted/30 w-full h-32 short-phone:h-24 text-muted-foreground/55 active:text-foreground/60 transition-colors app-empty"
               >
                 <Camera size={24} />
-                <span className="text-[11px] font-medium">Add photo</span>
+                <span className="font-medium text-[11px]">Add photo</span>
               </button>
             )}
           </div>
 
-          <label className="col-span-2 flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
+          <label className="flex flex-col gap-1.5 col-span-2">
+            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
               Date
             </span>
             <input
               type="date"
-              name="body-measurement-date"
-              aria-label="Body measurement date"
               value={loggedAt}
               onChange={(event) => setLoggedAt(event.target.value)}
-              className="app-input h-11"
+              className="h-11 app-input"
             />
           </label>
 
-          <label className="col-span-2 flex flex-col gap-1.5">
-            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
+          <label className="flex flex-col gap-1.5 col-span-2">
+            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
               Notes
             </span>
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={3}
-              className="app-input min-h-[5.5rem] py-3 leading-relaxed"
+              className="py-3 min-h-[5.5rem] leading-relaxed app-input"
               placeholder="Sleep, stress, cycle, travel, hydration."
             />
           </label>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="flex gap-2 mt-4">
           <button
-            onClick={handleSave}
-            disabled={!canSave}
-            aria-busy={saving}
+            onClick={() => {
+              if (!canSave) return
+              onSave({
+                loggedAt,
+                weightKg: toNumber(weightKg),
+                bodyFatPct: toNumber(bodyFatPct),
+                waistCm: toNumber(waistCm),
+                hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
+                chestCm: chestCm ? toNumber(chestCm) : undefined,
+                armsCm: armsCm ? toNumber(armsCm) : undefined,
+                thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
+                calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
+                neckCm: neckCm ? toNumber(neckCm) : undefined,
+                notes: notes.trim() || undefined,
+                photoFile,
+                photoTakenAt: photoFile ? Date.now() : undefined,
+              })
+            }}
             className={cn(
-              "app-button flex-1 py-3 text-[13px] transition-colors",
+              "flex-1 py-3 text-[13px] transition-colors app-button",
               canSave
                 ? "bg-foreground text-background active:opacity-80"
                 : "bg-muted text-muted-foreground/40"
             )}
           >
-            {saving ? "Saving..." : "Save check-in"}
+            Save check-in
           </button>
           <button
-            onClick={saving ? undefined : onClose}
-            disabled={saving}
-            className="app-button app-button-quiet px-4 py-3 text-[13px]"
+            onClick={onClose}
+            className="px-4 py-3 text-[13px] app-button app-button-quiet"
           >
             Cancel
           </button>
@@ -496,9 +812,16 @@ type ProgressWorkoutLog = {
   exercises?: ProgressExercise[]
 }
 
+type RecentFoodLogEntry = {
+  calories?: number
+  protein?: number
+  carbs?: number
+  fat?: number
+}
+
 type RecentFoodLogDay = {
   date: string
-  entries?: Array<{ calories?: number }>
+  entries?: RecentFoodLogEntry[]
 }
 
 type ComputedMetric = {
@@ -510,6 +833,7 @@ type ComputedMetric = {
   description: string
   keywords: string[]
   tone?: string
+  graph?: MetricGraph
 }
 
 type CustomMetric = {
@@ -522,10 +846,10 @@ const SELECTED_METRICS_KEY = "onerep:progress:selectedMetrics"
 const CUSTOM_METRICS_KEY = "onerep:progress:customMetrics"
 
 const DEFAULT_METRIC_IDS = [
-  "body.weight_delta",
-  "body.waist_delta",
-  "strength.selected_delta",
-  "strength.selected_volume",
+  "body.weight_rate",
+  "nutrition.protein_adherence",
+  "training.volume_change_7",
+  "quality.data_confidence",
 ] as const
 
 type ExerciseProgressStat = {
@@ -535,7 +859,7 @@ type ExerciseProgressStat = {
   sets: number
   totalVolume: number
   lastDate: string
-  points: Array<{ date: string; best: number; volume: number }>
+  points: Array<{ date: string; best: number; volume: number; sets: number }>
   firstBest: number
   lastBest: number
   delta: number
@@ -580,17 +904,170 @@ function percentLabel(value: number) {
   return `${Math.round(value)}%`
 }
 
-function calorieTotal(day: RecentFoodLogDay) {
+function macroTotal(day: RecentFoodLogDay, key: keyof RecentFoodLogEntry) {
   return (day.entries ?? []).reduce(
-    (sum, entry) => sum + (Number(entry.calories) || 0),
+    (sum, entry) => sum + (Number(entry[key]) || 0),
     0
   )
+}
+
+function calorieTotal(day: RecentFoodLogDay) {
+  return macroTotal(day, "calories")
+}
+
+function average(values: number[]) {
+  const finite = values.filter((value) => Number.isFinite(value))
+  if (finite.length === 0) return 0
+  return finite.reduce((sum, value) => sum + value, 0) / finite.length
+}
+
+function sumValues(values: number[]) {
+  return values.reduce((sum, value) => sum + (Number(value) || 0), 0)
+}
+
+function percentChange(current: number, previous: number) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0)
+    return null
+  return ((current - previous) / previous) * 100
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
+function signedPercent(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return "—"
+  const sign = value > 0 ? "+" : ""
+  return `${sign}${Math.round(value)}%`
 }
 
 function signedValue(value: number | null | undefined, unit = "", digits = 1) {
   if (value == null || Number.isNaN(value)) return "—"
   const sign = value > 0 ? "+" : ""
   return `${sign}${value.toFixed(digits)}${unit}`
+}
+
+function goalLabel(goal: GoalId | null) {
+  switch (goal) {
+    case "lose":
+      return "fat loss"
+    case "build":
+      return "muscle gain"
+    case "performance":
+      return "performance"
+    case "health":
+      return "health"
+    default:
+      return "goal"
+  }
+}
+
+function goalAlignedWeightTrend(rateKgPerWeek: number | null, goal: GoalId | null) {
+  if (rateKgPerWeek == null || !Number.isFinite(rateKgPerWeek)) return "Need data"
+  if (goal === "lose") {
+    if (rateKgPerWeek < -0.2 && rateKgPerWeek > -1.1) return "On track"
+    if (rateKgPerWeek <= -1.1) return "Fast loss"
+    return "Too flat"
+  }
+  if (goal === "build" || goal === "performance") {
+    if (rateKgPerWeek > 0.1 && rateKgPerWeek < 0.6) return "On track"
+    if (rateKgPerWeek >= 0.6) return "Fast gain"
+    return "Too flat"
+  }
+  if (Math.abs(rateKgPerWeek) <= 0.25) return "Stable"
+  return rateKgPerWeek > 0 ? "Trending up" : "Trending down"
+}
+
+function goalAlignedWeightTone(rateKgPerWeek: number | null, goal: GoalId | null) {
+  const status = goalAlignedWeightTrend(rateKgPerWeek, goal)
+  if (status === "On track" || status === "Stable") return APP_ACCENT_COLORS.complete
+  if (status === "Need data") return "var(--foreground)"
+  if (status === "Fast loss" || status === "Fast gain") return APP_ACCENT_COLORS.progress
+  return "var(--status-danger)"
+}
+
+function valuePerWeek(points: MetricGraphPoint[]) {
+  if (points.length < 2) return null
+  const first = points[0]
+  const last = points[points.length - 1]
+  const days = Math.max(1, daysBetweenKeys(first.date, last.date))
+  return ((last.value - first.value) / days) * 7
+}
+
+function cumulativeAveragePoints(points: MetricGraphPoint[]) {
+  let total = 0
+  return points.map((point, index) => {
+    total += point.value
+    return { date: point.date, value: total / (index + 1) }
+  })
+}
+
+function cumulativeDeltaPoints(points: MetricGraphPoint[]) {
+  const first = points[0]?.value
+  if (first == null) return []
+  return points.map((point) => ({ ...point, value: point.value - first }))
+}
+
+function cumulativeCountPoints(dateKeys: string[], activeDates: Set<string>) {
+  let total = 0
+  return dateKeys.map((date) => {
+    if (activeDates.has(date)) total += 1
+    return { date, value: total }
+  })
+}
+
+function cumulativeValuePoints(
+  dateKeys: string[],
+  valueForDate: (date: string) => number
+) {
+  let total = 0
+  return dateKeys.map((date) => {
+    const value = valueForDate(date)
+    if (Number.isFinite(value)) total += value
+    return { date, value: total }
+  })
+}
+
+function cumulativePoints<T extends { date: string }>(
+  points: T[],
+  valueForPoint: (point: T) => number
+) {
+  let total = 0
+  return points.map((point) => {
+    const value = valueForPoint(point)
+    if (Number.isFinite(value)) total += value
+    return { date: point.date, value: total }
+  })
+}
+
+function latestAgePoints(dateKeys: string[], checkinDates: string[]) {
+  if (checkinDates.length === 0) return []
+  let latestIndex = -1
+  return dateKeys.map((date) => {
+    while (
+      latestIndex + 1 < checkinDates.length &&
+      checkinDates[latestIndex + 1] <= date
+    ) {
+      latestIndex += 1
+    }
+    return {
+      date,
+      value:
+        latestIndex >= 0 ? daysBetweenKeys(checkinDates[latestIndex], date) : 0,
+    }
+  })
+}
+
+function prProgressPoints(points: Array<{ date: string; best: number }>) {
+  let previousBest = 0
+  let prs = 0
+  return points.map((point) => {
+    if (point.best > previousBest + 0.1) {
+      if (previousBest > 0) prs += 1
+      previousBest = point.best
+    }
+    return { date: point.date, value: prs }
+  })
 }
 
 function completedSets(exercise: ProgressExercise) {
@@ -610,6 +1087,20 @@ function setVolume(set: ProgressSet) {
   return weight > 0 && reps > 0 ? weight * reps : 0
 }
 
+function compareExerciseData(
+  a: ExerciseProgressStat,
+  b: ExerciseProgressStat
+) {
+  return (
+    b.points.length - a.points.length ||
+    b.sessions - a.sessions ||
+    b.sets - a.sets ||
+    b.totalVolume - a.totalVolume ||
+    b.lastDate.localeCompare(a.lastDate) ||
+    a.name.localeCompare(b.name)
+  )
+}
+
 function ProgressStatTile({
   label,
   value,
@@ -624,26 +1115,277 @@ function ProgressStatTile({
   tone?: string
 }) {
   return (
-    <div className="min-w-0 rounded-[14px] bg-foreground/[0.045] px-3 py-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="truncate text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/48 uppercase">
+    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[14px] min-w-0">
+      <div className="flex justify-between items-center gap-2 mb-2">
+        <span className="font-bold text-[9.5px] text-muted-foreground/48 truncate uppercase tracking-[0.12em]">
           {label}
         </span>
         <Icon size={14} weight="bold" />
       </div>
-      <p className="truncate text-[1.35rem] leading-none font-extrabold tabular-nums">
+      <p className="font-extrabold tabular-nums text-[1.35rem] truncate leading-none">
         {value}
       </p>
-      <p className="mt-1 truncate text-[10.5px] font-semibold text-muted-foreground/52">
+      <p className="mt-1 font-semibold text-[10.5px] text-muted-foreground/52 truncate">
         {detail}
       </p>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-background/70">
+      <div className="bg-background/70 mt-2 rounded-full h-1 overflow-hidden">
         <div
-          className="h-full rounded-full"
+          className="rounded-full h-full"
           style={{ width: "100%", backgroundColor: tone, opacity: 0.7 }}
         />
       </div>
     </div>
+  )
+}
+
+type ProgressInsight = {
+  id: string
+  label: string
+  title: string
+  detail: string
+  tone?: string
+}
+
+type AiCoachMessage = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
+
+function InsightCard({
+  insight,
+  onDelete,
+  onClarify,
+  clarifyBusy = false,
+}: {
+  insight: ProgressInsight
+  onDelete?: (id: string) => void
+  onClarify?: (insight: ProgressInsight) => void
+  clarifyBusy?: boolean
+}) {
+  return (
+    <div className="group/insight bg-foreground/[0.04] px-3 py-3 rounded-[0.9rem] min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className="rounded-full size-2 shrink-0"
+            style={{ backgroundColor: insight.tone ?? "var(--foreground)" }}
+          />
+          <p className="truncate font-bold text-[9.5px] text-muted-foreground/52 uppercase tracking-[0.12em]">
+            {insight.label}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 opacity-60 transition-opacity md:opacity-0 md:group-hover/insight:opacity-70 md:group-focus-within/insight:opacity-70">
+          {onClarify && (
+            <button
+              type="button"
+              disabled={clarifyBusy}
+              onClick={() => onClarify(insight)}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.06] disabled:opacity-35"
+              aria-label={`Ask AI to clarify ${insight.title}`}
+            >
+              <Question size={11} weight="bold" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => onDelete(insight.id)}
+              className="flex size-6 items-center justify-center rounded-full text-muted-foreground/40 active:bg-foreground/[0.06]"
+              aria-label={`Delete ${insight.title}`}
+            >
+              <TrashSimple size={11} weight="bold" />
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="mt-2 font-extrabold text-[13px] leading-tight">
+        {insight.title}
+      </p>
+      <p className="mt-1 text-[11px] text-muted-foreground/58 leading-4">
+        {insight.detail}
+      </p>
+    </div>
+  )
+}
+
+function InsightStrip({
+  insights,
+  onGenerateAi,
+  onOpenAiHistory,
+  onDeleteInsight,
+  onClarifyInsight,
+  aiBusy = false,
+}: {
+  insights: ProgressInsight[]
+  onGenerateAi?: () => void
+  onOpenAiHistory?: () => void
+  onDeleteInsight?: (id: string) => void
+  onClarifyInsight?: (insight: ProgressInsight) => void
+  aiBusy?: boolean
+}) {
+  if (insights.length === 0) return null
+  return (
+    <section className="mt-3 p-4 app-surface">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="app-section-title">Coach analysis</p>
+          <p className="app-section-subtitle">
+            Trends translated into what to do next.
+          </p>
+        </div>
+        {(onGenerateAi || onOpenAiHistory) && (
+          <div className="mt-0.5 flex shrink-0 items-center gap-1">
+            {onGenerateAi && (
+              <button
+                type="button"
+                disabled={aiBusy}
+                onClick={onGenerateAi}
+                className="inline-flex h-7 items-center gap-1 rounded-full bg-foreground/[0.035] px-2 text-[10px] font-bold text-muted-foreground/45 transition-colors active:bg-foreground/[0.07] disabled:opacity-45"
+                aria-label="Generate AI coaching advice"
+              >
+                <Sparkle size={10} weight="fill" />
+                {aiBusy ? "Thinking" : "AI"}
+              </button>
+            )}
+            {onOpenAiHistory && (
+              <button
+                type="button"
+                onClick={onOpenAiHistory}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/[0.025] text-muted-foreground/38 transition-colors active:bg-foreground/[0.06]"
+                aria-label="Open AI coach history"
+              >
+                <CaretRight size={12} weight="bold" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        {insights.slice(0, 10).map((insight) => (
+          <InsightCard
+            key={insight.id}
+            insight={insight}
+            onDelete={onDeleteInsight}
+            onClarify={onClarifyInsight}
+            clarifyBusy={aiBusy}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AiCoachModal({
+  messages,
+  input,
+  busy,
+  onInputChange,
+  onSend,
+  onClose,
+  onClear,
+}: {
+  messages: AiCoachMessage[]
+  input: string
+  busy: boolean
+  onInputChange: (value: string) => void
+  onSend: () => void
+  onClose: () => void
+  onClear: () => void
+}) {
+  return (
+    <MobileSheet
+      onClose={onClose}
+      overlayClassName="bg-black/45 backdrop-blur-[5px]"
+      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
+      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
+      maxHeight="88vh"
+    >
+      <div className="flex min-h-[58vh] flex-col px-4 pt-1">
+        <div className="flex items-start justify-between gap-3 border-b border-border/45 pb-3">
+          <div className="min-w-0">
+            <p className="app-eyebrow">AI coach</p>
+            <h2 className="mt-1 text-[1.1rem] font-semibold leading-tight">
+              Coaching history
+            </h2>
+            <p className="mt-1 text-[11px] leading-4 text-muted-foreground/48">
+              Each sent message uses 1 AI request.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={onClear}
+                className="flex h-8 items-center rounded-full bg-foreground/[0.035] px-2 text-[10px] font-bold text-muted-foreground/42 active:bg-foreground/[0.06]"
+              >
+                Clear
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.045] text-muted-foreground/55"
+              aria-label="Close AI coach"
+            >
+              <X size={13} weight="bold" />
+            </button>
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto py-3">
+          {messages.length === 0 ? (
+            <div className="flex h-40 flex-col items-center justify-center rounded-[1rem] bg-foreground/[0.035] px-4 text-center">
+              <Sparkle size={22} className="text-muted-foreground/28" weight="fill" />
+              <p className="mt-2 text-[13px] font-bold">Ask a follow-up</p>
+              <p className="mt-1 max-w-[18rem] text-[11.5px] leading-5 text-muted-foreground/52">
+                Keep it specific: calories, lift plateau, fatigue, or which coaching card to act on first.
+              </p>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <div
+                key={message.id}
+                className={cn(
+                  "max-w-[88%] rounded-[0.95rem] px-3 py-2 text-[12px] leading-5",
+                  message.role === "user"
+                    ? "ml-auto bg-foreground text-background"
+                    : "mr-auto bg-foreground/[0.045] text-foreground"
+                )}
+              >
+                {message.content}
+              </div>
+            ))
+          )}
+          {busy && (
+            <div className="mr-auto max-w-[88%] rounded-[0.95rem] bg-foreground/[0.045] px-3 py-2 text-[12px] text-muted-foreground/55">
+              Thinking…
+            </div>
+          )}
+        </div>
+
+        <div className="flex shrink-0 gap-2 border-t border-border/35 pt-3">
+          <input
+            value={input}
+            onChange={(event) => onInputChange(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") onSend()
+            }}
+            placeholder="Ask for tailored advice…"
+            className="min-w-0 flex-1 rounded-[0.85rem] bg-foreground/[0.045] px-3 text-[12.5px] font-semibold outline-none placeholder:text-muted-foreground/35"
+          />
+          <button
+            type="button"
+            disabled={busy || input.trim().length < 2}
+            onClick={onSend}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-foreground text-background disabled:opacity-35"
+            aria-label="Send AI coach message"
+          >
+            <PaperPlaneTilt size={14} weight="bold" />
+          </button>
+        </div>
+      </div>
+    </MobileSheet>
   )
 }
 
@@ -655,10 +1397,10 @@ function EmptyProgressState({
   detail: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-[16px] bg-muted/25 px-4 py-8 text-center">
+    <div className="flex flex-col items-center gap-2 bg-muted/25 px-4 py-8 rounded-[16px] text-center">
       <ChartLine size={28} className="text-muted-foreground/22" />
-      <p className="text-[14px] font-bold">{title}</p>
-      <p className="max-w-[19rem] text-[12px] leading-5 text-muted-foreground/55">
+      <p className="font-bold text-[14px]">{title}</p>
+      <p className="max-w-[19rem] text-[12px] text-muted-foreground/55 leading-5">
         {detail}
       </p>
     </div>
@@ -668,38 +1410,62 @@ function EmptyProgressState({
 function MetricCard({
   metric,
   onRemove,
+  onOpen,
 }: {
   metric: ComputedMetric
   onRemove: (id: string) => void
+  onOpen: (id: string) => void
 }) {
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      onOpen(metric.id)
+    }
+  }
+
   return (
-    <div className="group relative rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(metric.id)}
+      onKeyDown={handleKeyDown}
+      className="group relative bg-foreground/[0.045] active:bg-foreground/[0.08] px-3 py-3 rounded-[0.8rem] outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 transition cursor-pointer active:scale-[0.985]"
+      aria-label={`Open ${metric.title} progression graph`}
+    >
       <button
         type="button"
-        onClick={() => onRemove(metric.id)}
-        className="absolute top-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-[0.45rem] text-muted-foreground/35 opacity-0 transition-opacity group-active:opacity-100 md:group-hover:opacity-100"
+        onClick={(event) => {
+          event.stopPropagation()
+          onRemove(metric.id)
+        }}
+        className="top-1.5 right-1.5 absolute flex justify-center items-center opacity-0 md:group-hover:opacity-100 group-active:opacity-100 focus:opacity-100 rounded-[0.45rem] w-6 h-6 text-muted-foreground/35 transition-opacity"
         aria-label={`Remove ${metric.title}`}
       >
         <X size={10} weight="bold" />
       </button>
-      <p className="max-w-[calc(100%-1.5rem)] truncate text-[10px] font-bold text-muted-foreground/62">
+      <p className="max-w-[calc(100%-1.5rem)] font-bold text-[10px] text-muted-foreground/62 truncate">
         {metric.title}
       </p>
-      <p className="mt-1 text-[1.15rem] leading-none font-extrabold tabular-nums">
+      <p className="mt-1 font-extrabold tabular-nums text-[1.15rem] leading-none">
         {metric.value}
       </p>
-      <p className="mt-1 truncate text-[10px] font-semibold text-muted-foreground/48">
+      <p className="mt-1 font-semibold text-[10px] text-muted-foreground/48 truncate">
         {metric.detail}
       </p>
-      <div className="mt-2 h-1 overflow-hidden rounded-full bg-background/70">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: "100%",
-            backgroundColor: metric.tone ?? "var(--foreground)",
-            opacity: 0.7,
-          }}
-        />
+      <div className="flex items-center gap-2 mt-2">
+        <div className="flex-1 bg-background/70 rounded-full h-1 overflow-hidden">
+          <div
+            className="rounded-full h-full"
+            style={{
+              width: "100%",
+              backgroundColor: metric.tone ?? "var(--foreground)",
+              opacity: 0.7,
+            }}
+          />
+        </div>
+        <span className="font-bold text-[8.5px] text-muted-foreground/35 uppercase tracking-[0.12em]">
+          Graph
+        </span>
       </div>
     </div>
   )
@@ -708,17 +1474,24 @@ function MetricCard({
 function MetricGrid({
   metrics,
   onRemove,
+  onOpenMetric,
   className,
 }: {
   metrics: ComputedMetric[]
   onRemove: (id: string) => void
+  onOpenMetric: (id: string) => void
   className?: string
 }) {
   if (metrics.length === 0) return null
   return (
-    <div className={cn("grid grid-cols-2 gap-2", className)}>
+    <div className={cn("gap-2 grid grid-cols-2", className)}>
       {metrics.map((metric) => (
-        <MetricCard key={metric.id} metric={metric} onRemove={onRemove} />
+        <MetricCard
+          key={metric.id}
+          metric={metric}
+          onRemove={onRemove}
+          onOpen={onOpenMetric}
+        />
       ))}
     </div>
   )
@@ -764,12 +1537,12 @@ function MetricSearchSheet({
       panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
     >
       <div className="px-4 pt-1">
-        <div className="mb-4 border-b border-border/45 pb-4">
+        <div className="mb-4 pb-4 border-border/45 border-b">
           <p className="app-eyebrow">Metric library</p>
-          <h2 className="mt-1.5 text-[1.35rem] leading-tight font-semibold">
+          <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
             Add progress metrics
           </h2>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground/58">
+          <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
             Search, pin, remove, or generate a custom metric idea.
           </p>
         </div>
@@ -778,31 +1551,27 @@ function MetricSearchSheet({
           <div className="relative">
             <MagnifyingGlass
               size={14}
-              className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground/45"
+              className="top-1/2 left-3 absolute text-muted-foreground/45 -translate-y-1/2 pointer-events-none"
             />
             <input
               type="search"
-              name="metric-library-search"
-              aria-label="Search progress metrics"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search metrics: volume, waist, protein, streak..."
-              className="h-11 w-full rounded-[0.8rem] border-0 bg-foreground/[0.045] pr-3 pl-9 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/38"
+              className="bg-foreground/[0.045] pr-3 pl-9 border-0 rounded-[0.8rem] outline-none w-full h-11 font-semibold text-[13px] placeholder:text-muted-foreground/38"
             />
           </div>
 
-          <div className="rounded-[0.9rem] bg-foreground/[0.035] p-3">
-            <p className="text-[10px] font-bold text-muted-foreground/58">
+          <div className="bg-foreground/[0.035] p-3 rounded-[0.9rem]">
+            <p className="font-bold text-[10px] text-muted-foreground/58">
               AI generate
             </p>
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 mt-2">
               <input
-                name="metric-ai-prompt"
-                aria-label="Describe a metric to generate"
                 value={aiPrompt}
                 onChange={(event) => setAiPrompt(event.target.value)}
                 placeholder="e.g. fat loss, bench progress, consistency"
-                className="min-w-0 flex-1 rounded-[0.7rem] border-0 bg-background px-3 text-[12.5px] font-semibold outline-none placeholder:text-muted-foreground/36"
+                className="flex-1 bg-background px-3 border-0 rounded-[0.7rem] outline-none min-w-0 font-semibold text-[12.5px] placeholder:text-muted-foreground/36"
               />
               <button
                 type="button"
@@ -817,14 +1586,14 @@ function MetricSearchSheet({
                     setAiBusy(false)
                   }
                 }}
-                className="app-button app-button-primary h-10 shrink-0 px-3 text-[12px] disabled:opacity-45"
+                className="disabled:opacity-45 px-3 h-10 text-[12px] app-button app-button-primary shrink-0"
               >
                 {aiBusy ? "Generating" : "Generate"}
               </button>
             </div>
           </div>
 
-          <div className="max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+          <div className="space-y-2 pr-1 max-h-[45vh] overflow-y-auto">
             {visibleMetrics.map((metric) => {
               const selected = selectedIds.includes(metric.id)
               return (
@@ -837,15 +1606,15 @@ function MetricSearchSheet({
                       : onAddMetric(metric.id)
                   }
                   className={cn(
-                    "w-full rounded-[0.85rem] px-3 py-3 text-left transition-colors",
+                    "px-3 py-3 rounded-[0.85rem] w-full text-left transition-colors",
                     selected
                       ? "bg-foreground text-background"
                       : "bg-foreground/[0.035] active:bg-foreground/[0.07]"
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-[13px] font-bold">
+                      <p className="font-bold text-[13px] truncate">
                         {metric.title}
                       </p>
                       <p
@@ -859,7 +1628,7 @@ function MetricSearchSheet({
                         {metric.description}
                       </p>
                     </div>
-                    <span className="shrink-0 text-[10px] font-bold opacity-65">
+                    <span className="opacity-65 font-bold text-[10px] shrink-0">
                       {selected ? "Added" : metric.group}
                     </span>
                   </div>
@@ -868,18 +1637,16 @@ function MetricSearchSheet({
             })}
           </div>
 
-          <div className="rounded-[0.9rem] bg-foreground/[0.035] p-3">
-            <p className="text-[10px] font-bold text-muted-foreground/58">
+          <div className="bg-foreground/[0.035] p-3 rounded-[0.9rem]">
+            <p className="font-bold text-[10px] text-muted-foreground/58">
               Custom metric
             </p>
-            <div className="mt-2 flex gap-2">
+            <div className="flex gap-2 mt-2">
               <input
-                name="custom-progress-metric"
-                aria-label="Custom progress metric name"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Type a metric name"
-                className="min-w-0 flex-1 rounded-[0.7rem] border-0 bg-background px-3 text-[12.5px] font-semibold outline-none placeholder:text-muted-foreground/36"
+                className="flex-1 bg-background px-3 border-0 rounded-[0.7rem] outline-none min-w-0 font-semibold text-[12.5px] placeholder:text-muted-foreground/36"
               />
               <button
                 type="button"
@@ -887,7 +1654,7 @@ function MetricSearchSheet({
                   onAddCustomMetric(query)
                   setQuery("")
                 }}
-                className="app-button app-button-quiet h-10 shrink-0 px-3 text-[12px]"
+                className="px-3 h-10 text-[12px] app-button app-button-quiet shrink-0"
               >
                 Add custom
               </button>
@@ -900,6 +1667,294 @@ function MetricSearchSheet({
             )}
           </div>
         </div>
+      </div>
+    </MobileSheet>
+  )
+}
+
+function MetricProgressChart({
+  graph,
+  expanded = false,
+  interactive = false,
+}: {
+  graph: MetricGraph
+  expanded?: boolean
+  interactive?: boolean
+}) {
+  const primary = graph.series.find((item) => item.points.length > 0)
+  const xLabels = primary?.points.map((point) => point.date) ?? []
+  const series = graph.series
+    .filter((item) => item.points.length > 0)
+    .map((item) => ({
+      label: item.label,
+      values: item.points.map((point) => point.value),
+      color: item.color,
+      strokeWidth: item.strokeWidth,
+      opacity: item.opacity,
+      dashed: item.dashed,
+    }))
+
+  if (series.length === 0) return null
+
+  return (
+    <MultiLineChart
+      series={series}
+      xLabels={xLabels}
+      yUnit={graph.unit}
+      yDigits={graph.yDigits}
+      width={expanded ? 390 : 320}
+      height={expanded ? 240 : 180}
+      showLegend={series.length > 1}
+      interactive={interactive}
+    />
+  )
+}
+
+function ExpandableChartButton({
+  children,
+  onExpand,
+}: {
+  children: React.ReactNode
+  onExpand?: () => void
+}) {
+  if (!onExpand) return <>{children}</>
+  return (
+    <button
+      type="button"
+      onClick={onExpand}
+      className="block w-full rounded-[0.9rem] text-left outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+      aria-label="Open interactive graph"
+    >
+      {children}
+    </button>
+  )
+}
+
+function MetricProgressSheet({
+  metric,
+  onClose,
+}: {
+  metric: ComputedMetric
+  onClose: () => void
+}) {
+  const graph = metric.graph
+  const primarySeries = graph?.series.find((item) => item.points.length > 0)
+  const firstPoint = primarySeries?.points[0]
+  const lastPoint = primarySeries?.points.at(-1)
+  const delta =
+    firstPoint && lastPoint ? lastPoint.value - firstPoint.value : null
+
+  return (
+    <MobileSheet
+      onClose={onClose}
+      overlayClassName="bg-black/45 backdrop-blur-[5px]"
+      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
+      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
+      maxHeight="90vh"
+    >
+      <div className="px-4 pt-1">
+        <div className="flex justify-between items-start gap-3 mb-4 pb-4 border-border/45 border-b">
+          <div className="min-w-0">
+            <p className="app-eyebrow">{metric.group} progression</p>
+            <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
+              {graph?.title ?? metric.title}
+            </h2>
+            <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
+              {graph?.subtitle ?? metric.description}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex justify-center items-center bg-foreground/[0.045] rounded-full w-9 h-9 text-muted-foreground/55 shrink-0"
+            aria-label="Close metric graph"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+
+        <div className="bg-foreground/[0.04] p-3 rounded-[1rem]">
+          <div className="flex justify-between items-start gap-3">
+            <div className="min-w-0">
+              <p className="font-bold text-[10px] text-muted-foreground/52 uppercase tracking-[0.13em]">
+                Current
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[1.75rem] leading-none">
+                {metric.value}
+              </p>
+              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/52 truncate">
+                {metric.detail}
+              </p>
+            </div>
+            {delta != null && graph && (
+              <div className="bg-background/80 px-3 py-2 rounded-[0.8rem] text-right shrink-0">
+                <p className="font-bold text-[10px] text-muted-foreground/48">
+                  Change
+                </p>
+                <p className="mt-0.5 font-extrabold tabular-nums text-[15px]">
+                  {formatGraphMetricDelta(delta, graph)}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-background/65 mt-4 px-2 pt-3 pb-2 rounded-[0.9rem]">
+            {graph && primarySeries ? (
+              <MetricProgressChart graph={graph} interactive />
+            ) : (
+              <div className="flex flex-col justify-center items-center gap-2 h-36 text-center">
+                <ChartLine size={26} className="text-muted-foreground/25" />
+                <p className="font-bold text-[13px]">No progression yet</p>
+                <p className="max-w-[18rem] text-[11.5px] text-muted-foreground/52 leading-5">
+                  {graph?.emptyDetail ??
+                    "Keep logging this metric and its trend will appear here."}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {graph && firstPoint && lastPoint && (
+          <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                First
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {formatGraphMetricValue(firstPoint.value, graph)}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                {formatMeasurementDate(firstPoint.date)}
+              </p>
+            </div>
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                Latest
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {formatGraphMetricValue(lastPoint.value, graph)}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                {formatMeasurementDate(lastPoint.date)}
+              </p>
+            </div>
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                Points
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {primarySeries.points.length}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                logged
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </MobileSheet>
+  )
+}
+
+function ExpandedGraphSheet({
+  graph,
+  onClose,
+}: {
+  graph: MetricGraph
+  onClose: () => void
+}) {
+  const primarySeries = graph.series.find((item) => item.points.length > 0)
+  const firstPoint = primarySeries?.points[0]
+  const lastPoint = primarySeries?.points.at(-1)
+  const delta =
+    firstPoint && lastPoint ? lastPoint.value - firstPoint.value : null
+
+  return (
+    <MobileSheet
+      onClose={onClose}
+      overlayClassName="bg-black/55 backdrop-blur-[6px]"
+      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-lg border-t border-border/60 md:max-w-2xl"
+      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
+      maxHeight="92vh"
+    >
+      <div className="px-4 pt-1">
+        <div className="flex justify-between items-start gap-3 mb-4 pb-4 border-border/45 border-b">
+          <div className="min-w-0">
+            <p className="app-eyebrow">Interactive graph</p>
+            <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
+              {graph.title}
+            </h2>
+            <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
+              {graph.subtitle}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex justify-center items-center bg-foreground/[0.045] rounded-full w-9 h-9 text-muted-foreground/55 shrink-0"
+            aria-label="Close expanded graph"
+          >
+            <X size={14} weight="bold" />
+          </button>
+        </div>
+
+        <div className="bg-foreground/[0.04] p-3 rounded-[1rem]">
+          <div className="bg-background/70 px-2 pt-3 pb-2 rounded-[0.9rem]">
+            {primarySeries ? (
+              <MetricProgressChart graph={graph} expanded interactive />
+            ) : (
+              <div className="flex flex-col justify-center items-center gap-2 h-44 text-center">
+                <ChartLine size={28} className="text-muted-foreground/25" />
+                <p className="font-bold text-[13px]">No progression yet</p>
+                <p className="max-w-[18rem] text-[11.5px] text-muted-foreground/52 leading-5">
+                  {graph.emptyDetail ??
+                    "Keep logging this metric and its trend will appear here."}
+                </p>
+              </div>
+            )}
+          </div>
+          <p className="mt-3 text-center font-bold text-[10px] text-muted-foreground/42 uppercase tracking-[0.14em]">
+            Drag or tap across the chart for exact values
+          </p>
+        </div>
+
+        {graph && firstPoint && lastPoint && (
+          <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                Start
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {formatGraphMetricValue(firstPoint.value, graph)}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                {formatMeasurementDate(firstPoint.date)}
+              </p>
+            </div>
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                Latest
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {formatGraphMetricValue(lastPoint.value, graph)}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                {formatMeasurementDate(lastPoint.date)}
+              </p>
+            </div>
+            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
+              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+                Delta
+              </p>
+              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+                {delta == null ? "—" : formatGraphMetricDelta(delta, graph)}
+              </p>
+              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
+                {primarySeries.points.length} points
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </MobileSheet>
   )
@@ -952,7 +2007,12 @@ function buildExerciseProgress(
       existing.totalVolume += strengthVolume
       existing.lastDate = log.date
       if (best > 0)
-        existing.points.push({ date: log.date, best, volume: strengthVolume })
+        existing.points.push({
+          date: log.date,
+          best,
+          volume: strengthVolume,
+          sets: sets.length,
+        })
       byExercise.set(id, existing)
     }
   }
@@ -999,8 +2059,10 @@ function buildExerciseProgress(
 export default function Progress() {
   const todayKey = useMemo(() => localDateKey(), [])
   const last30 = useMemo(() => lastDateKeys(todayKey, 30), [todayKey])
+  const last14 = useMemo(() => lastDateKeys(todayKey, 14), [todayKey])
   const last7 = useMemo(() => lastDateKeys(todayKey, 7), [todayKey])
   const last30Set = useMemo(() => new Set(last30), [last30])
+  const last14Set = useMemo(() => new Set(last14), [last14])
   const last7Set = useMemo(() => new Set(last7), [last7])
 
   const onboarding = useQuery(api.users.onboarding.get, {})
@@ -1012,6 +2074,13 @@ export default function Progress() {
   })
   const goals = useQuery(api.users.users.getEffectiveGoals, { date: todayKey })
   const generateMetricSet = useAction(api.ai.metricGeneration.generateMetricSet)
+  const generateCoachAdvice = useAction(
+    api.ai.metricGeneration.generateCoachAdvice
+  )
+  const generateCoachChatMessage = useAction(
+    api.ai.metricGeneration.generateCoachChatMessage
+  )
+  const { hasAiAccess, requireAiAccess, aiAccessModal } = useAiFeatureGate()
 
   const generateUploadUrl = useMutation(api.bodyProgress.generateUploadUrl)
   const saveMeasurement = useOfflineMutation(
@@ -1040,11 +2109,17 @@ export default function Progress() {
   )
   const [sheetOpen, setSheetOpen] = useState(false)
   const [metricSheetOpen, setMetricSheetOpen] = useState(false)
+  const [openMetricGraphId, setOpenMetricGraphId] = useState<string | null>(
+    null
+  )
+  const [expandedMetricGraphId, setExpandedMetricGraphId] = useState<
+    string | null
+  >(null)
   useBottomBarAction(() => setSheetOpen(true))
   const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [...DEFAULT_METRIC_IDS]
     try {
-      const saved = safeLocalStorageGet(SELECTED_METRICS_KEY)
+      const saved = window.localStorage.getItem(SELECTED_METRICS_KEY)
       const parsed = saved ? JSON.parse(saved) : null
       return Array.isArray(parsed) && parsed.length > 0
         ? parsed.filter((id): id is string => typeof id === "string")
@@ -1056,7 +2131,7 @@ export default function Progress() {
   const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>(() => {
     if (typeof window === "undefined") return []
     try {
-      const saved = safeLocalStorageGet(CUSTOM_METRICS_KEY)
+      const saved = window.localStorage.getItem(CUSTOM_METRICS_KEY)
       const parsed = saved ? JSON.parse(saved) : null
       return Array.isArray(parsed)
         ? parsed.filter(
@@ -1074,10 +2149,32 @@ export default function Progress() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
     null
   )
+  const [aiCoachInsights, setAiCoachInsights] = useState<ProgressInsight[]>([])
+  const [dismissedInsightIds, setDismissedInsightIds] = useState<string[]>([])
+  const [aiCoachBusy, setAiCoachBusy] = useState(false)
+  const [aiCoachOpen, setAiCoachOpen] = useState(false)
+  const [aiCoachInput, setAiCoachInput] = useState("")
+  const [aiCoachMessages, setAiCoachMessages] = useState<AiCoachMessage[]>(() => {
+    if (typeof window === "undefined") return []
+    try {
+      const saved = window.localStorage.getItem("onerep:progress:aiCoachHistory")
+      const parsed = saved ? JSON.parse(saved) : null
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (message): message is AiCoachMessage =>
+              typeof message?.id === "string" &&
+              (message?.role === "user" || message?.role === "assistant") &&
+              typeof message?.content === "string"
+          )
+        : []
+    } catch {
+      return []
+    }
+  })
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    safeLocalStorageSet(
+    window.localStorage.setItem(
       SELECTED_METRICS_KEY,
       JSON.stringify(selectedMetricIds)
     )
@@ -1085,11 +2182,19 @@ export default function Progress() {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    safeLocalStorageSet(
+    window.localStorage.setItem(
       CUSTOM_METRICS_KEY,
       JSON.stringify(customMetrics)
     )
   }, [customMetrics])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    window.localStorage.setItem(
+      "onerep:progress:aiCoachHistory",
+      JSON.stringify(aiCoachMessages.slice(-30))
+    )
+  }, [aiCoachMessages])
 
   const latest = entries.at(-1) ?? null
   const weightEntries = entries.filter((entry) => entry.weightKg != null)
@@ -1119,10 +2224,18 @@ export default function Progress() {
       .filter((day) => calorieTotal(day) > calorieTarget)
       .map((day) => day.date)
   )
+  const underTargetDates = new Set(
+    foodDaysInWindow
+      .filter(
+        (day) =>
+          (day.entries ?? []).length > 0 && calorieTotal(day) <= calorieTarget
+      )
+      .map((day) => day.date)
+  )
   const averageCalories = foodDateSet.size
     ? Math.round(
         foodDaysInWindow.reduce((sum, day) => sum + calorieTotal(day), 0) /
-          Math.max(1, foodDaysInWindow.length)
+          Math.max(1, foodDateSet.size)
       )
     : 0
 
@@ -1131,27 +2244,41 @@ export default function Progress() {
     [workoutLogs, last30Set]
   )
 
-  const exerciseChoices = useMemo(() => {
-    const query = exerciseQuery.trim().toLowerCase()
-    const source = query
-      ? exerciseProgress.stats.filter((exercise) =>
-          exercise.name.toLowerCase().includes(query)
-        )
-      : exerciseProgress.movers.length > 0
-        ? exerciseProgress.movers
-        : exerciseProgress.stats
-
-    return source.slice(0, 8)
-  }, [exerciseProgress, exerciseQuery])
+  const topDataExercises = useMemo(
+    () => [...exerciseProgress.stats].sort(compareExerciseData).slice(0, 3),
+    [exerciseProgress.stats]
+  )
 
   const selectedExercise =
-    exerciseQuery.trim() && exerciseChoices.length === 0
-      ? null
-      : (exerciseProgress.stats.find(
-          (exercise) => exercise.id === selectedExerciseId
-        ) ??
-        exerciseChoices[0] ??
-        exerciseProgress.topExercise)
+    exerciseProgress.stats.find((exercise) => exercise.id === selectedExerciseId) ??
+    topDataExercises[0] ??
+    exerciseProgress.topExercise
+
+  const exerciseChoices = useMemo(() => {
+    if (
+      selectedExercise &&
+      !topDataExercises.some((exercise) => exercise.id === selectedExercise.id)
+    ) {
+      return [
+        selectedExercise,
+        ...topDataExercises.filter((exercise) => exercise.id !== selectedExercise.id),
+      ].slice(0, 3)
+    }
+    return topDataExercises
+  }, [selectedExercise, topDataExercises])
+
+  const exerciseSearchResults = useMemo(() => {
+    const query = exerciseQuery.trim().toLowerCase()
+    if (!query) return []
+    const visibleIds = new Set(exerciseChoices.map((exercise) => exercise.id))
+    return exerciseProgress.stats
+      .filter(
+        (exercise) =>
+          !visibleIds.has(exercise.id) &&
+          exercise.name.toLowerCase().includes(query)
+      )
+      .sort(compareExerciseData)
+  }, [exerciseChoices, exerciseProgress.stats, exerciseQuery])
 
   const bodyCheckinDays30 = new Set(
     entries
@@ -1168,15 +2295,1461 @@ export default function Progress() {
     ? daysBetweenKeys(latest.loggedAt.slice(0, 10), todayKey)
     : null
   const totalWorkoutMinutes30 = Math.round(exerciseProgress.duration30 / 60)
-  const underTargetDays = Math.max(0, foodDateSet.size - overshotDates.size)
+  const underTargetDays = underTargetDates.size
   const adherenceScore = Math.round(
     safeRatio(bodyCheckinDays30.size, 30) * 30 +
       safeRatio(workoutDays30.size, 12) * 35 +
       safeRatio(foodDateSet.size, 30) * 35
   )
 
-  const metricCatalog = useMemo<ComputedMetric[]>(
-    () => [
+  const bodyWeightPoints = weightEntries.map((entry) => ({
+    date: entry.loggedAt.slice(0, 10),
+    value: entry.weightKg!,
+  }))
+  const bodyFatPoints = bodyFatEntries.map((entry) => ({
+    date: entry.loggedAt.slice(0, 10),
+    value: entry.bodyFatPct!,
+  }))
+  const waistPoints = waistEntries.map((entry) => ({
+    date: entry.loggedAt.slice(0, 10),
+    value: entry.waistCm!,
+  }))
+  const weightRollingPoints = weightRolling.map((value, index) => ({
+    date: bodyWeightPoints[index]?.date ?? todayKey,
+    value,
+  }))
+  const bodyCheckinProgressPoints = cumulativeCountPoints(
+    last30,
+    bodyCheckinDays30
+  )
+  const latestAgeProgressPoints = latestAgePoints(
+    last30,
+    entries.map((entry) => entry.loggedAt.slice(0, 10))
+  )
+
+  const workoutTotalsByDate = new Map<
+    string,
+    { sets: number; hardSets: number; volume: number; minutes: number }
+  >()
+  const categoryVolume30 = new Map<string, number>()
+  for (const log of workoutLogs) {
+    if (!last30Set.has(log.date)) continue
+    const totals = workoutTotalsByDate.get(log.date) ?? {
+      sets: 0,
+      hardSets: 0,
+      volume: 0,
+      minutes: 0,
+    }
+    totals.minutes += (log.durationSeconds ?? 0) / 60
+    for (const exercise of log.exercises ?? []) {
+      const sets = completedSets(exercise)
+      const hardSets = sets.filter(
+        (set) =>
+          setVolume(set) > 0 &&
+          !String(set.type ?? "").toLowerCase().includes("warm")
+      )
+      const strengthVolume = sets.reduce((sum, set) => sum + setVolume(set), 0)
+      totals.sets += sets.length
+      totals.hardSets += hardSets.length
+      totals.volume += strengthVolume
+      const category = exercise.category?.trim() || "General"
+      categoryVolume30.set(
+        category,
+        (categoryVolume30.get(category) ?? 0) + strengthVolume
+      )
+    }
+    workoutTotalsByDate.set(log.date, totals)
+  }
+
+  const workoutDayProgress30 = cumulativeCountPoints(last30, workoutDays30)
+  const workoutDayProgress7 = cumulativeCountPoints(last7, workoutDays7)
+  const trainingSetsProgress = cumulativeValuePoints(
+    last30,
+    (date) => workoutTotalsByDate.get(date)?.sets ?? 0
+  )
+  const trainingHardSetsProgress = cumulativeValuePoints(
+    last30,
+    (date) => workoutTotalsByDate.get(date)?.hardSets ?? 0
+  )
+  const trainingVolumeProgress = cumulativeValuePoints(
+    last30,
+    (date) => workoutTotalsByDate.get(date)?.volume ?? 0
+  )
+  const trainingMinutesProgress = cumulativeValuePoints(
+    last30,
+    (date) => workoutTotalsByDate.get(date)?.minutes ?? 0
+  )
+
+  const prEventsByDate = new Map<string, number>()
+  for (const exercise of exerciseProgress.stats) {
+    let best = 0
+    for (const point of exercise.points) {
+      if (point.best > best + 0.1) {
+        if (best > 0) {
+          prEventsByDate.set(
+            point.date,
+            (prEventsByDate.get(point.date) ?? 0) + 1
+          )
+        }
+        best = point.best
+      }
+    }
+  }
+  const prDateKeys = Array.from(
+    new Set([...workoutLogs.map((log) => log.date), ...prEventsByDate.keys()])
+  ).sort((a, b) => a.localeCompare(b))
+  const prProgress = cumulativeValuePoints(
+    prDateKeys,
+    (date) => prEventsByDate.get(date) ?? 0
+  )
+
+  const selectedExercisePoints = selectedExercise?.points ?? []
+  const selectedBestProgress = selectedExercisePoints.map((point) => ({
+    date: point.date,
+    value: point.best,
+  }))
+  const selectedLiftRatePoints = selectedBestProgress.map((point, index) => {
+    const first = selectedBestProgress[0]
+    const days = first ? Math.max(1, daysBetweenKeys(first.date, point.date)) : 1
+    return {
+      date: point.date,
+      value: first && index > 0 ? ((point.value - first.value) / days) * 7 : 0,
+    }
+  })
+  const selectedSessionProgress = selectedExercisePoints.map((point, index) => ({
+    date: point.date,
+    value: index + 1,
+  }))
+  const selectedSetsProgress = cumulativePoints(
+    selectedExercisePoints,
+    (point) => point.sets
+  )
+  const selectedVolumeProgress = cumulativePoints(
+    selectedExercisePoints,
+    (point) => point.volume
+  )
+  const selectedPrProgress = prProgressPoints(selectedExercisePoints)
+
+  const caloriesByDate = new Map(
+    foodDaysInWindow.map((day) => [day.date, calorieTotal(day)])
+  )
+  const dailyCaloriesPoints = last30
+    .filter((date) => foodDateSet.has(date))
+    .map((date) => ({ date, value: caloriesByDate.get(date) ?? 0 }))
+  const calorieTargetPoints = dailyCaloriesPoints.map((point) => ({
+    date: point.date,
+    value: calorieTarget,
+  }))
+  const foodLogProgress = cumulativeCountPoints(last30, foodDateSet)
+  const daysOverProgress = cumulativeCountPoints(last30, overshotDates)
+  const daysUnderProgress = cumulativeCountPoints(last30, underTargetDates)
+  const adherenceProgress = last30.map((date, index) => ({
+    date,
+    value: Math.round(
+      safeRatio(bodyCheckinProgressPoints[index]?.value ?? 0, 30) * 30 +
+        safeRatio(workoutDayProgress30[index]?.value ?? 0, 12) * 35 +
+        safeRatio(foodLogProgress[index]?.value ?? 0, 30) * 35
+    ),
+  }))
+
+  const weightRateKgPerWeek = valuePerWeek(bodyWeightPoints)
+  const weightGoalStatus = goalAlignedWeightTrend(weightRateKgPerWeek, goal)
+  const weightGoalTone = goalAlignedWeightTone(weightRateKgPerWeek, goal)
+  const weightRatePoints = bodyWeightPoints.map((point, index) => {
+    const first = bodyWeightPoints[0]
+    const days = first ? Math.max(1, daysBetweenKeys(first.date, point.date)) : 1
+    return {
+      date: point.date,
+      value: first && index > 0 ? ((point.value - first.value) / days) * 7 : 0,
+    }
+  })
+  const fatMassPoints = entries
+    .filter((entry) => entry.weightKg != null && entry.bodyFatPct != null)
+    .map((entry) => ({
+      date: entry.loggedAt.slice(0, 10),
+      value: entry.weightKg! * (entry.bodyFatPct! / 100),
+    }))
+  const leanMassPoints = entries
+    .filter((entry) => entry.weightKg != null && entry.bodyFatPct != null)
+    .map((entry) => ({
+      date: entry.loggedAt.slice(0, 10),
+      value: entry.weightKg! * (1 - entry.bodyFatPct! / 100),
+    }))
+  const waistToWeightPoints = entries
+    .filter((entry) => entry.waistCm != null && entry.weightKg != null)
+    .map((entry) => ({
+      date: entry.loggedAt.slice(0, 10),
+      value: entry.waistCm! / entry.weightKg!,
+    }))
+  const latestFatMass = fatMassPoints.at(-1)?.value ?? null
+  const latestLeanMass = leanMassPoints.at(-1)?.value ?? null
+  const latestWaistToWeight = waistToWeightPoints.at(-1)?.value ?? null
+  const photoEntries = entries.filter(
+    (entry) => entry.photoUrl || entry.photoDataUrl || entry.photoStorageId
+  )
+  const photoProgressPoints = cumulativeCountPoints(
+    last30,
+    new Set(photoEntries.map((entry) => entry.loggedAt.slice(0, 10)))
+  )
+
+  const foodDayMap = new Map(foodDaysInWindow.map((day) => [day.date, day]))
+  const proteinTarget = Math.round(goals?.effective?.protein ?? 140)
+  const carbsTarget = Math.round(goals?.effective?.carbs ?? 200)
+  const fatTarget = Math.round(goals?.effective?.fat ?? 65)
+  const foodRecords = last30.map((date) => {
+    const day = foodDayMap.get(date)
+    const logged = Boolean(day && (day.entries ?? []).length > 0)
+    return {
+      date,
+      logged,
+      calories: day ? calorieTotal(day) : 0,
+      protein: day ? macroTotal(day, "protein") : 0,
+      carbs: day ? macroTotal(day, "carbs") : 0,
+      fat: day ? macroTotal(day, "fat") : 0,
+    }
+  })
+  const loggedFoodRecords = foodRecords.filter((record) => record.logged)
+  const averageProtein = average(loggedFoodRecords.map((record) => record.protein))
+  const proteinHitRecords = loggedFoodRecords.map((record) => ({
+    date: record.date,
+    value: record.protein >= proteinTarget * 0.9 ? 100 : 0,
+  }))
+  const proteinAdherence = Math.round(
+    average(proteinHitRecords.map((record) => record.value))
+  )
+  const dailyProteinPoints = loggedFoodRecords.map((record) => ({
+    date: record.date,
+    value: record.protein,
+  }))
+  const proteinTargetPoints = dailyProteinPoints.map((point) => ({
+    date: point.date,
+    value: proteinTarget,
+  }))
+  const proteinAdherenceProgress = cumulativeAveragePoints(proteinHitRecords)
+  const calorieAccuracyRecords = loggedFoodRecords.map((record) => ({
+    date: record.date,
+    value:
+      Math.abs(record.calories - calorieTarget) <= calorieTarget * 0.1
+        ? 100
+        : 0,
+  }))
+  const calorieAccuracy = Math.round(
+    average(calorieAccuracyRecords.map((record) => record.value))
+  )
+  const avgCalorieDeviation = Math.round(
+    average(
+      loggedFoodRecords.map((record) => Math.abs(record.calories - calorieTarget))
+    )
+  )
+  const calorieAccuracyProgress = cumulativeAveragePoints(calorieAccuracyRecords)
+  const macroScorePoints = loggedFoodRecords.map((record) => {
+    const calorieScore = 1 - Math.abs(record.calories - calorieTarget) / calorieTarget
+    const proteinScore = 1 - Math.abs(record.protein - proteinTarget) / proteinTarget
+    const carbsScore = 1 - Math.abs(record.carbs - carbsTarget) / carbsTarget
+    const fatScore = 1 - Math.abs(record.fat - fatTarget) / fatTarget
+    return {
+      date: record.date,
+      value: Math.round(
+        clamp(
+          average([calorieScore, proteinScore, carbsScore, fatScore]) * 100,
+          0,
+          100
+        )
+      ),
+    }
+  })
+  const macroConsistency = Math.round(
+    average(macroScorePoints.map((point) => point.value))
+  )
+  const macroConsistencyProgress = cumulativeAveragePoints(macroScorePoints)
+
+  const previous7 = lastDateKeys(offsetDateKey(todayKey, -7), 7)
+  const previous7Set = new Set(previous7)
+  const avgCaloriesLast7 = average(
+    foodRecords
+      .filter((record) => record.logged && last7Set.has(record.date))
+      .map((record) => record.calories)
+  )
+  const avgCaloriesPrevious7 = average(
+    foodRecords
+      .filter((record) => record.logged && previous7Set.has(record.date))
+      .map((record) => record.calories)
+  )
+  const calorieChange7Pct = percentChange(
+    avgCaloriesLast7,
+    avgCaloriesPrevious7
+  )
+  const avgProteinLast7 = average(
+    foodRecords
+      .filter((record) => record.logged && last7Set.has(record.date))
+      .map((record) => record.protein)
+  )
+  const avgProteinPrevious7 = average(
+    foodRecords
+      .filter((record) => record.logged && previous7Set.has(record.date))
+      .map((record) => record.protein)
+  )
+  const proteinChange7Pct = percentChange(
+    avgProteinLast7,
+    avgProteinPrevious7
+  )
+  const last7Volume = sumValues(
+    last7.map((date) => workoutTotalsByDate.get(date)?.volume ?? 0)
+  )
+  let previous7Volume = 0
+  let previous7HardSets = 0
+  let previous7WorkoutDays = 0
+  for (const log of workoutLogs) {
+    if (!previous7Set.has(log.date)) continue
+    previous7WorkoutDays += 1
+    for (const exercise of log.exercises ?? []) {
+      const sets = completedSets(exercise)
+      previous7Volume += sets.reduce((sum, set) => sum + setVolume(set), 0)
+      previous7HardSets += sets.filter(
+        (set) =>
+          setVolume(set) > 0 &&
+          !String(set.type ?? "").toLowerCase().includes("warm")
+      ).length
+    }
+  }
+  const last7HardSets = sumValues(
+    last7.map((date) => workoutTotalsByDate.get(date)?.hardSets ?? 0)
+  )
+  const volumeChange7Pct = percentChange(last7Volume, previous7Volume)
+  const workoutDayChange7Pct = percentChange(workoutDays7.size, previous7WorkoutDays)
+  const hardSetChange7Pct = percentChange(last7HardSets, previous7HardSets)
+  const avgHardSetsPerWeek30 = exerciseProgress.sets30 / (30 / 7)
+  const topCategory = Array.from(categoryVolume30.entries()).sort(
+    (a, b) => b[1] - a[1]
+  )[0]
+  const categoryFocusShare = topCategory
+    ? safeRatio(topCategory[1], exerciseProgress.volume30) * 100
+    : 0
+  const selectedLiftSessions30 = selectedExercisePoints.filter((point) =>
+    last30Set.has(point.date)
+  ).length
+  const selectedLiftFrequency = selectedLiftSessions30 / (30 / 7)
+  const selectedLiftRateKgPerWeek = valuePerWeek(selectedBestProgress)
+  const selectedPrRatePerMonth = selectedExercisePoints.length >= 2
+    ? safeRatio(
+        selectedExercise?.prs ?? 0,
+        Math.max(
+          1,
+          daysBetweenKeys(
+            selectedExercisePoints[0].date,
+            selectedExercisePoints[selectedExercisePoints.length - 1].date
+          ) / 30
+        )
+      )
+    : 0
+
+  const bodyConfidence = Math.round(
+    clamp(
+      safeRatio(weightEntries.length, 8) * 55 +
+        (latestCheckInAge == null ? 0 : clamp((14 - latestCheckInAge) / 14, 0, 1) * 45),
+      0,
+      100
+    )
+  )
+  const nutritionConfidence = Math.round(clamp(safeRatio(foodDateSet.size, 14) * 100, 0, 100))
+  const trainingConfidence = Math.round(clamp(safeRatio(workoutDays30.size, 8) * 100, 0, 100))
+  const dataConfidenceScore = Math.round(
+    average([bodyConfidence, nutritionConfidence, trainingConfidence])
+  )
+  const confidencePoints = last30.map((date, index) => {
+    const bodyLogged = bodyCheckinProgressPoints[index]?.value ?? 0
+    const foodLogged = foodLogProgress[index]?.value ?? 0
+    const workoutsLogged = workoutDayProgress30[index]?.value ?? 0
+    return {
+      date,
+      value: Math.round(
+        average([
+          clamp(safeRatio(bodyLogged, 8) * 100, 0, 100),
+          clamp(safeRatio(foodLogged, 14) * 100, 0, 100),
+          clamp(safeRatio(workoutsLogged, 8) * 100, 0, 100),
+        ])
+      ),
+    }
+  })
+
+  const waistRateCmPerWeek = valuePerWeek(waistPoints)
+  const bodyFatRatePctPerWeek = valuePerWeek(bodyFatPoints)
+  const fatMassRateKgPerWeek = valuePerWeek(fatMassPoints)
+  const leanMassRateKgPerWeek = valuePerWeek(leanMassPoints)
+  const waistToWeightDelta =
+    waistToWeightPoints.length >= 2
+      ? waistToWeightPoints[waistToWeightPoints.length - 1].value -
+        waistToWeightPoints[0].value
+      : null
+  const recentWeightPoints14 = bodyWeightPoints.filter((point) =>
+    last14Set.has(point.date)
+  )
+  const weightRate14KgPerWeek = valuePerWeek(recentWeightPoints14)
+  const weightPlateau =
+    recentWeightPoints14.length >= 3 &&
+    weightRate14KgPerWeek != null &&
+    Math.abs(weightRate14KgPerWeek) < 0.1
+  const avgCaloriesVsTarget =
+    loggedFoodRecords.length > 0 ? averageCalories - calorieTarget : null
+  const foodLoggedDays7 = foodRecords.filter(
+    (record) => record.logged && last7Set.has(record.date)
+  ).length
+  const lastPhotoAge = photoEntries.at(-1)
+    ? daysBetweenKeys(photoEntries.at(-1)!.loggedAt.slice(0, 10), todayKey)
+    : null
+  const selectedLiftAge = selectedExercise?.lastDate
+    ? daysBetweenKeys(selectedExercise.lastDate, todayKey)
+    : null
+  const highWorkloadSpike =
+    (volumeChange7Pct != null && volumeChange7Pct > 40) || last7HardSets > 26
+  const workloadDrop = volumeChange7Pct != null && volumeChange7Pct < -30
+  const lowTrainingDose = workoutDays7.size <= 1 || (last7HardSets > 0 && last7HardSets < 6)
+  const strengthStall =
+    selectedExercise != null &&
+    selectedExercise.sessions >= 4 &&
+    selectedLiftRateKgPerWeek != null &&
+    selectedLiftRateKgPerWeek <= 0.05
+
+  const progressInsights: ProgressInsight[] = []
+  if (weightRateKgPerWeek != null) {
+    progressInsights.push({
+      id: "weight-goal",
+      label: goalLabel(goal),
+      title: `${weightGoalStatus}: ${signedValue(weightRateKgPerWeek, " kg/week")}`,
+      detail:
+        goal === "lose"
+          ? "Fat-loss pace is judged against a sustainable weekly drop. Adjust calories only if this stays off-track for another week."
+          : goal === "build" || goal === "performance"
+            ? "Gain pace is judged against lean-mass focused progress. Faster is not always better."
+            : "Your body-weight trend is evaluated for stability and drift.",
+      tone: weightGoalTone,
+    })
+  }
+
+  if (waistRateCmPerWeek != null || fatMassRateKgPerWeek != null) {
+    const recompSignal =
+      weightPlateau && waistRateCmPerWeek != null && waistRateCmPerWeek < -0.25
+    progressInsights.push({
+      id: "composition-signal",
+      label: "body comp",
+      title: recompSignal
+        ? "Recomp signal: waist down while scale is flat"
+        : fatMassRateKgPerWeek != null && fatMassRateKgPerWeek < -0.1
+          ? `Fat mass trending ${signedValue(fatMassRateKgPerWeek, " kg/wk")}`
+          : goal === "build" && waistToWeightDelta != null && waistToWeightDelta > 0.03
+            ? "Bulk may be getting waist-heavy"
+            : "Composition needs paired measurements",
+      detail: recompSignal
+        ? "Do not over-correct calories yet; waist movement suggests the scale is hiding useful progress."
+        : leanMassRateKgPerWeek != null && leanMassRateKgPerWeek < -0.15
+          ? "Lean-mass estimate is slipping. Check protein, lifting consistency, and deficit size."
+          : bodyFatRatePctPerWeek != null
+            ? `Body-fat estimate is moving ${signedValue(bodyFatRatePctPerWeek, "%/wk")}. Keep pairing weight with waist/body-fat logs.`
+            : "Log weight with waist or body-fat on the same days to separate fat loss from scale noise.",
+      tone: recompSignal || (fatMassRateKgPerWeek != null && fatMassRateKgPerWeek < -0.1)
+        ? APP_ACCENT_COLORS.complete
+        : APP_ACCENT_COLORS.progress,
+    })
+  }
+
+  if (loggedFoodRecords.length >= 5 && weightRateKgPerWeek != null) {
+    progressInsights.push({
+      id: "energy-balance",
+      label: "energy balance",
+      title:
+        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+          ? "Deficit is not showing up yet"
+          : (goal === "build" || goal === "performance") &&
+              weightRateKgPerWeek < 0.1 &&
+              (avgCaloriesVsTarget ?? 0) <= 0
+            ? "Surplus is probably too small"
+            : goal === "lose" && weightRateKgPerWeek < -1.1
+              ? "Cut pace is aggressive"
+              : "Calories and scale are coherent",
+      detail:
+        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+          ? `Average intake is ${Math.abs(avgCaloriesVsTarget ?? 0)} cal above target while weight is not dropping. Tighten logging before lowering targets.`
+          : (goal === "build" || goal === "performance") && weightRateKgPerWeek < 0.1
+            ? "If performance is the priority, add a small planned calorie bump or improve carb timing around training."
+            : goal === "lose" && weightRateKgPerWeek < -1.1
+              ? "Fast loss can be fine briefly, but protect protein and training performance before pushing harder."
+              : "Food logs and body trend point in the same direction; this makes adjustments more reliable.",
+      tone:
+        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+          ? "var(--status-danger)"
+          : APP_ACCENT_COLORS.complete,
+    })
+  }
+
+  if (foodLoggedDays7 > 0 && foodLoggedDays7 < 4) {
+    progressInsights.push({
+      id: "nutrition-sampling",
+      label: "nutrition data",
+      title: `Only ${foodLoggedDays7}/7 food days logged`,
+      detail:
+        "Weekly calorie and macro conclusions are weak. Log at least four days this week before making target changes.",
+      tone: APP_ACCENT_COLORS.progress,
+    })
+  }
+
+  if (loggedFoodRecords.length > 0) {
+    progressInsights.push({
+      id: "nutrition-quality",
+      label: "nutrition quality",
+      title:
+        proteinAdherence < 70
+          ? `Protein is the weak link (${proteinAdherence}%)`
+          : calorieAccuracy < 60
+            ? `Calories are drifting (${avgCalorieDeviation} cal avg miss)`
+            : `Nutrition is consistent (${macroConsistency}%)`,
+      detail:
+        proteinAdherence < 70
+          ? `Average protein is ${Math.round(averageProtein)}g against a ${proteinTarget}g target. Prioritize protein before chasing smaller macro tweaks.`
+          : calorieAccuracy < 60
+            ? "Most logged days are outside ±10% of target. Tighten portions or plan meals earlier in the day."
+            : "Protein and macro targets are close enough for the trend data to mean something.",
+      tone:
+        proteinAdherence >= 70 && calorieAccuracy >= 60
+          ? APP_ACCENT_COLORS.complete
+          : "var(--status-danger)",
+    })
+  }
+
+  if (selectedExercise && selectedExercise.points.length >= 2) {
+    progressInsights.push({
+      id: "selected-lift-coach",
+      label: "lift coach",
+      title:
+        selectedLiftFrequency < 1
+          ? `${selectedExercise.name} is under-dosed`
+          : strengthStall
+            ? `${selectedExercise.name} is stalling`
+            : selectedLiftRateKgPerWeek != null && selectedLiftRateKgPerWeek > 0.25
+              ? `${selectedExercise.name} has momentum`
+              : `${selectedExercise.name} is being maintained`,
+      detail:
+        selectedLiftFrequency < 1
+          ? `It appears ${selectedLiftFrequency.toFixed(1)}x/week in the last 30 days. Most lifts need more exposures to progress reliably.`
+          : strengthStall
+            ? "Keep the lift in rotation, but change one variable: rep range, pause/tempo, or backoff volume."
+            : selectedLiftAge != null && selectedLiftAge > 14
+              ? `Last exposure was ${selectedLiftAge} days ago. The trend is stale until you train it again.`
+              : `Estimated 1RM pace is ${signedValue(selectedLiftRateKgPerWeek, " kg/wk", 2)} with ${selectedExercise.sessions} logged sessions.`,
+      tone:
+        selectedLiftFrequency < 1 || strengthStall
+          ? APP_ACCENT_COLORS.progress
+          : APP_ACCENT_COLORS.complete,
+    })
+  }
+
+  if (highWorkloadSpike || workloadDrop || lowTrainingDose) {
+    progressInsights.push({
+      id: "recovery-dose",
+      label: "recovery dose",
+      title: highWorkloadSpike
+        ? "Fatigue risk is elevated"
+        : workloadDrop
+          ? "Training load dropped sharply"
+          : "Training dose is probably too low",
+      detail: highWorkloadSpike
+        ? `${fmtInt(last7HardSets)} hard sets and ${signedPercent(volumeChange7Pct)} volume change this week. Avoid testing maxes until performance rebounds.`
+        : workloadDrop
+          ? "If this was not a planned deload, schedule one achievable session to keep momentum."
+          : "One or fewer workout days, or fewer than six hard sets, is usually not enough stimulus for visible strength progress.",
+      tone: highWorkloadSpike ? APP_ACCENT_COLORS.progress : "var(--status-danger)",
+    })
+  }
+
+  if (
+    loggedFoodRecords.length >= 5 &&
+    proteinAdherence < 70 &&
+    selectedExercise &&
+    strengthStall
+  ) {
+    progressInsights.push({
+      id: "protein-strength-link",
+      label: "fueling strength",
+      title: "Strength plateau may be protein-limited",
+      detail: `Protein adherence is ${proteinAdherence}% while ${selectedExercise.name} is flat. Fix protein consistency before adding more sets.`,
+      tone: "var(--status-danger)",
+    })
+  }
+
+  if (photoEntries.length === 0 && entries.length >= 3) {
+    progressInsights.push({
+      id: "photo-gap",
+      label: "visual proof",
+      title: "Add progress photos",
+      detail:
+        "You have enough body check-ins for a trend, but no photos. Photos catch recomposition that scale and waist can miss.",
+      tone: APP_ACCENT_COLORS.water,
+    })
+  } else if (lastPhotoAge != null && lastPhotoAge > 30) {
+    progressInsights.push({
+      id: "photo-stale",
+      label: "visual proof",
+      title: "Progress photo is stale",
+      detail: `Last photo is ${lastPhotoAge} days old. Take a matched-lighting photo to make body composition changes easier to judge.`,
+      tone: APP_ACCENT_COLORS.water,
+    })
+  }
+
+  progressInsights.push({
+    id: "training-quality",
+    label: "training quality",
+    title:
+      volumeChange7Pct == null
+        ? `${Math.round(avgHardSetsPerWeek30)} hard sets/week avg`
+        : `Volume ${signedPercent(volumeChange7Pct)} vs prior week`,
+    detail:
+      volumeChange7Pct != null && volumeChange7Pct < -30
+        ? "Workload dropped sharply. If this was not planned, schedule easier sessions before testing strength."
+        : volumeChange7Pct != null && volumeChange7Pct > 40
+          ? "Workload spiked. Watch soreness and performance; this is where fatigue can mask progress."
+          : topCategory
+            ? `${topCategory[0]} is your largest recent focus at ${Math.round(categoryFocusShare)}% of tonnage.`
+            : "Log completed sets with weights to unlock workload and focus analysis.",
+    tone:
+      volumeChange7Pct != null && (volumeChange7Pct < -30 || volumeChange7Pct > 40)
+        ? APP_ACCENT_COLORS.progress
+        : APP_ACCENT_COLORS.complete,
+  })
+  progressInsights.push({
+    id: "data-confidence",
+    label: "confidence",
+    title: `${dataConfidenceScore}% data confidence`,
+    detail:
+      dataConfidenceScore < 55
+        ? "There is not enough recent body, food, and training data for strong conclusions yet."
+        : latestCheckInAge != null && latestCheckInAge > 7
+          ? "Training and food data exist, but body trend confidence is stale. Add a check-in."
+          : "Enough recent data exists for these trends to be directionally useful.",
+    tone:
+      dataConfidenceScore >= 70
+        ? APP_ACCENT_COLORS.complete
+        : dataConfidenceScore >= 45
+          ? APP_ACCENT_COLORS.progress
+          : "var(--status-danger)",
+  })
+
+  const metricCatalog: ComputedMetric[] = (() => {
+      const metricGraphs = new Map<string, MetricGraph>([
+        [
+          "body.weight_current",
+          {
+            title: "Weight trend",
+            subtitle: "Scale weight across logged body check-ins.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Add at least one weight check-in to begin the line.",
+            series: [
+              {
+                label: "Weight",
+                points: bodyWeightPoints,
+                color: APP_ACCENT_COLORS.water,
+                strokeWidth: 2.8,
+              },
+              ...(weightRollingPoints.length >= 2
+                ? [
+                    {
+                      label: "Rolling",
+                      points: weightRollingPoints,
+                      color: "color-mix(in srgb, var(--foreground) 58%, transparent)",
+                      strokeWidth: 2,
+                      opacity: 0.8,
+                      dashed: true,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ],
+        [
+          "body.weight_delta",
+          {
+            title: "Weight change",
+            subtitle: "Cumulative change from your first weight entry.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Log two weights to see how this delta moves.",
+            series: [
+              {
+                label: "Change",
+                points: cumulativeDeltaPoints(bodyWeightPoints),
+                color: APP_ACCENT_COLORS.water,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.weight_rate",
+          {
+            title: "Weight pace",
+            subtitle: `Weekly weight velocity compared with your ${goalLabel(goal)} goal.`,
+            unit: "kg/wk",
+            yDigits: 2,
+            emptyDetail: "Log at least two weights to calculate weekly pace.",
+            series: [
+              {
+                label: "Pace",
+                points: weightRatePoints,
+                color: weightGoalTone,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.fat_mass",
+          {
+            title: "Fat mass estimate",
+            subtitle: "Estimated fat mass from weight and body-fat entries.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Log weight and body fat together to estimate fat mass.",
+            series: [
+              {
+                label: "Fat mass",
+                points: fatMassPoints,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.lean_mass",
+          {
+            title: "Lean mass estimate",
+            subtitle: "Estimated lean mass from weight and body-fat entries.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Log weight and body fat together to estimate lean mass.",
+            series: [
+              {
+                label: "Lean",
+                points: leanMassPoints,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.waist_to_weight",
+          {
+            title: "Waist-to-weight ratio",
+            subtitle: "Waist centimeters divided by body weight kilograms.",
+            yDigits: 2,
+            emptyDetail: "Log waist and weight together to track this ratio.",
+            series: [
+              {
+                label: "Ratio",
+                points: waistToWeightPoints,
+                color: "var(--foreground)",
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.photo_checkins",
+          {
+            title: "Progress photo cadence",
+            subtitle: "Cumulative photo check-ins over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Attach progress photos to body check-ins to compare visually.",
+            series: [
+              {
+                label: "Photos",
+                points: photoProgressPoints,
+                color: APP_ACCENT_COLORS.water,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.waist_current",
+          {
+            title: "Waist trend",
+            subtitle: "Waist circumference across check-ins.",
+            unit: "cm",
+            yDigits: 1,
+            emptyDetail: "Add a waist measurement to start this chart.",
+            series: [
+              {
+                label: "Waist",
+                points: waistPoints,
+                color: "var(--foreground)",
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.waist_delta",
+          {
+            title: "Waist change",
+            subtitle: "Cumulative waist change from your first waist entry.",
+            unit: "cm",
+            yDigits: 1,
+            emptyDetail: "Log two waist measurements to see the delta.",
+            series: [
+              {
+                label: "Change",
+                points: cumulativeDeltaPoints(waistPoints),
+                color: "var(--foreground)",
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.bodyfat_current",
+          {
+            title: "Body fat trend",
+            subtitle: "Body fat percentage across check-ins.",
+            unit: "%",
+            yDigits: 1,
+            emptyDetail: "Add a body fat estimate to start this chart.",
+            series: [
+              {
+                label: "Body fat",
+                points: bodyFatPoints,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.bodyfat_delta",
+          {
+            title: "Body fat change",
+            subtitle: "Cumulative percentage-point change from the first body fat entry.",
+            unit: "%",
+            yDigits: 1,
+            emptyDetail: "Log two body fat estimates to see the delta.",
+            series: [
+              {
+                label: "Change",
+                points: cumulativeDeltaPoints(bodyFatPoints),
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.checkins_30",
+          {
+            title: "Check-in cadence",
+            subtitle: "Cumulative body check-in days over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Log a body check-in to see cadence build.",
+            series: [
+              {
+                label: "Check-ins",
+                points: bodyCheckinProgressPoints,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "body.last_checkin_age",
+          {
+            title: "Check-in freshness",
+            subtitle: "Days elapsed since the latest body check-in on each day.",
+            unit: "days",
+            yDigits: 0,
+            emptyDetail: "Log a check-in to begin freshness tracking.",
+            series: [
+              {
+                label: "Age",
+                points: latestAgeProgressPoints,
+                color: "var(--foreground)",
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_1rm",
+          {
+            title: "Estimated 1RM",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Train this lift with weight and reps to generate points.",
+            series: [
+              {
+                label: "1RM",
+                points: selectedBestProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.9,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_delta",
+          {
+            title: "Selected lift change",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            unit: "kg",
+            yDigits: 1,
+            emptyDetail: "Add two sessions for this lift to see change over time.",
+            series: [
+              {
+                label: "Change",
+                points: cumulativeDeltaPoints(selectedBestProgress),
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.9,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_rate",
+          {
+            title: "Selected lift pace",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            unit: "kg/wk",
+            yDigits: 2,
+            emptyDetail: "Add two sessions for this lift to calculate strength pace.",
+            series: [
+              {
+                label: "Pace",
+                points: selectedLiftRatePoints,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.9,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_sessions",
+          {
+            title: "Selected lift sessions",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            yDigits: 0,
+            emptyDetail: "Complete sessions for this lift to build the count.",
+            series: [
+              {
+                label: "Sessions",
+                points: selectedSessionProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_frequency",
+          {
+            title: "Selected lift frequency",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            yDigits: 0,
+            emptyDetail: "Train this lift over the last 30 days to measure frequency.",
+            series: [
+              {
+                label: "Sessions",
+                points: selectedSessionProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_sets",
+          {
+            title: "Selected lift sets",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            yDigits: 0,
+            emptyDetail: "Completed sets for this lift will accumulate here.",
+            series: [
+              {
+                label: "Sets",
+                points: selectedSetsProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_volume",
+          {
+            title: "Selected lift volume",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            unit: "kg",
+            yDigits: 0,
+            emptyDetail: "Logged sets with weight and reps will build this line.",
+            series: [
+              {
+                label: "Volume",
+                points: selectedVolumeProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_prs",
+          {
+            title: "Selected lift PRs",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            yDigits: 0,
+            emptyDetail: "Beat a previous estimated 1RM to add PR points.",
+            series: [
+              {
+                label: "PRs",
+                points: selectedPrProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "strength.selected_pr_rate",
+          {
+            title: "Selected lift PR rate",
+            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
+            yDigits: 0,
+            emptyDetail: "Beat previous estimated 1RMs to track PR rate.",
+            series: [
+              {
+                label: "PRs",
+                points: selectedPrProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.workouts_30",
+          {
+            title: "Training days",
+            subtitle: "Cumulative workout days over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Complete a workout to start this progression.",
+            series: [
+              {
+                label: "Days",
+                points: workoutDayProgress30,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.workouts_7",
+          {
+            title: "Weekly workouts",
+            subtitle: "Workout days accumulated over the current 7-day window.",
+            yDigits: 0,
+            emptyDetail: "Complete a workout this week to start the line.",
+            series: [
+              {
+                label: "Days",
+                points: workoutDayProgress7,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.sets_30",
+          {
+            title: "Completed sets",
+            subtitle: "Cumulative completed strength sets over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Complete workout sets to build this chart.",
+            series: [
+              {
+                label: "Sets",
+                points: trainingSetsProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.volume_30",
+          {
+            title: "Total tonnage",
+            subtitle: "Cumulative strength volume over the last 30 days.",
+            unit: "kg",
+            yDigits: 0,
+            emptyDetail: "Log weighted sets to see tonnage accumulate.",
+            series: [
+              {
+                label: "Volume",
+                points: trainingVolumeProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.minutes_30",
+          {
+            title: "Training minutes",
+            subtitle: "Cumulative logged training time over the last 30 days.",
+            unit: "min",
+            yDigits: 0,
+            emptyDetail: "Workout durations will accumulate here.",
+            series: [
+              {
+                label: "Minutes",
+                points: trainingMinutesProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.prs_30",
+          {
+            title: "PR count",
+            subtitle: "Cumulative detected PRs across exercise history.",
+            yDigits: 0,
+            emptyDetail: "Beat previous estimated 1RMs to populate this chart.",
+            series: [
+              {
+                label: "PRs",
+                points: prProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.hard_sets_week",
+          {
+            title: "Hard sets",
+            subtitle: "Cumulative weighted non-warmup sets over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Log working sets with weight and reps to track hard sets.",
+            series: [
+              {
+                label: "Hard sets",
+                points: trainingHardSetsProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.workout_change_7",
+          {
+            title: "Workout frequency change",
+            subtitle: "Cumulative workout days; metric compares last 7 days to the prior 7.",
+            yDigits: 0,
+            emptyDetail: "Complete workouts across two weeks to compare frequency.",
+            series: [
+              {
+                label: "Days",
+                points: workoutDayProgress30,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.volume_change_7",
+          {
+            title: "Weekly volume change",
+            subtitle: "Cumulative 30-day tonnage; the metric compares the latest 7 days to the prior 7.",
+            unit: "kg",
+            yDigits: 0,
+            emptyDetail: "Log weighted sets for two weeks to compare volume.",
+            series: [
+              {
+                label: "Volume",
+                points: trainingVolumeProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "training.focus_share",
+          {
+            title: "Training focus",
+            subtitle: topCategory
+              ? `${topCategory[0]} leads recent tonnage; chart shows total tonnage accumulation.`
+              : "Largest exercise category by recent volume.",
+            unit: "kg",
+            yDigits: 0,
+            emptyDetail: "Log categorized weighted sets to detect training focus.",
+            series: [
+              {
+                label: "Tonnage",
+                points: trainingVolumeProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.logged_days",
+          {
+            title: "Nutrition logged",
+            subtitle: "Cumulative logged food days over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Log food to see nutrition consistency build.",
+            series: [
+              {
+                label: "Days",
+                points: foodLogProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.avg_calories",
+          {
+            title: "Daily calories",
+            subtitle: "Logged calorie totals with your current target as a dashed guide.",
+            unit: "cal",
+            yDigits: 0,
+            emptyDetail: "Log food for a day to draw calorie progression.",
+            series: [
+              {
+                label: "Calories",
+                points: dailyCaloriesPoints,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+              ...(calorieTargetPoints.length > 0
+                ? [
+                    {
+                      label: "Target",
+                      points: calorieTargetPoints,
+                      color: "color-mix(in srgb, var(--foreground) 50%, transparent)",
+                      strokeWidth: 2,
+                      opacity: 0.75,
+                      dashed: true,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ],
+        [
+          "nutrition.avg_protein",
+          {
+            title: "Daily protein",
+            subtitle: "Logged protein with your current target as a dashed guide.",
+            unit: "g",
+            yDigits: 0,
+            emptyDetail: "Log food with protein to draw this chart.",
+            series: [
+              {
+                label: "Protein",
+                points: dailyProteinPoints,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+              ...(proteinTargetPoints.length > 0
+                ? [
+                    {
+                      label: "Target",
+                      points: proteinTargetPoints,
+                      color: "color-mix(in srgb, var(--foreground) 50%, transparent)",
+                      strokeWidth: 2,
+                      opacity: 0.75,
+                      dashed: true,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ],
+        [
+          "nutrition.protein_adherence",
+          {
+            title: "Protein adherence",
+            subtitle: "Cumulative average of logged days hitting at least 90% of protein target.",
+            unit: "%",
+            yDigits: 0,
+            emptyDetail: "Log protein for multiple days to measure adherence.",
+            series: [
+              {
+                label: "Adherence",
+                points: proteinAdherenceProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.calorie_accuracy",
+          {
+            title: "Calorie accuracy",
+            subtitle: "Cumulative average of logged days within ±10% of calorie target.",
+            unit: "%",
+            yDigits: 0,
+            emptyDetail: "Log calories to measure target accuracy.",
+            series: [
+              {
+                label: "Accuracy",
+                points: calorieAccuracyProgress,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.macro_consistency",
+          {
+            title: "Macro consistency",
+            subtitle: "Average closeness to calories, protein, carbs, and fat targets.",
+            unit: "%",
+            yDigits: 0,
+            emptyDetail: "Log complete macros to score consistency.",
+            series: [
+              {
+                label: "Score",
+                points: macroConsistencyProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.calorie_change_7",
+          {
+            title: "Calorie change",
+            subtitle: "Daily calories; metric compares last 7-day average to the previous 7 days.",
+            unit: "cal",
+            yDigits: 0,
+            emptyDetail: "Log calories across two weeks to compare averages.",
+            series: [
+              {
+                label: "Calories",
+                points: dailyCaloriesPoints,
+                color: APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.protein_change_7",
+          {
+            title: "Protein change",
+            subtitle: "Daily protein; metric compares last 7-day average to the previous 7 days.",
+            unit: "g",
+            yDigits: 0,
+            emptyDetail: "Log protein across two weeks to compare averages.",
+            series: [
+              {
+                label: "Protein",
+                points: dailyProteinPoints,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.days_over",
+          {
+            title: "Days over budget",
+            subtitle: "Cumulative days above calorie target over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Days above target will appear once food is logged.",
+            series: [
+              {
+                label: "Over",
+                points: daysOverProgress,
+                color: "var(--status-danger)",
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "nutrition.days_under",
+          {
+            title: "Days under budget",
+            subtitle: "Cumulative logged days at or under target over the last 30 days.",
+            yDigits: 0,
+            emptyDetail: "Days at or below target will appear once food is logged.",
+            series: [
+              {
+                label: "Under",
+                points: daysUnderProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "quality.data_confidence",
+          {
+            title: "Data confidence",
+            subtitle: "How much recent body, nutrition, and training data supports the insights.",
+            unit: "%",
+            yDigits: 0,
+            emptyDetail: "Log body, food, and training data to raise confidence.",
+            series: [
+              {
+                label: "Confidence",
+                points: confidencePoints,
+                color: dataConfidenceScore >= 70 ? APP_ACCENT_COLORS.complete : APP_ACCENT_COLORS.progress,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+        [
+          "adherence.score",
+          {
+            title: "Adherence score",
+            subtitle: "Composite body, training, and nutrition score over the last 30 days.",
+            unit: "%",
+            yDigits: 0,
+            emptyDetail: "Log body, training, or nutrition events to move the score.",
+            series: [
+              {
+                label: "Score",
+                points: adherenceProgress,
+                color: APP_ACCENT_COLORS.complete,
+                strokeWidth: 2.8,
+              },
+            ],
+          },
+        ],
+      ])
+
+      return [
       {
         id: "body.weight_current",
         title: "Current weight",
@@ -1197,6 +3770,55 @@ export default function Progress() {
           weightValues.length >= 2 ? "since first check-in" : "Needs 2 weights",
         description: "Change from your first to latest logged weight.",
         keywords: ["body", "weight", "change", "fat loss", "bulk"],
+        tone: APP_ACCENT_COLORS.water,
+      },
+      {
+        id: "body.weight_rate",
+        title: "Weight pace",
+        group: "Body",
+        value: signedValue(weightRateKgPerWeek, " kg/wk", 2),
+        detail: `${weightGoalStatus} for ${goalLabel(goal)}`,
+        description: "Weekly weight change interpreted against your current goal.",
+        keywords: ["body", "weight", "weekly", "goal", "rate"],
+        tone: weightGoalTone,
+      },
+      {
+        id: "body.fat_mass",
+        title: "Fat mass",
+        group: "Body",
+        value: latestFatMass == null ? "—" : `${fmtNumber(latestFatMass)} kg`,
+        detail: fatMassPoints.length >= 1 ? "weight × body fat" : "Needs body fat",
+        description: "Estimated fat mass from weight and body fat percentage.",
+        keywords: ["body", "fat mass", "composition", "body fat"],
+        tone: APP_ACCENT_COLORS.progress,
+      },
+      {
+        id: "body.lean_mass",
+        title: "Lean mass",
+        group: "Body",
+        value: latestLeanMass == null ? "—" : `${fmtNumber(latestLeanMass)} kg`,
+        detail: leanMassPoints.length >= 1 ? "estimated" : "Needs body fat",
+        description: "Estimated lean body mass from weight and body fat percentage.",
+        keywords: ["body", "lean mass", "muscle", "composition"],
+        tone: APP_ACCENT_COLORS.complete,
+      },
+      {
+        id: "body.waist_to_weight",
+        title: "Waist / weight",
+        group: "Body",
+        value: latestWaistToWeight == null ? "—" : latestWaistToWeight.toFixed(2),
+        detail: "cm per kg",
+        description: "Waist circumference relative to body weight.",
+        keywords: ["body", "waist", "ratio", "composition"],
+      },
+      {
+        id: "body.photo_checkins",
+        title: "Progress photos",
+        group: "Body",
+        value: String(photoEntries.length),
+        detail: "photo check-ins",
+        description: "Progress check-ins with photos attached for visual comparison.",
+        keywords: ["body", "photos", "progress", "visual"],
         tone: APP_ACCENT_COLORS.water,
       },
       {
@@ -1286,6 +3908,16 @@ export default function Progress() {
         tone: APP_ACCENT_COLORS.progress,
       },
       {
+        id: "strength.selected_rate",
+        title: "Selected lift pace",
+        group: "Strength",
+        value: signedValue(selectedLiftRateKgPerWeek, " kg/wk", 2),
+        detail: selectedExercise?.name ?? "Search an exercise",
+        description: "Weekly estimated 1RM change for the selected exercise.",
+        keywords: ["strength", "rate", "1rm", "pace", "exercise"],
+        tone: APP_ACCENT_COLORS.progress,
+      },
+      {
         id: "strength.selected_sessions",
         title: "Selected lift sessions",
         group: "Strength",
@@ -1293,6 +3925,15 @@ export default function Progress() {
         detail: selectedExercise?.name ?? "Search an exercise",
         description: "How often this lift has been trained.",
         keywords: ["strength", "sessions", "frequency", "exercise"],
+      },
+      {
+        id: "strength.selected_frequency",
+        title: "Selected lift frequency",
+        group: "Strength",
+        value: selectedExercise ? selectedLiftFrequency.toFixed(1) : "—",
+        detail: "sessions / week · 30d",
+        description: "How often the selected lift was trained recently.",
+        keywords: ["strength", "frequency", "sessions", "exercise"],
       },
       {
         id: "strength.selected_sets",
@@ -1322,6 +3963,16 @@ export default function Progress() {
         keywords: ["strength", "pr", "record", "exercise"],
       },
       {
+        id: "strength.selected_pr_rate",
+        title: "Selected PR rate",
+        group: "Strength",
+        value: selectedExercise ? selectedPrRatePerMonth.toFixed(1) : "—",
+        detail: "PRs / month",
+        description: "PR frequency normalized by time trained for the selected lift.",
+        keywords: ["strength", "pr", "rate", "exercise"],
+        tone: APP_ACCENT_COLORS.complete,
+      },
+      {
         id: "training.workouts_30",
         title: "Training days",
         group: "Training",
@@ -1347,6 +3998,51 @@ export default function Progress() {
         detail: "last 30 days",
         description: "Completed strength sets across all exercises.",
         keywords: ["training", "sets", "volume", "workload"],
+      },
+      {
+        id: "training.hard_sets_week",
+        title: "Hard sets",
+        group: "Training",
+        value: fmtInt(last7HardSets),
+        detail:
+          hardSetChange7Pct == null
+            ? "last 7 days"
+            : `${signedPercent(hardSetChange7Pct)} vs prior`,
+        description: "Weighted non-warmup working sets in the latest week.",
+        keywords: ["training", "hard sets", "sets", "volume", "workload"],
+        tone: APP_ACCENT_COLORS.progress,
+      },
+      {
+        id: "training.volume_change_7",
+        title: "Volume change",
+        group: "Training",
+        value: signedPercent(volumeChange7Pct),
+        detail: "last 7 vs prior 7",
+        description: "Training tonnage change compared with the previous week.",
+        keywords: ["training", "volume", "change", "fatigue", "deload"],
+        tone:
+          volumeChange7Pct != null &&
+          (volumeChange7Pct < -30 || volumeChange7Pct > 40)
+            ? APP_ACCENT_COLORS.progress
+            : APP_ACCENT_COLORS.complete,
+      },
+      {
+        id: "training.focus_share",
+        title: "Training focus",
+        group: "Training",
+        value: topCategory?.[0] ?? "—",
+        detail: topCategory ? `${Math.round(categoryFocusShare)}% of tonnage` : "Needs volume",
+        description: "Largest exercise category by recent training volume.",
+        keywords: ["training", "muscle", "category", "focus", "volume"],
+      },
+      {
+        id: "training.workout_change_7",
+        title: "Workout change",
+        group: "Training",
+        value: signedPercent(workoutDayChange7Pct),
+        detail: "days vs prior week",
+        description: "Workout frequency change compared with the previous week.",
+        keywords: ["training", "frequency", "workouts", "weekly"],
       },
       {
         id: "training.volume_30",
@@ -1396,6 +4092,75 @@ export default function Progress() {
         tone: APP_ACCENT_COLORS.progress,
       },
       {
+        id: "nutrition.avg_protein",
+        title: "Average protein",
+        group: "Nutrition",
+        value: averageProtein > 0 ? `${fmtInt(averageProtein)}g` : "—",
+        detail: `${proteinTarget}g target`,
+        description: "Average protein intake on logged food days.",
+        keywords: ["nutrition", "protein", "macro", "average"],
+        tone: APP_ACCENT_COLORS.complete,
+      },
+      {
+        id: "nutrition.protein_adherence",
+        title: "Protein adherence",
+        group: "Nutrition",
+        value: percentLabel(proteinAdherence),
+        detail: "days ≥ 90% target",
+        description: "Share of logged days hitting at least 90% of protein target.",
+        keywords: ["nutrition", "protein", "adherence", "macro"],
+        tone:
+          proteinAdherence >= 70
+            ? APP_ACCENT_COLORS.complete
+            : "var(--status-danger)",
+      },
+      {
+        id: "nutrition.calorie_accuracy",
+        title: "Calorie accuracy",
+        group: "Nutrition",
+        value: percentLabel(calorieAccuracy),
+        detail: `±10% target · ${avgCalorieDeviation} cal miss`,
+        description: "Share of logged days within ten percent of calorie target.",
+        keywords: ["nutrition", "calories", "accuracy", "target"],
+        tone:
+          calorieAccuracy >= 60
+            ? APP_ACCENT_COLORS.complete
+            : APP_ACCENT_COLORS.progress,
+      },
+      {
+        id: "nutrition.macro_consistency",
+        title: "Macro consistency",
+        group: "Nutrition",
+        value: percentLabel(macroConsistency),
+        detail: "cal + protein + carbs + fat",
+        description: "How close logged macros are to daily targets on average.",
+        keywords: ["nutrition", "macros", "consistency", "protein", "carbs", "fat"],
+        tone:
+          macroConsistency >= 75
+            ? APP_ACCENT_COLORS.complete
+            : APP_ACCENT_COLORS.progress,
+      },
+      {
+        id: "nutrition.calorie_change_7",
+        title: "Calorie change",
+        group: "Nutrition",
+        value: signedPercent(calorieChange7Pct),
+        detail: "avg last 7 vs prior",
+        description: "Average calorie intake change compared with the previous week.",
+        keywords: ["nutrition", "calories", "weekly", "change"],
+        tone: APP_ACCENT_COLORS.progress,
+      },
+      {
+        id: "nutrition.protein_change_7",
+        title: "Protein change",
+        group: "Nutrition",
+        value: signedPercent(proteinChange7Pct),
+        detail: "avg last 7 vs prior",
+        description: "Average protein intake change compared with the previous week.",
+        keywords: ["nutrition", "protein", "weekly", "change"],
+        tone: APP_ACCENT_COLORS.complete,
+      },
+      {
         id: "nutrition.days_over",
         title: "Days over budget",
         group: "Nutrition",
@@ -1416,34 +4181,31 @@ export default function Progress() {
         tone: APP_ACCENT_COLORS.complete,
       },
       {
+        id: "quality.data_confidence",
+        title: "Data confidence",
+        group: "Quality",
+        value: percentLabel(dataConfidenceScore),
+        detail: `body ${bodyConfidence}% · food ${nutritionConfidence}% · training ${trainingConfidence}%`,
+        description: "Confidence that the current trends are backed by enough recent data.",
+        keywords: ["quality", "confidence", "data", "logging"],
+        tone:
+          dataConfidenceScore >= 70
+            ? APP_ACCENT_COLORS.complete
+            : dataConfidenceScore >= 45
+              ? APP_ACCENT_COLORS.progress
+              : "var(--status-danger)",
+      },
+      {
         id: "adherence.score",
         title: "Adherence score",
         group: "Adherence",
         value: percentLabel(adherenceScore),
-        detail: "body + training + food",
-        description: "Composite of check-ins, workouts, and nutrition logging.",
+        detail: "30% body · 35% training · 35% food",
+        description: "Transparent composite of check-ins, workouts, and nutrition logging.",
         keywords: ["adherence", "consistency", "score", "habit"],
       },
-    ],
-    [
-      adherenceScore,
-      averageCalories,
-      bodyCheckinDays30.size,
-      bodyFatValues,
-      exerciseProgress,
-      foodDateSet.size,
-      latest,
-      latestCheckInAge,
-      overshotDates.size,
-      selectedExercise,
-      totalWorkoutMinutes30,
-      underTargetDays,
-      waistValues,
-      weightValues,
-      workoutDays30.size,
-      workoutDays7.size,
-    ]
-  )
+    ].map((metric) => ({ ...metric, graph: metricGraphs.get(metric.id) }))
+  })()
 
   const metricMap = useMemo(
     () => new Map(metricCatalog.map((metric) => [metric.id, metric])),
@@ -1481,6 +4243,55 @@ export default function Progress() {
   const bottomMetricsDesktopRight = bottomMetricsDesktop.filter(
     (_, index) => index % 2 === 1
   )
+  const openMetricGraph = openMetricGraphId
+    ? (selectedMetrics.find((metric) => metric.id === openMetricGraphId) ??
+      metricMap.get(openMetricGraphId) ??
+      null)
+    : null
+  const bodyWeightGraph = metricMap.get("body.weight_current")?.graph
+  const selectedLiftGraph = metricMap.get("strength.selected_1rm")?.graph
+  const expandedMetricGraph = expandedMetricGraphId
+    ? (metricMap.get(expandedMetricGraphId)?.graph ?? null)
+    : null
+  const visibleProgressInsights = progressInsights.filter(
+    (insight) => !dismissedInsightIds.includes(insight.id)
+  )
+  const visibleAiCoachInsights = aiCoachInsights.filter(
+    (insight) => !dismissedInsightIds.includes(insight.id)
+  )
+  const aiCoachContext = {
+    goal,
+    weightPaceKgPerWeek: weightRateKgPerWeek ?? null,
+    weightStatus: weightGoalStatus,
+    calorieTarget,
+    averageCalories,
+    averageProtein,
+    proteinTarget,
+    proteinAdherence,
+    calorieAccuracy,
+    macroConsistency,
+    workoutDays7: workoutDays7.size,
+    volumeChange7Pct: volumeChange7Pct ?? null,
+    hardSets7: last7HardSets,
+    selectedExerciseName: selectedExercise?.name ?? null,
+    selectedLiftPaceKgPerWeek: selectedLiftRateKgPerWeek ?? null,
+    selectedLiftFrequency: selectedExercise ? selectedLiftFrequency : null,
+    dataConfidence: dataConfidenceScore,
+    existingInsights: progressInsights.map((insight) => ({
+      label: insight.label,
+      title: insight.title,
+      detail: insight.detail,
+    })),
+  }
+
+  function openMetricInteractiveGraph(id: string) {
+    if (metricMap.get(id)?.graph) {
+      setOpenMetricGraphId(null)
+      setExpandedMetricGraphId(id)
+      return
+    }
+    setOpenMetricGraphId(id)
+  }
 
   function addMetric(id: string) {
     setSelectedMetricIds((current) =>
@@ -1505,6 +4316,8 @@ export default function Progress() {
   }
 
   async function aiGenerateMetrics(prompt: string) {
+    if (!requireAiAccess()) return
+
     const clean = prompt.trim()
     if (!clean) {
       toast.message("Describe what you want to track")
@@ -1543,18 +4356,109 @@ export default function Progress() {
 
       toast.message("No matching metrics found")
     } catch (error) {
-      logDevError("Failed to generate metrics:", error)
+      console.error("Failed to generate metrics:", error)
       toast.error("Could not generate metrics")
     }
   }
 
+  async function aiGenerateCoachAdvice() {
+    if (aiCoachBusy || !requireAiAccess()) return
+    setAiCoachBusy(true)
+    try {
+      const result = await generateCoachAdvice({ context: aiCoachContext })
+
+      setAiCoachInsights(
+        result.advice.map((advice, index) => ({
+          id: `ai-coach-${index}-${advice.title}`,
+          label: advice.label,
+          title: advice.title,
+          detail: advice.detail,
+          tone: APP_ACCENT_COLORS.progress,
+        }))
+      )
+      toast.success(
+        result.source === "openai" ? "AI coach advice added" : "Coach advice added"
+      )
+    } catch (error) {
+      console.error("Failed to generate coach advice:", error)
+      toast.error("Could not generate coach advice")
+    } finally {
+      setAiCoachBusy(false)
+    }
+  }
+
+  function deleteCoachInsight(id: string) {
+    setDismissedInsightIds((current) =>
+      current.includes(id) ? current : [...current, id]
+    )
+    setAiCoachInsights((current) => current.filter((insight) => insight.id !== id))
+  }
+
+  async function sendAiCoachMessage(message: string, focusInsight?: ProgressInsight) {
+    const clean = message.trim()
+    if (clean.length < 2 || aiCoachBusy || !requireAiAccess()) return
+
+    const userMessage: AiCoachMessage = {
+      id: `user-${aiCoachMessages.length}-${clean}`,
+      role: "user",
+      content: clean,
+    }
+    const nextHistory = [...aiCoachMessages, userMessage].slice(-30)
+    setAiCoachMessages(nextHistory)
+    setAiCoachOpen(true)
+    setAiCoachInput("")
+    setAiCoachBusy(true)
+
+    try {
+      const result = await generateCoachChatMessage({
+        context: aiCoachContext,
+        message: clean,
+        history: aiCoachMessages.slice(-10).map((item) => ({
+          role: item.role,
+          content: item.content,
+        })),
+        focusInsight: focusInsight
+          ? {
+              label: focusInsight.label,
+              title: focusInsight.title,
+              detail: focusInsight.detail,
+            }
+          : undefined,
+      })
+      setAiCoachMessages((current) => {
+        const assistantMessage: AiCoachMessage = {
+          id: `assistant-${current.length}-${result.reply}`,
+          role: "assistant",
+          content: result.reply,
+        }
+        return [...current, assistantMessage].slice(-30)
+      })
+    } catch (error) {
+      console.error("Failed to send coach message:", error)
+      toast.error("Could not ask AI coach")
+    } finally {
+      setAiCoachBusy(false)
+    }
+  }
+
+  function clarifyCoachInsight(insight: ProgressInsight) {
+    void sendAiCoachMessage(
+      `Clarify this coaching step and tell me exactly what to do next: ${insight.title}. ${insight.detail}`,
+      insight
+    )
+  }
+
+  const displayedCoachInsights = [
+    ...visibleAiCoachInsights,
+    ...visibleProgressInsights,
+  ]
+
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
+    <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
       <main className="app-page">
         <header className="app-header">
           <div className="min-w-0">
-            <p className="app-eyebrow">Progress</p>
-            <h1 className="app-title">Signals</h1>
+            <h1 className="app-title">Progress</h1>
             <p className="mt-1 text-[12px] text-muted-foreground/60">
               Body composition and exercise-specific strength.
             </p>
@@ -1562,25 +4466,33 @@ export default function Progress() {
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="app-button app-header-action bg-foreground text-background"
+            className="app-header-icon-action md:hidden"
+            aria-label="Add progress check-in"
+          >
+            <Plus weight="bold" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="hidden bg-foreground text-background app-button md:inline-flex"
             aria-label="Add progress check-in"
           >
             <Plus size={13} weight="bold" /> Check in
           </button>
         </header>
 
-        <section className="app-surface p-4">
-          <div className="flex items-start justify-between gap-4">
+        <section className="p-4 app-surface">
+          <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
               <p className="app-eyebrow">Body weight</p>
-              <p className="mt-2 truncate text-[2.05rem] leading-none font-extrabold tracking-tight tabular-nums">
+              <p className="mt-2 font-extrabold tabular-nums text-[2.05rem] truncate leading-none tracking-tight">
                 {latest?.weightKg != null
                   ? `${fmtNumber(latest.weightKg)} kg`
                   : "No check-in"}
               </p>
-              <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/58">
                 {latest
-                  ? `${formatMeasurementDate(latest.loggedAt)} · ${trend ?? "trend pending"}`
+                  ? `${formatMeasurementDate(latest.loggedAt)} · ${weightRateKgPerWeek == null ? (trend ?? "trend pending") : `${signedValue(weightRateKgPerWeek, " kg/wk", 2)} · ${weightGoalStatus}`}`
                   : "Add weight, body fat, or waist to start."}
               </p>
             </div>
@@ -1593,7 +4505,7 @@ export default function Progress() {
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
             <ProgressStatTile
               label="Weight"
               value={
@@ -1628,8 +4540,8 @@ export default function Progress() {
           </div>
         </section>
 
-        <section className="app-surface mt-3 p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
+        <section className="mt-3 p-4 app-surface">
+          <div className="flex justify-between items-center gap-3 mb-3">
             <div className="min-w-0">
               <p className="app-section-title">Pinned metrics</p>
               <p className="app-section-subtitle">
@@ -1639,7 +4551,7 @@ export default function Progress() {
             <button
               type="button"
               onClick={() => setMetricSheetOpen(true)}
-              className="app-button app-button-quiet h-9 shrink-0"
+              className="h-9 app-button app-button-quiet shrink-0"
             >
               <MagnifyingGlass size={12} weight="bold" /> Metrics
             </button>
@@ -1650,11 +4562,13 @@ export default function Progress() {
               <MetricGrid
                 metrics={topMetricsMobile}
                 onRemove={removeMetric}
+                onOpenMetric={openMetricInteractiveGraph}
                 className="md:hidden"
               />
               <MetricGrid
                 metrics={topMetricsDesktop}
                 onRemove={removeMetric}
+                onOpenMetric={openMetricInteractiveGraph}
                 className="hidden md:grid md:grid-cols-4"
               />
             </>
@@ -1662,17 +4576,26 @@ export default function Progress() {
             <button
               type="button"
               onClick={() => setMetricSheetOpen(true)}
-              className="app-empty w-full justify-center py-4 text-[13px] font-semibold"
+              className="justify-center py-4 w-full font-semibold text-[13px] app-empty"
             >
               <Plus size={13} /> Add your first metric
             </button>
           )}
         </section>
 
-        <section className="mt-3 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-          <div className="grid min-w-0 content-start gap-3">
-            <div className="app-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+        <InsightStrip
+          insights={displayedCoachInsights}
+          onGenerateAi={hasAiAccess ? aiGenerateCoachAdvice : undefined}
+          onOpenAiHistory={hasAiAccess ? () => setAiCoachOpen(true) : undefined}
+          onDeleteInsight={deleteCoachInsight}
+          onClarifyInsight={hasAiAccess ? clarifyCoachInsight : undefined}
+          aiBusy={aiCoachBusy}
+        />
+
+        <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+          <div className="content-start gap-3 grid min-w-0">
+            <div className="p-4 app-surface">
+              <div className="flex justify-between items-center gap-3 mb-3">
                 <div className="min-w-0">
                   <p className="app-section-title">Body composition</p>
                   <p className="app-section-subtitle">
@@ -1684,40 +4607,40 @@ export default function Progress() {
                 <button
                   type="button"
                   onClick={() => setSheetOpen(true)}
-                  className="app-button app-button-quiet h-9"
+                  className="h-9 app-button app-button-quiet"
                 >
                   Add
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                  <p className="text-[10px] font-bold text-muted-foreground/62">
+              <div className="grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
+                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
                     Weight
                   </p>
-                  <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                     {fmtNumber(latest?.weightKg)}
                   </p>
                   <p className="text-[10px] text-muted-foreground/45">
                     {signedValue(deltaFor(weightValues), " kg")}
                   </p>
                 </div>
-                <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                  <p className="text-[10px] font-bold text-muted-foreground/62">
+                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
                     Body fat
                   </p>
-                  <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                     {fmtNumber(latest?.bodyFatPct)}
                   </p>
                   <p className="text-[10px] text-muted-foreground/45">
                     {signedValue(deltaFor(bodyFatValues), "%")}
                   </p>
                 </div>
-                <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                  <p className="text-[10px] font-bold text-muted-foreground/62">
+                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
                     Waist
                   </p>
-                  <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                     {fmtNumber(latest?.waistCm)}
                   </p>
                   <p className="text-[10px] text-muted-foreground/45">
@@ -1726,39 +4649,59 @@ export default function Progress() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[0.9rem] bg-foreground/[0.035] px-3 pt-3 pb-2">
-                {weightValues.length >= 2 ? (
-                  <MultiLineChart
-                    series={[
-                      {
-                        values: weightValues,
-                        color:
-                          "color-mix(in srgb, var(--foreground) 62%, transparent)",
-                        strokeWidth: 2.6,
-                      },
-                      ...(weightRolling.length >= 2
-                        ? [
-                            {
-                              values: weightRolling,
-                              color: APP_ACCENT_COLORS.water,
-                              strokeWidth: 2,
-                              opacity: 0.9,
-                            },
-                          ]
-                        : []),
-                    ]}
-                    sharedScale
-                  />
+              <div className="mt-2 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
+                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
+                    Fat mass
+                  </p>
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
+                    {latestFatMass == null ? "—" : fmtNumber(latestFatMass)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/45">
+                    kg estimated
+                  </p>
+                </div>
+                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
+                    Lean mass
+                  </p>
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
+                    {latestLeanMass == null ? "—" : fmtNumber(latestLeanMass)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/45">
+                    kg estimated
+                  </p>
+                </div>
+                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
+                  <p className="font-bold text-[10px] text-muted-foreground/62">
+                    Waist / weight
+                  </p>
+                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
+                    {latestWaistToWeight == null ? "—" : latestWaistToWeight.toFixed(2)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/45">
+                    cm per kg
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-foreground/[0.035] mt-4 px-3 pt-3 pb-2 rounded-[0.9rem]">
+                {weightValues.length >= 2 && bodyWeightGraph ? (
+                  <ExpandableChartButton
+                    onExpand={() => setExpandedMetricGraphId("body.weight_current")}
+                  >
+                    <MetricProgressChart graph={bodyWeightGraph} />
+                  </ExpandableChartButton>
                 ) : (
-                  <div className="flex h-28 items-center justify-center text-center text-[12px] text-muted-foreground/50">
+                  <div className="flex justify-center items-center h-28 text-[12px] text-muted-foreground/50 text-center">
                     Add two weight check-ins to draw the trend.
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="app-surface p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="p-4 app-surface">
+              <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
                   <p className="app-section-title">Recent check-ins</p>
                   <p className="app-section-subtitle">
@@ -1790,7 +4733,7 @@ export default function Progress() {
                                 clientId: entry.clientId,
                               })
                             } catch (err) {
-                              logDevError(
+                              console.error(
                                 "Failed to remove measurement:",
                                 err
                               )
@@ -1799,18 +4742,18 @@ export default function Progress() {
                         }}
                         rowClassName="bg-card"
                       >
-                        <div className="flex items-center justify-between gap-3 py-3">
+                        <div className="flex justify-between items-center gap-3 py-3">
                           <div className="min-w-0">
-                            <p className="text-[10px] font-bold text-muted-foreground/48 uppercase">
+                            <p className="font-bold text-[10px] text-muted-foreground/48 uppercase">
                               {formatMeasurementDate(entry.loggedAt)}
                             </p>
-                            <p className="mt-1 truncate text-[13px] font-extrabold tabular-nums">
+                            <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
                               {entry.weightKg != null
                                 ? `${entry.weightKg.toFixed(1)} kg`
                                 : "Body check"}
                             </p>
                           </div>
-                          <div className="shrink-0 text-right text-[10.5px] font-semibold text-muted-foreground/52">
+                          <div className="font-semibold text-[10.5px] text-muted-foreground/52 text-right shrink-0">
                             <p>{fmtNumber(entry.bodyFatPct)}% fat</p>
                             <p>{fmtNumber(entry.waistCm)} cm waist</p>
                           </div>
@@ -1821,9 +4764,49 @@ export default function Progress() {
               )}
             </div>
 
+            {photoEntries.length > 0 && (
+              <div className="p-4 app-surface">
+                <div className="mb-3">
+                  <p className="app-section-title">Progress photos</p>
+                  <p className="app-section-subtitle">
+                    Visual checkpoints for body composition changes.
+                  </p>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {[...photoEntries]
+                    .reverse()
+                    .slice(0, 6)
+                    .map((entry) => {
+                      const src = entry.photoUrl ?? entry.photoDataUrl
+                      return (
+                        <div
+                          key={`photo-${entry.clientId ?? entry._id ?? entry.loggedAt}`}
+                          className="relative h-28 w-20 shrink-0 overflow-hidden rounded-[0.85rem] bg-foreground/[0.05]"
+                        >
+                          {src ? (
+                            <img
+                              src={src}
+                              alt={`Progress photo from ${formatMeasurementDate(entry.loggedAt)}`}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-muted-foreground/30">
+                              <Camera size={22} />
+                            </div>
+                          )}
+                          <div className="absolute inset-x-0 bottom-0 bg-background/80 px-1.5 py-1 text-center font-bold text-[9px] text-muted-foreground/60 backdrop-blur-sm">
+                            {formatMeasurementDate(entry.loggedAt)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+
             {bottomMetricsMobile.length > 0 && (
-              <div className="app-surface p-4 md:hidden">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="md:hidden p-4 app-surface">
+                <div className="flex justify-between items-center gap-3 mb-3">
                   <div className="min-w-0">
                     <p className="app-section-title">More metrics</p>
                     <p className="app-section-subtitle">
@@ -1833,7 +4816,7 @@ export default function Progress() {
                   <button
                     type="button"
                     onClick={() => setMetricSheetOpen(true)}
-                    className="app-button app-button-quiet h-9 shrink-0"
+                    className="h-9 app-button app-button-quiet shrink-0"
                   >
                     Edit
                   </button>
@@ -1841,13 +4824,14 @@ export default function Progress() {
                 <MetricGrid
                   metrics={bottomMetricsMobile}
                   onRemove={removeMetric}
+                  onOpenMetric={openMetricInteractiveGraph}
                 />
               </div>
             )}
 
             {bottomMetricsDesktopLeft.length > 0 && (
-              <div className="app-surface hidden p-4 md:block">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="hidden md:block p-4 app-surface">
+                <div className="flex justify-between items-center gap-3 mb-3">
                   <div className="min-w-0">
                     <p className="app-section-title">More metrics</p>
                     <p className="app-section-subtitle">Pinned details</p>
@@ -1855,7 +4839,7 @@ export default function Progress() {
                   <button
                     type="button"
                     onClick={() => setMetricSheetOpen(true)}
-                    className="app-button app-button-quiet h-9 shrink-0"
+                    className="h-9 app-button app-button-quiet shrink-0"
                   >
                     Edit
                   </button>
@@ -1863,13 +4847,14 @@ export default function Progress() {
                 <MetricGrid
                   metrics={bottomMetricsDesktopLeft}
                   onRemove={removeMetric}
+                  onOpenMetric={openMetricInteractiveGraph}
                 />
               </div>
             )}
           </div>
 
-          <div className="grid min-w-0 content-start gap-3">
-            <div className="app-surface p-4">
+          <div className="content-start gap-3 grid min-w-0">
+            <div className="p-4 app-surface">
               <div className="mb-3">
                 <p className="app-section-title">Strength trend</p>
                 <p className="app-section-subtitle">
@@ -1880,109 +4865,144 @@ export default function Progress() {
               <div className="relative mb-3">
                 <MagnifyingGlass
                   size={14}
-                  className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground/45"
+                  className="top-1/2 left-3 absolute text-muted-foreground/45 -translate-y-1/2 pointer-events-none"
                 />
                 <input
                   type="search"
-                  name="strength-trend-exercise-search"
-                  aria-label="Search strength trend exercise"
                   value={exerciseQuery}
                   onChange={(event) => setExerciseQuery(event.target.value)}
                   placeholder="Search exercise"
-                  className="h-10 w-full rounded-[0.8rem] border-0 bg-foreground/[0.045] pr-3 pl-9 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/38"
+                  className="bg-foreground/[0.045] pr-3 pl-9 border-0 rounded-[0.8rem] outline-none w-full h-10 font-semibold text-[13px] placeholder:text-muted-foreground/38"
                 />
               </div>
 
               {exerciseChoices.length > 0 && (
-                <div className="mb-4 flex gap-1.5 overflow-x-auto pb-1">
-                  {exerciseChoices.map((exercise) => {
-                    const active = selectedExercise?.id === exercise.id
-                    return (
+                <>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="font-bold text-[9.5px] text-muted-foreground/45 uppercase tracking-[0.12em]">
+                      Most data
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/42">
+                      Showing 3 · search for the rest
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 mb-3 pb-1 overflow-x-auto">
+                    {exerciseChoices.map((exercise) => {
+                      const active = selectedExercise?.id === exercise.id
+                      return (
+                        <button
+                          key={exercise.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedExerciseId(exercise.id)
+                            setExerciseQuery("")
+                          }}
+                          className={cn(
+                            "px-2.5 py-1.5 rounded-[0.7rem] font-bold text-[11px] transition-colors shrink-0",
+                            active
+                              ? "bg-foreground text-background"
+                              : "bg-foreground/[0.045] text-muted-foreground/68 active:bg-foreground/[0.08]"
+                          )}
+                        >
+                          {exercise.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
+              {exerciseQuery.trim() && (
+                <div className="mb-4 max-h-44 overflow-y-auto rounded-[0.9rem] bg-foreground/[0.035] p-1.5">
+                  {exerciseSearchResults.length > 0 ? (
+                    exerciseSearchResults.map((exercise) => (
                       <button
-                        key={exercise.id}
+                        key={`search-${exercise.id}`}
                         type="button"
-                        onClick={() => setSelectedExerciseId(exercise.id)}
-                        className={cn(
-                          "shrink-0 rounded-[0.7rem] px-2.5 py-1.5 text-[11px] font-bold transition-colors",
-                          active
-                            ? "bg-foreground text-background"
-                            : "bg-foreground/[0.045] text-muted-foreground/68 active:bg-foreground/[0.08]"
-                        )}
+                        onClick={() => {
+                          setSelectedExerciseId(exercise.id)
+                          setExerciseQuery("")
+                        }}
+                        className="flex w-full items-center justify-between gap-3 rounded-[0.7rem] px-2.5 py-2 text-left active:bg-foreground/[0.06]"
                       >
-                        {exercise.name}
+                        <span className="min-w-0 truncate font-bold text-[12px]">
+                          {exercise.name}
+                        </span>
+                        <span className="shrink-0 text-[10px] font-semibold text-muted-foreground/48">
+                          {exercise.sessions} sessions · {exercise.sets} sets
+                        </span>
                       </button>
-                    )
-                  })}
+                    ))
+                  ) : (
+                    <p className="px-2.5 py-3 text-[11.5px] text-muted-foreground/50">
+                      No other logged exercises match that search.
+                    </p>
+                  )}
                 </div>
               )}
 
               {selectedExercise ? (
                 <div>
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0">
                       <p className="app-eyebrow">Selected lift</p>
-                      <p className="mt-1 truncate text-[1.25rem] leading-tight font-extrabold">
+                      <p className="mt-1 font-extrabold text-[1.25rem] truncate leading-tight">
                         {selectedExercise.name}
                       </p>
-                      <p className="mt-1 text-[11px] font-semibold text-muted-foreground/56">
+                      <p className="mt-1 font-semibold text-[11px] text-muted-foreground/56">
                         {selectedExercise.points.length >= 2
                           ? `${fmtNumber(selectedExercise.firstBest)} → ${fmtNumber(selectedExercise.lastBest)} kg est. 1RM`
                           : `${selectedExercise.sessions} session${selectedExercise.sessions === 1 ? "" : "s"} logged`}
                       </p>
                     </div>
-                    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-2 text-right">
-                      <p className="text-[10px] font-bold text-muted-foreground/52">
+                    <div className="bg-foreground/[0.045] px-3 py-2 rounded-[0.8rem] text-right">
+                      <p className="font-bold text-[10px] text-muted-foreground/52">
                         Change
                       </p>
-                      <p className="mt-0.5 text-[16px] font-extrabold tabular-nums">
+                      <p className="mt-0.5 font-extrabold tabular-nums text-[16px]">
                         {signedValue(selectedExercise.delta, " kg")}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-[0.9rem] bg-foreground/[0.035] px-3 pt-3 pb-2">
-                    {selectedExercise.points.length >= 2 ? (
-                      <MultiLineChart
-                        series={[
-                          {
-                            values: selectedExercise.points.map(
-                              (point) => point.best
-                            ),
-                            color: APP_ACCENT_COLORS.progress,
-                            strokeWidth: 2.8,
-                          },
-                        ]}
-                        sharedScale
-                      />
+                  <div className="bg-foreground/[0.035] mt-4 px-3 pt-3 pb-2 rounded-[0.9rem]">
+                    {selectedExercise.points.length >= 2 && selectedLiftGraph ? (
+                      <ExpandableChartButton
+                        onExpand={() =>
+                          setExpandedMetricGraphId("strength.selected_1rm")
+                        }
+                      >
+                        <MetricProgressChart graph={selectedLiftGraph} />
+                      </ExpandableChartButton>
                     ) : (
-                      <div className="flex h-28 items-center justify-center text-[12px] text-muted-foreground/45">
+                      <div className="flex justify-center items-center h-28 text-[12px] text-muted-foreground/45">
                         Add another session to draw the trend.
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                      <p className="text-[10px] font-bold text-muted-foreground/62">
+                  <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
+                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                      <p className="font-bold text-[10px] text-muted-foreground/62">
                         Sessions
                       </p>
-                      <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                         {fmtInt(selectedExercise.sessions)}
                       </p>
                     </div>
-                    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                      <p className="text-[10px] font-bold text-muted-foreground/62">
+                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                      <p className="font-bold text-[10px] text-muted-foreground/62">
                         Volume
                       </p>
-                      <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                         {fmtInt(selectedExercise.totalVolume)}
                       </p>
                     </div>
-                    <div className="rounded-[0.8rem] bg-foreground/[0.045] px-3 py-3">
-                      <p className="text-[10px] font-bold text-muted-foreground/62">
+                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+                      <p className="font-bold text-[10px] text-muted-foreground/62">
                         PRs
                       </p>
-                      <p className="mt-1 text-[18px] font-extrabold tabular-nums">
+                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
                         {fmtInt(selectedExercise.prs)}
                       </p>
                     </div>
@@ -1997,8 +5017,8 @@ export default function Progress() {
             </div>
 
             {bottomMetricsDesktopRight.length > 0 && (
-              <div className="app-surface hidden p-4 md:block">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="hidden md:block p-4 app-surface">
+                <div className="flex justify-between items-center gap-3 mb-3">
                   <div className="min-w-0">
                     <p className="app-section-title">Metric details</p>
                     <p className="app-section-subtitle">Pinned details</p>
@@ -2006,7 +5026,7 @@ export default function Progress() {
                   <button
                     type="button"
                     onClick={() => setMetricSheetOpen(true)}
-                    className="app-button app-button-quiet h-9 shrink-0"
+                    className="h-9 app-button app-button-quiet shrink-0"
                   >
                     Edit
                   </button>
@@ -2014,12 +5034,20 @@ export default function Progress() {
                 <MetricGrid
                   metrics={bottomMetricsDesktopRight}
                   onRemove={removeMetric}
+                  onOpenMetric={openMetricInteractiveGraph}
                 />
               </div>
             )}
           </div>
         </section>
       </main>
+
+      {openMetricGraph && (
+        <MetricProgressSheet
+          metric={openMetricGraph}
+          onClose={() => setOpenMetricGraphId(null)}
+        />
+      )}
 
       {metricSheetOpen && (
         <MetricSearchSheet
@@ -2036,10 +5064,10 @@ export default function Progress() {
 
       {sheetOpen && (
         <MeasurementSheet
-          lastEntry={latest}
           onClose={() => setSheetOpen(false)}
           onSave={async ({ photoFile, ...entry }) => {
-            const clientId = createClientId()
+            const clientId = crypto.randomUUID()
+            setSheetOpen(false)
             try {
               let photoStorageId: Id<"_storage"> | undefined
               if (photoFile) {
@@ -2050,19 +5078,39 @@ export default function Progress() {
                   body: photoFile,
                 })
                 if (!response.ok) throw new Error("Photo upload failed")
-                photoStorageId = (await response.json()).storageId as Id<"_storage">
+                photoStorageId = (await response.json())
+                  .storageId as Id<"_storage">
               }
               await saveMeasurement({ clientId, ...entry, photoStorageId })
               toast.success("Measurement saved")
-              setSheetOpen(false)
             } catch (err) {
-              logDevError("Failed to save measurement:", err)
+              console.error("Failed to save measurement:", err)
               toast.error("Could not save measurement")
-              throw err
             }
           }}
         />
       )}
+
+      {expandedMetricGraph && (
+        <ExpandedGraphSheet
+          graph={expandedMetricGraph}
+          onClose={() => setExpandedMetricGraphId(null)}
+        />
+      )}
+
+      {hasAiAccess && aiCoachOpen && (
+        <AiCoachModal
+          messages={aiCoachMessages}
+          input={aiCoachInput}
+          busy={aiCoachBusy}
+          onInputChange={setAiCoachInput}
+          onSend={() => void sendAiCoachMessage(aiCoachInput)}
+          onClear={() => setAiCoachMessages([])}
+          onClose={() => setAiCoachOpen(false)}
+        />
+      )}
+
+      {aiAccessModal}
     </div>
   )
 }

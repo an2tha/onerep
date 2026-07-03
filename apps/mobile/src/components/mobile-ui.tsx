@@ -36,7 +36,7 @@ export function MobilePage({
       className={cn(
         "motion-page mx-auto min-h-svh w-full max-w-xl bg-transparent text-foreground md:max-w-6xl",
         bottomInset === "nav"
-          ? "pb-[calc(var(--app-safe-bottom-lg)+5.5rem)] md:pb-10"
+          ? "pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:pb-10"
           : "pb-[var(--app-safe-bottom-lg)]",
         className
       )}
@@ -188,14 +188,22 @@ export function ActionDock({
   return (
     <div
       className={cn(
-        "md:backdrop-blur-0 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl gap-2 border-t border-border/50 bg-background/92 px-4 pt-3 pb-[var(--app-safe-bottom)] backdrop-blur-xl md:static md:max-w-none md:border-0 md:bg-transparent md:px-0 md:py-0",
+        "md:backdrop-blur-0 fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-xl flex-wrap items-stretch gap-2 border-t border-border/50 bg-background/92 px-3 pt-3 pb-[var(--app-safe-bottom)] backdrop-blur-xl md:static md:max-w-none md:flex-nowrap md:border-0 md:bg-transparent md:px-0 md:py-0",
         "motion-card",
         className
       )}
     >
-      {danger && <DockButton action={danger} variant="danger" />}
-      {secondary && <DockButton action={secondary} variant="secondary" />}
-      <DockButton action={primary} variant="primary" className="flex-1" />
+      {danger && (
+        <DockButton action={danger} variant="danger" className="basis-14 grow" />
+      )}
+      {secondary && (
+        <DockButton
+          action={secondary}
+          variant="secondary"
+          className="basis-14 grow"
+        />
+      )}
+      <DockButton action={primary} variant="primary" className="basis-32 grow-[2]" />
     </div>
   )
 }
@@ -216,15 +224,15 @@ function DockButton({
       onClick={action.onClick}
       disabled={action.disabled}
       className={cn(
-        "motion-pressable flex h-12 min-w-12 items-center justify-center gap-2 rounded-[10px] px-4 text-[13px] font-bold active:opacity-85 disabled:opacity-45",
+        "motion-pressable flex h-12 min-w-0 items-center justify-center gap-2 rounded-[14px] px-3 text-[13px] font-bold active:opacity-85 disabled:opacity-45",
         variant === "primary" && "bg-foreground text-background",
         variant === "secondary" && "bg-muted text-foreground",
         variant === "danger" && "bg-destructive/10 text-destructive",
         className
       )}
     >
-      {Icon && <Icon size={15} weight="bold" />}
-      {action.label}
+      {Icon && <Icon size={15} weight="bold" className="shrink-0" />}
+      <span className="min-w-0 truncate">{action.label}</span>
     </button>
   )
 }

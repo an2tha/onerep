@@ -1,28 +1,24 @@
 import {
   StrictMode,
-  Suspense,
-  lazy,
   useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
+  type ReactNode,
 } from "react"
-import { createRoot, type Root } from "react-dom/client"
+import { createRoot } from "react-dom/client"
 import {
   createBrowserRouter,
-  Link,
-  Outlet,
   useLocation,
+  useOutlet,
   useSearchParams,
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
-import { toast } from "sonner"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
-import { cn, safeLocalStorageGet } from "@/lib/utils"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 
@@ -30,7 +26,6 @@ import "./index.css"
 
 declare global {
   interface Window {
-    __onerepReactRoot?: Root
     __onerepSignOut?: () => void | Promise<void>
   }
 }
@@ -41,49 +36,45 @@ if (posthogToken) {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
     defaults: "2026-01-30",
   })
-  if (safeLocalStorageGet("onerep:analytics-enabled") === "false") {
+  if (localStorage.getItem("onerep:analytics-enabled") === "false") {
     posthog.opt_out_capturing()
   }
 }
+import App from "./App.tsx"
+import Exercises from "./pages/Exercises.tsx"
+import EmailVerified from "./pages/EmailVerified.tsx"
+import Login from "./pages/Login.tsx"
+import Onboarding from "./pages/Onboarding.tsx"
+import ResetPassword from "./pages/ResetPassword.tsx"
+import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
+import Workouts from "./pages/Workouts.tsx"
+import NewPreset from "./pages/NewPreset.tsx"
+import ActiveWorkout from "./pages/ActiveWorkout.tsx"
+import SnapAndLog from "./pages/SnapAndLog.tsx"
+import SearchFoods from "./pages/SearchFoods.tsx"
+import FoodReview from "./pages/FoodReview.tsx"
+import Foods from "./pages/Foods.tsx"
+import Nutrition from "./pages/Nutrition.tsx"
+import Water from "./pages/Water.tsx"
+import Supplements from "./pages/Supplements.tsx"
+import NewRecipe from "./pages/NewRecipe.tsx"
+import Progress from "./pages/Progress.tsx"
+import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
-import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
+import {
+  BottomBar,
+  BottomBarActionProvider,
+  PersistentQuickAdd,
+} from "./components/bottom-bar"
 import {
   clearRouteMotion,
-  getRouteMotion,
+  prefersReducedMotion,
   useSmoothNavigate,
 } from "./lib/navigation"
-import {
-  activateWaitingServiceWorker,
-  registerAppServiceWorker,
-  reloadWhenServiceWorkerControlsPage,
-} from "./lib/service-worker"
-
-const App = lazy(() => import("./App.tsx"))
-const Exercises = lazy(() => import("./pages/Exercises.tsx"))
-const EmailVerified = lazy(() => import("./pages/EmailVerified.tsx"))
-const Login = lazy(() => import("./pages/Login.tsx"))
-const Onboarding = lazy(() => import("./pages/Onboarding.tsx"))
-const ResetPassword = lazy(() => import("./pages/ResetPassword.tsx"))
-const VerifyEmailRequired = lazy(
-  () => import("./pages/VerifyEmailRequired.tsx")
-)
-const Workouts = lazy(() => import("./pages/Workouts.tsx"))
-const NewPreset = lazy(() => import("./pages/NewPreset.tsx"))
-const ActiveWorkout = lazy(() => import("./pages/ActiveWorkout.tsx"))
-const SnapAndLog = lazy(() => import("./pages/SnapAndLog.tsx"))
-const SearchFoods = lazy(() => import("./pages/SearchFoods.tsx"))
-const FoodReview = lazy(() => import("./pages/FoodReview.tsx"))
-const Foods = lazy(() => import("./pages/Foods.tsx"))
-const Nutrition = lazy(() => import("./pages/Nutrition.tsx"))
-const Water = lazy(() => import("./pages/Water.tsx"))
-const Supplements = lazy(() => import("./pages/Supplements.tsx"))
-const NewRecipe = lazy(() => import("./pages/NewRecipe.tsx"))
-const Progress = lazy(() => import("./pages/Progress.tsx"))
-const Settings = lazy(() => import("./pages/Settings.tsx"))
 
 function shouldShowBottomBar(pathname: string) {
   return (
@@ -99,63 +90,167 @@ function shouldShowBottomBar(pathname: string) {
   )
 }
 
-function RouteFallback() {
-  return (
-    <main className="flex flex-col justify-center mx-auto px-5 w-full max-w-sm min-h-svh text-center">
-      <section className="p-5 app-rail-surface">
-        <div className="mx-auto mb-4 border-2 border-foreground/20 border-t-foreground rounded-full w-5 h-5 animate-spin" />
-        <h1 className="font-semibold text-[1.25rem] tracking-tight">
-          Loading OneRep
-        </h1>
-        <p className="mt-2 text-[13px] text-muted-foreground/70 leading-5">
-          Preparing your mobile workspace.
-        </p>
-      </section>
-    </main>
+const ROUTE_CROSSFADE_MS = 240
+const ROUTE_MIN_READY_MS = 80
+const ROUTE_FONT_WAIT_MS = 220
+const ROUTE_IMAGE_WAIT_MS = 300
+const ROUTE_LOADING_MARKER_WAIT_MS = 500
+
+type RouteTransitionState = {
+  from: ReactNode
+  fromKey: string
+  fromPathname: string
+  toKey: string
+  ready: boolean
+}
+
+function waitForMs(ms: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted || ms <= 0) {
+      resolve()
+      return
+    }
+
+    const timeout = window.setTimeout(resolve, ms)
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timeout)
+        resolve()
+      },
+      { once: true }
+    )
+  })
+}
+
+function waitForNextPaint(signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve())
+    })
+  })
+}
+
+async function waitForRouteImages(frame: HTMLElement, signal: AbortSignal) {
+  const images = Array.from(frame.querySelectorAll("img")).filter(
+    (image) => !image.complete
+  )
+
+  if (images.length === 0) return
+
+  await Promise.race([
+    Promise.all(
+      images.map(
+        (image) =>
+          new Promise<void>((resolve) => {
+            const done = () => resolve()
+            image.addEventListener("load", done, { once: true })
+            image.addEventListener("error", done, { once: true })
+          })
+      )
+    ).then(() => undefined),
+    waitForMs(ROUTE_IMAGE_WAIT_MS, signal),
+  ])
+}
+
+function hasRouteLoadingMarkers(frame: HTMLElement) {
+  return Boolean(
+    frame.querySelector(
+      '[role="status"], [aria-busy="true"], .animate-spin, .animate-pulse'
+    )
   )
 }
 
-function NotFound() {
-  return (
-    <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center bg-background mx-auto px-5 w-full max-w-sm min-h-svh text-foreground">
-      <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-5 border border-border/70 rounded-[24px] text-center">
-        <p className="font-bold text-[10px] text-muted-foreground/55 uppercase tracking-[0.16em]">
-          Not found
-        </p>
-        <h1 className="mt-2 font-semibold text-[1.35rem] leading-tight tracking-tight">
-          This page is not available
-        </h1>
-        <p className="mt-2 text-[13px] text-muted-foreground/70 leading-5">
-          Check the link or return to OneRep.
-        </p>
-        <Link
-          to="/"
-          className="flex justify-center items-center bg-foreground active:opacity-85 mt-5 px-4 rounded-[14px] w-full min-h-11 font-semibold text-[14px] text-background"
-        >
-          Go to OneRep
-        </Link>
-      </section>
-    </main>
-  )
+function waitForRouteLoadingMarkers(frame: HTMLElement, signal: AbortSignal) {
+  if (!hasRouteLoadingMarkers(frame)) return Promise.resolve()
+
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+
+    let maxTimeout: number | undefined
+    const observer = new MutationObserver(check)
+
+    function cleanup() {
+      observer.disconnect()
+      if (maxTimeout != null) window.clearTimeout(maxTimeout)
+      signal.removeEventListener("abort", finish)
+    }
+
+    function finish() {
+      cleanup()
+      resolve()
+    }
+
+    function check() {
+      if (!hasRouteLoadingMarkers(frame)) finish()
+    }
+
+    observer.observe(frame, {
+      attributes: true,
+      childList: true,
+      subtree: true,
+      attributeFilter: ["aria-busy", "class", "role"],
+    })
+    maxTimeout = window.setTimeout(finish, ROUTE_LOADING_MARKER_WAIT_MS)
+    signal.addEventListener("abort", finish, { once: true })
+    check()
+  })
+}
+
+async function waitForRouteContent(frame: HTMLElement, signal: AbortSignal) {
+  const startedAt = performance.now()
+
+  await waitForNextPaint(signal)
+
+  if (document.fonts?.ready) {
+    await Promise.race([
+      document.fonts.ready,
+      waitForMs(ROUTE_FONT_WAIT_MS, signal),
+    ])
+  }
+
+  await waitForRouteImages(frame, signal)
+  await waitForRouteLoadingMarkers(frame, signal)
+
+  const elapsed = performance.now() - startedAt
+  await waitForMs(ROUTE_MIN_READY_MS - elapsed, signal)
 }
 
 function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
+  const outlet = useOutlet()
   const [bottomBarAction, setBottomBarActionState] = useState<
     (() => void) | undefined
   >()
+  const [routeTransition, setRouteTransition] =
+    useState<RouteTransitionState | null>(null)
+  const activeRouteFrameRef = useRef<HTMLDivElement | null>(null)
+  const previousOutletRef = useRef<ReactNode>(outlet)
+  const previousLocationKeyRef = useRef(location.key)
+  const previousPathnameRef = useRef(location.pathname)
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
   const holdTimer = useRef<number | null>(null)
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
-  const routeMotion = getRouteMotion()
 
   const setBottomBarAction = useCallback((action?: () => void) => {
     setBottomBarActionState(() => action)
   }, [])
+
+  const fallbackQuickAddAction = useCallback(() => {
+    navigate("/foods/search", { motion: "forward" })
+  }, [navigate])
 
   useEffect(() => {
     function clearHold() {
@@ -166,7 +261,7 @@ function NavSync() {
     }
 
     function isInteractive(target: EventTarget | null) {
-      return target instanceof HTMLElement
+      return target instanceof Element
         ? Boolean(
             target.closest(
               "button, a, [role='button'], input, select, textarea, label"
@@ -211,6 +306,64 @@ function NavSync() {
     clearRouteMotion()
   }, [location.key])
 
+  useLayoutEffect(() => {
+    const previousKey = previousLocationKeyRef.current
+    const previousOutlet = previousOutletRef.current
+
+    if (previousKey !== location.key) {
+      setRouteTransition(
+        previousOutlet && !prefersReducedMotion()
+          ? {
+              from: previousOutlet,
+              fromKey: previousKey,
+              fromPathname: previousPathnameRef.current,
+              toKey: location.key,
+              ready: false,
+            }
+          : null
+      )
+      previousLocationKeyRef.current = location.key
+      previousPathnameRef.current = location.pathname
+    }
+
+    previousOutletRef.current = outlet
+  }, [location.key, outlet])
+
+  useEffect(() => {
+    if (!routeTransition || routeTransition.toKey !== location.key) return
+
+    const abortController = new AbortController()
+    let finishTimeout: number | undefined
+
+    async function finishWhenReady() {
+      const frame = activeRouteFrameRef.current
+      if (frame) {
+        await waitForRouteContent(frame, abortController.signal)
+      }
+
+      if (abortController.signal.aborted) return
+
+      setRouteTransition((current) =>
+        current && current.toKey === location.key
+          ? { ...current, ready: true }
+          : current
+      )
+
+      finishTimeout = window.setTimeout(() => {
+        setRouteTransition((current) =>
+          current?.toKey === location.key ? null : current
+        )
+      }, ROUTE_CROSSFADE_MS + 80)
+    }
+
+    void finishWhenReady()
+
+    return () => {
+      abortController.abort()
+      if (finishTimeout != null) window.clearTimeout(finishTimeout)
+    }
+  }, [location.key, routeTransition?.toKey])
+
   function handleTouchStart(event: React.TouchEvent<HTMLDivElement>) {
     const touch = event.touches[0]
     touchStartX.current = touch.clientX
@@ -243,6 +396,19 @@ function NavSync() {
     }
   }
 
+  const previousChromePathname = routeTransition?.fromPathname
+  const showPreviousChrome = Boolean(
+    previousChromePathname && shouldShowBottomBar(previousChromePathname)
+  )
+  const currentChromeState = routeTransition
+    ? routeTransition.ready
+      ? "ready"
+      : "loading"
+    : undefined
+  const previousChromeState = routeTransition?.ready
+    ? "previous-ready"
+    : "previous"
+
   return (
     <BottomBarActionProvider onActionChange={setBottomBarAction}>
       <div
@@ -250,18 +416,45 @@ function NavSync() {
         onTouchEnd={handleTouchEnd}
         className="app-route-shell"
       >
-        <div
-          key={location.key}
-          className={cn(
-            "app-route-frame",
-            routeMotion && "app-route-frame-animated"
+        <div className="app-route-stack">
+          {routeTransition?.from && (
+            <div
+              key={`from-${routeTransition.fromKey}`}
+              className="app-route-frame app-route-frame-previous"
+              data-route-ready={routeTransition.ready ? "true" : undefined}
+              aria-hidden="true"
+            >
+              {routeTransition.from}
+            </div>
           )}
-          data-route-motion={routeMotion}
-        >
-          <Outlet />
+          <div
+            key={location.key}
+            ref={activeRouteFrameRef}
+            className="app-route-frame app-route-frame-current"
+            data-route-loading={
+              routeTransition && !routeTransition.ready ? "true" : undefined
+            }
+            data-route-ready={routeTransition?.ready ? "true" : undefined}
+          >
+            {outlet}
+          </div>
         </div>
       </div>
-      {showBottomBar && <BottomBar onAdd={bottomBarAction} />}
+      {showPreviousChrome && previousChromePathname && (
+        <BottomBar
+          pathname={previousChromePathname}
+          chromeState={previousChromeState}
+        />
+      )}
+      {showBottomBar && (
+        <BottomBar
+          pathname={location.pathname}
+          chromeState={currentChromeState}
+        />
+      )}
+      {showBottomBar && (
+        <PersistentQuickAdd onAdd={bottomBarAction ?? fallbackQuickAddAction} />
+      )}
     </BottomBarActionProvider>
   )
 }
@@ -269,40 +462,29 @@ function NavSync() {
 function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const rawNext = searchParams.get("next")
-  const nextPath =
-    rawNext === "onboarding" ? "/onboarding" : safeAuthRedirectPath(rawNext)
-
-  function navigateInApp(destination: string) {
-    if (destination.startsWith("http")) {
-      window.location.href = destination
-      return
-    }
-
-    navigate(destination, { replace: true })
-  }
+  const nextPath = safeAuthRedirectPath(searchParams.get("next"))
 
   useEffect(() => {
-    navigateInApp(nextPath)
-  }, [nextPath])
+    navigate(nextPath, { replace: true })
+  }, [navigate, nextPath])
 
   return (
-    <div className="bg-background min-h-svh text-foreground">
-      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
-        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
+    <div className="min-h-svh bg-background text-foreground">
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 short-phone:mt-3 font-semibold text-[1.65rem] short-phone:text-[1.45rem] tracking-tight">
+          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-4 short-phone:p-3.5 border border-border/70 rounded-[28px] short-phone:rounded-[24px] text-center">
-          <div className="mx-auto border-2 border-muted-foreground/20 border-t-foreground rounded-full w-8 h-8 animate-spin" />
-          <p className="mt-4 font-semibold text-[14px] tracking-tight">
+        <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
+          <p className="mt-4 text-[14px] font-semibold tracking-tight">
             Finishing sign in...
           </p>
         </section>
@@ -442,14 +624,6 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "/search-foods",
-        element: (
-          <AuthGuard>
-            <SearchFoods />
-          </AuthGuard>
-        ),
-      },
-      {
         path: "/foods/review/:id",
         element: (
           <AuthGuard>
@@ -515,35 +689,21 @@ const router = createBrowserRouter([
           </AuthGuard>
         ),
       },
-      {
-        path: "*",
-        element: <NotFound />,
-      },
     ],
   },
 ])
 
-const rootElement = document.getElementById("root")
-if (!rootElement) {
-  throw new Error("Missing root element")
-}
-
-const root =
-  window.__onerepReactRoot ??
-  (window.__onerepReactRoot = createRoot(rootElement))
-
-window.__onerepSignOut = signOutApp
-
-root.render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ConvexBetterAuthProvider client={convexClient} authClient={providerAuthClient}>
+    <ConvexBetterAuthProvider
+      client={convexClient}
+      authClient={providerAuthClient}
+    >
       <PostHogProvider client={posthog}>
         <ThemeProvider>
           <ErrorBoundary label="the app">
             <OfflineSyncIndicator />
-            <Suspense fallback={<RouteFallback />}>
-              <RouterProvider router={router} />
-            </Suspense>
+            <RouterProvider router={router} />
             <Toaster position="top-center" richColors />
           </ErrorBoundary>
         </ThemeProvider>
@@ -552,17 +712,4 @@ root.render(
   </StrictMode>
 )
 
-if (import.meta.env.PROD) {
-  reloadWhenServiceWorkerControlsPage()
-  void registerAppServiceWorker({
-    onUpdate(registration) {
-      toast("Update ready", {
-        description: "Refresh OneRep to use the latest version.",
-        action: {
-          label: "Refresh",
-          onClick: () => activateWaitingServiceWorker(registration),
-        },
-      })
-    },
-  })
-}
+window.__onerepSignOut = signOutApp
