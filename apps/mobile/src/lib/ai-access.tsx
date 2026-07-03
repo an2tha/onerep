@@ -3,7 +3,8 @@ import { Aperture, Barbell, ChartLineUp, Sparkle, X } from "@phosphor-icons/reac
 import { toast } from "sonner"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { useRevenueCat } from "@/lib/revenuecat"
+import { ONEREP_PRO_ENTITLEMENT, useRevenueCat } from "@/lib/revenuecat"
+import { celebrateSubscription } from "@/lib/subscription-celebration"
 
 export function useAiAccessSubscription() {
   const { user, userId } = useAppAuth()
@@ -224,7 +225,10 @@ export function useAiFeatureGate() {
         void revenueCat
           .purchaseMonthly()
           .then(() => revenueCat.refresh())
-          .then(() => setModalOpen(false))
+          .then(() => {
+            celebrateSubscription()
+            setModalOpen(false)
+          })
           .catch((error) => {
             const message =
               error instanceof Error && error.message
@@ -240,6 +244,11 @@ export function useAiFeatureGate() {
         void revenueCat
           .restorePurchases()
           .then(() => revenueCat.refresh())
+          .then((customerInfo) => {
+            if (customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT]) {
+              celebrateSubscription()
+            }
+          })
           .catch((error) => {
             const message =
               error instanceof Error && error.message

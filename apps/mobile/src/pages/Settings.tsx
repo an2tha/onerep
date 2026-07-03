@@ -41,6 +41,7 @@ import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { signOutApp, useAppAuth } from "@/lib/auth-client"
+import { celebrateSubscription } from "@/lib/subscription-celebration"
 import {
   clearOfflineQueue,
   flushOfflineQueue,
@@ -1486,7 +1487,16 @@ function RevenueCatSubscriptionPanel({
     hapticMedium()
     setAction(nextAction)
     try {
-      await task()
+      const result = await task()
+      const customerInfo =
+        result && typeof result === "object" && "entitlements" in result
+          ? (result as {
+              entitlements: { active: Record<string, unknown> }
+            })
+          : null
+      if (customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT]) {
+        celebrateSubscription()
+      }
       if (successMessage) toast.success(successMessage)
     } catch (error) {
       const message = revenueCatErrorMessage(
