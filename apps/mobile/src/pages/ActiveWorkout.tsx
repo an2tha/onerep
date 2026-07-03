@@ -5020,7 +5020,7 @@ export default function ActiveWorkout() {
   }
 
   return (
-    <div className="dark desktop-canvas min-h-svh bg-background md:px-8">
+    <div className="desktop-canvas min-h-svh bg-background md:px-8">
       <div className="mx-auto flex w-full max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
         <div className="workout-live-header sticky top-0 z-30 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:px-8">
           <div
