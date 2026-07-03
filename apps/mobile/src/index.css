@@ -395,6 +395,9 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-card,
   .motion-item,
   .motion-pop,
+  .motion-tactile,
+  .motion-tactile-subtle,
+  .motion-list-row,
   .motion-progress-fill,
   .motion-countdown-fill,
   .motion-set-complete,
@@ -1664,6 +1667,43 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
 
   .motion-pressable:active {
     transform: translateY(1px) scale(0.985);
+  }
+
+  .motion-tactile {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      border-color var(--motion-fast) var(--motion-ease-standard),
+      box-shadow var(--motion-fast) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+    will-change: transform;
+  }
+
+  .motion-tactile:active {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  .motion-tactile-subtle {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+    will-change: transform;
+  }
+
+  .motion-tactile-subtle:active {
+    transform: scale(0.992);
+  }
+
+  .motion-list-row {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      box-shadow var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-list-row:active {
+    transform: scale(0.996);
   }
 
   .motion-progress-fill {

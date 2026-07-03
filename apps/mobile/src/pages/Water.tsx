@@ -684,9 +684,12 @@ export default function Water() {
           {/* Date navigation */}
           <div className="flex items-center gap-1 pb-0.5">
             <button
-              onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
+              onClick={() => {
+                hapticSelection()
+                setDateKey((d) => offsetDateKey(d, -1))
+              }}
               aria-label="Previous day"
-              className="app-icon-button"
+              className="app-icon-button motion-tactile"
             >
               <CaretLeft size={13} weight="bold" />
             </button>
@@ -694,10 +697,13 @@ export default function Water() {
               {dateLabel}
             </span>
             <button
-              onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
+              onClick={() => {
+                hapticSelection()
+                setDateKey((d) => offsetDateKey(d, 1))
+              }}
               disabled={isToday}
               aria-label="Next day"
-              className="app-icon-button disabled:opacity-20"
+              className="app-icon-button motion-tactile disabled:opacity-20"
             >
               <CaretRight size={13} weight="bold" />
             </button>
@@ -722,7 +728,7 @@ export default function Water() {
             <p className="app-eyebrow mb-2.5 text-muted-foreground/55">
               Quick add
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5 md:gap-2">
               {QUICK_AMOUNTS.map(({ label, ml }) => (
                 <button
                   key={ml}
@@ -731,7 +737,7 @@ export default function Water() {
                   aria-busy={addingAmountMl === ml}
                   onClick={() => void addEntry(ml)}
                   className={cn(
-                    "min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50",
+                    "motion-tactile min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold disabled:opacity-50 short-phone:min-h-9 short-phone:px-3",
                     successAmountMl === ml && "motion-success-pop"
                   )}
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
@@ -742,7 +748,7 @@ export default function Water() {
               <button
                 onClick={() => setAddOpen(true)}
                 aria-label="Log custom water"
-                className="flex min-h-10 items-center gap-1 rounded-[9px] px-3.5 text-[12.5px] font-medium text-muted-foreground/60 ring-1 ring-border/50 active:bg-foreground/[0.05]"
+                className="motion-tactile flex min-h-10 items-center gap-1 rounded-[9px] px-3.5 text-[12.5px] font-medium text-muted-foreground/60 ring-1 ring-border/50 active:bg-foreground/[0.05] short-phone:min-h-9 short-phone:px-3"
               >
                 <Plus size={11} weight="bold" />
                 Custom
