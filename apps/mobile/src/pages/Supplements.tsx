@@ -439,7 +439,7 @@ function TodayRow({
   return (
     <div
       className={cn(
-        "app-surface px-3.5 py-3 short-phone:px-3",
+        "app-surface motion-list-row px-3.5 py-3 short-phone:px-3",
         recentlyLogged && "motion-success-pop"
       )}
     >
@@ -447,7 +447,7 @@ function TodayRow({
         <button
           type="button"
           onClick={onOpen}
-          className="app-icon-button h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
+          className="app-icon-button motion-tactile h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
           aria-label={`Open ${item.name}`}
         >
           <Pill size={16} weight="bold" />
@@ -457,7 +457,7 @@ function TodayRow({
             <button
               type="button"
               onClick={onOpen}
-              className="min-w-0 text-left"
+              className="motion-tactile-subtle min-w-0 text-left"
             >
               <p className="truncate text-[14px] leading-tight font-semibold">
                 {item.name}
@@ -507,7 +507,7 @@ function TodayRow({
               onClick={onTake}
               disabled={state === "taken" || taking}
               aria-busy={taking}
-              className="app-button app-button-primary min-h-10 disabled:opacity-45"
+              className="app-button app-button-primary motion-tactile min-h-10 disabled:opacity-45"
             >
               <Check size={12} weight="bold" />
               {taking ? "Logging..." : state === "taken" ? "Taken" : "Taken now"}
@@ -515,7 +515,7 @@ function TodayRow({
             <button
               type="button"
               onClick={onCustom}
-              className="app-icon-button h-10 w-10"
+              className="app-icon-button motion-tactile h-10 w-10"
               aria-label={`Custom log ${item.name}`}
             >
               <Plus size={12} weight="bold" />
@@ -526,7 +526,7 @@ function TodayRow({
               disabled={
                 !plan.isScheduled || state === "taken" || state === "skipped"
               }
-              className="app-icon-button h-10 w-10 disabled:opacity-25"
+              className="app-icon-button motion-tactile h-10 w-10 disabled:opacity-25"
               aria-label={`Mark ${item.name} skipped`}
             >
               <X size={10} weight="bold" />
@@ -565,11 +565,11 @@ function CatalogRow({
   ).length
 
   return (
-    <div className="flex items-center gap-3 border-b border-border/25 py-3 last:border-b-0">
+    <div className="motion-list-row flex items-center gap-3 border-b border-border/25 py-2.5 last:border-b-0 md:py-3">
       <button
         type="button"
         onClick={onOpen}
-        className="app-icon-button h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
+        className="app-icon-button motion-tactile h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
         aria-label={`Open ${item.name}`}
       >
         <Pill size={16} weight="bold" />
@@ -577,7 +577,7 @@ function CatalogRow({
       <button
         type="button"
         onClick={onOpen}
-        className="min-w-0 flex-1 text-left"
+        className="motion-tactile-subtle min-w-0 flex-1 text-left"
       >
         <p className="truncate text-[13.5px] font-semibold text-foreground/90">
           {item.name}
@@ -599,7 +599,7 @@ function CatalogRow({
           disabled={quickLogging}
           aria-busy={quickLogging}
           className={cn(
-            "app-icon-button h-9 w-9 disabled:opacity-45",
+            "app-icon-button motion-tactile h-9 w-9 disabled:opacity-45",
             recentlyLogged && "motion-success-pop"
           )}
           aria-label={`Log ${item.name}`}
@@ -613,7 +613,7 @@ function CatalogRow({
         <button
           type="button"
           onClick={onEdit}
-          className="app-icon-button h-9 w-9"
+          className="app-icon-button motion-tactile h-9 w-9"
           aria-label={`Edit ${item.name}`}
         >
           <PencilSimple size={12} weight="bold" />
@@ -2134,7 +2134,7 @@ export default function Supplements() {
                           disabled={bulkLogging}
                           aria-busy={bulkLogging}
                           className={cn(
-                            "app-button app-button-primary px-3 disabled:opacity-45",
+                            "app-button app-button-primary motion-tactile px-3 disabled:opacity-45",
                             bulkLoggedFeedback && "motion-success-pop"
                           )}
                           aria-label={`Log ${remainingScheduledCount} remaining scheduled supplement${
@@ -2151,7 +2151,7 @@ export default function Supplements() {
                           setTab("catalog")
                           setSheet({ kind: "edit" })
                         }}
-                        className="app-button app-button-secondary"
+                        className="app-button app-button-secondary motion-tactile"
                       >
                         <Plus size={11} weight="bold" />
                         Add

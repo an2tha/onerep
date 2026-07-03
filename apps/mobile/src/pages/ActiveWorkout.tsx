@@ -50,6 +50,7 @@ import {
   type RecentExerciseSearch,
 } from "@/lib/exercise-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { api } from "../../../../convex/_generated/api"
 import {
   calcPaceSecondsPerKm,
@@ -4999,6 +5000,7 @@ export default function ActiveWorkout() {
 
   function completeNextSet() {
     if (nextTarget?.kind !== "set") {
+      hapticSelection()
       if (totalSets > 0) setConfirmFinish(true)
       else setSearchOpen(true)
       return
@@ -5014,6 +5016,7 @@ export default function ActiveWorkout() {
         index === nextTarget.setIndex ? { ...set, completed: true } : set
       ),
     })
+    hapticMedium()
     if (!currentSet.completed && currentSet.restSeconds > 0) {
       rest.start(currentSet.restSeconds)
     }
@@ -5036,13 +5039,13 @@ export default function ActiveWorkout() {
               aria-label="Abort workout"
               title="Abort workout"
               onClick={() => setConfirmAbort(true)}
-              className="motion-pressable inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-0 text-[13px] font-bold text-muted-foreground transition-colors active:text-foreground md:min-w-0 md:px-1"
+              className="motion-tactile inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-0 text-[13px] font-bold text-muted-foreground active:text-foreground md:min-w-0 md:px-1"
             >
               <X size={22} weight="bold" className="md:hidden" />
               <span className="hidden md:inline">Abort</span>
             </button>
           </div>
-          <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pb-4">
+          <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pb-3 md:pb-4">
             <div className="min-w-0">
               <p className="mb-2 truncate text-[12px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
                 {uniqueExerciseIds.length > 0
@@ -5053,7 +5056,7 @@ export default function ActiveWorkout() {
                 {activeExerciseName}
               </h1>
             </div>
-            <aside className="min-w-[78px] rounded-[16px] border border-border bg-card p-2.5 text-center">
+            <aside className="min-w-[72px] rounded-[14px] border border-border bg-card p-2 text-center md:min-w-[78px] md:rounded-[16px] md:p-2.5">
               <span className="block text-[10px] font-extrabold tracking-[0.1em] text-muted-foreground uppercase">
                 Set
               </span>
@@ -5062,7 +5065,7 @@ export default function ActiveWorkout() {
               </b>
             </aside>
           </section>
-          <section className="mb-3 grid grid-cols-[1fr_auto] items-center gap-4 rounded-[22px] border border-border bg-card p-4">
+          <section className="mb-3 grid grid-cols-[1fr_auto] items-center gap-3 rounded-[18px] border border-border bg-card p-3.5 md:gap-4 md:rounded-[22px] md:p-4">
             <div className="min-w-0">
               <p className="text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
                 {rest.remaining !== null ? "Rest remaining" : "Elapsed"}
@@ -5074,14 +5077,14 @@ export default function ActiveWorkout() {
             {rest.remaining !== null ? (
               <button
                 onClick={rest.dismiss}
-                className="min-h-11 rounded-[14px] bg-muted px-4 text-[13px] font-extrabold"
+                className="motion-tactile min-h-11 rounded-[14px] bg-muted px-4 text-[13px] font-extrabold"
               >
                 Skip
               </button>
             ) : (
               <button
                 onClick={completeNextSet}
-                className="min-h-11 rounded-[14px] bg-primary px-4 text-[13px] font-extrabold text-primary-foreground"
+                className="motion-tactile min-h-11 rounded-[14px] bg-primary px-4 text-[13px] font-extrabold text-primary-foreground"
               >
                 {nextTarget?.kind === "set"
                   ? `Complete set ${activeSetNumber}`
@@ -5127,7 +5130,7 @@ export default function ActiveWorkout() {
                 <button
                   type="button"
                   onClick={() => syncToConvex({ immediate: true })}
-                  className="min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[11px] font-extrabold text-destructive"
+                  className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[11px] font-extrabold text-destructive"
                   aria-label="Retry active workout sync"
                 >
                   Retry
@@ -5139,7 +5142,7 @@ export default function ActiveWorkout() {
                     key={u}
                     onClick={() => setUnit(u)}
                     className={cn(
-                      "min-w-12 px-3 transition-all duration-150",
+                      "motion-tactile min-w-12 px-3",
                       unit === u
                         ? "bg-foreground text-background shadow-sm"
                         : "text-muted-foreground/65 active:bg-muted/60 active:text-foreground"

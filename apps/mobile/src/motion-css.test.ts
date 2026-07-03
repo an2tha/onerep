@@ -14,11 +14,15 @@ describe("app motion CSS", () => {
       ".motion-item {\n    animation-name: motion-page-settle"
     )
     expect(css).toContain(".motion-pop {\n    animation-name: motion-pop")
+    expect(css).toContain(".motion-tactile {\n    transition:")
+    expect(css).toContain(".motion-list-row {\n    transition:")
     expect(css).toContain(".motion-success-pop {\n    animation: success-pop")
   })
 
   test("keeps reduced-motion overrides authoritative", () => {
     expect(css).toContain("@media (prefers-reduced-motion: reduce)")
+    expect(css).toContain(".motion-tactile,")
+    expect(css).toContain(".motion-list-row,")
     expect(css).toContain("animation: none !important;")
     expect(css).toContain("transition: none !important;")
   })

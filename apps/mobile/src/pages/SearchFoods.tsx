@@ -301,6 +301,7 @@ export default function SearchFoods() {
   }
 
   function runSuggestedSearch(nextQuery: string) {
+    hapticSelection()
     setQuery(nextQuery)
     setDebouncedQuery("")
     setSearchResults([])
@@ -321,7 +322,7 @@ export default function SearchFoods() {
             <button
               onClick={() => navigate(-1)}
               aria-label="Go back"
-              className="app-icon-button"
+              className="app-icon-button motion-tactile"
             >
               <ArrowLeft size={15} weight="bold" />
             </button>
@@ -433,7 +434,7 @@ export default function SearchFoods() {
                         <button
                           type="button"
                           onClick={() => openFoodReview(item)}
-                          className="flex min-w-0 flex-1 items-center gap-3 text-left transition-colors active:bg-muted/30"
+                          className="motion-list-row flex min-w-0 flex-1 items-center gap-3 text-left active:bg-muted/30"
                         >
                           <CalorieBadge calories={Number(item.calories)} />
 
@@ -488,7 +489,7 @@ export default function SearchFoods() {
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
                           className={cn(
-                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 transition-all active:scale-[0.985] disabled:opacity-60",
+                            "motion-tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 disabled:opacity-60",
                             isAdded && "motion-success-pop"
                           )}
                         >
@@ -576,7 +577,7 @@ function SearchSuggestionGroup({
             key={suggestion}
             type="button"
             onClick={() => onSelect(suggestion)}
-            className="min-h-10 rounded-xl bg-muted/55 px-3.5 text-[12.5px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted"
+            className="motion-tactile min-h-10 rounded-xl bg-muted/55 px-3.5 text-[12.5px] font-semibold text-foreground/75 active:bg-muted"
           >
             {suggestion}
           </button>

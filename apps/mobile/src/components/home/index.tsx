@@ -57,7 +57,7 @@ function MacroMeter({ macro }: { macro: MacroProgress }) {
       </div>
       <div className="h-[5px] overflow-hidden rounded-full bg-foreground/[0.06]">
         <div
-          className="h-full rounded-full"
+          className="motion-progress-fill h-full rounded-full"
           style={{
             width: `${progress}%`,
             backgroundColor: over ? "var(--status-danger)" : macro.color,
@@ -119,7 +119,7 @@ export function DailyLedgerHero({
 
   return (
     <section className="home-dashboard-card motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
-      <div className="p-4 md:p-4 short-phone:p-3.5">
+      <div className="p-3.5 md:p-4 short-phone:p-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="app-eyebrow home-ledger-eyebrow">Daily budget</p>
@@ -137,7 +137,7 @@ export function DailyLedgerHero({
           <button
             type="button"
             onClick={food.onClick}
-            className="app-button app-button-quiet home-ledger-log-button shrink-0"
+            className="app-button app-button-quiet motion-tactile home-ledger-log-button shrink-0"
           >
             {food.label}
           </button>
@@ -145,7 +145,7 @@ export function DailyLedgerHero({
 
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/[0.065]">
           <div
-            className="h-full rounded-full"
+            className="motion-progress-fill h-full rounded-full"
             style={{
               width: `${caloriesPct}%`,
               backgroundColor: overTarget
@@ -161,18 +161,18 @@ export function DailyLedgerHero({
         </div>
 
         {macros.length > 0 && (
-          <div className="mt-3 grid grid-cols-3 gap-2.5">
+          <div className="mt-3 grid grid-cols-3 gap-2 short-phone:gap-1.5">
             {macros.map((macro) => (
               <MacroMeter key={macro.label} macro={macro} />
             ))}
           </div>
         )}
 
-        <div className="mt-4 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-2">
           <button
             type="button"
             onClick={water.onClick}
-            className="rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left transition-colors active:bg-foreground/[0.08]"
+            className="motion-tactile rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left active:bg-foreground/[0.08]"
           >
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
               <PintGlass size={13} weight="bold" /> Water
@@ -188,7 +188,7 @@ export function DailyLedgerHero({
           <button
             type="button"
             onClick={workout.onClick}
-            className="rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left transition-colors active:bg-foreground/[0.08]"
+            className="motion-tactile rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left active:bg-foreground/[0.08]"
           >
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
               <Barbell size={13} weight="bold" /> Workout
@@ -247,14 +247,14 @@ export function TodayTimeline({
   onDeleteEvent?: (event: TimelineEvent) => void
 }) {
   return (
-    <section className="mx-[var(--app-page-x)] mt-6 md:mx-8 short-phone:mt-4">
+    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
       <SectionHeader
         title="Today’s ledger"
         action={
           <button
             type="button"
             onClick={onLogFood}
-            className="app-button app-button-quiet"
+            className="app-button app-button-quiet motion-tactile"
           >
             Full log
           </button>
@@ -268,7 +268,7 @@ export function TodayTimeline({
         {events.length > 0 ? (
           events.slice(0, 6).map((event, index) => {
             const rowClassName = cn(
-              "flex min-h-[3.55rem] items-center justify-between gap-3 bg-card px-4 py-3",
+              "motion-list-row flex min-h-[3.35rem] items-center justify-between gap-3 bg-card px-3.5 py-2.5 md:min-h-[3.55rem] md:px-4 md:py-3",
               index > 0 && "border-t border-border/40"
             )
             const content = (
@@ -323,7 +323,7 @@ export function TodayTimeline({
                 <button
                   type="button"
                   onClick={onLogFood}
-                  className="app-button h-9 bg-foreground text-background"
+                  className="app-button motion-tactile h-9 bg-foreground text-background"
                 >
                   Log food
                 </button>
@@ -331,7 +331,7 @@ export function TodayTimeline({
                   <button
                     type="button"
                     onClick={onLogWater}
-                    className="app-button app-button-quiet h-9"
+                    className="app-button app-button-quiet motion-tactile h-9"
                   >
                     + Water
                   </button>
@@ -355,7 +355,7 @@ export function InsightWidgets({
   onToggleEdit: () => void
 }) {
   return (
-    <section className="mx-[var(--app-page-x)] mt-6 md:mx-8 short-phone:mt-4">
+    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
       <div className="motion-item app-section-header">
         <div className="min-w-0">
           <h2 className="app-section-title">Stats preview</h2>
