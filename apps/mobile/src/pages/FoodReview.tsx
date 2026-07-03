@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
@@ -8,10 +8,12 @@ import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { getFoodDetail } from "@/lib/openfoodfacts"
-import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
   currentDateKey,
-  foodLogEntryFromFoodResult,
+  defaultMeal,
+  detectTimeZone,
+  foodPortionLabel,
+  stripUndefined,
   type FoodPortion,
   type LogMicros,
 } from "@/lib/food-log"
@@ -31,14 +33,12 @@ export default function FoodReview() {
   const [loading, setLoading] = useState(!stateItem)
   const [failed, setFailed] = useState(false)
   const [added, setAdded] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const savingRef = useRef(false)
 
-  const date = currentDateKey()
-  const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
-  const setDay = useOfflineMutation(
-    api.logs.foodLogs.setDay,
-    "logs.foodLogs.setDay"
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const date = currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const addFoodEntry = useOfflineMutation(
+    api.logs.foodLogs.addEntry,
+    "logs.foodLogs.addEntry"
   )
 
   useEffect(() => {
@@ -82,43 +82,51 @@ export default function FoodReview() {
     food: FoodResult,
     grams = 100,
     micros: LogMicros = {},
-    meal = "breakfast",
+    meal = defaultMeal(),
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
-    if (savingRef.current || added) return
-    savingRef.current = true
-    setSaving(true)
-    const entry = foodLogEntryFromFoodResult(food, {
-      grams,
-      micros,
+    const factor = grams / 100
+    const round = (value: number) => Math.round(value * factor * 10) / 10
+    const product = detail?.openFoodFacts ?? food.openFoodFacts
+    const entry = stripUndefined({
+      id: Math.random().toString(36).slice(2),
+      name:
+        grams === 100 && !portion
+          ? food.name
+          : `${food.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
+      calories: Math.round(Number(food.calories) * factor),
+      protein: round(Number(food.protein)),
+      carbs: round(Number(food.carbs)),
+      fat: round(Number(food.fat)),
+      loggedAt: new Date().toISOString(),
       meal,
-      detail,
-      portion,
+      source: "openfoodfacts" as const,
+      foodCode: food.code,
+      quantityGrams: grams,
+      servingGrams: detail?.servingGrams ?? undefined,
+      servingLabel: detail?.servingLabel ?? food.serving,
+      imageUrl: detail?.imageUrl ?? food.imageUrl,
+      openFoodFacts: product,
+      ...micros,
     })
 
-    try {
-      await setDay({ date, entries: [...(foodLogs ?? []), entry] })
-      posthog.capture("food_logged", {
-        food_name: food.name,
-        calories: entry.calories,
-        grams,
-        meal,
-        source: "search_review_page",
-      })
+    await addFoodEntry({ date, entry })
+    posthog.capture("food_logged", {
+      food_name: food.name,
+      calories: Math.round(Number(food.calories) * factor),
+      grams,
+      meal,
+      source: "search_review_page",
+    })
 
-      setAdded(true)
-      window.setTimeout(() => navigate(-1), 650)
-    } catch (error) {
-      savingRef.current = false
-      setSaving(false)
-      reportOfflineMutationError(error)
-    }
+    setAdded(true)
+    window.setTimeout(() => navigate(-1), 650)
   }
 
   if (loading || failed || !item) {
     return (
-      <main className="desktop-canvas min-h-svh bg-background px-4 text-foreground">
+      <main className="desktop-canvas min-h-svh bg-background px-[var(--app-page-x)] text-foreground">
         <section className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center py-[var(--app-safe-bottom-lg)]">
           <div className="app-surface p-5 text-center">
             {loading ? (
@@ -155,7 +163,6 @@ export default function FoodReview() {
     <FoodDetailSheet
       item={item}
       added={added}
-      saving={saving}
       presentation="page"
       onAdd={(food, grams, micros, meal, detail, portion) => {
         void handleAdd(food, grams, micros, meal, detail, portion)

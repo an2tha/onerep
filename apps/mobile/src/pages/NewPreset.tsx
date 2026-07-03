@@ -51,6 +51,7 @@ import {
   EXERCISE_CATEGORY_COLORS,
   SET_TYPE_TONES,
 } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1631,6 +1632,7 @@ export default function NewPreset() {
   const { id: presetId } = useParams<{ id?: string }>()
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
 
   const presets = useQuery(api.logs.presets.list, {})
   const createPreset = useOfflineMutation(
@@ -1784,6 +1786,7 @@ export default function NewPreset() {
   }
 
   async function handleGenerateFromText(text: string, mode: AgentPresetMode) {
+    if (!requireAiAccess()) return
     if (!text.trim()) return
     if (generatingPresetRef.current || generatingPreset) return
 
@@ -2194,10 +2197,10 @@ export default function NewPreset() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background">
-      <div className="mx-auto max-w-lg pb-20 md:max-w-3xl md:pb-10">
+      <div className="mx-auto w-full max-w-lg pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-3xl md:pb-10">
         {/* ── Navigation bar ──────────────────────────── */}
         <div
-          className="flex items-center px-5 md:px-8"
+          className="flex items-center px-[var(--app-page-x)] md:px-8"
           style={{
             paddingTop: "max(3.25rem, env(safe-area-inset-top, 3.25rem))",
             paddingBottom: "0.75rem",
@@ -2230,7 +2233,7 @@ export default function NewPreset() {
         </div>
 
         {/* ── Hero: Preset name ────────────────────────── */}
-        <div className="px-5 pt-2 pb-5 md:px-8">
+        <div className="px-[var(--app-page-x)] pt-3 pb-6 md:px-8">
           <input
             name="preset-name"
             aria-label="Preset name"
@@ -2270,7 +2273,7 @@ export default function NewPreset() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-4 md:px-8">
+        <div className="flex flex-col gap-4 px-[var(--app-page-x)] md:px-8">
           {/* ── Exercise list ──────────────────────────── */}
           {items.length > 0 && (
             <div className="flex flex-col gap-3">
@@ -2328,7 +2331,9 @@ export default function NewPreset() {
 
           {/* ── Paste workout text button ───────────────── */}
           <button
-            onClick={() => setPasteOpen(true)}
+            onClick={() => {
+              if (requireAiAccess()) setPasteOpen(true)
+            }}
             disabled={loadingPreset || generatingPreset}
             aria-busy={generatingPreset}
             className="app-empty flex min-h-14 w-full items-center gap-3 border-dashed border-border/60 bg-transparent transition-all active:scale-[0.985] active:bg-muted/20 disabled:opacity-45"
@@ -2456,6 +2461,8 @@ export default function NewPreset() {
           </div>
         </div>
       )}
+
+      {aiAccessModal}
     </div>
   )
 }
