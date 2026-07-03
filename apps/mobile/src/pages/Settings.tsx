@@ -39,6 +39,7 @@ import {
 import { toast } from "sonner"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
+import { SwipeToStart } from "@/components/swipe-to-start"
 import { signOutApp, useAppAuth } from "@/lib/auth-client"
 import {
   clearOfflineQueue,
@@ -1723,16 +1724,31 @@ function RevenueCatManagementDialog({
 
           <div className="mt-4 grid gap-2">
             {managementUrl ? (
-              <button
-                type="button"
-                onClick={() => {
-                  window.open(managementUrl, "_blank", "noopener,noreferrer")
-                }}
-                className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
-              >
-                Open billing portal
-                <ArrowSquareOut size={15} weight="bold" />
-              </button>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.open(managementUrl, "_blank", "noopener,noreferrer")
+                  }}
+                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
+                >
+                  Open billing portal
+                  <ArrowSquareOut size={15} weight="bold" />
+                </button>
+                {active && (
+                  <SwipeToStart
+                    label="Slide to cancel"
+                    variant="danger"
+                    onComplete={() => {
+                      window.open(
+                        managementUrl,
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }}
+                  />
+                )}
+              </div>
             ) : active ? (
               <p className="rounded-[12px] bg-muted/55 px-3 py-2 text-center text-[11.5px] font-medium text-muted-foreground/68">
                 Billing is active. Portal access will appear here when the
