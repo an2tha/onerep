@@ -16,6 +16,7 @@ import { api } from "../../../../convex/_generated/api"
 import { currentDateKey, offsetDateKey } from "@/lib/food-log"
 import { APP_ACCENT_COLORS, tint } from "@/lib/design-tokens"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { hapticSelection } from "@/lib/haptics"
 import {
   fmtMl,
   readRecentWaterAmounts,
@@ -23,6 +24,7 @@ import {
   validateCustomWaterAmount,
   visibleRecentWaterAmounts,
 } from "@/lib/water-amounts"
+import { cn } from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -493,6 +495,7 @@ export default function Water() {
   const [goalOpen, setGoalOpen] = useState(false)
   const [addingAmountMl, setAddingAmountMl] = useState<number | null>(null)
   const [savingGoal, setSavingGoal] = useState(false)
+  const [successAmountMl, setSuccessAmountMl] = useState<number | null>(null)
   useBottomBarAction(() => setAddOpen(true))
 
   const rawEntries = useQuery(api.logs.water.getDay, { date: dateKey })
@@ -606,6 +609,9 @@ export default function Water() {
       if (pendingDeletedIdsRef.current.has(entry.id)) {
         void persistDelete(date, entry.id)
       }
+      hapticSelection()
+      setSuccessAmountMl(amountMl)
+      window.setTimeout(() => setSuccessAmountMl(null), 520)
       return true
     } catch {
       // Remove the optimistic entry on error
@@ -724,7 +730,10 @@ export default function Water() {
                   aria-label={`Log ${label} water`}
                   aria-busy={addingAmountMl === ml}
                   onClick={() => void addEntry(ml)}
-                  className="min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50"
+                  className={cn(
+                    "min-h-10 rounded-[9px] px-3.5 text-[12.5px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50",
+                    successAmountMl === ml && "motion-success-pop"
+                  )}
                   style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
                 >
                   {addingAmountMl === ml ? "..." : label}

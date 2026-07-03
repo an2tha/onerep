@@ -398,6 +398,7 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-progress-fill,
   .motion-countdown-fill,
   .motion-set-complete,
+  .motion-success-pop,
   [data-slot="card"],
   .scan-line,
   .animate-in,
@@ -632,6 +633,24 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     transform: scale(1.028);
     box-shadow: 0 0 0 5px
       color-mix(in srgb, var(--status-complete) 14%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--status-complete) 0%, transparent);
+  }
+}
+
+@keyframes success-pop {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--status-complete) 0%, transparent);
+  }
+  35% {
+    transform: scale(1.035);
+    box-shadow: 0 0 0 6px
+      color-mix(in srgb, var(--status-complete) 16%, transparent);
   }
   100% {
     transform: scale(1);
@@ -1671,6 +1690,10 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
 
   .motion-set-complete {
     animation: set-complete 420ms var(--motion-ease-emphasized) both;
+  }
+
+  .motion-success-pop {
+    animation: success-pop 420ms var(--motion-ease-emphasized) both;
   }
 
   @media (max-width: 767px) {

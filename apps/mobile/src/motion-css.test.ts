@@ -14,6 +14,7 @@ describe("app motion CSS", () => {
       ".motion-item {\n    animation-name: motion-page-settle"
     )
     expect(css).toContain(".motion-pop {\n    animation-name: motion-pop")
+    expect(css).toContain(".motion-success-pop {\n    animation: success-pop")
   })
 
   test("keeps reduced-motion overrides authoritative", () => {
