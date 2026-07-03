@@ -1471,7 +1471,7 @@ function RevenueCatSubscriptionPanel({
     "purchase" | "restore" | "refresh" | null
   >(null)
   const [managementOpen, setManagementOpen] = useState(false)
-  const active = revenueCat.hasOneRepPro
+  const active = Boolean(revenueCat.subscriptionManagementUrl)
   const loading = revenueCat.status === "loading"
   const unsupported = revenueCat.status === "unsupported"
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
@@ -1635,7 +1635,7 @@ function RevenueCatManagementDialog({
     successMessage?: string
   ) => Promise<void>
 }) {
-  const active = revenueCat.hasOneRepPro
+  const active = Boolean(revenueCat.subscriptionManagementUrl)
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
   const managementUrl = revenueCat.subscriptionManagementUrl
 
@@ -1696,7 +1696,7 @@ function RevenueCatManagementDialog({
             <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
               {active
                 ? "AI features are unlocked on this account."
-                : "Upgrade to unlock the optional AI features."}
+                : "No active subscription was found for this account."}
             </p>
           </div>
 
@@ -1712,7 +1712,7 @@ function RevenueCatManagementDialog({
             <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
               {managementUrl
                 ? "Open the billing portal to change or cancel your subscription."
-                : "Use restore or refresh if you changed your subscription outside the app."}
+                : "Subscribe to unlock Pro, or restore if you purchased with this account."}
             </p>
           </div>
 
@@ -1749,11 +1749,6 @@ function RevenueCatManagementDialog({
                   />
                 )}
               </div>
-            ) : active ? (
-              <p className="rounded-[12px] bg-muted/55 px-3 py-2 text-center text-[11.5px] font-medium text-muted-foreground/68">
-                Billing is active. Portal access will appear here when the
-                store provides it.
-              </p>
             ) : (
               <button
                 type="button"
