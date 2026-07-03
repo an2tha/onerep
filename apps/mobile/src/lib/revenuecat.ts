@@ -115,6 +115,32 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
   return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
 }
 
+function createWebPaywallHost() {
+  const overlay = document.createElement("div")
+  overlay.className = "onerep-revenuecat-paywall-overlay"
+  overlay.setAttribute("role", "dialog")
+  overlay.setAttribute("aria-modal", "true")
+
+  const panel = document.createElement("div")
+  panel.className = "onerep-revenuecat-paywall-panel"
+
+  const target = document.createElement("div")
+  target.className = "onerep-revenuecat-paywall-target"
+
+  panel.appendChild(target)
+  overlay.appendChild(panel)
+  document.body.appendChild(overlay)
+  document.body.style.overflow = "hidden"
+
+  return {
+    target,
+    remove() {
+      overlay.remove()
+      document.body.style.overflow = ""
+    },
+  }
+}
+
 async function configureRevenueCat(appUserId: string) {
   if (configuredAppUserId === appUserId && configurePromise) {
     await configurePromise
@@ -365,18 +391,28 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
 
     const purchases = webPurchasesRef.current
     if (!purchases) throw new Error("Paywall is not ready yet")
-    const result = await purchases.presentPaywall({
-      offering: (state.currentOffering as WebOffering | null) ?? undefined,
-      customerEmail: options.email ?? undefined,
-    })
-    setState((current) => ({
-      ...current,
-      customerInfo: result.customerInfo,
-      error: null,
-      status: "ready",
-    }))
-    await refresh()
-    return result
+    const host = createWebPaywallHost()
+    try {
+      const result = await purchases.presentPaywall({
+        offering: (state.currentOffering as WebOffering | null) ?? undefined,
+        customerEmail: options.email ?? undefined,
+        htmlTarget: host.target,
+        purchaseHtmlTarget: host.target,
+        onBack: (closePaywall) => {
+          closePaywall()
+        },
+      })
+      setState((current) => ({
+        ...current,
+        customerInfo: result.customerInfo,
+        error: null,
+        status: "ready",
+      }))
+      await refresh()
+      return result
+    } finally {
+      host.remove()
+    }
   }, [isNative, options.email, refresh, state.currentOffering])
 
   const presentCustomerCenter = useCallback(async () => {
