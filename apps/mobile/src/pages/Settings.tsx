@@ -1670,25 +1670,17 @@ function RevenueCatManagementDialog({
             OneRep Pro
           </h2>
           <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground/68">
-            Manage your Pro access for AI food analysis, workout generation,
-            and progress insights.
+            Your Pro access covers AI food analysis, workout generation, and
+            progress insights.
           </p>
         </div>
 
         <div className="px-5 py-4">
-          <div className="rounded-[16px] border border-border/45 bg-background/45 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[13px] font-bold text-foreground/88">
-                  Status
-                </p>
-                <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground/62">
-                  Entitlement: {ONEREP_PRO_ENTITLEMENT}
-                </p>
-                <p className="mt-0.5 text-[11.5px] leading-snug text-muted-foreground/62">
-                  Package: {MONTHLY_PACKAGE_IDENTIFIER}
-                </p>
-              </div>
+          <div className="rounded-[16px] border border-border/45 bg-background/45 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-bold text-foreground/88">
+                {active ? "Pro is active" : "Pro is inactive"}
+              </p>
               <span
                 className={cn(
                   "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
@@ -1700,9 +1692,14 @@ function RevenueCatManagementDialog({
                 {active ? "Active" : "Inactive"}
               </span>
             </div>
+            <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
+              {active
+                ? "AI features are unlocked on this account."
+                : "Upgrade to unlock the optional AI features."}
+            </p>
           </div>
 
-          <div className="mt-3 rounded-[16px] border border-border/45 bg-background/45 p-3">
+          <div className="mt-3 rounded-[16px] border border-border/45 bg-background/45 p-4">
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[13px] font-bold text-foreground/88">
                 Monthly plan
@@ -1711,10 +1708,10 @@ function RevenueCatManagementDialog({
                 {monthlyPrice}
               </p>
             </div>
-            <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground/62">
-              RevenueCat returns an external management link only after the
-              store creates one for the active subscription. Until then, use
-              restore and refresh here.
+            <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
+              {managementUrl
+                ? "Open the billing portal to change or cancel your subscription."
+                : "Use restore or refresh if you changed your subscription outside the app."}
             </p>
           </div>
 
@@ -1737,8 +1734,9 @@ function RevenueCatManagementDialog({
                 <ArrowSquareOut size={15} weight="bold" />
               </button>
             ) : active ? (
-              <p className="rounded-[12px] bg-muted/60 px-3 py-2 text-center text-[11.5px] font-medium text-muted-foreground/68">
-                Billing portal link is not available yet for this subscription.
+              <p className="rounded-[12px] bg-muted/55 px-3 py-2 text-center text-[11.5px] font-medium text-muted-foreground/68">
+                Billing is active. Portal access will appear here when the
+                store provides it.
               </p>
             ) : (
               <button
