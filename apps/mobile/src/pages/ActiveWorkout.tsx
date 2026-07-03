@@ -3024,10 +3024,10 @@ function ActiveExerciseCard({
                       : "Add bar weight"
                   }
                   className={cn(
-                    "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[10px] font-bold tracking-[0.08em] uppercase transition-colors md:flex-none",
+                    "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[10.5px] font-bold tracking-[0.12em] uppercase transition-colors md:flex-none",
                     hasBarWeight
-                      ? "border-border/50 bg-muted/55 text-foreground/75"
-                      : "border-border/35 bg-transparent text-muted-foreground/65 active:bg-muted/35"
+                      ? "border-foreground/10 bg-foreground text-background"
+                      : "border-border/45 bg-muted/20 text-muted-foreground/70 active:bg-muted/50"
                   )}
                 >
                   <Barbell size={13} weight="bold" />
@@ -3035,7 +3035,7 @@ function ActiveExerciseCard({
                     {barLabel}
                   </span>
                   {hasBarWeight && (
-                    <span className="hidden max-w-20 truncate text-[10px] tracking-normal opacity-60 sm:inline">
+                    <span className="hidden max-w-20 truncate text-[10px] tracking-normal opacity-70 sm:inline">
                       {barModeLabel}
                     </span>
                   )}
