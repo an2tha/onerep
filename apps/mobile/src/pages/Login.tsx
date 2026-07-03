@@ -5,11 +5,13 @@ import {
   type FormEvent,
 } from "react"
 import { useSearchParams } from "react-router"
-import { useAuth, useSignIn, useSignUp } from "@clerk/react"
 import { AppleLogo, Eye, EyeSlash, GoogleLogo } from "@phosphor-icons/react"
-import { getAuthCallbackUrl } from "@/lib/auth-redirects"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
-import { isAlreadySignedInError } from "@/lib/clerk-errors"
+import {
+  authClient,
+  betterAuthErrorMessage,
+  useAppAuth,
+} from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
@@ -26,14 +28,15 @@ const INPUT_CLASS =
 const CODE_INPUT_CLASS =
   "mt-2 min-h-10 w-full bg-transparent text-[22px] font-semibold text-foreground outline-none placeholder:text-muted-foreground/25 disabled:opacity-60"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const SSO_CALLBACK_PATH = "/sso-callback"
+const AUTH_ACTION_TIMEOUT_MS = 20_000
 
 const OAUTH_PROVIDERS: {
   label: string
   strategy: OAuthStrategy
   icon: typeof GoogleLogo
+  disabled?: boolean
 }[] = [
-  { label: "Google", strategy: "oauth_google", icon: GoogleLogo },
+  { label: "Google", strategy: "oauth_google", icon: GoogleLogo, disabled: true },
   { label: "Apple", strategy: "oauth_apple", icon: AppleLogo },
 ]
 
@@ -55,23 +58,25 @@ const INTRO_SLIDES = [
   },
 ]
 
-function clerkErrorMessage(error: unknown, fallback: string) {
-  if (!error) return fallback
-  if (typeof error === "object" && error !== null) {
-    const maybeError = error as {
-      longMessage?: unknown
-      message?: unknown
-      errors?: { longMessage?: unknown; message?: unknown }[]
-    }
-    const nested = maybeError.errors?.[0]
-    const message =
-      nested?.longMessage ??
-      nested?.message ??
-      maybeError.longMessage ??
-      maybeError.message
-    if (typeof message === "string" && message.length > 0) return message
+function authActionTimeoutMessage(label: string) {
+  return `${label} is taking too long. Check your connection and try again.`
+}
+
+async function withAuthActionTimeout<T>(label: string, action: Promise<T>) {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      action,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error(authActionTimeoutMessage(label)))
+        }, AUTH_ACTION_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
   }
-  return fallback
 }
 
 function IntroIllustration({ index }: { index: number }) {
@@ -146,9 +151,7 @@ export default function Login() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const posthog = usePostHog()
-  const { isLoaded: authLoaded, isSignedIn } = useAuth()
-  const { signIn } = useSignIn()
-  const { signUp } = useSignUp()
+  const { isLoaded: authLoaded, isSignedIn } = useAppAuth()
   const requestedMode =
     searchParams.get("mode") === "signup" ? "signup" : "signin"
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
@@ -188,12 +191,6 @@ export default function Login() {
     return true
   }
 
-  function redirectIfAlreadySignedIn(error: unknown) {
-    if (!isAlreadySignedInError(error)) return false
-    navigate(nextPath, { replace: true })
-    return true
-  }
-
   function switchMode(nextMode: LoginMode) {
     setMode(nextMode)
     setError(undefined)
@@ -202,8 +199,6 @@ export default function Login() {
     setVerificationMode(null)
     setPendingEmail("")
     setShowPassword(false)
-    void signIn?.reset()
-    void signUp?.reset()
   }
 
   function finishIntro(nextMode: LoginMode) {
@@ -241,11 +236,6 @@ export default function Login() {
 
     const provider = OAUTH_PROVIDERS.find((item) => item.strategy === strategy)
     const providerLabel = provider?.label ?? "OAuth"
-    const finalPath = mode === "signup" ? "/onboarding" : nextPath
-    const callbackPath =
-      mode === "signup"
-        ? `${SSO_CALLBACK_PATH}?next=onboarding`
-        : `${SSO_CALLBACK_PATH}?next=${encodeURIComponent(nextPath)}`
 
     authActionRef.current = true
     setError(undefined)
@@ -257,32 +247,12 @@ export default function Login() {
     setOauthLoading(strategy)
 
     try {
-      const result =
-        mode === "signup"
-          ? await signUp.sso({
-              strategy,
-              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
-              redirectUrl: getAuthCallbackUrl(finalPath),
-            })
-          : await signIn.sso({
-              strategy,
-              redirectCallbackUrl: getAuthCallbackUrl(callbackPath),
-              redirectUrl: getAuthCallbackUrl(finalPath),
-            })
-
-      if (result.error) {
-        if (redirectIfAlreadySignedIn(result.error)) return
-        setError(
-          clerkErrorMessage(
-            result.error,
-            `Could not continue with ${providerLabel}`
-          )
-        )
-      }
-    } catch (error) {
-      if (redirectIfAlreadySignedIn(error)) return
       setError(
-        clerkErrorMessage(error, `Could not continue with ${providerLabel}`)
+        `${providerLabel} sign-in is not configured in Better Auth yet. Use email and password for now.`
+      )
+    } catch (error) {
+      setError(
+        betterAuthErrorMessage(error, `Could not continue with ${providerLabel}`)
       )
     } finally {
       authActionRef.current = false
@@ -313,85 +283,48 @@ export default function Login() {
 
     try {
       if (mode === "signin") {
-        const { error } = await signIn.password({
-          identifier: trimmedEmail,
-          password,
-        })
+        const { error } = await withAuthActionTimeout(
+          "Sign in",
+          authClient.signIn.email({
+            email: trimmedEmail,
+            password,
+            rememberMe: true,
+          })
+        )
         if (error) {
-          if (redirectIfAlreadySignedIn(error)) return
-          setError(clerkErrorMessage(error, "Sign in failed"))
+          setError(betterAuthErrorMessage(error, "Sign in failed"))
           return
         }
 
-        if (signIn.status === "complete") {
-          const finalized = await signIn.finalize()
-          if (finalized.error) {
-            if (redirectIfAlreadySignedIn(finalized.error)) return
-            setError(clerkErrorMessage(finalized.error, "Sign in failed"))
-            return
-          }
-          posthog.identify(trimmedEmail, { email: trimmedEmail })
-          posthog.capture("user_signed_in", { method: "email" })
-          navigate(nextPath, { replace: true })
-          return
-        }
-
-        if (
-          signIn.status === "needs_second_factor" ||
-          signIn.status === "needs_client_trust"
-        ) {
-          const sent = await signIn.mfa.sendEmailCode()
-          if (sent.error) {
-            setError(clerkErrorMessage(sent.error, "Could not send code"))
-            return
-          }
-          setPendingEmail(trimmedEmail)
-          setVerificationMode("signin")
-          return
-        }
-
-        setError("Sign in needs another verification step.")
+        posthog.identify(trimmedEmail, { email: trimmedEmail })
+        posthog.capture("user_signed_in", { method: "email" })
+        navigate(nextPath, { replace: true })
         return
       } else {
         const displayName = name.trim() || trimmedEmail.split("@")[0]
-        const [firstName, ...restName] = displayName.split(/\s+/)
-        const { error } = await signUp.password({
-          emailAddress: trimmedEmail,
-          password,
-          firstName,
-          ...(restName.length > 0 ? { lastName: restName.join(" ") } : {}),
-        })
-        if (error) {
-          if (redirectIfAlreadySignedIn(error)) return
-          setError(clerkErrorMessage(error, "Sign up failed"))
-          return
-        }
-
-        if (signUp.status === "complete") {
-          const finalized = await signUp.finalize()
-          if (finalized.error) {
-            if (redirectIfAlreadySignedIn(finalized.error)) return
-            setError(clerkErrorMessage(finalized.error, "Sign up failed"))
-            return
-          }
-          posthog.identify(trimmedEmail, {
-            email: trimmedEmail,
+        const { error } = await withAuthActionTimeout(
+          "Sign up",
+          authClient.signUp.email({
             name: displayName,
+            email: trimmedEmail,
+            password,
           })
-          posthog.capture("user_signed_up", { method: "email" })
-          navigate("/onboarding", { replace: true })
+        )
+        if (error) {
+          setError(betterAuthErrorMessage(error, "Sign up failed"))
           return
         }
 
-        const sent = await signUp.verifications.sendEmailCode()
-        if (sent.error) {
-          setError(clerkErrorMessage(sent.error, "Could not send code"))
-          return
-        }
-        setPendingEmail(trimmedEmail)
-        setVerificationMode("signup")
+        posthog.identify(trimmedEmail, {
+          email: trimmedEmail,
+          name: displayName,
+        })
+        posthog.capture("user_signed_up", { method: "email" })
+        navigate("/onboarding", { replace: true })
         return
       }
+    } catch (error) {
+      setError(betterAuthErrorMessage(error, "Authentication failed"))
     } finally {
       authActionRef.current = false
       setLoading(false)
@@ -412,55 +345,11 @@ export default function Login() {
     authActionRef.current = true
     setLoading(true)
     try {
-      if (verificationMode === "signup") {
-        const verified = await signUp.verifications.verifyEmailCode({
-          code: verificationCode.trim(),
-        })
-        if (verified.error) {
-          if (redirectIfAlreadySignedIn(verified.error)) return
-          setError(clerkErrorMessage(verified.error, "Verification failed"))
-          return
-        }
-        if (signUp.status !== "complete") {
-          setError("Sign up needs another verification step.")
-          return
-        }
-        const finalized = await signUp.finalize()
-        if (finalized.error) {
-          if (redirectIfAlreadySignedIn(finalized.error)) return
-          setError(clerkErrorMessage(finalized.error, "Sign up failed"))
-          return
-        }
-        posthog.identify(pendingEmail, { email: pendingEmail, name })
-        posthog.capture("user_signed_up", { method: "email" })
-        navigate("/onboarding", { replace: true })
-        return
-      }
-
-      if (verificationMode === "signin") {
-        const verified = await signIn.mfa.verifyEmailCode({
-          code: verificationCode.trim(),
-        })
-        if (verified.error) {
-          if (redirectIfAlreadySignedIn(verified.error)) return
-          setError(clerkErrorMessage(verified.error, "Verification failed"))
-          return
-        }
-        if (signIn.status !== "complete") {
-          setError("Sign in needs another verification step.")
-          return
-        }
-        const finalized = await signIn.finalize()
-        if (finalized.error) {
-          if (redirectIfAlreadySignedIn(finalized.error)) return
-          setError(clerkErrorMessage(finalized.error, "Sign in failed"))
-          return
-        }
-        posthog.identify(pendingEmail, { email: pendingEmail })
-        posthog.capture("user_signed_in", { method: "email" })
-        navigate(nextPath, { replace: true })
-        return
-      }
+      setVerificationMode(null)
+      setVerificationCode("")
+      setMessage("Email verification codes are not required right now.")
+    } catch (error) {
+      setError(betterAuthErrorMessage(error, "Verification failed"))
     } finally {
       authActionRef.current = false
       setLoading(false)
@@ -477,19 +366,10 @@ export default function Login() {
     setError(undefined)
     setMessage(undefined)
     try {
-      const result =
-        verificationMode === "signup"
-          ? await signUp?.verifications.sendEmailCode()
-          : await signIn?.mfa.sendEmailCode()
-      if (result?.error) {
-        if (redirectIfAlreadySignedIn(result.error)) return
-        setError(clerkErrorMessage(result.error, "Could not send code"))
-        return
-      }
-      setMessage("A fresh code is on the way.")
+      setVerificationMode(null)
+      setMessage("Email verification codes are not required right now.")
     } catch (error) {
-      if (redirectIfAlreadySignedIn(error)) return
-      setError(clerkErrorMessage(error, "Could not send code"))
+      setError(betterAuthErrorMessage(error, "Could not send code"))
     } finally {
       authActionRef.current = false
       setLoading(false)
@@ -723,10 +603,6 @@ export default function Login() {
               </>
             )}
 
-            {mode === "signup" && !verificationMode && (
-              <div id="clerk-captcha" />
-            )}
-
             {mode === "signin" && !verificationMode && (
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
                 <button
@@ -811,14 +687,19 @@ export default function Login() {
                   {OAUTH_PROVIDERS.map((provider) => {
                     const Icon = provider.icon
                     const isProviderLoading = oauthLoading === provider.strategy
+                    const disabled = submitting || Boolean(provider.disabled)
 
                     return (
                       <button
                         key={provider.strategy}
                         type="button"
-                        onClick={() => void handleOAuth(provider.strategy)}
-                        disabled={submitting}
+                        onClick={() => {
+                          if (provider.disabled) return
+                          void handleOAuth(provider.strategy)
+                        }}
+                        disabled={disabled}
                         aria-label={`Continue with ${provider.label}`}
+                        aria-disabled={disabled}
                         className="flex h-12 items-center justify-center gap-2 rounded-[10px] border border-border/70 bg-background text-[13px] font-semibold text-foreground transition-colors active:bg-muted/55 disabled:opacity-50 short-phone:h-11"
                       >
                         <Icon
@@ -831,7 +712,11 @@ export default function Login() {
                           aria-hidden="true"
                         />
                         <span>
-                          {isProviderLoading ? "Opening..." : provider.label}
+                          {isProviderLoading
+                            ? "Opening..."
+                            : provider.disabled
+                              ? `${provider.label} soon`
+                              : provider.label}
                         </span>
                       </button>
                     )

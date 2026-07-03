@@ -6,6 +6,7 @@ import { defineConfig, loadEnv, type Plugin } from "vite"
 const uiRoot = path.resolve(__dirname, "../../packages/ui/src")
 const appRoot = path.resolve(__dirname, "./src")
 const envRoot = path.resolve(__dirname, "../../")
+const mobileNodeModules = path.resolve(__dirname, "node_modules")
 
 // Redirect `@/...` imports that originate from inside packages/ui/src
 // to that package's own src root, not the app's src root.
@@ -27,9 +28,9 @@ function uiAliasPlugin(): Plugin {
 export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, envRoot, ""), ...process.env }
   if (command === "build" && mode === "production") {
-    if (env.VITE_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_")) {
+    if (!env.VITE_CONVEX_SITE_URL) {
       throw new Error(
-        "Production mobile builds require a live Clerk publishable key. Set VITE_CLERK_PUBLISHABLE_KEY to pk_live_..."
+        "Production mobile builds require VITE_CONVEX_SITE_URL for Better Auth."
       )
     }
     if (env.CONVEX_DEPLOYMENT?.startsWith("dev:")) {
@@ -54,7 +55,7 @@ export default defineConfig(({ command, mode }) => {
             ) {
               return "react-vendor"
             }
-            if (id.includes("@clerk") || id.includes("convex")) {
+            if (id.includes("@convex-dev/better-auth") || id.includes("better-auth") || id.includes("convex")) {
               return "auth-data"
             }
             if (id.includes("@capacitor") || id.includes("@ionic")) {
@@ -69,9 +70,11 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     resolve: {
+      dedupe: ["convex", "react", "react-dom"],
       alias: {
         "@": appRoot,
         "@repo/ui": uiRoot,
+        convex: path.resolve(mobileNodeModules, "convex"),
       },
     },
   }

@@ -8,4 +8,11 @@ describe("mobile route fallback contract", () => {
     expect(MAIN_SOURCE).toContain("Loading OneRep")
     expect(MAIN_SOURCE).toContain("Preparing your mobile workspace")
   })
+
+  test("app root uses Better Auth for Convex sessions", () => {
+    expect(MAIN_SOURCE).toContain("ConvexBetterAuthProvider")
+    expect(MAIN_SOURCE).toContain("providerAuthClient")
+    expect(MAIN_SOURCE).toContain("window.__onerepSignOut = signOutApp")
+    expect(MAIN_SOURCE).not.toContain("ClerkProvider")
+  })
 })

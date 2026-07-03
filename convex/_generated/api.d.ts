@@ -27,6 +27,7 @@ import type * as logs_presetAgent from "../logs/presetAgent.js";
 import type * as logs_presets from "../logs/presets.js";
 import type * as logs_recipes from "../logs/recipes.js";
 import type * as logs_snap from "../logs/snap.js";
+import type * as logs_snapMatching from "../logs/snapMatching.js";
 import type * as logs_supplements from "../logs/supplements.js";
 import type * as logs_water from "../logs/water.js";
 import type * as logs_workouts from "../logs/workouts.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "logs/presets": typeof logs_presets;
   "logs/recipes": typeof logs_recipes;
   "logs/snap": typeof logs_snap;
+  "logs/snapMatching": typeof logs_snapMatching;
   "logs/supplements": typeof logs_supplements;
   "logs/water": typeof logs_water;
   "logs/workouts": typeof logs_workouts;
@@ -98,4 +100,5 @@ export declare const internal: FilterApi<
 
 export declare const components: {
   crons: import("@convex-dev/crons/_generated/component.js").ComponentApi<"crons">;
+  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
 };
