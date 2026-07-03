@@ -10,7 +10,9 @@ describe("AuthGuard source contract", () => {
   test("auth loading does not trap users behind a checking screen", () => {
     expect(AUTH_GUARD_SOURCE).not.toContain("Checking sign in")
     expect(AUTH_GUARD_SOURCE).not.toContain("AUTH_LOAD_GRACE_MS")
-    expect(AUTH_GUARD_SOURCE).not.toContain("authLoadTimedOut")
+    expect(AUTH_GUARD_SOURCE).toContain("authLoadTimedOut")
+    expect(AUTH_GUARD_SOURCE).toContain("Sign-in service unavailable")
+    expect(AUTH_GUARD_SOURCE).toContain("Retry")
     expect(AUTH_GUARD_SOURCE).toContain("if (!isLoaded) {")
     expect(AUTH_GUARD_SOURCE).toContain("return null")
   })

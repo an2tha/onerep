@@ -28,6 +28,9 @@ import {
   createClientId,
   logDevError,
   logDevWarn,
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
   safeSessionStorageRemove,
   safeSessionStorageSet,
 } from "@/lib/utils"
@@ -179,6 +182,21 @@ type WorkoutItem =
   | { kind: "solo"; exerciseId: string }
   | { kind: "superset"; id: string; color: string; exerciseIds: string[] }
 
+type LocalActiveWorkoutDraft = {
+  elapsedSeconds: number
+  exerciseData: Record<string, ExerciseState>
+  items: WorkoutItem[]
+  presetId?: string
+  savedAt: number
+  slot: 1 | 2
+  startedAt: number
+}
+
+type ResumePromptState = {
+  source: "convex" | "local"
+  draft?: LocalActiveWorkoutDraft
+} | null
+
 type DragInfo = {
   itemKey: string
   x: number
@@ -218,6 +236,8 @@ type AiWorkoutSheetTarget = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ABORTED_WORKOUT_SLOT_KEY = "onerep:aborted-workout-slot"
+const ACTIVE_WORKOUT_DRAFT_PREFIX = "onerep:active-workout-draft:v1:"
+const REST_TIMER_PREFIX = "onerep:active-rest-timer:v1:"
 
 const CATEGORY_ICON: Record<
   Category,
@@ -1008,40 +1028,130 @@ function replaceExerciseInItems(
   })
 }
 
+function activeWorkoutDraftKey(slot: 1 | 2) {
+  return `${ACTIVE_WORKOUT_DRAFT_PREFIX}${slot}`
+}
+
+function restTimerKey(slot: 1 | 2) {
+  return `${REST_TIMER_PREFIX}${slot}`
+}
+
+function readActiveWorkoutDraft(slot: 1 | 2): LocalActiveWorkoutDraft | null {
+  const raw = safeLocalStorageGet(activeWorkoutDraftKey(slot))
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<LocalActiveWorkoutDraft>
+    if (
+      parsed.slot !== slot ||
+      !Array.isArray(parsed.items) ||
+      typeof parsed.exerciseData !== "object" ||
+      parsed.exerciseData === null ||
+      typeof parsed.startedAt !== "number" ||
+      typeof parsed.savedAt !== "number"
+    ) {
+      return null
+    }
+
+    return {
+      elapsedSeconds:
+        typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
+      exerciseData: parsed.exerciseData as Record<string, ExerciseState>,
+      items: parsed.items as WorkoutItem[],
+      presetId: typeof parsed.presetId === "string" ? parsed.presetId : undefined,
+      savedAt: parsed.savedAt,
+      slot,
+      startedAt: parsed.startedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeActiveWorkoutDraft(draft: LocalActiveWorkoutDraft) {
+  safeLocalStorageSet(activeWorkoutDraftKey(draft.slot), JSON.stringify(draft))
+}
+
+function clearActiveWorkoutDraft(slot: 1 | 2) {
+  safeLocalStorageRemove(activeWorkoutDraftKey(slot))
+  safeLocalStorageRemove(restTimerKey(slot))
+}
+
 // ─── Rest timer countdown ─────────────────────────────────────────────────────
 
-function useRestCountdown() {
+function useRestCountdown(storageKey: string) {
   const [remaining, setRemaining] = useState<number | null>(null)
   const ref = useRef<ReturnType<typeof setInterval> | null>(null)
+  const endAtRef = useRef<number | null>(null)
 
-  function start(seconds: number) {
-    if (ref.current) clearInterval(ref.current)
-    setRemaining(seconds)
-    ref.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r === null || r <= 1) {
-          if (ref.current) clearInterval(ref.current)
-          ref.current = null
-          return null
-        }
-        return r - 1
-      })
-    }, 1000)
-  }
-
-  function dismiss() {
+  const stopInterval = useCallback(() => {
     if (ref.current) {
       clearInterval(ref.current)
       ref.current = null
     }
+  }, [])
+
+  const updateFromEndAt = useCallback(() => {
+    const endAt = endAtRef.current
+    if (!endAt) {
+      setRemaining(null)
+      return
+    }
+
+    const next = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
+    if (next <= 0) {
+      stopInterval()
+      endAtRef.current = null
+      safeLocalStorageRemove(storageKey)
+      setRemaining(null)
+      return
+    }
+
+    setRemaining(next)
+  }, [storageKey, stopInterval])
+
+  const startTicker = useCallback(() => {
+    stopInterval()
+    updateFromEndAt()
+    ref.current = setInterval(updateFromEndAt, 1000)
+  }, [stopInterval, updateFromEndAt])
+
+  function start(seconds: number) {
+    const endAt = Date.now() + seconds * 1000
+    endAtRef.current = endAt
+    safeLocalStorageSet(storageKey, JSON.stringify({ endAt }))
+    startTicker()
+  }
+
+  function dismiss() {
+    stopInterval()
+    endAtRef.current = null
+    safeLocalStorageRemove(storageKey)
     setRemaining(null)
   }
 
+  useEffect(() => {
+    const raw = safeLocalStorageGet(storageKey)
+    if (!raw) return
+
+    try {
+      const parsed = JSON.parse(raw) as { endAt?: unknown }
+      if (typeof parsed.endAt === "number" && parsed.endAt > Date.now()) {
+        endAtRef.current = parsed.endAt
+        startTicker()
+      } else {
+        safeLocalStorageRemove(storageKey)
+      }
+    } catch {
+      safeLocalStorageRemove(storageKey)
+    }
+  }, [startTicker, storageKey])
+
   useEffect(
     () => () => {
-      if (ref.current) clearInterval(ref.current)
+      stopInterval()
     },
-    []
+    [stopInterval]
   )
 
   return { remaining, start, dismiss }
@@ -3945,6 +4055,80 @@ function AiWorkoutSheet({
   )
 }
 
+function ResumeWorkoutSheet({
+  source,
+  savedAt,
+  onResume,
+  onDiscard,
+}: {
+  source: "convex" | "local"
+  savedAt?: number
+  onResume: () => void
+  onDiscard: () => Promise<void>
+}) {
+  const [discarding, setDiscarding] = useState(false)
+  const savedLabel = savedAt
+    ? new Date(savedAt).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null
+
+  async function discard() {
+    if (discarding) return
+    setDiscarding(true)
+    try {
+      await onDiscard()
+    } catch {
+      setDiscarding(false)
+    }
+  }
+
+  return (
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]">
+      <div
+        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+        style={{
+          paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+        }}
+      >
+        <div className="flex justify-center pt-3 pb-0">
+          <div className="h-1 w-10 rounded-full bg-muted/70" />
+        </div>
+        <div className="px-6 pt-5 pb-2">
+          <h2 className="text-[20px] font-black tracking-tight">
+            You have an active workout
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+            Resume your {source === "local" ? "locally saved" : "saved"} workout
+            {savedLabel ? ` from ${savedLabel}` : ""}, or discard it and start
+            fresh.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 px-6 pt-4">
+          <button
+            type="button"
+            onClick={onResume}
+            disabled={discarding}
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
+          >
+            Resume workout
+          </button>
+          <button
+            type="button"
+            onClick={() => void discard()}
+            disabled={discarding}
+            aria-busy={discarding}
+            className="h-[52px] w-full rounded-[20px] bg-destructive/10 text-[14px] font-bold text-destructive transition-colors active:bg-destructive/15 disabled:opacity-50"
+          >
+            {discarding ? "Discarding..." : "Discard workout"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FinishSheet({
   elapsed,
   totalSets,
@@ -4343,9 +4527,17 @@ export default function ActiveWorkout() {
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [localStartedAt, setLocalStartedAt] = useState<number | null>(null)
+  const [resumePrompt, setResumePrompt] = useState<ResumePromptState>(null)
+  const [resumeDecision, setResumeDecision] = useState<
+    "pending" | "resume" | "discard"
+  >("pending")
+  const [completedPulseKey, setCompletedPulseKey] = useState<string | null>(
+    null
+  )
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? null)
-  const rest = useRestCountdown()
+  const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? localStartedAt)
+  const rest = useRestCountdown(restTimerKey(slot))
 
   // Track if we've initialized from Convex to avoid overwriting user's workout data
   const [isInitialized, setIsInitialized] = useState(false)
@@ -4507,13 +4699,13 @@ export default function ActiveWorkout() {
   useEffect(() => {
     if (isInitialized) return
 
-    // If there's an active workout in Convex, load it
-    if (activeWorkout) {
+    const loadWorkoutState = (
+      loadedItems: WorkoutItem[],
+      loadedExData: Record<string, ExerciseState>,
+      startedAt?: number | null
+    ) => {
       setIsInitialized(true)
-      const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
-      const loadedExData =
-        (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
-
+      if (startedAt) setLocalStartedAt(startedAt)
       setItems(loadedItems)
       setExData(
         Object.fromEntries(
@@ -4524,7 +4716,6 @@ export default function ActiveWorkout() {
         )
       )
 
-      // Load exercise details
       const ids = loadedItems.flatMap((i) =>
         i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
       )
@@ -4540,46 +4731,50 @@ export default function ActiveWorkout() {
             logDevWarn("Failed to resolve active workout exercises", error)
           })
       }
+    }
+
+    // If there's an active workout in Convex, load it
+    if (activeWorkout) {
+      if (resumeDecision === "pending") {
+        setResumePrompt({ source: "convex" })
+        return
+      }
+      if (resumeDecision === "discard") return
+
+      const loadedItems = (activeWorkout.items as WorkoutItem[]) ?? []
+      const loadedExData =
+        (activeWorkout.exerciseData as Record<string, ExerciseState>) ?? {}
+      loadWorkoutState(loadedItems, loadedExData, activeWorkout.startedAt)
       return
+    }
+
+    const localDraft = readActiveWorkoutDraft(slot)
+    if (localDraft && localDraft.items.length > 0) {
+      if (resumeDecision === "pending") {
+        setResumePrompt({ source: "local", draft: localDraft })
+        return
+      }
+      if (resumeDecision === "resume") {
+        loadWorkoutState(
+          localDraft.items,
+          localDraft.exerciseData,
+          localDraft.startedAt
+        )
+        return
+      }
     }
 
     // If no Convex state, try to load from preset
     if (presetId && presets) {
       const match = presets.find((p) => (p.id ?? p._id) === presetId)
       if (match) {
-        setIsInitialized(true)
         const loadedItems = (match.items as WorkoutItem[]) ?? []
         const loadedExData =
           (match.exerciseData as Record<string, ExerciseState>) ?? {}
-
-        setItems(loadedItems)
-        setExData(
-          Object.fromEntries(
-            Object.entries(loadedExData).map(([exerciseId, state]) => [
-              exerciseId,
-              normalizeExerciseState(state),
-            ])
-          )
-        )
-
-        const ids = loadedItems.flatMap((i) =>
-          i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
-        )
-        if (ids.length > 0) {
-          void resolveExerciseIds(ids)
-            .then((lookup) => {
-              setExerciseLookup((prev) => ({
-                ...prev,
-                ...(lookup as Record<string, Exercise>),
-              }))
-            })
-            .catch((error) => {
-              logDevWarn("Failed to resolve preset workout exercises", error)
-            })
-        }
+        loadWorkoutState(loadedItems, loadedExData, Date.now())
       }
     }
-  }, [isInitialized, presetId, presets, activeWorkout])
+  }, [activeWorkout, isInitialized, presetId, presets, resumeDecision, slot])
 
   // ── Create active workout in Convex when items are loaded ─────────────────
   useEffect(() => {
@@ -4629,6 +4824,32 @@ export default function ActiveWorkout() {
       setUnit(preferences.weightUnit as WeightUnit)
     }
   }, [preferences])
+
+  useEffect(() => {
+    if (!isInitialized || abortingRef.current || items.length === 0) return
+    const startedAt = activeWorkout?.startedAt ?? localStartedAt ?? Date.now()
+    if (!localStartedAt && !activeWorkout?.startedAt) {
+      setLocalStartedAt(startedAt)
+    }
+    writeActiveWorkoutDraft({
+      elapsedSeconds: elapsed,
+      exerciseData: exData,
+      items,
+      presetId,
+      savedAt: Date.now(),
+      slot,
+      startedAt,
+    })
+  }, [
+    activeWorkout?.startedAt,
+    elapsed,
+    exData,
+    isInitialized,
+    items,
+    localStartedAt,
+    presetId,
+    slot,
+  ])
 
   useEffect(() => {
     if (isInitialized) {
@@ -4962,6 +5183,7 @@ export default function ActiveWorkout() {
         ),
         cardio_count: exercises.filter((ex) => Boolean(ex.cardio)).length,
       })
+      clearActiveWorkoutDraft(slot)
       navigate(-1)
     } catch (err) {
       logDevError("Failed to finish workout:", err)
@@ -4972,6 +5194,7 @@ export default function ActiveWorkout() {
           exercises,
           durationSeconds: elapsed,
         })
+        clearActiveWorkoutDraft(slot)
         navigate(-1)
       } catch (fallbackErr) {
         logDevError("Failed to log workout as fallback:", fallbackErr)
@@ -5016,6 +5239,11 @@ export default function ActiveWorkout() {
         index === nextTarget.setIndex ? { ...set, completed: true } : set
       ),
     })
+    const pulseKey = `${nextTarget.exerciseId}:${nextTarget.setIndex}`
+    setCompletedPulseKey(pulseKey)
+    window.setTimeout(() => {
+      setCompletedPulseKey((current) => (current === pulseKey ? null : current))
+    }, 520)
     hapticMedium()
     if (!currentSet.completed && currentSet.restSeconds > 0) {
       rest.start(currentSet.restSeconds)
@@ -5065,7 +5293,12 @@ export default function ActiveWorkout() {
               </b>
             </aside>
           </section>
-          <section className="mb-3 grid grid-cols-[1fr_auto] items-center gap-3 rounded-[18px] border border-border bg-card p-3.5 md:gap-4 md:rounded-[22px] md:p-4">
+          <section
+            className={cn(
+              "mb-3 grid grid-cols-[1fr_auto] items-center gap-3 rounded-[18px] border border-border bg-card p-3.5 md:gap-4 md:rounded-[22px] md:p-4",
+              completedPulseKey && "motion-success-pop"
+            )}
+          >
             <div className="min-w-0">
               <p className="text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
                 {rest.remaining !== null ? "Rest remaining" : "Elapsed"}
@@ -5298,6 +5531,7 @@ export default function ActiveWorkout() {
                 syncTimeoutRef.current = null
               }
               await abortActive({ slot })
+              clearActiveWorkoutDraft(slot)
               safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
               navigate(-1)
             } catch (err) {
@@ -5313,6 +5547,42 @@ export default function ActiveWorkout() {
             }
           }}
           onCancel={() => setConfirmAbort(false)}
+        />
+      )}
+      {resumePrompt && (
+        <ResumeWorkoutSheet
+          source={resumePrompt.source}
+          savedAt={
+            resumePrompt.source === "local"
+              ? resumePrompt.draft?.savedAt
+              : activeWorkout?._creationTime
+          }
+          onResume={() => {
+            hapticSelection()
+            setResumeDecision("resume")
+            setResumePrompt(null)
+          }}
+          onDiscard={async () => {
+            hapticMedium()
+            clearActiveWorkoutDraft(slot)
+            setResumeDecision("discard")
+            setResumePrompt(null)
+            if (resumePrompt.source === "convex") {
+              abortingRef.current = true
+              isDirtyRef.current = false
+              if (syncTimeoutRef.current) {
+                clearTimeout(syncTimeoutRef.current)
+                syncTimeoutRef.current = null
+              }
+              await abortActive({ slot })
+              safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
+              abortingRef.current = false
+            }
+            if (!presetId) {
+              setLocalStartedAt(Date.now())
+              setIsInitialized(true)
+            }
+          }}
         />
       )}
       {historySheet && (

@@ -21,6 +21,7 @@ export const REVENUECAT_API_KEY =
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
 export const REVENUECAT_OFFERING_IDENTIFIER = "default"
+const REVENUECAT_REQUEST_TIMEOUT_MS = 8000
 
 type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
 type AnyCustomerInfo = CustomerInfo | WebCustomerInfo
@@ -109,6 +110,25 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
   return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
 }
 
+function withRevenueCatTimeout<T>(promise: Promise<T>, label: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      reject(new Error(`${label} timed out`))
+    }, REVENUECAT_REQUEST_TIMEOUT_MS)
+
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timeout)
+        reject(error)
+      }
+    )
+  })
+}
+
 async function configureRevenueCat(appUserId: string) {
   if (configuredAppUserId === appUserId && configurePromise) {
     await configurePromise
@@ -190,10 +210,26 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       const offeringsPromise = isNative
         ? Purchases.getOfferings()
         : webPurchasesRef.current?.getOfferings()
-      if (!customerInfoPromise || !offeringsPromise) return null
+      if (!customerInfoPromise || !offeringsPromise) {
+        setState((current) => ({
+          ...current,
+          error: "Subscription service is not ready. Try again in a moment.",
+          status: "error",
+        }))
+        return null
+      }
       const [customerInfo, offerings] = await Promise.all([
-        customerInfoPromise,
-        offeringsPromise,
+        withRevenueCatTimeout(
+          customerInfoPromise as Promise<AnyCustomerInfo>,
+          "Subscription status"
+        ),
+        withRevenueCatTimeout(
+          offeringsPromise as Promise<{
+            all: Record<string, AnyOffering>
+            current: AnyOffering | null
+          }>,
+          "Subscription products"
+        ),
       ])
       const currentOffering = getConfiguredOffering(offerings)
       const monthlyPackage = getMonthlyPackage(currentOffering)
@@ -241,7 +277,10 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       setState((current) => ({ ...current, error: null, status: "loading" }))
       try {
         if (isNative) {
-          await configureRevenueCat(options.userId)
+          await withRevenueCatTimeout(
+            configureRevenueCat(options.userId),
+            "Subscription setup"
+          )
           await syncCustomerAttributes(options)
           if (canceled) return
           const listenerId = await Purchases.addCustomerInfoUpdateListener(
@@ -256,7 +295,10 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
           )
           listenerIdRef.current = listenerId
         } else {
-          webPurchasesRef.current = await configureWebRevenueCat(options.userId)
+          webPurchasesRef.current = await withRevenueCatTimeout(
+            configureWebRevenueCat(options.userId),
+            "Subscription setup"
+          )
         }
         await refresh()
       } catch (error) {
