@@ -13,6 +13,13 @@ import {
   RevenueCatUI,
   type PaywallResult,
 } from "@revenuecat/purchases-capacitor-ui"
+import type {
+  CustomerInfo as WebCustomerInfo,
+  Offering as WebOffering,
+  Package as WebPackage,
+  Purchases as WebPurchases,
+  PaywallPurchaseResult,
+} from "@revenuecat/purchases-js"
 
 export const REVENUECAT_API_KEY =
   (import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined) ||
@@ -21,14 +28,18 @@ export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
 
 type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
+type AnyCustomerInfo = CustomerInfo | WebCustomerInfo
+type AnyOffering = PurchasesOffering | WebOffering
+type AnyPackage = PurchasesPackage | WebPackage
 
 type RevenueCatState = {
-  customerInfo: CustomerInfo | null
-  currentOffering: PurchasesOffering | null
+  customerInfo: AnyCustomerInfo | null
+  currentOffering: AnyOffering | null
   error: string | null
   isConfigured: boolean
   isNative: boolean
-  monthlyPackage: PurchasesPackage | null
+  isWeb: boolean
+  monthlyPackage: AnyPackage | null
   status: RevenueCatStatus
 }
 
@@ -40,6 +51,8 @@ type UseRevenueCatOptions = {
 
 let configuredAppUserId: string | null = null
 let configurePromise: Promise<void> | null = null
+let configuredWebAppUserId: string | null = null
+let configureWebPromise: Promise<WebPurchases> | null = null
 
 function revenueCatErrorMessage(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null) {
@@ -68,7 +81,11 @@ function isNativePurchasesAvailable() {
   return Capacitor.isNativePlatform()
 }
 
-function getMonthlyPackage(offering: PurchasesOffering | null) {
+function isWebPurchasesAvailable() {
+  return typeof window !== "undefined" && !Capacitor.isNativePlatform()
+}
+
+function getMonthlyPackage(offering: AnyOffering | null): AnyPackage | null {
   if (!offering) return null
   return (
     offering.monthly ??
@@ -79,8 +96,16 @@ function getMonthlyPackage(offering: PurchasesOffering | null) {
   )
 }
 
-function hasOneRepPro(customerInfo: CustomerInfo | null) {
+function hasOneRepPro(customerInfo: AnyCustomerInfo | null) {
   return Boolean(customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT])
+}
+
+function monthlyPriceString(monthlyPackage: AnyPackage | null) {
+  if (!monthlyPackage) return null
+  if ("product" in monthlyPackage) {
+    return monthlyPackage.product.priceString
+  }
+  return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
 }
 
 async function configureRevenueCat(appUserId: string) {
@@ -103,6 +128,30 @@ async function configureRevenueCat(appUserId: string) {
   await configurePromise
 }
 
+async function configureWebRevenueCat(appUserId: string) {
+  if (configuredWebAppUserId === appUserId && configureWebPromise) {
+    return await configureWebPromise
+  }
+
+  configuredWebAppUserId = appUserId
+  configureWebPromise = (async () => {
+    const { LogLevel, Purchases: WebPurchasesSdk } = await import(
+      "@revenuecat/purchases-js"
+    )
+    WebPurchasesSdk.setLogLevel(import.meta.env.DEV ? LogLevel.Debug : LogLevel.Warn)
+    const purchases = WebPurchasesSdk.configure({
+      apiKey: REVENUECAT_API_KEY,
+      appUserId,
+    })
+    await purchases.preload().catch(() => {
+      // Best-effort preload; normal refresh will surface actionable errors.
+    })
+    return purchases
+  })()
+
+  return await configureWebPromise
+}
+
 async function syncCustomerAttributes(options: UseRevenueCatOptions) {
   const tasks: Promise<unknown>[] = []
   if (options.email !== undefined) {
@@ -116,24 +165,34 @@ async function syncCustomerAttributes(options: UseRevenueCatOptions) {
 
 export function useRevenueCat(options: UseRevenueCatOptions) {
   const isNative = isNativePurchasesAvailable()
+  const isWeb = isWebPurchasesAvailable()
   const listenerIdRef = useRef<PurchasesCallbackId | null>(null)
+  const webPurchasesRef = useRef<WebPurchases | null>(null)
   const [state, setState] = useState<RevenueCatState>({
     customerInfo: null,
     currentOffering: null,
     error: null,
     isConfigured: false,
     isNative,
+    isWeb,
     monthlyPackage: null,
-    status: isNative ? "idle" : "unsupported",
+    status: isNative || isWeb ? "idle" : "unsupported",
   })
 
   const refresh = useCallback(async () => {
-    if (!isNative) return null
+    if (!isNative && !isWeb) return null
     setState((current) => ({ ...current, error: null, status: "loading" }))
     try {
-      const [{ customerInfo }, offerings] = await Promise.all([
-        Purchases.getCustomerInfo(),
-        Purchases.getOfferings(),
+      const customerInfoPromise = isNative
+        ? Purchases.getCustomerInfo().then((result) => result.customerInfo)
+        : webPurchasesRef.current?.getCustomerInfo()
+      const offeringsPromise = isNative
+        ? Purchases.getOfferings()
+        : webPurchasesRef.current?.getOfferings()
+      if (!customerInfoPromise || !offeringsPromise) return null
+      const [customerInfo, offerings] = await Promise.all([
+        customerInfoPromise,
+        offeringsPromise,
       ])
       const currentOffering = offerings.current
       const monthlyPackage = getMonthlyPackage(currentOffering)
@@ -143,6 +202,8 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         currentOffering,
         error: null,
         isConfigured: true,
+        isNative,
+        isWeb,
         monthlyPackage,
         status: "ready",
       }))
@@ -159,16 +220,17 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       }))
       return null
     }
-  }, [isNative])
+  }, [isNative, isWeb])
 
   useEffect(() => {
     let canceled = false
 
     async function configure() {
-      if (!isNative) {
+      if (!isNative && !isWeb) {
         setState((current) => ({
           ...current,
           isNative,
+          isWeb,
           status: "unsupported",
         }))
         return
@@ -177,20 +239,24 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
 
       setState((current) => ({ ...current, error: null, status: "loading" }))
       try {
-        await configureRevenueCat(options.userId)
-        await syncCustomerAttributes(options)
-        if (canceled) return
-        const listenerId = await Purchases.addCustomerInfoUpdateListener(
-          (customerInfo) => {
-            setState((current) => ({
-              ...current,
-              customerInfo,
-              error: null,
-              status: "ready",
-            }))
-          }
-        )
-        listenerIdRef.current = listenerId
+        if (isNative) {
+          await configureRevenueCat(options.userId)
+          await syncCustomerAttributes(options)
+          if (canceled) return
+          const listenerId = await Purchases.addCustomerInfoUpdateListener(
+            (customerInfo) => {
+              setState((current) => ({
+                ...current,
+                customerInfo,
+                error: null,
+                status: "ready",
+              }))
+            }
+          )
+          listenerIdRef.current = listenerId
+        } else {
+          webPurchasesRef.current = await configureWebRevenueCat(options.userId)
+        }
         await refresh()
       } catch (error) {
         if (canceled) return
@@ -216,10 +282,15 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         })
       }
     }
-  }, [isNative, options.email, options.name, options.userId, refresh])
+  }, [isNative, isWeb, options.email, options.name, options.userId, refresh])
 
   const restorePurchases = useCallback(async () => {
-    if (!isNative) throw new Error("Purchases are available in the mobile app")
+    if (!isNative) {
+      if (isWeb) await refresh()
+      throw new Error(
+        "Restore is handled through RevenueCat web checkout on desktop"
+      )
+    }
     const { customerInfo } = await Purchases.restorePurchases()
     setState((current) => ({
       ...current,
@@ -228,14 +299,21 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       status: "ready",
     }))
     return customerInfo
-  }, [isNative])
+  }, [isNative, isWeb, refresh])
 
   const purchaseMonthly = useCallback(async () => {
-    if (!isNative) throw new Error("Purchases are available in the mobile app")
     const monthlyPackage = state.monthlyPackage
     if (!monthlyPackage) throw new Error("Monthly package is not configured")
+    if (!isNative) {
+      await webPurchasesRef.current?.purchasePackage(
+        monthlyPackage as WebPackage,
+        options.email ?? undefined
+      )
+      const customerInfo = await refresh()
+      return customerInfo
+    }
     const { customerInfo } = await Purchases.purchasePackage({
-      aPackage: monthlyPackage,
+      aPackage: monthlyPackage as PurchasesPackage,
     })
     setState((current) => ({
       ...current,
@@ -244,51 +322,75 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       status: "ready",
     }))
     return customerInfo
-  }, [isNative, state.monthlyPackage])
+  }, [isNative, options.email, refresh, state.monthlyPackage])
 
-  const presentPaywall = useCallback(async (): Promise<PaywallResult> => {
-    if (!isNative) throw new Error("Paywalls are available in the mobile app")
-    const result = await RevenueCatUI.presentPaywallIfNeeded({
-      requiredEntitlementIdentifier: ONEREP_PRO_ENTITLEMENT,
-      offering: state.currentOffering ?? undefined,
-      presentationConfiguration: PaywallPresentationConfiguration.DEFAULT,
-      displayCloseButton: true,
-      listener: {
-        onPurchaseCompleted({ customerInfo }) {
-          setState((current) => ({
-            ...current,
-            customerInfo,
-            error: null,
-            status: "ready",
-          }))
+  const presentPaywall = useCallback(async (): Promise<
+    PaywallResult | PaywallPurchaseResult
+  > => {
+    if (isNative) {
+      const result = await RevenueCatUI.presentPaywallIfNeeded({
+        requiredEntitlementIdentifier: ONEREP_PRO_ENTITLEMENT,
+        offering: (state.currentOffering as PurchasesOffering | null) ?? undefined,
+        presentationConfiguration: PaywallPresentationConfiguration.DEFAULT,
+        displayCloseButton: true,
+        listener: {
+          onPurchaseCompleted({ customerInfo }) {
+            setState((current) => ({
+              ...current,
+              customerInfo,
+              error: null,
+              status: "ready",
+            }))
+          },
+          onRestoreCompleted({ customerInfo }) {
+            setState((current) => ({
+              ...current,
+              customerInfo,
+              error: null,
+              status: "ready",
+            }))
+          },
         },
-        onRestoreCompleted({ customerInfo }) {
-          setState((current) => ({
-            ...current,
-            customerInfo,
-            error: null,
-            status: "ready",
-          }))
-        },
-      },
+      })
+      await refresh()
+      return result
+    }
+
+    const purchases = webPurchasesRef.current
+    if (!purchases) throw new Error("Paywall is not ready yet")
+    const result = await purchases.presentPaywall({
+      offering: (state.currentOffering as WebOffering | null) ?? undefined,
+      customerEmail: options.email ?? undefined,
     })
+    setState((current) => ({
+      ...current,
+      customerInfo: result.customerInfo,
+      error: null,
+      status: "ready",
+    }))
     await refresh()
     return result
-  }, [isNative, refresh, state.currentOffering])
+  }, [isNative, options.email, refresh, state.currentOffering])
 
   const presentCustomerCenter = useCallback(async () => {
-    if (!isNative) {
-      throw new Error("Customer Center is available in the mobile app")
+    if (isNative) {
+      await RevenueCatUI.presentCustomerCenter()
+      await refresh()
+      return
     }
-    await RevenueCatUI.presentCustomerCenter()
-    await refresh()
-  }, [isNative, refresh])
+    const url = state.customerInfo?.managementURL
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer")
+      return
+    }
+    throw new Error("No subscription management link is available yet")
+  }, [isNative, refresh, state.customerInfo?.managementURL])
 
   return useMemo(
     () => ({
       ...state,
       hasOneRepPro: hasOneRepPro(state.customerInfo),
-      monthlyPrice: state.monthlyPackage?.product.priceString ?? null,
+      monthlyPrice: monthlyPriceString(state.monthlyPackage),
       presentCustomerCenter,
       presentPaywall,
       purchaseMonthly,

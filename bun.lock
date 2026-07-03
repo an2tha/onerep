@@ -7,6 +7,7 @@
       "dependencies": {
         "@convex-dev/better-auth": "^0.12.5",
         "@convex-dev/crons": "^0.2.0",
+        "@revenuecat/purchases-js": "^1.47.0",
         "@types/pg": "^8.20.0",
         "better-auth": "1.6.23",
         "cli-progress": "^3.12.0",
@@ -855,6 +856,8 @@
     "@revenuecat/purchases-capacitor": ["@revenuecat/purchases-capacitor@13.2.1", "", { "dependencies": { "@revenuecat/purchases-typescript-internal-esm": "18.18.0" }, "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-NruMHWdDjt4lxteHumHU0h+H1v33/5esl6BQeb3Gd20dLyrvwCltnwNWh4eNymdBjfV5IwYmBJ7o8jPOBljTrA=="],
 
     "@revenuecat/purchases-capacitor-ui": ["@revenuecat/purchases-capacitor-ui@13.2.1", "", { "dependencies": { "@capacitor/core": "^8.0.0", "@revenuecat/purchases-typescript-internal-esm": "18.18.0" }, "peerDependencies": { "@revenuecat/purchases-capacitor": "13.2.1" } }, "sha512-5wPAbN8YLerwtZXjHn5Uan9KsrKJgp9+axocIljLZmzrE46qU07+HGywLpz4eisrRQfNBcAbMz09Qoz7Y1czTQ=="],
+
+    "@revenuecat/purchases-js": ["@revenuecat/purchases-js@1.47.0", "", {}, "sha512-bytRHMnz4LKSeZLNE4crLo6FjbS2f80iJO+P4ZJ6U+qMJNMtWTkURVufCM3tHszVizhLtW8JYe8TdbLNADhiEQ=="],
 
     "@revenuecat/purchases-typescript-internal-esm": ["@revenuecat/purchases-typescript-internal-esm@18.18.0", "", {}, "sha512-MmjlKtFESIMpb3TGt2xGyQKVBwIII3GQ5jA5Zh3AAF5oSebQ4DR84ds2y4YMV8TsoCgCZvHP4wJN+oHp3I09Iw=="],
 
