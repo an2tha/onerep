@@ -1512,14 +1512,14 @@ function RevenueCatSubscriptionPanel({
   }
 
   return (
-    <div className="px-4 py-4">
-      <div className="rounded-[12px] border border-border/45 bg-muted/20 p-4">
-        <div className="flex items-start justify-between gap-4">
+    <div className="px-4 py-3">
+      <div className="rounded-[12px] border border-border/45 bg-muted/20 p-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[14px] font-semibold text-foreground/88">
+            <p className="text-[13px] font-semibold text-foreground/88">
               OneRep Pro
             </p>
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground/50">
+            <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground/50">
               Entitlement: {ONEREP_PRO_ENTITLEMENT}. Package:{" "}
               {MONTHLY_PACKAGE_IDENTIFIER}.
             </p>
@@ -1537,19 +1537,19 @@ function RevenueCatSubscriptionPanel({
         </div>
 
         {revenueCat.error && (
-          <p className="mt-3 rounded-[10px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
+          <p className="mt-2 rounded-[10px] border border-destructive/20 bg-destructive/8 px-2.5 py-2 text-[10.5px] font-medium text-destructive">
             {revenueCat.error}
           </p>
         )}
 
         {unsupported ? (
-          <p className="mt-3 rounded-[10px] bg-background px-3 py-2 text-[11px] font-medium text-muted-foreground/60">
+          <p className="mt-2 rounded-[10px] bg-background px-2.5 py-2 text-[10.5px] font-medium text-muted-foreground/60">
             Purchases, paywalls, and Customer Center are available in the iOS
             and Android apps.
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-2">
+        <div className="mt-3 grid gap-2">
           <button
             type="button"
             disabled={disabled}
@@ -1563,7 +1563,7 @@ function RevenueCatSubscriptionPanel({
                     "Subscription status updated"
                   )
             }
-            className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
+            className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
           >
             {action === "purchase"
               ? "Starting checkout..."
@@ -1584,7 +1584,7 @@ function RevenueCatSubscriptionPanel({
                   "Purchases restored"
                 )
               }
-              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+              className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
               {action === "restore" ? "..." : "Restore"}
             </button>
@@ -1599,7 +1599,7 @@ function RevenueCatSubscriptionPanel({
                   "Subscription refreshed"
                 )
               }
-              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+              className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
               {action === "refresh" ? "..." : "Refresh"}
             </button>
@@ -1607,7 +1607,7 @@ function RevenueCatSubscriptionPanel({
               type="button"
               disabled={unsupported || loading}
               onClick={() => setManagementOpen(true)}
-              className="min-h-10 rounded-xl bg-background px-2 text-[11px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+              className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
               Manage
             </button>
@@ -1651,43 +1651,43 @@ function RevenueCatManagementDialog({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-background/70 px-4 py-6 backdrop-blur-xl"
+      className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-background/70 px-3 py-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
       aria-labelledby="subscription-management-title"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[27rem] overflow-hidden rounded-[24px] border border-border/55 bg-card shadow-2xl"
+        className="relative w-full max-w-[24rem] overflow-hidden rounded-[20px] border border-border/55 bg-card shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close subscription management"
-          className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/55 backdrop-blur transition-colors active:bg-muted active:text-foreground"
+          className="absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/55 backdrop-blur transition-colors active:bg-muted active:text-foreground"
         >
           <X size={15} weight="bold" />
         </button>
 
-        <div className="border-b border-border/45 bg-muted/25 px-5 pt-5 pb-4">
-          <p className="text-[10px] font-bold tracking-[0.18em] text-muted-foreground/58 uppercase">
+        <div className="border-b border-border/45 bg-muted/25 px-4 pt-4 pb-3">
+          <p className="text-[9.5px] font-bold tracking-[0.18em] text-muted-foreground/58 uppercase">
             Subscription
           </p>
           <h2
             id="subscription-management-title"
-            className="mt-1 max-w-[18rem] text-[24px] leading-tight font-semibold tracking-tight text-foreground"
+            className="mt-1 max-w-[18rem] text-[21px] leading-tight font-semibold tracking-tight text-foreground"
           >
             OneRep Pro
           </h2>
-          <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground/68">
+          <p className="mt-1.5 max-w-[21rem] text-[12px] leading-relaxed text-muted-foreground/68">
             Your Pro access covers AI food analysis, workout generation, and
             progress insights.
           </p>
         </div>
 
-        <div className="px-5 py-4">
-          <div className="rounded-[16px] border border-border/45 bg-background/45 p-4">
+        <div className="px-4 py-3.5">
+          <div className="rounded-[13px] border border-border/45 bg-background/45 p-3">
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] font-bold text-foreground/88">
                 {active ? "Pro is active" : "Pro is inactive"}
@@ -1703,23 +1703,23 @@ function RevenueCatManagementDialog({
                 {active ? "Active" : "Inactive"}
               </span>
             </div>
-            <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
               {active
                 ? "AI features are unlocked on this account."
                 : "No active subscription was found for this account."}
             </p>
           </div>
 
-          <div className="mt-3 rounded-[16px] border border-border/45 bg-background/45 p-4">
+          <div className="mt-2 rounded-[13px] border border-border/45 bg-background/45 p-3">
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[13px] font-bold text-foreground/88">
                 Monthly plan
               </p>
-              <p className="text-[16px] font-bold tracking-tight text-foreground">
+              <p className="text-[15px] font-bold tracking-tight text-foreground">
                 {monthlyPrice}
               </p>
             </div>
-            <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground/62">
+            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
               {managementUrl
                 ? "Open the billing portal to change or cancel your subscription."
                 : "Subscribe to unlock Pro, or restore if you purchased with this account."}
@@ -1727,12 +1727,12 @@ function RevenueCatManagementDialog({
           </div>
 
           {revenueCat.error && (
-            <p className="mt-3 rounded-[12px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11.5px] font-medium text-destructive">
+            <p className="mt-2 rounded-[12px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
               {revenueCat.error}
             </p>
           )}
 
-          <div className="mt-4 grid gap-2">
+          <div className="mt-3 grid gap-2">
             {managementUrl ? (
               <div className="grid gap-2">
                 <button
@@ -1740,7 +1740,7 @@ function RevenueCatManagementDialog({
                   onClick={() => {
                     window.open(managementUrl, "_blank", "noopener,noreferrer")
                   }}
-                  className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75"
+                  className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75"
                 >
                   Open billing portal
                   <ArrowSquareOut size={15} weight="bold" />
@@ -1771,7 +1771,7 @@ function RevenueCatManagementDialog({
                     "Subscription status updated"
                   )
                 }
-                className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
+                className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
               >
                 {action === "purchase" ? "Starting checkout..." : "Upgrade"}
               </button>
@@ -1789,7 +1789,7 @@ function RevenueCatManagementDialog({
                     "Purchases restored"
                   )
                 }
-                className="min-h-10 rounded-xl bg-muted px-3 text-[12px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
+                className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
               >
                 {action === "restore" ? "Restoring..." : "Restore"}
               </button>
@@ -1804,7 +1804,7 @@ function RevenueCatManagementDialog({
                     "Subscription refreshed"
                   )
                 }
-                className="min-h-10 rounded-xl bg-muted px-3 text-[12px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
+                className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
               >
                 {action === "refresh" ? "Refreshing..." : "Refresh"}
               </button>
