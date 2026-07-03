@@ -32,7 +32,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { useUser } from "@clerk/react"
+import { useAppAuth } from "@/lib/auth-client"
 import {
   DEFAULT_LAYOUT,
   isDefaultLayout,
@@ -505,7 +505,7 @@ function SortableWidget({
 
 export default function App() {
   const navigate = useSmoothNavigate()
-  const { user } = useUser()
+  const { user } = useAppAuth()
   const [dayOffset, setDayOffset] = useState(0)
 
   // ── Queries ──────────────────────────────────────────────────────────────
@@ -725,7 +725,7 @@ export default function App() {
   }, [currentUser, navigate, onboarding])
 
   const firstName =
-    user?.firstName ?? user?.fullName?.trim().split(/\s+/)[0] ?? "there"
+    user?.name?.trim().split(/\s+/)[0] ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   const selectedDateLabel = dayOffsetLabel(dayOffset, activeTimezone)
   const dateLabel = `${selectedDateLabel} · ${dateKeyToCalendarDate(

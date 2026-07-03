@@ -7,12 +7,21 @@ const config: CapacitorConfig = {
   appId: "com.ananthh.onerep",
   appName: "OneRep",
   webDir: "dist",
+  server: {
+    hostname: "localhost",
+    iosScheme: "https",
+    androidScheme: "https",
+  },
   ios: {
     buildOptions: {
       exportMethod: "debugging",
     },
   },
-  server: undefined,
+  plugins: {
+    CapacitorCookies: {
+      enabled: true,
+    },
+  },
 }
 
 

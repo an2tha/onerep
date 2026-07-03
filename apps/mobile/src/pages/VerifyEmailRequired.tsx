@@ -37,8 +37,8 @@ export default function VerifyEmailRequired() {
             <p className="mx-auto mt-3 max-w-[268px] text-[14px] leading-6 font-medium text-muted-foreground/70 short-phone:text-[13px] short-phone:leading-5">
               OneRep needs a verified email before you can sign in.
               {email
-                ? ` Return to sign up and enter the code Clerk sent to ${email}.`
-                : " Return to sign up and enter the code from Clerk."}
+                ? ` Return to sign up and check the verification email sent to ${email}.`
+                : " Return to sign up and check your verification email."}
             </p>
           </div>
 

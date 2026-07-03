@@ -1,7 +1,7 @@
 import { useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
-import { useSignIn } from "@clerk/react"
 import { Eye, EyeSlash } from "@phosphor-icons/react"
+import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const FIELD_CLASS =
@@ -12,25 +12,6 @@ const INPUT_CLASS =
   "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
 const PASSWORD_CHANGED_MESSAGE =
   "Password changed. Sign in with the new password."
-
-function clerkErrorMessage(error: unknown, fallback: string) {
-  if (!error) return fallback
-  if (typeof error === "object" && error !== null) {
-    const maybeError = error as {
-      longMessage?: unknown
-      message?: unknown
-      errors?: { longMessage?: unknown; message?: unknown }[]
-    }
-    const nested = maybeError.errors?.[0]
-    const message =
-      nested?.longMessage ??
-      nested?.message ??
-      maybeError.longMessage ??
-      maybeError.message
-    if (typeof message === "string" && message.length > 0) return message
-  }
-  return fallback
-}
 
 function PasswordInput({
   label,
@@ -87,14 +68,13 @@ function PasswordInput({
 export default function ResetPassword() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const { signIn } = useSignIn()
   const [email, setEmail] = useState(searchParams.get("email") ?? "")
-  const [code, setCode] = useState("")
+  const token = searchParams.get("token")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [codeSent, setCodeSent] = useState(false)
+  const [codeSent, setCodeSent] = useState(Boolean(token))
   const [error, setError] = useState<string | undefined>()
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
@@ -114,22 +94,19 @@ export default function ResetPassword() {
     resetActionRef.current = true
     setLoading(true)
     try {
-      const created = await signIn.create({ identifier: trimmedEmail })
-      if (created.error) {
-        setError(clerkErrorMessage(created.error, "Could not start reset"))
-        return
-      }
-
-      const sent = await signIn.resetPasswordEmailCode.sendCode()
+      const sent = await authClient.requestPasswordReset({
+        email: trimmedEmail,
+        redirectTo: "/reset-password",
+      })
       if (sent.error) {
-        setError(clerkErrorMessage(sent.error, "Could not send reset code"))
+        setError(betterAuthErrorMessage(sent.error, "Could not send reset link"))
         return
       }
 
       setCodeSent(true)
-      setMessage("Reset code sent. Check your email.")
+      setMessage("Reset link sent. Check your email.")
     } catch (error) {
-      setError(clerkErrorMessage(error, "Could not send reset code"))
+      setError(betterAuthErrorMessage(error, "Could not send reset link"))
     } finally {
       resetActionRef.current = false
       setLoading(false)
@@ -142,8 +119,8 @@ export default function ResetPassword() {
     setError(undefined)
     setMessage(undefined)
 
-    if (!code.trim()) {
-      setError("Enter the reset code from your email.")
+    if (!token) {
+      setError("Open the reset link from your email first.")
       return
     }
     if (newPassword.length < 8) {
@@ -158,35 +135,24 @@ export default function ResetPassword() {
     resetActionRef.current = true
     setLoading(true)
     try {
-      const verified = await signIn.resetPasswordEmailCode.verifyCode({
-        code: code.trim(),
-      })
-      if (verified.error) {
-        setError(clerkErrorMessage(verified.error, "Invalid reset code"))
-        return
-      }
-
-      const submitted = await signIn.resetPasswordEmailCode.submitPassword({
-        password: newPassword,
-        signOutOfOtherSessions: true,
+      const submitted = await authClient.resetPassword({
+        token,
+        newPassword,
       })
       if (submitted.error) {
-        setError(clerkErrorMessage(submitted.error, "Could not reset password"))
+        setError(
+          betterAuthErrorMessage(submitted.error, "Could not reset password")
+        )
         return
       }
 
-      if (signIn.status === "complete") {
-        await signIn.finalize()
-      }
-
-      setCode("")
       setNewPassword("")
       setConfirmPassword("")
       setShowNewPassword(false)
       setShowConfirmPassword(false)
       setMessage(PASSWORD_CHANGED_MESSAGE)
     } catch (error) {
-      setError(clerkErrorMessage(error, "Could not reset password"))
+      setError(betterAuthErrorMessage(error, "Could not reset password"))
     } finally {
       resetActionRef.current = false
       setLoading(false)
@@ -215,12 +181,12 @@ export default function ResetPassword() {
               Reset password
             </p>
             <h2 className="app-display mt-2 text-[1.9rem] short-phone:text-[1.55rem]">
-              {codeSent ? "Enter the code." : "Get a reset code."}
+              {codeSent ? "Choose a password." : "Get a reset link."}
             </h2>
             <p className="mt-2 text-[13.5px] leading-5 font-medium text-muted-foreground/70">
               {codeSent
-                ? "Use the code Clerk sent to your email, then choose a new password."
-                : "Enter your account email and Clerk will send a password reset code."}
+                ? "Use the reset link from your email, then choose a new password."
+                : "Enter your account email and OneRep will send a password reset link."}
             </p>
           </div>
 
@@ -247,22 +213,6 @@ export default function ResetPassword() {
 
             {codeSent && !passwordChanged && (
               <>
-                <label className={FIELD_CLASS}>
-                  <span className={LABEL_CLASS}>Code</span>
-                  <input
-                    type="text"
-                    name="one-time-code"
-                    inputMode="numeric"
-                    value={code}
-                    onChange={(event) => setCode(event.target.value)}
-                    placeholder="123456"
-                    required
-                    autoComplete="one-time-code"
-                    disabled={loading}
-                    className={INPUT_CLASS}
-                  />
-                </label>
-
                 <PasswordInput
                   label="New password"
                   name="new-password"
@@ -325,7 +275,7 @@ export default function ResetPassword() {
                     : "Sending…"
                   : codeSent
                     ? "Change password"
-                    : "Send code"}
+                    : "Send link"}
               </button>
             )}
           </form>
@@ -338,7 +288,7 @@ export default function ResetPassword() {
               aria-busy={loading}
               className="mt-2 h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:h-10"
             >
-              Resend code
+              Resend link
             </button>
           )}
         </section>

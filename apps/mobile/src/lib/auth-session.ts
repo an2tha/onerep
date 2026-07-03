@@ -11,7 +11,13 @@ type SignOut = () => void | Promise<void>
 
 const LOGIN_PATH = "/login"
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
-const LOCAL_STORAGE_PREFIXES_TO_CLEAR = ["onerep:", "onerep_", "convex:"]
+const LOCAL_STORAGE_PREFIXES_TO_CLEAR = [
+  "onerep:",
+  "onerep_",
+  "convex:",
+  "onerep-auth_",
+  "better-auth_",
+]
 const LOCAL_STORAGE_KEYS_TO_CLEAR = new Set(["theme"])
 const AUTH_REDIRECT_COOLDOWN_MS = 2_000
 const APP_ORIGIN_FOR_PATHS = "https://app.onerep.local"
@@ -89,12 +95,12 @@ export function loginPathForAuthRedirect(next = currentAuthRedirectPath()) {
 
 function getGlobalSignOut(): SignOut | undefined {
   if (typeof window === "undefined") return undefined
-  const maybeClerk = (
+  const maybeAuth = (
     window as typeof window & {
-      Clerk?: { signOut?: SignOut }
+      __onerepSignOut?: SignOut
     }
-  ).Clerk
-  return maybeClerk?.signOut?.bind(maybeClerk)
+  ).__onerepSignOut
+  return maybeAuth
 }
 
 async function clearAuthClientSession(signOut?: SignOut) {

@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router"
-import { useAuth } from "@clerk/react"
 import { clearPendingVerification } from "@/lib/auth-redirects"
+import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const STATUS_COPY = {
@@ -19,7 +19,7 @@ const STATUS_COPY = {
 export default function EmailVerified() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn } = useAppAuth()
   const hasError = Boolean(searchParams.get("error"))
   const next = searchParams.get("next")
   const checkingAuth = !hasError && !isLoaded
