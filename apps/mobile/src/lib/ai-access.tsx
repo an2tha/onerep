@@ -1,45 +1,23 @@
 import { useCallback, useState } from "react"
-import { useSubscription } from "@clerk/react/experimental"
 import { Sparkle } from "@phosphor-icons/react"
 import { toast } from "sonner"
+import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
-
-export const AI_ACCESS_PLAN_SLUG =
-  (import.meta.env.VITE_CLERK_AI_PLAN_SLUG as string | undefined) ??
-  "ai-access"
-export const AI_ACCESS_PLAN_ID = import.meta.env.VITE_CLERK_AI_PLAN_ID as
-  | string
-  | undefined
-
-export function isActiveAiAccessSubscriptionItem(item: any) {
-  if (!item?.plan) return false
-
-  const matchesPlan =
-    item.plan.slug === AI_ACCESS_PLAN_SLUG ||
-    (AI_ACCESS_PLAN_ID ? item.plan.id === AI_ACCESS_PLAN_ID : false)
-
-  return matchesPlan && item.status !== "ended" && !item.canceledAt
-}
-
-export function getActiveAiAccessSubscriptionItem(subscription: any) {
-  return (
-    subscription?.subscriptionItems?.find(isActiveAiAccessSubscriptionItem) ??
-    null
-  )
-}
-
-export function hasActiveAiAccess(subscription: any) {
-  return Boolean(getActiveAiAccessSubscriptionItem(subscription))
-}
+import { useRevenueCat } from "@/lib/revenuecat"
 
 export function useAiAccessSubscription() {
-  const subscription = useSubscription({ for: "user" })
+  const { user, userId } = useAppAuth()
+  const revenueCat = useRevenueCat({
+    email: user?.email,
+    name: user?.name,
+    userId,
+  })
 
   return {
-    hasAiAccess: hasActiveAiAccess(subscription.data),
-    isLoading: subscription.isLoading,
-    subscription: subscription.data,
-    revalidate: subscription.revalidate,
+    hasAiAccess: revenueCat.hasOneRepPro,
+    isLoading: revenueCat.status === "loading" || revenueCat.status === "idle",
+    subscription: revenueCat.customerInfo,
+    revalidate: revenueCat.refresh,
   }
 }
 
