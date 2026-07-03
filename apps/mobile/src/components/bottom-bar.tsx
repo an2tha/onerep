@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type PointerEvent,
   type ReactNode,
 } from "react"
 import { useLocation } from "react-router"
@@ -14,11 +15,13 @@ import {
   ForkKnife,
   GearSix,
   House,
+  MagnifyingGlass,
+  PintGlass,
   Plus,
+  Aperture,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { hapticTap } from "@/lib/haptics"
 
 type BottomBarAction = () => void
 type BottomBarActionSetter = (action?: BottomBarAction) => void
@@ -232,23 +235,116 @@ export function BottomBar({
 }
 
 export function PersistentQuickAdd({ onAdd }: { onAdd: () => void }) {
+  const navigate = useSmoothNavigate()
   const actionRef = useRef(onAdd)
+  const longPressTimer = useRef<number | null>(null)
+  const suppressNextClick = useRef(false)
+  const [shortcutOpen, setShortcutOpen] = useState(false)
 
   useEffect(() => {
     actionRef.current = onAdd
   }, [onAdd])
 
+  useEffect(() => clearLongPress, [])
+
+  function clearLongPress() {
+    if (longPressTimer.current == null) return
+    window.clearTimeout(longPressTimer.current)
+    longPressTimer.current = null
+  }
+
   function handleClick() {
-    hapticTap()
+    if (suppressNextClick.current) {
+      suppressNextClick.current = false
+      return
+    }
+    setShortcutOpen(false)
     actionRef.current()
   }
 
+  function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
+    if (event.pointerType === "mouse" && event.button !== 0) return
+    clearLongPress()
+    longPressTimer.current = window.setTimeout(() => {
+      suppressNextClick.current = true
+      setShortcutOpen(true)
+      longPressTimer.current = null
+    }, 360)
+  }
+
+  function runShortcut(path: string) {
+    clearLongPress()
+    suppressNextClick.current = false
+    setShortcutOpen(false)
+    navigate(path, { motion: "forward" })
+  }
+
+  const shortcuts = [
+    {
+      label: "Snap meal",
+      path: "/camera",
+      Icon: Aperture,
+    },
+    {
+      label: "Search food",
+      path: "/foods/search",
+      Icon: MagnifyingGlass,
+    },
+    {
+      label: "Log water",
+      path: "/water",
+      Icon: PintGlass,
+    },
+    {
+      label: "Start workout",
+      path: "/workout/active",
+      Icon: Barbell,
+    },
+  ] as const
+
   return (
     <>
+      {shortcutOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close quick actions"
+            className="fixed inset-0 z-40 bg-transparent lg:hidden"
+            onClick={() => setShortcutOpen(false)}
+          />
+          <div
+            id="mobile-quick-actions"
+            role="menu"
+            aria-label="Quick actions"
+            className="fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(var(--app-safe-bottom)+9.75rem)] z-50 grid w-[12.5rem] gap-1.5 rounded-[18px] border border-border/55 bg-card p-2 shadow-2xl lg:hidden"
+          >
+            {shortcuts.map(({ label, path, Icon }) => (
+              <button
+                key={path}
+                type="button"
+                role="menuitem"
+                onClick={() => runShortcut(path)}
+                className="motion-pressable flex min-h-11 items-center gap-2.5 rounded-[12px] px-3 text-left text-[12.5px] font-bold text-foreground active:bg-muted/60"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-muted/60 text-muted-foreground">
+                  <Icon size={15} weight="bold" />
+                </span>
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <button
         type="button"
         onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={clearLongPress}
+        onPointerCancel={clearLongPress}
+        onPointerLeave={clearLongPress}
         aria-label="Add"
+        aria-controls="mobile-quick-actions"
+        aria-expanded={shortcutOpen}
         className="motion-pressable fixed right-[max(1rem,env(safe-area-inset-right))] bottom-[calc(var(--app-safe-bottom)+5.75rem)] z-50 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-[0_14px_34px_color-mix(in_srgb,var(--foreground)_24%,transparent)] transition-transform active:scale-95 lg:hidden"
       >
         <Plus size={22} weight="bold" />
