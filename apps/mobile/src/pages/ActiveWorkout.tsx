@@ -5253,13 +5253,13 @@ export default function ActiveWorkout() {
   return (
     <div className="desktop-canvas min-h-svh bg-background md:px-8">
       <div className="mx-auto flex w-full max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
-        <div className="workout-live-header sticky top-0 z-30 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:px-8">
+        <div className="workout-live-header sticky top-0 z-30 border-b border-border/35 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:border-b-0 md:px-8">
           <div
-            className="flex items-center justify-between gap-3"
+            className="flex items-center justify-between gap-2"
             style={{
               paddingTop:
-                "max(1rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))",
-              paddingBottom: "0.875rem",
+                "max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))",
+              paddingBottom: "0.5rem",
             }}
           >
             <button
@@ -5272,93 +5272,99 @@ export default function ActiveWorkout() {
               <X size={22} weight="bold" className="md:hidden" />
               <span className="hidden md:inline">Abort</span>
             </button>
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+              <span className="truncate text-[11px] font-bold text-muted-foreground/55 uppercase">
+                {doneSets}/{totalSets} done
+              </span>
+              {slot === 2 && (
+                <span className="rounded-[8px] bg-muted/55 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/80 uppercase">
+                  Slot 2
+                </span>
+              )}
+              {workoutSyncStatus !== "idle" && (
+                <span
+                  role="status"
+                  aria-live="polite"
+                  title={workoutSyncError || undefined}
+                  className={cn(
+                    "rounded-[8px] px-2 py-0.5 text-[9px] font-bold uppercase",
+                    workoutSyncStatus === "error"
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-muted/55 text-muted-foreground/80"
+                  )}
+                >
+                  {workoutSyncLabel}
+                </span>
+              )}
+            </div>
+            <div className="flex h-10 shrink-0 overflow-hidden rounded-[10px] border border-border/45 bg-muted/35 text-[11px] font-bold">
+              {(["kg", "lbs"] as WeightUnit[]).map((u) => (
+                <button
+                  key={u}
+                  onClick={() => setUnit(u)}
+                  className={cn(
+                    "motion-tactile min-w-10 px-2.5 md:min-w-12 md:px-3",
+                    unit === u
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-muted-foreground/65 active:bg-muted/60 active:text-foreground"
+                  )}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
           </div>
-          <section className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 pb-3 md:pb-4">
-            <div className="min-w-0">
-              <p className="mb-2 truncate text-[12px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
+          <section
+            className={cn(
+              "pb-3 md:pb-4",
+              completedPulseKey && "motion-success-pop"
+            )}
+          >
+            <div className="min-w-0 text-center">
+              <p className="truncate text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground/55 uppercase">
                 {uniqueExerciseIds.length > 0
                   ? `Exercise ${activeExerciseIndex} of ${uniqueExerciseIds.length}`
                   : "Active workout"}
               </p>
-              <h1 className="truncate text-[clamp(2rem,10vw,2.5rem)] leading-[0.98] font-extrabold tracking-[-0.04em] text-foreground">
+              <h1 className="mt-1 truncate text-[1.55rem] leading-none font-black tracking-tight text-foreground md:text-[2rem]">
                 {activeExerciseName}
               </h1>
-            </div>
-            <aside className="min-w-[72px] rounded-[14px] border border-border bg-card p-2 text-center md:min-w-[78px] md:rounded-[16px] md:p-2.5">
-              <span className="block text-[10px] font-extrabold tracking-[0.1em] text-muted-foreground uppercase">
-                Set
-              </span>
-              <b className="mt-1 block text-[25px] leading-none tabular-nums">
-                {activeSetNumber}
-              </b>
-            </aside>
-          </section>
-          <section
-            className={cn(
-              "mb-3 grid grid-cols-[1fr_auto] items-center gap-3 rounded-[18px] border border-border bg-card p-3.5 md:gap-4 md:rounded-[22px] md:p-4",
-              completedPulseKey && "motion-success-pop"
-            )}
-          >
-            <div className="min-w-0">
-              <p className="text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground uppercase">
-                {rest.remaining !== null ? "Rest remaining" : "Elapsed"}
+              <p className="mt-1 truncate text-[12px] font-semibold text-muted-foreground/60">
+                {nextSetLabel}
               </p>
-              <div className="mt-1 text-[clamp(2.75rem,14vw,3.625rem)] leading-[0.9] font-extrabold tracking-[-0.045em] tabular-nums">
-                {formatElapsed(rest.remaining ?? elapsed)}
-              </div>
             </div>
-            {rest.remaining !== null ? (
-              <button
-                onClick={rest.dismiss}
-                className="motion-tactile min-h-11 rounded-[14px] bg-muted px-4 text-[13px] font-extrabold"
-              >
-                Skip
-              </button>
-            ) : (
-              <button
-                onClick={completeNextSet}
-                className="motion-tactile min-h-11 rounded-[14px] bg-primary px-4 text-[13px] font-extrabold text-primary-foreground"
-              >
-                {nextTarget?.kind === "set"
-                  ? `Complete set ${activeSetNumber}`
-                  : totalSets > 0
-                    ? "Finish"
-                    : "Add"}
-              </button>
-            )}
-          </section>
-          <div className="pb-3">
-            <div className="mb-2.5 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-muted-foreground/55 uppercase">
-                    Active workout
-                  </span>
-                  {slot === 2 && (
-                    <span className="rounded-[8px] bg-muted/55 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/80 uppercase">
-                      Slot 2
-                    </span>
-                  )}
-                  {workoutSyncStatus !== "idle" && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      title={workoutSyncError || undefined}
-                      className={cn(
-                        "rounded-[8px] px-2 py-0.5 text-[9px] font-bold uppercase",
-                        workoutSyncStatus === "error"
-                          ? "bg-destructive/15 text-destructive"
-                          : "bg-muted/55 text-muted-foreground/80"
-                      )}
-                    >
-                      {workoutSyncLabel}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 truncate text-[12px] font-semibold text-foreground/70">
-                  {nextSetLabel}
+
+            <div className="mt-3 rounded-[18px] bg-card p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--foreground)_5%,transparent)] md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4 md:rounded-[22px] md:border md:border-border md:p-4">
+              <div className="text-center md:text-left">
+                <p className="text-[10px] font-extrabold tracking-[0.12em] text-muted-foreground/50 uppercase">
+                  {rest.remaining !== null ? "Rest" : "Time"}
                 </p>
+                <div className="mt-1 text-[2.65rem] leading-none font-black tracking-tight tabular-nums md:text-[3.4rem]">
+                  {formatElapsed(rest.remaining ?? elapsed)}
+                </div>
               </div>
+              {rest.remaining !== null ? (
+                <button
+                  onClick={rest.dismiss}
+                  className="motion-tactile mt-3 h-12 w-full rounded-[14px] bg-muted text-[14px] font-extrabold md:mt-0 md:w-auto md:px-5"
+                >
+                  Skip rest
+                </button>
+              ) : (
+                <button
+                  onClick={completeNextSet}
+                  className="motion-tactile mt-3 h-12 w-full rounded-[14px] bg-primary text-[14px] font-extrabold text-primary-foreground md:mt-0 md:w-auto md:px-5"
+                >
+                  {nextTarget?.kind === "set"
+                    ? `Done with set ${activeSetNumber}`
+                    : totalSets > 0
+                      ? "Finish workout"
+                      : "Add exercise"}
+                </button>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
               {workoutSyncStatus === "error" && (
                 <button
                   type="button"
@@ -5369,38 +5375,19 @@ export default function ActiveWorkout() {
                   Retry
                 </button>
               )}
-              <div className="ml-auto flex h-11 shrink-0 overflow-hidden rounded-[10px] border border-border/45 bg-muted/35 text-[11px] font-bold">
-                {(["kg", "lbs"] as WeightUnit[]).map((u) => (
-                  <button
-                    key={u}
-                    onClick={() => setUnit(u)}
-                    className={cn(
-                      "motion-tactile min-w-12 px-3",
-                      unit === u
-                        ? "bg-foreground text-background shadow-sm"
-                        : "text-muted-foreground/65 active:bg-muted/60 active:text-foreground"
-                    )}
-                  >
-                    {u}
-                  </button>
-                ))}
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted/55">
+                <div
+                  className="motion-progress-fill h-full rounded-full bg-primary/55"
+                  style={{ width: progressPct }}
+                />
               </div>
-            </div>
-            <div className="mb-2 flex items-center justify-between gap-3 text-[10px] font-bold text-muted-foreground/45 uppercase">
-              <span>
-                {doneSets}/{totalSets} complete
+              <span className="shrink-0 text-[10px] font-bold text-muted-foreground/45 tabular-nums">
+                {progressPct}
               </span>
-              <span>{progressPct}</span>
             </div>
-            <div className="h-1.5 overflow-hidden rounded-full bg-muted/55">
-              <div
-                className="motion-progress-fill h-full rounded-full bg-primary/45"
-                style={{ width: progressPct }}
-              />
-            </div>
-          </div>
+          </section>
         </div>
-        <div className="flex flex-col gap-4 px-[var(--app-page-x)] pt-5 md:px-8">
+        <div className="flex flex-col gap-4 px-[var(--app-page-x)] pt-3 md:px-8 md:pt-5">
           <div className="flex flex-col gap-3 md:gap-2.5">
             {items.map((item) => {
               if (item.kind === "solo") {
