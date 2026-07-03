@@ -23,11 +23,15 @@ export function useAiAccessSubscription() {
 
 export function AiAccessRequiredModal({
   open,
+  busy,
   onClose,
+  onOpenPaywall,
   onOpenSettings,
 }: {
   open: boolean
+  busy: boolean
   onClose: () => void
+  onOpenPaywall: () => void
   onOpenSettings: () => void
 }) {
   if (!open) return null
@@ -61,27 +65,44 @@ export function AiAccessRequiredModal({
         <div className="mt-5 grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={onClose}
-            className="min-h-11 rounded-xl bg-muted px-3 text-[13px] font-bold text-foreground/75 transition-opacity active:opacity-75"
-          >
-            Not now
-          </button>
-          <button
-            type="button"
             onClick={onOpenSettings}
-            className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-80"
+            className="min-h-11 rounded-xl bg-muted px-3 text-[13px] font-bold text-foreground/75 transition-opacity active:opacity-75"
           >
             Settings
           </button>
+          <button
+            type="button"
+            onClick={onOpenPaywall}
+            disabled={busy}
+            aria-busy={busy}
+            className="min-h-11 rounded-xl bg-foreground px-3 text-[13px] font-bold text-background transition-opacity active:opacity-80"
+          >
+            {busy ? "Opening..." : "Upgrade"}
+          </button>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 min-h-9 px-3 text-[12px] font-semibold text-muted-foreground/55 transition-colors active:text-foreground"
+        >
+          Not now
+        </button>
       </div>
     </div>
   )
 }
 
 export function useAiFeatureGate() {
-  const { hasAiAccess, isLoading } = useAiAccessSubscription()
+  const { user, userId } = useAppAuth()
+  const revenueCat = useRevenueCat({
+    email: user?.email,
+    name: user?.name,
+    userId,
+  })
+  const hasAiAccess = revenueCat.hasOneRepPro
+  const isLoading = revenueCat.status === "loading" || revenueCat.status === "idle"
   const [modalOpen, setModalOpen] = useState(false)
+  const [paywallBusy, setPaywallBusy] = useState(false)
   const navigate = useSmoothNavigate()
 
   const requireAiAccess = useCallback(() => {
@@ -98,7 +119,24 @@ export function useAiFeatureGate() {
   const aiAccessModal = (
     <AiAccessRequiredModal
       open={modalOpen}
+      busy={paywallBusy}
       onClose={() => setModalOpen(false)}
+      onOpenPaywall={() => {
+        if (paywallBusy) return
+        setPaywallBusy(true)
+        void revenueCat
+          .presentPaywall()
+          .then(() => revenueCat.refresh())
+          .then(() => setModalOpen(false))
+          .catch((error) => {
+            const message =
+              error instanceof Error && error.message
+                ? error.message
+                : "Could not open the paywall"
+            if (message !== "Purchase canceled") toast.error(message)
+          })
+          .finally(() => setPaywallBusy(false))
+      }}
       onOpenSettings={() => {
         setModalOpen(false)
         navigate("/settings", { motion: "switch" })
@@ -111,5 +149,6 @@ export function useAiFeatureGate() {
     aiAccessLoading: isLoading,
     requireAiAccess,
     aiAccessModal,
+    presentPaywall: revenueCat.presentPaywall,
   }
 }
