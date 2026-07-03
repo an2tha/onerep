@@ -9,7 +9,7 @@ export function SwipeToStart({
 }: {
   onComplete?: () => void
   label?: string
-  variant?: "default" | "completed"
+  variant?: "default" | "completed" | "danger"
 }) {
   const [x, setX] = useState(0)
   const [releasing, setReleasing] = useState(false)
@@ -47,8 +47,11 @@ export function SwipeToStart({
   const progress = x / Math.max(1, maxX())
 
   const isCompleted = variant === "completed"
+  const isDanger = variant === "danger"
 
-  const completeColor = APP_ACCENT_COLORS.complete
+  const completeColor = isDanger
+    ? "var(--destructive)"
+    : APP_ACCENT_COLORS.complete
   const thumbColor = isCompleted
     ? `color-mix(in srgb, ${completeColor} ${Math.round(68 + progress * 32)}%, var(--foreground))`
     : `color-mix(in srgb, ${completeColor} ${Math.round(progress * 100)}%, var(--foreground))`
@@ -63,6 +66,8 @@ export function SwipeToStart({
       style={{
         backgroundColor: isCompleted
           ? tint(completeColor, 10)
+          : isDanger
+            ? "color-mix(in srgb, var(--destructive) 9%, transparent)"
           : "color-mix(in srgb, var(--foreground) 7%, transparent)",
       }}
     >
@@ -86,6 +91,8 @@ export function SwipeToStart({
           transition: "opacity var(--motion-fast) var(--motion-ease-standard)",
           color: isCompleted
             ? `color-mix(in srgb, ${completeColor} 72%, var(--foreground))`
+            : isDanger
+              ? "color-mix(in srgb, var(--destructive) 74%, var(--foreground))"
             : "color-mix(in srgb, var(--foreground) 100%, transparent)",
         }}
       >
