@@ -64,6 +64,8 @@ describe("Supplements page accessibility contract", () => {
     expect(SUPPLEMENTS_SOURCE).toContain("disabled={bulkLogging}")
     expect(SUPPLEMENTS_SOURCE).toContain("aria-busy={bulkLogging}")
     expect(SUPPLEMENTS_SOURCE).toContain('{bulkLogging ? "Logging" : `Take ${remainingScheduledCount}`}')
+    expect(SUPPLEMENTS_SOURCE).toContain("const [bulkLoggedFeedback, setBulkLoggedFeedback]")
+    expect(SUPPLEMENTS_SOURCE).toContain("bulkLoggedFeedback && \"motion-success-pop\"")
   })
 
   test("individual supplement quick logging is single-flight and announced", () => {
@@ -77,6 +79,11 @@ describe("Supplements page accessibility contract", () => {
     expect(SUPPLEMENTS_SOURCE).toContain("setQuickLoggingId(null)")
     expect(SUPPLEMENTS_SOURCE).toContain("taking={quickLoggingId === plan.item._id}")
     expect(SUPPLEMENTS_SOURCE).toContain("quickLogging={quickLoggingId === item._id}")
+    expect(SUPPLEMENTS_SOURCE).toContain("const [loggedFeedbackId, setLoggedFeedbackId]")
+    expect(SUPPLEMENTS_SOURCE).toContain("recentlyLogged={loggedFeedbackId === plan.item._id}")
+    expect(SUPPLEMENTS_SOURCE).toContain("recentlyLogged={loggedFeedbackId === item._id}")
+    expect(SUPPLEMENTS_SOURCE).toContain("hapticSelection()")
+    expect(SUPPLEMENTS_SOURCE).toContain("recentlyLogged && \"motion-success-pop\"")
     expect(SUPPLEMENTS_SOURCE).toContain("aria-busy={taking}")
     expect(SUPPLEMENTS_SOURCE).toContain("aria-busy={quickLogging}")
     expect(SUPPLEMENTS_SOURCE).toContain("animate-spin")

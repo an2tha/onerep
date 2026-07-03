@@ -109,11 +109,14 @@ describe("Water page accessibility contract", () => {
     expect(WATER_SOURCE).toContain("aria-busy={addingAmountMl === ml}")
     expect(WATER_SOURCE).toContain("saving={addingAmountMl !== null}")
     expect(WATER_SOURCE).toContain("const [savingGoal, setSavingGoal]")
+    expect(WATER_SOURCE).toContain("const [successAmountMl, setSuccessAmountMl]")
     expect(WATER_SOURCE).toContain("if (savingGoal) return false")
     expect(WATER_SOURCE).toContain("await setWaterGoal({ goalMl: ml })")
     expect(WATER_SOURCE).toContain("aria-busy={saving}")
     expect(WATER_SOURCE).toContain("const saved = await onSave(draft)")
     expect(WATER_SOURCE).toContain("const saved = await onAdd(ml)")
+    expect(WATER_SOURCE).toContain("hapticSelection()")
+    expect(WATER_SOURCE).toContain("motion-success-pop")
   })
 
   test("failed delete restores optimistic-only entries", () => {

@@ -62,6 +62,7 @@ import {
   type SupplementScheduleType,
 } from "@/lib/supplements"
 import { cn } from "@/lib/utils"
+import { hapticSelection } from "@/lib/haptics"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { api } from "../../../../convex/_generated/api"
 
@@ -416,6 +417,7 @@ function TodayRow({
   onSkip,
   onOpen,
   taking,
+  recentlyLogged,
 }: {
   plan: ReturnType<typeof buildSupplementDayPlan>[number]
   consistency: ReturnType<typeof supplementConsistency>
@@ -424,6 +426,7 @@ function TodayRow({
   onSkip: () => void
   onOpen: () => void
   taking: boolean
+  recentlyLogged: boolean
 }) {
   const { item, state, logs } = plan
   const latest = [...logs].sort((a, b) =>
@@ -434,7 +437,12 @@ function TodayRow({
   ).slice(0, 3)
 
   return (
-    <div className="app-surface px-3.5 py-3 short-phone:px-3">
+    <div
+      className={cn(
+        "app-surface px-3.5 py-3 short-phone:px-3",
+        recentlyLogged && "motion-success-pop"
+      )}
+    >
       <div className="flex items-start gap-3">
         <button
           type="button"
@@ -539,6 +547,7 @@ function CatalogRow({
   onToggleActive,
   onDelete,
   quickLogging,
+  recentlyLogged,
 }: {
   item: SupplementItem
   consistency: ReturnType<typeof supplementConsistency>
@@ -548,6 +557,7 @@ function CatalogRow({
   onToggleActive: () => void
   onDelete: () => void
   quickLogging: boolean
+  recentlyLogged: boolean
 }) {
   const detail = supplementCategoryDetail(item.category)
   const nutrientCount = Object.values(item.nutrientsPerServing ?? {}).filter(
@@ -588,7 +598,10 @@ function CatalogRow({
           onClick={onQuickLog}
           disabled={quickLogging}
           aria-busy={quickLogging}
-          className="app-icon-button h-9 w-9 disabled:opacity-45"
+          className={cn(
+            "app-icon-button h-9 w-9 disabled:opacity-45",
+            recentlyLogged && "motion-success-pop"
+          )}
           aria-label={`Log ${item.name}`}
         >
           {quickLogging ? (
@@ -1843,6 +1856,8 @@ export default function Supplements() {
   const [sheet, setSheet] = useState<SheetMode>(null)
   const [bulkLogging, setBulkLogging] = useState(false)
   const [quickLoggingId, setQuickLoggingId] = useState<string | null>(null)
+  const [loggedFeedbackId, setLoggedFeedbackId] = useState<string | null>(null)
+  const [bulkLoggedFeedback, setBulkLoggedFeedback] = useState(false)
   const [confirmDeleteItem, setConfirmDeleteItem] =
     useState<SupplementItem | null>(null)
 
@@ -1945,6 +1960,9 @@ export default function Supplements() {
         loggedAt: new Date().toISOString(),
         servingMultiplier,
       })
+      hapticSelection()
+      setLoggedFeedbackId(supplementId)
+      window.setTimeout(() => setLoggedFeedbackId(null), 520)
     } finally {
       setQuickLoggingId(null)
     }
@@ -1970,6 +1988,9 @@ export default function Supplements() {
           remainingScheduledPlans.length === 1 ? "" : "s"
         } logged`
       )
+      hapticSelection()
+      setBulkLoggedFeedback(true)
+      window.setTimeout(() => setBulkLoggedFeedback(false), 520)
     } catch {
       toast.error("Could not log remaining supplements")
     } finally {
@@ -2112,7 +2133,10 @@ export default function Supplements() {
                           }
                           disabled={bulkLogging}
                           aria-busy={bulkLogging}
-                          className="app-button app-button-primary px-3 disabled:opacity-45"
+                          className={cn(
+                            "app-button app-button-primary px-3 disabled:opacity-45",
+                            bulkLoggedFeedback && "motion-success-pop"
+                          )}
                           aria-label={`Log ${remainingScheduledCount} remaining scheduled supplement${
                             remainingScheduledCount === 1 ? "" : "s"
                           }`}
@@ -2159,6 +2183,7 @@ export default function Supplements() {
                           )
                         }
                         taking={quickLoggingId === plan.item._id}
+                        recentlyLogged={loggedFeedbackId === plan.item._id}
                         onCustom={() =>
                           setSheet({ kind: "log", item: plan.item })
                         }
@@ -2255,6 +2280,7 @@ export default function Supplements() {
                           void takeNow(item).catch(reportOfflineMutationError)
                         }
                         quickLogging={quickLoggingId === item._id}
+                        recentlyLogged={loggedFeedbackId === item._id}
                         onToggleActive={() => toggleActive(item)}
                         onDelete={() => setConfirmDeleteItem(item)}
                       />

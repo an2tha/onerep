@@ -61,5 +61,7 @@ describe("Search foods accessibility contract", () => {
       "disabled={isAdded || addingFoodId !== null}",
     )
     expect(SEARCH_FOODS_SOURCE).toContain("aria-busy={isAdding}")
+    expect(SEARCH_FOODS_SOURCE).toContain("hapticSelection()")
+    expect(SEARCH_FOODS_SOURCE).toContain("motion-success-pop")
   })
 })

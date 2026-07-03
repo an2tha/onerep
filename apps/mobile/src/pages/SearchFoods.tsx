@@ -33,6 +33,8 @@ import {
   writeRecentFoodSearches,
 } from "@/lib/food-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
+import { hapticSelection } from "@/lib/haptics"
+import { cn } from "@/lib/utils"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
@@ -273,6 +275,7 @@ export default function SearchFoods() {
       })
 
       setAdded({ itemId: item.id })
+      hapticSelection()
       setTimeout(() => setAdded(null), 1800)
     } catch (error) {
       throw error
@@ -484,7 +487,10 @@ export default function SearchFoods() {
                           aria-label={
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 transition-all active:scale-[0.985] disabled:opacity-60"
+                          className={cn(
+                            "flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 transition-all active:scale-[0.985] disabled:opacity-60",
+                            isAdded && "motion-success-pop"
+                          )}
                         >
                           {isAdded ? (
                             <span className="text-[11px] text-foreground/60">
