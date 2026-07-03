@@ -26,6 +26,13 @@ import { searchFoods } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
 import type { FoodDetail } from "@repo/models"
 import { APP_ACCENT_COLORS, MACRO_COLORS } from "@/lib/design-tokens"
+import {
+  readRecentFoodSearches,
+  nextRecentFoodSearches,
+  visiblePopularFoodSearches,
+  writeRecentFoodSearches,
+} from "@/lib/food-search-recents"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
@@ -152,6 +159,11 @@ export default function SearchFoods() {
   const [added, setAdded] = useState<AddedState | null>(null)
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
   const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
+  const addingFoodRef = useRef<string | null>(null)
+  const [addingFoodId, setAddingFoodId] = useState<string | null>(null)
+  const [recentSearches, setRecentSearches] = useState(() =>
+    readRecentFoodSearches()
+  )
 
   const preferences = useQuery(api.users.users.getPreferences)
   const date = currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
@@ -183,6 +195,11 @@ export default function SearchFoods() {
         )
         setSearchResults(results ?? [])
         setSearchState("done")
+        setRecentSearches((current) => {
+          const nextRecent = nextRecentFoodSearches(current, q)
+          writeRecentFoodSearches(nextRecent)
+          return nextRecent
+        })
       } catch {
         setSearchResults([])
         setSearchState("error")
@@ -196,6 +213,10 @@ export default function SearchFoods() {
   const results = useMemo(
     () => rankAndFilterResults(searchResults ?? [], debouncedQuery || query),
     [searchResults, debouncedQuery, query]
+  )
+  const popularSearches = useMemo(
+    () => visiblePopularFoodSearches(recentSearches),
+    [recentSearches]
   )
 
   useEffect(() => {
@@ -211,44 +232,54 @@ export default function SearchFoods() {
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
+    if (addingFoodRef.current) return
+    addingFoodRef.current = item.id
+    setAddingFoodId(item.id)
     const factor = grams / 100
     const round = (v: number) => Math.round(v * factor * 10) / 10
 
-    const product = detail?.openFoodFacts ?? item.openFoodFacts
-    const entry = stripUndefined({
-      id: Math.random().toString(36).slice(2),
-      name:
-        grams === 100 && !portion
-          ? item.name
-          : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
-      calories: Math.round(Number(item.calories) * factor),
-      protein: round(Number(item.protein)),
-      carbs: round(Number(item.carbs)),
-      fat: round(Number(item.fat)),
-      loggedAt: new Date().toISOString(),
-      meal,
-      source: "openfoodfacts" as const,
-      foodCode: item.code,
-      quantityGrams: grams,
-      servingGrams: detail?.servingGrams ?? undefined,
-      servingLabel: detail?.servingLabel ?? item.serving,
-      imageUrl: detail?.imageUrl ?? item.imageUrl,
-      openFoodFacts: product,
-      ...micros,
-    })
+    try {
+      const product = detail?.openFoodFacts ?? item.openFoodFacts
+      const entry = stripUndefined({
+        id: Math.random().toString(36).slice(2),
+        name:
+          grams === 100 && !portion
+            ? item.name
+            : `${item.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
+        calories: Math.round(Number(item.calories) * factor),
+        protein: round(Number(item.protein)),
+        carbs: round(Number(item.carbs)),
+        fat: round(Number(item.fat)),
+        loggedAt: new Date().toISOString(),
+        meal,
+        source: "openfoodfacts" as const,
+        foodCode: item.code,
+        quantityGrams: grams,
+        servingGrams: detail?.servingGrams ?? undefined,
+        servingLabel: detail?.servingLabel ?? item.serving,
+        imageUrl: detail?.imageUrl ?? item.imageUrl,
+        openFoodFacts: product,
+        ...micros,
+      })
 
-    await addFoodEntry({ date, entry })
+      await addFoodEntry({ date, entry })
 
-    posthog.capture("food_logged", {
-      food_name: item.name,
-      calories: Math.round(Number(item.calories) * factor),
-      grams,
-      meal,
-      source: "search",
-    })
+      posthog.capture("food_logged", {
+        food_name: item.name,
+        calories: Math.round(Number(item.calories) * factor),
+        grams,
+        meal,
+        source: "search",
+      })
 
-    setAdded({ itemId: item.id })
-    setTimeout(() => setAdded(null), 1800)
+      setAdded({ itemId: item.id })
+      setTimeout(() => setAdded(null), 1800)
+    } catch (error) {
+      throw error
+    } finally {
+      addingFoodRef.current = null
+      setAddingFoodId(null)
+    }
   }
 
   const showEmpty =
@@ -264,6 +295,14 @@ export default function SearchFoods() {
     }
 
     setDetailItem(item)
+  }
+
+  function runSuggestedSearch(nextQuery: string) {
+    setQuery(nextQuery)
+    setDebouncedQuery("")
+    setSearchResults([])
+    setSearchState("loading")
+    inputRef.current?.focus()
   }
 
   return (
@@ -296,6 +335,7 @@ export default function SearchFoods() {
               <input
                 ref={inputRef}
                 type="text"
+                name="food-search-query"
                 placeholder="Search foods…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -327,14 +367,32 @@ export default function SearchFoods() {
             }}
           >
             {searchState === "idle" && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <MagnifyingGlass
-                  size={18}
-                  className="shrink-0 text-muted-foreground/35"
-                />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
-                  Type a food, brand, or barcode number.
-                </p>
+              <div className="mt-8 grid gap-5">
+                <div className="app-empty justify-center text-center">
+                  <MagnifyingGlass
+                    size={18}
+                    className="shrink-0 text-muted-foreground/35"
+                  />
+                  <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                    Type a food, brand, or barcode number.
+                  </p>
+                </div>
+
+                {recentSearches.length > 0 && (
+                  <SearchSuggestionGroup
+                    title="Recent"
+                    suggestions={recentSearches}
+                    onSelect={runSuggestedSearch}
+                  />
+                )}
+
+                {popularSearches.length > 0 && (
+                  <SearchSuggestionGroup
+                    title="Popular"
+                    suggestions={popularSearches}
+                    onSelect={runSuggestedSearch}
+                  />
+                )}
               </div>
             )}
 
@@ -363,6 +421,7 @@ export default function SearchFoods() {
                 <div className="app-ledger md:grid md:grid-cols-2 md:gap-0">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
+                    const isAdding = addingFoodId === item.id
                     return (
                       <div
                         key={item.id}
@@ -417,9 +476,11 @@ export default function SearchFoods() {
                         <button
                           type="button"
                           onClick={() => {
-                            if (!isAdded) setPendingItem(item)
+                            if (!isAdded && addingFoodId === null)
+                              setPendingItem(item)
                           }}
-                          disabled={isAdded}
+                          disabled={isAdded || addingFoodId !== null}
+                          aria-busy={isAdding}
                           aria-label={
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
@@ -429,6 +490,8 @@ export default function SearchFoods() {
                             <span className="text-[11px] text-foreground/60">
                               ✓
                             </span>
+                          ) : isAdding ? (
+                            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
                           ) : (
                             <span className="text-[18px] leading-none font-light text-foreground/50">
                               +
@@ -457,7 +520,7 @@ export default function SearchFoods() {
               meal,
               detail ?? detailItem,
               portion
-            )
+            ).catch(reportOfflineMutationError)
           }}
           onClose={() => setDetailItem(null)}
         />
@@ -466,20 +529,54 @@ export default function SearchFoods() {
       {pendingItem && (
         <MealSelectSheet
           item={pendingItem}
-          onSelect={(meal) => {
-            void handleAdd(
-              pendingItem,
-              100,
-              logMicrosFromFoodDetail(pendingItem, 100),
-              meal,
-              pendingItem
-            )
-            setPendingItem(null)
+          onSelect={async (meal) => {
+            try {
+              await handleAdd(
+                pendingItem,
+                100,
+                logMicrosFromFoodDetail(pendingItem, 100),
+                meal,
+                pendingItem
+              )
+              setPendingItem(null)
+            } catch (error) {
+              reportOfflineMutationError(error)
+            }
           }}
           onClose={() => setPendingItem(null)}
         />
       )}
     </>
+  )
+}
+
+function SearchSuggestionGroup({
+  title,
+  suggestions,
+  onSelect,
+}: {
+  title: string
+  suggestions: string[]
+  onSelect: (query: string) => void
+}) {
+  return (
+    <section>
+      <p className="app-eyebrow mb-2 px-1 text-muted-foreground/55">
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {suggestions.map((suggestion) => (
+          <button
+            key={suggestion}
+            type="button"
+            onClick={() => onSelect(suggestion)}
+            className="min-h-10 rounded-xl bg-muted/55 px-3.5 text-[12.5px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -530,12 +627,13 @@ function MealSelectSheet({
   onClose,
 }: {
   item: FoodSearchItem
-  onSelect: (meal: string) => void
+  onSelect: (meal: string) => Promise<void>
   onClose: () => void
 }) {
   const categories = MEAL_CATEGORIES
   const suggested = defaultMeal()
   const titleId = `meal-select-${item.id}`
+  const [savingMeal, setSavingMeal] = useState<string | null>(null)
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -575,7 +673,18 @@ function MealSelectSheet({
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => onSelect(cat.id)}
+              type="button"
+              onClick={async () => {
+                if (savingMeal) return
+                setSavingMeal(cat.id)
+                try {
+                  await onSelect(cat.id)
+                } finally {
+                  setSavingMeal(null)
+                }
+              }}
+              disabled={Boolean(savingMeal)}
+              aria-busy={savingMeal === cat.id}
               className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
