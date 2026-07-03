@@ -8,6 +8,7 @@ const app = defineApp({
     OPENAI_API_KEY: v.optional(v.string()),
     OPENAI_WORKOUT_PRESET_MODEL: v.optional(v.string()),
     OPENAI_METRIC_MODEL: v.optional(v.string()),
+    OPENAI_COACH_MODEL: v.optional(v.string()),
   },
 });
 app.use(crons);

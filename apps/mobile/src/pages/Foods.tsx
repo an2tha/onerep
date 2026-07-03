@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router"
 import {
   Aperture,
   Barbell,
@@ -12,36 +13,28 @@ import {
   PencilSimple,
   PintGlass,
   Plus,
+  Sparkle,
   Trash,
   X,
 } from "@phosphor-icons/react"
-import { cn, createClientId } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { convexClient } from "@/lib/convex"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { isBrowserOnline } from "@/lib/offline-queue"
-import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
-import {
-  canStartFoodCapture,
-  foodCapturePath,
-  type FoodCaptureMode,
-} from "@/lib/food-capture"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   FOOD_MICRONUTRIENT_KEYS,
-  buildFoodHistoryDaySummaries,
   currentDateKey,
   defaultMeal,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
-  foodLogEntriesFromHistoryMeal,
+  stripUndefined,
   type FoodLogEntry,
-  type FoodHistoryDaySummary,
-  type FoodHistoryMealSummary,
   type MealPreset,
   type Recipe,
   type RecipeIngredient,
@@ -70,6 +63,15 @@ import {
   MICRO_COLORS,
   tint,
 } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
+import {
+  clampSnapGrams,
+  snapDetectionsFromAiResult,
+  type SnapAiResult,
+  type SnapFoodMatch,
+} from "@/lib/food-snap-review"
+import type { FoodResult } from "@repo/models"
+import { toast } from "sonner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -147,8 +149,8 @@ function FoodActionRow({
   onSnap: () => void
 }) {
   return (
-    <section className="px-4 pb-4 md:px-8 short-phone:pb-3">
-      <div className="food-search-shell flex min-h-12 items-center gap-1.5 px-2 py-1.5 short-phone:min-h-11">
+    <section className="px-[var(--app-page-x)] pb-5 md:px-8 short-phone:pb-4">
+      <div className="food-search-shell flex min-h-14 items-center gap-2 px-2.5 py-2 short-phone:min-h-12">
         <button
           type="button"
           onClick={onSearch}
@@ -189,9 +191,11 @@ function FoodActionRow({
 function SwipeRow({
   entry,
   onDelete,
+  onEditRecipe,
 }: {
   entry: FoodLogEntry
   onDelete: () => void
+  onEditRecipe?: () => void
 }) {
   return (
     <SlideToDeleteRow
@@ -203,6 +207,19 @@ function SwipeRow({
       <p className="min-w-0 flex-1 truncate text-[12.5px] text-foreground/80">
         {entry.name}
       </p>
+      {onEditRecipe && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onEditRecipe()
+          }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/55 transition-opacity active:opacity-70"
+          aria-label={`Edit recipe for ${entry.name}`}
+        >
+          <PencilSimple size={11} weight="bold" />
+        </button>
+      )}
       <span className="shrink-0 text-[12px] font-medium text-foreground/55 tabular-nums">
         {entry.calories}
       </span>
@@ -216,10 +233,12 @@ function DiaryEntries({
   entries,
   dateKey: _dateKey,
   onDelete,
+  onEditRecipe,
 }: {
   entries: FoodLogEntry[]
   dateKey: string
   onDelete?: (index: number) => void
+  onEditRecipe?: (entry: FoodLogEntry) => void
 }) {
   const sorted = entries
     .map((entry, index) => ({ entry, index }))
@@ -267,6 +286,11 @@ function DiaryEntries({
                   key={`${entry.id}-${index}`}
                   entry={entry}
                   onDelete={() => onDelete(index)}
+                  onEditRecipe={
+                    onEditRecipe && (entry.recipeId || entry.recipeDraft)
+                      ? () => onEditRecipe(entry)
+                      : undefined
+                  }
                 />
               ) : (
                 <div
@@ -315,10 +339,12 @@ function TodayDiaryCard({
   entries,
   dateKey,
   onDelete,
+  onEditRecipe,
 }: {
   entries: FoodLogEntry[]
   dateKey: string
   onDelete: (index: number) => void
+  onEditRecipe?: (entry: FoodLogEntry) => void
 }) {
   return (
     <div
@@ -341,7 +367,12 @@ function TodayDiaryCard({
           </p>
         </div>
       ) : (
-        <DiaryEntries entries={entries} dateKey={dateKey} onDelete={onDelete} />
+        <DiaryEntries
+          entries={entries}
+          dateKey={dateKey}
+          onDelete={onDelete}
+          onEditRecipe={onEditRecipe}
+        />
       )}
     </div>
   )
@@ -376,8 +407,8 @@ function SmartMealPresetCard({
   busy,
 }: {
   suggestion: SmartMealPresetSuggestion
-  onSave: () => Promise<void>
-  onLog: () => Promise<void>
+  onSave: () => void
+  onLog: () => void
   onDismiss: () => void
   busy: boolean
 }) {
@@ -426,9 +457,8 @@ function SmartMealPresetCard({
         <button
           type="button"
           onClick={onDismiss}
-          disabled={busy}
           aria-label="Dismiss smart meal suggestion"
-          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45 disabled:opacity-35"
+          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45"
         >
           <X size={10} weight="bold" />
         </button>
@@ -436,9 +466,8 @@ function SmartMealPresetCard({
 
       <button
         type="button"
-        onClick={() => void (isSave ? onSave() : onLog())}
+        onClick={isSave ? onSave : onLog}
         disabled={busy}
-        aria-busy={busy}
         className="mt-3 flex min-h-10 w-full items-center justify-center rounded-xl bg-foreground px-3 text-[12.5px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-55"
       >
         {busy
@@ -455,40 +484,10 @@ function SmartMealPresetCard({
 
 // ─── History sheet ────────────────────────────────────────────────────────────
 
-function formatHistoryDate(dateKey: string) {
-  return new Date(`${dateKey}T12:00:00Z`).toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function HistorySheet({
-  days,
-  onCopyMeal,
-  onClose,
-}: {
-  days: FoodHistoryDaySummary[]
-  onCopyMeal: (meal: FoodHistoryMealSummary) => Promise<void>
-  onClose: () => void
-}) {
-  const [copyingMealKey, setCopyingMealKey] = useState<string | null>(null)
-
-  async function copyMeal(meal: FoodHistoryMealSummary, key: string) {
-    if (copyingMealKey) return
-    setCopyingMealKey(key)
-    try {
-      await onCopyMeal(meal)
-      onClose()
-    } catch (error) {
-      reportOfflineMutationError(error)
-      setCopyingMealKey(null)
-    }
-  }
-
+function HistorySheet({ onClose }: { onClose: () => void }) {
   return (
     <MobileSheet
-      onClose={copyingMealKey ? () => {} : onClose}
+      onClose={onClose}
       overlayClassName="bg-black/40 backdrop-blur-[4px]"
       panelClassName="mx-auto w-full max-w-sm rounded-t-[28px] bg-card shadow-[0_-20px_60px_rgba(0,0,0,0.2)] max-h-[88svh] flex flex-col"
       panelStyle={{
@@ -497,99 +496,20 @@ function HistorySheet({
     >
       <div className="flex-1 overflow-y-auto px-4 pt-1 [&::-webkit-scrollbar]:hidden">
         <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-[15px] font-semibold">History</p>
-            <p className="mt-0.5 text-[11.5px] text-muted-foreground/45">
-              Copy meals you have logged before.
-            </p>
-          </div>
+          <p className="text-[15px] font-semibold">History</p>
           <button
-            type="button"
             onClick={onClose}
-            disabled={Boolean(copyingMealKey)}
-            aria-label="Close food history"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60 disabled:opacity-45"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
           >
             <X size={12} weight="bold" />
           </button>
         </div>
-        {days.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <CalendarBlank size={28} className="text-muted-foreground/20" />
-            <p className="text-[13px] text-muted-foreground/40">
-              Recent logged meals will appear here.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3 pb-2">
-            {days.map((day) => (
-              <section
-                key={day.date}
-                className="app-rail-surface overflow-hidden"
-                style={
-                  { "--rail-color": "var(--accent-food)" } as React.CSSProperties
-                }
-              >
-                <div className="flex items-start justify-between gap-3 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-semibold">
-                      {formatHistoryDate(day.date)}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
-                      {day.entries.length} item
-                      {day.entries.length === 1 ? "" : "s"} logged
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-[11px] font-bold text-muted-foreground/50 tabular-nums">
-                    {fmtKcal(day.calories)} kcal
-                  </span>
-                </div>
-                <div className="border-t border-border/35">
-                  {day.meals.map((meal, index) => {
-                    const copyKey = `${day.date}-${meal.meal}`
-                    const copying = copyingMealKey === copyKey
-                    return (
-                      <button
-                        key={copyKey}
-                        type="button"
-                        onClick={() => void copyMeal(meal, copyKey)}
-                        disabled={Boolean(copyingMealKey)}
-                        aria-busy={copying}
-                        className={cn(
-                          "flex min-h-[4.25rem] w-full items-center justify-between gap-3 bg-card px-4 py-3 text-left transition-colors active:bg-muted/35 disabled:opacity-60",
-                          index > 0 && "border-t border-border/35"
-                        )}
-                      >
-                        <span className="flex min-w-0 items-center gap-3">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
-                            <ForkKnife size={15} weight="bold" />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-[13px] font-semibold">
-                              {meal.mealLabel}
-                            </span>
-                            <span className="mt-0.5 block truncate text-[11.5px] text-muted-foreground/55">
-                              {meal.itemSummary || "Meal items"}
-                            </span>
-                            <span className="mt-1 block text-[10.5px] text-muted-foreground/38 tabular-nums">
-                              {fmtKcal(meal.calories)} kcal · P
-                              {Math.round(meal.protein)} C
-                              {Math.round(meal.carbs)} F{Math.round(meal.fat)}g
-                            </span>
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted/45 px-2.5 py-1 text-[10.5px] font-bold text-muted-foreground/60">
-                          {copying ? "Copying" : "Copy"}
-                          <CaretRight size={10} weight="bold" />
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
+        <div className="flex flex-col items-center gap-2 py-12 text-center">
+          <CalendarBlank size={28} className="text-muted-foreground/20" />
+          <p className="text-[13px] text-muted-foreground/40">
+            Visit Home to see past days
+          </p>
+        </div>
       </div>
     </MobileSheet>
   )
@@ -936,10 +856,7 @@ function MicronutrientsCard({
   return (
     <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <button
-        type="button"
         onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label={open ? "Collapse micronutrients" : "Expand micronutrients"}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <div className="min-w-0">
@@ -1129,6 +1046,61 @@ function roundRecipeMicro(value: number) {
   return Math.round(value * 100) / 100
 }
 
+function recipeIngredientFromAiFood(
+  food: FoodResult,
+  grams: number
+): RecipeIngredient {
+  const r = (value: number) => Math.round(value * 10) / 10
+  const safeGrams = clampSnapGrams(grams)
+  return {
+    id: Math.random().toString(36).slice(2),
+    name: food.name,
+    grams: safeGrams,
+    displayAmount: safeGrams,
+    displayUnit: "g",
+    servingLabel: food.serving,
+    caloriesPer100: Number(food.calories) || 0,
+    proteinPer100: r(Number(food.protein) || 0),
+    carbsPer100: r(Number(food.carbs) || 0),
+    fatPer100: r(Number(food.fat) || 0),
+  }
+}
+
+function tempRecipeFromAiDescription(
+  result: { aiResult?: SnapAiResult; matches?: SnapFoodMatch[] },
+  fallbackName: string
+): Recipe | null {
+  const aiResult = result.aiResult ?? {}
+  const detections = snapDetectionsFromAiResult(aiResult)
+  const matchesByIndex = new Map(
+    (result.matches ?? []).map((match) => [match.detectionIndex, match])
+  )
+  const ingredients = detections
+    .map((detection, index) => {
+      const match = matchesByIndex.get(index)
+      const food = match?.food ?? null
+      if (!food) return null
+      return recipeIngredientFromAiFood(
+        food,
+        detection.estimatedGrams ?? 100
+      )
+    })
+    .filter((ingredient): ingredient is RecipeIngredient => ingredient !== null)
+
+  if (ingredients.length === 0) return null
+
+  const rawName =
+    typeof aiResult.foodName === "string" && aiResult.foodName.trim()
+      ? aiResult.foodName.trim()
+      : fallbackName.trim()
+
+  return {
+    name: rawName.slice(0, 48) || "Described meal",
+    createdAt: new Date().toISOString(),
+    ingredients,
+  }
+}
+
 function recipeTotals(ingredients: RecipeIngredient[]) {
   const totals = ingredients.reduce(
     (acc, i) => {
@@ -1172,62 +1144,130 @@ const RECIPE_MACRO_PILLS = [
   { label: "F", key: "fat" as const, color: MACRO_COLORS.fat },
 ]
 
+// ─── Describe-to-log sheet ───────────────────────────────────────────────────
+
+function DescribeMealSheet({
+  busy,
+  onSubmit,
+  onClose,
+}: {
+  busy: boolean
+  onSubmit: (text: string) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState("")
+  const canSubmit = text.trim().length >= 4 && !busy
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[3px]"
+        onClick={busy ? undefined : onClose}
+      />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[26px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.2)]"
+        style={{
+          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+        }}
+      >
+        <div className="mx-auto mb-4 h-1 w-9 rounded-full bg-foreground/10" />
+        <div className="mb-4 flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
+            <Sparkle size={15} weight="fill" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] leading-snug font-semibold">
+              Describe to log
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-muted-foreground/58">
+              Tell AI what you ate. It will split the meal into ingredients and
+              create a temporary recipe you can review before logging.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="app-icon-button h-9 w-9 disabled:opacity-40"
+            aria-label="Close describe meal"
+          >
+            <X size={13} weight="bold" />
+          </button>
+        </div>
+
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          disabled={busy}
+          placeholder="e.g. chicken burrito bowl with rice, black beans, salsa, cheese, and guacamole"
+          className="min-h-36 w-full resize-none rounded-2xl border border-border/50 bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/35 focus:border-foreground/20 disabled:opacity-60"
+        />
+
+        <button
+          type="button"
+          disabled={!canSubmit}
+          onClick={() => onSubmit(text.trim())}
+          className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
+        >
+          <Sparkle
+            size={14}
+            weight="fill"
+            className={busy ? "animate-spin" : undefined}
+          />
+          {busy ? "Building recipe…" : "Create temporary recipe"}
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ─── Recipe log sheet ─────────────────────────────────────────────────────────
 
 function RecipeLogSheet({
   recipe,
   onLog,
+  onEdit,
   onClose,
 }: {
   recipe: Recipe
-  onLog: (meal: string) => Promise<void>
+  onLog: (meal: string) => void
+  onEdit?: () => void
   onClose: () => void
 }) {
   const categories = DEFAULT_MEAL_CATEGORIES
   const suggested = defaultMeal()
   const totals = recipeTotals(recipe.ingredients)
-  const [savingMeal, setSavingMeal] = useState<string | null>(null)
-
-  async function selectMeal(meal: string) {
-    if (savingMeal) return
-    setSavingMeal(meal)
-    try {
-      await onLog(meal)
-    } catch (error) {
-      reportOfflineMutationError(error)
-      setSavingMeal(null)
-    }
-  }
 
   return (
     <>
       <div
         className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
-        onClick={savingMeal ? undefined : onClose}
+        onClick={onClose}
       />
-      <div
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)]"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-      >
+      <div className="fixed inset-x-0 bottom-0 z-50 mx-auto w-full max-w-sm rounded-t-[24px] bg-card px-4 pt-4 pb-[calc(var(--app-safe-bottom-lg)+5.25rem)] shadow-[0_-16px_50px_rgba(0,0,0,0.18)] md:pb-6">
         <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-foreground/10" />
         <p className="text-[15px] leading-snug font-semibold">Log to…</p>
         <p className="mb-0.5 truncate text-[11.5px] text-muted-foreground/45">
           {recipe.name}
         </p>
-        <p className="mb-4 text-[11px] text-muted-foreground/30 tabular-nums">
+        <p className="mb-3 text-[11px] text-muted-foreground/30 tabular-nums">
           {totals.calories} kcal · P{totals.protein} C{totals.carbs} F
           {totals.fat}g
         </p>
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="mb-3 flex min-h-10 w-full items-center justify-center rounded-2xl bg-muted px-4 text-[13px] font-semibold text-foreground/75 transition-opacity active:opacity-75"
+          >
+            Edit recipe
+          </button>
+        )}
         <div className="flex flex-col gap-1.5">
           {categories.map((cat) => (
             <button
               key={cat.id}
-              type="button"
-              onClick={() => void selectMeal(cat.id)}
-              disabled={Boolean(savingMeal)}
-              aria-busy={savingMeal === cat.id}
+              onClick={() => onLog(cat.id)}
               className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
@@ -1245,18 +1285,14 @@ function RecipeLogSheet({
               >
                 {cat.label}
               </span>
-              {savingMeal === cat.id ? (
-                <span className="text-[10px] font-medium text-muted-foreground/50">
-                  saving
-                </span>
-              ) : cat.id === suggested ? (
+              {cat.id === suggested && (
                 <span
                   className="text-[10px] font-medium"
                   style={{ color: cat.color, opacity: 0.6 }}
                 >
                   suggested
                 </span>
-              ) : null}
+              )}
             </button>
           ))}
         </div>
@@ -1317,7 +1353,6 @@ function RecipeCard({
 
       <div className="mt-3 flex gap-2">
         <button
-          type="button"
           onClick={onEdit}
           className="app-button app-button-secondary text-muted-foreground/70"
         >
@@ -1325,7 +1360,6 @@ function RecipeCard({
           Edit
         </button>
         <button
-          type="button"
           onClick={onDelete}
           className="app-button app-button-secondary px-3 text-muted-foreground/55"
           aria-label={`Delete ${recipe.name}`}
@@ -1333,7 +1367,6 @@ function RecipeCard({
           <Trash size={11} />
         </button>
         <button
-          type="button"
           onClick={onLog}
           className="app-button app-button-quiet flex-1"
         >
@@ -1378,9 +1411,7 @@ function GoalsCardWrapper({
           Daily goals
         </p>
         <button
-          type="button"
           onClick={() => setEditing((o) => !o)}
-          aria-expanded={editing}
           className="app-button app-button-quiet"
         >
           {editing ? <X size={9} weight="bold" /> : <PencilSimple size={10} />}
@@ -1437,17 +1468,13 @@ function GoalsCardWrapper({
                 </div>
                 <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
                   <button
-                    type="button"
                     onClick={() => adjust(key, -step)}
-                    aria-label={`Decrease ${label.toLowerCase()} goal`}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">−</span>
                   </button>
                   <input
                     type="number"
-                    name={`food-goal-${key}`}
-                    aria-label={`${label} goal`}
                     value={draft[key]}
                     onChange={(e) => {
                       const v = parseInt(e.target.value)
@@ -1457,9 +1484,7 @@ function GoalsCardWrapper({
                     className="h-10 w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
                   />
                   <button
-                    type="button"
                     onClick={() => adjust(key, step)}
-                    aria-label={`Increase ${label.toLowerCase()} goal`}
                     className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">+</span>
@@ -1470,7 +1495,6 @@ function GoalsCardWrapper({
           </div>
           <div className="mt-3 flex items-center gap-2">
             <button
-              type="button"
               onClick={() => {
                 onSave(draft)
                 setEditing(false)
@@ -1481,7 +1505,6 @@ function GoalsCardWrapper({
             </button>
             {apiGoals && (
               <button
-                type="button"
                 onClick={() => {
                   const r = {
                     calories: apiGoals.target,
@@ -1543,13 +1566,11 @@ function WaterCard({ dateKey }: { dateKey: string }) {
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
     const entry = {
-      id: createClientId(),
+      id: crypto.randomUUID(),
       amountMl,
       loggedAt: new Date().toISOString(),
     }
-    void setWaterDay({ date: dateKey, entries: [...entries, entry] }).catch(
-      reportOfflineMutationError
-    )
+    void setWaterDay({ date: dateKey, entries: [...entries, entry] })
   }
 
   function addGlass() {
@@ -1569,9 +1590,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
     const sorted = [...entries].sort((a, b) =>
       b.loggedAt.localeCompare(a.loggedAt)
     )
-    void setWaterDay({ date: dateKey, entries: sorted.slice(1) }).catch(
-      reportOfflineMutationError
-    )
+    void setWaterDay({ date: dateKey, entries: sorted.slice(1) })
   }
 
   return (
@@ -1582,7 +1601,6 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           Hydration
         </p>
         <button
-          type="button"
           onClick={() => navigate("/settings")}
           className="app-button app-button-quiet"
         >
@@ -1602,7 +1620,6 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           return (
             <button
               key={i}
-              type="button"
               onClick={filled ? removeLastEntry : () => fillToGlass(i)}
               onPointerEnter={() => setHoveredGlass(i)}
               onFocus={() => setHoveredGlass(i)}
@@ -1637,7 +1654,6 @@ function WaterCard({ dateKey }: { dateKey: string }) {
           {fmtWater(totalMl)} / {fmtWater(goalMl)}
         </p>
         <button
-          type="button"
           onClick={addGlass}
           className="app-button app-button-quiet"
         >
@@ -1652,6 +1668,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
 
 export default function Foods() {
   const navigate = useSmoothNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
@@ -1688,35 +1705,96 @@ export default function Foods() {
     beforeOrOn: todayKey,
     limit: 21,
   })
-  const todayEntries = useMemo(
-    () => (foodLogs ?? []) as FoodLogEntry[],
-    [foodLogs]
-  )
+  const todayEntries = (foodLogs ?? []) as FoodLogEntry[]
   const todaySupplementTotals = (supplementNutrition ??
     {}) as SupplementNutrients
   const recipes = (recipesQuery ?? []) as unknown as Recipe[]
-  const mealPresets = useMemo(
-    () => (mealPresetsQuery ?? []) as unknown as MealPreset[],
-    [mealPresetsQuery]
-  )
-  const recentFoodLogDays = useMemo(
-    () =>
-      (recentFoodLogs ?? []) as unknown as {
-        date: string
-        entries: FoodLogEntry[]
-      }[],
-    [recentFoodLogs]
-  )
+  const mealPresets = (mealPresetsQuery ?? []) as unknown as MealPreset[]
+  const recentFoodLogDays = (recentFoodLogs ?? []) as unknown as {
+    date: string
+    entries: FoodLogEntry[]
+  }[]
 
   const [addOpen, setAddOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  const [describeOpen, setDescribeOpen] = useState(false)
+  const [describeBusy, setDescribeBusy] = useState(false)
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null)
   const [dismissedSmartMealKeys, setDismissedSmartMealKeys] = useState<
     string[]
   >([])
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
+  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setAddOpen(true))
+
+  function openSnapCamera() {
+    if (!requireAiAccess()) return
+    if (!navigator.onLine) {
+      setSnapOffline(true)
+      return
+    }
+    setSnapOffline(false)
+    setAddOpen(false)
+    navigate("/camera")
+  }
+
+  function openDescribeMeal() {
+    if (!requireAiAccess()) return
+    setAddOpen(false)
+    setDescribeOpen(true)
+  }
+
+  function editRecipeFromLogEntry(entry: FoodLogEntry) {
+    const replaceFoodLogEntry = { date: todayKey, entryId: entry.id }
+    if (entry.recipeId) {
+      navigate(`/foods/recipe/${entry.recipeId}`, {
+        state: { replaceFoodLogEntry },
+      })
+      return
+    }
+    if (entry.recipeDraft) {
+      navigate("/foods/recipe/new", {
+        state: { draftRecipe: entry.recipeDraft, replaceFoodLogEntry },
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (searchParams.get("describe") !== "1") return
+    if (requireAiAccess()) {
+      setAddOpen(false)
+      setDescribeOpen(true)
+    }
+    const next = new URLSearchParams(searchParams)
+    next.delete("describe")
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams, requireAiAccess])
+
+  async function handleDescribeMeal(text: string) {
+    if (describeBusy || !requireAiAccess()) return
+    setDescribeBusy(true)
+    try {
+      const result = (await convexClient.action(
+        (api.logs.snap as any).describeText,
+        {
+          text,
+          language: preferences?.foodSearchLanguage ?? "en",
+        }
+      )) as unknown as { aiResult?: SnapAiResult; matches?: SnapFoodMatch[] }
+      const recipe = tempRecipeFromAiDescription(result, text)
+      if (!recipe) {
+        toast.message("I couldn't match enough ingredients to log that meal")
+        return
+      }
+      setDescribeOpen(false)
+      setLoggingRecipe(recipe)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not parse meal")
+    } finally {
+      setDescribeBusy(false)
+    }
+  }
 
   const apiGoals = useMemo(() => {
     if (!goalsRes) return null
@@ -1754,14 +1832,6 @@ export default function Foods() {
       }),
     [dismissedSmartMealKeys, mealPresets, recentFoodLogDays, todayEntries]
   )
-  const historyDays = useMemo(
-    () =>
-      buildFoodHistoryDaySummaries(recentFoodLogDays, {
-        excludeDate: todayKey,
-        limit: 14,
-      }),
-    [recentFoodLogDays, todayKey]
-  )
 
   function dismissSmartMealSuggestion(key: string) {
     setDismissedSmartMealKeys((prev) =>
@@ -1769,19 +1839,8 @@ export default function Foods() {
     )
   }
 
-  function startFoodCapture(mode: FoodCaptureMode) {
-    if (!canStartFoodCapture(mode, isBrowserOnline())) {
-      setSnapOffline(true)
-      return false
-    }
-
-    setSnapOffline(false)
-    navigate(foodCapturePath(mode))
-    return true
-  }
-
   async function saveSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
-    if (suggestion.kind !== "save" || smartMealBusyKey !== null) return
+    if (suggestion.kind !== "save") return
     setSmartMealBusyKey(suggestion.key)
     try {
       await createMealPresetMutation({
@@ -1791,15 +1850,13 @@ export default function Foods() {
         entries: suggestion.entries,
       })
       dismissSmartMealSuggestion(suggestion.key)
-    } catch (error) {
-      reportOfflineMutationError(error)
     } finally {
       setSmartMealBusyKey(null)
     }
   }
 
   async function logSmartMealPreset(suggestion: SmartMealPresetSuggestion) {
-    if (suggestion.kind !== "log" || smartMealBusyKey !== null) return
+    if (suggestion.kind !== "log") return
     setSmartMealBusyKey(suggestion.key)
     try {
       const presetEntries = foodLogEntriesFromMealPreset(suggestion.preset, {
@@ -1810,29 +1867,16 @@ export default function Foods() {
         entries: [...todayEntries, ...presetEntries],
       })
       dismissSmartMealSuggestion(suggestion.key)
-    } catch (error) {
-      reportOfflineMutationError(error)
     } finally {
       setSmartMealBusyKey(null)
     }
   }
 
-  async function copyHistoryMeal(meal: FoodHistoryMealSummary) {
-    const copiedEntries = foodLogEntriesFromHistoryMeal(meal.entries, {
-      meal: meal.meal,
-      loggedAt: new Date().toISOString(),
-    })
-    await setDay({
-      date: todayKey,
-      entries: [...todayEntries, ...copiedEntries],
-    })
-  }
-
   return (
     <div className="desktop-canvas min-h-svh overflow-x-hidden bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:max-w-6xl md:pb-10">
+      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
-        <header className="app-header px-4 md:px-8 short-phone:pb-2">
+        <header className="app-header px-[var(--app-page-x)] md:px-8 short-phone:pb-4">
           <div>
             <p className="app-eyebrow">
               Diary
@@ -1843,7 +1887,6 @@ export default function Foods() {
           </div>
           <div className="flex items-center gap-1.5 pb-0.5">
             <button
-              type="button"
               onClick={() => setHistoryOpen(true)}
               aria-label="Open food history"
               className="app-icon-button"
@@ -1851,15 +1894,13 @@ export default function Foods() {
               <CalendarBlank size={15} />
             </button>
             <button
-              type="button"
-              onClick={() => startFoodCapture("snap")}
+              onClick={openSnapCamera}
               aria-label="Snap meal"
               className="app-icon-button"
             >
               <Aperture size={15} />
             </button>
             <button
-              type="button"
               onClick={() => navigate("/foods/search")}
               aria-label="Search foods"
               className="app-icon-button"
@@ -1871,17 +1912,21 @@ export default function Foods() {
 
         <FoodActionRow
           onSearch={() => navigate("/foods/search")}
-          onScan={() => startFoodCapture("barcode")}
-          onSnap={() => startFoodCapture("snap")}
+          onScan={() => navigate("/camera?mode=barcode")}
+          onSnap={openSnapCamera}
         />
 
-        <div className="app-grid px-4 md:px-8 short-phone:gap-3">
+        <div className="app-grid px-[var(--app-page-x)] md:px-8 short-phone:gap-3">
           {smartMealSuggestion && (
             <section className="md:col-span-2">
               <SmartMealPresetCard
                 suggestion={smartMealSuggestion}
-                onSave={() => saveSmartMealPreset(smartMealSuggestion)}
-                onLog={() => logSmartMealPreset(smartMealSuggestion)}
+                onSave={() => {
+                  void saveSmartMealPreset(smartMealSuggestion)
+                }}
+                onLog={() => {
+                  void logSmartMealPreset(smartMealSuggestion)
+                }}
                 onDismiss={() =>
                   dismissSmartMealSuggestion(smartMealSuggestion.key)
                 }
@@ -1899,8 +1944,9 @@ export default function Foods() {
                 void setDay({
                   date: todayKey,
                   entries: todayEntries.filter((_, i) => i !== index),
-                }).catch(reportOfflineMutationError)
+                })
               }}
+              onEditRecipe={editRecipeFromLogEntry}
             />
           </section>
 
@@ -1917,7 +1963,7 @@ export default function Foods() {
                 goals={goals}
                 apiGoals={apiGoals}
                 onSave={(g) => {
-                  void saveCustomGoals(g).catch(reportOfflineMutationError)
+                  void saveCustomGoals(g)
                 }}
               />
             </div>
@@ -1928,7 +1974,6 @@ export default function Foods() {
               title="Recipes"
               action={
                 <button
-                  type="button"
                   onClick={() => navigate("/foods/recipe/new")}
                   className="app-button app-button-quiet"
                 >
@@ -1939,7 +1984,6 @@ export default function Foods() {
             />
             {recipes.length === 0 ? (
               <button
-                type="button"
                 onClick={() => navigate("/foods/recipe/new")}
                 className="app-empty w-full transition-colors active:bg-muted/20"
               >
@@ -1969,7 +2013,7 @@ export default function Foods() {
                       if (recipe._id) {
                         void removeRecipeMutation({
                           id: recipe._id as Id<"recipes">,
-                        }).catch(reportOfflineMutationError)
+                        })
                       }
                     }}
                     onLog={() => setLoggingRecipe(recipe)}
@@ -1994,11 +2038,15 @@ export default function Foods() {
       </div>
 
       {/* History sheet */}
-      {historyOpen && (
-        <HistorySheet
-          days={historyDays}
-          onCopyMeal={copyHistoryMeal}
-          onClose={() => setHistoryOpen(false)}
+      {historyOpen && <HistorySheet onClose={() => setHistoryOpen(false)} />}
+
+      {describeOpen && (
+        <DescribeMealSheet
+          busy={describeBusy}
+          onSubmit={(text) => {
+            void handleDescribeMeal(text)
+          }}
+          onClose={() => setDescribeOpen(false)}
         />
       )}
 
@@ -2006,20 +2054,38 @@ export default function Foods() {
       {loggingRecipe && (
         <RecipeLogSheet
           recipe={loggingRecipe}
-          onLog={async (meal) => {
+          onLog={(meal) => {
             const totals = recipeTotals(loggingRecipe.ingredients)
-            const entry = {
-              id: createClientId(),
+            const entry = stripUndefined({
+              id: Math.random().toString(36).slice(2),
               name: loggingRecipe.name,
               ...totals,
               loggedAt: new Date().toISOString(),
               meal,
-            }
-            await setDay({
+              recipeId: loggingRecipe._id,
+              recipeDraft: loggingRecipe._id
+                ? undefined
+                : {
+                    name: loggingRecipe.name,
+                    ingredients: loggingRecipe.ingredients,
+                  },
+            })
+            void setDay({
               date: todayKey,
               entries: [...todayEntries, entry],
             })
             setLoggingRecipe(null)
+          }}
+          onEdit={() => {
+            const recipe = loggingRecipe
+            setLoggingRecipe(null)
+            if (recipe._id) {
+              navigate(`/foods/recipe/${recipe._id}`)
+              return
+            }
+            navigate("/foods/recipe/new", {
+              state: { draftRecipe: recipe },
+            })
           }}
           onClose={() => setLoggingRecipe(null)}
         />
@@ -2033,13 +2099,14 @@ export default function Foods() {
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
+          maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
             <div className="mb-3 app-surface overflow-hidden">
               <button
-                type="button"
                 onClick={() => {
-                  if (startFoodCapture("barcode") !== false) setAddOpen(false)
+                  setAddOpen(false)
+                  navigate("/camera?mode=barcode")
                 }}
                 className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
@@ -2060,10 +2127,7 @@ export default function Foods() {
               </button>
 
               <button
-                type="button"
-                onClick={() => {
-                  if (startFoodCapture("snap") !== false) setAddOpen(false)
-                }}
+                onClick={openSnapCamera}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
               >
                 <span className="flex min-w-0 items-center gap-3">
@@ -2081,11 +2145,30 @@ export default function Foods() {
                 </span>
                 <CaretRight size={12} className="text-muted-foreground/35" />
               </button>
+
+              <button
+                onClick={openDescribeMeal}
+                className="flex w-full items-center justify-between gap-3 border-t border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                    <Sparkle size={16} weight="fill" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-semibold">
+                      Describe meal
+                    </span>
+                    <span className="block text-[11.5px] text-muted-foreground/60">
+                      AI builds a temporary recipe
+                    </span>
+                  </span>
+                </span>
+                <CaretRight size={12} className="text-muted-foreground/35" />
+              </button>
             </div>
 
             <div className="app-surface overflow-hidden">
               <button
-                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/foods/search")
@@ -2103,7 +2186,6 @@ export default function Foods() {
               </button>
               <div className="mx-4 h-px bg-border/50" />
               <button
-                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/foods/recipe/new")
@@ -2119,9 +2201,63 @@ export default function Foods() {
                 </div>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
+              {recipes.length > 0 && (
+                <>
+                  <div className="mx-4 h-px bg-border/50" />
+                  <div className="px-4 pt-3 pb-1">
+                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
+                      Saved recipes
+                    </p>
+                  </div>
+                  {recipes.slice(0, 5).map((recipe) => {
+                    const totals = recipeTotals(recipe.ingredients)
+                    return (
+                      <div
+                        key={recipe._id ?? recipe.name}
+                        className="flex w-full items-center gap-1 px-2 py-1"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddOpen(false)
+                            setLoggingRecipe(recipe)
+                          }}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                        >
+                          <div className="min-w-0 text-left">
+                            <p className="truncate text-[13px] font-medium">
+                              {recipe.name}
+                            </p>
+                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {recipe.ingredients.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <CaretRight
+                            size={11}
+                            className="shrink-0 text-muted-foreground/30"
+                          />
+                        </button>
+                        {recipe._id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddOpen(false)
+                              navigate(`/foods/recipe/${recipe._id}`)
+                            }}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                            aria-label={`Edit ${recipe.name}`}
+                          >
+                            <PencilSimple size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </>
+              )}
               <div className="mx-4 h-px bg-border/50" />
               <button
-                type="button"
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workout/active")
@@ -2150,6 +2286,8 @@ export default function Foods() {
           )}
         </MobileSheet>
       )}
+
+      {aiAccessModal}
     </div>
   )
 }

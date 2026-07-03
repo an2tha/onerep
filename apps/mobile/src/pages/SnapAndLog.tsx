@@ -16,7 +16,6 @@ import {
   Plus,
   Minus,
   Fire,
-  Warning,
   X,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
@@ -31,7 +30,7 @@ import {
 import {
   currentDateKey,
   defaultMeal,
-  foodLogEntryFromFoodResult,
+  stripUndefined,
   type FoodLogEntry,
   type MealType,
   DEFAULT_MEAL_CATEGORIES,
@@ -39,17 +38,14 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
+import { toast } from "sonner"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import type { FoodResult } from "@repo/models"
-import { getFoodByBarcode, searchFoods } from "@/lib/openfoodfacts"
-import { isBrowserOnline } from "@/lib/offline-queue"
-import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
-  canStartFoodCapture,
-  foodCaptureUnavailableCopy,
-  parseFoodCaptureMode,
-  type FoodCaptureMode,
-} from "@/lib/food-capture"
+  getFoodByBarcode,
+  rankAndFilterFoodResults,
+  searchFoodsAccurate,
+} from "@/lib/openfoodfacts"
 import {
   buildSnapFoodLogEntry,
   clampSnapGrams,
@@ -57,15 +53,18 @@ import {
   mapSnapDetectionsToReviewItems,
   scaleFoodForGrams,
   snapDetectionsFromAiResult,
+  toConvexSafe,
   type SnapAiResult,
+  type SnapFoodMatch,
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
+import { useAiFeatureGate } from "@/lib/ai-access"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CameraState = "requesting" | "active" | "denied" | "unsupported"
-type ScreenMode = FoodCaptureMode
+type ScreenMode = "snap" | "barcode"
 type SnapPhase = "idle" | "uploading" | "results" | "error"
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -73,10 +72,14 @@ type SnapPhase = "idle" | "uploading" | "results" | "error"
 export default function SnapAndLog() {
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
+  const { hasAiAccess, aiAccessLoading, requireAiAccess, aiAccessModal } =
+    useAiFeatureGate()
   const [params] = useSearchParams()
-  const initialMode = parseFoodCaptureMode(params.get("mode"))
+  const initialMode = (params.get("mode") as ScreenMode | null) ?? "snap"
 
   const date = currentDateKey()
+  const preferences = useQuery(api.users.users.getPreferences, {})
+  const foodSearchLanguage = preferences?.foodSearchLanguage ?? "en"
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date })
   const setDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
@@ -91,8 +94,6 @@ export default function SnapAndLog() {
 
   const [cameraState, setCameraState] = useState<CameraState>("requesting")
   const [mode, setMode] = useState<ScreenMode>(initialMode)
-  const [browserOnline, setBrowserOnline] = useState(() => isBrowserOnline())
-  const [cameraAttempt, setCameraAttempt] = useState(0)
   const [facingMode, setFacingMode] = useState<"environment" | "user">(
     "environment"
   )
@@ -103,6 +104,7 @@ export default function SnapAndLog() {
   const [snapPhase, setSnapPhase] = useState<SnapPhase>("idle")
   const [snapReviewItems, setSnapReviewItems] = useState<SnapReviewItem[]>([])
   const [snapRaw, setSnapRaw] = useState<string | null>(null)
+  const [snapLogging, setSnapLogging] = useState(false)
 
   // Barcode results
   const [barcodeScanning, setBarcodeScanning] = useState(false)
@@ -112,25 +114,23 @@ export default function SnapAndLog() {
   // Log state
   const [meal, setMeal] = useState<MealType>(defaultMeal())
   const [added, setAdded] = useState<string | null>(null)
-  const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
-  const loggingTargetRef = useRef<string | null>(null)
   const useNativeCapture = Capacitor.isNativePlatform()
-  const captureAvailable = canStartFoodCapture(mode, browserOnline)
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-
-    function refreshOnlineState() {
-      setBrowserOnline(isBrowserOnline())
+    if (mode === "snap" && !aiAccessLoading && !hasAiAccess) {
+      requireAiAccess()
     }
+  }, [mode, aiAccessLoading, hasAiAccess, requireAiAccess])
 
-    window.addEventListener("online", refreshOnlineState)
-    window.addEventListener("offline", refreshOnlineState)
-    return () => {
-      window.removeEventListener("online", refreshOnlineState)
-      window.removeEventListener("offline", refreshOnlineState)
-    }
-  }, [])
+  const snapSearchFoods = useCallback(
+    (query: string, limit?: number, language?: string) =>
+      searchFoodsAccurate(query, {
+        limit: limit ?? 12,
+        fetchLimit: Math.max(limit ?? 12, 60),
+        language: language ?? foodSearchLanguage,
+      }),
+    [foodSearchLanguage]
+  )
 
   // ── Camera stream ─────────────────────────────────────────────────────────
 
@@ -176,14 +176,6 @@ export default function SnapAndLog() {
   )
 
   useEffect(() => {
-    if (!captureAvailable) {
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-      if (videoRef.current) videoRef.current.srcObject = null
-      setCameraState("requesting")
-      return
-    }
-
     if (useNativeCapture) {
       setCameraState("active")
       return
@@ -197,13 +189,7 @@ export default function SnapAndLog() {
       streamRef.current = null
       if (video) video.srcObject = null
     }
-  }, [
-    cameraAttempt,
-    captureAvailable,
-    facingMode,
-    startCamera,
-    useNativeCapture,
-  ])
+  }, [facingMode, startCamera, useNativeCapture])
 
   // ── Barcode scan loop ─────────────────────────────────────────────────────
 
@@ -301,11 +287,7 @@ export default function SnapAndLog() {
   }
 
   async function processSnapBlob(blob: Blob) {
-    if (!canStartFoodCapture("snap", isBrowserOnline())) {
-      setBrowserOnline(false)
-      setSnapPhase("idle")
-      return
-    }
+    if (!requireAiAccess()) return
 
     setSnapPhase("uploading")
     try {
@@ -319,26 +301,36 @@ export default function SnapAndLog() {
       const result = (await convexClient.action(api.logs.snap.snap, {
         base64Image,
         mimeType: blob.type || "image/jpeg",
-      })) as { aiResult?: SnapAiResult }
+        language: foodSearchLanguage,
+      })) as unknown as {
+        aiResult?: SnapAiResult
+        matches?: SnapFoodMatch[]
+      }
 
       const aiResult = result.aiResult ?? {}
       const detections = snapDetectionsFromAiResult(aiResult)
       const reviewItems = await mapSnapDetectionsToReviewItems(
         detections,
-        searchFoods
+        snapSearchFoods,
+        {
+          language: foodSearchLanguage,
+          perQueryLimit: 12,
+          maxAlternatives: 8,
+          rankResults: rankAndFilterFoodResults,
+          providedMatches: result.matches,
+        }
       )
 
       setSnapReviewItems(reviewItems)
       setSnapRaw(detections.map((detection) => detection.name).join(", "))
       setSnapPhase("results")
-    } catch {
+    } catch (error) {
+      console.error("Failed to process snapped meal:", error)
       setSnapPhase("error")
     }
   }
 
   async function handleNativeCapture() {
-    if (!captureAvailable) return
-
     try {
       const permission = await NativeCamera.requestPermissions()
       if (permission.camera !== "granted") {
@@ -379,11 +371,12 @@ export default function SnapAndLog() {
   function handleShutter() {
     if (
       fired ||
-      !captureAvailable ||
       (!useNativeCapture && cameraState !== "active") ||
       snapPhase === "uploading"
     )
       return
+
+    if (mode === "snap" && !requireAiAccess()) return
     void hapticMedium()
     setFired(true)
     setTimeout(() => setFired(false), 500)
@@ -415,52 +408,52 @@ export default function SnapAndLog() {
     )
   }
 
-  function retryCamera() {
-    setCameraState("requesting")
-    setCameraAttempt((attempt) => attempt + 1)
-  }
-
   // ── Log a food item ───────────────────────────────────────────────────────
 
   async function handleAdd(item: FoodResult) {
-    if (loggingTargetRef.current || added === item.id) return
-    loggingTargetRef.current = item.id
-    setLoggingTarget(item.id)
-    const entry = foodLogEntryFromFoodResult(item, {
+    const entry = stripUndefined({
+      id: Math.random().toString(36).slice(2),
+      name: item.name,
+      calories: Number(item.calories),
+      protein: Number(item.protein),
+      carbs: Number(item.carbs),
+      fat: Number(item.fat),
+      loggedAt: new Date().toISOString(),
       meal,
+      source: "openfoodfacts" as const,
+      foodCode: item.code,
+      quantityGrams: 100,
+      servingLabel: item.serving,
+      imageUrl: item.imageUrl,
+      openFoodFacts: toConvexSafe(item.openFoodFacts),
     })
 
-    try {
-      const existingEntries = foodLogs ?? []
-      await setDay({ date, entries: [...existingEntries, entry] })
+    const existingEntries = foodLogs ?? []
+    await setDay({ date, entries: [...existingEntries, entry] })
 
-      posthog.capture("food_logged_from_camera", {
-        food_name: item.name,
-        calories: item.calories,
-        meal,
-        source: mode,
-      })
-      setAdded(item.id)
-      setTimeout(() => setAdded(null), 1800)
-    } catch (error) {
-      reportOfflineMutationError(error)
-    } finally {
-      loggingTargetRef.current = null
-      setLoggingTarget(null)
-    }
+    posthog.capture("food_logged_from_camera", {
+      food_name: item.name,
+      calories: item.calories,
+      meal,
+      source: mode,
+    })
+    setAdded(item.id)
+    setTimeout(() => setAdded(null), 1800)
   }
 
   async function handleConfirmSnapLog() {
-    if (loggingTargetRef.current || added === "snap-review") return
+    if (snapLogging) return
+
     const entries = snapReviewItems
       .map((item) => buildSnapFoodLogEntry(item, meal))
       .filter((entry): entry is FoodLogEntry => entry !== null)
 
-    if (entries.length === 0) return
+    if (entries.length === 0) {
+      toast.message("Pick at least one matched food to log")
+      return
+    }
 
-    loggingTargetRef.current = "snap-review"
-    setLoggingTarget("snap-review")
-
+    setSnapLogging(true)
     try {
       const existingEntries = foodLogs ?? []
       await setDay({ date, entries: [...existingEntries, ...entries] })
@@ -473,6 +466,9 @@ export default function SnapAndLog() {
       })
 
       setAdded("snap-review")
+      toast.success(
+        entries.length === 1 ? "Meal logged" : `${entries.length} foods logged`
+      )
       setTimeout(() => {
         setAdded(null)
         setSnapPhase("idle")
@@ -480,10 +476,10 @@ export default function SnapAndLog() {
         setSnapRaw(null)
       }, 900)
     } catch (error) {
-      reportOfflineMutationError(error)
+      console.error("Failed to log snapped meal:", error)
+      toast.error("Could not log meal")
     } finally {
-      loggingTargetRef.current = null
-      setLoggingTarget(null)
+      setSnapLogging(false)
     }
   }
 
@@ -499,6 +495,8 @@ export default function SnapAndLog() {
   // ── Mode switch reset ─────────────────────────────────────────────────────
 
   function switchMode(m: ScreenMode) {
+    if (m === "snap" && !requireAiAccess()) return
+
     setMode(m)
     setSnapPhase("idle")
     setSnapReviewItems([])
@@ -530,27 +528,11 @@ export default function SnapAndLog() {
         />
       )}
 
-      {!captureAvailable && (
-        <FoodCaptureUnavailableState
-          mode={mode}
-          onScan={() => switchMode("barcode")}
-          onSearch={() => navigate("/foods/search")}
-        />
-      )}
-
       {/* ── Permission / loading states ──────────────────────────────── */}
-      {captureAvailable && cameraState !== "active" && !useNativeCapture && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0c0c0c] px-8 text-center">
+      {cameraState !== "active" && !useNativeCapture && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0c0c0c]">
           {cameraState === "requesting" && (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
-              <p className="text-[13px] font-medium text-white/70">
-                Starting camera
-              </p>
-              <p className="max-w-[220px] text-[11px] leading-relaxed text-white/35">
-                Keep OneRep open while we connect to your camera.
-              </p>
-            </>
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
           )}
           {cameraState === "denied" && (
             <>
@@ -560,30 +542,17 @@ export default function SnapAndLog() {
               <p className="max-w-[200px] text-center text-[11px] text-white/35">
                 Allow camera access in Settings to use Snap &amp; Log.
               </p>
-              <CameraFallbackActions
-                onRetry={retryCamera}
-                onSearch={() => navigate("/foods/search")}
-              />
             </>
           )}
           {cameraState === "unsupported" && (
-            <>
-              <p className="text-[13px] font-medium text-white/70">
-                Camera not available
-              </p>
-              <p className="max-w-[220px] text-[11px] leading-relaxed text-white/35">
-                Search manually or try again after checking browser permissions.
-              </p>
-              <CameraFallbackActions
-                onRetry={retryCamera}
-                onSearch={() => navigate("/foods/search")}
-              />
-            </>
+            <p className="text-[13px] font-medium text-white/70">
+              Camera not available
+            </p>
           )}
         </div>
       )}
 
-      {captureAvailable && useNativeCapture && (
+      {useNativeCapture && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0c0c0c] px-8 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-[14px] border border-white/12 bg-white/[0.04]">
             {mode === "snap" ? (
@@ -683,9 +652,7 @@ export default function SnapAndLog() {
         }}
       >
         <button
-          type="button"
           onClick={() => navigate(-1)}
-          aria-label="Back"
           className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white backdrop-blur-md transition-opacity active:opacity-60"
         >
           <ArrowLeft size={16} weight="bold" />
@@ -694,24 +661,20 @@ export default function SnapAndLog() {
         {/* Mode toggle pill */}
         <div className="flex items-center gap-1 rounded-[14px] border border-white/10 bg-black/45 p-1 backdrop-blur-md">
           <button
-            type="button"
             onClick={() => {
               void hapticTap()
               switchMode("snap")
             }}
-            aria-pressed={mode === "snap"}
             className={`flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-[11px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/50"}`}
           >
             <CameraIcon size={12} weight="bold" />
             Snap
           </button>
           <button
-            type="button"
             onClick={() => {
               void hapticTap()
               switchMode("barcode")
             }}
-            aria-pressed={mode === "barcode"}
             className={`flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-[11px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/50"}`}
           >
             <Barcode size={12} weight="bold" />
@@ -720,10 +683,7 @@ export default function SnapAndLog() {
         </div>
 
         <button
-          type="button"
           onClick={() => setFlash((f) => !f)}
-          aria-label={flash ? "Turn flash off" : "Turn flash on"}
-          aria-pressed={flash}
           className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white backdrop-blur-md transition-opacity active:opacity-60"
         >
           {flash ? (
@@ -756,54 +716,46 @@ export default function SnapAndLog() {
       )}
 
       {/* ── Bottom controls (snap mode only) ─────────────────────────── */}
-      {captureAvailable &&
-        (mode === "snap" || useNativeCapture) &&
-        snapPhase !== "uploading" && (
-          <div
-            className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
-            style={{
-              paddingBottom: "var(--app-safe-bottom-lg)",
-              paddingTop: "1.5rem",
-            }}
+      {(mode === "snap" || useNativeCapture) && snapPhase !== "uploading" && (
+        <div
+          className="absolute right-0 bottom-0 left-0 flex items-center justify-between px-10"
+          style={{
+            paddingBottom: "var(--app-safe-bottom-lg)",
+            paddingTop: "1.5rem",
+          }}
+        >
+          <button
+            onClick={() =>
+              setFacingMode((f) =>
+                f === "environment" ? "user" : "environment"
+              )
+            }
+            disabled={useNativeCapture || mode !== "snap"}
+            className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
           >
-            <button
-              type="button"
-              onClick={() =>
-                setFacingMode((f) =>
-                  f === "environment" ? "user" : "environment"
-                )
-              }
-              disabled={useNativeCapture || mode !== "snap"}
-              aria-label="Switch camera"
-              className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
-            >
-              <ArrowsClockwise size={18} />
-            </button>
+            <ArrowsClockwise size={18} />
+          </button>
 
-            <button
-              type="button"
-              onClick={handleShutter}
-              disabled={
-                !captureAvailable ||
-                (!useNativeCapture && cameraState !== "active")
-              }
-              className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
-              aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}
-            >
-              <div className="absolute inset-0 rounded-full border-2 border-white/30" />
-              <div
-                className="h-[60px] w-[60px] rounded-full bg-white"
-                style={{
-                  transform: fired ? "scale(0.9)" : "scale(1)",
-                  transition:
-                    "transform var(--motion-fast) var(--motion-ease-out)",
-                }}
-              />
-            </button>
+          <button
+            onClick={handleShutter}
+            disabled={!useNativeCapture && cameraState !== "active"}
+            className="motion-pressable relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-30"
+            aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}
+          >
+            <div className="absolute inset-0 rounded-full border-2 border-white/30" />
+            <div
+              className="h-[60px] w-[60px] rounded-full bg-white"
+              style={{
+                transform: fired ? "scale(0.9)" : "scale(1)",
+                transition:
+                  "transform var(--motion-fast) var(--motion-ease-out)",
+              }}
+            />
+          </button>
 
-            <div className="h-11 w-11" />
-          </div>
-        )}
+          <div className="h-11 w-11" />
+        </div>
+      )}
 
       {/* ── Results sheet ─────────────────────────────────────────────── */}
       {showResultsSheet && (
@@ -817,9 +769,9 @@ export default function SnapAndLog() {
           meal={meal}
           onMealChange={setMeal}
           added={added}
-          loggingTarget={loggingTarget}
-          onAdd={(item) => void handleAdd(item)}
-          onConfirmSnap={() => void handleConfirmSnapLog()}
+          snapLogging={snapLogging}
+          onAdd={handleAdd}
+          onConfirmSnap={handleConfirmSnapLog}
           onSnapItemChange={updateSnapReviewItem}
           onRetake={() => {
             setSnapPhase("idle")
@@ -838,76 +790,8 @@ export default function SnapAndLog() {
           }}
         />
       )}
-    </div>
-  )
-}
 
-function FoodCaptureUnavailableState({
-  mode,
-  onScan,
-  onSearch,
-}: {
-  mode: ScreenMode
-  onScan: () => void
-  onSearch: () => void
-}) {
-  const copy = foodCaptureUnavailableCopy(mode)
-
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0c0c0c] px-8 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-[14px] border border-white/12 bg-white/[0.04]">
-        <Warning size={24} weight="bold" className="text-white/70" />
-      </div>
-      <div>
-        <p className="text-[15px] font-medium text-white/80">{copy.title}</p>
-        <p className="mt-2 max-w-[260px] text-[11px] leading-relaxed text-white/38">
-          {copy.body}
-        </p>
-      </div>
-      <div className="grid w-full max-w-[260px] grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={onScan}
-          className="flex min-h-11 items-center justify-center gap-1.5 rounded-[12px] bg-white text-[12px] font-semibold text-black transition-opacity active:opacity-85"
-        >
-          <Barcode size={14} weight="bold" />
-          Scan
-        </button>
-        <button
-          type="button"
-          onClick={onSearch}
-          className="flex min-h-11 items-center justify-center rounded-[12px] border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition-opacity active:opacity-75"
-        >
-          Search
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function CameraFallbackActions({
-  onRetry,
-  onSearch,
-}: {
-  onRetry: () => void
-  onSearch: () => void
-}) {
-  return (
-    <div className="mt-1 grid w-full max-w-[260px] grid-cols-2 gap-2">
-      <button
-        type="button"
-        onClick={onRetry}
-        className="flex min-h-11 items-center justify-center rounded-[12px] bg-white px-3 text-[12px] font-semibold text-black transition-opacity active:opacity-85"
-      >
-        Try again
-      </button>
-      <button
-        type="button"
-        onClick={onSearch}
-        className="flex min-h-11 items-center justify-center rounded-[12px] border border-white/12 bg-white/[0.06] px-3 text-[12px] font-semibold text-white/72 transition-opacity active:opacity-75"
-      >
-        Search
-      </button>
+      {aiAccessModal}
     </div>
   )
 }
@@ -924,7 +808,7 @@ type ResultsSheetProps = {
   meal: MealType
   onMealChange: (m: MealType) => void
   added: string | null
-  loggingTarget: string | null
+  snapLogging: boolean
   onAdd: (item: FoodResult) => void
   onConfirmSnap: () => void
   onSnapItemChange: (
@@ -946,7 +830,7 @@ function ResultsSheet({
   meal,
   onMealChange,
   added,
-  loggingTarget,
+  snapLogging,
   onAdd,
   onConfirmSnap,
   onSnapItemChange,
@@ -963,7 +847,6 @@ function ResultsSheet({
   ).length
   const isEmpty = !hasError && itemsCount === 0
   const snapLogged = added === "snap-review"
-  const snapLogging = loggingTarget === "snap-review"
   const snapCanLog = selectedSnapCount > 0
   const title = hasError
     ? "Something went wrong"
@@ -995,9 +878,7 @@ function ResultsSheet({
           )}
         </div>
         <button
-          type="button"
           onClick={onDismiss}
-          aria-label="Close capture results"
           className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/10 transition-opacity active:opacity-60"
         >
           <X size={13} weight="bold" className="text-white/60" />
@@ -1040,10 +921,7 @@ function ResultsSheet({
             {DEFAULT_MEAL_CATEGORIES.map((m) => (
               <button
                 key={m.id}
-                type="button"
                 onClick={() => onMealChange(m.id)}
-                aria-pressed={meal === m.id}
-                aria-label={`Log to ${m.label}`}
                 className="shrink-0 rounded-[9px] px-2.5 py-1 text-[10px] font-semibold tracking-wide transition-colors"
                 style={
                   meal === m.id
@@ -1079,8 +957,6 @@ function ResultsSheet({
                     item={item}
                     meal={meal}
                     added={added === item.id}
-                    logging={loggingTarget === item.id}
-                    disabled={Boolean(loggingTarget)}
                     onAdd={onAdd}
                   />
                 ))}
@@ -1094,15 +970,14 @@ function ResultsSheet({
                 type="button"
                 onClick={snapCanLog ? onConfirmSnap : onSearchManually}
                 disabled={snapLogged || snapLogging}
-                aria-busy={snapLogging}
-                className="flex min-h-11 w-full items-center justify-center rounded-[12px] px-4 text-[13px] font-semibold transition-all active:scale-[0.985] disabled:scale-100 disabled:opacity-50"
+                className="flex min-h-11 w-full items-center justify-center rounded-[12px] px-4 text-[13px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50"
                 style={{
-                  backgroundColor: snapLogged || snapLogging
+                  backgroundColor: snapLogged
                     ? tint(APP_ACCENT_COLORS.complete, 14)
                     : snapCanLog
                       ? "rgba(255,255,255,0.92)"
                       : "rgba(255,255,255,0.1)",
-                  color: snapLogged || snapLogging
+                  color: snapLogged
                     ? APP_ACCENT_COLORS.complete
                     : snapCanLog
                       ? "#000"
@@ -1110,14 +985,14 @@ function ResultsSheet({
                 }}
               >
                 {snapLogging
-                  ? "Logging..."
+                  ? "Logging…"
                   : snapLogged
                     ? "Logged"
                     : !snapCanLog
-                    ? "Search manually"
-                    : selectedSnapCount === 1
-                      ? "Log 1 food"
-                      : `Log ${selectedSnapCount} foods`}
+                      ? "Search manually"
+                      : selectedSnapCount === 1
+                        ? "Log 1 food"
+                        : `Log ${selectedSnapCount} foods`}
               </button>
             </div>
           )}
@@ -1247,34 +1122,46 @@ function SnapReviewRow({
           }
         />
 
-        {item.alternatives.length > 1 && (
-          <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
-            {item.alternatives.slice(0, 4).map((alternative) => {
-              const active = food?.id === alternative.id
-              return (
-                <button
-                  key={alternative.id}
-                  type="button"
-                  onClick={() =>
-                    onChange((current) => ({
-                      ...current,
-                      food: alternative,
-                      selected: true,
-                    }))
-                  }
-                  aria-pressed={active}
-                  className="min-h-8 max-w-[9.5rem] shrink-0 rounded-[9px] px-2.5 text-[10.5px] font-semibold transition-all active:scale-[0.985]"
-                  style={{
-                    backgroundColor: active
-                      ? "rgba(255,255,255,0.9)"
-                      : "rgba(255,255,255,0.08)",
-                    color: active ? "#000" : "rgba(255,255,255,0.5)",
-                  }}
-                >
-                  <span className="block truncate">{alternative.name}</span>
-                </button>
-              )
-            })}
+        {item.alternatives.length > 0 && (!food || item.alternatives.length > 1) && (
+          <div className="mt-2">
+            <p className="mb-1 text-[9.5px] font-bold tracking-[0.12em] text-white/28 uppercase">
+              More matches
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+              {item.alternatives.slice(0, 8).map((alternative) => {
+                const active = food?.id === alternative.id
+                return (
+                  <button
+                    key={alternative.id}
+                    type="button"
+                    onClick={() =>
+                      onChange((current) => ({
+                        ...current,
+                        food: alternative,
+                        selected: true,
+                      }))
+                    }
+                    className="min-h-9 max-w-[11rem] shrink-0 rounded-[9px] px-2.5 text-left text-[10.5px] font-semibold transition-all active:scale-[0.985]"
+                    style={{
+                      backgroundColor: active
+                        ? "rgba(255,255,255,0.9)"
+                        : "rgba(255,255,255,0.08)",
+                      color: active ? "#000" : "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    <span className="block truncate">{alternative.name}</span>
+                    {alternative.brand && (
+                      <span
+                        className="block truncate text-[9.5px]"
+                        style={{ opacity: active ? 0.58 : 0.48 }}
+                      >
+                        {alternative.brand}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
@@ -1329,8 +1216,6 @@ function SnapQuantityControl({
       <label className="flex h-8 min-w-0 items-center justify-center rounded-[9px] bg-white/[0.08] px-2">
         <input
           type="text"
-          name="snap-food-grams"
-          aria-label="Snap food quantity in grams"
           inputMode="decimal"
           disabled={disabled}
           value={inputValue}
@@ -1366,15 +1251,11 @@ function BarcodeResultRow({
   item,
   meal,
   added,
-  logging,
-  disabled,
   onAdd,
 }: {
   item: FoodResult
   meal: MealType
   added: boolean
-  logging: boolean
-  disabled: boolean
   onAdd: (item: FoodResult) => void
 }) {
   const mealCfg = mealConfig(meal)
@@ -1419,19 +1300,13 @@ function BarcodeResultRow({
         </div>
       </div>
       <button
-        type="button"
-        disabled={disabled || added}
-        aria-busy={logging}
         onClick={() => onAdd(item)}
-        aria-label={added ? `${item.name} logged` : `Log ${item.name}`}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] transition-all active:scale-[0.985] disabled:scale-100 disabled:opacity-55"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] transition-all active:scale-[0.985]"
         style={{
           backgroundColor: added ? mealCfg.bg : "rgba(255,255,255,0.1)",
         }}
       >
-        {logging ? (
-          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/20 border-t-white/70" />
-        ) : added ? (
+        {added ? (
           <span className="text-[11px]" style={{ color: mealCfg.color }}>
             ✓
           </span>
