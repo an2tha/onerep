@@ -1,5 +1,12 @@
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "./convex"
+import {
+  browserLocalStorage,
+  createClientId,
+  safeLocalStorageGet,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+} from "./utils"
 
 export type OfflineMutationName = keyof typeof MUTATION_REGISTRY
 
@@ -16,6 +23,8 @@ export type OfflineJob = {
 const STORAGE_KEY = "onerep:offline-mutation-queue:v1"
 const OWNER_KEY = "onerep:offline-owner:v1"
 const EVENT_NAME = "onerep:offline-queue-changed"
+const PERSISTENCE_ERROR_MESSAGE =
+  "Could not save this change for offline sync. Please reconnect and try again."
 
 const MUTATION_REGISTRY = {
   "logs.foodLogs.setDay": api.logs.foodLogs.setDay,
@@ -57,10 +66,33 @@ const MUTATION_REGISTRY = {
   "logs.recipes.remove": api.logs.recipes.remove,
 } as const
 
+const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([
+  "users.users.setBodyReminder",
+  "users.users.setPushReminders",
+  "users.users.setPrivacySettings",
+  "users.users.setWaterGoal",
+  "users.users.setWeightUnit",
+  "users.users.setFoodSearchLanguage",
+  "users.users.setDashboardSettings",
+  "users.users.setCustomGoals",
+  "users.users.setMacroCycling",
+  "users.users.setWorkoutAdjustment",
+  "users.users.setWidgetLayout",
+  "users.users.syncTimezone",
+  "users.schedules.set",
+])
+
 let flushing = false
 
+export class OfflineQueuePersistenceError extends Error {
+  constructor() {
+    super(PERSISTENCE_ERROR_MESSAGE)
+    this.name = "OfflineQueuePersistenceError"
+  }
+}
+
 function hasStorage() {
-  return typeof window !== "undefined" && typeof localStorage !== "undefined"
+  return browserLocalStorage() != null
 }
 
 function emitQueueChanged() {
@@ -71,7 +103,7 @@ function emitQueueChanged() {
 export function setOfflineQueueOwner(ownerId: string | null) {
   if (!hasStorage()) return
   if (ownerId) {
-    localStorage.setItem(OWNER_KEY, ownerId)
+    safeLocalStorageSet(OWNER_KEY, ownerId)
     const queue = readOfflineQueue()
     if (queue.some((job) => !job.ownerId)) {
       writeOfflineQueue(
@@ -80,20 +112,20 @@ export function setOfflineQueueOwner(ownerId: string | null) {
       return
     }
   } else {
-    localStorage.removeItem(OWNER_KEY)
+    safeLocalStorageRemove(OWNER_KEY)
   }
   emitQueueChanged()
 }
 
 export function getOfflineQueueOwner() {
   if (!hasStorage()) return null
-  return localStorage.getItem(OWNER_KEY)
+  return safeLocalStorageGet(OWNER_KEY)
 }
 
 export function readOfflineQueue(): OfflineJob[] {
   if (!hasStorage()) return []
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = safeLocalStorageGet(STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed) ? parsed : []
@@ -103,28 +135,54 @@ export function readOfflineQueue(): OfflineJob[] {
 }
 
 function writeOfflineQueue(queue: OfflineJob[]) {
-  if (!hasStorage()) return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(queue))
+  if (!hasStorage()) return false
+  const persisted =
+    queue.length === 0
+      ? safeLocalStorageRemove(STORAGE_KEY)
+      : safeLocalStorageSet(STORAGE_KEY, JSON.stringify(queue))
+  if (!persisted) return false
   emitQueueChanged()
+  return true
 }
 
 export function clearOfflineQueue() {
   if (!hasStorage()) return
-  localStorage.removeItem(STORAGE_KEY)
+  safeLocalStorageRemove(STORAGE_KEY)
   emitQueueChanged()
+}
+
+function objectArgs(args: unknown): Record<string, unknown> | null {
+  return typeof args === "object" && args !== null
+    ? (args as Record<string, unknown>)
+    : null
+}
+
+function offlineMutationCoalesceKey(
+  name: OfflineMutationName,
+  args: unknown
+) {
+  if (
+    name === "logs.foodLogs.setDay" ||
+    name === "logs.water.setDay" ||
+    name === "logs.supplements.setDay"
+  ) {
+    const date = objectArgs(args)?.date
+    return typeof date === "string" ? `${name}:${date}` : null
+  }
+
+  if (SINGLETON_COALESCE_MUTATIONS.has(name)) {
+    return name
+  }
+
+  return null
 }
 
 export function enqueueOfflineMutation(
   name: OfflineMutationName,
   args: unknown
 ) {
-  const id =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}_${Math.random().toString(36).slice(2)}`
-
   const job: OfflineJob = {
-    id,
+    id: createClientId(),
     name,
     args,
     ownerId: getOfflineQueueOwner(),
@@ -132,7 +190,21 @@ export function enqueueOfflineMutation(
     attempts: 0,
   }
 
-  writeOfflineQueue([...readOfflineQueue(), job])
+  const coalesceKey = offlineMutationCoalesceKey(name, args)
+  const queue = readOfflineQueue()
+  const nextQueue = coalesceKey
+    ? queue.filter((existingJob) => {
+        if (existingJob.ownerId !== job.ownerId) return true
+        return (
+          offlineMutationCoalesceKey(existingJob.name, existingJob.args) !==
+          coalesceKey
+        )
+      })
+    : queue
+
+  if (!writeOfflineQueue([...nextQueue, job])) {
+    throw new OfflineQueuePersistenceError()
+  }
   return job
 }
 
@@ -146,8 +218,12 @@ export function subscribeOfflineQueue(listener: () => void) {
   }
 }
 
+export function isBrowserOnline() {
+  return typeof navigator === "undefined" ? true : navigator.onLine
+}
+
 export function isOfflineLikeError(error: unknown) {
-  if (typeof navigator !== "undefined" && !navigator.onLine) return true
+  if (!isBrowserOnline()) return true
   const message = error instanceof Error ? error.message : String(error)
   return /network|fetch|offline|disconnected|failed to send|websocket/i.test(
     message
@@ -157,7 +233,7 @@ export function isOfflineLikeError(error: unknown) {
 export async function flushOfflineQueue() {
   if (flushing || !hasStorage())
     return { flushed: 0, remaining: readOfflineQueue().length }
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
+  if (!isBrowserOnline()) {
     return { flushed: 0, remaining: readOfflineQueue().length }
   }
 

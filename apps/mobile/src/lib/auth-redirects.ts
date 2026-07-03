@@ -1,4 +1,12 @@
+import {
+  safeSessionStorageGet,
+  safeSessionStorageRemove,
+  safeSessionStorageSet,
+} from "@/lib/utils"
+import { Capacitor } from "@capacitor/core"
+
 const DEFAULT_APP_URL = "https://app.onerep.life"
+const DEFAULT_NATIVE_SCHEME = "onerep"
 const PENDING_VERIFICATION_EMAIL_KEY = "onerep:pending-verification-email"
 const PENDING_VERIFICATION_NEXT_KEY = "onerep:pending-verification-next"
 
@@ -6,8 +14,20 @@ function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "")
 }
 
+function getNativeAppOrigin() {
+  const scheme =
+    (import.meta.env.VITE_CAPACITOR_URL_SCHEME as string | undefined) ||
+    DEFAULT_NATIVE_SCHEME
+
+  return `${trimTrailingSlash(scheme.replace(/:\/+$/, ""))}://auth`
+}
+
 export function getAppOrigin() {
   const configured = import.meta.env.VITE_APP_URL as string | undefined
+
+  if (Capacitor.isNativePlatform()) {
+    return getNativeAppOrigin()
+  }
 
   if (typeof window !== "undefined") {
     const { hostname, origin, protocol } = window.location
@@ -31,11 +51,11 @@ export function getAuthCallbackUrl(path: string) {
 export function rememberPendingVerification(email: string, next?: string) {
   if (typeof window === "undefined") return
 
-  window.sessionStorage.setItem(PENDING_VERIFICATION_EMAIL_KEY, email)
+  safeSessionStorageSet(PENDING_VERIFICATION_EMAIL_KEY, email)
   if (next) {
-    window.sessionStorage.setItem(PENDING_VERIFICATION_NEXT_KEY, next)
+    safeSessionStorageSet(PENDING_VERIFICATION_NEXT_KEY, next)
   } else {
-    window.sessionStorage.removeItem(PENDING_VERIFICATION_NEXT_KEY)
+    safeSessionStorageRemove(PENDING_VERIFICATION_NEXT_KEY)
   }
 }
 
@@ -43,14 +63,14 @@ export function getPendingVerification() {
   if (typeof window === "undefined") return { email: "", next: "" }
 
   return {
-    email: window.sessionStorage.getItem(PENDING_VERIFICATION_EMAIL_KEY) ?? "",
-    next: window.sessionStorage.getItem(PENDING_VERIFICATION_NEXT_KEY) ?? "",
+    email: safeSessionStorageGet(PENDING_VERIFICATION_EMAIL_KEY) ?? "",
+    next: safeSessionStorageGet(PENDING_VERIFICATION_NEXT_KEY) ?? "",
   }
 }
 
 export function clearPendingVerification() {
   if (typeof window === "undefined") return
 
-  window.sessionStorage.removeItem(PENDING_VERIFICATION_EMAIL_KEY)
-  window.sessionStorage.removeItem(PENDING_VERIFICATION_NEXT_KEY)
+  safeSessionStorageRemove(PENDING_VERIFICATION_EMAIL_KEY)
+  safeSessionStorageRemove(PENDING_VERIFICATION_NEXT_KEY)
 }

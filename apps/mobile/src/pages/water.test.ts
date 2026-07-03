@@ -2,77 +2,15 @@
  * Tests for the pure helper logic in Water.tsx.
  *
  * Water.tsx added optimistic entry management in this PR. The file also
- * contains pure helper functions (fmtMl, formatDateLabel) and pure merge
- * logic that can be verified without a DOM or React context.
+ * contains pure merge logic that can be verified without a DOM or React
+ * context. Formatting and custom amount validation are covered by
+ * lib/__tests__/water-amounts.test.ts.
  */
 
 import { describe, test, expect } from "bun:test"
+import { readFileSync } from "node:fs"
 
-// ─── fmtMl ────────────────────────────────────────────────────────────────────
-// Mirror of the fmtMl helper in Water.tsx
-
-function fmtMl(ml: number): string {
-  if (ml >= 1000) {
-    const l = ml / 1000
-    return l % 1 === 0 ? `${l} L` : `${l.toFixed(1)} L`
-  }
-  return `${ml} ml`
-}
-
-describe("fmtMl – millilitre formatting", () => {
-  test("values below 1000 are shown as ml", () => {
-    expect(fmtMl(250)).toBe("250 ml")
-  })
-
-  test("0 ml is formatted correctly", () => {
-    expect(fmtMl(0)).toBe("0 ml")
-  })
-
-  test("750 ml is formatted correctly", () => {
-    expect(fmtMl(750)).toBe("750 ml")
-  })
-
-  test("999 ml stays in ml units", () => {
-    expect(fmtMl(999)).toBe("999 ml")
-  })
-
-  test("exactly 1000 ml becomes '1 L' (integer, no decimal)", () => {
-    expect(fmtMl(1000)).toBe("1 L")
-  })
-
-  test("1500 ml becomes '1.5 L' (one decimal)", () => {
-    expect(fmtMl(1500)).toBe("1.5 L")
-  })
-
-  test("2000 ml becomes '2 L' (integer, no decimal)", () => {
-    expect(fmtMl(2000)).toBe("2 L")
-  })
-
-  test("2500 ml becomes '2.5 L'", () => {
-    expect(fmtMl(2500)).toBe("2.5 L")
-  })
-
-  test("1200 ml becomes '1.2 L'", () => {
-    expect(fmtMl(1200)).toBe("1.2 L")
-  })
-
-  test("3000 ml becomes '3 L'", () => {
-    expect(fmtMl(3000)).toBe("3 L")
-  })
-
-  test("150 ml (quick-add amount) stays in ml", () => {
-    expect(fmtMl(150)).toBe("150 ml")
-  })
-
-  test("500 ml (quick-add amount) stays in ml", () => {
-    expect(fmtMl(500)).toBe("500 ml")
-  })
-
-  test("1000 ml (quick-add '1 L') is formatted as L", () => {
-    // QUICK_AMOUNTS includes 1 L = 1000 ml
-    expect(fmtMl(1000)).toBe("1 L")
-  })
-})
+const WATER_SOURCE = readFileSync(new URL("./Water.tsx", import.meta.url), "utf8")
 
 // ─── formatDateLabel ──────────────────────────────────────────────────────────
 // Mirror of formatDateLabel from Water.tsx (relies on offsetDateKey helper)
@@ -139,6 +77,56 @@ describe("formatDateLabel – date navigation labels", () => {
     const janFirst = "2024-01-01"
     const dec31 = "2023-12-31"
     expect(formatDateLabel(dec31, janFirst)).toBe("Yesterday")
+  })
+})
+
+describe("Water page accessibility contract", () => {
+  test("date and sheet icon controls have accessible labels", () => {
+    expect(WATER_SOURCE).toContain('aria-label="Previous day"')
+    expect(WATER_SOURCE).toContain('aria-label="Next day"')
+    expect(WATER_SOURCE).toContain('aria-label="Close daily goal"')
+    expect(WATER_SOURCE).toContain('aria-label="Close water logger"')
+  })
+
+  test("water amount inputs expose stable names and labels", () => {
+    expect(WATER_SOURCE).toContain('name="water-goal-ml"')
+    expect(WATER_SOURCE).toContain('aria-label="Daily water goal in ml"')
+    expect(WATER_SOURCE).toContain('name="custom-water-ml"')
+    expect(WATER_SOURCE).toContain('aria-label="Custom water amount in ml"')
+  })
+
+  test("quick and custom log actions remain named buttons", () => {
+    expect(WATER_SOURCE).toContain("aria-label={`Log ${label} water`}")
+    expect(WATER_SOURCE).toContain('aria-label="Log custom water"')
+    expect(WATER_SOURCE).toContain('aria-label="Log custom water amount"')
+  })
+
+  test("water add and goal save actions expose busy single-flight states", () => {
+    expect(WATER_SOURCE).toContain("const [addingAmountMl, setAddingAmountMl]")
+    expect(WATER_SOURCE).toContain("if (addingAmountMl !== null) return false")
+    expect(WATER_SOURCE).toContain("await addEntryMutation({ date, entry })")
+    expect(WATER_SOURCE).toContain("disabled={addingAmountMl !== null}")
+    expect(WATER_SOURCE).toContain("aria-busy={addingAmountMl === ml}")
+    expect(WATER_SOURCE).toContain("saving={addingAmountMl !== null}")
+    expect(WATER_SOURCE).toContain("const [savingGoal, setSavingGoal]")
+    expect(WATER_SOURCE).toContain("if (savingGoal) return false")
+    expect(WATER_SOURCE).toContain("await setWaterGoal({ goalMl: ml })")
+    expect(WATER_SOURCE).toContain("aria-busy={saving}")
+    expect(WATER_SOURCE).toContain("const saved = await onSave(draft)")
+    expect(WATER_SOURCE).toContain("const saved = await onAdd(ml)")
+  })
+
+  test("failed delete restores optimistic-only entries", () => {
+    expect(WATER_SOURCE).toContain(
+      "const deletedEntry = entriesRef.current.find((entry) => entry.id === id)",
+    )
+    expect(WATER_SOURCE).toContain(
+      "const wasServerEntry = serverEntries.some((entry) => entry.id === id)",
+    )
+    expect(WATER_SOURCE).toContain("if (deletedEntry && !wasServerEntry)")
+    expect(WATER_SOURCE).toContain(
+      "prev.some((entry) => entry.id === id) ? prev : [...prev, deletedEntry]",
+    )
   })
 })
 
@@ -346,7 +334,7 @@ describe("deleteEntry filter logic", () => {
 describe("addEntry construction logic", () => {
   test("entry object has all required fields", () => {
     // Mirrors the Water.tsx addEntry function body:
-    //   const entry: WaterLogEntry = { id: crypto.randomUUID(), amountMl, loggedAt: new Date().toISOString() }
+    //   const entry: WaterLogEntry = { id: createClientId(), amountMl, loggedAt: new Date().toISOString() }
     const amountMl = 500
     const id = "test-uuid"
     const loggedAt = new Date().toISOString()

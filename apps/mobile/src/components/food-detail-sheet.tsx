@@ -1,10 +1,8 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   ArrowLeft,
-  Barcode,
   CaretDown,
   Check,
-  ForkKnife,
   Minus,
   Plus,
   Warning,
@@ -51,91 +49,6 @@ function scale(per100g: number, grams: number): number {
   return Math.round(v * 100) / 100
 }
 
-const MICRO_TARGET_UNITS: Partial<Record<keyof LogMicros, "g" | "mg" | "mcg">> =
-  {
-    fiber: "g",
-    sugar: "g",
-    saturatedFat: "g",
-    transFat: "g",
-    cholesterol: "mg",
-    sodium: "mg",
-    potassium: "mg",
-    calcium: "mg",
-    iron: "mg",
-    magnesium: "mg",
-    phosphorus: "mg",
-    zinc: "mg",
-    vitaminC: "mg",
-    vitaminA: "mcg",
-    vitaminD: "mcg",
-    vitaminB12: "mcg",
-    caffeine: "mg",
-    alcohol: "g",
-  }
-
-function normalizeMass(
-  value: number,
-  fromUnit: string,
-  toUnit: "g" | "mg" | "mcg"
-) {
-  const normalized = fromUnit.toLowerCase().replace("µ", "u").trim()
-  const inMg =
-    normalized === "g"
-      ? value * 1000
-      : normalized === "ug" || normalized === "mcg"
-        ? value / 1000
-        : value
-
-  if (toUnit === "g") return inMg / 1000
-  if (toUnit === "mcg") return inMg * 1000
-  return inMg
-}
-
-function roundMicro(value: number) {
-  if (value >= 100) return Math.round(value)
-  if (value >= 10) return Math.round(value * 10) / 10
-  return Math.round(value * 100) / 100
-}
-
-/** Extract scaled micronutrients from the detail response for a given gram amount. */
-function extractMicros(detail: Detail, grams: number): LogMicros {
-  if (!detail) return {}
-  const all = [...(detail.nutrients ?? []), ...(detail.extraNutrients ?? [])]
-  const get = (
-    sourceKey: string,
-    targetKey: keyof LogMicros
-  ): number | undefined => {
-    const n = all.find((n) => n.key === sourceKey)
-    if (!n) return undefined
-    const targetUnit = MICRO_TARGET_UNITS[targetKey]
-    const scaled = scale(n.per100g, grams)
-    const v = targetUnit
-      ? roundMicro(normalizeMass(scaled, n.unit, targetUnit))
-      : scaled
-    return v > 0 ? v : undefined
-  }
-  return {
-    fiber: get("fiber", "fiber"),
-    sugar: get("sugar", "sugar"),
-    saturatedFat: get("satFat", "saturatedFat"),
-    transFat: get("trans-fat", "transFat"),
-    cholesterol: get("cholesterol", "cholesterol"),
-    sodium: get("sodium", "sodium"),
-    potassium: get("potassium", "potassium"),
-    calcium: get("calcium", "calcium"),
-    iron: get("iron", "iron"),
-    magnesium: get("magnesium", "magnesium"),
-    phosphorus: get("phosphorus", "phosphorus"),
-    zinc: get("zinc", "zinc"),
-    vitaminC: get("vitaminC", "vitaminC"),
-    vitaminA: get("vitamin-a", "vitaminA"),
-    vitaminD: get("vitamin-d", "vitaminD"),
-    vitaminB12: get("vitamin-b12", "vitaminB12"),
-    caffeine: get("caffeine", "caffeine"),
-    alcohol: get("alcohol", "alcohol"),
-  }
-}
-
 const MACRO_CFG = [
   {
     key: "proteins",
@@ -164,10 +77,6 @@ function formatNutrientValue(value: number) {
   if (Math.abs(value) >= 100) return formatNumber(value, 0)
   if (Math.abs(value) >= 10) return formatNumber(value, 1)
   return formatNumber(value, 2)
-}
-
-function imageUrlFor(item: FoodResult, detail: Detail) {
-  return detail?.imageUrl ?? item.imageUrl
 }
 
 function codeLabel(code?: string) {
@@ -452,7 +361,9 @@ function PortionPicker({
           return (
             <button
               key={`${p.label}-${p.grams}-${p.unit ?? ""}`}
+              type="button"
               onClick={() => onChange(p.grams, p.unit)}
+              aria-pressed={active}
               className="flex min-h-11 max-w-32 shrink-0 flex-col items-start justify-center rounded-[14px] border px-3 py-2 text-left transition-all active:scale-[0.985]"
               style={
                 active
@@ -492,7 +403,9 @@ function PortionPicker({
           return (
             <button
               key={option.id}
+              type="button"
               onClick={() => onChange(grams, option.id)}
+              aria-pressed={active}
               className="h-8 min-w-[3.75rem] shrink-0 rounded-[10px] px-2 text-[11px] font-bold transition-all active:scale-[0.985]"
               style={
                 active
@@ -515,6 +428,7 @@ function PortionPicker({
 
       <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-stretch gap-2">
         <button
+          type="button"
           onPointerDown={(e) => {
             e.preventDefault()
             stepAmount(-1)
@@ -528,6 +442,8 @@ function PortionPicker({
         <div className="flex min-w-0 flex-col items-center justify-center rounded-[15px] bg-background px-3 py-1.5">
           <input
             type="text"
+            name="food-portion-amount"
+            aria-label="Food portion amount"
             inputMode="decimal"
             value={
               focused ? inputVal : `${formatInputAmount(amount)} ${unitLabel}`
@@ -547,6 +463,7 @@ function PortionPicker({
         </div>
 
         <button
+          type="button"
           onPointerDown={(e) => {
             e.preventDefault()
             stepAmount(1)
@@ -680,21 +597,6 @@ function NutrRow({
 
 // ─── Header + highlights ─────────────────────────────────────────────────────
 
-function InfoPill({
-  icon: Icon,
-  children,
-}: {
-  icon?: typeof Barcode
-  children: ReactNode
-}) {
-  return (
-    <span className="flex min-w-0 items-center gap-1 rounded-full bg-muted/55 px-2 py-1 text-[10px] font-semibold text-muted-foreground/60">
-      {Icon && <Icon size={10} weight="bold" className="shrink-0" />}
-      <span className="min-w-0 truncate">{children}</span>
-    </span>
-  )
-}
-
 function HeaderMetric({
   label,
   value,
@@ -743,7 +645,6 @@ function ProductHeader({
   portion: FoodPortion
   presentation: "sheet" | "page"
 }) {
-  const imageUrl = imageUrlFor(item, detail)
   const productCode = codeLabel(item.code)
   const servingLabel = detail?.servingLabel ?? item.serving
 
@@ -850,62 +751,6 @@ function NutrientHighlights({
   )
 }
 
-function MicronutrientList({
-  detail,
-  grams,
-}: {
-  detail: Detail
-  grams: number
-}) {
-  const excluded = new Set([
-    "energy",
-    "protein",
-    "carbs",
-    "fat",
-    "satFat",
-    "trans-fat",
-  ])
-  const rows = [...(detail?.nutrients ?? []), ...(detail?.extraNutrients ?? [])]
-    .filter((n) => !excluded.has(n.key) && n.per100g > 0)
-    .slice(0, 14)
-
-  return (
-    <section className="app-surface mx-4 mt-3 overflow-hidden border border-border/55">
-      <div className="flex items-end justify-between gap-3 border-b border-border/35 px-4 py-3">
-        <div>
-          <h3 className="text-[14px] font-black tracking-tight">
-            Micronutrients
-          </h3>
-          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-            Per selected serving
-          </p>
-        </div>
-        <span className="text-[10px] font-semibold text-muted-foreground/40">
-          {rows.length > 0 ? `${rows.length} listed` : "No values"}
-        </span>
-      </div>
-      {rows.length > 0 ? (
-        <div className="divide-y divide-border/30 px-4">
-          {rows.map((n) => (
-            <NutrRow
-              key={n.key}
-              label={n.name}
-              value={scale(n.per100g, grams)}
-              unit={n.unit}
-              bold
-            />
-          ))}
-        </div>
-      ) : (
-        <p className="px-4 py-3 text-[12px] leading-5 text-muted-foreground/60">
-          This product did not include micronutrient values in its nutrition
-          data.
-        </p>
-      )}
-    </section>
-  )
-}
-
 // ─── Meal picker ─────────────────────────────────────────────────────────────
 
 function MealPicker({
@@ -983,6 +828,7 @@ function MealPicker({
           return (
             <div key={cat.id} className="relative shrink-0">
               <button
+                type="button"
                 onPointerDown={(e) => {
                   e.stopPropagation()
                   cancelLongPress()
@@ -997,6 +843,7 @@ function MealPicker({
                     onChange(cat.id)
                   }
                 }}
+                aria-pressed={isSelected}
                 className="flex h-10 min-w-20 items-center justify-center rounded-[15px] border px-3 text-[12px] font-bold transition-all active:scale-[0.985]"
                 style={
                   isSelected
@@ -1020,10 +867,12 @@ function MealPicker({
               {/* Delete overlay — only for custom categories */}
               {isDeleteTarget && !cat.isDefault && (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDelete(cat.id)
                   }}
+                  aria-label={`Delete ${cat.label} meal category`}
                   className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive shadow-sm"
                 >
                   <X size={8} weight="bold" className="text-white" />
@@ -1038,6 +887,8 @@ function MealPicker({
           <div className="flex h-10 shrink-0 items-center gap-1 rounded-[15px] border border-border/50 bg-background pr-1.5 pl-3">
             <input
               ref={inputRef}
+              name="new-meal-category"
+              aria-label="New meal category name"
               value={newLabel}
               onChange={(e) => setNewLabel(e.target.value)}
               onKeyDown={(e) => {
@@ -1051,7 +902,9 @@ function MealPicker({
               className="w-24 bg-transparent text-[12px] font-semibold outline-none placeholder:text-muted-foreground/35"
             />
             <button
+              type="button"
               onClick={handleAdd}
+              aria-label="Save meal category"
               className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-foreground transition-opacity active:opacity-70"
             >
               <Check size={9} weight="bold" className="text-background" />
@@ -1059,6 +912,7 @@ function MealPicker({
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => setAdding(true)}
             aria-label="Add meal category"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/50 bg-background text-muted-foreground/55 transition-opacity active:opacity-70"
@@ -1085,6 +939,7 @@ type Props = {
     portion?: FoodPortion
   ) => void
   added: boolean
+  saving?: boolean
   showMealPicker?: boolean
   presentation?: "sheet" | "page"
   actionLabel?: (
@@ -1113,6 +968,7 @@ export function FoodDetailSheet({
   onClose,
   onAdd,
   added,
+  saving = false,
   showMealPicker = true,
   presentation = "sheet",
   actionLabel,
@@ -1163,7 +1019,7 @@ export function FoodDetailSheet({
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [item.id, item.name, item.serving])
+  }, [item, item.id, item.name, item.serving])
 
   useEffect(() => {
     const el = extraRef.current
@@ -1227,10 +1083,12 @@ export function FoodDetailSheet({
     addPreset(defaultFoodPortion(label, item.name))
   }
 
-  const ctaLabel = added
-    ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
-    : (actionLabel?.(grams, mealCfg.label, portion) ??
-      `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
+  const ctaLabel = saving
+    ? "Logging..."
+    : added
+      ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
+      : (actionLabel?.(grams, mealCfg.label, portion) ??
+        `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
   const servingMismatch = Math.abs(grams - servingPortion.grams) > 1
   const isPage = presentation === "page"
 
@@ -1274,6 +1132,9 @@ export function FoodDetailSheet({
             }}
           >
             <button
+              type="button"
+              disabled={saving || added}
+              aria-busy={saving}
               onClick={() =>
                 onAdd(
                   item,
@@ -1284,7 +1145,7 @@ export function FoodDetailSheet({
                   portion
                 )
               }
-              className="flex min-h-[58px] w-full min-w-0 items-center justify-between gap-3 rounded-[17px] px-4 py-3.5 text-left text-[15px] font-extrabold transition-all active:scale-[0.985]"
+              className="flex min-h-[58px] w-full min-w-0 items-center justify-between gap-3 rounded-[17px] px-4 py-3.5 text-left text-[15px] font-extrabold transition-all active:scale-[0.985] disabled:scale-100 disabled:opacity-75"
               style={{
                 backgroundColor: added ? mealCfg.bg : "var(--foreground)",
                 color: added ? mealCfg.color : "var(--background)",
@@ -1444,7 +1305,14 @@ export function FoodDetailSheet({
           {detail?.extraNutrients && detail.extraNutrients.length > 0 && (
             <div className="app-surface mx-4 mt-2 overflow-hidden">
               <button
+                type="button"
                 onClick={() => setShowExtra((v) => !v)}
+                aria-expanded={showExtra}
+                aria-label={
+                  showExtra
+                    ? "Collapse minerals and vitamins"
+                    : "Expand minerals and vitamins"
+                }
                 className="flex w-full items-center justify-between px-4 py-3 transition-colors active:bg-muted/40"
               >
                 <span className="text-[12px] font-bold text-foreground/75">

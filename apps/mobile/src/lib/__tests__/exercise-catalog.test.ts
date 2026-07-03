@@ -1,5 +1,9 @@
 import { describe, test, expect } from "bun:test";
-import { EXERCISES, getExerciseById } from "../exercise-catalog";
+import {
+  EXERCISES,
+  getExerciseById,
+  visiblePopularExerciseSearches,
+} from "../exercise-catalog";
 import type { ExerciseCategory } from "../exercise-catalog";
 
 // ── EXERCISES data ────────────────────────────────────────────────────────────
@@ -148,5 +152,32 @@ describe("exercise category filtering", () => {
       0
     );
     expect(totalFiltered).toBe(EXERCISES.length);
+  });
+});
+
+// ── Popular exercise suggestions ─────────────────────────────────────────────
+
+describe("visiblePopularExerciseSearches", () => {
+  test("returns a useful default set of exercise suggestions", () => {
+    expect(visiblePopularExerciseSearches([]).map((exercise) => exercise.name))
+      .toEqual([
+        "Barbell Squat",
+        "Bench Press",
+        "Deadlift",
+        "Pull-up",
+        "Zone 2 Run",
+        "Plank",
+      ]);
+  });
+
+  test("hides exercises that are already added", () => {
+    expect(visiblePopularExerciseSearches(["e1", "e2"]).map((exercise) => exercise.id))
+      .toEqual(["e3", "e4", "e9", "e17"]);
+  });
+
+  test("ignores popular ids missing from a narrowed exercise list", () => {
+    const narrowed = EXERCISES.filter((exercise) => exercise.id !== "e1");
+    expect(visiblePopularExerciseSearches([], narrowed).map((exercise) => exercise.id))
+      .not.toContain("e1");
   });
 });

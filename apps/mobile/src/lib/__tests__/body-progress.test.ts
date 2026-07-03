@@ -1,6 +1,13 @@
 import { describe, test, expect } from "bun:test";
-import { formatReminderLabel } from "../body-progress";
-import type { DailyCheckInReminder } from "../body-progress";
+import {
+  bodyMeasurementCarryForwardDraft,
+  formatReminderLabel,
+  localDateInputValue,
+} from "../body-progress";
+import type {
+  BodyMeasurementEntry,
+  DailyCheckInReminder,
+} from "../body-progress";
 
 // Note: syncDailyCheckInReminder is excluded from unit tests because it
 // requires Capacitor's LocalNotifications API (native mobile platform).
@@ -92,5 +99,79 @@ describe("BodyMeasurementEntry type shape", () => {
     };
     expect(entry.clientId).toBeTruthy();
     expect(entry.loggedAt).toBeTruthy();
+  });
+});
+
+describe("bodyMeasurementCarryForwardDraft", () => {
+  test("copies numeric measurement fields as input strings", () => {
+    const entry: BodyMeasurementEntry = {
+      clientId: "measurement-1",
+      loggedAt: "2026-06-30",
+      weightKg: 82.4,
+      bodyFatPct: 18,
+      waistCm: 84.5,
+      hipsCm: 98,
+      chestCm: 104,
+      notes: "Do not copy notes",
+      photoUrl: "https://example.com/photo.jpg",
+    };
+
+    expect(bodyMeasurementCarryForwardDraft(entry)).toMatchObject({
+      weightKg: "82.4",
+      bodyFatPct: "18",
+      waistCm: "84.5",
+      hipsCm: "98",
+      chestCm: "104",
+      armsCm: "",
+      thighsCm: "",
+      calvesCm: "",
+      neckCm: "",
+      filledCount: 5,
+      hasAdvancedMeasurements: false,
+    });
+  });
+
+  test("opens advanced measurements when a carried value lives there", () => {
+    const entry: BodyMeasurementEntry = {
+      clientId: "measurement-2",
+      loggedAt: "2026-06-30",
+      armsCm: 36,
+      calvesCm: 39.5,
+    };
+
+    expect(bodyMeasurementCarryForwardDraft(entry)).toMatchObject({
+      armsCm: "36",
+      calvesCm: "39.5",
+      filledCount: 2,
+      hasAdvancedMeasurements: true,
+    });
+  });
+
+  test("returns null when the latest entry has no reusable measurements", () => {
+    expect(
+      bodyMeasurementCarryForwardDraft({
+        clientId: "measurement-3",
+        loggedAt: "2026-06-30",
+        notes: "Photo only",
+        photoUrl: "https://example.com/photo.jpg",
+      })
+    ).toBeNull();
+    expect(bodyMeasurementCarryForwardDraft(null)).toBeNull();
+  });
+});
+
+describe("localDateInputValue", () => {
+  test("formats local date parts for date inputs", () => {
+    expect(localDateInputValue(new Date(2026, 0, 5, 9, 30))).toBe(
+      "2026-01-05"
+    );
+    expect(localDateInputValue(new Date(2026, 10, 15, 9, 30))).toBe(
+      "2026-11-15"
+    );
+  });
+
+  test("uses local calendar date instead of UTC ISO date", () => {
+    const localJustAfterMidnight = new Date(2026, 0, 1, 0, 30);
+    expect(localDateInputValue(localJustAfterMidnight)).toBe("2026-01-01");
   });
 });

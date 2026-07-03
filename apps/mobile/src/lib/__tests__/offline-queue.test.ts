@@ -14,7 +14,9 @@ const {
   flushOfflineQueue,
   getOfflineQueueOwner,
   getOfflineQueueSummary,
+  isBrowserOnline,
   isOfflineLikeError,
+  OfflineQueuePersistenceError,
   readOfflineQueue,
   setOfflineQueueOwner,
   subscribeOfflineQueue,
@@ -37,6 +39,12 @@ class MemoryStorage {
 
   clear() {
     this.values.clear()
+  }
+}
+
+class FailingWriteStorage extends MemoryStorage {
+  setItem() {
+    throw new Error("quota exceeded")
   }
 }
 
@@ -76,6 +84,28 @@ function installBrowserGlobals() {
   return storage
 }
 
+function installStorage(storage: MemoryStorage | null) {
+  if (storage) {
+    Object.defineProperty(globalThis, "localStorage", {
+      value: storage,
+      configurable: true,
+    })
+    Object.defineProperty(globalThis, "window", {
+      value: { localStorage: storage },
+      configurable: true,
+    })
+  } else {
+    Object.defineProperty(globalThis, "localStorage", {
+      value: undefined,
+      configurable: true,
+    })
+    Object.defineProperty(globalThis, "window", {
+      value: {},
+      configurable: true,
+    })
+  }
+}
+
 describe("offline mutation queue", () => {
   beforeEach(() => {
     installBrowserGlobals()
@@ -99,6 +129,30 @@ describe("offline mutation queue", () => {
     expect(readOfflineQueue()).toEqual([job])
   })
 
+  test("enqueue throws instead of pretending an offline change was saved when storage is unavailable", () => {
+    installStorage(null)
+
+    expect(() =>
+      enqueueOfflineMutation("logs.water.addEntry", {
+        date: "2026-06-24",
+        entry: { id: "drink-1", amountMl: 500 },
+      })
+    ).toThrow(OfflineQueuePersistenceError)
+  })
+
+  test("enqueue throws instead of pretending an offline change was saved when storage write fails", () => {
+    const storage = new FailingWriteStorage()
+    installStorage(storage)
+
+    expect(() =>
+      enqueueOfflineMutation("logs.water.addEntry", {
+        date: "2026-06-24",
+        entry: { id: "drink-1", amountMl: 500 },
+      })
+    ).toThrow(OfflineQueuePersistenceError)
+    expect(readOfflineQueue()).toEqual([])
+  })
+
   test("setting an owner adopts existing unowned queued jobs", () => {
     enqueueOfflineMutation("logs.water.setDay", { date: "2026-06-24", entries: [] })
 
@@ -106,6 +160,70 @@ describe("offline mutation queue", () => {
 
     expect(getOfflineQueueOwner()).toBe("user-2")
     expect(readOfflineQueue()[0].ownerId).toBe("user-2")
+  })
+
+  test("coalesces last-write-wins day snapshots for the same owner and date", () => {
+    setOfflineQueueOwner("owner-a")
+
+    enqueueOfflineMutation("logs.water.setDay", {
+      date: "2026-06-24",
+      entries: [{ id: "first", amountMl: 250 }],
+    })
+    enqueueOfflineMutation("logs.water.setDay", {
+      date: "2026-06-24",
+      entries: [{ id: "second", amountMl: 500 }],
+    })
+
+    const queue = readOfflineQueue()
+    expect(queue).toHaveLength(1)
+    expect(queue[0].args).toEqual({
+      date: "2026-06-24",
+      entries: [{ id: "second", amountMl: 500 }],
+    })
+  })
+
+  test("keeps day snapshots separate across dates and owners", () => {
+    setOfflineQueueOwner("owner-a")
+    enqueueOfflineMutation("logs.foodLogs.setDay", {
+      date: "2026-06-24",
+      entries: [{ id: "a" }],
+    })
+    enqueueOfflineMutation("logs.foodLogs.setDay", {
+      date: "2026-06-25",
+      entries: [{ id: "b" }],
+    })
+    setOfflineQueueOwner("owner-b")
+    enqueueOfflineMutation("logs.foodLogs.setDay", {
+      date: "2026-06-24",
+      entries: [{ id: "c" }],
+    })
+
+    expect(readOfflineQueue().map((job) => job.args)).toEqual([
+      { date: "2026-06-24", entries: [{ id: "a" }] },
+      { date: "2026-06-25", entries: [{ id: "b" }] },
+      { date: "2026-06-24", entries: [{ id: "c" }] },
+    ])
+  })
+
+  test("coalesces singleton preference mutations but preserves additive logs", () => {
+    setOfflineQueueOwner("owner-a")
+
+    enqueueOfflineMutation("users.users.setWaterGoal", { goalMl: 2000 })
+    enqueueOfflineMutation("users.users.setWaterGoal", { goalMl: 2500 })
+    enqueueOfflineMutation("logs.water.addEntry", {
+      date: "2026-06-24",
+      entry: { id: "drink-1", amountMl: 250 },
+    })
+    enqueueOfflineMutation("logs.water.addEntry", {
+      date: "2026-06-24",
+      entry: { id: "drink-2", amountMl: 500 },
+    })
+
+    expect(readOfflineQueue().map((job) => job.args)).toEqual([
+      { goalMl: 2500 },
+      { date: "2026-06-24", entry: { id: "drink-1", amountMl: 250 } },
+      { date: "2026-06-24", entry: { id: "drink-2", amountMl: 500 } },
+    ])
   })
 
   test("queue subscriptions receive local queue and storage events until unsubscribed", () => {
@@ -211,5 +329,13 @@ describe("offline mutation queue", () => {
       configurable: true,
     })
     expect(isOfflineLikeError(new Error("any message"))).toBe(true)
+  })
+
+  test("browser online helper defaults to online outside browser contexts", () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: undefined,
+      configurable: true,
+    })
+    expect(isBrowserOnline()).toBe(true)
   })
 })

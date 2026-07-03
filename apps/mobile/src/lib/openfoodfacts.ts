@@ -1,6 +1,7 @@
 import { convexClient } from "@/lib/convex"
 import { api } from "../../../../convex/_generated/api"
 import { parseFoodPortionLabel } from "@/lib/food-log"
+import { logDevDebug } from "@/lib/utils"
 import type {
   FoodDetail,
   FoodResult,
@@ -42,7 +43,8 @@ async function openFoodFactsFetch<T>(
     language,
   })) as T
 
-  console.debug("[openfoodfacts:raw-client]", { path, response: result })
+  logDevDebug("Open Food Facts raw client", { path, response: result })
+
   return result
 }
 

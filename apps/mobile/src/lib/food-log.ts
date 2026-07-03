@@ -1,5 +1,15 @@
-import type { FoodDetail, NutrientRow, OpenFoodFactsProduct } from "@repo/models"
+import type {
+  FoodDetail,
+  FoodResult,
+  NutrientRow,
+  OpenFoodFactsProduct,
+} from "@repo/models"
 import { CUSTOM_CATEGORY_TONES, DEFAULT_MEAL_TONES } from "@/lib/design-tokens"
+import {
+  createClientId,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
+} from "@/lib/utils"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -105,6 +115,27 @@ export type LogMealPresetSuggestion = {
 export type SmartMealPresetSuggestion =
   | SaveMealPresetSuggestion
   | LogMealPresetSuggestion
+
+export type FoodHistoryMealSummary = {
+  meal: MealType
+  mealLabel: string
+  entries: FoodLogEntry[]
+  itemSummary: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
+
+export type FoodHistoryDaySummary = {
+  date: string
+  entries: FoodLogEntry[]
+  meals: FoodHistoryMealSummary[]
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+}
 
 export type LogMicros = Omit<
   FoodLogEntry,
@@ -637,7 +668,7 @@ function mealSuggestionKey(meal: MealType, signature: string) {
   return `${meal}:${signature}`
 }
 
-function mealLabel(meal: MealType) {
+export function mealLabel(meal: MealType) {
   const category = DEFAULT_MEAL_CATEGORIES.find((item) => item.id === meal)
   if (category) return category.label
   return String(meal)
@@ -646,10 +677,48 @@ function mealLabel(meal: MealType) {
 }
 
 function presetId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID()
-  }
-  return `${Date.now()}_${Math.random().toString(36).slice(2)}`
+  return createClientId()
+}
+
+export function foodLogEntryFromFoodResult(
+  food: FoodResult,
+  options: {
+    grams?: number
+    micros?: LogMicros
+    meal?: MealType
+    detail?: FoodDetail | null
+    portion?: FoodPortion
+    loggedAt?: string
+  } = {}
+): FoodLogEntry {
+  const grams = options.grams ?? 100
+  const factor = grams / 100
+  const roundMacro = (value: number) => Math.round(value * factor * 10) / 10
+  const portionLabel = options.portion
+    ? foodPortionLabel(options.portion)
+    : `${grams} g`
+
+  return stripUndefined({
+    id: presetId(),
+    name:
+      grams === 100 && !options.portion
+        ? food.name
+        : `${food.name} (${portionLabel})`,
+    calories: Math.round(Number(food.calories) * factor),
+    protein: roundMacro(Number(food.protein)),
+    carbs: roundMacro(Number(food.carbs)),
+    fat: roundMacro(Number(food.fat)),
+    loggedAt: options.loggedAt ?? new Date().toISOString(),
+    meal: options.meal ?? defaultMeal(),
+    source: "openfoodfacts" as const,
+    foodCode: food.code,
+    quantityGrams: grams,
+    servingGrams: options.detail?.servingGrams ?? undefined,
+    servingLabel: options.detail?.servingLabel ?? food.serving,
+    imageUrl: options.detail?.imageUrl ?? food.imageUrl,
+    openFoodFacts: options.detail?.openFoodFacts ?? food.openFoodFacts,
+    ...options.micros,
+  }) as FoodLogEntry
 }
 
 function mealPresetTotalCalories(entries: MealPresetEntry[]) {
@@ -666,6 +735,30 @@ function groupFoodEntriesByMeal(entries: FoodLogEntry[]) {
     groups.get(entry.meal)!.push(entry)
   }
   return groups
+}
+
+function foodLogTotals(entries: Array<FoodLogEntry | MealPresetEntry>) {
+  return entries.reduce(
+    (acc, entry) => {
+      acc.calories += Number(entry.calories) || 0
+      acc.protein += Number(entry.protein) || 0
+      acc.carbs += Number(entry.carbs) || 0
+      acc.fat += Number(entry.fat) || 0
+      return acc
+    },
+    { calories: 0, protein: 0, carbs: 0, fat: 0 }
+  )
+}
+
+function foodItemSummary(entries: Array<FoodLogEntry | MealPresetEntry>) {
+  const names = entries.map((entry) => entry.name).filter(Boolean)
+  if (names.length <= 2) return names.join(", ")
+  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`
+}
+
+function mealSortIndex(meal: MealType) {
+  const index = DEFAULT_MEAL_CATEGORIES.findIndex((item) => item.id === meal)
+  return index === -1 ? DEFAULT_MEAL_CATEGORIES.length : index
 }
 
 export function mealEntriesSignature(
@@ -728,6 +821,58 @@ export function foodLogEntriesFromMealPreset(
         loggedAt,
         meal,
       }) as FoodLogEntry
+  )
+}
+
+export function buildFoodHistoryDaySummaries(
+  days: FoodLogDaySnapshot[],
+  options: { excludeDate?: string; limit?: number } = {}
+): FoodHistoryDaySummary[] {
+  const limit = options.limit ?? 14
+
+  return days
+    .filter((day) => day.date !== options.excludeDate)
+    .map((day): FoodHistoryDaySummary | null => {
+      const entries = day.entries.filter((entry) => entry.name?.trim())
+      if (entries.length === 0) return null
+
+      const meals = [...groupFoodEntriesByMeal(entries).entries()]
+        .map(([meal, mealEntries]) => ({
+          meal,
+          mealLabel: mealLabel(meal),
+          entries: mealEntries,
+          itemSummary: foodItemSummary(mealEntries),
+          ...foodLogTotals(mealEntries),
+        }))
+        .sort(
+          (a, b) =>
+            mealSortIndex(a.meal) - mealSortIndex(b.meal) ||
+            a.mealLabel.localeCompare(b.mealLabel)
+        )
+
+      return {
+        date: day.date,
+        entries,
+        meals,
+        ...foodLogTotals(entries),
+      }
+    })
+    .filter((day): day is FoodHistoryDaySummary => Boolean(day))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, limit)
+}
+
+export function foodLogEntriesFromHistoryMeal(
+  entries: FoodLogEntry[],
+  options: { meal?: MealType; loggedAt?: string } = {}
+) {
+  const meal = options.meal ?? entries[0]?.meal ?? defaultMeal()
+  return foodLogEntriesFromMealPreset(
+    {
+      meal,
+      entries: mealPresetTemplateEntries(entries),
+    },
+    options
   )
 }
 
@@ -865,7 +1010,7 @@ const CUSTOM_CATEGORIES_KEY = "onerep_custom_meal_categories"
 
 function readCustomCategories(): MealCategory[] {
   try {
-    const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY)
+    const raw = safeLocalStorageGet(CUSTOM_CATEGORIES_KEY)
     return raw ? (JSON.parse(raw) as MealCategory[]) : []
   } catch {
     return []
@@ -873,7 +1018,7 @@ function readCustomCategories(): MealCategory[] {
 }
 
 function writeCustomCategories(cats: MealCategory[]): void {
-  localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(cats))
+  safeLocalStorageSet(CUSTOM_CATEGORIES_KEY, JSON.stringify(cats))
 }
 
 export function readAllMealCategories(): MealCategory[] {
@@ -928,8 +1073,12 @@ export function detectTimeZone() {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
 }
 
-export function dateForOffset(offset: number, timeZone = "UTC"): string {
-  const { year, month, day } = readDatePartsInTimeZone(timeZone, new Date())
+export function dateForOffset(
+  offset: number,
+  timeZone = detectTimeZone(),
+  date = new Date()
+): string {
+  const { year, month, day } = readDatePartsInTimeZone(timeZone, date)
   const shifted = new Date(Date.UTC(year, month - 1, day + offset, 12))
   return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`
 }
@@ -940,8 +1089,8 @@ export function offsetDateKey(dateKey: string, offset: number) {
   return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`
 }
 
-export function currentDateKey(timeZone = "UTC") {
-  return dateForOffset(0, timeZone)
+export function currentDateKey(timeZone = detectTimeZone(), date = new Date()) {
+  return dateForOffset(0, timeZone, date)
 }
 
 // ─── Recipes ──────────────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
 import { api } from "../../../../convex/_generated/api"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
 import { APP_ACCENT_COLORS } from "@/lib/design-tokens"
 import { rollingAvg } from "@/lib/progress-metrics"
@@ -5068,7 +5069,7 @@ export default function Progress() {
             const clientId = crypto.randomUUID()
             setSheetOpen(false)
             try {
-              let photoStorageId: string | undefined
+              let photoStorageId: Id<"_storage"> | undefined
               if (photoFile) {
                 const uploadUrl = await generateUploadUrl()
                 const response = await fetch(uploadUrl, {
@@ -5077,7 +5078,8 @@ export default function Progress() {
                   body: photoFile,
                 })
                 if (!response.ok) throw new Error("Photo upload failed")
-                photoStorageId = (await response.json()).storageId as string
+                photoStorageId = (await response.json())
+                  .storageId as Id<"_storage">
               }
               await saveMeasurement({ clientId, ...entry, photoStorageId })
               toast.success("Measurement saved")

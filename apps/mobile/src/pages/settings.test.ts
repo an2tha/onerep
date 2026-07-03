@@ -14,6 +14,12 @@
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+
+const SETTINGS_SOURCE = readFileSync(
+  new URL("./Settings.tsx", import.meta.url),
+  "utf8"
+)
 
 // ─── NumberInput logic ────────────────────────────────────────────────────────
 // Mirror of the NumberInput commit / step logic from Settings.tsx
@@ -141,6 +147,51 @@ describe("SegmentedControl – selection", () => {
   })
 })
 
+describe("Settings destructive actions", () => {
+  test("reset onboarding is guarded while the async reset is in flight", () => {
+    assert.match(
+      SETTINGS_SOURCE,
+      /const \[resettingOnboarding, setResettingOnboarding\] = useState\(false\)/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /if \(resettingOnboarding\) return\s+hapticTap\(\)\s+setResettingOnboarding\(true\)/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /finally \{\s+setResettingOnboarding\(false\)\s+\}/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{resettingOnboarding\}\s+aria-busy=\{resettingOnboarding\}/
+    )
+    assert.match(SETTINGS_SOURCE, /Resetting onboarding\.\.\./)
+  })
+
+  test("long-running account and data actions expose busy state", () => {
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{loggingOut\}\s+aria-busy=\{loggingOut\}/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{syncingOfflineQueue\}\s+aria-busy=\{syncingOfflineQueue\}/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{exporting\}\s+aria-busy=\{exporting\}/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{deleteConfirmText !== "DELETE" \|\| deleting\}\s+aria-busy=\{deleting\}/
+    )
+    assert.match(
+      SETTINGS_SOURCE,
+      /disabled=\{canceling\}\s+aria-busy=\{canceling\}/
+    )
+  })
+})
+
 // ─── Effective goals priority logic ──────────────────────────────────────────
 // Mirrors the priority in convex/users/users.ts::getEffectiveGoals handler:
 //   custom > health > defaults
@@ -216,6 +267,41 @@ describe("getEffectiveGoals – priority: custom > health > default", () => {
     // NOTE: ?? only falls through for null/undefined, NOT for 0
     const result = resolveEffective({ calories: 0 }, { calories: 1800 })
     assert.strictEqual(result.calories, 0)
+  })
+})
+
+describe("Settings – production feature visibility", () => {
+  test("settings loading state explains what is happening", () => {
+    assert.match(SETTINGS_SOURCE, /aria-label="Loading settings"/)
+    assert.match(SETTINGS_SOURCE, /Loading settings/)
+    assert.match(
+      SETTINGS_SOURCE,
+      /Syncing your preferences, goals, and account controls\./
+    )
+  })
+
+  test("privacy and data sections are reachable", () => {
+    assert.match(SETTINGS_SOURCE, /AccordionItem value="privacy"/)
+    assert.match(SETTINGS_SOURCE, /AccordionItem value="data"/)
+    assert.match(SETTINGS_SOURCE, /AccordionItem value="nutrition-logic"/)
+    assert.match(SETTINGS_SOURCE, /Install app/)
+    assert.match(SETTINGS_SOURCE, /handleInstallApp/)
+    assert.match(SETTINGS_SOURCE, /SettingsRow label="Haptics"/)
+    assert.match(SETTINGS_SOURCE, /handleHapticsChange/)
+    assert.match(SETTINGS_SOURCE, /oneRepExportDocument/)
+    assert.match(SETTINGS_SOURCE, /Export downloaded with checksum/)
+    assert.doesNotMatch(
+      SETTINGS_SOURCE,
+      /AccordionItem value="privacy" className="hidden"/
+    )
+    assert.doesNotMatch(
+      SETTINGS_SOURCE,
+      /AccordionItem value="data" className="hidden"/
+    )
+    assert.doesNotMatch(
+      SETTINGS_SOURCE,
+      /AccordionItem value="nutrition-logic" className="hidden"/
+    )
   })
 })
 
@@ -441,7 +527,16 @@ describe("SettingsRow – label rendering", () => {
   })
 
   test("all Settings labels present in the component", () => {
-    const expectedLabels = ["Calories", "Protein", "Carbs", "Fat", "Daily goal", "Focus", "Weight unit"]
+    const expectedLabels = [
+      "Calories",
+      "Protein",
+      "Carbs",
+      "Fat",
+      "Daily goal",
+      "Focus",
+      "Weight unit",
+      "Haptics",
+    ]
     for (const label of expectedLabels) {
       assert.ok(label.length > 0, `label "${label}" should be non-empty`)
     }

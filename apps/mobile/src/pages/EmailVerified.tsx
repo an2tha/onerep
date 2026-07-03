@@ -1,6 +1,6 @@
 import { useSearchParams } from "react-router"
-import { useAuth } from "@clerk/react"
 import { clearPendingVerification } from "@/lib/auth-redirects"
+import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 const STATUS_COPY = {
@@ -19,10 +19,14 @@ const STATUS_COPY = {
 export default function EmailVerified() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
-  const { isLoaded, isSignedIn } = useAuth()
+  const { isLoaded, isSignedIn } = useAppAuth()
   const hasError = Boolean(searchParams.get("error"))
   const next = searchParams.get("next")
+  const checkingAuth = !hasError && !isLoaded
   const copy = hasError ? STATUS_COPY.error : STATUS_COPY.success
+  const body = checkingAuth
+    ? "Checking your sign-in state so we can send you to the right place."
+    : copy.body
   const buttonLabel = hasError
     ? "Back to sign in"
     : isSignedIn && next === "onboarding"
@@ -69,17 +73,18 @@ export default function EmailVerified() {
               {copy.title}
             </h2>
             <p className="mx-auto mt-3 max-w-[260px] text-[14px] leading-6 font-medium text-muted-foreground/70 short-phone:text-[13px] short-phone:leading-5">
-              {copy.body}
+              {body}
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleContinue}
-            disabled={!hasError && !isLoaded}
+            disabled={checkingAuth}
+            aria-busy={checkingAuth}
             className="mt-3 h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
           >
-            {!hasError && !isLoaded ? "Checking..." : buttonLabel}
+            {checkingAuth ? "Checking..." : buttonLabel}
           </button>
         </section>
       </main>

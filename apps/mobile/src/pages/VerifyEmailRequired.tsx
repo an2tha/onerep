@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react"
-import {
-  getPendingVerification,
-} from "@/lib/auth-redirects"
+import { getPendingVerification } from "@/lib/auth-redirects"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 export default function VerifyEmailRequired() {
   const navigate = useSmoothNavigate()
   const [email, setEmail] = useState("")
+  const hasPendingEmail = email.trim().length > 0
 
   useEffect(() => {
     const pending = getPendingVerification()
@@ -38,18 +37,22 @@ export default function VerifyEmailRequired() {
             <p className="mx-auto mt-3 max-w-[268px] text-[14px] leading-6 font-medium text-muted-foreground/70 short-phone:text-[13px] short-phone:leading-5">
               OneRep needs a verified email before you can sign in.
               {email
-                ? ` Return to sign up and enter the code Clerk sent to ${email}.`
-                : " Return to sign up and enter the code from Clerk."}
+                ? ` Return to sign up and check the verification email sent to ${email}.`
+                : " Return to sign up and check your verification email."}
             </p>
           </div>
 
           <div className="mt-3 space-y-2.5">
             <button
               type="button"
-              onClick={() => navigate("/login", { replace: true })}
+              onClick={() =>
+                navigate(hasPendingEmail ? "/login?mode=signup" : "/login", {
+                  replace: true,
+                })
+              }
               className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
             >
-              Back to sign in
+              {hasPendingEmail ? "Back to sign up" : "Back to sign in"}
             </button>
           </div>
         </section>
