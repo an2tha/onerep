@@ -63,61 +63,61 @@ export function AiAccessRequiredModal({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-background/70 px-4 py-6 backdrop-blur-xl"
+      className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-background/70 px-3 py-4 backdrop-blur-xl"
       role="dialog"
       aria-modal="true"
       aria-labelledby="ai-access-required-title"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-[27rem] overflow-hidden rounded-[24px] border border-border/55 bg-card text-left shadow-2xl"
+        className="relative w-full max-w-[24rem] overflow-hidden rounded-[20px] border border-border/55 bg-card text-left shadow-2xl"
         onClick={(event) => event.stopPropagation()}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close paywall"
-          className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/55 backdrop-blur transition-colors active:bg-muted active:text-foreground"
+          className="absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/55 backdrop-blur transition-colors active:bg-muted active:text-foreground"
         >
           <X size={15} weight="bold" />
         </button>
 
-        <div className="border-b border-border/45 bg-muted/25 px-5 pt-5 pb-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-foreground text-background">
-            <Sparkle size={18} weight="fill" />
+        <div className="border-b border-border/45 bg-muted/25 px-4 pt-4 pb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background">
+            <Sparkle size={16} weight="fill" />
           </div>
-          <p className="mt-4 text-[10px] font-bold tracking-[0.18em] text-muted-foreground/58 uppercase">
+          <p className="mt-3 text-[9.5px] font-bold tracking-[0.18em] text-muted-foreground/58 uppercase">
             OneRep Pro
           </p>
           <h2
             id="ai-access-required-title"
-            className="mt-1 max-w-[18rem] text-[24px] leading-tight font-semibold tracking-tight text-foreground"
+            className="mt-1 max-w-[18rem] text-[21px] leading-tight font-semibold tracking-tight text-foreground"
           >
             Unlock optional AI tools
           </h2>
-          <p className="mt-2 max-w-[22rem] text-[13px] leading-relaxed text-muted-foreground/68">
+          <p className="mt-1.5 max-w-[21rem] text-[12px] leading-relaxed text-muted-foreground/68">
             Core tracking stays free. Pro covers the AI features that have real
             inference costs.
           </p>
         </div>
 
-        <div className="px-5 py-4">
-          <div className="grid gap-2.5">
+        <div className="px-4 py-3.5">
+          <div className="grid gap-2">
             {features.map((feature) => {
               const Icon = feature.icon
               return (
                 <div
                   key={feature.title}
-                  className="flex gap-3 rounded-[14px] border border-border/40 bg-background/45 p-3"
+                  className="flex gap-2.5 rounded-[12px] border border-border/40 bg-background/45 p-2.5"
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground/78">
-                    <Icon size={16} weight="bold" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/78">
+                    <Icon size={14} weight="bold" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-bold text-foreground/88">
+                    <span className="block text-[12.5px] font-bold text-foreground/88">
                       {feature.title}
                     </span>
-                    <span className="mt-0.5 block text-[11.5px] leading-snug text-muted-foreground/62">
+                    <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/62">
                       {feature.body}
                     </span>
                   </span>
@@ -126,16 +126,16 @@ export function AiAccessRequiredModal({
             })}
           </div>
 
-          <div className="mt-4 rounded-[16px] border border-foreground/10 bg-foreground/[0.035] p-3">
+          <div className="mt-3 rounded-[13px] border border-foreground/10 bg-foreground/[0.035] p-2.5">
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[13px] font-bold text-foreground/88">
                 Monthly
               </p>
-              <p className="text-[18px] font-bold tracking-tight text-foreground">
+              <p className="text-[16px] font-bold tracking-tight text-foreground">
                 {price}
               </p>
             </div>
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground/55">
+            <p className="mt-1 text-[10.5px] leading-snug text-muted-foreground/55">
               Cancel anytime. Your subscription unlocks Pro on desktop and
               mobile with the same account.
             </p>
@@ -152,24 +152,24 @@ export function AiAccessRequiredModal({
             onClick={onOpenPaywall}
             disabled={busy}
             aria-busy={busy}
-            className="mt-4 min-h-12 w-full rounded-[14px] bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-50"
+            className="mt-3 min-h-11 w-full rounded-[12px] bg-foreground px-4 text-[13px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-50"
           >
             {busy ? "Starting checkout..." : `Continue for ${price}`}
           </button>
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={onRestore}
               disabled={busy}
-              className="min-h-10 rounded-xl bg-muted px-3 text-[12px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
+              className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
             >
               Restore
             </button>
             <button
               type="button"
               onClick={onOpenSettings}
-              className="min-h-10 rounded-xl bg-muted px-3 text-[12px] font-bold text-foreground/70 transition-opacity active:opacity-75"
+              className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75"
             >
               Settings
             </button>
@@ -178,7 +178,7 @@ export function AiAccessRequiredModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-2 min-h-9 w-full px-3 text-[12px] font-semibold text-muted-foreground/55 transition-colors active:text-foreground"
+            className="mt-1.5 min-h-8 w-full px-3 text-[11.5px] font-semibold text-muted-foreground/55 transition-colors active:text-foreground"
           >
             Keep using the free app
           </button>
