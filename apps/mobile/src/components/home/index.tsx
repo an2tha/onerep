@@ -80,9 +80,10 @@ export function TodayHeader({
   action?: ReactNode
 }) {
   return (
-    <header className="motion-item flex items-start justify-between gap-3 px-[var(--app-page-x)] pt-[var(--app-safe-top)] pb-6 md:px-8 md:pt-10 md:pb-6 short-phone:pb-4">
+    <header className="motion-item app-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
       <div className="min-w-0">
-        <h1 className="app-title mt-3 max-w-[18ch] text-[2rem] leading-[1.02] md:max-w-none short-phone:mt-2 short-phone:text-[1.7rem]">
+        <p className="app-eyebrow truncate">{dateLabel}</p>
+        <h1 className="app-title max-w-[18ch] md:max-w-none">
           {salutation}, {firstName}.
         </h1>
       </div>
@@ -116,28 +117,37 @@ export function DailyLedgerHero({
   const caloriesPct = pct(consumed, caloriesTarget)
   const waterPct = pct(waterMl, waterGoalMl)
   const overTarget = caloriesLeft < 0
+  const calorieStatus = caloriesLeft >= 0 ? "left" : "over"
 
   return (
-    <section className="home-dashboard-card motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
-      <div className="p-3.5 md:p-4 short-phone:p-3">
+    <section className="app-rail-surface motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
+      <div className="p-4 short-phone:p-3.5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="app-eyebrow home-ledger-eyebrow">Daily budget</p>
-            <div className="mt-2 flex items-end gap-1.5">
-              <span className="home-ledger-number tabular-nums">
+          <div className="min-w-0 flex-1">
+            <p className="app-eyebrow">Today</p>
+            <div className="mt-2 flex min-w-0 items-baseline gap-2">
+              <span className="app-display text-[2.35rem] tabular-nums short-phone:text-[2rem]">
                 {caloriesLeft >= 0
                   ? fmt(caloriesLeft)
                   : `+${fmt(Math.abs(caloriesLeft))}`}
               </span>
-              <span className="pb-1 text-[10.5px] font-bold text-muted-foreground/60">
-                kcal {caloriesLeft >= 0 ? "left" : "over"}
+              <span
+                className={cn(
+                  "text-[12px] font-bold text-muted-foreground/62",
+                  overTarget && "text-destructive/75"
+                )}
+              >
+                kcal {calorieStatus}
               </span>
             </div>
+            <p className="mt-1 text-[12px] font-semibold text-muted-foreground/62 tabular-nums">
+              {fmt(consumed)} eaten of {fmt(caloriesTarget)}
+            </p>
           </div>
           <button
             type="button"
             onClick={food.onClick}
-            className="app-button app-button-quiet motion-tactile home-ledger-log-button shrink-0"
+            className="app-button app-button-primary motion-tactile shrink-0"
           >
             {food.label}
           </button>
@@ -155,10 +165,6 @@ export function DailyLedgerHero({
             }}
           />
         </div>
-        <div className="mt-1.5 flex justify-between text-[10px] font-semibold text-muted-foreground/50 tabular-nums">
-          <span>{fmt(consumed)} eaten</span>
-          <span>{fmt(caloriesTarget)} target</span>
-        </div>
 
         {macros.length > 0 && (
           <div className="mt-3 grid grid-cols-3 gap-2 short-phone:gap-1.5">
@@ -168,36 +174,46 @@ export function DailyLedgerHero({
           </div>
         )}
 
-        <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-2">
+        <div className="mt-4 divide-y divide-border/45 border-t border-border/45">
           <button
             type="button"
             onClick={water.onClick}
-            className="motion-tactile rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left active:bg-foreground/[0.08]"
+            className="motion-tactile flex min-h-13 w-full items-center justify-between gap-3 py-3 text-left active:opacity-70"
           >
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
-              <PintGlass size={13} weight="bold" /> Water
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/72">
+                <PintGlass size={14} weight="bold" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold">Water</span>
+                <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-muted-foreground/58">
+                  {waterPct}% complete · {water.detail}
+                </span>
+              </span>
             </span>
-            <span className="mt-1 block text-[12px] font-extrabold tabular-nums">
+            <span className="shrink-0 text-[12px] font-bold text-muted-foreground/70 tabular-nums">
               {fmt(waterMl)} / {fmt(waterGoalMl)} ml
-            </span>
-            <span className="mt-0.5 block text-[10px] font-semibold text-muted-foreground/52">
-              {waterPct}% complete · {water.detail}
             </span>
           </button>
 
           <button
             type="button"
             onClick={workout.onClick}
-            className="motion-tactile rounded-[0.8rem] border-0 bg-foreground/[0.045] px-2.5 py-2.5 text-left active:bg-foreground/[0.08]"
+            className="motion-tactile flex min-h-13 w-full items-center justify-between gap-3 py-3 text-left active:opacity-70"
           >
-            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground/66">
-              <Barbell size={13} weight="bold" /> Workout
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/72">
+                <Barbell size={14} weight="bold" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[13px] font-bold">Workout</span>
+                <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-muted-foreground/58">
+                  {workout.detail}
+                </span>
+              </span>
             </span>
-            <span className="mt-1 block truncate text-[12px] font-extrabold">
+            <span className="max-w-[42%] min-w-0 shrink-0 truncate text-right text-[12px] font-bold text-muted-foreground/70">
               {workoutState}
-            </span>
-            <span className="mt-0.5 block truncate text-[10px] font-semibold text-muted-foreground/52">
-              {workout.detail}
             </span>
           </button>
         </div>

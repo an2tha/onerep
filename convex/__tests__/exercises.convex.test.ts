@@ -93,6 +93,39 @@ describe("exercise catalog Convex functions", () => {
     );
   });
 
+  test("search combines text and category filters", async () => {
+    const t = convexTest(schema, modules);
+    await seedExercise(t, {
+      exerciseId: "incline-press",
+      name: "Incline Press",
+      category: "strength",
+      primaryMuscles: ["chest"],
+    });
+    await seedExercise(t, {
+      exerciseId: "machine-press",
+      name: "Machine Press",
+      category: "strength",
+      primaryMuscles: ["chest"],
+    });
+    await seedExercise(t, {
+      exerciseId: "shoulder-press",
+      name: "Shoulder Press",
+      category: "mobility",
+      primaryMuscles: ["shoulders"],
+    });
+
+    const results = await t.query(api.exercises.search, {
+      query: "press",
+      categories: ["strength"],
+      limit: 10,
+    });
+
+    expect(results.map((exercise) => exercise.id).sort()).toEqual([
+      "incline-press",
+      "machine-press",
+    ]);
+  });
+
   test("search clamps limits to a maximum of 50 and a minimum of 1", async () => {
     const t = convexTest(schema, modules);
     for (let i = 0; i < 60; i += 1) {

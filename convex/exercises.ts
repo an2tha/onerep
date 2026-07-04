@@ -119,6 +119,15 @@ function uniqueCategories(categories: ExerciseCategory[] | undefined) {
   return [...new Set(categories ?? [])];
 }
 
+function filterByCategories(
+  docs: ExerciseDoc[],
+  categories: ExerciseCategory[],
+) {
+  if (categories.length === 0) return docs;
+  const categorySet = new Set(categories);
+  return docs.filter((doc) => categorySet.has(categoryOf(doc)));
+}
+
 export const search = query({
   args: {
     query: v.optional(v.string()),
@@ -129,32 +138,19 @@ export const search = query({
     const limit = clampLimit(args.limit);
     const searchText = (args.query ?? "").trim();
     const categories = uniqueCategories(args.categories);
-    const takeEach = Math.min(Math.max(limit * 3, limit), 150);
+    const takeMore = Math.min(Math.max(limit * 3, limit), 100);
     let docs: ExerciseDoc[] = [];
 
     if (searchText) {
-      if (categories.length > 0) {
-        for (const category of categories) {
-          docs.push(
-            ...(await ctx.db
-              .query("exercises")
-              .withSearchIndex("search_name", (q) =>
-                q
-                  .search("name", searchText)
-                  .eq("userId", GLOBAL_EXERCISE_USER_ID)
-                  .eq("category", category),
-              )
-              .take(takeEach)),
-          );
-        }
-      } else {
-        docs = await ctx.db
+      docs = filterByCategories(
+        await ctx.db
           .query("exercises")
           .withSearchIndex("search_name", (q) =>
             q.search("name", searchText).eq("userId", GLOBAL_EXERCISE_USER_ID),
           )
-          .take(Math.min(limit * 4, 200));
-      }
+          .take(categories.length > 0 ? takeMore : limit),
+        categories,
+      );
     } else if (categories.length > 0) {
       for (const category of categories) {
         docs.push(
@@ -163,7 +159,7 @@ export const search = query({
             .withIndex("by_userId_and_category", (q) =>
               q.eq("userId", GLOBAL_EXERCISE_USER_ID).eq("category", category),
             )
-            .take(takeEach)),
+            .take(takeMore)),
         );
       }
     } else {

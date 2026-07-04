@@ -8,7 +8,12 @@ mock.module("@/lib/convex", () => ({
   },
 }))
 
-const { getFoodByBarcode, getFoodDetail, searchFoods } =
+const {
+  __clearOpenFoodFactsCacheForTests,
+  getFoodByBarcode,
+  getFoodDetail,
+  searchFoods,
+} =
   await import("../openfoodfacts")
 
 function lastActionArgs() {
@@ -27,6 +32,7 @@ function lastActionArgs() {
 describe("Open Food Facts client", () => {
   beforeEach(() => {
     actionMock.mockReset()
+    __clearOpenFoodFactsCacheForTests()
   })
 
   test("searchFoods ignores queries shorter than two non-space characters", async () => {
@@ -92,6 +98,29 @@ describe("Open Food Facts client", () => {
         { key: "iron", name: "Iron", per100g: 0.001, unit: "mg" },
       ]),
     })
+  })
+
+  test("searchFoods reuses identical in-flight and cached searches", async () => {
+    actionMock.mockResolvedValue({
+      products: [
+        {
+          code: "123",
+          product_name_en: "Protein Bar",
+          serving_size: "1 bar",
+        },
+      ],
+    })
+
+    const [first, second] = await Promise.all([
+      searchFoods("protein bar", 25, "en"),
+      searchFoods(" protein   bar ", 25, "EN"),
+    ])
+    const third = await searchFoods("protein bar", 25, "en")
+
+    expect(actionMock).toHaveBeenCalledTimes(1)
+    expect(first).toHaveLength(1)
+    expect(second).toEqual(first)
+    expect(third).toEqual(first)
   })
 
   test("getFoodDetail encodes ids and builds nutrition detail rows", async () => {

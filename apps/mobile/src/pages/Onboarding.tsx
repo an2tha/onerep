@@ -2,14 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowLeft,
   Barbell,
+  Calculator,
   CheckCircle,
   Fire,
   Heart,
+  ListChecks,
   Medal,
   Minus,
   Plus,
   Ruler,
-  Sparkle,
   Target,
   UserFocus,
 } from "@phosphor-icons/react"
@@ -45,7 +46,7 @@ const GOALS = [
   {
     id: "lose",
     label: "Lose weight",
-    sub: "A controlled deficit with enough protein to keep training steady.",
+    sub: "A modest calorie deficit with protein kept high enough for training.",
     Icon: Fire,
     tone: {
       color: APP_ACCENT_COLORS.food,
@@ -55,14 +56,14 @@ const GOALS = [
   {
     id: "build",
     label: "Build muscle",
-    sub: "More fuel for progressive training, recovery, and lean mass.",
+    sub: "A small surplus for hard sessions, recovery, and lean mass.",
     Icon: Barbell,
     tone: { color: MACRO_COLORS.protein, bg: tint(MACRO_COLORS.protein, 10) },
   },
   {
     id: "health",
-    label: "Stay healthy",
-    sub: "Maintenance targets built around consistency and daily habits.",
+    label: "Maintain",
+    sub: "Maintenance calories with steady macros for everyday logging.",
     Icon: Heart,
     tone: {
       color: APP_ACCENT_COLORS.complete,
@@ -71,8 +72,8 @@ const GOALS = [
   },
   {
     id: "performance",
-    label: "Peak performance",
-    sub: "Higher output, better sessions, and more aggressive recovery.",
+    label: "Train harder",
+    sub: "More fuel for frequent training and higher weekly output.",
     Icon: Medal,
     tone: {
       color: APP_ACCENT_COLORS.progress,
@@ -122,33 +123,33 @@ const ACTIVITIES = [
 const STEPS = [
   {
     label: "Goal",
-    title: "Choose your target",
-    body: "This sets the calorie direction before OneRep calculates the numbers.",
+    title: "Pick your current goal",
+    body: "This decides whether your starting calories land below, near, or above maintenance.",
     Icon: Target,
   },
   {
     label: "Body",
-    title: "Add body basics",
-    body: "Sex, age, height, and weight keep BMR and macros grounded in reality.",
+    title: "Enter your baseline",
+    body: "Age, height, weight, and sex are used for the BMR estimate.",
     Icon: UserFocus,
   },
   {
     label: "Activity",
-    title: "Set your baseline activity",
-    body: "Training and movement change TDEE. Pick the closest normal week.",
+    title: "Choose a normal week",
+    body: "Pick the activity level that matches most weeks, not your best week.",
     Icon: Barbell,
   },
   {
     label: "Defaults",
-    title: "Choose units and water",
-    body: "These defaults shape daily logging without making you dig through settings.",
+    title: "Set logging defaults",
+    body: "Choose the units and water target you want to see in daily tracking.",
     Icon: Ruler,
   },
   {
     label: "Review",
-    title: "Review your starting targets",
-    body: "These are estimates you can change any time from food goals or settings.",
-    Icon: Sparkle,
+    title: "Check the first targets",
+    body: "Use these as a starting point. You can adjust them once real logs come in.",
+    Icon: Calculator,
   },
 ]
 
@@ -216,7 +217,7 @@ function StepProgress({ step }: { step: number }) {
           >
             <div
               className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] border text-[12px] font-semibold",
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-[7px] border text-[12px] font-semibold",
                 complete
                   ? "border-foreground bg-foreground text-background"
                   : active
@@ -248,12 +249,12 @@ function StepHeader({ step }: { step: number }) {
   return (
     <div>
       <div className="mb-5 flex items-center gap-2 text-[12px] font-semibold text-muted-foreground">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-foreground text-background">
+        <span className="flex h-8 w-8 items-center justify-center rounded-[7px] bg-foreground text-background">
           <Icon size={15} weight="bold" />
         </span>
         <span>{meta.label}</span>
       </div>
-      <h1 className="app-display text-[2.12rem] md:text-[2.45rem]">
+      <h1 className="app-display text-[2rem] md:text-[2.25rem]">
         {meta.title}
       </h1>
       <p className="mt-3 max-w-md text-[14px] leading-6 text-muted-foreground">
@@ -285,7 +286,7 @@ function NumberControl({
   }
 
   return (
-    <div className="app-rail-surface px-4 py-5">
+    <div className="rounded-[8px] border border-border/70 bg-card px-4 py-5">
       <div className="mb-5 flex items-center justify-between">
         <p className="text-[13px] font-semibold text-muted-foreground">
           {label}
@@ -300,7 +301,7 @@ function NumberControl({
           type="button"
           onClick={() => applyStep(-step)}
           disabled={value <= min}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
           aria-label={`Decrease ${label}`}
         >
           <Minus size={16} weight="bold" />
@@ -316,7 +317,7 @@ function NumberControl({
           type="button"
           onClick={() => applyStep(step)}
           disabled={value >= max}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[8px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted disabled:opacity-30"
           aria-label={`Increase ${label}`}
         >
           <Plus size={16} weight="bold" />
@@ -401,16 +402,16 @@ function GoalStep({
             onClick={() => setGoal(id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-[112px] rounded-[12px] border p-4 text-left transition-colors active:bg-muted",
+              "min-h-[112px] rounded-[8px] border p-4 text-left transition-colors active:bg-muted",
               selected
-                ? "border-foreground bg-foreground text-background shadow-[0_18px_45px_rgba(15,23,42,0.16)]"
+                ? "border-foreground bg-foreground text-background shadow-[0_12px_28px_rgba(15,23,42,0.12)]"
                 : "border-border/70 bg-card text-foreground hover:border-foreground/30"
             )}
           >
             <div className="flex items-start justify-between gap-3">
               <span
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px]",
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-[7px]",
                   selected && "bg-background/12 text-background"
                 )}
                 style={
@@ -483,7 +484,7 @@ function BodyBasicsStep({
                 onClick={() => setSex(sex)}
                 aria-pressed={selected}
                 className={cn(
-                  "min-h-12 rounded-[10px] border px-4 text-[14px] font-semibold capitalize transition-colors",
+                  "min-h-12 rounded-[8px] border px-4 text-[14px] font-semibold capitalize transition-colors",
                   selected
                     ? "border-foreground bg-foreground text-background"
                     : "border-border/70 bg-card text-foreground active:bg-muted"
@@ -558,7 +559,7 @@ function ActivityStep({
             onClick={() => onChange(activity.id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-[72px] rounded-[10px] border px-4 py-3 text-left transition-colors",
+              "min-h-[72px] rounded-[8px] border px-4 py-3 text-left transition-colors",
               selected
                 ? "border-foreground bg-foreground text-background"
                 : "border-border/70 bg-card text-foreground active:bg-muted"
@@ -618,13 +619,11 @@ function DefaultsStep({
         onChange={setWaterGoalMl}
       />
 
-      <div className="rounded-[10px] border border-border/70 bg-muted/35 px-4 py-3">
-        <p className="text-[13px] font-semibold">
-          Defaults are editable later.
-        </p>
+      <div className="rounded-[8px] border border-border/70 bg-muted/35 px-4 py-3">
+        <p className="text-[13px] font-semibold">These stay editable.</p>
         <p className="mt-1 text-[12.5px] leading-5 text-muted-foreground">
-          OneRep will save these as persistent preferences, not just setup
-          notes.
+          OneRep saves them as account preferences, so daily logging opens with
+          the right units.
         </p>
       </div>
     </div>
@@ -666,7 +665,7 @@ function ReviewStep({
         {items.map((item) => (
           <div
             key={item.label}
-            className="rounded-[10px] border border-border/70 bg-card px-4 py-4"
+            className="rounded-[8px] border border-border/70 bg-card px-4 py-4"
           >
             <p className="text-[12px] font-semibold text-muted-foreground">
               {item.label}
@@ -678,7 +677,7 @@ function ReviewStep({
         ))}
       </div>
 
-      <div className="rounded-[10px] border border-border/70 bg-card px-4 py-4">
+      <div className="rounded-[8px] border border-border/70 bg-card px-4 py-4">
         <p className="text-[13px] font-semibold">Calculation basis</p>
         <div className="mt-3 grid gap-2 text-[12.5px] text-muted-foreground">
           <div className="flex items-center justify-between gap-3">
@@ -716,8 +715,8 @@ function ReviewStep({
       </div>
 
       <p className="text-[12.5px] leading-5 text-muted-foreground">
-        These are estimates, not medical advice. Custom food goals can override
-        the effective daily targets while keeping this BMR/TDEE baseline.
+        These are estimates, not medical advice. Food goals can override the
+        daily targets while keeping this BMR/TDEE baseline.
       </p>
     </div>
   )
@@ -754,18 +753,18 @@ function SummaryRail({
         <img src="/app-icon.svg" alt="" className="h-11 w-11 rounded-full" />
         <div>
           <p className="text-[13px] font-semibold">OneRep</p>
-          <p className="text-[12px] text-muted-foreground">Initial setup</p>
+          <p className="text-[12px] text-muted-foreground">Profile setup</p>
         </div>
       </div>
 
-      <div className="mt-8 rounded-[24px] bg-foreground p-6 text-background shadow-[0_24px_80px_rgba(15,23,42,0.16)] dark:shadow-black/30">
-        <Sparkle size={22} weight="duotone" />
-        <p className="mt-4 text-[1.65rem] leading-tight font-semibold">
-          Useful numbers need useful inputs.
+      <div className="mt-8 rounded-[8px] border border-border/70 bg-card p-5">
+        <ListChecks size={22} weight="duotone" />
+        <p className="mt-4 text-[1.35rem] leading-tight font-semibold">
+          Your setup receipt
         </p>
-        <p className="mt-3 text-[13px] leading-6 text-background/65">
-          This profile creates a real BMR/TDEE baseline before OneRep starts
-          showing calorie and macro targets.
+        <p className="mt-3 text-[13px] leading-6 text-muted-foreground">
+          These inputs produce the first calorie and macro targets. Treat them
+          as a baseline, then tune from actual logs.
         </p>
       </div>
 
@@ -773,7 +772,7 @@ function SummaryRail({
         {items.map((item) => (
           <div
             key={item.label}
-            className="flex items-center justify-between gap-4 rounded-[16px] border border-border/60 bg-card px-4 py-3"
+            className="flex items-center justify-between gap-4 rounded-[8px] border border-border/60 bg-card px-4 py-3"
           >
             <span className="text-[12px] text-muted-foreground">
               {item.label}
@@ -1062,7 +1061,7 @@ export default function Onboarding() {
             {saveError && (
               <p
                 role="alert"
-                className="mt-5 rounded-[16px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-[13px] font-medium text-destructive"
+                className="mt-5 rounded-[8px] border border-destructive/20 bg-destructive/10 px-4 py-3 text-[13px] font-medium text-destructive"
               >
                 {saveError}
               </p>
@@ -1074,7 +1073,7 @@ export default function Onboarding() {
               type="button"
               onClick={goBack}
               disabled={step === 0 || saving}
-              className="flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-border px-5 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted disabled:opacity-35"
+              className="flex min-h-12 items-center justify-center gap-2 rounded-[8px] border border-border px-5 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted disabled:opacity-35"
             >
               <ArrowLeft size={16} weight="bold" />
               Back
@@ -1084,7 +1083,7 @@ export default function Onboarding() {
               onClick={goNext}
               disabled={saving || !stepReady}
               aria-busy={saving}
-              className="min-h-12 rounded-[10px] bg-foreground px-6 text-[14px] font-semibold text-background transition-transform active:scale-[0.985] disabled:opacity-50"
+              className="min-h-12 rounded-[8px] bg-foreground px-6 text-[14px] font-semibold text-background transition-transform active:scale-[0.985] disabled:opacity-50"
             >
               {saving
                 ? "Saving..."
