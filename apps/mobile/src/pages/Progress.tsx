@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
 import {
-  Barbell,
   Camera,
   CaretRight,
   ChartLine,
@@ -8,7 +7,6 @@ import {
   PaperPlaneTilt,
   Plus,
   Question,
-  Ruler,
   Sparkle,
   TrashSimple,
   X,
@@ -1101,39 +1099,99 @@ function compareExerciseData(
   )
 }
 
-function ProgressStatTile({
+function ProgressOutcomeCard({
   label,
   value,
   detail,
-  Icon,
   tone = "var(--foreground)",
+  wide = false,
 }: {
   label: string
   value: string
   detail: string
-  Icon: React.ComponentType<{ size?: number; weight?: "regular" | "bold" }>
+  tone?: string
+  wide?: boolean
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-[0.9rem] bg-foreground/[0.045] p-3",
+        wide && "min-[520px]:col-span-2"
+      )}
+    >
+      <div className="mb-2 flex items-center gap-2">
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: tone }}
+        />
+        <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground/52">
+          {label}
+        </p>
+      </div>
+      <p className="truncate text-[1.45rem] font-extrabold leading-none tracking-tight tabular-nums">
+        {value}
+      </p>
+      <p className="mt-1 text-[11px] font-semibold leading-4 text-muted-foreground/55">
+        {detail}
+      </p>
+    </div>
+  )
+}
+
+function ProgressActionRow({
+  title,
+  detail,
+  tone = "var(--foreground)",
+}: {
+  title: string
+  detail: string
   tone?: string
 }) {
   return (
-    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[14px] min-w-0">
-      <div className="flex justify-between items-center gap-2 mb-2">
-        <span className="font-bold text-[9.5px] text-muted-foreground/48 truncate uppercase tracking-[0.12em]">
-          {label}
-        </span>
-        <Icon size={14} weight="bold" />
+    <div className="flex gap-3 rounded-[0.9rem] bg-foreground/[0.035] px-3 py-3">
+      <span
+        className="mt-1 size-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: tone }}
+      />
+      <div className="min-w-0">
+        <p className="text-[13px] font-extrabold leading-tight">{title}</p>
+        <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground/58">
+          {detail}
+        </p>
       </div>
-      <p className="font-extrabold tabular-nums text-[1.35rem] truncate leading-none">
-        {value}
-      </p>
-      <p className="mt-1 font-semibold text-[10.5px] text-muted-foreground/52 truncate">
-        {detail}
-      </p>
-      <div className="bg-background/70 mt-2 rounded-full h-1 overflow-hidden">
+    </div>
+  )
+}
+
+function ProgressMiniMeter({
+  label,
+  value,
+  detail,
+  tone = "var(--foreground)",
+}: {
+  label: string
+  value: number
+  detail: string
+  tone?: string
+}) {
+  const pct = clamp(value, 0, 100)
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <p className="truncate text-[11px] font-bold text-muted-foreground/60">
+          {label}
+        </p>
+        <p className="shrink-0 text-[11px] font-extrabold tabular-nums">
+          {Math.round(pct)}%
+        </p>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.06]">
         <div
-          className="rounded-full h-full"
-          style={{ width: "100%", backgroundColor: tone, opacity: 0.7 }}
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, backgroundColor: tone }}
         />
       </div>
+      <p className="mt-1 text-[10.5px] text-muted-foreground/45">{detail}</p>
     </div>
   )
 }
@@ -4452,6 +4510,59 @@ export default function Progress() {
     ...visibleAiCoachInsights,
     ...visibleProgressInsights,
   ]
+  const primaryInsight = displayedCoachInsights[0]
+  const progressVerdict =
+    weightRateKgPerWeek == null
+      ? "Start with a check-in"
+      : weightGoalStatus
+  const progressVerdictDetail =
+    weightRateKgPerWeek == null
+      ? "Log weight twice so OneRep can separate signal from noise."
+      : goal === "lose"
+        ? `${signedValue(weightRateKgPerWeek, " kg/week", 2)} against your fat-loss goal.`
+        : goal === "build" || goal === "performance"
+          ? `${signedValue(weightRateKgPerWeek, " kg/week", 2)} against your gain target.`
+          : `${signedValue(weightRateKgPerWeek, " kg/week", 2)} body-weight drift.`
+  const nextActions = [
+    primaryInsight
+      ? {
+          title: primaryInsight.title,
+          detail: primaryInsight.detail,
+          tone: primaryInsight.tone ?? APP_ACCENT_COLORS.progress,
+        }
+      : {
+          title: "Log the next useful data point",
+          detail:
+            "A body check-in plus a normal food day gives this page enough context to judge your trend.",
+          tone: APP_ACCENT_COLORS.progress,
+        },
+    proteinAdherence < 70
+      ? {
+          title: "Bring protein consistency up",
+          detail: `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`,
+          tone: "var(--status-danger)",
+        }
+      : {
+          title: "Protein is supporting the goal",
+          detail: `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`,
+          tone: APP_ACCENT_COLORS.complete,
+        },
+    lowTrainingDose
+      ? {
+          title: "Training signal is thin this week",
+          detail: `${workoutDays7.size} workout days and ${fmtInt(last7HardSets)} hard sets in the last 7 days.`,
+          tone: APP_ACCENT_COLORS.progress,
+        }
+      : {
+          title: "Training consistency is usable",
+          detail: `${workoutDays7.size} workout days, ${fmtInt(last7HardSets)} hard sets, ${signedPercent(volumeChange7Pct)} volume vs prior week.`,
+          tone: APP_ACCENT_COLORS.complete,
+        },
+  ]
+  const latestWeightDetail =
+    latest?.weightKg != null
+      ? `${formatMeasurementDate(latest.loggedAt)} · ${trend ?? "trend pending"}`
+      : "No body check-ins yet"
 
   return (
     <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
@@ -4460,7 +4571,7 @@ export default function Progress() {
           <div className="min-w-0">
             <h1 className="app-title">Progress</h1>
             <p className="mt-1 text-[12px] text-muted-foreground/60">
-              Body composition and exercise-specific strength.
+              What changed, why it changed, and what to do next.
             </p>
           </div>
           <button
@@ -4481,71 +4592,204 @@ export default function Progress() {
           </button>
         </header>
 
-        <section className="p-4 app-surface">
-          <div className="flex justify-between items-start gap-4">
-            <div className="min-w-0">
-              <p className="app-eyebrow">Body weight</p>
-              <p className="mt-2 font-extrabold tabular-nums text-[2.05rem] truncate leading-none tracking-tight">
-                {latest?.weightKg != null
-                  ? `${fmtNumber(latest.weightKg)} kg`
-                  : "No check-in"}
-              </p>
-              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/58">
-                {latest
-                  ? `${formatMeasurementDate(latest.loggedAt)} · ${weightRateKgPerWeek == null ? (trend ?? "trend pending") : `${signedValue(weightRateKgPerWeek, " kg/wk", 2)} · ${weightGoalStatus}`}`
-                  : "Add weight, body fat, or waist to start."}
-              </p>
+        <section className="grid gap-3 lg:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.9fr)]">
+          <div className="app-surface p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="app-eyebrow">{goalLabel(goal)} progress</p>
+                <h2 className="mt-2 text-[2.1rem] font-extrabold leading-none tracking-tight">
+                  {progressVerdict}
+                </h2>
+                <p className="mt-2 max-w-xl text-[12.5px] font-semibold leading-5 text-muted-foreground/58">
+                  {progressVerdictDetail}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSheetOpen(true)}
+                className="app-button app-button-quiet shrink-0"
+              >
+                Add
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setSheetOpen(true)}
-              className="app-button app-button-quiet shrink-0"
-            >
-              Add
-            </button>
+
+            <div className="mt-5 grid grid-cols-1 gap-2.5 min-[520px]:grid-cols-4">
+              <ProgressOutcomeCard
+                label="Scale"
+                value={latest?.weightKg != null ? `${fmtNumber(latest.weightKg)} kg` : "—"}
+                detail={latestWeightDetail}
+                tone={weightGoalTone}
+                wide
+              />
+              <ProgressOutcomeCard
+                label="Food adherence"
+                value={percentLabel(calorieAccuracy)}
+                detail={`${foodDateSet.size}/30 days logged · ${avgCalorieDeviation} cal miss`}
+                tone={
+                  calorieAccuracy >= 60
+                    ? APP_ACCENT_COLORS.complete
+                    : APP_ACCENT_COLORS.progress
+                }
+              />
+              <ProgressOutcomeCard
+                label="Training"
+                value={`${workoutDays7.size}d`}
+                detail={`${fmtInt(last7HardSets)} hard sets · 7 days`}
+                tone={
+                  lowTrainingDose
+                    ? APP_ACCENT_COLORS.progress
+                    : APP_ACCENT_COLORS.complete
+                }
+              />
+            </div>
+
+            <div className="mt-4 rounded-[1rem] bg-foreground/[0.035] px-3 pt-3 pb-2">
+              {weightValues.length >= 2 && bodyWeightGraph ? (
+                <ExpandableChartButton
+                  onExpand={() => setExpandedMetricGraphId("body.weight_current")}
+                >
+                  <MetricProgressChart graph={bodyWeightGraph} />
+                </ExpandableChartButton>
+              ) : (
+                <div className="flex h-32 items-center justify-center text-center text-[12px] text-muted-foreground/50">
+                  Add two weight check-ins to draw the trend.
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
-            <ProgressStatTile
-              label="Weight"
-              value={
-                latest?.weightKg != null ? fmtNumber(latest.weightKg) : "—"
-              }
-              detail={trend ?? "needs 2"}
-              Icon={Ruler}
-              tone={APP_ACCENT_COLORS.water}
-            />
-            <ProgressStatTile
-              label="Waist"
-              value={latest?.waistCm != null ? fmtNumber(latest.waistCm) : "—"}
-              detail={signedValue(deltaFor(waistValues), " cm")}
-              Icon={Ruler}
-              tone="var(--foreground)"
-            />
-            <ProgressStatTile
-              label="Strength"
-              value={
-                selectedExercise?.lastBest
-                  ? fmtNumber(selectedExercise.lastBest)
-                  : "—"
-              }
-              detail={
-                selectedExercise
-                  ? signedValue(selectedExercise.delta, " kg")
-                  : "pick lift"
-              }
-              Icon={Barbell}
-              tone={APP_ACCENT_COLORS.progress}
-            />
+          <div className="app-surface p-4">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="app-section-title">Next best actions</p>
+                <p className="app-section-subtitle">
+                  Ranked from your latest body, food, and training signals.
+                </p>
+              </div>
+              {hasAiAccess && (
+                <button
+                  type="button"
+                  disabled={aiCoachBusy}
+                  onClick={aiGenerateCoachAdvice}
+                  className="h-8 shrink-0 app-button app-button-quiet"
+                  aria-label="Generate AI coaching advice"
+                >
+                  <Sparkle size={12} weight="fill" />
+                  {aiCoachBusy ? "Thinking" : "AI"}
+                </button>
+              )}
+            </div>
+            <div className="grid gap-2">
+              {nextActions.map((action) => (
+                <ProgressActionRow
+                  key={action.title}
+                  title={action.title}
+                  detail={action.detail}
+                  tone={action.tone}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-3">
+          <div className="app-surface p-4">
+            <div className="mb-4">
+              <p className="app-section-title">Nutrition consistency</p>
+              <p className="app-section-subtitle">
+                Logged days only, compared with current targets.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <ProgressMiniMeter
+                label="Protein target"
+                value={proteinAdherence}
+                detail={`${fmtInt(averageProtein)}g average · ${proteinTarget}g target`}
+                tone={APP_ACCENT_COLORS.complete}
+              />
+              <ProgressMiniMeter
+                label="Calorie accuracy"
+                value={calorieAccuracy}
+                detail={`${fmtInt(averageCalories)} average · ${calorieTarget} target`}
+                tone={APP_ACCENT_COLORS.progress}
+              />
+              <ProgressMiniMeter
+                label="Macro consistency"
+                value={macroConsistency}
+                detail="Calories, protein, carbs, and fat"
+                tone="var(--foreground)"
+              />
+            </div>
+          </div>
+
+          <div className="app-surface p-4">
+            <div className="mb-4">
+              <p className="app-section-title">Training momentum</p>
+              <p className="app-section-subtitle">
+                Frequency and workload compared with the prior week.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <ProgressOutcomeCard
+                label="Workouts"
+                value={String(workoutDays7.size)}
+                detail={`${signedPercent(workoutDayChange7Pct)} vs prior`}
+                tone={APP_ACCENT_COLORS.progress}
+              />
+              <ProgressOutcomeCard
+                label="Hard sets"
+                value={fmtInt(last7HardSets)}
+                detail={`${signedPercent(hardSetChange7Pct)} vs prior`}
+                tone={APP_ACCENT_COLORS.complete}
+              />
+              <ProgressOutcomeCard
+                label="Volume"
+                value={signedPercent(volumeChange7Pct)}
+                detail={`${fmtInt(last7Volume)} kg last 7d`}
+                tone={
+                  highWorkloadSpike || workloadDrop
+                    ? APP_ACCENT_COLORS.progress
+                    : APP_ACCENT_COLORS.complete
+                }
+                wide
+              />
+            </div>
+          </div>
+
+          <div className="app-surface p-4">
+            <div className="mb-4">
+              <p className="app-section-title">Data quality</p>
+              <p className="app-section-subtitle">
+                How much confidence to put in the current read.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <ProgressMiniMeter
+                label="Overall confidence"
+                value={dataConfidenceScore}
+                detail={`body ${bodyConfidence}% · food ${nutritionConfidence}% · training ${trainingConfidence}%`}
+                tone={
+                  dataConfidenceScore >= 70
+                    ? APP_ACCENT_COLORS.complete
+                    : APP_ACCENT_COLORS.progress
+                }
+              />
+              <ProgressMiniMeter
+                label="Adherence score"
+                value={adherenceScore}
+                detail="Check-ins, food logs, and workouts"
+                tone="var(--foreground)"
+              />
+            </div>
           </div>
         </section>
 
         <section className="mt-3 p-4 app-surface">
-          <div className="flex justify-between items-center gap-3 mb-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="app-section-title">Pinned metrics</p>
+              <p className="app-section-title">Metric library</p>
               <p className="app-section-subtitle">
-                Search or generate exactly what you want to track.
+                Pin extra diagnostics when you want a deeper view.
               </p>
             </div>
             <button
