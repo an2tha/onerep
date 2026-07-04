@@ -489,6 +489,11 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).not.toContain("-top-[5px]")
     expect(ACTIVE_WORKOUT_SOURCE).not.toContain("-bottom-[5px]")
     expect(ACTIVE_WORKOUT_SOURCE).not.toContain("h-[2.5px]")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("setGridClass")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("compactFieldCls")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain(
+      "hidden items-center gap-2 border-b"
+    )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("dropActive: boolean")
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       'dropActive && "border-foreground/35"'

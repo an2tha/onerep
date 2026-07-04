@@ -818,19 +818,6 @@ function SetNumberField({
   )
 }
 
-function setGridClass(trackUnilateral: boolean, trackRpe: boolean) {
-  if (trackUnilateral && trackRpe) {
-    return "md:grid-cols-[2.25rem_7rem_minmax(4.5rem,1fr)_minmax(4rem,1fr)_minmax(4rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
-  }
-  if (trackUnilateral) {
-    return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(4.5rem,1fr)_minmax(4.5rem,1fr)_5rem_2.75rem_2.25rem]"
-  }
-  if (trackRpe) {
-    return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(5rem,1fr)_4rem_5rem_2.75rem_2.25rem]"
-  }
-  return "md:grid-cols-[2.25rem_7rem_minmax(5rem,1fr)_minmax(5rem,1fr)_2.75rem]"
-}
-
 /**
  * Locate the first incomplete set across the workout items, scanning items in order.
  *
@@ -2004,20 +1991,10 @@ function ActiveSetRow({
       : "border-border/35 bg-background/70 focus:border-primary/35 focus:bg-card focus:ring-2 focus:ring-primary/10",
     "disabled:pointer-events-none"
   )
-  const compactFieldCls = cn(
-    "h-9 w-full rounded-md border px-2.5 text-center text-[14px] font-semibold tabular-nums transition-all outline-none",
-    "placeholder:text-muted-foreground/25",
-    "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
-    set.completed
-      ? "cursor-default border-border/30 bg-muted/30 text-foreground/50"
-      : "border-border/40 bg-muted/20 focus:border-primary/30 focus:bg-card/80 focus:ring-2 focus:ring-primary/10",
-    "disabled:pointer-events-none"
-  )
   const repsModeKey = trackUnilateral ? "unilateral" : "bilateral"
   const trackingModeKey = `${repsModeKey}-${trackRpe ? "rpe" : "base"}`
   const fullWidthComplete = trackUnilateral || trackRpe
   const showSecondarySetControls = trackUnilateral || trackRpe
-  const desktopGridClass = setGridClass(trackUnilateral, trackRpe)
   const weightPlaceholder = lastSet?.weight
     ? toDisplay(String(lastSet.weight), unit)
     : "–"
@@ -2026,136 +2003,7 @@ function ActiveSetRow({
     <>
       <div
         className={cn(
-          "relative hidden items-center gap-2 px-3 py-2 transition-colors md:grid",
-          desktopGridClass,
-          set.completed && "bg-muted/15",
-          isNext && !set.completed && "bg-primary/[0.028]"
-        )}
-      >
-        {isNext && !set.completed && (
-          <div className="absolute inset-y-2 left-0 w-px rounded-r-full bg-primary/35" />
-        )}
-        <span className="text-center text-[12px] font-semibold text-muted-foreground/70 tabular-nums">
-          {index + 1}
-        </span>
-        <button
-          onClick={cycleType}
-          disabled={set.completed}
-          aria-label={`Set mode: ${cfg.label}. Tap to change.`}
-          title={`Set mode: ${cfg.label}`}
-          className="flex h-9 items-center justify-center rounded-md px-2 text-[11px] font-bold transition-colors active:bg-muted disabled:pointer-events-none"
-          style={{
-            backgroundColor: set.completed
-              ? "color-mix(in srgb, var(--muted) 70%, transparent)"
-              : cfg.bg,
-            color: cfg.color,
-          }}
-        >
-          {set.completed ? <Check size={14} weight="bold" /> : cfg.label}
-        </button>
-        <WeightSelectorButton
-          value={set.weight}
-          placeholder={weightPlaceholder}
-          unit={unit}
-          barWeight={barWeight}
-          compact
-          disabled={set.completed}
-          onClick={() => setShowWeight(true)}
-        />
-        {trackUnilateral ? (
-          <>
-            <input
-              type="number"
-              inputMode="numeric"
-              value={set.leftReps}
-              onChange={(event) =>
-                onUpdate({ ...set, leftReps: event.target.value })
-              }
-              placeholder="–"
-              disabled={set.completed}
-              aria-label="Left reps"
-              className={compactFieldCls}
-            />
-            <input
-              type="number"
-              inputMode="numeric"
-              value={set.rightReps}
-              onChange={(event) =>
-                onUpdate({ ...set, rightReps: event.target.value })
-              }
-              placeholder="–"
-              disabled={set.completed}
-              aria-label="Right reps"
-              className={compactFieldCls}
-            />
-          </>
-        ) : (
-          <input
-            type="number"
-            inputMode="numeric"
-            value={set.reps}
-            onChange={(event) => onUpdate({ ...set, reps: event.target.value })}
-            placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
-            disabled={set.completed}
-            aria-label="Reps"
-            className={compactFieldCls}
-          />
-        )}
-        {trackRpe && (
-          <input
-            type="number"
-            inputMode="decimal"
-            value={set.rpe}
-            onChange={(event) => onUpdate({ ...set, rpe: event.target.value })}
-            placeholder="–"
-            min="1"
-            max="10"
-            step="0.5"
-            disabled={set.completed}
-            aria-label="RPE"
-            className={compactFieldCls}
-          />
-        )}
-        {showSecondarySetControls && (
-          <button
-            onClick={() => setShowRest(true)}
-            aria-label="Set rest timer"
-            className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-border/35 bg-transparent px-2 text-[12px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/35"
-          >
-            <Timer size={13} />
-            <span className="tabular-nums">{formatRest(set.restSeconds)}</span>
-          </button>
-        )}
-        <button
-          onClick={toggleDone}
-          aria-label={
-            set.completed ? "Mark set incomplete" : "Mark set complete"
-          }
-          className={cn(
-            "flex h-9 w-9 items-center justify-center rounded-md border transition-colors active:bg-muted/45",
-            set.completed
-              ? "border-border/45 bg-muted/55 text-foreground/70"
-              : "border-border/35 bg-transparent text-muted-foreground/60"
-          )}
-        >
-          <Check size={14} weight="bold" />
-        </button>
-        {showSecondarySetControls &&
-          (canDelete && !set.completed ? (
-            <button
-              onClick={onDelete}
-              aria-label="Delete set"
-              className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
-            >
-              <X size={14} weight="bold" />
-            </button>
-          ) : (
-            <div />
-          ))}
-      </div>
-      <div
-        className={cn(
-          "relative px-3 py-2.5 transition-[background-color,transform,box-shadow] duration-300 md:hidden",
+          "relative px-3 py-2.5 transition-[background-color,transform,box-shadow] duration-300",
           set.completed && "bg-muted/[0.10]",
           isNext && !set.completed && "bg-muted/[0.08]",
           completionPulse && "bg-muted/20",
@@ -3120,30 +2968,6 @@ function ActiveExerciseCard({
                       "1px solid color-mix(in srgb, var(--border) 45%, transparent)",
                   }}
                 >
-                  <div
-                    className={cn(
-                      "hidden items-center gap-2 border-b border-border/25 px-3 py-2 text-[10px] font-semibold text-muted-foreground/50 md:grid",
-                      setGridClass(data.trackUnilateral, data.trackRpe)
-                    )}
-                  >
-                    <span className="text-center">Set</span>
-                    <span>Type</span>
-                    <span>Weight</span>
-                    {data.trackUnilateral ? (
-                      <>
-                        <span>Left</span>
-                        <span>Right</span>
-                      </>
-                    ) : (
-                      <span>Reps</span>
-                    )}
-                    {data.trackRpe && <span>RPE</span>}
-                    {(data.trackRpe || data.trackUnilateral) && (
-                      <span>Rest</span>
-                    )}
-                    <span className="text-center">Done</span>
-                    {(data.trackRpe || data.trackUnilateral) && <span />}
-                  </div>
                   {data.sets.map((s, i) => (
                     <div
                       key={s.id}
