@@ -1,9 +1,15 @@
 import { useCallback, useState } from "react"
-import { Aperture, Barbell, ChartLineUp, Sparkle, X } from "@phosphor-icons/react"
+import {
+  Aperture,
+  Barbell,
+  ChartLineUp,
+  Sparkle,
+  X,
+} from "@phosphor-icons/react"
 import { toast } from "sonner"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { ONEREP_PRO_ENTITLEMENT, useRevenueCat } from "@/lib/revenuecat"
+import { hasOneRepPro, useRevenueCat } from "@/lib/revenuecat"
 import { celebrateSubscription } from "@/lib/subscription-celebration"
 
 export function useAiAccessSubscription() {
@@ -196,7 +202,8 @@ export function useAiFeatureGate() {
     userId,
   })
   const hasAiAccess = revenueCat.hasOneRepPro
-  const isLoading = revenueCat.status === "loading" || revenueCat.status === "idle"
+  const isLoading =
+    revenueCat.status === "loading" || revenueCat.status === "idle"
   const [modalOpen, setModalOpen] = useState(false)
   const [paywallBusy, setPaywallBusy] = useState(false)
   const navigate = useSmoothNavigate()
@@ -224,10 +231,15 @@ export function useAiFeatureGate() {
         setPaywallBusy(true)
         void revenueCat
           .purchaseMonthly()
-          .then(() => revenueCat.refresh())
-          .then(() => {
-            celebrateSubscription()
-            setModalOpen(false)
+          .then((customerInfo) => customerInfo ?? revenueCat.refresh())
+          .then((customerInfo) => {
+            if (hasOneRepPro(customerInfo)) {
+              celebrateSubscription()
+              setModalOpen(false)
+            } else {
+              toast.message("Subscription is pending. Refreshing access...")
+              void revenueCat.refresh()
+            }
           })
           .catch((error) => {
             const message =
@@ -245,8 +257,10 @@ export function useAiFeatureGate() {
           .restorePurchases()
           .then(() => revenueCat.refresh())
           .then((customerInfo) => {
-            if (customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT]) {
+            if (hasOneRepPro(customerInfo)) {
               celebrateSubscription()
+            } else {
+              toast.message("No active Pro subscription found")
             }
           })
           .catch((error) => {
