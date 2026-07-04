@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import {
+  buildRevenueCatWebCheckoutUrl,
   hasActiveSubscription,
   hasOneRepPro,
   ONEREP_PRO_ENTITLEMENT,
@@ -11,6 +12,31 @@ function customerInfo(overrides: Record<string, unknown>) {
 }
 
 describe("RevenueCat subscription helpers", () => {
+  test("builds direct web checkout URL for monthly package", () => {
+    const url = new URL(
+      buildRevenueCatWebCheckoutUrl({
+        appUserId: "user_456",
+      })
+    )
+
+    expect(url.origin).toBe("https://pay.rev.cat")
+    expect(url.pathname).toBe("/sandbox/mqvkhnnxqaxmwfms/user_456")
+    expect(url.searchParams.get("package_id")).toBe("monthly")
+    expect(url.searchParams.get("hide_back_button")).toBe("true")
+  })
+
+  test("adds email to direct web checkout URL", () => {
+    const url = new URL(
+      buildRevenueCatWebCheckoutUrl({
+        appUserId: "user with spaces",
+        email: "test+checkout@example.com",
+      })
+    )
+
+    expect(url.pathname).toBe("/sandbox/mqvkhnnxqaxmwfms/user%20with%20spaces")
+    expect(url.searchParams.get("email")).toBe("test+checkout@example.com")
+  })
+
   test("unlocks OneRep Pro from active entitlement map", () => {
     const info = customerInfo({
       entitlements: {
