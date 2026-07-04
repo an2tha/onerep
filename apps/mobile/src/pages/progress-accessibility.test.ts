@@ -51,4 +51,15 @@ describe("Progress page accessibility contract", () => {
       'aria-label="Search strength trend exercise"',
     )
   })
+
+  test("progress recommendations expose tap-through actions", () => {
+    expect(PROGRESS_SOURCE).toContain("actionLabel: \"Add check-in\"")
+    expect(PROGRESS_SOURCE).toContain("onAction: () => setSheetOpen(true)")
+    expect(PROGRESS_SOURCE).toContain("actionLabel: \"Log food\"")
+    expect(PROGRESS_SOURCE).toContain('onAction: () => navigate("/foods/search")')
+    expect(PROGRESS_SOURCE).toContain("actionLabel: \"Start workout\"")
+    expect(PROGRESS_SOURCE).toContain('onAction: () => navigate("/workout/active")')
+    expect(PROGRESS_SOURCE).toContain("askAiLabel: hasAiAccess ? \"Ask AI\" : \"Unlock AI\"")
+    expect(PROGRESS_SOURCE).toContain("onAskAi={action.onAskAi}")
+  })
 })
