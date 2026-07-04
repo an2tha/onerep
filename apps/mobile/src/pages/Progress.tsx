@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils"
 import { APP_ACCENT_COLORS } from "@/lib/design-tokens"
 import { rollingAvg } from "@/lib/progress-metrics"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { useSmoothNavigate } from "@/lib/navigation"
 
 type GoalId = "lose" | "build" | "health" | "performance"
 
@@ -524,6 +525,8 @@ function MeasurementField({
       <div className="flex items-center bg-background px-3 border border-border/55 rounded-[10px]">
         <input
           type="text"
+          name={`body-measurement-${label.toLowerCase().replace(/\s+/g, "-")}`}
+          aria-label={`${label} measurement in ${unit}`}
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -545,7 +548,7 @@ function MeasurementSheet({
   onSave,
 }: {
   onClose: () => void
-  onSave: (entry: MeasurementDraft) => void
+  onSave: (entry: MeasurementDraft) => void | Promise<void>
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const [loggedAt, setLoggedAt] = useState(today)
@@ -562,8 +565,10 @@ function MeasurementSheet({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | undefined>()
   const [photoFile, setPhotoFile] = useState<File | undefined>()
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+  const saveRef = React.useRef(false)
 
   function toNumber(value: string) {
     const trimmed = value.trim()
@@ -602,12 +607,14 @@ function MeasurementSheet({
 
   return (
     <MobileSheet
-      onClose={onClose}
+      onClose={saving ? () => {} : onClose}
       overlayClassName="bg-black/45 backdrop-blur-[5px]"
       panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
       panelStyle={{
         paddingBottom: "var(--app-safe-bottom-lg)",
       }}
+      closeOnBackdrop={!saving}
+      showHandle={!saving}
     >
       <div className="px-4 pt-1">
         <div className="mb-4 pb-4 border-border/45 border-b">
@@ -687,6 +694,8 @@ function MeasurementSheet({
             </span>
             <input
               type="file"
+              name="progress-photo"
+              aria-label="Progress photo"
               accept="image/*"
               capture="environment"
               className="hidden"
@@ -702,6 +711,7 @@ function MeasurementSheet({
                 />
                 <button
                   type="button"
+                  aria-label="Remove progress photo"
                   onClick={() => {
                     setPhotoDataUrl(undefined)
                     setPhotoFile(undefined)
@@ -729,6 +739,8 @@ function MeasurementSheet({
             </span>
             <input
               type="date"
+              name="body-measurement-date"
+              aria-label="Body measurement date"
               value={loggedAt}
               onChange={(event) => setLoggedAt(event.target.value)}
               className="h-11 app-input"
@@ -751,23 +763,33 @@ function MeasurementSheet({
 
         <div className="flex gap-2 mt-4">
           <button
-            onClick={() => {
-              if (!canSave) return
-              onSave({
-                loggedAt,
-                weightKg: toNumber(weightKg),
-                bodyFatPct: toNumber(bodyFatPct),
-                waistCm: toNumber(waistCm),
-                hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
-                chestCm: chestCm ? toNumber(chestCm) : undefined,
-                armsCm: armsCm ? toNumber(armsCm) : undefined,
-                thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
-                calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
-                neckCm: neckCm ? toNumber(neckCm) : undefined,
-                notes: notes.trim() || undefined,
-                photoFile,
-                photoTakenAt: photoFile ? Date.now() : undefined,
-              })
+            type="button"
+            disabled={!canSave}
+            aria-busy={saving}
+            onClick={async () => {
+              if (!canSave || saveRef.current) return
+              saveRef.current = true
+              setSaving(true)
+              try {
+                await onSave({
+                  loggedAt,
+                  weightKg: toNumber(weightKg),
+                  bodyFatPct: toNumber(bodyFatPct),
+                  waistCm: toNumber(waistCm),
+                  hipsCm: hipsCm ? toNumber(hipsCm) : undefined,
+                  chestCm: chestCm ? toNumber(chestCm) : undefined,
+                  armsCm: armsCm ? toNumber(armsCm) : undefined,
+                  thighsCm: thighsCm ? toNumber(thighsCm) : undefined,
+                  calvesCm: calvesCm ? toNumber(calvesCm) : undefined,
+                  neckCm: neckCm ? toNumber(neckCm) : undefined,
+                  notes: notes.trim() || undefined,
+                  photoFile,
+                  photoTakenAt: photoFile ? Date.now() : undefined,
+                })
+              } finally {
+                saveRef.current = false
+                setSaving(false)
+              }
             }}
             className={cn(
               "flex-1 py-3 text-[13px] transition-colors app-button",
@@ -776,9 +798,11 @@ function MeasurementSheet({
                 : "bg-muted text-muted-foreground/40"
             )}
           >
-            Save check-in
+            {saving ? "Saving..." : "Save check-in"}
           </button>
           <button
+            type="button"
+            disabled={saving}
             onClick={onClose}
             className="px-4 py-3 text-[13px] app-button app-button-quiet"
           >
@@ -1103,22 +1127,21 @@ function ProgressOutcomeCard({
   label,
   value,
   detail,
+  onAction,
+  actionLabel,
   tone = "var(--foreground)",
   wide = false,
 }: {
   label: string
   value: string
   detail: string
+  onAction?: () => void
+  actionLabel?: string
   tone?: string
   wide?: boolean
 }) {
-  return (
-    <div
-      className={cn(
-        "min-w-0 rounded-[0.9rem] bg-foreground/[0.045] p-3",
-        wide && "min-[520px]:col-span-2"
-      )}
-    >
+  const content = (
+    <>
       <div className="mb-2 flex items-center gap-2">
         <span
           className="size-2 shrink-0 rounded-full"
@@ -1134,30 +1157,89 @@ function ProgressOutcomeCard({
       <p className="mt-1 text-[11px] font-semibold leading-4 text-muted-foreground/55">
         {detail}
       </p>
-    </div>
+      {actionLabel && (
+        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-foreground/[0.055] px-2 py-1 text-[10px] font-extrabold text-muted-foreground/55">
+          {actionLabel}
+          <CaretRight size={10} weight="bold" />
+        </span>
+      )}
+    </>
+  )
+  const className = cn(
+    "min-w-0 rounded-[0.9rem] bg-foreground/[0.045] p-3",
+    wide && "min-[520px]:col-span-2",
+    onAction &&
+      "text-left transition active:scale-[0.99] active:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+  )
+
+  if (onAction) {
+    return (
+      <button
+        type="button"
+        onClick={onAction}
+        className={className}
+        aria-label={`${actionLabel ?? "Open"}: ${label}`}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className={className}>{content}</div>
   )
 }
 
 function ProgressActionRow({
   title,
   detail,
+  actionLabel,
+  onAction,
+  askAiLabel,
+  onAskAi,
   tone = "var(--foreground)",
 }: {
   title: string
   detail: string
+  actionLabel: string
+  onAction: () => void
+  askAiLabel: string
+  onAskAi: () => void
   tone?: string
 }) {
   return (
-    <div className="flex gap-3 rounded-[0.9rem] bg-foreground/[0.035] px-3 py-3">
-      <span
-        className="mt-1 size-2.5 shrink-0 rounded-full"
-        style={{ backgroundColor: tone }}
-      />
-      <div className="min-w-0">
-        <p className="text-[13px] font-extrabold leading-tight">{title}</p>
-        <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground/58">
-          {detail}
-        </p>
+    <div className="rounded-[0.9rem] bg-foreground/[0.035] p-3">
+      <div className="flex gap-3">
+        <span
+          className="mt-1 size-2.5 shrink-0 rounded-full"
+          style={{ backgroundColor: tone }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-extrabold leading-tight">{title}</p>
+          <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground/58">
+            {detail}
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 pl-5">
+        <button
+          type="button"
+          onClick={onAction}
+          className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.07] px-3 text-[10.5px] font-extrabold text-foreground transition active:scale-[0.98] active:bg-foreground/[0.11] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          aria-label={`${actionLabel}: ${title}`}
+        >
+          {actionLabel}
+          <CaretRight size={10} weight="bold" />
+        </button>
+        <button
+          type="button"
+          onClick={onAskAi}
+          className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.035] px-3 text-[10.5px] font-extrabold text-muted-foreground/58 transition active:scale-[0.98] active:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          aria-label={`${askAiLabel}: ${title}`}
+        >
+          <Sparkle size={10} weight="fill" />
+          {askAiLabel}
+        </button>
       </div>
     </div>
   )
@@ -1613,6 +1695,8 @@ function MetricSearchSheet({
             />
             <input
               type="search"
+              name="metric-library-search"
+              aria-label="Search progress metrics"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search metrics: volume, waist, protein, streak..."
@@ -1626,6 +1710,8 @@ function MetricSearchSheet({
             </p>
             <div className="flex gap-2 mt-2">
               <input
+                name="metric-ai-prompt"
+                aria-label="Describe a metric to generate"
                 value={aiPrompt}
                 onChange={(event) => setAiPrompt(event.target.value)}
                 placeholder="e.g. fat loss, bench progress, consistency"
@@ -1701,6 +1787,8 @@ function MetricSearchSheet({
             </p>
             <div className="flex gap-2 mt-2">
               <input
+                name="custom-progress-metric"
+                aria-label="Custom progress metric name"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Type a metric name"
@@ -2115,6 +2203,7 @@ function buildExerciseProgress(
 }
 
 export default function Progress() {
+  const navigate = useSmoothNavigate()
   const todayKey = useMemo(() => localDateKey(), [])
   const last30 = useMemo(() => lastDateKeys(todayKey, 30), [todayKey])
   const last14 = useMemo(() => lastDateKeys(todayKey, 14), [todayKey])
@@ -4523,40 +4612,111 @@ export default function Progress() {
         : goal === "build" || goal === "performance"
           ? `${signedValue(weightRateKgPerWeek, " kg/week", 2)} against your gain target.`
           : `${signedValue(weightRateKgPerWeek, " kg/week", 2)} body-weight drift.`
+  const askAiAboutPrimaryInsight = () => {
+    if (primaryInsight && hasAiAccess) {
+      clarifyCoachInsight(primaryInsight)
+      return
+    }
+    if (hasAiAccess) {
+      setAiCoachOpen(true)
+      return
+    }
+    requireAiAccess()
+  }
+  const askAiAboutRecommendation = (title: string, detail: string) => {
+    void sendAiCoachMessage(
+      `Help me act on this progress recommendation: ${title}. ${detail}`
+    )
+  }
   const nextActions = [
-    primaryInsight
+    weightEntries.length < 2
       ? {
-          title: primaryInsight.title,
-          detail: primaryInsight.detail,
-          tone: primaryInsight.tone ?? APP_ACCENT_COLORS.progress,
-        }
-      : {
-          title: "Log the next useful data point",
+          title: "Add another body check-in",
           detail:
-            "A body check-in plus a normal food day gives this page enough context to judge your trend.",
+            "Two weight entries are the minimum needed for a useful pace and goal verdict.",
           tone: APP_ACCENT_COLORS.progress,
-        },
+          actionLabel: "Add check-in",
+          onAction: () => setSheetOpen(true),
+          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+          onAskAi: () =>
+            askAiAboutRecommendation(
+              "Add another body check-in",
+              "Two weight entries are the minimum needed for a useful pace and goal verdict."
+            ),
+        }
+      : primaryInsight
+        ? {
+            title: primaryInsight.title,
+            detail: primaryInsight.detail,
+            tone: primaryInsight.tone ?? APP_ACCENT_COLORS.progress,
+            actionLabel: hasAiAccess ? "Ask AI coach" : "Unlock AI coach",
+            onAction: askAiAboutPrimaryInsight,
+            askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+            onAskAi: askAiAboutPrimaryInsight,
+          }
+        : {
+            title: "Ask for a progress read",
+            detail:
+              "Use the coach to turn your current body, food, and training data into a concrete next step.",
+            tone: APP_ACCENT_COLORS.progress,
+            actionLabel: hasAiAccess ? "Ask AI coach" : "Unlock AI coach",
+            onAction: askAiAboutPrimaryInsight,
+            askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+            onAskAi: askAiAboutPrimaryInsight,
+          },
     proteinAdherence < 70
       ? {
           title: "Bring protein consistency up",
           detail: `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`,
           tone: "var(--status-danger)",
+          actionLabel: "Log food",
+          onAction: () => navigate("/foods/search"),
+          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+          onAskAi: () =>
+            askAiAboutRecommendation(
+              "Bring protein consistency up",
+              `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`
+            ),
         }
       : {
           title: "Protein is supporting the goal",
           detail: `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`,
           tone: APP_ACCENT_COLORS.complete,
+          actionLabel: "Log food",
+          onAction: () => navigate("/foods/search"),
+          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+          onAskAi: () =>
+            askAiAboutRecommendation(
+              "Protein is supporting the goal",
+              `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`
+            ),
         },
     lowTrainingDose
       ? {
           title: "Training signal is thin this week",
           detail: `${workoutDays7.size} workout days and ${fmtInt(last7HardSets)} hard sets in the last 7 days.`,
           tone: APP_ACCENT_COLORS.progress,
+          actionLabel: "Start workout",
+          onAction: () => navigate("/workout/active"),
+          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+          onAskAi: () =>
+            askAiAboutRecommendation(
+              "Training signal is thin this week",
+              `${workoutDays7.size} workout days and ${fmtInt(last7HardSets)} hard sets in the last 7 days.`
+            ),
         }
       : {
           title: "Training consistency is usable",
           detail: `${workoutDays7.size} workout days, ${fmtInt(last7HardSets)} hard sets, ${signedPercent(volumeChange7Pct)} volume vs prior week.`,
           tone: APP_ACCENT_COLORS.complete,
+          actionLabel: "Start workout",
+          onAction: () => navigate("/workout/active"),
+          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
+          onAskAi: () =>
+            askAiAboutRecommendation(
+              "Training consistency is usable",
+              `${workoutDays7.size} workout days, ${fmtInt(last7HardSets)} hard sets, ${signedPercent(volumeChange7Pct)} volume vs prior week.`
+            ),
         },
   ]
   const latestWeightDetail =
@@ -4619,12 +4779,26 @@ export default function Progress() {
                 value={latest?.weightKg != null ? `${fmtNumber(latest.weightKg)} kg` : "—"}
                 detail={latestWeightDetail}
                 tone={weightGoalTone}
+                actionLabel={weightEntries.length < 2 ? "Add check-in" : undefined}
+                onAction={
+                  weightEntries.length < 2 ? () => setSheetOpen(true) : undefined
+                }
                 wide
               />
               <ProgressOutcomeCard
                 label="Food adherence"
                 value={percentLabel(calorieAccuracy)}
                 detail={`${foodDateSet.size}/30 days logged · ${avgCalorieDeviation} cal miss`}
+                actionLabel={
+                  nutritionConfidence < 70 || foodDateSet.size === 0
+                    ? "Log food"
+                    : undefined
+                }
+                onAction={
+                  nutritionConfidence < 70 || foodDateSet.size === 0
+                    ? () => navigate("/foods/search")
+                    : undefined
+                }
                 tone={
                   calorieAccuracy >= 60
                     ? APP_ACCENT_COLORS.complete
@@ -4635,6 +4809,10 @@ export default function Progress() {
                 label="Training"
                 value={`${workoutDays7.size}d`}
                 detail={`${fmtInt(last7HardSets)} hard sets · 7 days`}
+                actionLabel={lowTrainingDose ? "Start workout" : undefined}
+                onAction={
+                  lowTrainingDose ? () => navigate("/workout/active") : undefined
+                }
                 tone={
                   lowTrainingDose
                     ? APP_ACCENT_COLORS.progress
@@ -4685,6 +4863,10 @@ export default function Progress() {
                   key={action.title}
                   title={action.title}
                   detail={action.detail}
+                  actionLabel={action.actionLabel}
+                  onAction={action.onAction}
+                  askAiLabel={action.askAiLabel}
+                  onAskAi={action.onAskAi}
                   tone={action.tone}
                 />
               ))}
@@ -5113,6 +5295,8 @@ export default function Progress() {
                 />
                 <input
                   type="search"
+                  name="strength-trend-exercise-search"
+                  aria-label="Search strength trend exercise"
                   value={exerciseQuery}
                   onChange={(event) => setExerciseQuery(event.target.value)}
                   placeholder="Search exercise"
