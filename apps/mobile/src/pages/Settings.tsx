@@ -60,8 +60,6 @@ import {
   type PwaBeforeInstallPromptEvent,
 } from "@/lib/pwa-install"
 import {
-  MONTHLY_PACKAGE_IDENTIFIER,
-  ONEREP_PRO_ENTITLEMENT,
   hasOneRepPro,
   revenueCatErrorMessage,
   useRevenueCat,
@@ -1472,11 +1470,20 @@ function RevenueCatSubscriptionPanel({
   const [managementOpen, setManagementOpen] = useState(false)
   const active = revenueCat.hasOneRepPro
   const canManage = revenueCat.hasActiveSubscription
+  const managementUrl = revenueCat.subscriptionManagementUrl
   const loading = revenueCat.status === "loading"
   const unsupported = revenueCat.status === "unsupported"
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
   const disabled = unsupported || loading || action !== null
   const purchaseDisabled = disabled || !revenueCat.canPurchase
+
+  function openSubscriptionManagement() {
+    if (managementUrl) {
+      window.open(managementUrl, "_blank", "noopener,noreferrer")
+      return
+    }
+    setManagementOpen(true)
+  }
 
   async function runRevenueCatAction(
     nextAction: Exclude<typeof action, null>,
@@ -1517,27 +1524,63 @@ function RevenueCatSubscriptionPanel({
 
   return (
     <div className="px-4 py-3">
-      <div className="rounded-[12px] border border-border/45 bg-muted/20 p-3">
+      <div className="rounded-[18px] border border-border/45 bg-card p-4 shadow-[0_10px_30px_color-mix(in_srgb,var(--foreground)_5%,transparent)]">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-semibold text-foreground/88">
+            <p className="text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+              Subscription
+            </p>
+            <p className="mt-1 text-[18px] leading-tight font-black tracking-tight text-foreground">
               OneRep Pro
             </p>
-            <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground/50">
-              Entitlement: {ONEREP_PRO_ENTITLEMENT}. Package:{" "}
-              {MONTHLY_PACKAGE_IDENTIFIER}.
+            <p className="mt-1 max-w-[34rem] text-[12.5px] leading-relaxed text-muted-foreground/58">
+              Optional AI features for food photo analysis, workout generation,
+              and progress insights.
             </p>
           </div>
           <span
             className={cn(
-              "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
+              "shrink-0 rounded-full px-3 py-1.5 text-[10px] font-black tracking-wide uppercase",
               active
                 ? "bg-foreground text-background"
                 : "bg-background text-muted-foreground ring-1 ring-border/35"
             )}
           >
-            {active ? "Active" : monthlyPrice}
+            {active ? "Active" : "Free"}
           </span>
+        </div>
+
+        <div className="mt-4 grid gap-2 md:grid-cols-3">
+          {[
+            "Analyze meals from photos",
+            "Generate workouts with AI",
+            "Ask for progress insights",
+          ].map((benefit) => (
+            <div
+              key={benefit}
+              className="rounded-[12px] border border-border/35 bg-background/45 px-3 py-2.5"
+            >
+              <p className="text-[11.5px] leading-snug font-bold text-foreground/78">
+                {benefit}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-[14px] bg-muted/25 p-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-[13px] font-bold text-foreground/86">
+              Monthly plan
+            </p>
+            <p className="text-[15px] font-black tracking-tight text-foreground">
+              {monthlyPrice}
+            </p>
+          </div>
+          <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground/58">
+            {active
+              ? "Your Pro subscription is active. You can manage or cancel it anytime."
+              : "Upgrade only if you want AI features. Core tracking stays free."}
+          </p>
         </div>
 
         {revenueCat.error && (
@@ -1548,8 +1591,7 @@ function RevenueCatSubscriptionPanel({
 
         {unsupported ? (
           <p className="mt-2 rounded-[10px] bg-background px-2.5 py-2 text-[10.5px] font-medium text-muted-foreground/60">
-            Purchases, paywalls, and Customer Center are available in the iOS
-            and Android apps.
+            Subscription checkout is available on web, iOS, and Android.
           </p>
         ) : null}
 
@@ -1572,13 +1614,21 @@ function RevenueCatSubscriptionPanel({
             {action === "purchase"
               ? "Starting checkout..."
               : active
-                ? "View Pro"
+                ? "Manage subscription"
                 : revenueCat.canPurchase
                   ? "Upgrade to Pro"
                   : "Products unavailable"}
           </button>
 
-          <div className="grid grid-cols-3 gap-2">
+          {active && managementUrl && (
+            <SwipeToStart
+              label="Slide to cancel subscription"
+              variant="danger"
+              onComplete={openSubscriptionManagement}
+            />
+          )}
+
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
             <button
               type="button"
               disabled={disabled}
@@ -1612,7 +1662,7 @@ function RevenueCatSubscriptionPanel({
             <button
               type="button"
               disabled={unsupported || loading}
-              onClick={() => setManagementOpen(true)}
+              onClick={openSubscriptionManagement}
               className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
               {canManage ? "Manage" : "Status"}
@@ -1689,8 +1739,7 @@ function RevenueCatManagementDialog({
             OneRep Pro
           </h2>
           <p className="mt-1.5 max-w-[21rem] text-[12px] leading-relaxed text-muted-foreground/68">
-            Your Pro access covers AI food analysis, workout generation, and
-            progress insights.
+            Manage your Pro subscription, restore access, or cancel renewal.
           </p>
         </div>
 
@@ -1731,9 +1780,9 @@ function RevenueCatManagementDialog({
             </div>
             <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
               {managementUrl
-                ? "Open the billing portal to change or cancel your subscription."
+                ? "Open subscription management to change your plan or cancel renewal."
                 : hasActiveSubscription
-                  ? "RevenueCat has not returned a billing portal link yet. Refresh or restore to update this subscription."
+                  ? "Subscription management is not available yet. Refresh or restore to update your subscription."
                   : "Subscribe to unlock Pro, or restore if you purchased with this account."}
             </p>
           </div>
@@ -1754,7 +1803,7 @@ function RevenueCatManagementDialog({
                   }}
                   className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75"
                 >
-                  Open billing portal
+                  Manage subscription
                   <ArrowSquareOut size={15} weight="bold" />
                 </button>
                 {active && (
