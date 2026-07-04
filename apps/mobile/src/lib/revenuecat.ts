@@ -92,14 +92,42 @@ function getMonthlyPackage(offering: AnyOffering | null): AnyPackage | null {
   )
 }
 
-function getConfiguredOffering<T extends { all: Record<string, AnyOffering>; current: AnyOffering | null }>(
-  offerings: T
-) {
+function getConfiguredOffering<
+  T extends { all: Record<string, AnyOffering>; current: AnyOffering | null },
+>(offerings: T) {
   return offerings.all[REVENUECAT_OFFERING_IDENTIFIER] ?? offerings.current
 }
 
+type EntitlementContainer = {
+  entitlements?: {
+    active?: Record<string, unknown>
+    all?: Record<string, { isActive?: boolean } | undefined>
+  }
+  activeSubscriptions?: Set<string> | string[]
+  managementURL?: string | null
+}
+
+function isEntitlementActive(
+  customerInfo: AnyCustomerInfo | null,
+  entitlementIdentifier: string
+) {
+  const info = customerInfo as EntitlementContainer | null
+  if (!info?.entitlements) return false
+
+  if (info.entitlements.active?.[entitlementIdentifier]) return true
+  return info.entitlements.all?.[entitlementIdentifier]?.isActive === true
+}
+
 function hasOneRepPro(customerInfo: AnyCustomerInfo | null) {
-  return Boolean(customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT])
+  return isEntitlementActive(customerInfo, ONEREP_PRO_ENTITLEMENT)
+}
+
+function hasActiveSubscription(customerInfo: AnyCustomerInfo | null) {
+  if (hasOneRepPro(customerInfo)) return true
+  const subscriptions = (customerInfo as EntitlementContainer | null)
+    ?.activeSubscriptions
+  if (subscriptions instanceof Set) return subscriptions.size > 0
+  return Array.isArray(subscriptions) && subscriptions.length > 0
 }
 
 function monthlyPriceString(monthlyPackage: AnyPackage | null) {
@@ -156,10 +184,11 @@ async function configureWebRevenueCat(appUserId: string) {
 
   configuredWebAppUserId = appUserId
   configureWebPromise = (async () => {
-    const { LogLevel, Purchases: WebPurchasesSdk } = await import(
-      "@revenuecat/purchases-js"
+    const { LogLevel, Purchases: WebPurchasesSdk } =
+      await import("@revenuecat/purchases-js")
+    WebPurchasesSdk.setLogLevel(
+      import.meta.env.DEV ? LogLevel.Debug : LogLevel.Warn
     )
-    WebPurchasesSdk.setLogLevel(import.meta.env.DEV ? LogLevel.Debug : LogLevel.Warn)
     const purchases = WebPurchasesSdk.configure({
       apiKey: REVENUECAT_API_KEY,
       appUserId,
@@ -272,7 +301,19 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         }))
         return
       }
-      if (!options.userId) return
+      if (!options.userId) {
+        setState({
+          customerInfo: null,
+          currentOffering: null,
+          error: null,
+          isConfigured: false,
+          isNative,
+          isWeb,
+          monthlyPackage: null,
+          status: isNative || isWeb ? "idle" : "unsupported",
+        })
+        return
+      }
 
       setState((current) => ({ ...current, error: null, status: "loading" }))
       try {
@@ -329,10 +370,9 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
 
   const restorePurchases = useCallback(async () => {
     if (!isNative) {
-      if (isWeb) await refresh()
-      throw new Error(
-        "Restore is handled through RevenueCat web checkout on desktop"
-      )
+      const customerInfo = isWeb ? await refresh() : null
+      if (customerInfo) return customerInfo
+      throw new Error("Could not refresh desktop subscription status")
     }
     const { customerInfo } = await Purchases.restorePurchases()
     setState((current) => ({
@@ -348,11 +388,24 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     const monthlyPackage = state.monthlyPackage
     if (!monthlyPackage) throw new Error("Monthly package is not configured")
     if (!isNative) {
-      await webPurchasesRef.current?.purchasePackage(
+      const webPurchases = webPurchasesRef.current
+      if (!webPurchases) {
+        throw new Error(
+          "Subscription service is not ready. Try again in a moment."
+        )
+      }
+      const result = await webPurchases.purchasePackage(
         monthlyPackage as WebPackage,
         options.email ?? undefined
       )
-      const customerInfo = await refresh()
+      const customerInfo = result.customerInfo
+      setState((current) => ({
+        ...current,
+        customerInfo,
+        error: null,
+        status: "ready",
+      }))
+      await refresh()
       return customerInfo
     }
     const { customerInfo } = await Purchases.purchasePackage({
@@ -370,6 +423,12 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
   return useMemo(
     () => ({
       ...state,
+      canPurchase:
+        (isNative || isWeb) &&
+        state.status !== "loading" &&
+        state.status !== "unsupported" &&
+        Boolean(state.monthlyPackage),
+      hasActiveSubscription: hasActiveSubscription(state.customerInfo),
       hasOneRepPro: hasOneRepPro(state.customerInfo),
       monthlyPrice: monthlyPriceString(state.monthlyPackage),
       purchaseMonthly,
@@ -377,13 +436,8 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       restorePurchases,
       subscriptionManagementUrl: state.customerInfo?.managementURL ?? null,
     }),
-    [
-      purchaseMonthly,
-      refresh,
-      restorePurchases,
-      state,
-    ]
+    [purchaseMonthly, refresh, restorePurchases, state]
   )
 }
 
-export { hasOneRepPro, revenueCatErrorMessage }
+export { hasActiveSubscription, hasOneRepPro, revenueCatErrorMessage }

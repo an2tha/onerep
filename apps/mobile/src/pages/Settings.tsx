@@ -62,6 +62,7 @@ import {
 import {
   MONTHLY_PACKAGE_IDENTIFIER,
   ONEREP_PRO_ENTITLEMENT,
+  hasOneRepPro,
   revenueCatErrorMessage,
   useRevenueCat,
 } from "@/lib/revenuecat"
@@ -458,10 +459,7 @@ export default function Settings({
         personalizedInsightsEnabled,
       })
 
-      safeLocalStorageSet(
-        "onerep:analytics-enabled",
-        String(analyticsEnabled)
-      )
+      safeLocalStorageSet("onerep:analytics-enabled", String(analyticsEnabled))
       if (analyticsEnabled) posthog.opt_in_capturing()
       else posthog.opt_out_capturing()
     }, "Privacy settings saved")
@@ -1472,11 +1470,13 @@ function RevenueCatSubscriptionPanel({
     "purchase" | "restore" | "refresh" | null
   >(null)
   const [managementOpen, setManagementOpen] = useState(false)
-  const active = Boolean(revenueCat.subscriptionManagementUrl)
+  const active = revenueCat.hasOneRepPro
+  const canManage = revenueCat.hasActiveSubscription
   const loading = revenueCat.status === "loading"
   const unsupported = revenueCat.status === "unsupported"
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
   const disabled = unsupported || loading || action !== null
+  const purchaseDisabled = disabled || !revenueCat.canPurchase
 
   async function runRevenueCatAction(
     nextAction: Exclude<typeof action, null>,
@@ -1494,10 +1494,14 @@ function RevenueCatSubscriptionPanel({
               entitlements: { active: Record<string, unknown> }
             })
           : null
-      if (customerInfo?.entitlements.active[ONEREP_PRO_ENTITLEMENT]) {
+      if (hasOneRepPro(customerInfo as Parameters<typeof hasOneRepPro>[0])) {
         celebrateSubscription()
+        if (successMessage) toast.success(successMessage)
+      } else if (nextAction === "restore") {
+        toast.message("No active Pro subscription found")
+      } else if (successMessage) {
+        toast.success(successMessage)
       }
-      if (successMessage) toast.success(successMessage)
     } catch (error) {
       const message = revenueCatErrorMessage(
         error,
@@ -1552,7 +1556,7 @@ function RevenueCatSubscriptionPanel({
         <div className="mt-3 grid gap-2">
           <button
             type="button"
-            disabled={disabled}
+            disabled={active ? disabled : purchaseDisabled}
             aria-busy={action === "purchase"}
             onClick={() =>
               active
@@ -1569,7 +1573,9 @@ function RevenueCatSubscriptionPanel({
               ? "Starting checkout..."
               : active
                 ? "View Pro"
-                : "Upgrade to Pro"}
+                : revenueCat.canPurchase
+                  ? "Upgrade to Pro"
+                  : "Products unavailable"}
           </button>
 
           <div className="grid grid-cols-3 gap-2">
@@ -1609,7 +1615,7 @@ function RevenueCatSubscriptionPanel({
               onClick={() => setManagementOpen(true)}
               className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
-              Manage
+              {canManage ? "Manage" : "Status"}
             </button>
           </div>
         </div>
@@ -1645,9 +1651,11 @@ function RevenueCatManagementDialog({
     successMessage?: string
   ) => Promise<void>
 }) {
-  const active = Boolean(revenueCat.subscriptionManagementUrl)
+  const active = revenueCat.hasOneRepPro
+  const hasActiveSubscription = revenueCat.hasActiveSubscription
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
   const managementUrl = revenueCat.subscriptionManagementUrl
+  const purchaseDisabled = disabled || !revenueCat.canPurchase
 
   return (
     <div
@@ -1706,7 +1714,9 @@ function RevenueCatManagementDialog({
             <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
               {active
                 ? "AI features are unlocked on this account."
-                : "No active subscription was found for this account."}
+                : hasActiveSubscription
+                  ? "A subscription exists, but the Pro entitlement is not active yet. Refresh or restore to sync access."
+                  : "No active subscription was found for this account."}
             </p>
           </div>
 
@@ -1722,7 +1732,9 @@ function RevenueCatManagementDialog({
             <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
               {managementUrl
                 ? "Open the billing portal to change or cancel your subscription."
-                : "Subscribe to unlock Pro, or restore if you purchased with this account."}
+                : hasActiveSubscription
+                  ? "RevenueCat has not returned a billing portal link yet. Refresh or restore to update this subscription."
+                  : "Subscribe to unlock Pro, or restore if you purchased with this account."}
             </p>
           </div>
 
@@ -1762,7 +1774,7 @@ function RevenueCatManagementDialog({
             ) : (
               <button
                 type="button"
-                disabled={disabled}
+                disabled={purchaseDisabled}
                 aria-busy={action === "purchase"}
                 onClick={() =>
                   void onRunAction(
@@ -1773,7 +1785,11 @@ function RevenueCatManagementDialog({
                 }
                 className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
               >
-                {action === "purchase" ? "Starting checkout..." : "Upgrade"}
+                {action === "purchase"
+                  ? "Starting checkout..."
+                  : revenueCat.canPurchase
+                    ? "Upgrade"
+                    : "Products unavailable"}
               </button>
             )}
 
