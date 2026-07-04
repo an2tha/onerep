@@ -39,7 +39,6 @@ import {
 import { toast } from "sonner"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
-import { SwipeToStart } from "@/components/swipe-to-start"
 import { signOutApp, useAppAuth } from "@/lib/auth-client"
 import { celebrateSubscription } from "@/lib/subscription-celebration"
 import {
@@ -1485,16 +1484,6 @@ function RevenueCatSubscriptionPanel({
     setManagementOpen(true)
   }
 
-  function requestCancellation() {
-    if (managementUrl) {
-      window.open(managementUrl, "_blank", "noopener,noreferrer")
-      return
-    }
-    toast.message("Refreshing your subscription management link…")
-    setManagementOpen(true)
-    void runRevenueCatAction("refresh", revenueCat.refresh)
-  }
-
   async function runRevenueCatAction(
     nextAction: Exclude<typeof action, null>,
     task: () => Promise<unknown>,
@@ -1630,14 +1619,6 @@ function RevenueCatSubscriptionPanel({
                   : "Products unavailable"}
           </button>
 
-          {active && (
-            <SwipeToStart
-              label="Slide to cancel subscription"
-              variant="danger"
-              onComplete={requestCancellation}
-            />
-          )}
-
           <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
             <button
               type="button"
@@ -1716,6 +1697,7 @@ function RevenueCatManagementDialog({
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
   const managementUrl = revenueCat.subscriptionManagementUrl
   const purchaseDisabled = disabled || !revenueCat.canPurchase
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   function openManagementUrl() {
     if (!managementUrl) return
@@ -1724,6 +1706,15 @@ function RevenueCatManagementDialog({
 
   function refreshManagementLink() {
     void onRunAction("refresh", revenueCat.refresh)
+  }
+
+  function openCancelFlow() {
+    if (!managementUrl) {
+      toast.message("Refreshing your subscription management link…")
+      refreshManagementLink()
+      return
+    }
+    setConfirmCancel(true)
   }
 
   return (
@@ -1764,31 +1755,6 @@ function RevenueCatManagementDialog({
 
         <div className="px-4 py-3.5">
           <div className="rounded-[13px] border border-border/45 bg-background/45 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-bold text-foreground/88">
-                {active ? "Pro is active" : "Pro is inactive"}
-              </p>
-              <span
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-wide uppercase",
-                  active
-                    ? "bg-foreground text-background"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {active ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
-              {active
-                ? "AI tools are unlocked across food, workouts, and progress."
-                : hasActiveSubscription
-                  ? "We found a subscription, but access is still syncing. Refresh or restore to update it."
-                  : "No active subscription was found for this account."}
-            </p>
-          </div>
-
-          <div className="mt-2 rounded-[13px] border border-border/45 bg-background/45 p-3">
             <div className="flex items-baseline justify-between gap-3">
               <p className="text-[13px] font-bold text-foreground/88">
                 Monthly plan
@@ -1798,11 +1764,11 @@ function RevenueCatManagementDialog({
               </p>
             </div>
             <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
-              {managementUrl
-                ? "Open subscription management to change your plan or cancel renewal."
+              {active
+                ? "Pro is active on this account."
                 : hasActiveSubscription
-                  ? "Your subscription is active, but the management link is still syncing."
-                  : "Subscribe to unlock Pro, or restore if you purchased with this account."}
+                  ? "Your subscription is still syncing."
+                  : "Core tracking stays free. Upgrade only if you want AI features."}
             </p>
           </div>
 
@@ -1815,38 +1781,37 @@ function RevenueCatManagementDialog({
           <div className="mt-3 grid gap-2">
             {active ? (
               <div className="grid gap-2">
-                {managementUrl ? (
-                  <button
-                    type="button"
-                    onClick={openManagementUrl}
-                    className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75"
-                  >
-                    Manage subscription
-                    <ArrowSquareOut size={15} weight="bold" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    aria-busy={action === "refresh"}
-                    onClick={refreshManagementLink}
-                    className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
-                  >
-                    {action === "refresh"
-                      ? "Refreshing..."
-                      : "Refresh management link"}
-                  </button>
-                )}
-                {managementUrl ? (
-                  <SwipeToStart
-                    label="Slide to cancel subscription"
-                    variant="danger"
-                    onComplete={openManagementUrl}
-                  />
-                ) : (
-                  <p className="rounded-xl border border-border/35 bg-muted/25 px-3 py-2 text-center text-[11px] font-semibold text-muted-foreground/62">
-                    Cancel becomes available here once your management link
-                    finishes syncing. Try Refresh if you just subscribed.
+                <button
+                  type="button"
+                  disabled={!managementUrl && disabled}
+                  aria-busy={action === "refresh"}
+                  onClick={
+                    managementUrl ? openManagementUrl : refreshManagementLink
+                  }
+                  className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
+                >
+                  {managementUrl ? (
+                    <>
+                      Manage subscription
+                      <ArrowSquareOut size={15} weight="bold" />
+                    </>
+                  ) : action === "refresh" ? (
+                    "Refreshing..."
+                  ) : (
+                    "Refresh management link"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  disabled={!managementUrl || disabled}
+                  onClick={openCancelFlow}
+                  className="min-h-10 rounded-xl border border-destructive/25 bg-destructive/10 px-3 text-[12.5px] font-bold text-destructive transition-opacity active:opacity-75 disabled:opacity-45"
+                >
+                  Cancel subscription
+                </button>
+                {!managementUrl && (
+                  <p className="text-center text-[10.5px] font-medium text-muted-foreground/55">
+                    Cancellation is available after the management link syncs.
                   </p>
                 )}
               </div>
@@ -1907,6 +1872,52 @@ function RevenueCatManagementDialog({
           </div>
         </div>
       </div>
+
+      {confirmCancel && managementUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/75 px-4 backdrop-blur-xl"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="cancel-subscription-title"
+          onClick={() => setConfirmCancel(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-[20px] border border-border/55 bg-card p-4 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3
+              id="cancel-subscription-title"
+              className="text-[18px] font-black tracking-tight text-foreground"
+            >
+              Cancel OneRep Pro?
+            </h3>
+            <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/65">
+              You will be taken to subscription management to confirm
+              cancellation. Pro access usually remains available until the end
+              of your current billing period.
+            </p>
+            <div className="mt-4 grid gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmCancel(false)
+                  openManagementUrl()
+                }}
+                className="text-destructive-foreground min-h-10 rounded-xl bg-destructive px-3 text-[12.5px] font-bold transition-opacity active:opacity-80"
+              >
+                Continue to cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(false)}
+                className="min-h-10 rounded-xl bg-muted px-3 text-[12.5px] font-bold text-foreground/75 transition-opacity active:opacity-75"
+              >
+                Keep OneRep Pro
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
