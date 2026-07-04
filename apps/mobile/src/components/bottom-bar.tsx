@@ -116,6 +116,8 @@ export function BottomBar({
   const navigate = useSmoothNavigate()
   const location = useLocation()
   const pathname = pathnameOverride ?? location.pathname
+  const renderDesktopSidebar =
+    chromeState !== "previous" && chromeState !== "previous-ready"
 
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
@@ -190,46 +192,44 @@ export function BottomBar({
         </div>
       </div>
 
-      <aside
-        className="app-route-chrome desktop-sidebar motion-card fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex"
-        data-route-chrome={chromeState}
-      >
-        <button
-          onClick={() => {
-            if (pathname !== "/") navigate("/", { motion: "switch" })
-          }}
-          aria-label="Go to Today"
-          className="motion-pressable mb-6 flex items-center gap-3 rounded-[9px] px-2 py-2 text-left active:bg-foreground/[0.05]"
-        >
-          <img src="/app-icon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
-          <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
-        </button>
+      {renderDesktopSidebar && (
+        <aside className="desktop-sidebar fixed top-6 bottom-6 left-6 z-40 hidden w-56 flex-col overflow-hidden p-3 backdrop-blur-2xl lg:flex">
+          <button
+            onClick={() => {
+              if (pathname !== "/") navigate("/", { motion: "switch" })
+            }}
+            aria-label="Go to Today"
+            className="motion-pressable mb-6 flex items-center gap-3 rounded-[9px] px-2 py-2 text-left active:bg-foreground/[0.05]"
+          >
+            <img src="/app-icon.svg" alt="" className="h-8 w-8 rounded-[8px]" />
+            <p className="text-[14px] font-semibold tracking-tight">OneRep</p>
+          </button>
 
-        <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-          {DESKTOP_TABS.map(({ path, Icon, label }) => {
-            const active = isActive(pathname, path)
-            return (
-              <button
-                key={path}
-                aria-current={active ? "page" : undefined}
-                onClick={() => {
-                  if (!active) navigate(path, { motion: "switch" })
-                }}
-                className={cn(
-                  "motion-pressable flex h-11 items-center gap-3 rounded-[9px] px-3 text-[13px] font-semibold",
-                  active
-                    ? "bg-foreground/[0.075] text-foreground"
-                    : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground"
-                )}
-              >
-                <Icon size={17} weight={active ? "fill" : "regular"} />
-                {label}
-              </button>
-            )
-          })}
-        </nav>
-
-      </aside>
+          <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+            {DESKTOP_TABS.map(({ path, Icon, label }) => {
+              const active = isActive(pathname, path)
+              return (
+                <button
+                  key={path}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => {
+                    if (!active) navigate(path, { motion: "switch" })
+                  }}
+                  className={cn(
+                    "motion-pressable flex h-11 items-center gap-3 rounded-[9px] px-3 text-[13px] font-semibold",
+                    active
+                      ? "bg-foreground/[0.075] text-foreground"
+                      : "text-muted-foreground hover:bg-foreground/[0.055] hover:text-foreground"
+                  )}
+                >
+                  <Icon size={17} weight={active ? "fill" : "regular"} />
+                  {label}
+                </button>
+              )
+            })}
+          </nav>
+        </aside>
+      )}
     </>
   )
 }

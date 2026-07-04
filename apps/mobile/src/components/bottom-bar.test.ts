@@ -23,4 +23,13 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).toContain("Snap meal")
     expect(SOURCE).toContain("Start workout")
   })
+
+  test("desktop sidebar stays single and persistent during route transitions", () => {
+    expect(SOURCE).toContain('chromeState !== "previous"')
+    expect(SOURCE).toContain('chromeState !== "previous-ready"')
+    expect(SOURCE).toContain("{renderDesktopSidebar && (")
+    expect(SOURCE).toContain('className="desktop-sidebar fixed')
+    expect(SOURCE).not.toContain("desktop-sidebar motion-card")
+    expect(SOURCE).not.toContain('className="app-route-chrome desktop-sidebar')
+  })
 })
