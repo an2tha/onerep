@@ -482,4 +482,19 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain("hapticMedium()")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("completedPulseKey && \"motion-success-pop\"")
   })
+
+  test("active workout UI stays simple without drag notches", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("showLineBefore")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("showLineAfter")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("-top-[5px]")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("-bottom-[5px]")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("h-[2.5px]")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("dropActive: boolean")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'dropActive && "border-foreground/35"'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "mt-3 border-t border-border/35 pt-3"
+    )
+  })
 })

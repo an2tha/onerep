@@ -168,8 +168,7 @@ type LoggedWorkoutExercise = {
 }
 
 type ExerciseCardDropProps = {
-  showLineBefore: boolean
-  showLineAfter: boolean
+  dropActive: boolean
 }
 
 type WeightSelectorChange = {
@@ -2797,8 +2796,7 @@ function CardioDetailsPanel({
  * @param onUpdate - Called with an updated `ExerciseState` when sets or tracking options change.
  * @param onRemove - Called to remove this exercise from the workout.
  * @param isDragging - Whether this card is currently being dragged (applies visual transform).
- * @param showLineBefore - Render a decorative line above the card when true.
- * @param showLineAfter - Render a decorative line below the card when true.
+ * @param dropActive - Highlight this card as the current drop target.
  * @param inSuperset - True when the card is rendered inside a superset container.
  * @param collapsed - Whether the card's set list is collapsed.
  * @param onToggleCollapse - Toggle collapsed state for this card.
@@ -2818,8 +2816,7 @@ function ActiveExerciseCard({
   onUpdate,
   onRemove,
   isDragging,
-  showLineBefore,
-  showLineAfter,
+  dropActive,
   inSuperset,
   collapsed,
   onToggleCollapse,
@@ -2838,8 +2835,7 @@ function ActiveExerciseCard({
   onUpdate: (d: ExerciseState) => void
   onRemove: () => void
   isDragging: boolean
-  showLineBefore: boolean
-  showLineAfter: boolean
+  dropActive: boolean
   inSuperset?: boolean
   collapsed: boolean
   onToggleCollapse: () => void
@@ -2914,20 +2910,15 @@ function ActiveExerciseCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden transition-[opacity,transform] duration-150",
+        "relative flex overflow-hidden transition-[border-color,opacity,transform] duration-150",
         inSuperset
           ? "border-t border-border/35 bg-transparent first:border-t-0"
-          : "rounded-[12px] border border-border/45 bg-card",
-        !inSuperset && allDone && "border-border/55",
+          : "rounded-lg border border-border/55 bg-card",
+        !inSuperset && allDone && "border-border/70 bg-muted/[0.08]",
+        !inSuperset && dropActive && "border-foreground/35",
         isDragging && "scale-[0.985] opacity-25"
       )}
     >
-      {showLineBefore && (
-        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
-      )}
-      {showLineAfter && (
-        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
-      )}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className={cn("px-3 py-2.5 md:py-3", inSuperset && "pl-4")}>
           <div className="flex items-center gap-2">
@@ -2936,7 +2927,7 @@ function ActiveExerciseCard({
                 {...dragHandlers}
                 role="button"
                 aria-label="Reorder exercise"
-                className="flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/30 transition-colors select-none active:cursor-grabbing active:bg-muted/35 active:text-muted-foreground/65"
+                className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/28 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
               >
                 <DotsSixVertical size={14} weight="bold" />
               </div>
@@ -3024,7 +3015,7 @@ function ActiveExerciseCard({
                       : "Add bar weight"
                   }
                   className={cn(
-                    "flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[10.5px] font-bold tracking-[0.12em] uppercase transition-colors md:flex-none",
+                    "flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border px-2.5 text-[10.5px] font-bold tracking-[0.08em] uppercase transition-colors md:flex-none",
                     hasBarWeight
                       ? "border-foreground/10 bg-foreground text-background"
                       : "border-border/45 bg-muted/20 text-muted-foreground/70 active:bg-muted/50"
@@ -4325,8 +4316,7 @@ function renderSupersetItem(
   const key = workoutItemKey(item)
   const dt = dropTarget
   const isTarget = dt?.targetKey === key
-  const showLineBefore = !!(isTarget && dt?.type === "before")
-  const showLineAfter = !!(isTarget && dt?.type === "after")
+  const dropActive = Boolean(isTarget && (dt?.type === "before" || dt?.type === "after"))
   const allDone = item.exerciseIds.every((id) => {
     const exercise = exerciseLookup[id]
     const data = exData[id]
@@ -4361,38 +4351,21 @@ function renderSupersetItem(
         else itemRefs.current.delete(key)
       }}
       className={cn(
-        "relative overflow-hidden rounded-[20px] border bg-card transition-[border-color,opacity,transform] duration-150 md:rounded-[22px]",
-        allDone ? "border-primary/25" : "border-border/55",
+        "relative overflow-hidden rounded-lg border bg-card transition-[border-color,opacity,transform] duration-150",
+        allDone ? "border-border/70 bg-muted/[0.08]" : "border-border/55",
+        dropActive && "border-foreground/35",
         drag?.itemKey === key && drag.active && "scale-[0.985] opacity-25"
       )}
     >
-      {showLineBefore && (
-        <div className="pointer-events-none absolute -top-[5px] right-4 left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
-      )}
-      {showLineAfter && (
-        <div className="pointer-events-none absolute right-4 -bottom-[5px] left-4 z-10 h-[2.5px] rounded-full bg-primary/40" />
-      )}
       <div
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{
-          background: allDone
-            ? "color-mix(in srgb, var(--primary) 36%, transparent)"
-            : "color-mix(in srgb, var(--muted-foreground) 18%, transparent)",
-          opacity: 0.85,
-        }}
-      />
-      <div
-        className="flex items-center justify-between gap-3 border-b border-border/45 bg-muted/10 px-4 py-3"
-        style={{
-          paddingLeft: "calc(1rem + 4px)",
-        }}
+        className="flex items-center justify-between gap-3 border-b border-border/45 bg-muted/[0.08] px-3 py-2.5"
       >
         <div className="flex min-w-0 items-center gap-2">
           <div
             {...makeDragHandlers(key)}
             role="button"
             aria-label="Reorder superset"
-            className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:bg-muted/50 active:text-muted-foreground/70"
+            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
           >
             <DotsSixVertical size={15} weight="bold" />
           </div>
@@ -4416,7 +4389,7 @@ function renderSupersetItem(
           {groupSets.done}/{groupSets.total}
         </span>
       </div>
-      <div className="flex flex-col pl-[3px]">
+      <div className="flex flex-col">
         {item.exerciseIds.map((exId) => {
           const ex = exerciseLookup[exId]
           if (!ex || !exData[exId]) return null
@@ -4429,8 +4402,7 @@ function renderSupersetItem(
               onUpdate={(d) => updateExData(exId, d)}
               onRemove={() => removeExercise(exId)}
               isDragging={false}
-              showLineBefore={false}
-              showLineAfter={false}
+              dropActive={false}
               inSuperset
               collapsed={Boolean(collapsed[exId])}
               onToggleCollapse={() => toggleCollapsed(exId)}
@@ -5191,12 +5163,12 @@ export default function ActiveWorkout() {
     const isTarget = dt?.targetKey === itemKey
     if (inSuperset)
       return {
-        showLineBefore: false,
-        showLineAfter: false,
+        dropActive: false,
       }
     return {
-      showLineBefore: isTarget && dt?.type === "before",
-      showLineAfter: isTarget && dt?.type === "after",
+      dropActive: Boolean(
+        isTarget && (dt?.type === "before" || dt?.type === "after")
+      ),
     }
   }
 
@@ -5313,26 +5285,26 @@ export default function ActiveWorkout() {
               </p>
             </div>
 
-            <div className="mt-3 rounded-[18px] bg-card p-3 shadow-[0_8px_24px_color-mix(in_srgb,var(--foreground)_5%,transparent)] md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4 md:rounded-[22px] md:border md:border-border md:p-4">
+            <div className="mt-3 border-t border-border/35 pt-3 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4">
               <div className="text-center md:text-left">
-                <p className="text-[10px] font-extrabold tracking-[0.12em] text-muted-foreground/50 uppercase">
+                <p className="text-[10px] font-bold tracking-[0.12em] text-muted-foreground/50 uppercase">
                   {rest.remaining !== null ? "Rest" : "Time"}
                 </p>
-                <div className="mt-1 text-[2.65rem] leading-none font-black tracking-tight tabular-nums md:text-[3.4rem]">
+                <div className="mt-1 text-[2.35rem] leading-none font-black tracking-tight tabular-nums md:text-[3rem]">
                   {formatElapsed(rest.remaining ?? elapsed)}
                 </div>
               </div>
               {rest.remaining !== null ? (
                 <button
                   onClick={rest.dismiss}
-                  className="motion-tactile mt-3 h-12 w-full rounded-[14px] bg-muted text-[14px] font-extrabold md:mt-0 md:w-auto md:px-5"
+                  className="motion-tactile mt-3 h-11 w-full rounded-lg bg-muted text-[13px] font-extrabold md:mt-0 md:w-auto md:px-5"
                 >
                   Skip rest
                 </button>
               ) : (
                 <button
                   onClick={completeNextSet}
-                  className="motion-tactile mt-3 h-12 w-full rounded-[14px] bg-primary text-[14px] font-extrabold text-primary-foreground md:mt-0 md:w-auto md:px-5"
+                  className="motion-tactile mt-3 h-11 w-full rounded-lg bg-primary text-[13px] font-extrabold text-primary-foreground md:mt-0 md:w-auto md:px-5"
                 >
                   {nextTarget?.kind === "set"
                     ? `Done with set ${activeSetNumber}`
