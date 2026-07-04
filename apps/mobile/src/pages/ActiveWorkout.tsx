@@ -776,6 +776,7 @@ function SetNumberField({
   placeholder,
   disabled,
   className,
+  hideLabel = false,
   inputMode = "numeric",
   min,
   max,
@@ -787,6 +788,7 @@ function SetNumberField({
   placeholder?: string
   disabled?: boolean
   className: string
+  hideLabel?: boolean
   inputMode?: React.InputHTMLAttributes<HTMLInputElement>["inputMode"]
   min?: string
   max?: string
@@ -794,9 +796,11 @@ function SetNumberField({
 }) {
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
-      <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
-        {label}
-      </span>
+      {!hideLabel && (
+        <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+          {label}
+        </span>
+      )}
       <input
         type="number"
         inputMode={inputMode}
@@ -1992,12 +1996,12 @@ function ActiveSetRow({
   }
 
   const fieldCls = cn(
-    "h-11 w-full rounded-md border px-3 text-center text-[16px] font-semibold tabular-nums transition-all outline-none",
+    "h-12 w-full rounded-xl border px-3 text-center text-[18px] font-bold tabular-nums transition-all outline-none",
     "placeholder:text-muted-foreground/30",
     "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
     set.completed
       ? "cursor-default border-border/30 bg-muted/30 text-foreground/55"
-      : "border-border/45 bg-muted/20 focus:border-primary/30 focus:bg-card/80 focus:ring-2 focus:ring-primary/10",
+      : "border-border/35 bg-background/70 focus:border-primary/35 focus:bg-card focus:ring-2 focus:ring-primary/10",
     "disabled:pointer-events-none"
   )
   const compactFieldCls = cn(
@@ -2151,65 +2155,35 @@ function ActiveSetRow({
       </div>
       <div
         className={cn(
-          "relative px-3 py-3 transition-[background-color,transform,box-shadow] duration-300 md:hidden",
-          set.completed && "bg-muted/[0.12]",
-          isNext && !set.completed && "bg-muted/[0.10]",
+          "relative px-3 py-2.5 transition-[background-color,transform,box-shadow] duration-300 md:hidden",
+          set.completed && "bg-muted/[0.10]",
+          isNext && !set.completed && "bg-muted/[0.08]",
           completionPulse && "bg-muted/20",
           !set.completed && !isNext && "bg-background"
         )}
-        style={
-          completionPulse
-            ? {
-                boxShadow:
-                  "inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent)",
-              }
-            : isNext && !set.completed
-              ? {
-                  boxShadow:
-                    "inset 0 0 0 1px color-mix(in srgb, var(--border) 70%, transparent)",
-                }
-              : undefined
-        }
       >
-        {isNext && !set.completed && (
-          <div className="absolute inset-y-3 left-0 w-px rounded-r-full bg-foreground/25" />
-        )}
-        <div className="mb-2 flex items-center gap-2">
-          <span
-            className={cn(
-              "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[12px] font-bold tabular-nums select-none",
-              set.completed
-                ? "bg-muted/45 text-foreground/60"
-                : isNext
-                  ? "bg-muted/55 text-foreground/75"
-                  : "bg-muted/35 text-muted-foreground/65"
-            )}
-          >
-            {index + 1}
-          </span>
-          <button
-            onClick={cycleType}
-            disabled={set.completed}
-            aria-label={`Set mode: ${cfg.label}. Tap to change.`}
-            title={`Set mode: ${cfg.label}`}
-            className={cn(
-              "flex h-8 min-w-[5.5rem] shrink-0 items-center justify-center rounded-md border border-border/35 px-2.5 transition-colors select-none active:bg-muted/35 disabled:pointer-events-none"
-            )}
-          >
-            {set.completed ? (
-              <Check size={15} weight="bold" className="text-foreground/65" />
-            ) : (
-              <span className="truncate text-[11px] font-bold text-muted-foreground/75">
-                {cfg.label}
+        {showSecondarySetControls && (
+          <div className="mb-2 flex items-center gap-2">
+            <button
+              onClick={cycleType}
+              disabled={set.completed}
+              aria-label={`Set mode: ${cfg.label}. Tap to change.`}
+              title={`Set mode: ${cfg.label}`}
+              className="flex h-8 min-w-[5.5rem] shrink-0 items-center justify-center rounded-md border border-border/35 px-2.5 transition-colors select-none active:bg-muted/35 disabled:pointer-events-none"
+            >
+              {set.completed ? (
+                <Check size={15} weight="bold" className="text-foreground/65" />
+              ) : (
+                <span className="truncate text-[11px] font-bold text-muted-foreground/75">
+                  {cfg.label}
+                </span>
+              )}
+            </button>
+            {isNext && !set.completed && (
+              <span className="rounded-md bg-muted/45 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
+                Next
               </span>
             )}
-          </button>
-          {isNext && !set.completed && (
-            <span className="rounded-md bg-muted/45 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground/70">
-              Next
-            </span>
-          )}
-          {showSecondarySetControls && (
             <button
               onClick={() => setShowRest(true)}
               aria-label="Set rest timer"
@@ -2220,39 +2194,42 @@ function ActiveSetRow({
                 {formatRest(set.restSeconds)}
               </span>
             </button>
-          )}
-          {showSecondarySetControls && canDelete && !set.completed && (
-            <button
-              onClick={onDelete}
-              aria-label="Delete set"
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
-            >
-              <X size={14} weight="bold" />
-            </button>
-          )}
-        </div>
+            {canDelete && !set.completed && (
+              <button
+                onClick={onDelete}
+                aria-label="Delete set"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            )}
+          </div>
+        )}
         <div
           key={trackingModeKey}
           className={cn(
             "grid animate-in gap-2 duration-200 fade-in-0 zoom-in-95 slide-in-from-bottom-1",
             fullWidthComplete
               ? "grid-cols-2"
-              : "grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem]"
+              : "grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]"
           )}
         >
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="px-0.5 text-[10px] leading-none font-semibold text-muted-foreground/50">
-              Weight
-            </span>
-            <WeightSelectorButton
-              value={set.weight}
-              placeholder={weightPlaceholder}
-              unit={unit}
-              barWeight={barWeight}
-              disabled={set.completed}
-              onClick={() => setShowWeight(true)}
-            />
-          </label>
+          <button
+            onClick={cycleType}
+            disabled={set.completed}
+            aria-label={`Set mode: ${cfg.label}. Tap to change.`}
+            title={`Set mode: ${cfg.label}`}
+            className={cn(
+              "flex h-12 items-center justify-center rounded-xl text-[18px] font-bold tabular-nums transition-colors select-none disabled:pointer-events-none",
+              set.completed
+                ? "bg-muted/35 text-foreground/55"
+                : isNext
+                  ? "bg-primary/10 text-foreground"
+                  : "bg-muted/45 text-foreground/75"
+            )}
+          >
+            {index + 1}
+          </button>
           {trackUnilateral ? (
             <>
               <SetNumberField
@@ -2280,8 +2257,17 @@ function ActiveSetRow({
               placeholder={lastSet?.reps ? String(lastSet.reps) : "–"}
               disabled={set.completed}
               className={fieldCls}
+              hideLabel
             />
           )}
+          <WeightSelectorButton
+            value={set.weight}
+            placeholder={weightPlaceholder}
+            unit={unit}
+            barWeight={barWeight}
+            disabled={set.completed}
+            onClick={() => setShowWeight(true)}
+          />
           {trackRpe && (
             <SetNumberField
               label="RPE"
@@ -2302,10 +2288,10 @@ function ActiveSetRow({
               set.completed ? "Mark set incomplete" : "Mark set complete"
             }
             className={cn(
-              "flex h-11 items-center justify-center rounded-md border text-[13px] font-bold transition-colors active:bg-muted/35",
+              "flex h-12 items-center justify-center rounded-xl border text-[13px] font-bold transition-colors active:bg-muted/35",
               fullWidthComplete ? "col-span-2 gap-2" : "w-full",
               set.completed
-                ? "border-border/45 bg-muted/55 text-foreground/70"
+                ? "border-emerald-500/20 bg-emerald-500 text-white"
                 : "border-border/35 bg-transparent text-muted-foreground/55",
               completionPulse && "motion-set-complete"
             )}
@@ -5206,11 +5192,11 @@ export default function ActiveWorkout() {
       <div className="mx-auto flex w-full max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
         <div className="workout-live-header sticky top-0 z-30 border-b border-border/35 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:border-b-0 md:px-8">
           <div
-            className="flex items-center justify-between gap-2"
+            className="flex items-center gap-2"
             style={{
               paddingTop:
                 "max(0.75rem, calc(env(safe-area-inset-top, 0px) + 0.5rem))",
-              paddingBottom: "0.5rem",
+              paddingBottom: "0.65rem",
             }}
           >
             <button
@@ -5218,36 +5204,33 @@ export default function ActiveWorkout() {
               aria-label="Abort workout"
               title="Abort workout"
               onClick={() => setConfirmAbort(true)}
-              className="motion-tactile inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-0 text-[13px] font-bold text-muted-foreground active:text-foreground md:min-w-0 md:px-1"
+              className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:text-foreground"
             >
               <X size={22} weight="bold" className="md:hidden" />
               <span className="hidden md:inline">Abort</span>
             </button>
-            <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
-              <span className="truncate text-[11px] font-bold text-muted-foreground/55 uppercase">
-                {doneSets}/{totalSets} done
-              </span>
-              {slot === 2 && (
-                <span className="rounded-[8px] bg-muted/55 px-2 py-0.5 text-[9px] font-bold text-muted-foreground/80 uppercase">
-                  Slot 2
-                </span>
-              )}
-              {workoutSyncStatus !== "idle" && (
-                <span
-                  role="status"
-                  aria-live="polite"
-                  title={workoutSyncError || undefined}
-                  className={cn(
-                    "rounded-[8px] px-2 py-0.5 text-[9px] font-bold uppercase",
-                    workoutSyncStatus === "error"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-muted/55 text-muted-foreground/80"
-                  )}
-                >
-                  {workoutSyncLabel}
-                </span>
-              )}
+            <div className="min-w-0 flex-1 text-center text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]">
+              {formatElapsed(rest.remaining ?? elapsed)}
             </div>
+            {rest.remaining !== null ? (
+              <button
+                onClick={rest.dismiss}
+                className="motion-tactile h-11 shrink-0 rounded-xl bg-muted px-4 text-[13px] font-extrabold text-foreground"
+              >
+                Skip
+              </button>
+            ) : (
+              <button
+                onClick={completeNextSet}
+                className="motion-tactile h-11 shrink-0 rounded-xl bg-primary px-4 text-[13px] font-extrabold text-primary-foreground"
+              >
+                {nextTarget?.kind === "set"
+                  ? "Done"
+                  : totalSets > 0
+                    ? "Finish"
+                    : "Add"}
+              </button>
+            )}
             <div className="flex h-10 shrink-0 overflow-hidden rounded-[10px] border border-border/45 bg-muted/35 text-[11px] font-bold">
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
@@ -5267,55 +5250,11 @@ export default function ActiveWorkout() {
           </div>
           <section
             className={cn(
-              "pb-3 md:pb-4",
+              "pb-3",
               completedPulseKey && "motion-success-pop"
             )}
           >
-            <div className="min-w-0 text-center">
-              <p className="truncate text-[11px] font-extrabold tracking-[0.12em] text-muted-foreground/55 uppercase">
-                {uniqueExerciseIds.length > 0
-                  ? `Exercise ${activeExerciseIndex} of ${uniqueExerciseIds.length}`
-                  : "Active workout"}
-              </p>
-              <h1 className="mt-1 truncate text-[1.55rem] leading-none font-black tracking-tight text-foreground md:text-[2rem]">
-                {activeExerciseName}
-              </h1>
-              <p className="mt-1 truncate text-[12px] font-semibold text-muted-foreground/60">
-                {nextSetLabel}
-              </p>
-            </div>
-
-            <div className="mt-3 border-t border-border/35 pt-3 md:grid md:grid-cols-[1fr_auto] md:items-center md:gap-4">
-              <div className="text-center md:text-left">
-                <p className="text-[10px] font-bold tracking-[0.12em] text-muted-foreground/50 uppercase">
-                  {rest.remaining !== null ? "Rest" : "Time"}
-                </p>
-                <div className="mt-1 text-[2.35rem] leading-none font-black tracking-tight tabular-nums md:text-[3rem]">
-                  {formatElapsed(rest.remaining ?? elapsed)}
-                </div>
-              </div>
-              {rest.remaining !== null ? (
-                <button
-                  onClick={rest.dismiss}
-                  className="motion-tactile mt-3 h-11 w-full rounded-lg bg-muted text-[13px] font-extrabold md:mt-0 md:w-auto md:px-5"
-                >
-                  Skip rest
-                </button>
-              ) : (
-                <button
-                  onClick={completeNextSet}
-                  className="motion-tactile mt-3 h-11 w-full rounded-lg bg-primary text-[13px] font-extrabold text-primary-foreground md:mt-0 md:w-auto md:px-5"
-                >
-                  {nextTarget?.kind === "set"
-                    ? `Done with set ${activeSetNumber}`
-                    : totalSets > 0
-                      ? "Finish workout"
-                      : "Add exercise"}
-                </button>
-              )}
-            </div>
-
-            <div className="mt-3 flex items-center gap-3">
+            <div className="flex items-center gap-3">
               {workoutSyncStatus === "error" && (
                 <button
                   type="button"
@@ -5335,6 +5274,33 @@ export default function ActiveWorkout() {
               <span className="shrink-0 text-[10px] font-bold text-muted-foreground/45 tabular-nums">
                 {progressPct}
               </span>
+            </div>
+            <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground/50 uppercase">
+              <span className="truncate">
+                {uniqueExerciseIds.length > 0
+                  ? `${activeExerciseIndex}/${uniqueExerciseIds.length} · ${nextSetLabel}`
+                  : "Active workout"}
+              </span>
+              {slot === 2 && (
+                <span className="shrink-0 rounded-[8px] bg-muted/55 px-2 py-0.5 text-[9px] text-muted-foreground/80">
+                  Slot 2
+                </span>
+              )}
+              {workoutSyncStatus !== "idle" && (
+                <span
+                  role="status"
+                  aria-live="polite"
+                  title={workoutSyncError || undefined}
+                  className={cn(
+                    "shrink-0 rounded-[8px] px-2 py-0.5 text-[9px]",
+                    workoutSyncStatus === "error"
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-muted/55 text-muted-foreground/80"
+                  )}
+                >
+                  {workoutSyncLabel}
+                </span>
+              )}
             </div>
           </section>
         </div>
