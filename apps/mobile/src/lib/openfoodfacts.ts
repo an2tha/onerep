@@ -30,6 +30,43 @@ const PRODUCT_FIELDS = [
   "nova_group",
 ].join(",")
 
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000
+const DETAIL_CACHE_TTL_MS = 30 * 60 * 1000
+
+type CacheEntry<T> = {
+  expiresAt: number
+  promise: Promise<T>
+}
+
+const searchCache = new Map<string, CacheEntry<FoodDetail[]>>()
+const detailCache = new Map<string, CacheEntry<FoodDetail | null>>()
+
+function cached<T>(
+  cache: Map<string, CacheEntry<T>>,
+  key: string,
+  ttlMs: number,
+  load: () => Promise<T>
+): Promise<T> {
+  const now = Date.now()
+  const existing = cache.get(key)
+  if (existing && existing.expiresAt > now) return existing.promise
+
+  const entry: CacheEntry<T> = {
+    expiresAt: now + ttlMs,
+    promise: load(),
+  }
+  cache.set(key, entry)
+  entry.promise.catch(() => {
+    if (cache.get(key) === entry) cache.delete(key)
+  })
+  return entry.promise
+}
+
+export function __clearOpenFoodFactsCacheForTests() {
+  searchCache.clear()
+  detailCache.clear()
+}
+
 async function openFoodFactsFetch<T>(
   path: string,
   params?: URLSearchParams,
@@ -525,6 +562,12 @@ export async function searchFoods(
 ): Promise<FoodDetail[]> {
   const trimmed = query.trim()
   if (trimmed.length < 2) return []
+  const pageSize = Math.min(limit ?? 25, 100)
+  const cacheKey = JSON.stringify({
+    query: normalizeFoodSearchText(trimmed),
+    pageSize,
+    language: language?.trim().toLowerCase() ?? "",
+  })
 
   const params = new URLSearchParams({
     search_terms: trimmed,
@@ -532,34 +575,26 @@ export async function searchFoods(
     action: "process",
     json: "1",
     sort_by: "unique_scans_n",
-    page_size: String(Math.min(limit ?? 25, 100)),
+    page_size: String(pageSize),
     fields: PRODUCT_FIELDS,
   })
 
-  const data = await openFoodFactsFetch<OpenFoodFactsSearchResponse>(
-    "/cgi/search.pl",
-    params,
-    language
-  )
+  return cached(searchCache, cacheKey, SEARCH_CACHE_TTL_MS, async () => {
+    const data = await openFoodFactsFetch<OpenFoodFactsSearchResponse>(
+      "/cgi/search.pl",
+      params,
+      language
+    )
 
-  return (data.products ?? [])
-    .map(normalizeProduct)
-    .filter((product): product is OpenFoodFactsProduct => product !== null)
-    .map(productToDetail)
-    .filter((item) => !isNumbersOnlyName(item.name))
+    return (data.products ?? [])
+      .map(normalizeProduct)
+      .filter((product): product is OpenFoodFactsProduct => product !== null)
+      .map(productToDetail)
+      .filter((item) => !isNumbersOnlyName(item.name))
+  })
 }
 
-export async function searchFoodsAccurate(
-  query: string,
-  options: { limit?: number; fetchLimit?: number; language?: string } = {}
-): Promise<FoodDetail[]> {
-  const limit = Math.max(1, Math.min(options.limit ?? 25, 100))
-  const fetchLimit = Math.max(limit, Math.min(options.fetchLimit ?? 75, 100))
-  const results = await searchFoods(query, fetchLimit, options.language)
-  return rankAndFilterFoodResults(results, query).slice(0, limit)
-}
-
-export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
+async function loadFoodDetail(id: string): Promise<FoodDetail | null> {
   const encoded = encodeURIComponent(id)
   const params = new URLSearchParams({ fields: PRODUCT_FIELDS })
   let data: OpenFoodFactsProductResponse
@@ -575,6 +610,25 @@ export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
 
   const product = normalizeProduct(data.product)
   return product ? productToDetail(product) : null
+}
+
+export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
+  return cached(
+    detailCache,
+    id.trim(),
+    DETAIL_CACHE_TTL_MS,
+    () => loadFoodDetail(id)
+  )
+}
+
+export async function searchFoodsAccurate(
+  query: string,
+  options: { limit?: number; fetchLimit?: number; language?: string } = {}
+): Promise<FoodDetail[]> {
+  const limit = Math.max(1, Math.min(options.limit ?? 25, 100))
+  const fetchLimit = Math.max(limit, Math.min(options.fetchLimit ?? 75, 100))
+  const results = await searchFoods(query, fetchLimit, options.language)
+  return rankAndFilterFoodResults(results, query).slice(0, limit)
 }
 
 export async function getFoodByBarcode(

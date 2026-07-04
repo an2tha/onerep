@@ -16,6 +16,10 @@ function allowedPath(path: string) {
   return path === "/cgi/search.pl" || isProductPath(path);
 }
 
+function shouldLogOpenFoodFactsRaw() {
+  return process.env.OPENFOODFACTS_LOG_RAW === "1";
+}
+
 export const proxy = action({
   args: {
     path: v.string(),
@@ -59,11 +63,13 @@ export const proxy = action({
 
     const response = await fetch(url, { headers });
     if (response.status === 404 && isProductPath(path)) {
-      console.log("[openfoodfacts:raw]", {
-        path,
-        status: response.status,
-        body: await response.text(),
-      });
+      if (shouldLogOpenFoodFactsRaw()) {
+        console.log("[openfoodfacts:raw]", {
+          path,
+          status: response.status,
+          body: await response.text(),
+        });
+      }
       return { status: 0, product: null };
     }
     if (!response.ok) {
@@ -71,11 +77,13 @@ export const proxy = action({
     }
 
     const rawText = await response.text();
-    console.log("[openfoodfacts:raw]", {
-      path,
-      status: response.status,
-      body: rawText,
-    });
+    if (shouldLogOpenFoodFactsRaw()) {
+      console.log("[openfoodfacts:raw]", {
+        path,
+        status: response.status,
+        body: rawText,
+      });
+    }
     return JSON.parse(rawText);
   },
 });
