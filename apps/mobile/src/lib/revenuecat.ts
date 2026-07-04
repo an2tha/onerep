@@ -21,6 +21,9 @@ export const REVENUECAT_API_KEY =
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
 export const REVENUECAT_OFFERING_IDENTIFIER = "default"
+export const REVENUECAT_WEB_CHECKOUT_URL =
+  (import.meta.env.VITE_REVENUECAT_WEB_CHECKOUT_URL as string | undefined) ||
+  "https://pay.rev.cat/sandbox/mqvkhnnxqaxmwfms/"
 const REVENUECAT_REQUEST_TIMEOUT_MS = 8000
 
 type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
@@ -136,6 +139,26 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
     return monthlyPackage.product.priceString
   }
   return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
+}
+
+function buildRevenueCatWebCheckoutUrl({
+  appUserId,
+  email,
+  packageId = MONTHLY_PACKAGE_IDENTIFIER,
+}: {
+  appUserId: string
+  email?: string | null
+  packageId?: string
+}) {
+  const url = new URL(
+    `${REVENUECAT_WEB_CHECKOUT_URL.replace(/\/+$/, "")}/${encodeURIComponent(
+      appUserId
+    )}`
+  )
+  url.searchParams.set("package_id", packageId)
+  url.searchParams.set("hide_back_button", "true")
+  if (email) url.searchParams.set("email", email)
+  return url.toString()
 }
 
 function withRevenueCatTimeout<T>(promise: Promise<T>, label: string) {
@@ -386,28 +409,22 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
 
   const purchaseMonthly = useCallback(async () => {
     const monthlyPackage = state.monthlyPackage
-    if (!monthlyPackage) throw new Error("Monthly package is not configured")
     if (!isNative) {
-      const webPurchases = webPurchasesRef.current
-      if (!webPurchases) {
-        throw new Error(
-          "Subscription service is not ready. Try again in a moment."
-        )
+      if (!options.userId) {
+        throw new Error("Sign in before starting checkout")
       }
-      const result = await webPurchases.purchasePackage(
-        monthlyPackage as WebPackage,
-        options.email ?? undefined
+      if (typeof window === "undefined") {
+        throw new Error("Checkout is only available in the browser")
+      }
+      window.location.assign(
+        buildRevenueCatWebCheckoutUrl({
+          appUserId: options.userId,
+          email: options.email,
+        })
       )
-      const customerInfo = result.customerInfo
-      setState((current) => ({
-        ...current,
-        customerInfo,
-        error: null,
-        status: "ready",
-      }))
-      await refresh()
-      return customerInfo
+      return state.customerInfo
     }
+    if (!monthlyPackage) throw new Error("Monthly package is not configured")
     const { customerInfo } = await Purchases.purchasePackage({
       aPackage: monthlyPackage as PurchasesPackage,
     })
@@ -424,10 +441,9 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     () => ({
       ...state,
       canPurchase:
-        (isNative || isWeb) &&
         state.status !== "loading" &&
         state.status !== "unsupported" &&
-        Boolean(state.monthlyPackage),
+        (isNative ? Boolean(state.monthlyPackage) : isWeb && !!options.userId),
       hasActiveSubscription: hasActiveSubscription(state.customerInfo),
       hasOneRepPro: hasOneRepPro(state.customerInfo),
       monthlyPrice: monthlyPriceString(state.monthlyPackage),
@@ -436,8 +452,21 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       restorePurchases,
       subscriptionManagementUrl: state.customerInfo?.managementURL ?? null,
     }),
-    [purchaseMonthly, refresh, restorePurchases, state]
+    [
+      isNative,
+      isWeb,
+      options.userId,
+      purchaseMonthly,
+      refresh,
+      restorePurchases,
+      state,
+    ]
   )
 }
 
-export { hasActiveSubscription, hasOneRepPro, revenueCatErrorMessage }
+export {
+  buildRevenueCatWebCheckoutUrl,
+  hasActiveSubscription,
+  hasOneRepPro,
+  revenueCatErrorMessage,
+}
