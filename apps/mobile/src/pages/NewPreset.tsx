@@ -10,15 +10,12 @@ import {
   CaretDown,
   CaretUp,
   DotsSixVertical,
-  Fire,
   FloppyDisk,
   MagnifyingGlass,
   Plus,
   Sparkle,
   Timer,
-  Wind,
   X,
-  type Icon,
 } from "@phosphor-icons/react"
 import { cn, createClientId, logDevWarn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -27,7 +24,6 @@ import {
   searchExercises,
   visiblePopularExerciseSearches,
   type Exercise,
-  type ExerciseCategory,
 } from "@/lib/exercise-catalog"
 import {
   readRecentExerciseSearches,
@@ -38,24 +34,20 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@repo/ui"
-import {
   APP_ACCENT_COLORS,
   CUSTOM_CATEGORY_TONES,
-  EXERCISE_CATEGORY_COLORS,
   SET_TYPE_TONES,
 } from "@/lib/design-tokens"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { AppleFitnessSetRow } from "@/components/workout/apple-fitness-set-row"
+import {
+  WeightSelectorSheet,
+  type BarType,
+  type WeightSelectorChange,
+} from "./ActiveWorkout"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Category = ExerciseCategory
 type SetType = "working" | "warmup" | "failure" | "myoreps" | "drop"
 
 type WorkoutSet = {
@@ -63,9 +55,6 @@ type WorkoutSet = {
   type: SetType
   weight: string
   reps: string
-  leftReps: string
-  rightReps: string
-  rpe: string
   restSeconds: number
 }
 
@@ -73,6 +62,8 @@ type ExerciseState = {
   sets: WorkoutSet[]
   trackRpe: boolean
   trackUnilateral: boolean
+  barWeight: string
+  barType: BarType
 }
 
 type PresetItem =
@@ -111,20 +102,6 @@ type AgentPresetDraft = {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const CATEGORY_ICON: Record<Category, Icon> = {
-  strength: Barbell,
-  cardio: Fire,
-  mobility: Wind,
-  core: Sparkle,
-}
-
-const CATEGORY_COLOR: Record<Category, string> = {
-  strength: EXERCISE_CATEGORY_COLORS.strength,
-  cardio: EXERCISE_CATEGORY_COLORS.cardio,
-  mobility: EXERCISE_CATEGORY_COLORS.mobility,
-  core: EXERCISE_CATEGORY_COLORS.core,
-}
 
 const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
 
@@ -212,9 +189,6 @@ function makeSet(): WorkoutSet {
     type: "working",
     weight: "",
     reps: "",
-    leftReps: "",
-    rightReps: "",
-    rpe: "",
     restSeconds: 120,
   }
 }
@@ -225,9 +199,6 @@ function normalizeSet(set: Partial<WorkoutSet> | undefined): WorkoutSet {
     type: set?.type ?? "working",
     weight: set?.weight ?? "",
     reps: set?.reps ?? "",
-    leftReps: set?.leftReps ?? "",
-    rightReps: set?.rightReps ?? "",
-    rpe: set?.rpe ?? "",
     restSeconds: set?.restSeconds ?? 120,
   }
 }
@@ -237,8 +208,10 @@ function normalizeExerciseState(
 ): ExerciseState {
   return {
     sets: (state?.sets ?? []).map((set) => normalizeSet(set)),
-    trackRpe: Boolean(state?.trackRpe),
-    trackUnilateral: Boolean(state?.trackUnilateral),
+    trackRpe: false,
+    trackUnilateral: false,
+    barWeight: state?.barWeight ?? "",
+    barType: state?.barType ?? "olympic",
   }
 }
 
@@ -251,6 +224,8 @@ function makeExerciseState(exercise: Exercise): ExerciseState {
     sets: isCardioExercise(exercise) ? [] : [makeSet()],
     trackRpe: false,
     trackUnilateral: false,
+    barWeight: "",
+    barType: "olympic",
   }
 }
 
@@ -342,11 +317,11 @@ function buildSummary(
     }
 
     if (resolved.length === 0) {
-      return [item.kind === "solo" ? "Exercise" : "Superset"]
+      return [item.kind === "solo" ? "exercise" : "superset"]
     }
 
     if (item.kind === "superset") {
-      return [`Superset: ${resolved.map((ex) => ex.name).join(" + ")}`]
+      return [`superset: ${resolved.map((ex) => ex.name).join(" + ")}`]
     }
 
     return [resolved[0].name]
@@ -428,9 +403,6 @@ function normalizeAgentSet(set: AgentPresetSetDraft): WorkoutSet {
     type,
     weight: String(set.weight ?? "").trim(),
     reps: String(set.reps ?? "").trim(),
-    leftReps: String(set.leftReps ?? "").trim(),
-    rightReps: String(set.rightReps ?? "").trim(),
-    rpe: String(set.rpe ?? "").trim(),
     restSeconds,
   })
 }
@@ -448,10 +420,10 @@ function makeExerciseStateFromAgentDraft(
 
   return {
     sets,
-    trackRpe: Boolean(draft.trackRpe) || sets.some((set) => Boolean(set.rpe)),
-    trackUnilateral:
-      Boolean(draft.trackUnilateral) ||
-      sets.some((set) => Boolean(set.leftReps || set.rightReps)),
+    trackRpe: false,
+    trackUnilateral: false,
+    barWeight: "",
+    barType: "olympic",
   }
 }
 
@@ -575,23 +547,28 @@ function RestTimerSheet({
 function SetRow({
   set,
   index,
-  trackRpe,
-  trackUnilateral,
   unit,
+  barWeight,
+  barType,
   onUpdate,
   onDelete,
+  onWeightConfigChange,
+  onToggleBar,
   canDelete,
 }: {
   set: WorkoutSet
   index: number
-  trackRpe: boolean
-  trackUnilateral: boolean
   unit: WeightUnit
+  barWeight: string
+  barType: BarType
   onUpdate: (s: WorkoutSet) => void
   onDelete: () => void
+  onWeightConfigChange: (change: WeightSelectorChange) => void
+  onToggleBar: () => void
   canDelete: boolean
 }) {
   const [showRest, setShowRest] = useState(false)
+  const [showWeight, setShowWeight] = useState(false)
   const cfg = SET_CFG[set.type]
 
   function cycleType() {
@@ -599,173 +576,34 @@ function SetRow({
     onUpdate({ ...set, type: SET_ORDER[(i + 1) % SET_ORDER.length] })
   }
 
-  const fieldCls =
-    "h-12 w-full rounded-lg border border-border/50 bg-background/80 text-center text-[16px] font-bold tabular-nums outline-none transition-all placeholder:text-muted-foreground/20 focus:border-foreground/40 focus:bg-background [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-  const repsModeKey = trackUnilateral ? "unilateral" : "bilateral"
-  const trackingModeKey = `${repsModeKey}-${trackRpe ? "rpe" : "base"}`
-
   return (
     <>
-      <div className="flex items-center gap-2 px-3 py-3">
-        {/* Set number */}
-        <span className="w-5 shrink-0 text-center text-[11px] font-black text-muted-foreground/25 tabular-nums select-none">
-          {index + 1}
-        </span>
-
-        {/* Type — tap to cycle */}
-        <button
-          type="button"
-          onClick={cycleType}
-          className="flex h-12 w-[4.75rem] shrink-0 flex-col items-center justify-center rounded-lg px-1.5 transition-all select-none active:scale-[0.985]"
-          style={{ backgroundColor: cfg.bg }}
-          aria-label={`Set mode: ${cfg.label}. Tap to change.`}
-          title={`Set mode: ${cfg.label}`}
-        >
-          <span
-            className="truncate text-[11px] font-black"
-            style={{ color: cfg.color }}
-          >
-            {cfg.label}
-          </span>
-        </button>
-
-        {/* Weight */}
-        <div className="flex flex-1 flex-col gap-0.5">
-          <input
-            type="number"
-            name={`preset-set-${index + 1}-weight`}
-            aria-label={`Set ${index + 1} weight in ${unit}`}
-            inputMode="decimal"
-            value={toDisplay(set.weight, unit)}
-            onChange={(e) =>
-              onUpdate({ ...set, weight: toKg(e.target.value, unit) })
-            }
-            placeholder="0"
-            className={fieldCls}
-          />
-          <span className="text-center text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-            {unit}
-          </span>
-        </div>
-
-        <span className="shrink-0 text-[13px] font-light text-muted-foreground/20 select-none">
-          ×
-        </span>
-
-        <div
-          key={trackingModeKey}
-          className={cn(
-            "flex min-w-0 flex-1 animate-in items-start gap-2 duration-200 fade-in-0 zoom-in-95 slide-in-from-bottom-1",
-            trackUnilateral && "flex-[1.8]"
-          )}
-        >
-          {/* Reps */}
-          {trackUnilateral ? (
-            <div className="grid min-w-0 flex-[1.5] grid-cols-2 gap-2">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <input
-                  type="number"
-                  name={`preset-set-${index + 1}-left-reps`}
-                  aria-label={`Set ${index + 1} left reps`}
-                  inputMode="numeric"
-                  value={set.leftReps}
-                  onChange={(e) =>
-                    onUpdate({ ...set, leftReps: e.target.value })
-                  }
-                  placeholder="0"
-                  className={fieldCls}
-                />
-                <span className="text-center text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                  left
-                </span>
-              </div>
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <input
-                  type="number"
-                  name={`preset-set-${index + 1}-right-reps`}
-                  aria-label={`Set ${index + 1} right reps`}
-                  inputMode="numeric"
-                  value={set.rightReps}
-                  onChange={(e) =>
-                    onUpdate({ ...set, rightReps: e.target.value })
-                  }
-                  placeholder="0"
-                  className={fieldCls}
-                />
-                <span className="text-center text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                  right
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-1 flex-col gap-0.5">
-              <input
-                type="number"
-                name={`preset-set-${index + 1}-reps`}
-                aria-label={`Set ${index + 1} reps`}
-                inputMode="numeric"
-                value={set.reps}
-                onChange={(e) => onUpdate({ ...set, reps: e.target.value })}
-                placeholder="0"
-                className={fieldCls}
-              />
-              <span className="text-center text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                reps
-              </span>
-            </div>
-          )}
-
-          {/* RPE */}
-          {trackRpe && (
-            <div className="flex flex-1 animate-in flex-col gap-0.5 duration-200 fade-in-0 slide-in-from-right-1">
-              <input
-                type="number"
-                name={`preset-set-${index + 1}-rpe`}
-                aria-label={`Set ${index + 1} RPE`}
-                inputMode="decimal"
-                value={set.rpe}
-                onChange={(e) => onUpdate({ ...set, rpe: e.target.value })}
-                placeholder="—"
-                min="1"
-                max="10"
-                step="0.5"
-                className={fieldCls}
-              />
-              <span className="text-center text-[8px] font-bold tracking-widest text-muted-foreground/30 uppercase">
-                rpe
-              </span>
-            </div>
-          )}
-        </div>
-
-        {/* Rest */}
-        <button
-          type="button"
-          onClick={() => setShowRest(true)}
-          aria-label={`Set ${index + 1} rest time`}
-          className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 transition-all active:scale-[0.985] active:bg-muted"
-        >
-          <div className="flex items-center gap-1">
-            <Timer size={10} className="text-muted-foreground/50" />
-            <span className="text-[13px] font-bold text-muted-foreground/70 tabular-nums">
-              {formatRest(set.restSeconds)}
-            </span>
-          </div>
-          <span className="text-[8px] font-bold tracking-widest text-muted-foreground/25 uppercase">
-            rest
-          </span>
-        </button>
-
-        {/* Delete */}
-        {canDelete && (
-          <button
-            onClick={onDelete}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/20 transition-colors active:bg-muted/50 active:text-destructive"
-          >
-            <X size={11} weight="bold" />
-          </button>
-        )}
-      </div>
+      <AppleFitnessSetRow
+        index={index}
+        typeLabel={cfg.label}
+        unit={unit}
+        weightValue={toDisplay(set.weight, unit)}
+        repsValue={set.reps}
+        restLabel={formatRest(set.restSeconds)}
+        canDelete={canDelete}
+        onCycleType={cycleType}
+        typeValue={set.type}
+        typeOptions={SET_ORDER.map((type) => ({
+          value: type,
+          label: SET_CFG[type].label,
+        }))}
+        onTypeChange={(value) =>
+          onUpdate({ ...set, type: value as SetType })
+        }
+        onDelete={onDelete}
+        onWeightClick={() => setShowWeight(true)}
+        weightActionLabel={
+          Number.parseFloat(barWeight || "0") > 0 ? undefined : "Add bar"
+        }
+        onWeightActionClick={onToggleBar}
+        onRepsChange={(value) => onUpdate({ ...set, reps: value })}
+        onRestClick={() => setShowRest(true)}
+      />
 
       {showRest && (
         <RestTimerSheet
@@ -775,6 +613,17 @@ function SetRow({
             setShowRest(false)
           }}
           onClose={() => setShowRest(false)}
+        />
+      )}
+      {showWeight && (
+        <WeightSelectorSheet
+          currentWeight={set.weight}
+          barWeight={barWeight}
+          barType={barType}
+          unit={unit}
+          lastSet={null}
+          onChange={onWeightConfigChange}
+          onClose={() => setShowWeight(false)}
         />
       )}
     </>
@@ -824,32 +673,58 @@ function PresetExerciseCard({
     onUpdate({ ...data, sets })
   }
 
+  function updateWeightConfig(i: number, change: WeightSelectorChange) {
+    const sets = [...data.sets]
+    if (change.weight !== undefined) {
+      sets[i] = { ...sets[i], weight: change.weight }
+    }
+    onUpdate({
+      ...data,
+      sets,
+      barWeight:
+        change.barWeight !== undefined ? change.barWeight : data.barWeight,
+      barType: change.barType ?? data.barType,
+    })
+  }
+
   function removeSet(i: number) {
     onUpdate({ ...data, sets: data.sets.filter((_, j) => j !== i) })
   }
 
   const totalRest = data.sets.reduce((sum, set) => sum + set.restSeconds, 0)
   const isCardio = isCardioExercise(exercise)
+  const hasBarWeight = Number.parseFloat(data.barWeight || "0") > 0
+
+  function toggleBarWeight() {
+    onUpdate({
+      ...data,
+      barType: data.barType ?? "olympic",
+      barWeight: hasBarWeight ? "" : "20",
+    })
+  }
 
   return (
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden bg-card transition-all duration-150",
-        inSuperset ? "" : "rounded-xl border border-border/60",
+        "relative flex overflow-hidden transition-[border-color,opacity,transform] duration-150",
+        inSuperset
+          ? "border-t border-border/35 bg-transparent first:border-t-0"
+          : "rounded-lg border border-border/55 bg-card",
         isDragging && "scale-[0.97] opacity-20",
         showSupersetRing &&
           !inSuperset &&
-          "ring-2 ring-offset-2 ring-offset-background"
+          "border-foreground/70 bg-foreground/[0.035] shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_22%,transparent)] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background"
       )}
-      style={
-        showSupersetRing && !inSuperset
-          ? ({
-              "--tw-ring-color": exercise.color + "80",
-            } as React.CSSProperties)
-          : undefined
-      }
     >
+      {showSupersetRing && !inSuperset && (
+        <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
+          <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold tracking-tight text-background shadow-lg">
+            drop to superset
+          </span>
+        </div>
+      )}
+
       {/* Drop indicators */}
       {showLineBefore && (
         <div className="pointer-events-none absolute -top-[5px] right-3 left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
@@ -858,101 +733,65 @@ function PresetExerciseCard({
         <div className="pointer-events-none absolute right-3 -bottom-[5px] left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
       )}
 
-      {/* Left accent stripe */}
-      <div
-        className="w-[4px] shrink-0"
-        style={{ backgroundColor: exercise.color }}
-      />
-
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header row ──────────────────────────── */}
-        <div className="flex items-center gap-2 pt-3 pr-3 pb-2 pl-3">
-          {/* Drag handle */}
-          <div
-            {...dragHandlers}
-            className="flex h-7 w-4 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/20 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/50"
-          >
-            <DotsSixVertical size={13} weight="bold" />
-          </div>
+        <div className={cn("px-3 py-2.5 md:py-3", inSuperset && "pl-4")}>
+          <div className="flex items-center gap-2">
+            {/* Drag handle */}
+            <div
+              {...dragHandlers}
+              className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/28 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
+            >
+              <DotsSixVertical size={14} weight="bold" />
+            </div>
 
-          {/* Name & muscle */}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] leading-tight font-black tracking-tight">
-              {exercise.name}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground/50">
-              {collapsed
-                ? isCardio
-                  ? "Cardio"
-                  : `${data.sets.length} set${data.sets.length !== 1 ? "s" : ""} · rest ${formatRest(totalRest)}`
-                : exercise.muscle}
-            </p>
-          </div>
+            {/* Name & muscle */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] leading-tight font-semibold tracking-tight">
+                {exercise.name}
+              </p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/50">
+                {collapsed
+                  ? isCardio
+                    ? "Cardio"
+                    : `${data.sets.length} set${data.sets.length !== 1 ? "s" : ""} · ${formatRest(totalRest)} rest`
+                  : exercise.muscle}
+              </p>
+            </div>
 
-          {!isCardio && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border border-border/50 bg-background/70 px-3 text-[10px] font-bold tracking-[0.16em] text-muted-foreground/65 uppercase transition-colors active:bg-muted/60"
-                  aria-label={`Tracking options for ${exercise.name}`}
-                >
-                  Track
-                  <span className="text-[9px] tracking-normal text-foreground/55">
-                    {[data.trackRpe && "RPE", data.trackUnilateral && "UNI"]
-                      .filter(Boolean)
-                      .join(" · ") || "Off"}
-                  </span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="text-[10px] font-semibold tracking-[0.15em] uppercase">
-                  ADVANCED TRACKING
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuCheckboxItem
-                  checked={data.trackRpe}
-                  onCheckedChange={(checked) =>
-                    onUpdate({ ...data, trackRpe: checked === true })
-                  }
-                >
-                  Track RPE
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={data.trackUnilateral}
-                  onCheckedChange={(checked) =>
-                    onUpdate({ ...data, trackUnilateral: checked === true })
-                  }
-                >
-                  Track unilateral reps
-                </DropdownMenuCheckboxItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {/* Remove */}
-          <button
-            onClick={onRemove}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/25 transition-colors active:bg-muted/50 active:text-destructive"
-            aria-label={`Remove ${exercise.name}`}
-          >
-            <X size={12} weight="bold" />
-          </button>
-
-          <button
-            onClick={onToggleCollapse}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/35 transition-colors active:bg-muted/40 active:text-foreground"
-            aria-label={
-              collapsed
-                ? `Expand ${exercise.name}`
-                : `Collapse ${exercise.name}`
-            }
-          >
-            {collapsed ? (
-              <CaretDown size={12} weight="bold" />
-            ) : (
-              <CaretUp size={12} weight="bold" />
+            {!isCardio && (
+              <span className="shrink-0 rounded-md bg-muted/35 px-1.5 py-0.5 text-[11px] font-semibold tracking-tight text-muted-foreground/65 tabular-nums">
+                {data.sets.length}
+              </span>
             )}
-          </button>
+          </div>
+
+          <div className="mt-2 flex items-center justify-end gap-1">
+            {/* Remove */}
+            <button
+              onClick={onRemove}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
+              aria-label={`Remove ${exercise.name}`}
+            >
+              <X size={15} weight="bold" />
+            </button>
+
+            <button
+              onClick={onToggleCollapse}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/55 transition-colors active:bg-muted/35 active:text-foreground"
+              aria-label={
+                collapsed
+                  ? `Expand ${exercise.name}`
+                  : `Collapse ${exercise.name}`
+              }
+            >
+              {collapsed ? (
+                <CaretDown size={15} weight="bold" />
+              ) : (
+                <CaretUp size={15} weight="bold" />
+              )}
+            </button>
+          </div>
         </div>
 
         <div
@@ -998,11 +837,15 @@ function PresetExerciseCard({
                       <SetRow
                         set={s}
                         index={i}
-                        trackRpe={data.trackRpe}
-                        trackUnilateral={data.trackUnilateral}
                         unit={unit}
+                        barWeight={data.barWeight}
+                        barType={data.barType}
                         onUpdate={(updated) => updateSet(i, updated)}
                         onDelete={() => removeSet(i)}
+                        onWeightConfigChange={(change) =>
+                          updateWeightConfig(i, change)
+                        }
+                        onToggleBar={toggleBarWeight}
                         canDelete={data.sets.length > 1}
                       />
                     </div>
@@ -1012,14 +855,13 @@ function PresetExerciseCard({
                 {/* ── Add set ───────────────────────────────── */}
                 <button
                   onClick={addSet}
-                  className="flex w-full items-center gap-2 border-t border-border/30 px-4 py-2.5 text-left transition-colors active:bg-muted/30"
+                  className="flex w-full items-center justify-center gap-2 border-t border-border/30 px-4 py-3 text-left text-muted-foreground/70 transition-colors active:bg-muted/30 active:text-foreground"
                 >
                   <Plus
-                    size={10}
+                    size={14}
                     weight="bold"
-                    className="text-muted-foreground/40"
                   />
-                  <span className="text-[11px] font-bold tracking-widest text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-bold">
                     Add set
                   </span>
                 </button>
@@ -1046,7 +888,6 @@ function SearchSheet({
   onClose: () => void
 }) {
   const [query, setQuery] = useState("")
-  const [activeFilters, setActiveFilters] = useState<Set<Category>>(new Set())
   const [searchState, setSearchState] = useState<
     "idle" | "loading" | "done" | "error"
   >("idle")
@@ -1055,6 +896,7 @@ function SearchSheet({
   const [recentExercises, setRecentExercises] = useState(() =>
     readRecentExerciseSearches()
   )
+  const [closing, setClosing] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -1063,18 +905,6 @@ function SearchSheet({
     const t = setTimeout(() => inputRef.current?.focus(), 80)
     return () => clearTimeout(t)
   }, [])
-
-  function toggleFilter(cat: Category) {
-    setActiveFilters((s) => {
-      const next = new Set(s)
-      if (next.has(cat)) {
-        next.delete(cat)
-      } else {
-        next.add(cat)
-      }
-      return next
-    })
-  }
 
   useEffect(() => {
     const q = query.trim()
@@ -1089,7 +919,6 @@ function SearchSheet({
       try {
         const results = await searchExercises({
           query: q,
-          categories: activeFilters.size > 0 ? [...activeFilters] : undefined,
           limit: 25,
         })
         if (requestSeq !== searchSeqRef.current) return
@@ -1105,7 +934,7 @@ function SearchSheet({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [activeFilters, query, searchAttempt])
+  }, [query, searchAttempt])
 
   const filtered = remoteExercises
   const recentSuggestions = visibleRecentExerciseSearches(
@@ -1119,15 +948,7 @@ function SearchSheet({
     (exercise) => !recentSuggestionIds.has(exercise.id)
   )
 
-  const FILTERS: { cat: Category; label: string }[] = [
-    { cat: "strength", label: "Strength" },
-    { cat: "cardio", label: "Cardio" },
-    { cat: "mobility", label: "Mobility" },
-    { cat: "core", label: "Core" },
-  ]
-
   function chooseSuggestion(exercise: ExerciseSearchSuggestion) {
-    setActiveFilters(new Set())
     setQuery(exercise.name)
     inputRef.current?.focus()
   }
@@ -1144,14 +965,26 @@ function SearchSheet({
     }
   }
 
+  function requestClose() {
+    if (closing) return
+    setClosing(true)
+    window.setTimeout(onClose, 340)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-40 md:flex md:justify-center md:bg-black/40 md:backdrop-blur-sm"
+      className={cn(
+        "fixed inset-0 z-40 bg-background md:flex md:justify-center md:bg-black/40 md:backdrop-blur-sm",
+        closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
+      )}
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
-      onClick={onClose}
+      onClick={requestClose}
     >
       <div
-        className="flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl"
+        className={cn(
+          "sheet-panel flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
+          closing ? "sheet-panel-exit" : "sheet-panel-enter"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search bar row */}
@@ -1184,47 +1017,11 @@ function SearchSheet({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="min-h-10 shrink-0 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
             Done
           </button>
-        </div>
-
-        {/* Filter tabs */}
-        <div
-          className="flex overflow-x-auto border-b border-border/40 [&::-webkit-scrollbar]:hidden"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {FILTERS.map(({ cat, label }) => {
-            const active = activeFilters.has(cat)
-            const Icon = CATEGORY_ICON[cat]
-            return (
-              <button
-                key={cat}
-                onClick={() => toggleFilter(cat)}
-                className={cn(
-                  "relative flex shrink-0 items-center gap-1.5 px-4 py-3 text-[12px] font-semibold transition-colors",
-                  active
-                    ? "text-foreground"
-                    : "text-muted-foreground/50 active:text-foreground/70"
-                )}
-              >
-                <Icon
-                  size={11}
-                  weight={active ? "fill" : "regular"}
-                  style={active ? { color: CATEGORY_COLOR[cat] } : undefined}
-                />
-                {label}
-                {active && (
-                  <span
-                    className="absolute right-0 bottom-0 left-0 h-[2px] rounded-t-full"
-                    style={{ backgroundColor: CATEGORY_COLOR[cat] }}
-                  />
-                )}
-              </button>
-            )
-          })}
         </div>
 
         {/* Results */}
@@ -1255,7 +1052,7 @@ function SearchSheet({
                   No exercises found
                 </p>
                 <p className="text-[11px] text-muted-foreground/50">
-                  Try a different search or filter
+                  Try a different search
                 </p>
               </div>
               <ExerciseSuggestionGroups
@@ -1344,24 +1141,16 @@ function ExerciseSuggestionChips({
         {label}
       </p>
       <div className="flex flex-wrap justify-center gap-2">
-        {suggestions.map((exercise) => {
-          const Icon = CATEGORY_ICON[exercise.category]
-          return (
-            <button
-              key={exercise.id}
-              type="button"
-              onClick={() => onChoose(exercise)}
-              className="flex min-h-9 items-center gap-1.5 rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
-            >
-              <Icon
-                size={11}
-                weight="fill"
-                style={{ color: CATEGORY_COLOR[exercise.category] }}
-              />
-              {exercise.name}
-            </button>
-          )
-        })}
+        {suggestions.map((exercise) => (
+          <button
+            key={exercise.id}
+            type="button"
+            onClick={() => onChoose(exercise)}
+            className="flex min-h-9 items-center rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+          >
+            {exercise.name}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -1382,15 +1171,9 @@ function SearchExerciseCard({
 }) {
   return (
     <div className={cn("flex items-stretch", added && "opacity-60")}>
-      {/* 3px accent stripe */}
-      <div
-        className="w-[3px] shrink-0 rounded-l-sm"
-        style={{ backgroundColor: exercise.color }}
-      />
-
       <button
         onClick={onBodyClick}
-        className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pr-2 pl-4 text-left active:bg-muted/40"
+        className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pr-4 pl-4 text-left active:bg-muted/40"
       >
         <p className="truncate text-[14px] leading-snug font-semibold">
           {exercise.name}
@@ -1398,6 +1181,11 @@ function SearchExerciseCard({
         <p className="mt-0.5 truncate text-[11px] text-muted-foreground/55">
           {exercise.muscle}
         </p>
+        {added && (
+          <p className="mt-1 text-[10.5px] font-semibold text-muted-foreground/45">
+            already in preset
+          </p>
+        )}
       </button>
 
       <button
@@ -1428,8 +1216,6 @@ function ExerciseModal({
   onAdd: () => void
   onClose: () => void
 }) {
-  const Icon = CATEGORY_ICON[exercise.category]
-
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[4px]"
@@ -1442,32 +1228,12 @@ function ExerciseModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Color bar */}
-        <div
-          className="h-1 w-full"
-          style={{ backgroundColor: exercise.color }}
-        />
-
         <div className="flex justify-center pt-3 pb-2">
           <div className="h-1 w-10 rounded-full bg-border/60" />
         </div>
 
-        <div
-          className="mx-5 flex h-32 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: exercise.color + "12" }}
-        >
-          <Icon size={48} weight="duotone" style={{ color: exercise.color }} />
-        </div>
-
         <div className="px-5 pt-4">
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] uppercase"
-            style={{
-              backgroundColor: exercise.color + "15",
-              color: exercise.color,
-            }}
-          >
-            <Icon size={9} weight="fill" />
+          <span className="inline-flex items-center rounded-full bg-muted/55 px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
             {exercise.category}
           </span>
           <h2 className="mt-2.5 text-[20px] leading-tight font-bold tracking-tight">
@@ -1661,6 +1427,12 @@ export default function NewPreset() {
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
   const [saving, setSaving] = useState(false)
   const [generatingPreset, setGeneratingPreset] = useState(false)
+  const [showSupersetTip, setShowSupersetTip] = useState(() => {
+    if (typeof window === "undefined") return true
+    return (
+      window.localStorage.getItem("onerep:preset-superset-tip-hidden") !== "1"
+    )
+  })
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
   const dragRef = useRef<DragInfo | null>(null)
@@ -2128,7 +1900,7 @@ export default function NewPreset() {
     return (
       <div
         key={item.id}
-        className="relative overflow-hidden rounded-xl border border-border/60"
+        className="relative overflow-hidden rounded-xl border border-foreground/20 bg-card shadow-[inset_4px_0_0_color-mix(in_srgb,var(--foreground)_72%,transparent)]"
       >
         {showLineBefore && (
           <div className="pointer-events-none absolute -top-[5px] right-3 left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
@@ -2139,21 +1911,15 @@ export default function NewPreset() {
 
         {/* Superset label bar */}
         <div
-          className="flex items-center justify-between border-b border-border/50 py-2 pr-3.5"
+          className="flex items-center justify-between border-b border-border/50 bg-foreground/[0.035] py-2 pr-3.5"
           style={{
             paddingLeft: "calc(0.875rem + 4px)",
-            borderLeftWidth: 4,
-            borderLeftStyle: "solid",
-            borderLeftColor: item.color,
           }}
         >
-          <span
-            className="text-[9px] font-black tracking-[0.22em] uppercase"
-            style={{ color: item.color }}
-          >
-            Superset · {item.exerciseIds.length} exercises
+          <span className="text-[11px] font-semibold tracking-tight text-foreground/80">
+            superset · {item.exerciseIds.length} exercises
           </span>
-          <span className="text-[9px] font-bold tracking-widest text-muted-foreground/40 uppercase">
+          <span className="text-[10px] font-semibold tracking-tight text-muted-foreground/45">
             drag out to split
           </span>
         </div>
@@ -2192,6 +1958,11 @@ export default function NewPreset() {
   const ghostEx = drag?.active
     ? (exerciseLookup[drag.exerciseId] ?? null)
     : null
+
+  function dismissSupersetTip() {
+    setShowSupersetTip(false)
+    window.localStorage.setItem("onerep:preset-superset-tip-hidden", "1")
+  }
 
   // ─────────────────────────────────────────────────────────
 
@@ -2277,6 +2048,26 @@ export default function NewPreset() {
           {/* ── Exercise list ──────────────────────────── */}
           {items.length > 0 && (
             <div className="flex flex-col gap-3">
+              {showSupersetTip && addedIds.length > 1 && (
+                <div className="flex items-center gap-2 rounded-xl border border-border/55 bg-card px-3 py-2.5 text-muted-foreground/70 shadow-sm">
+                  <DotsSixVertical
+                    size={15}
+                    weight="bold"
+                    className="shrink-0 text-foreground/65"
+                  />
+                  <p className="min-w-0 flex-1 text-[12px] leading-snug font-semibold">
+                    drag one exercise onto another to make a superset.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={dismissSupersetTip}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors active:bg-muted active:text-foreground"
+                    aria-label="Hide superset tip"
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                </div>
+              )}
               {items.map((item) =>
                 item.kind === "solo"
                   ? renderSoloItem(item.exerciseId)
@@ -2295,63 +2086,39 @@ export default function NewPreset() {
           <button
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "app-empty flex h-14 w-full items-center gap-3 transition-all active:scale-[0.985]",
+              "flex w-full items-center justify-center gap-2.5 rounded-[1rem] px-4 font-black transition-all active:scale-[0.985]",
               items.length === 0
-                ? "border-border bg-card active:bg-muted/40"
-                : "border-dashed border-border/60 bg-transparent active:bg-muted/20"
+                ? "min-h-14 bg-foreground text-background shadow-[0_12px_32px_color-mix(in_srgb,var(--foreground)_12%,transparent)] active:opacity-85"
+                : "min-h-14 bg-muted/70 text-foreground/72 active:bg-muted"
             )}
           >
-            <div
-              className={cn(
-                "ml-4 flex h-10 w-10 items-center justify-center rounded-[8px]",
-                items.length === 0
-                  ? "bg-foreground text-background"
-                  : "border border-dashed border-muted-foreground/40 text-muted-foreground/50"
-              )}
-            >
-              <Plus size={14} weight="bold" />
-            </div>
-            <span
-              className={cn(
-                "text-[14px] font-semibold",
-                items.length === 0
-                  ? "text-foreground"
-                  : "text-muted-foreground/50"
-              )}
-            >
+            <Plus size={items.length === 0 ? 17 : 16} weight="bold" />
+            <span className={items.length === 0 ? "text-[14.5px]" : "text-[14px]"}>
               {items.length === 0 ? "Add exercises" : "Add another exercise"}
             </span>
-            {items.length === 0 && (
-              <MagnifyingGlass
-                size={14}
-                className="mr-4 ml-auto text-muted-foreground/40"
-              />
-            )}
           </button>
 
           {/* ── Paste workout text button ───────────────── */}
-          <button
-            onClick={() => {
-              if (requireAiAccess()) setPasteOpen(true)
-            }}
-            disabled={loadingPreset || generatingPreset}
-            aria-busy={generatingPreset}
-            className="app-empty flex min-h-14 w-full items-center gap-3 border-dashed border-border/60 bg-transparent transition-all active:scale-[0.985] active:bg-muted/20 disabled:opacity-45"
-          >
-            <div className="ml-4 flex h-10 w-10 items-center justify-center rounded-[8px] bg-muted/70 text-foreground">
+          {items.length === 0 && (
+            <button
+              onClick={() => {
+                if (requireAiAccess()) setPasteOpen(true)
+              }}
+              disabled={loadingPreset || generatingPreset}
+              aria-busy={generatingPreset}
+              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] bg-muted/55 px-4 text-[13px] font-bold text-muted-foreground/72 transition-all active:scale-[0.985] active:bg-muted disabled:opacity-45"
+            >
               <Sparkle
                 size={14}
                 weight="fill"
                 className={generatingPreset ? "animate-spin" : ""}
               />
-            </div>
-            <span className="text-left text-[14px] font-semibold text-muted-foreground/65">
               Paste workout text
-            </span>
-            <span className="mr-4 ml-auto rounded-full bg-foreground px-2 py-1 text-[9px] font-black tracking-widest text-background uppercase">
-              AI
-            </span>
-          </button>
+              <span className="rounded-full bg-foreground px-2 py-0.5 text-[9px] font-black tracking-widest text-background uppercase">
+                AI
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -2359,32 +2126,16 @@ export default function NewPreset() {
       {ghostEx &&
         drag &&
         (() => {
-          const Icon = CATEGORY_ICON[ghostEx.category]
           return (
             <div
-              className="pointer-events-none fixed z-[100] flex items-center gap-2.5 rounded-2xl border border-border/80 bg-card px-4 py-2.5 shadow-2xl"
+              className="pointer-events-none fixed z-[100] rounded-full border border-border/70 bg-card px-3.5 py-2 shadow-2xl"
               style={{
                 left: drag.x + 16,
                 top: drag.y - 22,
-                transform: "rotate(2deg)",
                 opacity: 0.95,
               }}
             >
-              <div
-                className="absolute top-0 right-0 left-0 h-[3px] rounded-t-2xl"
-                style={{ backgroundColor: ghostEx.color }}
-              />
-              <div
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl"
-                style={{ backgroundColor: ghostEx.color + "18" }}
-              >
-                <Icon
-                  size={13}
-                  weight="duotone"
-                  style={{ color: ghostEx.color }}
-                />
-              </div>
-              <span className="text-[13px] font-bold tracking-tight">
+              <span className="text-[13px] font-semibold tracking-tight text-foreground">
                 {ghostEx.name}
               </span>
             </div>

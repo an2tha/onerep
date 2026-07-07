@@ -1,30 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react"
-import {
-  Camera,
-  CaretRight,
-  ChartLine,
-  MagnifyingGlass,
-  PaperPlaneTilt,
-  Plus,
-  Question,
-  Sparkle,
-  TrashSimple,
-  X,
-} from "@phosphor-icons/react"
-import { useAction, useMutation, useQuery } from "convex/react"
+import React, { useMemo, useState } from "react"
+import { Camera, CaretRight, ChartLine, Plus, X } from "@phosphor-icons/react"
+import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { toast } from "sonner"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
 import { APP_ACCENT_COLORS } from "@/lib/design-tokens"
 import { rollingAvg } from "@/lib/progress-metrics"
-import { useAiFeatureGate } from "@/lib/ai-access"
 import { useSmoothNavigate } from "@/lib/navigation"
+import type { NutritionPlan } from "@/lib/health-goals"
 
 type GoalId = "lose" | "build" | "health" | "performance"
 
@@ -102,7 +90,8 @@ function formatAxisValue(value: number, unit?: string, digits = 1) {
   const normalized = Math.abs(value) < 0.000001 ? 0 : value
   const abs = Math.abs(normalized)
   const hasFraction = Math.abs(normalized - Math.round(normalized)) > 0.001
-  const displayDigits = digits === 0 && hasFraction ? 1 : abs >= 100 ? 0 : digits
+  const displayDigits =
+    digits === 0 && hasFraction ? 1 : abs >= 100 ? 0 : digits
   return appendUnit(normalized.toFixed(displayDigits), unit)
 }
 
@@ -155,7 +144,7 @@ function MultiLineChart({
 
   const allValues = sharedScale
     ? visibleSeries.flatMap((item) => item.values)
-    : visibleSeries[0]?.values ?? []
+    : (visibleSeries[0]?.values ?? [])
   if (allValues.length === 0) return null
 
   const rawMinValue = Math.min(...allValues)
@@ -174,7 +163,10 @@ function MultiLineChart({
   )
   const axisLabelWidth = Math.min(
     68,
-    Math.max(42, Math.max(...yTickLabels.map((label) => label.length)) * 4.3 + 12)
+    Math.max(
+      42,
+      Math.max(...yTickLabels.map((label) => label.length)) * 4.3 + 12
+    )
   )
   const plot = {
     top: showLegend ? 26 : 12,
@@ -211,16 +203,14 @@ function MultiLineChart({
       if (rawLocalMin >= 0) localMin = Math.max(0, localMin)
     }
     return (
-      plot.top +
-      ((localMax - value) / (localMax - localMin || 1)) * plotHeight
+      plot.top + ((localMax - value) / (localMax - localMin || 1)) * plotHeight
     )
   }
 
   function pointsFor(values: number[]) {
     return values
       .map(
-        (value, index) =>
-          `${xFor(index, values.length)},${yFor(value, values)}`
+        (value, index) => `${xFor(index, values.length)},${yFor(value, values)}`
       )
       .join(" ")
   }
@@ -300,7 +290,7 @@ function MultiLineChart({
       viewBox={`0 0 ${width} ${height}`}
       className={cn(
         "block w-full max-w-full overflow-hidden text-muted-foreground/45",
-        interactive && "touch-none cursor-crosshair select-none",
+        interactive && "cursor-crosshair touch-none select-none",
         className
       )}
       style={{ aspectRatio: `${width} / ${height}` }}
@@ -332,7 +322,7 @@ function MultiLineChart({
                 x="18"
                 y="3"
                 fill="currentColor"
-                className="font-bold text-[8px] uppercase tracking-[0.12em]"
+                className="text-[8px] font-bold tracking-[0.12em] uppercase"
               >
                 {item.label}
               </text>
@@ -360,7 +350,7 @@ function MultiLineChart({
               y={y + 3}
               textAnchor="end"
               fill="currentColor"
-              className="font-bold text-[8px] tabular-nums"
+              className="text-[8px] font-bold tabular-nums"
               opacity="0.78"
             >
               {yTickLabels[index]}
@@ -399,7 +389,7 @@ function MultiLineChart({
               y={height - 9}
               textAnchor="middle"
               fill="currentColor"
-              className="font-bold text-[8px]"
+              className="text-[8px] font-bold"
               opacity="0.72"
             >
               {formatXAxisLabel(index)}
@@ -484,7 +474,7 @@ function MultiLineChart({
               x={tooltipX + 8}
               y={tooltipY + 13}
               fill="currentColor"
-              className="font-extrabold text-[8px]"
+              className="text-[8px] font-extrabold"
             >
               {activeDateLabel}
             </text>
@@ -494,7 +484,7 @@ function MultiLineChart({
                 x={tooltipX + 8}
                 y={tooltipY + 27 + index * 13}
                 fill={item.color}
-                className="font-bold text-[8px] tabular-nums"
+                className="text-[8px] font-bold tabular-nums"
               >
                 {item.label}: {formatAxisValue(value, yUnit, yDigits)}
               </text>
@@ -519,10 +509,10 @@ function MeasurementField({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase tracking-[0.14em]">
+      <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/45 uppercase">
         {label}
       </span>
-      <div className="flex items-center bg-background px-3 border border-border/55 rounded-[10px]">
+      <div className="flex items-center rounded-[10px] border border-border/55 bg-background px-3">
         <input
           type="text"
           name={`body-measurement-${label.toLowerCase().replace(/\s+/g, "-")}`}
@@ -530,7 +520,7 @@ function MeasurementField({
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 bg-transparent outline-none min-w-0 h-11 font-medium tabular-nums text-[14px]"
+          className="h-11 min-w-0 flex-1 bg-transparent text-[14px] font-medium tabular-nums outline-none"
         />
         <span className="text-[10px] text-muted-foreground/45">{unit}</span>
       </div>
@@ -617,14 +607,14 @@ function MeasurementSheet({
       showHandle={!saving}
     >
       <div className="px-4 pt-1">
-        <div className="mb-4 pb-4 border-border/45 border-b">
+        <div className="mb-4 border-b border-border/45 pb-4">
           <p className="app-eyebrow">Daily check-in</p>
-          <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
+          <h2 className="mt-1.5 text-[1.35rem] leading-tight font-semibold">
             Body measurements
           </h2>
         </div>
 
-        <div className="gap-2.5 short-phone:gap-2 grid grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5 short-phone:gap-2">
           {/* Core fields */}
           {[
             {
@@ -660,7 +650,7 @@ function MeasurementSheet({
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
-            className="flex items-center gap-1.5 col-span-2 py-1 font-medium text-[11px] text-muted-foreground/50 active:text-foreground/60 transition-colors"
+            className="col-span-2 flex items-center gap-1.5 py-1 text-[11px] font-medium text-muted-foreground/50 transition-colors active:text-foreground/60"
           >
             <span>{showAdvanced ? "▴" : "▾"}</span>
             {showAdvanced
@@ -688,8 +678,8 @@ function MeasurementSheet({
             ].map((field) => <MeasurementField key={field.label} {...field} />)}
 
           {/* Photo upload section */}
-          <div className="flex flex-col gap-1.5 col-span-2">
-            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
               Progress Photo
             </span>
             <input
@@ -703,11 +693,11 @@ function MeasurementSheet({
               onChange={handlePhotoChange}
             />
             {photoDataUrl ? (
-              <div className="relative border border-border/55 rounded-[18px] w-full aspect-square overflow-hidden">
+              <div className="relative aspect-square w-full overflow-hidden rounded-[18px] border border-border/55">
                 <img
                   src={photoDataUrl}
                   alt="Progress"
-                  className="w-full h-full object-cover"
+                  className="h-full w-full object-cover"
                 />
                 <button
                   type="button"
@@ -716,7 +706,7 @@ function MeasurementSheet({
                     setPhotoDataUrl(undefined)
                     setPhotoFile(undefined)
                   }}
-                  className="top-2 right-2 absolute flex justify-center items-center bg-black/50 active:bg-black/70 backdrop-blur-md rounded-[10px] w-10 h-10 text-white transition-colors"
+                  className="absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-[10px] bg-black/50 text-white backdrop-blur-md transition-colors active:bg-black/70"
                 >
                   <X size={14} weight="bold" />
                 </button>
@@ -725,16 +715,16 @@ function MeasurementSheet({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-col justify-center active:bg-muted/30 w-full h-32 short-phone:h-24 text-muted-foreground/55 active:text-foreground/60 transition-colors app-empty"
+                className="app-empty h-32 w-full flex-col justify-center text-muted-foreground/55 transition-colors active:bg-muted/30 active:text-foreground/60 short-phone:h-24"
               >
                 <Camera size={24} />
-                <span className="font-medium text-[11px]">Add photo</span>
+                <span className="text-[11px] font-medium">Add photo</span>
               </button>
             )}
           </div>
 
-          <label className="flex flex-col gap-1.5 col-span-2">
-            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
+          <label className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
               Date
             </span>
             <input
@@ -743,25 +733,25 @@ function MeasurementSheet({
               aria-label="Body measurement date"
               value={loggedAt}
               onChange={(event) => setLoggedAt(event.target.value)}
-              className="h-11 app-input"
+              className="app-input h-11"
             />
           </label>
 
-          <label className="flex flex-col gap-1.5 col-span-2">
-            <span className="font-semibold text-[10px] text-muted-foreground/45 uppercase">
+          <label className="col-span-2 flex flex-col gap-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground/45 uppercase">
               Notes
             </span>
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={3}
-              className="py-3 min-h-[5.5rem] leading-relaxed app-input"
+              className="app-input min-h-[5.5rem] py-3 leading-relaxed"
               placeholder="Sleep, stress, cycle, travel, hydration."
             />
           </label>
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="mt-4 flex gap-2">
           <button
             type="button"
             disabled={!canSave}
@@ -792,7 +782,7 @@ function MeasurementSheet({
               }
             }}
             className={cn(
-              "flex-1 py-3 text-[13px] transition-colors app-button",
+              "app-button flex-1 py-3 text-[13px] transition-colors",
               canSave
                 ? "bg-foreground text-background active:opacity-80"
                 : "bg-muted text-muted-foreground/40"
@@ -804,7 +794,7 @@ function MeasurementSheet({
             type="button"
             disabled={saving}
             onClick={onClose}
-            className="px-4 py-3 text-[13px] app-button app-button-quiet"
+            className="app-button app-button-quiet px-4 py-3 text-[13px]"
           >
             Cancel
           </button>
@@ -857,22 +847,6 @@ type ComputedMetric = {
   tone?: string
   graph?: MetricGraph
 }
-
-type CustomMetric = {
-  id: string
-  title: string
-  detail: string
-}
-
-const SELECTED_METRICS_KEY = "onerep:progress:selectedMetrics"
-const CUSTOM_METRICS_KEY = "onerep:progress:customMetrics"
-
-const DEFAULT_METRIC_IDS = [
-  "body.weight_rate",
-  "nutrition.protein_adherence",
-  "training.volume_change_7",
-  "quality.data_confidence",
-] as const
 
 type ExerciseProgressStat = {
   id: string
@@ -984,8 +958,12 @@ function goalLabel(goal: GoalId | null) {
   }
 }
 
-function goalAlignedWeightTrend(rateKgPerWeek: number | null, goal: GoalId | null) {
-  if (rateKgPerWeek == null || !Number.isFinite(rateKgPerWeek)) return "Need data"
+function goalAlignedWeightTrend(
+  rateKgPerWeek: number | null,
+  goal: GoalId | null
+) {
+  if (rateKgPerWeek == null || !Number.isFinite(rateKgPerWeek))
+    return "Need data"
   if (goal === "lose") {
     if (rateKgPerWeek < -0.2 && rateKgPerWeek > -1.1) return "On track"
     if (rateKgPerWeek <= -1.1) return "Fast loss"
@@ -1000,11 +978,16 @@ function goalAlignedWeightTrend(rateKgPerWeek: number | null, goal: GoalId | nul
   return rateKgPerWeek > 0 ? "Trending up" : "Trending down"
 }
 
-function goalAlignedWeightTone(rateKgPerWeek: number | null, goal: GoalId | null) {
+function goalAlignedWeightTone(
+  rateKgPerWeek: number | null,
+  goal: GoalId | null
+) {
   const status = goalAlignedWeightTrend(rateKgPerWeek, goal)
-  if (status === "On track" || status === "Stable") return APP_ACCENT_COLORS.complete
+  if (status === "On track" || status === "Stable")
+    return APP_ACCENT_COLORS.complete
   if (status === "Need data") return "var(--foreground)"
-  if (status === "Fast loss" || status === "Fast gain") return APP_ACCENT_COLORS.progress
+  if (status === "Fast loss" || status === "Fast gain")
+    return APP_ACCENT_COLORS.progress
   return "var(--status-danger)"
 }
 
@@ -1109,10 +1092,7 @@ function setVolume(set: ProgressSet) {
   return weight > 0 && reps > 0 ? weight * reps : 0
 }
 
-function compareExerciseData(
-  a: ExerciseProgressStat,
-  b: ExerciseProgressStat
-) {
+function compareExerciseData(a: ExerciseProgressStat, b: ExerciseProgressStat) {
   return (
     b.points.length - a.points.length ||
     b.sessions - a.sessions ||
@@ -1147,14 +1127,14 @@ function ProgressOutcomeCard({
           className="size-2 shrink-0 rounded-full"
           style={{ backgroundColor: tone }}
         />
-        <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.12em] text-muted-foreground/52">
+        <p className="truncate text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/52 uppercase">
           {label}
         </p>
       </div>
-      <p className="truncate text-[1.45rem] font-extrabold leading-none tracking-tight tabular-nums">
+      <p className="truncate text-[1.45rem] leading-none font-extrabold tracking-tight tabular-nums">
         {value}
       </p>
-      <p className="mt-1 text-[11px] font-semibold leading-4 text-muted-foreground/55">
+      <p className="mt-1 text-[11px] leading-4 font-semibold text-muted-foreground/55">
         {detail}
       </p>
       {actionLabel && (
@@ -1169,7 +1149,7 @@ function ProgressOutcomeCard({
     "min-w-0 rounded-[0.9rem] bg-foreground/[0.045] p-3",
     wide && "min-[520px]:col-span-2",
     onAction &&
-      "text-left transition active:scale-[0.99] active:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+      "text-left transition focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:outline-none active:scale-[0.99] active:bg-foreground/[0.07]"
   )
 
   if (onAction) {
@@ -1185,9 +1165,7 @@ function ProgressOutcomeCard({
     )
   }
 
-  return (
-    <div className={className}>{content}</div>
-  )
+  return <div className={className}>{content}</div>
 }
 
 function ProgressActionRow({
@@ -1195,16 +1173,12 @@ function ProgressActionRow({
   detail,
   actionLabel,
   onAction,
-  askAiLabel,
-  onAskAi,
   tone = "var(--foreground)",
 }: {
   title: string
   detail: string
   actionLabel: string
   onAction: () => void
-  askAiLabel: string
-  onAskAi: () => void
   tone?: string
 }) {
   return (
@@ -1215,7 +1189,7 @@ function ProgressActionRow({
           style={{ backgroundColor: tone }}
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-extrabold leading-tight">{title}</p>
+          <p className="text-[13px] leading-tight font-extrabold">{title}</p>
           <p className="mt-1 text-[11.5px] leading-5 text-muted-foreground/58">
             {detail}
           </p>
@@ -1225,20 +1199,11 @@ function ProgressActionRow({
         <button
           type="button"
           onClick={onAction}
-          className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.07] px-3 text-[10.5px] font-extrabold text-foreground transition active:scale-[0.98] active:bg-foreground/[0.11] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.07] px-3 text-[10.5px] font-extrabold text-foreground transition focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:outline-none active:scale-[0.98] active:bg-foreground/[0.11]"
           aria-label={`${actionLabel}: ${title}`}
         >
           {actionLabel}
           <CaretRight size={10} weight="bold" />
-        </button>
-        <button
-          type="button"
-          onClick={onAskAi}
-          className="inline-flex h-8 items-center gap-1 rounded-full bg-foreground/[0.035] px-3 text-[10.5px] font-extrabold text-muted-foreground/58 transition active:scale-[0.98] active:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-          aria-label={`${askAiLabel}: ${title}`}
-        >
-          <Sparkle size={10} weight="fill" />
-          {askAiLabel}
         </button>
       </div>
     </div>
@@ -1286,536 +1251,12 @@ type ProgressInsight = {
   tone?: string
 }
 
-type AiCoachMessage = {
-  id: string
-  role: "user" | "assistant"
-  content: string
-}
-
-function InsightCard({
-  insight,
-  onDelete,
-  onClarify,
-  clarifyBusy = false,
-}: {
-  insight: ProgressInsight
-  onDelete?: (id: string) => void
-  onClarify?: (insight: ProgressInsight) => void
-  clarifyBusy?: boolean
-}) {
-  return (
-    <div className="group/insight bg-foreground/[0.04] px-3 py-3 rounded-[0.9rem] min-w-0">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span
-            className="rounded-full size-2 shrink-0"
-            style={{ backgroundColor: insight.tone ?? "var(--foreground)" }}
-          />
-          <p className="truncate font-bold text-[9.5px] text-muted-foreground/52 uppercase tracking-[0.12em]">
-            {insight.label}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 opacity-60 transition-opacity md:opacity-0 md:group-hover/insight:opacity-70 md:group-focus-within/insight:opacity-70">
-          {onClarify && (
-            <button
-              type="button"
-              disabled={clarifyBusy}
-              onClick={() => onClarify(insight)}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.06] disabled:opacity-35"
-              aria-label={`Ask AI to clarify ${insight.title}`}
-            >
-              <Question size={11} weight="bold" />
-            </button>
-          )}
-          {onDelete && (
-            <button
-              type="button"
-              onClick={() => onDelete(insight.id)}
-              className="flex size-6 items-center justify-center rounded-full text-muted-foreground/40 active:bg-foreground/[0.06]"
-              aria-label={`Delete ${insight.title}`}
-            >
-              <TrashSimple size={11} weight="bold" />
-            </button>
-          )}
-        </div>
-      </div>
-      <p className="mt-2 font-extrabold text-[13px] leading-tight">
-        {insight.title}
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground/58 leading-4">
-        {insight.detail}
-      </p>
-    </div>
-  )
-}
-
-function InsightStrip({
-  insights,
-  onGenerateAi,
-  onOpenAiHistory,
-  onDeleteInsight,
-  onClarifyInsight,
-  aiBusy = false,
-}: {
-  insights: ProgressInsight[]
-  onGenerateAi?: () => void
-  onOpenAiHistory?: () => void
-  onDeleteInsight?: (id: string) => void
-  onClarifyInsight?: (insight: ProgressInsight) => void
-  aiBusy?: boolean
-}) {
-  if (insights.length === 0) return null
-  return (
-    <section className="mt-3 p-4 app-surface">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="app-section-title">Coach analysis</p>
-          <p className="app-section-subtitle">
-            Trends translated into what to do next.
-          </p>
-        </div>
-        {(onGenerateAi || onOpenAiHistory) && (
-          <div className="mt-0.5 flex shrink-0 items-center gap-1">
-            {onGenerateAi && (
-              <button
-                type="button"
-                disabled={aiBusy}
-                onClick={onGenerateAi}
-                className="inline-flex h-7 items-center gap-1 rounded-full bg-foreground/[0.035] px-2 text-[10px] font-bold text-muted-foreground/45 transition-colors active:bg-foreground/[0.07] disabled:opacity-45"
-                aria-label="Generate AI coaching advice"
-              >
-                <Sparkle size={10} weight="fill" />
-                {aiBusy ? "Thinking" : "AI"}
-              </button>
-            )}
-            {onOpenAiHistory && (
-              <button
-                type="button"
-                onClick={onOpenAiHistory}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/[0.025] text-muted-foreground/38 transition-colors active:bg-foreground/[0.06]"
-                aria-label="Open AI coach history"
-              >
-                <CaretRight size={12} weight="bold" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        {insights.slice(0, 10).map((insight) => (
-          <InsightCard
-            key={insight.id}
-            insight={insight}
-            onDelete={onDeleteInsight}
-            onClarify={onClarifyInsight}
-            clarifyBusy={aiBusy}
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function AiCoachModal({
-  messages,
-  input,
-  busy,
-  onInputChange,
-  onSend,
-  onClose,
-  onClear,
-}: {
-  messages: AiCoachMessage[]
-  input: string
-  busy: boolean
-  onInputChange: (value: string) => void
-  onSend: () => void
-  onClose: () => void
-  onClear: () => void
-}) {
-  return (
-    <MobileSheet
-      onClose={onClose}
-      overlayClassName="bg-black/45 backdrop-blur-[5px]"
-      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
-      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
-      maxHeight="88vh"
-    >
-      <div className="flex min-h-[58vh] flex-col px-4 pt-1">
-        <div className="flex items-start justify-between gap-3 border-b border-border/45 pb-3">
-          <div className="min-w-0">
-            <p className="app-eyebrow">AI coach</p>
-            <h2 className="mt-1 text-[1.1rem] font-semibold leading-tight">
-              Coaching history
-            </h2>
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground/48">
-              Each sent message uses 1 AI request.
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {messages.length > 0 && (
-              <button
-                type="button"
-                onClick={onClear}
-                className="flex h-8 items-center rounded-full bg-foreground/[0.035] px-2 text-[10px] font-bold text-muted-foreground/42 active:bg-foreground/[0.06]"
-              >
-                Clear
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex size-8 items-center justify-center rounded-full bg-foreground/[0.045] text-muted-foreground/55"
-              aria-label="Close AI coach"
-            >
-              <X size={13} weight="bold" />
-            </button>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto py-3">
-          {messages.length === 0 ? (
-            <div className="flex h-40 flex-col items-center justify-center rounded-[1rem] bg-foreground/[0.035] px-4 text-center">
-              <Sparkle size={22} className="text-muted-foreground/28" weight="fill" />
-              <p className="mt-2 text-[13px] font-bold">Ask a follow-up</p>
-              <p className="mt-1 max-w-[18rem] text-[11.5px] leading-5 text-muted-foreground/52">
-                Keep it specific: calories, lift plateau, fatigue, or which coaching card to act on first.
-              </p>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "max-w-[88%] rounded-[0.95rem] px-3 py-2 text-[12px] leading-5",
-                  message.role === "user"
-                    ? "ml-auto bg-foreground text-background"
-                    : "mr-auto bg-foreground/[0.045] text-foreground"
-                )}
-              >
-                {message.content}
-              </div>
-            ))
-          )}
-          {busy && (
-            <div className="mr-auto max-w-[88%] rounded-[0.95rem] bg-foreground/[0.045] px-3 py-2 text-[12px] text-muted-foreground/55">
-              Thinking…
-            </div>
-          )}
-        </div>
-
-        <div className="flex shrink-0 gap-2 border-t border-border/35 pt-3">
-          <input
-            value={input}
-            onChange={(event) => onInputChange(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") onSend()
-            }}
-            placeholder="Ask for tailored advice…"
-            className="min-w-0 flex-1 rounded-[0.85rem] bg-foreground/[0.045] px-3 text-[12.5px] font-semibold outline-none placeholder:text-muted-foreground/35"
-          />
-          <button
-            type="button"
-            disabled={busy || input.trim().length < 2}
-            onClick={onSend}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.85rem] bg-foreground text-background disabled:opacity-35"
-            aria-label="Send AI coach message"
-          >
-            <PaperPlaneTilt size={14} weight="bold" />
-          </button>
-        </div>
-      </div>
-    </MobileSheet>
-  )
-}
-
-function EmptyProgressState({
-  title,
-  detail,
-}: {
+type NextProgressAction = {
   title: string
   detail: string
-}) {
-  return (
-    <div className="flex flex-col items-center gap-2 bg-muted/25 px-4 py-8 rounded-[16px] text-center">
-      <ChartLine size={28} className="text-muted-foreground/22" />
-      <p className="font-bold text-[14px]">{title}</p>
-      <p className="max-w-[19rem] text-[12px] text-muted-foreground/55 leading-5">
-        {detail}
-      </p>
-    </div>
-  )
-}
-
-function MetricCard({
-  metric,
-  onRemove,
-  onOpen,
-}: {
-  metric: ComputedMetric
-  onRemove: (id: string) => void
-  onOpen: (id: string) => void
-}) {
-  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault()
-      onOpen(metric.id)
-    }
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpen(metric.id)}
-      onKeyDown={handleKeyDown}
-      className="group relative bg-foreground/[0.045] active:bg-foreground/[0.08] px-3 py-3 rounded-[0.8rem] outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 transition cursor-pointer active:scale-[0.985]"
-      aria-label={`Open ${metric.title} progression graph`}
-    >
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation()
-          onRemove(metric.id)
-        }}
-        className="top-1.5 right-1.5 absolute flex justify-center items-center opacity-0 md:group-hover:opacity-100 group-active:opacity-100 focus:opacity-100 rounded-[0.45rem] w-6 h-6 text-muted-foreground/35 transition-opacity"
-        aria-label={`Remove ${metric.title}`}
-      >
-        <X size={10} weight="bold" />
-      </button>
-      <p className="max-w-[calc(100%-1.5rem)] font-bold text-[10px] text-muted-foreground/62 truncate">
-        {metric.title}
-      </p>
-      <p className="mt-1 font-extrabold tabular-nums text-[1.15rem] leading-none">
-        {metric.value}
-      </p>
-      <p className="mt-1 font-semibold text-[10px] text-muted-foreground/48 truncate">
-        {metric.detail}
-      </p>
-      <div className="flex items-center gap-2 mt-2">
-        <div className="flex-1 bg-background/70 rounded-full h-1 overflow-hidden">
-          <div
-            className="rounded-full h-full"
-            style={{
-              width: "100%",
-              backgroundColor: metric.tone ?? "var(--foreground)",
-              opacity: 0.7,
-            }}
-          />
-        </div>
-        <span className="font-bold text-[8.5px] text-muted-foreground/35 uppercase tracking-[0.12em]">
-          Graph
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function MetricGrid({
-  metrics,
-  onRemove,
-  onOpenMetric,
-  className,
-}: {
-  metrics: ComputedMetric[]
-  onRemove: (id: string) => void
-  onOpenMetric: (id: string) => void
-  className?: string
-}) {
-  if (metrics.length === 0) return null
-  return (
-    <div className={cn("gap-2 grid grid-cols-2", className)}>
-      {metrics.map((metric) => (
-        <MetricCard
-          key={metric.id}
-          metric={metric}
-          onRemove={onRemove}
-          onOpen={onOpenMetric}
-        />
-      ))}
-    </div>
-  )
-}
-
-function MetricSearchSheet({
-  metrics,
-  selectedIds,
-  customMetrics,
-  onAddMetric,
-  onRemoveMetric,
-  onAddCustomMetric,
-  onAiGenerate,
-  onClose,
-}: {
-  metrics: ComputedMetric[]
-  selectedIds: string[]
-  customMetrics: CustomMetric[]
-  onAddMetric: (id: string) => void
-  onRemoveMetric: (id: string) => void
-  onAddCustomMetric: (title: string) => void
-  onAiGenerate: (prompt: string) => Promise<void> | void
-  onClose: () => void
-}) {
-  const [query, setQuery] = useState("")
-  const [aiPrompt, setAiPrompt] = useState("")
-  const [aiBusy, setAiBusy] = useState(false)
-  const normalizedQuery = query.trim().toLowerCase()
-  const visibleMetrics = normalizedQuery
-    ? metrics.filter((metric) =>
-        [metric.title, metric.group, metric.description, ...metric.keywords]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedQuery)
-      )
-    : metrics
-
-  return (
-    <MobileSheet
-      onClose={onClose}
-      overlayClassName="bg-black/45 backdrop-blur-[5px]"
-      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
-      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
-    >
-      <div className="px-4 pt-1">
-        <div className="mb-4 pb-4 border-border/45 border-b">
-          <p className="app-eyebrow">Metric library</p>
-          <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
-            Add progress metrics
-          </h2>
-          <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
-            Search, pin, remove, or generate a custom metric idea.
-          </p>
-        </div>
-
-        <div className="space-y-3">
-          <div className="relative">
-            <MagnifyingGlass
-              size={14}
-              className="top-1/2 left-3 absolute text-muted-foreground/45 -translate-y-1/2 pointer-events-none"
-            />
-            <input
-              type="search"
-              name="metric-library-search"
-              aria-label="Search progress metrics"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search metrics: volume, waist, protein, streak..."
-              className="bg-foreground/[0.045] pr-3 pl-9 border-0 rounded-[0.8rem] outline-none w-full h-11 font-semibold text-[13px] placeholder:text-muted-foreground/38"
-            />
-          </div>
-
-          <div className="bg-foreground/[0.035] p-3 rounded-[0.9rem]">
-            <p className="font-bold text-[10px] text-muted-foreground/58">
-              AI generate
-            </p>
-            <div className="flex gap-2 mt-2">
-              <input
-                name="metric-ai-prompt"
-                aria-label="Describe a metric to generate"
-                value={aiPrompt}
-                onChange={(event) => setAiPrompt(event.target.value)}
-                placeholder="e.g. fat loss, bench progress, consistency"
-                className="flex-1 bg-background px-3 border-0 rounded-[0.7rem] outline-none min-w-0 font-semibold text-[12.5px] placeholder:text-muted-foreground/36"
-              />
-              <button
-                type="button"
-                disabled={aiBusy}
-                onClick={async () => {
-                  if (aiBusy) return
-                  setAiBusy(true)
-                  try {
-                    await onAiGenerate(aiPrompt)
-                    setAiPrompt("")
-                  } finally {
-                    setAiBusy(false)
-                  }
-                }}
-                className="disabled:opacity-45 px-3 h-10 text-[12px] app-button app-button-primary shrink-0"
-              >
-                {aiBusy ? "Generating" : "Generate"}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2 pr-1 max-h-[45vh] overflow-y-auto">
-            {visibleMetrics.map((metric) => {
-              const selected = selectedIds.includes(metric.id)
-              return (
-                <button
-                  key={metric.id}
-                  type="button"
-                  onClick={() =>
-                    selected
-                      ? onRemoveMetric(metric.id)
-                      : onAddMetric(metric.id)
-                  }
-                  className={cn(
-                    "px-3 py-3 rounded-[0.85rem] w-full text-left transition-colors",
-                    selected
-                      ? "bg-foreground text-background"
-                      : "bg-foreground/[0.035] active:bg-foreground/[0.07]"
-                  )}
-                >
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="min-w-0">
-                      <p className="font-bold text-[13px] truncate">
-                        {metric.title}
-                      </p>
-                      <p
-                        className={cn(
-                          "mt-0.5 text-[11px] leading-4",
-                          selected
-                            ? "text-background/64"
-                            : "text-muted-foreground/56"
-                        )}
-                      >
-                        {metric.description}
-                      </p>
-                    </div>
-                    <span className="opacity-65 font-bold text-[10px] shrink-0">
-                      {selected ? "Added" : metric.group}
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="bg-foreground/[0.035] p-3 rounded-[0.9rem]">
-            <p className="font-bold text-[10px] text-muted-foreground/58">
-              Custom metric
-            </p>
-            <div className="flex gap-2 mt-2">
-              <input
-                name="custom-progress-metric"
-                aria-label="Custom progress metric name"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Type a metric name"
-                className="flex-1 bg-background px-3 border-0 rounded-[0.7rem] outline-none min-w-0 font-semibold text-[12.5px] placeholder:text-muted-foreground/36"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  onAddCustomMetric(query)
-                  setQuery("")
-                }}
-                className="px-3 h-10 text-[12px] app-button app-button-quiet shrink-0"
-              >
-                Add custom
-              </button>
-            </div>
-            {customMetrics.length > 0 && (
-              <p className="mt-2 text-[10px] text-muted-foreground/42">
-                {customMetrics.length} custom metric
-                {customMetrics.length === 1 ? "" : "s"} saved locally.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-    </MobileSheet>
-  )
+  tone: string
+  actionLabel: string
+  onAction: () => void
 }
 
 function MetricProgressChart({
@@ -1876,132 +1317,6 @@ function ExpandableChartButton({
   )
 }
 
-function MetricProgressSheet({
-  metric,
-  onClose,
-}: {
-  metric: ComputedMetric
-  onClose: () => void
-}) {
-  const graph = metric.graph
-  const primarySeries = graph?.series.find((item) => item.points.length > 0)
-  const firstPoint = primarySeries?.points[0]
-  const lastPoint = primarySeries?.points.at(-1)
-  const delta =
-    firstPoint && lastPoint ? lastPoint.value - firstPoint.value : null
-
-  return (
-    <MobileSheet
-      onClose={onClose}
-      overlayClassName="bg-black/45 backdrop-blur-[5px]"
-      panelClassName="sheet-panel app-sheet-panel mx-auto w-full max-w-sm border-t border-border/60"
-      panelStyle={{ paddingBottom: "var(--app-safe-bottom-lg)" }}
-      maxHeight="90vh"
-    >
-      <div className="px-4 pt-1">
-        <div className="flex justify-between items-start gap-3 mb-4 pb-4 border-border/45 border-b">
-          <div className="min-w-0">
-            <p className="app-eyebrow">{metric.group} progression</p>
-            <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
-              {graph?.title ?? metric.title}
-            </h2>
-            <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
-              {graph?.subtitle ?? metric.description}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex justify-center items-center bg-foreground/[0.045] rounded-full w-9 h-9 text-muted-foreground/55 shrink-0"
-            aria-label="Close metric graph"
-          >
-            <X size={14} weight="bold" />
-          </button>
-        </div>
-
-        <div className="bg-foreground/[0.04] p-3 rounded-[1rem]">
-          <div className="flex justify-between items-start gap-3">
-            <div className="min-w-0">
-              <p className="font-bold text-[10px] text-muted-foreground/52 uppercase tracking-[0.13em]">
-                Current
-              </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[1.75rem] leading-none">
-                {metric.value}
-              </p>
-              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/52 truncate">
-                {metric.detail}
-              </p>
-            </div>
-            {delta != null && graph && (
-              <div className="bg-background/80 px-3 py-2 rounded-[0.8rem] text-right shrink-0">
-                <p className="font-bold text-[10px] text-muted-foreground/48">
-                  Change
-                </p>
-                <p className="mt-0.5 font-extrabold tabular-nums text-[15px]">
-                  {formatGraphMetricDelta(delta, graph)}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-background/65 mt-4 px-2 pt-3 pb-2 rounded-[0.9rem]">
-            {graph && primarySeries ? (
-              <MetricProgressChart graph={graph} interactive />
-            ) : (
-              <div className="flex flex-col justify-center items-center gap-2 h-36 text-center">
-                <ChartLine size={26} className="text-muted-foreground/25" />
-                <p className="font-bold text-[13px]">No progression yet</p>
-                <p className="max-w-[18rem] text-[11.5px] text-muted-foreground/52 leading-5">
-                  {graph?.emptyDetail ??
-                    "Keep logging this metric and its trend will appear here."}
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {graph && firstPoint && lastPoint && (
-          <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
-                First
-              </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
-                {formatGraphMetricValue(firstPoint.value, graph)}
-              </p>
-              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
-                {formatMeasurementDate(firstPoint.date)}
-              </p>
-            </div>
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
-                Latest
-              </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
-                {formatGraphMetricValue(lastPoint.value, graph)}
-              </p>
-              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
-                {formatMeasurementDate(lastPoint.date)}
-              </p>
-            </div>
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
-                Points
-              </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
-                {primarySeries.points.length}
-              </p>
-              <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
-                logged
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    </MobileSheet>
-  )
-}
-
 function ExpandedGraphSheet({
   graph,
   onClose,
@@ -2024,75 +1339,75 @@ function ExpandedGraphSheet({
       maxHeight="92vh"
     >
       <div className="px-4 pt-1">
-        <div className="flex justify-between items-start gap-3 mb-4 pb-4 border-border/45 border-b">
+        <div className="mb-4 flex items-start justify-between gap-3 border-b border-border/45 pb-4">
           <div className="min-w-0">
             <p className="app-eyebrow">Interactive graph</p>
-            <h2 className="mt-1.5 font-semibold text-[1.35rem] leading-tight">
+            <h2 className="mt-1.5 text-[1.35rem] leading-tight font-semibold">
               {graph.title}
             </h2>
-            <p className="mt-1 text-[12px] text-muted-foreground/58 leading-5">
+            <p className="mt-1 text-[12px] leading-5 text-muted-foreground/58">
               {graph.subtitle}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex justify-center items-center bg-foreground/[0.045] rounded-full w-9 h-9 text-muted-foreground/55 shrink-0"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/[0.045] text-muted-foreground/55"
             aria-label="Close expanded graph"
           >
             <X size={14} weight="bold" />
           </button>
         </div>
 
-        <div className="bg-foreground/[0.04] p-3 rounded-[1rem]">
-          <div className="bg-background/70 px-2 pt-3 pb-2 rounded-[0.9rem]">
+        <div className="rounded-[1rem] bg-foreground/[0.04] p-3">
+          <div className="rounded-[0.9rem] bg-background/70 px-2 pt-3 pb-2">
             {primarySeries ? (
               <MetricProgressChart graph={graph} expanded interactive />
             ) : (
-              <div className="flex flex-col justify-center items-center gap-2 h-44 text-center">
+              <div className="flex h-44 flex-col items-center justify-center gap-2 text-center">
                 <ChartLine size={28} className="text-muted-foreground/25" />
-                <p className="font-bold text-[13px]">No progression yet</p>
-                <p className="max-w-[18rem] text-[11.5px] text-muted-foreground/52 leading-5">
+                <p className="text-[13px] font-bold">No progression yet</p>
+                <p className="max-w-[18rem] text-[11.5px] leading-5 text-muted-foreground/52">
                   {graph.emptyDetail ??
                     "Keep logging this metric and its trend will appear here."}
                 </p>
               </div>
             )}
           </div>
-          <p className="mt-3 text-center font-bold text-[10px] text-muted-foreground/42 uppercase tracking-[0.14em]">
+          <p className="mt-3 text-center text-[10px] font-bold tracking-[0.14em] text-muted-foreground/42 uppercase">
             Drag or tap across the chart for exact values
           </p>
         </div>
 
         {graph && firstPoint && lastPoint && (
           <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+            <div className="rounded-[0.85rem] bg-foreground/[0.04] px-3 py-3">
+              <p className="text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/50 uppercase">
                 Start
               </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+              <p className="mt-1 truncate text-[13px] font-extrabold tabular-nums">
                 {formatGraphMetricValue(firstPoint.value, graph)}
               </p>
               <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
                 {formatMeasurementDate(firstPoint.date)}
               </p>
             </div>
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+            <div className="rounded-[0.85rem] bg-foreground/[0.04] px-3 py-3">
+              <p className="text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/50 uppercase">
                 Latest
               </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+              <p className="mt-1 truncate text-[13px] font-extrabold tabular-nums">
                 {formatGraphMetricValue(lastPoint.value, graph)}
               </p>
               <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
                 {formatMeasurementDate(lastPoint.date)}
               </p>
             </div>
-            <div className="bg-foreground/[0.04] px-3 py-3 rounded-[0.85rem]">
-              <p className="font-bold text-[9.5px] text-muted-foreground/50 uppercase tracking-[0.12em]">
+            <div className="rounded-[0.85rem] bg-foreground/[0.04] px-3 py-3">
+              <p className="text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/50 uppercase">
                 Delta
               </p>
-              <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
+              <p className="mt-1 truncate text-[13px] font-extrabold tabular-nums">
                 {delta == null ? "—" : formatGraphMetricDelta(delta, graph)}
               </p>
               <p className="mt-0.5 text-[9.5px] text-muted-foreground/42">
@@ -2220,26 +1535,23 @@ export default function Progress() {
     limit: 30,
   })
   const goals = useQuery(api.users.users.getEffectiveGoals, { date: todayKey })
-  const generateMetricSet = useAction(api.ai.metricGeneration.generateMetricSet)
-  const generateCoachAdvice = useAction(
-    api.ai.metricGeneration.generateCoachAdvice
-  )
-  const generateCoachChatMessage = useAction(
-    api.ai.metricGeneration.generateCoachChatMessage
-  )
-  const { hasAiAccess, requireAiAccess, aiAccessModal } = useAiFeatureGate()
+  const nutritionPlanRaw = useQuery(api.users.users.getNutritionPlan, {
+    date: todayKey,
+  })
 
   const generateUploadUrl = useMutation(api.bodyProgress.generateUploadUrl)
   const saveMeasurement = useOfflineMutation(
     api.bodyProgress.save,
     "bodyProgress.save"
   )
-  const removeMeasurement = useOfflineMutation(
-    api.bodyProgress.remove,
-    "bodyProgress.remove"
-  )
 
   const goal = (onboarding?.goal as GoalId) ?? null
+  const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
+  const protectedNutritionMode =
+    nutritionPlan?.safetyMode === "habit" ||
+    nutritionPlan?.safetyMode === "clinician" ||
+    nutritionPlan?.safetyMode === "recovery" ||
+    nutritionPlan?.trackingMode === "recovery"
   const entries = useMemo(
     () =>
       [...((measurementsQuery ?? []) as BodyMeasurementEntry[])].sort((a, b) =>
@@ -2255,93 +1567,10 @@ export default function Progress() {
     [workoutHistory]
   )
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [metricSheetOpen, setMetricSheetOpen] = useState(false)
-  const [openMetricGraphId, setOpenMetricGraphId] = useState<string | null>(
-    null
-  )
   const [expandedMetricGraphId, setExpandedMetricGraphId] = useState<
     string | null
   >(null)
   useBottomBarAction(() => setSheetOpen(true))
-  const [selectedMetricIds, setSelectedMetricIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [...DEFAULT_METRIC_IDS]
-    try {
-      const saved = window.localStorage.getItem(SELECTED_METRICS_KEY)
-      const parsed = saved ? JSON.parse(saved) : null
-      return Array.isArray(parsed) && parsed.length > 0
-        ? parsed.filter((id): id is string => typeof id === "string")
-        : [...DEFAULT_METRIC_IDS]
-    } catch {
-      return [...DEFAULT_METRIC_IDS]
-    }
-  })
-  const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const saved = window.localStorage.getItem(CUSTOM_METRICS_KEY)
-      const parsed = saved ? JSON.parse(saved) : null
-      return Array.isArray(parsed)
-        ? parsed.filter(
-            (metric): metric is CustomMetric =>
-              typeof metric?.id === "string" &&
-              typeof metric?.title === "string" &&
-              typeof metric?.detail === "string"
-          )
-        : []
-    } catch {
-      return []
-    }
-  })
-  const [exerciseQuery, setExerciseQuery] = useState("")
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null
-  )
-  const [aiCoachInsights, setAiCoachInsights] = useState<ProgressInsight[]>([])
-  const [dismissedInsightIds, setDismissedInsightIds] = useState<string[]>([])
-  const [aiCoachBusy, setAiCoachBusy] = useState(false)
-  const [aiCoachOpen, setAiCoachOpen] = useState(false)
-  const [aiCoachInput, setAiCoachInput] = useState("")
-  const [aiCoachMessages, setAiCoachMessages] = useState<AiCoachMessage[]>(() => {
-    if (typeof window === "undefined") return []
-    try {
-      const saved = window.localStorage.getItem("onerep:progress:aiCoachHistory")
-      const parsed = saved ? JSON.parse(saved) : null
-      return Array.isArray(parsed)
-        ? parsed.filter(
-            (message): message is AiCoachMessage =>
-              typeof message?.id === "string" &&
-              (message?.role === "user" || message?.role === "assistant") &&
-              typeof message?.content === "string"
-          )
-        : []
-    } catch {
-      return []
-    }
-  })
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    window.localStorage.setItem(
-      SELECTED_METRICS_KEY,
-      JSON.stringify(selectedMetricIds)
-    )
-  }, [selectedMetricIds])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    window.localStorage.setItem(
-      CUSTOM_METRICS_KEY,
-      JSON.stringify(customMetrics)
-    )
-  }, [customMetrics])
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    window.localStorage.setItem(
-      "onerep:progress:aiCoachHistory",
-      JSON.stringify(aiCoachMessages.slice(-30))
-    )
-  }, [aiCoachMessages])
 
   const latest = entries.at(-1) ?? null
   const weightEntries = entries.filter((entry) => entry.weightKg != null)
@@ -2396,36 +1625,7 @@ export default function Progress() {
     [exerciseProgress.stats]
   )
 
-  const selectedExercise =
-    exerciseProgress.stats.find((exercise) => exercise.id === selectedExerciseId) ??
-    topDataExercises[0] ??
-    exerciseProgress.topExercise
-
-  const exerciseChoices = useMemo(() => {
-    if (
-      selectedExercise &&
-      !topDataExercises.some((exercise) => exercise.id === selectedExercise.id)
-    ) {
-      return [
-        selectedExercise,
-        ...topDataExercises.filter((exercise) => exercise.id !== selectedExercise.id),
-      ].slice(0, 3)
-    }
-    return topDataExercises
-  }, [selectedExercise, topDataExercises])
-
-  const exerciseSearchResults = useMemo(() => {
-    const query = exerciseQuery.trim().toLowerCase()
-    if (!query) return []
-    const visibleIds = new Set(exerciseChoices.map((exercise) => exercise.id))
-    return exerciseProgress.stats
-      .filter(
-        (exercise) =>
-          !visibleIds.has(exercise.id) &&
-          exercise.name.toLowerCase().includes(query)
-      )
-      .sort(compareExerciseData)
-  }, [exerciseChoices, exerciseProgress.stats, exerciseQuery])
+  const selectedExercise = topDataExercises[0] ?? exerciseProgress.topExercise
 
   const bodyCheckinDays30 = new Set(
     entries
@@ -2493,7 +1693,9 @@ export default function Progress() {
       const hardSets = sets.filter(
         (set) =>
           setVolume(set) > 0 &&
-          !String(set.type ?? "").toLowerCase().includes("warm")
+          !String(set.type ?? "")
+            .toLowerCase()
+            .includes("warm")
       )
       const strengthVolume = sets.reduce((sum, set) => sum + setVolume(set), 0)
       totals.sets += sets.length
@@ -2557,16 +1759,20 @@ export default function Progress() {
   }))
   const selectedLiftRatePoints = selectedBestProgress.map((point, index) => {
     const first = selectedBestProgress[0]
-    const days = first ? Math.max(1, daysBetweenKeys(first.date, point.date)) : 1
+    const days = first
+      ? Math.max(1, daysBetweenKeys(first.date, point.date))
+      : 1
     return {
       date: point.date,
       value: first && index > 0 ? ((point.value - first.value) / days) * 7 : 0,
     }
   })
-  const selectedSessionProgress = selectedExercisePoints.map((point, index) => ({
-    date: point.date,
-    value: index + 1,
-  }))
+  const selectedSessionProgress = selectedExercisePoints.map(
+    (point, index) => ({
+      date: point.date,
+      value: index + 1,
+    })
+  )
   const selectedSetsProgress = cumulativePoints(
     selectedExercisePoints,
     (point) => point.sets
@@ -2604,7 +1810,9 @@ export default function Progress() {
   const weightGoalTone = goalAlignedWeightTone(weightRateKgPerWeek, goal)
   const weightRatePoints = bodyWeightPoints.map((point, index) => {
     const first = bodyWeightPoints[0]
-    const days = first ? Math.max(1, daysBetweenKeys(first.date, point.date)) : 1
+    const days = first
+      ? Math.max(1, daysBetweenKeys(first.date, point.date))
+      : 1
     return {
       date: point.date,
       value: first && index > 0 ? ((point.value - first.value) / days) * 7 : 0,
@@ -2656,7 +1864,9 @@ export default function Progress() {
     }
   })
   const loggedFoodRecords = foodRecords.filter((record) => record.logged)
-  const averageProtein = average(loggedFoodRecords.map((record) => record.protein))
+  const averageProtein = average(
+    loggedFoodRecords.map((record) => record.protein)
+  )
   const proteinHitRecords = loggedFoodRecords.map((record) => ({
     date: record.date,
     value: record.protein >= proteinTarget * 0.9 ? 100 : 0,
@@ -2685,13 +1895,19 @@ export default function Progress() {
   )
   const avgCalorieDeviation = Math.round(
     average(
-      loggedFoodRecords.map((record) => Math.abs(record.calories - calorieTarget))
+      loggedFoodRecords.map((record) =>
+        Math.abs(record.calories - calorieTarget)
+      )
     )
   )
-  const calorieAccuracyProgress = cumulativeAveragePoints(calorieAccuracyRecords)
+  const calorieAccuracyProgress = cumulativeAveragePoints(
+    calorieAccuracyRecords
+  )
   const macroScorePoints = loggedFoodRecords.map((record) => {
-    const calorieScore = 1 - Math.abs(record.calories - calorieTarget) / calorieTarget
-    const proteinScore = 1 - Math.abs(record.protein - proteinTarget) / proteinTarget
+    const calorieScore =
+      1 - Math.abs(record.calories - calorieTarget) / calorieTarget
+    const proteinScore =
+      1 - Math.abs(record.protein - proteinTarget) / proteinTarget
     const carbsScore = 1 - Math.abs(record.carbs - carbsTarget) / carbsTarget
     const fatScore = 1 - Math.abs(record.fat - fatTarget) / fatTarget
     return {
@@ -2736,10 +1952,7 @@ export default function Progress() {
       .filter((record) => record.logged && previous7Set.has(record.date))
       .map((record) => record.protein)
   )
-  const proteinChange7Pct = percentChange(
-    avgProteinLast7,
-    avgProteinPrevious7
-  )
+  const proteinChange7Pct = percentChange(avgProteinLast7, avgProteinPrevious7)
   const last7Volume = sumValues(
     last7.map((date) => workoutTotalsByDate.get(date)?.volume ?? 0)
   )
@@ -2755,7 +1968,9 @@ export default function Progress() {
       previous7HardSets += sets.filter(
         (set) =>
           setVolume(set) > 0 &&
-          !String(set.type ?? "").toLowerCase().includes("warm")
+          !String(set.type ?? "")
+            .toLowerCase()
+            .includes("warm")
       ).length
     }
   }
@@ -2763,7 +1978,10 @@ export default function Progress() {
     last7.map((date) => workoutTotalsByDate.get(date)?.hardSets ?? 0)
   )
   const volumeChange7Pct = percentChange(last7Volume, previous7Volume)
-  const workoutDayChange7Pct = percentChange(workoutDays7.size, previous7WorkoutDays)
+  const workoutDayChange7Pct = percentChange(
+    workoutDays7.size,
+    previous7WorkoutDays
+  )
   const hardSetChange7Pct = percentChange(last7HardSets, previous7HardSets)
   const avgHardSetsPerWeek30 = exerciseProgress.sets30 / (30 / 7)
   const topCategory = Array.from(categoryVolume30.entries()).sort(
@@ -2777,29 +1995,36 @@ export default function Progress() {
   ).length
   const selectedLiftFrequency = selectedLiftSessions30 / (30 / 7)
   const selectedLiftRateKgPerWeek = valuePerWeek(selectedBestProgress)
-  const selectedPrRatePerMonth = selectedExercisePoints.length >= 2
-    ? safeRatio(
-        selectedExercise?.prs ?? 0,
-        Math.max(
-          1,
-          daysBetweenKeys(
-            selectedExercisePoints[0].date,
-            selectedExercisePoints[selectedExercisePoints.length - 1].date
-          ) / 30
+  const selectedPrRatePerMonth =
+    selectedExercisePoints.length >= 2
+      ? safeRatio(
+          selectedExercise?.prs ?? 0,
+          Math.max(
+            1,
+            daysBetweenKeys(
+              selectedExercisePoints[0].date,
+              selectedExercisePoints[selectedExercisePoints.length - 1].date
+            ) / 30
+          )
         )
-      )
-    : 0
+      : 0
 
   const bodyConfidence = Math.round(
     clamp(
       safeRatio(weightEntries.length, 8) * 55 +
-        (latestCheckInAge == null ? 0 : clamp((14 - latestCheckInAge) / 14, 0, 1) * 45),
+        (latestCheckInAge == null
+          ? 0
+          : clamp((14 - latestCheckInAge) / 14, 0, 1) * 45),
       0,
       100
     )
   )
-  const nutritionConfidence = Math.round(clamp(safeRatio(foodDateSet.size, 14) * 100, 0, 100))
-  const trainingConfidence = Math.round(clamp(safeRatio(workoutDays30.size, 8) * 100, 0, 100))
+  const nutritionConfidence = Math.round(
+    clamp(safeRatio(foodDateSet.size, 14) * 100, 0, 100)
+  )
+  const trainingConfidence = Math.round(
+    clamp(safeRatio(workoutDays30.size, 8) * 100, 0, 100)
+  )
   const dataConfidenceScore = Math.round(
     average([bodyConfidence, nutritionConfidence, trainingConfidence])
   )
@@ -2850,7 +2075,8 @@ export default function Progress() {
   const highWorkloadSpike =
     (volumeChange7Pct != null && volumeChange7Pct > 40) || last7HardSets > 26
   const workloadDrop = volumeChange7Pct != null && volumeChange7Pct < -30
-  const lowTrainingDose = workoutDays7.size <= 1 || (last7HardSets > 0 && last7HardSets < 6)
+  const lowTrainingDose =
+    workoutDays7.size <= 1 || (last7HardSets > 0 && last7HardSets < 6)
   const strengthStall =
     selectedExercise != null &&
     selectedExercise.sessions >= 4 &&
@@ -2883,7 +2109,9 @@ export default function Progress() {
         ? "Recomp signal: waist down while scale is flat"
         : fatMassRateKgPerWeek != null && fatMassRateKgPerWeek < -0.1
           ? `Fat mass trending ${signedValue(fatMassRateKgPerWeek, " kg/wk")}`
-          : goal === "build" && waistToWeightDelta != null && waistToWeightDelta > 0.03
+          : goal === "build" &&
+              waistToWeightDelta != null &&
+              waistToWeightDelta > 0.03
             ? "Bulk may be getting waist-heavy"
             : "Composition needs paired measurements",
       detail: recompSignal
@@ -2893,18 +2121,26 @@ export default function Progress() {
           : bodyFatRatePctPerWeek != null
             ? `Body-fat estimate is moving ${signedValue(bodyFatRatePctPerWeek, "%/wk")}. Keep pairing weight with waist/body-fat logs.`
             : "Log weight with waist or body-fat on the same days to separate fat loss from scale noise.",
-      tone: recompSignal || (fatMassRateKgPerWeek != null && fatMassRateKgPerWeek < -0.1)
-        ? APP_ACCENT_COLORS.complete
-        : APP_ACCENT_COLORS.progress,
+      tone:
+        recompSignal ||
+        (fatMassRateKgPerWeek != null && fatMassRateKgPerWeek < -0.1)
+          ? APP_ACCENT_COLORS.complete
+          : APP_ACCENT_COLORS.progress,
     })
   }
 
-  if (loggedFoodRecords.length >= 5 && weightRateKgPerWeek != null) {
+  if (
+    loggedFoodRecords.length >= 5 &&
+    weightRateKgPerWeek != null &&
+    !protectedNutritionMode
+  ) {
     progressInsights.push({
       id: "energy-balance",
       label: "energy balance",
       title:
-        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+        goal === "lose" &&
+        weightRateKgPerWeek > -0.2 &&
+        (avgCaloriesVsTarget ?? 0) > 100
           ? "Deficit is not showing up yet"
           : (goal === "build" || goal === "performance") &&
               weightRateKgPerWeek < 0.1 &&
@@ -2914,15 +2150,20 @@ export default function Progress() {
               ? "Cut pace is aggressive"
               : "Calories and scale are coherent",
       detail:
-        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+        goal === "lose" &&
+        weightRateKgPerWeek > -0.2 &&
+        (avgCaloriesVsTarget ?? 0) > 100
           ? `Average intake is ${Math.abs(avgCaloriesVsTarget ?? 0)} cal above target while weight is not dropping. Tighten logging before lowering targets.`
-          : (goal === "build" || goal === "performance") && weightRateKgPerWeek < 0.1
+          : (goal === "build" || goal === "performance") &&
+              weightRateKgPerWeek < 0.1
             ? "If performance is the priority, add a small planned calorie bump or improve carb timing around training."
             : goal === "lose" && weightRateKgPerWeek < -1.1
               ? "Fast loss can be fine briefly, but protect protein and training performance before pushing harder."
               : "Food logs and body trend point in the same direction; this makes adjustments more reliable.",
       tone:
-        goal === "lose" && weightRateKgPerWeek > -0.2 && (avgCaloriesVsTarget ?? 0) > 100
+        goal === "lose" &&
+        weightRateKgPerWeek > -0.2 &&
+        (avgCaloriesVsTarget ?? 0) > 100
           ? "var(--status-danger)"
           : APP_ACCENT_COLORS.complete,
     })
@@ -2933,9 +2174,25 @@ export default function Progress() {
       id: "nutrition-sampling",
       label: "nutrition data",
       title: `Only ${foodLoggedDays7}/7 food days logged`,
-      detail:
-        "Weekly calorie and macro conclusions are weak. Log at least four days this week before making target changes.",
+      detail: protectedNutritionMode
+        ? "Keep logging simple. A few consistent meals, protein anchors, or photos are enough to guide the next step."
+        : "Weekly calorie and macro conclusions are weak. Log at least four days this week before making target changes.",
       tone: APP_ACCENT_COLORS.progress,
+    })
+  }
+
+  if (
+    nutritionPlan?.calibration.status &&
+    nutritionPlan.calibration.status !== "collect_more_data"
+  ) {
+    progressInsights.push({
+      id: "nutrition-plan-calibration",
+      label: "nutrition plan",
+      title: nutritionPlan.calibration.title,
+      detail: nutritionPlan.calibration.detail,
+      tone: nutritionPlan.calibration.canApply
+        ? APP_ACCENT_COLORS.progress
+        : APP_ACCENT_COLORS.complete,
     })
   }
 
@@ -2943,20 +2200,23 @@ export default function Progress() {
     progressInsights.push({
       id: "nutrition-quality",
       label: "nutrition quality",
-      title:
-        proteinAdherence < 70
+      title: protectedNutritionMode
+        ? "Nutrition logging is staying low pressure"
+        : proteinAdherence < 70
           ? `Protein is the weak link (${proteinAdherence}%)`
           : calorieAccuracy < 60
             ? `Calories are drifting (${avgCalorieDeviation} cal avg miss)`
             : `Nutrition is consistent (${macroConsistency}%)`,
-      detail:
-        proteinAdherence < 70
+      detail: protectedNutritionMode
+        ? "Use the tracking mode you chose; avoid streak pressure and aggressive over/under framing."
+        : proteinAdherence < 70
           ? `Average protein is ${Math.round(averageProtein)}g against a ${proteinTarget}g target. Prioritize protein before chasing smaller macro tweaks.`
           : calorieAccuracy < 60
             ? "Most logged days are outside ±10% of target. Tighten portions or plan meals earlier in the day."
             : "Protein and macro targets are close enough for the trend data to mean something.",
       tone:
-        proteinAdherence >= 70 && calorieAccuracy >= 60
+        protectedNutritionMode ||
+        (proteinAdherence >= 70 && calorieAccuracy >= 60)
           ? APP_ACCENT_COLORS.complete
           : "var(--status-danger)",
     })
@@ -2971,7 +2231,8 @@ export default function Progress() {
           ? `${selectedExercise.name} is under-dosed`
           : strengthStall
             ? `${selectedExercise.name} is stalling`
-            : selectedLiftRateKgPerWeek != null && selectedLiftRateKgPerWeek > 0.25
+            : selectedLiftRateKgPerWeek != null &&
+                selectedLiftRateKgPerWeek > 0.25
               ? `${selectedExercise.name} has momentum`
               : `${selectedExercise.name} is being maintained`,
       detail:
@@ -3003,7 +2264,9 @@ export default function Progress() {
         : workloadDrop
           ? "If this was not a planned deload, schedule one achievable session to keep momentum."
           : "One or fewer workout days, or fewer than six hard sets, is usually not enough stimulus for visible strength progress.",
-      tone: highWorkloadSpike ? APP_ACCENT_COLORS.progress : "var(--status-danger)",
+      tone: highWorkloadSpike
+        ? APP_ACCENT_COLORS.progress
+        : "var(--status-danger)",
     })
   }
 
@@ -3057,7 +2320,8 @@ export default function Progress() {
             ? `${topCategory[0]} is your largest recent focus at ${Math.round(categoryFocusShare)}% of tonnage.`
             : "Log completed sets with weights to unlock workload and focus analysis.",
     tone:
-      volumeChange7Pct != null && (volumeChange7Pct < -30 || volumeChange7Pct > 40)
+      volumeChange7Pct != null &&
+      (volumeChange7Pct < -30 || volumeChange7Pct > 40)
         ? APP_ACCENT_COLORS.progress
         : APP_ACCENT_COLORS.complete,
   })
@@ -3080,823 +2344,864 @@ export default function Progress() {
   })
 
   const metricCatalog: ComputedMetric[] = (() => {
-      const metricGraphs = new Map<string, MetricGraph>([
-        [
-          "body.weight_current",
-          {
-            title: "Weight trend",
-            subtitle: "Scale weight across logged body check-ins.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Add at least one weight check-in to begin the line.",
-            series: [
-              {
-                label: "Weight",
-                points: bodyWeightPoints,
-                color: APP_ACCENT_COLORS.water,
-                strokeWidth: 2.8,
-              },
-              ...(weightRollingPoints.length >= 2
-                ? [
-                    {
-                      label: "Rolling",
-                      points: weightRollingPoints,
-                      color: "color-mix(in srgb, var(--foreground) 58%, transparent)",
-                      strokeWidth: 2,
-                      opacity: 0.8,
-                      dashed: true,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ],
-        [
-          "body.weight_delta",
-          {
-            title: "Weight change",
-            subtitle: "Cumulative change from your first weight entry.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Log two weights to see how this delta moves.",
-            series: [
-              {
-                label: "Change",
-                points: cumulativeDeltaPoints(bodyWeightPoints),
-                color: APP_ACCENT_COLORS.water,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.weight_rate",
-          {
-            title: "Weight pace",
-            subtitle: `Weekly weight velocity compared with your ${goalLabel(goal)} goal.`,
-            unit: "kg/wk",
-            yDigits: 2,
-            emptyDetail: "Log at least two weights to calculate weekly pace.",
-            series: [
-              {
-                label: "Pace",
-                points: weightRatePoints,
-                color: weightGoalTone,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.fat_mass",
-          {
-            title: "Fat mass estimate",
-            subtitle: "Estimated fat mass from weight and body-fat entries.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Log weight and body fat together to estimate fat mass.",
-            series: [
-              {
-                label: "Fat mass",
-                points: fatMassPoints,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.lean_mass",
-          {
-            title: "Lean mass estimate",
-            subtitle: "Estimated lean mass from weight and body-fat entries.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Log weight and body fat together to estimate lean mass.",
-            series: [
-              {
-                label: "Lean",
-                points: leanMassPoints,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.waist_to_weight",
-          {
-            title: "Waist-to-weight ratio",
-            subtitle: "Waist centimeters divided by body weight kilograms.",
-            yDigits: 2,
-            emptyDetail: "Log waist and weight together to track this ratio.",
-            series: [
-              {
-                label: "Ratio",
-                points: waistToWeightPoints,
-                color: "var(--foreground)",
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.photo_checkins",
-          {
-            title: "Progress photo cadence",
-            subtitle: "Cumulative photo check-ins over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Attach progress photos to body check-ins to compare visually.",
-            series: [
-              {
-                label: "Photos",
-                points: photoProgressPoints,
-                color: APP_ACCENT_COLORS.water,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.waist_current",
-          {
-            title: "Waist trend",
-            subtitle: "Waist circumference across check-ins.",
-            unit: "cm",
-            yDigits: 1,
-            emptyDetail: "Add a waist measurement to start this chart.",
-            series: [
-              {
-                label: "Waist",
-                points: waistPoints,
-                color: "var(--foreground)",
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.waist_delta",
-          {
-            title: "Waist change",
-            subtitle: "Cumulative waist change from your first waist entry.",
-            unit: "cm",
-            yDigits: 1,
-            emptyDetail: "Log two waist measurements to see the delta.",
-            series: [
-              {
-                label: "Change",
-                points: cumulativeDeltaPoints(waistPoints),
-                color: "var(--foreground)",
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.bodyfat_current",
-          {
-            title: "Body fat trend",
-            subtitle: "Body fat percentage across check-ins.",
-            unit: "%",
-            yDigits: 1,
-            emptyDetail: "Add a body fat estimate to start this chart.",
-            series: [
-              {
-                label: "Body fat",
-                points: bodyFatPoints,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.bodyfat_delta",
-          {
-            title: "Body fat change",
-            subtitle: "Cumulative percentage-point change from the first body fat entry.",
-            unit: "%",
-            yDigits: 1,
-            emptyDetail: "Log two body fat estimates to see the delta.",
-            series: [
-              {
-                label: "Change",
-                points: cumulativeDeltaPoints(bodyFatPoints),
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.checkins_30",
-          {
-            title: "Check-in cadence",
-            subtitle: "Cumulative body check-in days over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Log a body check-in to see cadence build.",
-            series: [
-              {
-                label: "Check-ins",
-                points: bodyCheckinProgressPoints,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "body.last_checkin_age",
-          {
-            title: "Check-in freshness",
-            subtitle: "Days elapsed since the latest body check-in on each day.",
-            unit: "days",
-            yDigits: 0,
-            emptyDetail: "Log a check-in to begin freshness tracking.",
-            series: [
-              {
-                label: "Age",
-                points: latestAgeProgressPoints,
-                color: "var(--foreground)",
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_1rm",
-          {
-            title: "Estimated 1RM",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Train this lift with weight and reps to generate points.",
-            series: [
-              {
-                label: "1RM",
-                points: selectedBestProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.9,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_delta",
-          {
-            title: "Selected lift change",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            unit: "kg",
-            yDigits: 1,
-            emptyDetail: "Add two sessions for this lift to see change over time.",
-            series: [
-              {
-                label: "Change",
-                points: cumulativeDeltaPoints(selectedBestProgress),
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.9,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_rate",
-          {
-            title: "Selected lift pace",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            unit: "kg/wk",
-            yDigits: 2,
-            emptyDetail: "Add two sessions for this lift to calculate strength pace.",
-            series: [
-              {
-                label: "Pace",
-                points: selectedLiftRatePoints,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.9,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_sessions",
-          {
-            title: "Selected lift sessions",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            yDigits: 0,
-            emptyDetail: "Complete sessions for this lift to build the count.",
-            series: [
-              {
-                label: "Sessions",
-                points: selectedSessionProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_frequency",
-          {
-            title: "Selected lift frequency",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            yDigits: 0,
-            emptyDetail: "Train this lift over the last 30 days to measure frequency.",
-            series: [
-              {
-                label: "Sessions",
-                points: selectedSessionProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_sets",
-          {
-            title: "Selected lift sets",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            yDigits: 0,
-            emptyDetail: "Completed sets for this lift will accumulate here.",
-            series: [
-              {
-                label: "Sets",
-                points: selectedSetsProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_volume",
-          {
-            title: "Selected lift volume",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            unit: "kg",
-            yDigits: 0,
-            emptyDetail: "Logged sets with weight and reps will build this line.",
-            series: [
-              {
-                label: "Volume",
-                points: selectedVolumeProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_prs",
-          {
-            title: "Selected lift PRs",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            yDigits: 0,
-            emptyDetail: "Beat a previous estimated 1RM to add PR points.",
-            series: [
-              {
-                label: "PRs",
-                points: selectedPrProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "strength.selected_pr_rate",
-          {
-            title: "Selected lift PR rate",
-            subtitle: selectedExercise?.name ?? "Search an exercise to focus the graph.",
-            yDigits: 0,
-            emptyDetail: "Beat previous estimated 1RMs to track PR rate.",
-            series: [
-              {
-                label: "PRs",
-                points: selectedPrProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.workouts_30",
-          {
-            title: "Training days",
-            subtitle: "Cumulative workout days over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Complete a workout to start this progression.",
-            series: [
-              {
-                label: "Days",
-                points: workoutDayProgress30,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.workouts_7",
-          {
-            title: "Weekly workouts",
-            subtitle: "Workout days accumulated over the current 7-day window.",
-            yDigits: 0,
-            emptyDetail: "Complete a workout this week to start the line.",
-            series: [
-              {
-                label: "Days",
-                points: workoutDayProgress7,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.sets_30",
-          {
-            title: "Completed sets",
-            subtitle: "Cumulative completed strength sets over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Complete workout sets to build this chart.",
-            series: [
-              {
-                label: "Sets",
-                points: trainingSetsProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.volume_30",
-          {
-            title: "Total tonnage",
-            subtitle: "Cumulative strength volume over the last 30 days.",
-            unit: "kg",
-            yDigits: 0,
-            emptyDetail: "Log weighted sets to see tonnage accumulate.",
-            series: [
-              {
-                label: "Volume",
-                points: trainingVolumeProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.minutes_30",
-          {
-            title: "Training minutes",
-            subtitle: "Cumulative logged training time over the last 30 days.",
-            unit: "min",
-            yDigits: 0,
-            emptyDetail: "Workout durations will accumulate here.",
-            series: [
-              {
-                label: "Minutes",
-                points: trainingMinutesProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.prs_30",
-          {
-            title: "PR count",
-            subtitle: "Cumulative detected PRs across exercise history.",
-            yDigits: 0,
-            emptyDetail: "Beat previous estimated 1RMs to populate this chart.",
-            series: [
-              {
-                label: "PRs",
-                points: prProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.hard_sets_week",
-          {
-            title: "Hard sets",
-            subtitle: "Cumulative weighted non-warmup sets over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Log working sets with weight and reps to track hard sets.",
-            series: [
-              {
-                label: "Hard sets",
-                points: trainingHardSetsProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.workout_change_7",
-          {
-            title: "Workout frequency change",
-            subtitle: "Cumulative workout days; metric compares last 7 days to the prior 7.",
-            yDigits: 0,
-            emptyDetail: "Complete workouts across two weeks to compare frequency.",
-            series: [
-              {
-                label: "Days",
-                points: workoutDayProgress30,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.volume_change_7",
-          {
-            title: "Weekly volume change",
-            subtitle: "Cumulative 30-day tonnage; the metric compares the latest 7 days to the prior 7.",
-            unit: "kg",
-            yDigits: 0,
-            emptyDetail: "Log weighted sets for two weeks to compare volume.",
-            series: [
-              {
-                label: "Volume",
-                points: trainingVolumeProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "training.focus_share",
-          {
-            title: "Training focus",
-            subtitle: topCategory
-              ? `${topCategory[0]} leads recent tonnage; chart shows total tonnage accumulation.`
-              : "Largest exercise category by recent volume.",
-            unit: "kg",
-            yDigits: 0,
-            emptyDetail: "Log categorized weighted sets to detect training focus.",
-            series: [
-              {
-                label: "Tonnage",
-                points: trainingVolumeProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.logged_days",
-          {
-            title: "Nutrition logged",
-            subtitle: "Cumulative logged food days over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Log food to see nutrition consistency build.",
-            series: [
-              {
-                label: "Days",
-                points: foodLogProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.avg_calories",
-          {
-            title: "Daily calories",
-            subtitle: "Logged calorie totals with your current target as a dashed guide.",
-            unit: "cal",
-            yDigits: 0,
-            emptyDetail: "Log food for a day to draw calorie progression.",
-            series: [
-              {
-                label: "Calories",
-                points: dailyCaloriesPoints,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-              ...(calorieTargetPoints.length > 0
-                ? [
-                    {
-                      label: "Target",
-                      points: calorieTargetPoints,
-                      color: "color-mix(in srgb, var(--foreground) 50%, transparent)",
-                      strokeWidth: 2,
-                      opacity: 0.75,
-                      dashed: true,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ],
-        [
-          "nutrition.avg_protein",
-          {
-            title: "Daily protein",
-            subtitle: "Logged protein with your current target as a dashed guide.",
-            unit: "g",
-            yDigits: 0,
-            emptyDetail: "Log food with protein to draw this chart.",
-            series: [
-              {
-                label: "Protein",
-                points: dailyProteinPoints,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-              ...(proteinTargetPoints.length > 0
-                ? [
-                    {
-                      label: "Target",
-                      points: proteinTargetPoints,
-                      color: "color-mix(in srgb, var(--foreground) 50%, transparent)",
-                      strokeWidth: 2,
-                      opacity: 0.75,
-                      dashed: true,
-                    },
-                  ]
-                : []),
-            ],
-          },
-        ],
-        [
-          "nutrition.protein_adherence",
-          {
-            title: "Protein adherence",
-            subtitle: "Cumulative average of logged days hitting at least 90% of protein target.",
-            unit: "%",
-            yDigits: 0,
-            emptyDetail: "Log protein for multiple days to measure adherence.",
-            series: [
-              {
-                label: "Adherence",
-                points: proteinAdherenceProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.calorie_accuracy",
-          {
-            title: "Calorie accuracy",
-            subtitle: "Cumulative average of logged days within ±10% of calorie target.",
-            unit: "%",
-            yDigits: 0,
-            emptyDetail: "Log calories to measure target accuracy.",
-            series: [
-              {
-                label: "Accuracy",
-                points: calorieAccuracyProgress,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.macro_consistency",
-          {
-            title: "Macro consistency",
-            subtitle: "Average closeness to calories, protein, carbs, and fat targets.",
-            unit: "%",
-            yDigits: 0,
-            emptyDetail: "Log complete macros to score consistency.",
-            series: [
-              {
-                label: "Score",
-                points: macroConsistencyProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.calorie_change_7",
-          {
-            title: "Calorie change",
-            subtitle: "Daily calories; metric compares last 7-day average to the previous 7 days.",
-            unit: "cal",
-            yDigits: 0,
-            emptyDetail: "Log calories across two weeks to compare averages.",
-            series: [
-              {
-                label: "Calories",
-                points: dailyCaloriesPoints,
-                color: APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.protein_change_7",
-          {
-            title: "Protein change",
-            subtitle: "Daily protein; metric compares last 7-day average to the previous 7 days.",
-            unit: "g",
-            yDigits: 0,
-            emptyDetail: "Log protein across two weeks to compare averages.",
-            series: [
-              {
-                label: "Protein",
-                points: dailyProteinPoints,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.days_over",
-          {
-            title: "Days over budget",
-            subtitle: "Cumulative days above calorie target over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Days above target will appear once food is logged.",
-            series: [
-              {
-                label: "Over",
-                points: daysOverProgress,
-                color: "var(--status-danger)",
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "nutrition.days_under",
-          {
-            title: "Days under budget",
-            subtitle: "Cumulative logged days at or under target over the last 30 days.",
-            yDigits: 0,
-            emptyDetail: "Days at or below target will appear once food is logged.",
-            series: [
-              {
-                label: "Under",
-                points: daysUnderProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "quality.data_confidence",
-          {
-            title: "Data confidence",
-            subtitle: "How much recent body, nutrition, and training data supports the insights.",
-            unit: "%",
-            yDigits: 0,
-            emptyDetail: "Log body, food, and training data to raise confidence.",
-            series: [
-              {
-                label: "Confidence",
-                points: confidencePoints,
-                color: dataConfidenceScore >= 70 ? APP_ACCENT_COLORS.complete : APP_ACCENT_COLORS.progress,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-        [
-          "adherence.score",
-          {
-            title: "Adherence score",
-            subtitle: "Composite body, training, and nutrition score over the last 30 days.",
-            unit: "%",
-            yDigits: 0,
-            emptyDetail: "Log body, training, or nutrition events to move the score.",
-            series: [
-              {
-                label: "Score",
-                points: adherenceProgress,
-                color: APP_ACCENT_COLORS.complete,
-                strokeWidth: 2.8,
-              },
-            ],
-          },
-        ],
-      ])
+    const metricGraphs = new Map<string, MetricGraph>([
+      [
+        "body.weight_current",
+        {
+          title: "Weight trend",
+          subtitle: "Scale weight across logged body check-ins.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail: "Add at least one weight check-in to begin the line.",
+          series: [
+            {
+              label: "Weight",
+              points: bodyWeightPoints,
+              color: APP_ACCENT_COLORS.water,
+              strokeWidth: 2.8,
+            },
+            ...(weightRollingPoints.length >= 2
+              ? [
+                  {
+                    label: "Rolling",
+                    points: weightRollingPoints,
+                    color:
+                      "color-mix(in srgb, var(--foreground) 58%, transparent)",
+                    strokeWidth: 2,
+                    opacity: 0.8,
+                    dashed: true,
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+      [
+        "body.weight_delta",
+        {
+          title: "Weight change",
+          subtitle: "Cumulative change from your first weight entry.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail: "Log two weights to see how this delta moves.",
+          series: [
+            {
+              label: "Change",
+              points: cumulativeDeltaPoints(bodyWeightPoints),
+              color: APP_ACCENT_COLORS.water,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.weight_rate",
+        {
+          title: "Weight pace",
+          subtitle: `Weekly weight velocity compared with your ${goalLabel(goal)} goal.`,
+          unit: "kg/wk",
+          yDigits: 2,
+          emptyDetail: "Log at least two weights to calculate weekly pace.",
+          series: [
+            {
+              label: "Pace",
+              points: weightRatePoints,
+              color: weightGoalTone,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.fat_mass",
+        {
+          title: "Fat mass estimate",
+          subtitle: "Estimated fat mass from weight and body-fat entries.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail: "Log weight and body fat together to estimate fat mass.",
+          series: [
+            {
+              label: "Fat mass",
+              points: fatMassPoints,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.lean_mass",
+        {
+          title: "Lean mass estimate",
+          subtitle: "Estimated lean mass from weight and body-fat entries.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail:
+            "Log weight and body fat together to estimate lean mass.",
+          series: [
+            {
+              label: "Lean",
+              points: leanMassPoints,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.waist_to_weight",
+        {
+          title: "Waist-to-weight ratio",
+          subtitle: "Waist centimeters divided by body weight kilograms.",
+          yDigits: 2,
+          emptyDetail: "Log waist and weight together to track this ratio.",
+          series: [
+            {
+              label: "Ratio",
+              points: waistToWeightPoints,
+              color: "var(--foreground)",
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.photo_checkins",
+        {
+          title: "Progress photo cadence",
+          subtitle: "Cumulative photo check-ins over the last 30 days.",
+          yDigits: 0,
+          emptyDetail:
+            "Attach progress photos to body check-ins to compare visually.",
+          series: [
+            {
+              label: "Photos",
+              points: photoProgressPoints,
+              color: APP_ACCENT_COLORS.water,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.waist_current",
+        {
+          title: "Waist trend",
+          subtitle: "Waist circumference across check-ins.",
+          unit: "cm",
+          yDigits: 1,
+          emptyDetail: "Add a waist measurement to start this chart.",
+          series: [
+            {
+              label: "Waist",
+              points: waistPoints,
+              color: "var(--foreground)",
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.waist_delta",
+        {
+          title: "Waist change",
+          subtitle: "Cumulative waist change from your first waist entry.",
+          unit: "cm",
+          yDigits: 1,
+          emptyDetail: "Log two waist measurements to see the delta.",
+          series: [
+            {
+              label: "Change",
+              points: cumulativeDeltaPoints(waistPoints),
+              color: "var(--foreground)",
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.bodyfat_current",
+        {
+          title: "Body fat trend",
+          subtitle: "Body fat percentage across check-ins.",
+          unit: "%",
+          yDigits: 1,
+          emptyDetail: "Add a body fat estimate to start this chart.",
+          series: [
+            {
+              label: "Body fat",
+              points: bodyFatPoints,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.bodyfat_delta",
+        {
+          title: "Body fat change",
+          subtitle:
+            "Cumulative percentage-point change from the first body fat entry.",
+          unit: "%",
+          yDigits: 1,
+          emptyDetail: "Log two body fat estimates to see the delta.",
+          series: [
+            {
+              label: "Change",
+              points: cumulativeDeltaPoints(bodyFatPoints),
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.checkins_30",
+        {
+          title: "Check-in cadence",
+          subtitle: "Cumulative body check-in days over the last 30 days.",
+          yDigits: 0,
+          emptyDetail: "Log a body check-in to see cadence build.",
+          series: [
+            {
+              label: "Check-ins",
+              points: bodyCheckinProgressPoints,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "body.last_checkin_age",
+        {
+          title: "Check-in freshness",
+          subtitle: "Days elapsed since the latest body check-in on each day.",
+          unit: "days",
+          yDigits: 0,
+          emptyDetail: "Log a check-in to begin freshness tracking.",
+          series: [
+            {
+              label: "Age",
+              points: latestAgeProgressPoints,
+              color: "var(--foreground)",
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_1rm",
+        {
+          title: "Estimated 1RM",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail:
+            "Train this lift with weight and reps to generate points.",
+          series: [
+            {
+              label: "1RM",
+              points: selectedBestProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.9,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_delta",
+        {
+          title: "Selected lift change",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          unit: "kg",
+          yDigits: 1,
+          emptyDetail:
+            "Add two sessions for this lift to see change over time.",
+          series: [
+            {
+              label: "Change",
+              points: cumulativeDeltaPoints(selectedBestProgress),
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.9,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_rate",
+        {
+          title: "Selected lift pace",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          unit: "kg/wk",
+          yDigits: 2,
+          emptyDetail:
+            "Add two sessions for this lift to calculate strength pace.",
+          series: [
+            {
+              label: "Pace",
+              points: selectedLiftRatePoints,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.9,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_sessions",
+        {
+          title: "Selected lift sessions",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          yDigits: 0,
+          emptyDetail: "Complete sessions for this lift to build the count.",
+          series: [
+            {
+              label: "Sessions",
+              points: selectedSessionProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_frequency",
+        {
+          title: "Selected lift frequency",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          yDigits: 0,
+          emptyDetail:
+            "Train this lift over the last 30 days to measure frequency.",
+          series: [
+            {
+              label: "Sessions",
+              points: selectedSessionProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_sets",
+        {
+          title: "Selected lift sets",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          yDigits: 0,
+          emptyDetail: "Completed sets for this lift will accumulate here.",
+          series: [
+            {
+              label: "Sets",
+              points: selectedSetsProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_volume",
+        {
+          title: "Selected lift volume",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          unit: "kg",
+          yDigits: 0,
+          emptyDetail: "Logged sets with weight and reps will build this line.",
+          series: [
+            {
+              label: "Volume",
+              points: selectedVolumeProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_prs",
+        {
+          title: "Selected lift PRs",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          yDigits: 0,
+          emptyDetail: "Beat a previous estimated 1RM to add PR points.",
+          series: [
+            {
+              label: "PRs",
+              points: selectedPrProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "strength.selected_pr_rate",
+        {
+          title: "Selected lift PR rate",
+          subtitle:
+            selectedExercise?.name ?? "Search an exercise to focus the graph.",
+          yDigits: 0,
+          emptyDetail: "Beat previous estimated 1RMs to track PR rate.",
+          series: [
+            {
+              label: "PRs",
+              points: selectedPrProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.workouts_30",
+        {
+          title: "Training days",
+          subtitle: "Cumulative workout days over the last 30 days.",
+          yDigits: 0,
+          emptyDetail: "Complete a workout to start this progression.",
+          series: [
+            {
+              label: "Days",
+              points: workoutDayProgress30,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.workouts_7",
+        {
+          title: "Weekly workouts",
+          subtitle: "Workout days accumulated over the current 7-day window.",
+          yDigits: 0,
+          emptyDetail: "Complete a workout this week to start the line.",
+          series: [
+            {
+              label: "Days",
+              points: workoutDayProgress7,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.sets_30",
+        {
+          title: "Completed sets",
+          subtitle: "Cumulative completed strength sets over the last 30 days.",
+          yDigits: 0,
+          emptyDetail: "Complete workout sets to build this chart.",
+          series: [
+            {
+              label: "Sets",
+              points: trainingSetsProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.volume_30",
+        {
+          title: "Total tonnage",
+          subtitle: "Cumulative strength volume over the last 30 days.",
+          unit: "kg",
+          yDigits: 0,
+          emptyDetail: "Log weighted sets to see tonnage accumulate.",
+          series: [
+            {
+              label: "Volume",
+              points: trainingVolumeProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.minutes_30",
+        {
+          title: "Training minutes",
+          subtitle: "Cumulative logged training time over the last 30 days.",
+          unit: "min",
+          yDigits: 0,
+          emptyDetail: "Workout durations will accumulate here.",
+          series: [
+            {
+              label: "Minutes",
+              points: trainingMinutesProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.prs_30",
+        {
+          title: "PR count",
+          subtitle: "Cumulative detected PRs across exercise history.",
+          yDigits: 0,
+          emptyDetail: "Beat previous estimated 1RMs to populate this chart.",
+          series: [
+            {
+              label: "PRs",
+              points: prProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.hard_sets_week",
+        {
+          title: "Hard sets",
+          subtitle:
+            "Cumulative weighted non-warmup sets over the last 30 days.",
+          yDigits: 0,
+          emptyDetail:
+            "Log working sets with weight and reps to track hard sets.",
+          series: [
+            {
+              label: "Hard sets",
+              points: trainingHardSetsProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.workout_change_7",
+        {
+          title: "Workout frequency change",
+          subtitle:
+            "Cumulative workout days; metric compares last 7 days to the prior 7.",
+          yDigits: 0,
+          emptyDetail:
+            "Complete workouts across two weeks to compare frequency.",
+          series: [
+            {
+              label: "Days",
+              points: workoutDayProgress30,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.volume_change_7",
+        {
+          title: "Weekly volume change",
+          subtitle:
+            "Cumulative 30-day tonnage; the metric compares the latest 7 days to the prior 7.",
+          unit: "kg",
+          yDigits: 0,
+          emptyDetail: "Log weighted sets for two weeks to compare volume.",
+          series: [
+            {
+              label: "Volume",
+              points: trainingVolumeProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "training.focus_share",
+        {
+          title: "Training focus",
+          subtitle: topCategory
+            ? `${topCategory[0]} leads recent tonnage; chart shows total tonnage accumulation.`
+            : "Largest exercise category by recent volume.",
+          unit: "kg",
+          yDigits: 0,
+          emptyDetail:
+            "Log categorized weighted sets to detect training focus.",
+          series: [
+            {
+              label: "Tonnage",
+              points: trainingVolumeProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.logged_days",
+        {
+          title: "Nutrition logged",
+          subtitle: "Cumulative logged food days over the last 30 days.",
+          yDigits: 0,
+          emptyDetail: "Log food to see nutrition consistency build.",
+          series: [
+            {
+              label: "Days",
+              points: foodLogProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.avg_calories",
+        {
+          title: "Daily calories",
+          subtitle:
+            "Logged calorie totals with your current target as a dashed guide.",
+          unit: "cal",
+          yDigits: 0,
+          emptyDetail: "Log food for a day to draw calorie progression.",
+          series: [
+            {
+              label: "Calories",
+              points: dailyCaloriesPoints,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+            ...(calorieTargetPoints.length > 0
+              ? [
+                  {
+                    label: "Target",
+                    points: calorieTargetPoints,
+                    color:
+                      "color-mix(in srgb, var(--foreground) 50%, transparent)",
+                    strokeWidth: 2,
+                    opacity: 0.75,
+                    dashed: true,
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+      [
+        "nutrition.avg_protein",
+        {
+          title: "Daily protein",
+          subtitle:
+            "Logged protein with your current target as a dashed guide.",
+          unit: "g",
+          yDigits: 0,
+          emptyDetail: "Log food with protein to draw this chart.",
+          series: [
+            {
+              label: "Protein",
+              points: dailyProteinPoints,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+            ...(proteinTargetPoints.length > 0
+              ? [
+                  {
+                    label: "Target",
+                    points: proteinTargetPoints,
+                    color:
+                      "color-mix(in srgb, var(--foreground) 50%, transparent)",
+                    strokeWidth: 2,
+                    opacity: 0.75,
+                    dashed: true,
+                  },
+                ]
+              : []),
+          ],
+        },
+      ],
+      [
+        "nutrition.protein_adherence",
+        {
+          title: "Protein adherence",
+          subtitle:
+            "Cumulative average of logged days hitting at least 90% of protein target.",
+          unit: "%",
+          yDigits: 0,
+          emptyDetail: "Log protein for multiple days to measure adherence.",
+          series: [
+            {
+              label: "Adherence",
+              points: proteinAdherenceProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.calorie_accuracy",
+        {
+          title: "Calorie accuracy",
+          subtitle:
+            "Cumulative average of logged days within ±10% of calorie target.",
+          unit: "%",
+          yDigits: 0,
+          emptyDetail: "Log calories to measure target accuracy.",
+          series: [
+            {
+              label: "Accuracy",
+              points: calorieAccuracyProgress,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.macro_consistency",
+        {
+          title: "Macro consistency",
+          subtitle:
+            "Average closeness to calories, protein, carbs, and fat targets.",
+          unit: "%",
+          yDigits: 0,
+          emptyDetail: "Log complete macros to score consistency.",
+          series: [
+            {
+              label: "Score",
+              points: macroConsistencyProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.calorie_change_7",
+        {
+          title: "Calorie change",
+          subtitle:
+            "Daily calories; metric compares last 7-day average to the previous 7 days.",
+          unit: "cal",
+          yDigits: 0,
+          emptyDetail: "Log calories across two weeks to compare averages.",
+          series: [
+            {
+              label: "Calories",
+              points: dailyCaloriesPoints,
+              color: APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.protein_change_7",
+        {
+          title: "Protein change",
+          subtitle:
+            "Daily protein; metric compares last 7-day average to the previous 7 days.",
+          unit: "g",
+          yDigits: 0,
+          emptyDetail: "Log protein across two weeks to compare averages.",
+          series: [
+            {
+              label: "Protein",
+              points: dailyProteinPoints,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.days_over",
+        {
+          title: "Days over budget",
+          subtitle:
+            "Cumulative days above calorie target over the last 30 days.",
+          yDigits: 0,
+          emptyDetail: "Days above target will appear once food is logged.",
+          series: [
+            {
+              label: "Over",
+              points: daysOverProgress,
+              color: "var(--status-danger)",
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "nutrition.days_under",
+        {
+          title: "Days under budget",
+          subtitle:
+            "Cumulative logged days at or under target over the last 30 days.",
+          yDigits: 0,
+          emptyDetail:
+            "Days at or below target will appear once food is logged.",
+          series: [
+            {
+              label: "Under",
+              points: daysUnderProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "quality.data_confidence",
+        {
+          title: "Data confidence",
+          subtitle:
+            "How much recent body, nutrition, and training data supports the insights.",
+          unit: "%",
+          yDigits: 0,
+          emptyDetail: "Log body, food, and training data to raise confidence.",
+          series: [
+            {
+              label: "Confidence",
+              points: confidencePoints,
+              color:
+                dataConfidenceScore >= 70
+                  ? APP_ACCENT_COLORS.complete
+                  : APP_ACCENT_COLORS.progress,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+      [
+        "adherence.score",
+        {
+          title: "Adherence score",
+          subtitle:
+            "Composite body, training, and nutrition score over the last 30 days.",
+          unit: "%",
+          yDigits: 0,
+          emptyDetail:
+            "Log body, training, or nutrition events to move the score.",
+          series: [
+            {
+              label: "Score",
+              points: adherenceProgress,
+              color: APP_ACCENT_COLORS.complete,
+              strokeWidth: 2.8,
+            },
+          ],
+        },
+      ],
+    ])
 
-      return [
+    return [
       {
         id: "body.weight_current",
         title: "Current weight",
@@ -3925,7 +3230,8 @@ export default function Progress() {
         group: "Body",
         value: signedValue(weightRateKgPerWeek, " kg/wk", 2),
         detail: `${weightGoalStatus} for ${goalLabel(goal)}`,
-        description: "Weekly weight change interpreted against your current goal.",
+        description:
+          "Weekly weight change interpreted against your current goal.",
         keywords: ["body", "weight", "weekly", "goal", "rate"],
         tone: weightGoalTone,
       },
@@ -3934,7 +3240,8 @@ export default function Progress() {
         title: "Fat mass",
         group: "Body",
         value: latestFatMass == null ? "—" : `${fmtNumber(latestFatMass)} kg`,
-        detail: fatMassPoints.length >= 1 ? "weight × body fat" : "Needs body fat",
+        detail:
+          fatMassPoints.length >= 1 ? "weight × body fat" : "Needs body fat",
         description: "Estimated fat mass from weight and body fat percentage.",
         keywords: ["body", "fat mass", "composition", "body fat"],
         tone: APP_ACCENT_COLORS.progress,
@@ -3945,7 +3252,8 @@ export default function Progress() {
         group: "Body",
         value: latestLeanMass == null ? "—" : `${fmtNumber(latestLeanMass)} kg`,
         detail: leanMassPoints.length >= 1 ? "estimated" : "Needs body fat",
-        description: "Estimated lean body mass from weight and body fat percentage.",
+        description:
+          "Estimated lean body mass from weight and body fat percentage.",
         keywords: ["body", "lean mass", "muscle", "composition"],
         tone: APP_ACCENT_COLORS.complete,
       },
@@ -3953,7 +3261,8 @@ export default function Progress() {
         id: "body.waist_to_weight",
         title: "Waist / weight",
         group: "Body",
-        value: latestWaistToWeight == null ? "—" : latestWaistToWeight.toFixed(2),
+        value:
+          latestWaistToWeight == null ? "—" : latestWaistToWeight.toFixed(2),
         detail: "cm per kg",
         description: "Waist circumference relative to body weight.",
         keywords: ["body", "waist", "ratio", "composition"],
@@ -3964,7 +3273,8 @@ export default function Progress() {
         group: "Body",
         value: String(photoEntries.length),
         detail: "photo check-ins",
-        description: "Progress check-ins with photos attached for visual comparison.",
+        description:
+          "Progress check-ins with photos attached for visual comparison.",
         keywords: ["body", "photos", "progress", "visual"],
         tone: APP_ACCENT_COLORS.water,
       },
@@ -4115,7 +3425,8 @@ export default function Progress() {
         group: "Strength",
         value: selectedExercise ? selectedPrRatePerMonth.toFixed(1) : "—",
         detail: "PRs / month",
-        description: "PR frequency normalized by time trained for the selected lift.",
+        description:
+          "PR frequency normalized by time trained for the selected lift.",
         keywords: ["strength", "pr", "rate", "exercise"],
         tone: APP_ACCENT_COLORS.complete,
       },
@@ -4178,7 +3489,9 @@ export default function Progress() {
         title: "Training focus",
         group: "Training",
         value: topCategory?.[0] ?? "—",
-        detail: topCategory ? `${Math.round(categoryFocusShare)}% of tonnage` : "Needs volume",
+        detail: topCategory
+          ? `${Math.round(categoryFocusShare)}% of tonnage`
+          : "Needs volume",
         description: "Largest exercise category by recent training volume.",
         keywords: ["training", "muscle", "category", "focus", "volume"],
       },
@@ -4188,7 +3501,8 @@ export default function Progress() {
         group: "Training",
         value: signedPercent(workoutDayChange7Pct),
         detail: "days vs prior week",
-        description: "Workout frequency change compared with the previous week.",
+        description:
+          "Workout frequency change compared with the previous week.",
         keywords: ["training", "frequency", "workouts", "weekly"],
       },
       {
@@ -4254,7 +3568,8 @@ export default function Progress() {
         group: "Nutrition",
         value: percentLabel(proteinAdherence),
         detail: "days ≥ 90% target",
-        description: "Share of logged days hitting at least 90% of protein target.",
+        description:
+          "Share of logged days hitting at least 90% of protein target.",
         keywords: ["nutrition", "protein", "adherence", "macro"],
         tone:
           proteinAdherence >= 70
@@ -4267,7 +3582,8 @@ export default function Progress() {
         group: "Nutrition",
         value: percentLabel(calorieAccuracy),
         detail: `±10% target · ${avgCalorieDeviation} cal miss`,
-        description: "Share of logged days within ten percent of calorie target.",
+        description:
+          "Share of logged days within ten percent of calorie target.",
         keywords: ["nutrition", "calories", "accuracy", "target"],
         tone:
           calorieAccuracy >= 60
@@ -4281,7 +3597,14 @@ export default function Progress() {
         value: percentLabel(macroConsistency),
         detail: "cal + protein + carbs + fat",
         description: "How close logged macros are to daily targets on average.",
-        keywords: ["nutrition", "macros", "consistency", "protein", "carbs", "fat"],
+        keywords: [
+          "nutrition",
+          "macros",
+          "consistency",
+          "protein",
+          "carbs",
+          "fat",
+        ],
         tone:
           macroConsistency >= 75
             ? APP_ACCENT_COLORS.complete
@@ -4293,7 +3616,8 @@ export default function Progress() {
         group: "Nutrition",
         value: signedPercent(calorieChange7Pct),
         detail: "avg last 7 vs prior",
-        description: "Average calorie intake change compared with the previous week.",
+        description:
+          "Average calorie intake change compared with the previous week.",
         keywords: ["nutrition", "calories", "weekly", "change"],
         tone: APP_ACCENT_COLORS.progress,
       },
@@ -4303,7 +3627,8 @@ export default function Progress() {
         group: "Nutrition",
         value: signedPercent(proteinChange7Pct),
         detail: "avg last 7 vs prior",
-        description: "Average protein intake change compared with the previous week.",
+        description:
+          "Average protein intake change compared with the previous week.",
         keywords: ["nutrition", "protein", "weekly", "change"],
         tone: APP_ACCENT_COLORS.complete,
       },
@@ -4333,7 +3658,8 @@ export default function Progress() {
         group: "Quality",
         value: percentLabel(dataConfidenceScore),
         detail: `body ${bodyConfidence}% · food ${nutritionConfidence}% · training ${trainingConfidence}%`,
-        description: "Confidence that the current trends are backed by enough recent data.",
+        description:
+          "Confidence that the current trends are backed by enough recent data.",
         keywords: ["quality", "confidence", "data", "logging"],
         tone:
           dataConfidenceScore >= 70
@@ -4348,7 +3674,8 @@ export default function Progress() {
         group: "Adherence",
         value: percentLabel(adherenceScore),
         detail: "30% body · 35% training · 35% food",
-        description: "Transparent composite of check-ins, workouts, and nutrition logging.",
+        description:
+          "Transparent composite of check-ins, workouts, and nutrition logging.",
         keywords: ["adherence", "consistency", "score", "habit"],
       },
     ].map((metric) => ({ ...metric, graph: metricGraphs.get(metric.id) }))
@@ -4358,252 +3685,13 @@ export default function Progress() {
     () => new Map(metricCatalog.map((metric) => [metric.id, metric])),
     [metricCatalog]
   )
-  const customMetricMap = useMemo(
-    () => new Map(customMetrics.map((metric) => [metric.id, metric])),
-    [customMetrics]
-  )
-  const selectedMetrics = selectedMetricIds
-    .map((id) => {
-      const metric = metricMap.get(id)
-      if (metric) return metric
-      const custom = customMetricMap.get(id)
-      if (!custom) return null
-      return {
-        id: custom.id,
-        title: custom.title,
-        group: "Custom",
-        value: "Custom",
-        detail: custom.detail,
-        description: custom.detail,
-        keywords: [custom.title],
-      } satisfies ComputedMetric
-    })
-    .filter((metric): metric is ComputedMetric => Boolean(metric))
-
-  const topMetricsMobile = selectedMetrics.slice(0, 2)
-  const bottomMetricsMobile = selectedMetrics.slice(2)
-  const topMetricsDesktop = selectedMetrics.slice(0, 4)
-  const bottomMetricsDesktop = selectedMetrics.slice(4)
-  const bottomMetricsDesktopLeft = bottomMetricsDesktop.filter(
-    (_, index) => index % 2 === 0
-  )
-  const bottomMetricsDesktopRight = bottomMetricsDesktop.filter(
-    (_, index) => index % 2 === 1
-  )
-  const openMetricGraph = openMetricGraphId
-    ? (selectedMetrics.find((metric) => metric.id === openMetricGraphId) ??
-      metricMap.get(openMetricGraphId) ??
-      null)
-    : null
   const bodyWeightGraph = metricMap.get("body.weight_current")?.graph
-  const selectedLiftGraph = metricMap.get("strength.selected_1rm")?.graph
   const expandedMetricGraph = expandedMetricGraphId
     ? (metricMap.get(expandedMetricGraphId)?.graph ?? null)
     : null
-  const visibleProgressInsights = progressInsights.filter(
-    (insight) => !dismissedInsightIds.includes(insight.id)
-  )
-  const visibleAiCoachInsights = aiCoachInsights.filter(
-    (insight) => !dismissedInsightIds.includes(insight.id)
-  )
-  const aiCoachContext = {
-    goal,
-    weightPaceKgPerWeek: weightRateKgPerWeek ?? null,
-    weightStatus: weightGoalStatus,
-    calorieTarget,
-    averageCalories,
-    averageProtein,
-    proteinTarget,
-    proteinAdherence,
-    calorieAccuracy,
-    macroConsistency,
-    workoutDays7: workoutDays7.size,
-    volumeChange7Pct: volumeChange7Pct ?? null,
-    hardSets7: last7HardSets,
-    selectedExerciseName: selectedExercise?.name ?? null,
-    selectedLiftPaceKgPerWeek: selectedLiftRateKgPerWeek ?? null,
-    selectedLiftFrequency: selectedExercise ? selectedLiftFrequency : null,
-    dataConfidence: dataConfidenceScore,
-    existingInsights: progressInsights.map((insight) => ({
-      label: insight.label,
-      title: insight.title,
-      detail: insight.detail,
-    })),
-  }
-
-  function openMetricInteractiveGraph(id: string) {
-    if (metricMap.get(id)?.graph) {
-      setOpenMetricGraphId(null)
-      setExpandedMetricGraphId(id)
-      return
-    }
-    setOpenMetricGraphId(id)
-  }
-
-  function addMetric(id: string) {
-    setSelectedMetricIds((current) =>
-      current.includes(id) ? current : [...current, id]
-    )
-  }
-
-  function removeMetric(id: string) {
-    setSelectedMetricIds((current) => current.filter((item) => item !== id))
-  }
-
-  function addCustomMetric(title: string) {
-    const clean = title.trim()
-    if (!clean) return
-    const metric: CustomMetric = {
-      id: `custom:${Date.now()}`,
-      title: clean.slice(0, 42),
-      detail: "Custom user metric",
-    }
-    setCustomMetrics((current) => [...current, metric])
-    addMetric(metric.id)
-  }
-
-  async function aiGenerateMetrics(prompt: string) {
-    if (!requireAiAccess()) return
-
-    const clean = prompt.trim()
-    if (!clean) {
-      toast.message("Describe what you want to track")
-      return
-    }
-
-    try {
-      const result = await generateMetricSet({
-        subapp: "progress",
-        prompt: clean,
-        maxResults: 4,
-        metrics: metricCatalog.map((metric) => ({
-          id: metric.id,
-          title: metric.title,
-          group: metric.group,
-          description: metric.description,
-          keywords: metric.keywords,
-        })),
-      })
-
-      if (result.metricIds.length > 0) {
-        setSelectedMetricIds((current) => [
-          ...new Set([...current, ...result.metricIds]),
-        ])
-      }
-      if (result.customMetricTitle) addCustomMetric(result.customMetricTitle)
-
-      if (result.metricIds.length > 0 || result.customMetricTitle) {
-        toast.success(
-          result.source === "openai"
-            ? "AI generated metric set"
-            : "Generated metric set"
-        )
-        return
-      }
-
-      toast.message("No matching metrics found")
-    } catch (error) {
-      console.error("Failed to generate metrics:", error)
-      toast.error("Could not generate metrics")
-    }
-  }
-
-  async function aiGenerateCoachAdvice() {
-    if (aiCoachBusy || !requireAiAccess()) return
-    setAiCoachBusy(true)
-    try {
-      const result = await generateCoachAdvice({ context: aiCoachContext })
-
-      setAiCoachInsights(
-        result.advice.map((advice, index) => ({
-          id: `ai-coach-${index}-${advice.title}`,
-          label: advice.label,
-          title: advice.title,
-          detail: advice.detail,
-          tone: APP_ACCENT_COLORS.progress,
-        }))
-      )
-      toast.success(
-        result.source === "openai" ? "AI coach advice added" : "Coach advice added"
-      )
-    } catch (error) {
-      console.error("Failed to generate coach advice:", error)
-      toast.error("Could not generate coach advice")
-    } finally {
-      setAiCoachBusy(false)
-    }
-  }
-
-  function deleteCoachInsight(id: string) {
-    setDismissedInsightIds((current) =>
-      current.includes(id) ? current : [...current, id]
-    )
-    setAiCoachInsights((current) => current.filter((insight) => insight.id !== id))
-  }
-
-  async function sendAiCoachMessage(message: string, focusInsight?: ProgressInsight) {
-    const clean = message.trim()
-    if (clean.length < 2 || aiCoachBusy || !requireAiAccess()) return
-
-    const userMessage: AiCoachMessage = {
-      id: `user-${aiCoachMessages.length}-${clean}`,
-      role: "user",
-      content: clean,
-    }
-    const nextHistory = [...aiCoachMessages, userMessage].slice(-30)
-    setAiCoachMessages(nextHistory)
-    setAiCoachOpen(true)
-    setAiCoachInput("")
-    setAiCoachBusy(true)
-
-    try {
-      const result = await generateCoachChatMessage({
-        context: aiCoachContext,
-        message: clean,
-        history: aiCoachMessages.slice(-10).map((item) => ({
-          role: item.role,
-          content: item.content,
-        })),
-        focusInsight: focusInsight
-          ? {
-              label: focusInsight.label,
-              title: focusInsight.title,
-              detail: focusInsight.detail,
-            }
-          : undefined,
-      })
-      setAiCoachMessages((current) => {
-        const assistantMessage: AiCoachMessage = {
-          id: `assistant-${current.length}-${result.reply}`,
-          role: "assistant",
-          content: result.reply,
-        }
-        return [...current, assistantMessage].slice(-30)
-      })
-    } catch (error) {
-      console.error("Failed to send coach message:", error)
-      toast.error("Could not ask AI coach")
-    } finally {
-      setAiCoachBusy(false)
-    }
-  }
-
-  function clarifyCoachInsight(insight: ProgressInsight) {
-    void sendAiCoachMessage(
-      `Clarify this coaching step and tell me exactly what to do next: ${insight.title}. ${insight.detail}`,
-      insight
-    )
-  }
-
-  const displayedCoachInsights = [
-    ...visibleAiCoachInsights,
-    ...visibleProgressInsights,
-  ]
-  const primaryInsight = displayedCoachInsights[0]
+  const primaryInsight = progressInsights[0] ?? null
   const progressVerdict =
-    weightRateKgPerWeek == null
-      ? "Start with a check-in"
-      : weightGoalStatus
+    weightRateKgPerWeek == null ? "Start with a check-in" : weightGoalStatus
   const progressVerdictDetail =
     weightRateKgPerWeek == null
       ? "Log weight twice so OneRep can separate signal from noise."
@@ -4612,23 +3700,22 @@ export default function Progress() {
         : goal === "build" || goal === "performance"
           ? `${signedValue(weightRateKgPerWeek, " kg/week", 2)} against your gain target.`
           : `${signedValue(weightRateKgPerWeek, " kg/week", 2)} body-weight drift.`
-  const askAiAboutPrimaryInsight = () => {
-    if (primaryInsight && hasAiAccess) {
-      clarifyCoachInsight(primaryInsight)
-      return
-    }
-    if (hasAiAccess) {
-      setAiCoachOpen(true)
-      return
-    }
-    requireAiAccess()
-  }
-  const askAiAboutRecommendation = (title: string, detail: string) => {
-    void sendAiCoachMessage(
-      `Help me act on this progress recommendation: ${title}. ${detail}`
-    )
-  }
-  const nextActions = [
+  const nutritionPlanAction: NextProgressAction | null =
+    nutritionPlan?.calibration.status &&
+    nutritionPlan.calibration.status !== "collect_more_data"
+      ? {
+          title: nutritionPlan.calibration.title,
+          detail: nutritionPlan.calibration.detail,
+          tone: nutritionPlan.calibration.canApply
+            ? APP_ACCENT_COLORS.progress
+            : APP_ACCENT_COLORS.complete,
+          actionLabel: nutritionPlan.calibration.canApply
+            ? "Review adjustment"
+            : nutritionPlan.nextBestAction.label,
+          onAction: () => navigate("/nutrition"),
+        }
+      : null
+  const nextActions: NextProgressAction[] = [
     weightEntries.length < 2
       ? {
           title: "Add another body check-in",
@@ -4637,59 +3724,50 @@ export default function Progress() {
           tone: APP_ACCENT_COLORS.progress,
           actionLabel: "Add check-in",
           onAction: () => setSheetOpen(true),
-          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-          onAskAi: () =>
-            askAiAboutRecommendation(
-              "Add another body check-in",
-              "Two weight entries are the minimum needed for a useful pace and goal verdict."
-            ),
         }
       : primaryInsight
         ? {
             title: primaryInsight.title,
             detail: primaryInsight.detail,
             tone: primaryInsight.tone ?? APP_ACCENT_COLORS.progress,
-            actionLabel: hasAiAccess ? "Ask AI coach" : "Unlock AI coach",
-            onAction: askAiAboutPrimaryInsight,
-            askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-            onAskAi: askAiAboutPrimaryInsight,
+            actionLabel: "Review",
+            onAction: () => navigate("/nutrition"),
           }
         : {
-            title: "Ask for a progress read",
+            title: "Add more data",
             detail:
-              "Use the coach to turn your current body, food, and training data into a concrete next step.",
+              "Log body, food, and training data to unlock a useful progress read.",
             tone: APP_ACCENT_COLORS.progress,
-            actionLabel: hasAiAccess ? "Ask AI coach" : "Unlock AI coach",
-            onAction: askAiAboutPrimaryInsight,
-            askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-            onAskAi: askAiAboutPrimaryInsight,
+            actionLabel: "Add check-in",
+            onAction: () => setSheetOpen(true),
           },
+    nutritionPlanAction,
     proteinAdherence < 70
       ? {
-          title: "Bring protein consistency up",
-          detail: `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`,
-          tone: "var(--status-danger)",
-          actionLabel: "Log food",
-          onAction: () => navigate("/foods/search"),
-          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-          onAskAi: () =>
-            askAiAboutRecommendation(
-              "Bring protein consistency up",
-              `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`
-            ),
+          title: protectedNutritionMode
+            ? "Keep food tracking gentle"
+            : "Bring protein consistency up",
+          detail: protectedNutritionMode
+            ? "Use meals, protein anchors, photos, or habits without chasing a deficit."
+            : `${percentLabel(proteinAdherence)} of logged days hit at least 90% of your ${proteinTarget}g target.`,
+          tone: protectedNutritionMode
+            ? APP_ACCENT_COLORS.complete
+            : "var(--status-danger)",
+          actionLabel: protectedNutritionMode ? "Open nutrition" : "Log food",
+          onAction: () =>
+            navigate(protectedNutritionMode ? "/nutrition" : "/foods/search"),
         }
       : {
-          title: "Protein is supporting the goal",
-          detail: `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`,
+          title: protectedNutritionMode
+            ? "Nutrition logging is steady"
+            : "Protein is supporting the goal",
+          detail: protectedNutritionMode
+            ? `${percentLabel(proteinAdherence)} protein consistency on logged days. Keep the routine simple.`
+            : `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`,
           tone: APP_ACCENT_COLORS.complete,
-          actionLabel: "Log food",
-          onAction: () => navigate("/foods/search"),
-          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-          onAskAi: () =>
-            askAiAboutRecommendation(
-              "Protein is supporting the goal",
-              `${percentLabel(proteinAdherence)} adherence on logged days. Keep this stable while adjusting calories.`
-            ),
+          actionLabel: protectedNutritionMode ? "Open nutrition" : "Log food",
+          onAction: () =>
+            navigate(protectedNutritionMode ? "/nutrition" : "/foods/search"),
         },
     lowTrainingDose
       ? {
@@ -4698,12 +3776,6 @@ export default function Progress() {
           tone: APP_ACCENT_COLORS.progress,
           actionLabel: "Start workout",
           onAction: () => navigate("/workout/active"),
-          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-          onAskAi: () =>
-            askAiAboutRecommendation(
-              "Training signal is thin this week",
-              `${workoutDays7.size} workout days and ${fmtInt(last7HardSets)} hard sets in the last 7 days.`
-            ),
         }
       : {
           title: "Training consistency is usable",
@@ -4711,21 +3783,15 @@ export default function Progress() {
           tone: APP_ACCENT_COLORS.complete,
           actionLabel: "Start workout",
           onAction: () => navigate("/workout/active"),
-          askAiLabel: hasAiAccess ? "Ask AI" : "Unlock AI",
-          onAskAi: () =>
-            askAiAboutRecommendation(
-              "Training consistency is usable",
-              `${workoutDays7.size} workout days, ${fmtInt(last7HardSets)} hard sets, ${signedPercent(volumeChange7Pct)} volume vs prior week.`
-            ),
         },
-  ]
+  ].filter((action): action is NextProgressAction => Boolean(action))
   const latestWeightDetail =
     latest?.weightKg != null
       ? `${formatMeasurementDate(latest.loggedAt)} · ${trend ?? "trend pending"}`
       : "No body check-ins yet"
 
   return (
-    <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
+    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page">
         <header className="app-header">
           <div className="min-w-0">
@@ -4745,7 +3811,7 @@ export default function Progress() {
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
-            className="hidden bg-foreground text-background app-button md:inline-flex"
+            className="app-button hidden bg-foreground text-background md:inline-flex"
             aria-label="Add progress check-in"
           >
             <Plus size={13} weight="bold" /> Check in
@@ -4757,10 +3823,10 @@ export default function Progress() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="app-eyebrow">{goalLabel(goal)} progress</p>
-                <h2 className="mt-2 text-[2.1rem] font-extrabold leading-none tracking-tight">
+                <h2 className="mt-2 text-[2.1rem] leading-none font-extrabold tracking-tight">
                   {progressVerdict}
                 </h2>
-                <p className="mt-2 max-w-xl text-[12.5px] font-semibold leading-5 text-muted-foreground/58">
+                <p className="mt-2 max-w-xl text-[12.5px] leading-5 font-semibold text-muted-foreground/58">
                   {progressVerdictDetail}
                 </p>
               </div>
@@ -4776,19 +3842,37 @@ export default function Progress() {
             <div className="mt-5 grid grid-cols-1 gap-2.5 min-[520px]:grid-cols-4">
               <ProgressOutcomeCard
                 label="Scale"
-                value={latest?.weightKg != null ? `${fmtNumber(latest.weightKg)} kg` : "—"}
+                value={
+                  latest?.weightKg != null
+                    ? `${fmtNumber(latest.weightKg)} kg`
+                    : "—"
+                }
                 detail={latestWeightDetail}
                 tone={weightGoalTone}
-                actionLabel={weightEntries.length < 2 ? "Add check-in" : undefined}
+                actionLabel={
+                  weightEntries.length < 2 ? "Add check-in" : undefined
+                }
                 onAction={
-                  weightEntries.length < 2 ? () => setSheetOpen(true) : undefined
+                  weightEntries.length < 2
+                    ? () => setSheetOpen(true)
+                    : undefined
                 }
                 wide
               />
               <ProgressOutcomeCard
-                label="Food adherence"
-                value={percentLabel(calorieAccuracy)}
-                detail={`${foodDateSet.size}/30 days logged · ${avgCalorieDeviation} cal miss`}
+                label={
+                  protectedNutritionMode ? "Food logging" : "Food adherence"
+                }
+                value={
+                  protectedNutritionMode
+                    ? `${foodDateSet.size}/30d`
+                    : percentLabel(calorieAccuracy)
+                }
+                detail={
+                  protectedNutritionMode
+                    ? `${nutritionPlan?.trackingMode ?? "habit"} mode · low-pressure tracking`
+                    : `${foodDateSet.size}/30 days logged · ${avgCalorieDeviation} cal miss`
+                }
                 actionLabel={
                   nutritionConfidence < 70 || foodDateSet.size === 0
                     ? "Log food"
@@ -4800,7 +3884,7 @@ export default function Progress() {
                     : undefined
                 }
                 tone={
-                  calorieAccuracy >= 60
+                  protectedNutritionMode || calorieAccuracy >= 60
                     ? APP_ACCENT_COLORS.complete
                     : APP_ACCENT_COLORS.progress
                 }
@@ -4811,7 +3895,9 @@ export default function Progress() {
                 detail={`${fmtInt(last7HardSets)} hard sets · 7 days`}
                 actionLabel={lowTrainingDose ? "Start workout" : undefined}
                 onAction={
-                  lowTrainingDose ? () => navigate("/workout/active") : undefined
+                  lowTrainingDose
+                    ? () => navigate("/workout/active")
+                    : undefined
                 }
                 tone={
                   lowTrainingDose
@@ -4824,7 +3910,9 @@ export default function Progress() {
             <div className="mt-4 rounded-[1rem] bg-foreground/[0.035] px-3 pt-3 pb-2">
               {weightValues.length >= 2 && bodyWeightGraph ? (
                 <ExpandableChartButton
-                  onExpand={() => setExpandedMetricGraphId("body.weight_current")}
+                  onExpand={() =>
+                    setExpandedMetricGraphId("body.weight_current")
+                  }
                 >
                   <MetricProgressChart graph={bodyWeightGraph} />
                 </ExpandableChartButton>
@@ -4844,18 +3932,6 @@ export default function Progress() {
                   Ranked from your latest body, food, and training signals.
                 </p>
               </div>
-              {hasAiAccess && (
-                <button
-                  type="button"
-                  disabled={aiCoachBusy}
-                  onClick={aiGenerateCoachAdvice}
-                  className="h-8 shrink-0 app-button app-button-quiet"
-                  aria-label="Generate AI coaching advice"
-                >
-                  <Sparkle size={12} weight="fill" />
-                  {aiCoachBusy ? "Thinking" : "AI"}
-                </button>
-              )}
             </div>
             <div className="grid gap-2">
               {nextActions.map((action) => (
@@ -4865,8 +3941,6 @@ export default function Progress() {
                   detail={action.detail}
                   actionLabel={action.actionLabel}
                   onAction={action.onAction}
-                  askAiLabel={action.askAiLabel}
-                  onAskAi={action.onAskAi}
                   tone={action.tone}
                 />
               ))}
@@ -4879,7 +3953,9 @@ export default function Progress() {
             <div className="mb-4">
               <p className="app-section-title">Nutrition consistency</p>
               <p className="app-section-subtitle">
-                Logged days only, compared with current targets.
+                {protectedNutritionMode
+                  ? "Gentle consistency signals from your chosen tracking mode."
+                  : "Logged days only, compared with current targets."}
               </p>
             </div>
             <div className="space-y-4">
@@ -4889,18 +3965,22 @@ export default function Progress() {
                 detail={`${fmtInt(averageProtein)}g average · ${proteinTarget}g target`}
                 tone={APP_ACCENT_COLORS.complete}
               />
-              <ProgressMiniMeter
-                label="Calorie accuracy"
-                value={calorieAccuracy}
-                detail={`${fmtInt(averageCalories)} average · ${calorieTarget} target`}
-                tone={APP_ACCENT_COLORS.progress}
-              />
-              <ProgressMiniMeter
-                label="Macro consistency"
-                value={macroConsistency}
-                detail="Calories, protein, carbs, and fat"
-                tone="var(--foreground)"
-              />
+              {!protectedNutritionMode && (
+                <>
+                  <ProgressMiniMeter
+                    label="Calorie accuracy"
+                    value={calorieAccuracy}
+                    detail={`${fmtInt(averageCalories)} average · ${calorieTarget} target`}
+                    tone={APP_ACCENT_COLORS.progress}
+                  />
+                  <ProgressMiniMeter
+                    label="Macro consistency"
+                    value={macroConsistency}
+                    detail="Calories, protein, carbs, and fat"
+                    tone="var(--foreground)"
+                  />
+                </>
+              )}
             </div>
           </div>
 
@@ -4965,530 +4045,7 @@ export default function Progress() {
             </div>
           </div>
         </section>
-
-        <section className="mt-3 p-4 app-surface">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="app-section-title">Metric library</p>
-              <p className="app-section-subtitle">
-                Pin extra diagnostics when you want a deeper view.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMetricSheetOpen(true)}
-              className="h-9 app-button app-button-quiet shrink-0"
-            >
-              <MagnifyingGlass size={12} weight="bold" /> Metrics
-            </button>
-          </div>
-
-          {selectedMetrics.length > 0 ? (
-            <>
-              <MetricGrid
-                metrics={topMetricsMobile}
-                onRemove={removeMetric}
-                onOpenMetric={openMetricInteractiveGraph}
-                className="md:hidden"
-              />
-              <MetricGrid
-                metrics={topMetricsDesktop}
-                onRemove={removeMetric}
-                onOpenMetric={openMetricInteractiveGraph}
-                className="hidden md:grid md:grid-cols-4"
-              />
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setMetricSheetOpen(true)}
-              className="justify-center py-4 w-full font-semibold text-[13px] app-empty"
-            >
-              <Plus size={13} /> Add your first metric
-            </button>
-          )}
-        </section>
-
-        <InsightStrip
-          insights={displayedCoachInsights}
-          onGenerateAi={hasAiAccess ? aiGenerateCoachAdvice : undefined}
-          onOpenAiHistory={hasAiAccess ? () => setAiCoachOpen(true) : undefined}
-          onDeleteInsight={deleteCoachInsight}
-          onClarifyInsight={hasAiAccess ? clarifyCoachInsight : undefined}
-          aiBusy={aiCoachBusy}
-        />
-
-        <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
-          <div className="content-start gap-3 grid min-w-0">
-            <div className="p-4 app-surface">
-              <div className="flex justify-between items-center gap-3 mb-3">
-                <div className="min-w-0">
-                  <p className="app-section-title">Body composition</p>
-                  <p className="app-section-subtitle">
-                    {latest
-                      ? `Latest ${formatMeasurementDate(latest.loggedAt)}`
-                      : "Weight, body fat, waist"}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSheetOpen(true)}
-                  className="h-9 app-button app-button-quiet"
-                >
-                  Add
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
-                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Weight
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {fmtNumber(latest?.weightKg)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    {signedValue(deltaFor(weightValues), " kg")}
-                  </p>
-                </div>
-                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Body fat
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {fmtNumber(latest?.bodyFatPct)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    {signedValue(deltaFor(bodyFatValues), "%")}
-                  </p>
-                </div>
-                <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Waist
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {fmtNumber(latest?.waistCm)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    {signedValue(deltaFor(waistValues), " cm")}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-2 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
-                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Fat mass
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {latestFatMass == null ? "—" : fmtNumber(latestFatMass)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    kg estimated
-                  </p>
-                </div>
-                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Lean mass
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {latestLeanMass == null ? "—" : fmtNumber(latestLeanMass)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    kg estimated
-                  </p>
-                </div>
-                <div className="bg-foreground/[0.035] px-3 py-3 rounded-[0.8rem]">
-                  <p className="font-bold text-[10px] text-muted-foreground/62">
-                    Waist / weight
-                  </p>
-                  <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                    {latestWaistToWeight == null ? "—" : latestWaistToWeight.toFixed(2)}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground/45">
-                    cm per kg
-                  </p>
-                </div>
-              </div>
-
-              <div className="bg-foreground/[0.035] mt-4 px-3 pt-3 pb-2 rounded-[0.9rem]">
-                {weightValues.length >= 2 && bodyWeightGraph ? (
-                  <ExpandableChartButton
-                    onExpand={() => setExpandedMetricGraphId("body.weight_current")}
-                  >
-                    <MetricProgressChart graph={bodyWeightGraph} />
-                  </ExpandableChartButton>
-                ) : (
-                  <div className="flex justify-center items-center h-28 text-[12px] text-muted-foreground/50 text-center">
-                    Add two weight check-ins to draw the trend.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 app-surface">
-              <div className="flex justify-between items-center gap-3 mb-3">
-                <div>
-                  <p className="app-section-title">Recent check-ins</p>
-                  <p className="app-section-subtitle">
-                    {entries.length === 0
-                      ? "No entries yet"
-                      : `${entries.length} total`}
-                  </p>
-                </div>
-              </div>
-
-              {entries.length === 0 ? (
-                <EmptyProgressState
-                  title="No measurements logged"
-                  detail="Add one check-in. Repeat it regularly to make the trend line useful."
-                />
-              ) : (
-                <div className="divide-y divide-border/30">
-                  {[...entries]
-                    .reverse()
-                    .slice(0, 5)
-                    .map((entry) => (
-                      <SlideToDeleteRow
-                        key={entry.clientId ?? entry._id ?? entry.loggedAt}
-                        deleteLabel="Delete measurement"
-                        onDelete={() => {
-                          void (async () => {
-                            try {
-                              await removeMeasurement({
-                                clientId: entry.clientId,
-                              })
-                            } catch (err) {
-                              console.error(
-                                "Failed to remove measurement:",
-                                err
-                              )
-                            }
-                          })()
-                        }}
-                        rowClassName="bg-card"
-                      >
-                        <div className="flex justify-between items-center gap-3 py-3">
-                          <div className="min-w-0">
-                            <p className="font-bold text-[10px] text-muted-foreground/48 uppercase">
-                              {formatMeasurementDate(entry.loggedAt)}
-                            </p>
-                            <p className="mt-1 font-extrabold tabular-nums text-[13px] truncate">
-                              {entry.weightKg != null
-                                ? `${entry.weightKg.toFixed(1)} kg`
-                                : "Body check"}
-                            </p>
-                          </div>
-                          <div className="font-semibold text-[10.5px] text-muted-foreground/52 text-right shrink-0">
-                            <p>{fmtNumber(entry.bodyFatPct)}% fat</p>
-                            <p>{fmtNumber(entry.waistCm)} cm waist</p>
-                          </div>
-                        </div>
-                      </SlideToDeleteRow>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {photoEntries.length > 0 && (
-              <div className="p-4 app-surface">
-                <div className="mb-3">
-                  <p className="app-section-title">Progress photos</p>
-                  <p className="app-section-subtitle">
-                    Visual checkpoints for body composition changes.
-                  </p>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {[...photoEntries]
-                    .reverse()
-                    .slice(0, 6)
-                    .map((entry) => {
-                      const src = entry.photoUrl ?? entry.photoDataUrl
-                      return (
-                        <div
-                          key={`photo-${entry.clientId ?? entry._id ?? entry.loggedAt}`}
-                          className="relative h-28 w-20 shrink-0 overflow-hidden rounded-[0.85rem] bg-foreground/[0.05]"
-                        >
-                          {src ? (
-                            <img
-                              src={src}
-                              alt={`Progress photo from ${formatMeasurementDate(entry.loggedAt)}`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-muted-foreground/30">
-                              <Camera size={22} />
-                            </div>
-                          )}
-                          <div className="absolute inset-x-0 bottom-0 bg-background/80 px-1.5 py-1 text-center font-bold text-[9px] text-muted-foreground/60 backdrop-blur-sm">
-                            {formatMeasurementDate(entry.loggedAt)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                </div>
-              </div>
-            )}
-
-            {bottomMetricsMobile.length > 0 && (
-              <div className="md:hidden p-4 app-surface">
-                <div className="flex justify-between items-center gap-3 mb-3">
-                  <div className="min-w-0">
-                    <p className="app-section-title">More metrics</p>
-                    <p className="app-section-subtitle">
-                      Remaining pinned metrics
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMetricSheetOpen(true)}
-                    className="h-9 app-button app-button-quiet shrink-0"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <MetricGrid
-                  metrics={bottomMetricsMobile}
-                  onRemove={removeMetric}
-                  onOpenMetric={openMetricInteractiveGraph}
-                />
-              </div>
-            )}
-
-            {bottomMetricsDesktopLeft.length > 0 && (
-              <div className="hidden md:block p-4 app-surface">
-                <div className="flex justify-between items-center gap-3 mb-3">
-                  <div className="min-w-0">
-                    <p className="app-section-title">More metrics</p>
-                    <p className="app-section-subtitle">Pinned details</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMetricSheetOpen(true)}
-                    className="h-9 app-button app-button-quiet shrink-0"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <MetricGrid
-                  metrics={bottomMetricsDesktopLeft}
-                  onRemove={removeMetric}
-                  onOpenMetric={openMetricInteractiveGraph}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="content-start gap-3 grid min-w-0">
-            <div className="p-4 app-surface">
-              <div className="mb-3">
-                <p className="app-section-title">Strength trend</p>
-                <p className="app-section-subtitle">
-                  Search any logged exercise.
-                </p>
-              </div>
-
-              <div className="relative mb-3">
-                <MagnifyingGlass
-                  size={14}
-                  className="top-1/2 left-3 absolute text-muted-foreground/45 -translate-y-1/2 pointer-events-none"
-                />
-                <input
-                  type="search"
-                  name="strength-trend-exercise-search"
-                  aria-label="Search strength trend exercise"
-                  value={exerciseQuery}
-                  onChange={(event) => setExerciseQuery(event.target.value)}
-                  placeholder="Search exercise"
-                  className="bg-foreground/[0.045] pr-3 pl-9 border-0 rounded-[0.8rem] outline-none w-full h-10 font-semibold text-[13px] placeholder:text-muted-foreground/38"
-                />
-              </div>
-
-              {exerciseChoices.length > 0 && (
-                <>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="font-bold text-[9.5px] text-muted-foreground/45 uppercase tracking-[0.12em]">
-                      Most data
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/42">
-                      Showing 3 · search for the rest
-                    </p>
-                  </div>
-                  <div className="flex gap-1.5 mb-3 pb-1 overflow-x-auto">
-                    {exerciseChoices.map((exercise) => {
-                      const active = selectedExercise?.id === exercise.id
-                      return (
-                        <button
-                          key={exercise.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedExerciseId(exercise.id)
-                            setExerciseQuery("")
-                          }}
-                          className={cn(
-                            "px-2.5 py-1.5 rounded-[0.7rem] font-bold text-[11px] transition-colors shrink-0",
-                            active
-                              ? "bg-foreground text-background"
-                              : "bg-foreground/[0.045] text-muted-foreground/68 active:bg-foreground/[0.08]"
-                          )}
-                        >
-                          {exercise.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </>
-              )}
-
-              {exerciseQuery.trim() && (
-                <div className="mb-4 max-h-44 overflow-y-auto rounded-[0.9rem] bg-foreground/[0.035] p-1.5">
-                  {exerciseSearchResults.length > 0 ? (
-                    exerciseSearchResults.map((exercise) => (
-                      <button
-                        key={`search-${exercise.id}`}
-                        type="button"
-                        onClick={() => {
-                          setSelectedExerciseId(exercise.id)
-                          setExerciseQuery("")
-                        }}
-                        className="flex w-full items-center justify-between gap-3 rounded-[0.7rem] px-2.5 py-2 text-left active:bg-foreground/[0.06]"
-                      >
-                        <span className="min-w-0 truncate font-bold text-[12px]">
-                          {exercise.name}
-                        </span>
-                        <span className="shrink-0 text-[10px] font-semibold text-muted-foreground/48">
-                          {exercise.sessions} sessions · {exercise.sets} sets
-                        </span>
-                      </button>
-                    ))
-                  ) : (
-                    <p className="px-2.5 py-3 text-[11.5px] text-muted-foreground/50">
-                      No other logged exercises match that search.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {selectedExercise ? (
-                <div>
-                  <div className="flex justify-between items-start gap-3">
-                    <div className="min-w-0">
-                      <p className="app-eyebrow">Selected lift</p>
-                      <p className="mt-1 font-extrabold text-[1.25rem] truncate leading-tight">
-                        {selectedExercise.name}
-                      </p>
-                      <p className="mt-1 font-semibold text-[11px] text-muted-foreground/56">
-                        {selectedExercise.points.length >= 2
-                          ? `${fmtNumber(selectedExercise.firstBest)} → ${fmtNumber(selectedExercise.lastBest)} kg est. 1RM`
-                          : `${selectedExercise.sessions} session${selectedExercise.sessions === 1 ? "" : "s"} logged`}
-                      </p>
-                    </div>
-                    <div className="bg-foreground/[0.045] px-3 py-2 rounded-[0.8rem] text-right">
-                      <p className="font-bold text-[10px] text-muted-foreground/52">
-                        Change
-                      </p>
-                      <p className="mt-0.5 font-extrabold tabular-nums text-[16px]">
-                        {signedValue(selectedExercise.delta, " kg")}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-foreground/[0.035] mt-4 px-3 pt-3 pb-2 rounded-[0.9rem]">
-                    {selectedExercise.points.length >= 2 && selectedLiftGraph ? (
-                      <ExpandableChartButton
-                        onExpand={() =>
-                          setExpandedMetricGraphId("strength.selected_1rm")
-                        }
-                      >
-                        <MetricProgressChart graph={selectedLiftGraph} />
-                      </ExpandableChartButton>
-                    ) : (
-                      <div className="flex justify-center items-center h-28 text-[12px] text-muted-foreground/45">
-                        Add another session to draw the trend.
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-2 min-[430px]:grid-cols-3">
-                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                      <p className="font-bold text-[10px] text-muted-foreground/62">
-                        Sessions
-                      </p>
-                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                        {fmtInt(selectedExercise.sessions)}
-                      </p>
-                    </div>
-                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                      <p className="font-bold text-[10px] text-muted-foreground/62">
-                        Volume
-                      </p>
-                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                        {fmtInt(selectedExercise.totalVolume)}
-                      </p>
-                    </div>
-                    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
-                      <p className="font-bold text-[10px] text-muted-foreground/62">
-                        PRs
-                      </p>
-                      <p className="mt-1 font-extrabold tabular-nums text-[18px]">
-                        {fmtInt(selectedExercise.prs)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <EmptyProgressState
-                  title="No strength data"
-                  detail="Log sets in a workout, then search an exercise here."
-                />
-              )}
-            </div>
-
-            {bottomMetricsDesktopRight.length > 0 && (
-              <div className="hidden md:block p-4 app-surface">
-                <div className="flex justify-between items-center gap-3 mb-3">
-                  <div className="min-w-0">
-                    <p className="app-section-title">Metric details</p>
-                    <p className="app-section-subtitle">Pinned details</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setMetricSheetOpen(true)}
-                    className="h-9 app-button app-button-quiet shrink-0"
-                  >
-                    Edit
-                  </button>
-                </div>
-                <MetricGrid
-                  metrics={bottomMetricsDesktopRight}
-                  onRemove={removeMetric}
-                  onOpenMetric={openMetricInteractiveGraph}
-                />
-              </div>
-            )}
-          </div>
-        </section>
       </main>
-
-      {openMetricGraph && (
-        <MetricProgressSheet
-          metric={openMetricGraph}
-          onClose={() => setOpenMetricGraphId(null)}
-        />
-      )}
-
-      {metricSheetOpen && (
-        <MetricSearchSheet
-          metrics={metricCatalog}
-          selectedIds={selectedMetricIds}
-          customMetrics={customMetrics}
-          onAddMetric={addMetric}
-          onRemoveMetric={removeMetric}
-          onAddCustomMetric={addCustomMetric}
-          onAiGenerate={aiGenerateMetrics}
-          onClose={() => setMetricSheetOpen(false)}
-        />
-      )}
 
       {sheetOpen && (
         <MeasurementSheet
@@ -5525,20 +4082,6 @@ export default function Progress() {
           onClose={() => setExpandedMetricGraphId(null)}
         />
       )}
-
-      {hasAiAccess && aiCoachOpen && (
-        <AiCoachModal
-          messages={aiCoachMessages}
-          input={aiCoachInput}
-          busy={aiCoachBusy}
-          onInputChange={setAiCoachInput}
-          onSend={() => void sendAiCoachMessage(aiCoachInput)}
-          onClear={() => setAiCoachMessages([])}
-          onClose={() => setAiCoachOpen(false)}
-        />
-      )}
-
-      {aiAccessModal}
     </div>
   )
 }

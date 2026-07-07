@@ -18,6 +18,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
 import type * as lib_deleteUserData from "../lib/deleteUserData.js";
 import type * as lib_estimateOnboardingCalories from "../lib/estimateOnboardingCalories.js";
+import type * as lib_nutritionPlan from "../lib/nutritionPlan.js";
 import type * as lib_onboardingProfiles from "../lib/onboardingProfiles.js";
 import type * as logs_activeWorkout from "../logs/activeWorkout.js";
 import type * as logs_calories from "../logs/calories.js";
@@ -31,9 +32,11 @@ import type * as logs_snapMatching from "../logs/snapMatching.js";
 import type * as logs_supplements from "../logs/supplements.js";
 import type * as logs_water from "../logs/water.js";
 import type * as logs_workouts from "../logs/workouts.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as users_checkIn from "../users/checkIn.js";
 import type * as users_onboarding from "../users/onboarding.js";
 import type * as users_schedules from "../users/schedules.js";
+import type * as users_tooltips from "../users/tooltips.js";
 import type * as users_users from "../users/users.js";
 
 import type {
@@ -53,6 +56,7 @@ declare const fullApi: ApiFromModules<{
   "lib/calculateCalories": typeof lib_calculateCalories;
   "lib/deleteUserData": typeof lib_deleteUserData;
   "lib/estimateOnboardingCalories": typeof lib_estimateOnboardingCalories;
+  "lib/nutritionPlan": typeof lib_nutritionPlan;
   "lib/onboardingProfiles": typeof lib_onboardingProfiles;
   "logs/activeWorkout": typeof logs_activeWorkout;
   "logs/calories": typeof logs_calories;
@@ -66,9 +70,11 @@ declare const fullApi: ApiFromModules<{
   "logs/supplements": typeof logs_supplements;
   "logs/water": typeof logs_water;
   "logs/workouts": typeof logs_workouts;
+  subscriptions: typeof subscriptions;
   "users/checkIn": typeof users_checkIn;
   "users/onboarding": typeof users_onboarding;
   "users/schedules": typeof users_schedules;
+  "users/tooltips": typeof users_tooltips;
   "users/users": typeof users_users;
 }>;
 

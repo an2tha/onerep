@@ -6,6 +6,7 @@ import { calculateCalories } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
+import { buildNutritionPlan } from "../lib/nutritionPlan";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -622,11 +623,18 @@ export const getEffectiveGoals = query({
       fat: number;
       bmr: number;
       tdee: number;
+      fiber?: number;
+      saturatedFatLimit?: number;
+      sodiumLimit?: number;
+      calorieStrategy?: string;
+      safetyMode?: string;
+      trackingMode?: string;
+      guidance?: string[];
       source: "healthProfile" | "onboarding";
     } | null = null;
 
     if (healthProfile) {
-      const result = calculateCalories(healthProfile);
+      const result = calculateCalories(healthProfile, onboarding);
       healthGoals = {
         calories: result.targetCalories,
         protein: result.protein,
@@ -634,6 +642,13 @@ export const getEffectiveGoals = query({
         fat: result.fat,
         bmr: result.bmr,
         tdee: result.tdee,
+        fiber: result.fiber,
+        saturatedFatLimit: result.saturatedFatLimit,
+        sodiumLimit: result.sodiumLimit,
+        calorieStrategy: result.calorieStrategy,
+        safetyMode: result.safetyMode,
+        trackingMode: result.trackingMode,
+        guidance: result.guidance,
         source: "healthProfile",
       };
     } else if (onboarding) {
@@ -645,6 +660,13 @@ export const getEffectiveGoals = query({
         fat: result.fat,
         bmr: result.bmr,
         tdee: result.tdee,
+        fiber: result.fiber,
+        saturatedFatLimit: result.saturatedFatLimit,
+        sodiumLimit: result.sodiumLimit,
+        calorieStrategy: result.calorieStrategy,
+        safetyMode: result.safetyMode,
+        trackingMode: result.trackingMode,
+        guidance: result.guidance,
         source: "onboarding",
       };
     }
@@ -702,5 +724,170 @@ export const getEffectiveGoals = query({
       macroCyclingEnabled: !!prefs?.macroCyclingEnabled,
       workoutAdjustmentEnabled: !!prefs?.workoutAdjustmentEnabled,
     };
+  },
+});
+
+export const getNutritionPlan = query({
+  args: { date: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+
+    const date = args.date ?? "9999-12-31";
+    const prefs = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const customGoals = prefs?.customGoals;
+    const healthProfile = await ctx.db
+      .query("healthProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    const onboarding = await getLatestOnboardingProfile(ctx, user._id);
+
+    let healthGoals: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      bmr: number;
+      tdee: number;
+      fiber?: number;
+      saturatedFatLimit?: number;
+      sodiumLimit?: number;
+      calorieStrategy?: string;
+      safetyMode?: string;
+      trackingMode?: string;
+      guidance?: string[];
+      source: "healthProfile" | "onboarding";
+    } | null = null;
+
+    if (healthProfile) {
+      const result = calculateCalories(healthProfile, onboarding);
+      healthGoals = {
+        calories: result.targetCalories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+        bmr: result.bmr,
+        tdee: result.tdee,
+        fiber: result.fiber,
+        saturatedFatLimit: result.saturatedFatLimit,
+        sodiumLimit: result.sodiumLimit,
+        calorieStrategy: result.calorieStrategy,
+        safetyMode: result.safetyMode,
+        trackingMode: result.trackingMode,
+        guidance: result.guidance,
+        source: "healthProfile",
+      };
+    } else if (onboarding) {
+      const result = estimateOnboardingCalories(onboarding);
+      healthGoals = {
+        calories: result.targetCalories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat,
+        bmr: result.bmr,
+        tdee: result.tdee,
+        fiber: result.fiber,
+        saturatedFatLimit: result.saturatedFatLimit,
+        sodiumLimit: result.sodiumLimit,
+        calorieStrategy: result.calorieStrategy,
+        safetyMode: result.safetyMode,
+        trackingMode: result.trackingMode,
+        guidance: result.guidance,
+        source: "onboarding",
+      };
+    }
+
+    const effective = {
+      calories: customGoals?.calories ?? healthGoals?.calories ?? 2000,
+      protein: customGoals?.protein ?? healthGoals?.protein ?? 150,
+      carbs: customGoals?.carbs ?? healthGoals?.carbs ?? 200,
+      fat: customGoals?.fat ?? healthGoals?.fat ?? 65,
+    };
+
+    const [foodLogs, bodyMeasurements, workoutLogs, recipes, mealPresets] =
+      await Promise.all([
+        ctx.db
+          .query("foodLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", user._id).lte("date", date),
+          )
+          .order("desc")
+          .take(21),
+        ctx.db
+          .query("bodyMeasurements")
+          .withIndex("by_userId", (q) => q.eq("userId", user._id))
+          .collect(),
+        ctx.db
+          .query("workoutLogs")
+          .withIndex("by_userId_date", (q) =>
+            q.eq("userId", user._id).lte("date", date),
+          )
+          .order("desc")
+          .take(21),
+        ctx.db
+          .query("recipes")
+          .withIndex("by_userId", (q) => q.eq("userId", user._id))
+          .order("desc")
+          .take(10),
+        ctx.db
+          .query("mealPresets")
+          .withIndex("by_userId", (q) => q.eq("userId", user._id))
+          .order("desc")
+          .take(10),
+      ]);
+
+    return buildNutritionPlan({
+      effective,
+      health: healthGoals,
+      onboarding,
+      foodLogs,
+      bodyMeasurements,
+      workoutLogs,
+      recipes,
+      mealPresets,
+    });
+  },
+});
+
+export const applyNutritionCalibration = mutation({
+  args: {
+    calories: v.number(),
+    protein: v.number(),
+    carbs: v.number(),
+    fat: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const customGoals = {
+      calories: Math.round(args.calories),
+      protein: Math.round(args.protein),
+      carbs: Math.round(args.carbs),
+      fat: Math.round(args.fat),
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        customGoals,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        customGoals,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return customGoals;
   },
 });

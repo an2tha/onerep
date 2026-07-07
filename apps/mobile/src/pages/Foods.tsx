@@ -64,6 +64,7 @@ import {
   tint,
 } from "@/lib/design-tokens"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import type { NutritionPlan } from "@/lib/health-goals"
 import {
   clampSnapGrams,
   snapDetectionsFromAiResult,
@@ -130,9 +131,7 @@ function SectionHeader({
     <div className="app-section-header">
       <div>
         <h2 className="app-section-title">{title}</h2>
-        {sub && (
-          <p className="app-section-subtitle">{sub}</p>
-        )}
+        {sub && <p className="app-section-subtitle">{sub}</p>}
       </div>
       {action}
     </div>
@@ -352,9 +351,7 @@ function TodayDiaryCard({
       style={{ "--rail-color": "var(--accent-food)" } as React.CSSProperties}
     >
       <div className="mb-3 flex items-baseline justify-between">
-        <p className="app-eyebrow">
-          Today
-        </p>
+        <p className="app-eyebrow">Today</p>
         <span className="text-[11px] text-muted-foreground/35 tabular-nums">
           {entries.reduce((s, e) => s + e.calories, 0)} kcal
         </span>
@@ -545,8 +542,7 @@ function StatsBar({
     entries.reduce((s, e) => s + (e.carbs || 0), 0) +
     (supplementTotals.carbs ?? 0)
   const fat =
-    entries.reduce((s, e) => s + (e.fat || 0), 0) +
-    (supplementTotals.fat ?? 0)
+    entries.reduce((s, e) => s + (e.fat || 0), 0) + (supplementTotals.fat ?? 0)
   const calPct =
     goals.calories > 0 ? Math.min(100, (consumed / goals.calories) * 100) : 0
   const over = consumed > goals.calories
@@ -841,9 +837,7 @@ function MicronutrientsCard({
   if (keys.length === 0) {
     return (
       <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-        <p className="app-eyebrow">
-          Micronutrients
-        </p>
+        <p className="app-eyebrow">Micronutrients</p>
         <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/40">
           {entries.length === 0
             ? "No food or supplement nutrients logged today."
@@ -860,9 +854,7 @@ function MicronutrientsCard({
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <div className="min-w-0">
-          <p className="app-eyebrow">
-            Micronutrients
-          </p>
+          <p className="app-eyebrow">Micronutrients</p>
           <p className="mt-0.5 text-[10.5px] text-muted-foreground/30">
             {keys.length} total · {supplementKeyCount} from supplements
           </p>
@@ -1080,10 +1072,7 @@ function tempRecipeFromAiDescription(
       const match = matchesByIndex.get(index)
       const food = match?.food ?? null
       if (!food) return null
-      return recipeIngredientFromAiFood(
-        food,
-        detection.estimatedGrams ?? 100
-      )
+      return recipeIngredientFromAiFood(food, detection.estimatedGrams ?? 100)
     })
     .filter((ingredient): ingredient is RecipeIngredient => ingredient !== null)
 
@@ -1366,10 +1355,7 @@ function RecipeCard({
         >
           <Trash size={11} />
         </button>
-        <button
-          onClick={onLog}
-          className="app-button app-button-quiet flex-1"
-        >
+        <button onClick={onLog} className="app-button app-button-quiet flex-1">
           Log to diary
           <CaretRight
             size={10}
@@ -1407,9 +1393,7 @@ function GoalsCardWrapper({
   return (
     <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       <div className="flex items-center justify-between">
-        <p className="app-eyebrow">
-          Daily goals
-        </p>
+        <p className="app-eyebrow">Daily goals</p>
         <button
           onClick={() => setEditing((o) => !o)}
           className="app-button app-button-quiet"
@@ -1597,9 +1581,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
     <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
       {/* Header */}
       <div className="mb-2.5 flex items-center justify-between">
-        <p className="app-eyebrow">
-          Hydration
-        </p>
+        <p className="app-eyebrow">Hydration</p>
         <button
           onClick={() => navigate("/settings")}
           className="app-button app-button-quiet"
@@ -1653,10 +1635,7 @@ function WaterCard({ dateKey }: { dateKey: string }) {
         <p className="text-[10px] text-muted-foreground/40 tabular-nums">
           {fmtWater(totalMl)} / {fmtWater(goalMl)}
         </p>
-        <button
-          onClick={addGlass}
-          className="app-button app-button-quiet"
-        >
+        <button onClick={addGlass} className="app-button app-button-quiet">
           + More water
         </button>
       </div>
@@ -1696,6 +1675,9 @@ export default function Foods() {
   const goalsRes = useQuery(api.users.users.getEffectiveGoals, {
     date: todayKey,
   })
+  const nutritionPlanRaw = useQuery(api.users.users.getNutritionPlan, {
+    date: todayKey,
+  })
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: todayKey })
   const supplementNutrition = useQuery(api.logs.supplements.getDayNutrition, {
@@ -1710,6 +1692,17 @@ export default function Foods() {
     {}) as SupplementNutrients
   const recipes = (recipesQuery ?? []) as unknown as Recipe[]
   const mealPresets = (mealPresetsQuery ?? []) as unknown as MealPreset[]
+  const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
+  const visibleMetrics = nutritionPlan?.visibleMetrics ?? {
+    calories: true,
+    macros: true,
+    protein: true,
+    micros: true,
+    habits: false,
+    water: true,
+    streaks: true,
+  }
+  const planMealSuggestions = nutritionPlan?.mealSuggestions ?? []
   const recentFoodLogDays = (recentFoodLogs ?? []) as unknown as {
     date: string
     entries: FoodLogEntry[]
@@ -1771,6 +1764,14 @@ export default function Foods() {
     setSearchParams(next, { replace: true })
   }, [searchParams, setSearchParams, requireAiAccess])
 
+  useEffect(() => {
+    if (searchParams.get("history") !== "1") return
+    setHistoryOpen(true)
+    const next = new URLSearchParams(searchParams)
+    next.delete("history")
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
   async function handleDescribeMeal(text: string) {
     if (describeBusy || !requireAiAccess()) return
     setDescribeBusy(true)
@@ -1790,7 +1791,9 @@ export default function Foods() {
       setDescribeOpen(false)
       setLoggingRecipe(recipe)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not parse meal")
+      toast.error(
+        error instanceof Error ? error.message : "Could not parse meal"
+      )
     } finally {
       setDescribeBusy(false)
     }
@@ -1872,18 +1875,53 @@ export default function Foods() {
     }
   }
 
+  function runPlanMealSuggestion(
+    suggestion: NutritionPlan["mealSuggestions"][number]
+  ) {
+    if (suggestion.action === "create_recipe") {
+      navigate("/foods/recipe/new")
+      return
+    }
+    if (suggestion.action === "photo_log") {
+      openSnapCamera()
+      return
+    }
+    if (suggestion.action === "search_food") {
+      navigate("/foods/search")
+      return
+    }
+    if (suggestion.action === "log_recipe" && suggestion.recipeId) {
+      const recipe = recipes.find(
+        (item) => String(item._id) === suggestion.recipeId
+      )
+      if (recipe) {
+        setLoggingRecipe(recipe)
+        return
+      }
+    }
+    if (suggestion.action === "log_preset" && suggestion.presetId) {
+      const preset = mealPresets.find(
+        (item) => String(item._id) === suggestion.presetId
+      )
+      if (preset) {
+        const entries = foodLogEntriesFromMealPreset(preset, {
+          meal: defaultMeal(),
+        })
+        void setDay({ date: todayKey, entries: [...todayEntries, ...entries] })
+        return
+      }
+    }
+    navigate("/foods/search")
+  }
+
   return (
     <div className="desktop-canvas min-h-svh overflow-x-hidden bg-background lg:pr-8 lg:pl-72">
       <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {/* Header */}
         <header className="app-header px-[var(--app-page-x)] md:px-8 short-phone:pb-4">
           <div>
-            <p className="app-eyebrow">
-              Diary
-            </p>
-            <h1 className="app-title short-phone:text-[1.32rem]">
-              Food
-            </h1>
+            <p className="app-eyebrow">Diary</p>
+            <h1 className="app-title short-phone:text-[1.32rem]">Food</h1>
           </div>
           <div className="flex items-center gap-1.5 pb-0.5">
             <button
@@ -1935,6 +1973,39 @@ export default function Foods() {
             </section>
           )}
 
+          {planMealSuggestions.length > 0 && (
+            <section className="md:col-span-2">
+              <SectionHeader title="Suggested starts" />
+              <div className="grid gap-2 md:grid-cols-2">
+                {planMealSuggestions.slice(0, 4).map((suggestion) => (
+                  <button
+                    key={suggestion.id}
+                    type="button"
+                    onClick={() => runPlanMealSuggestion(suggestion)}
+                    className="rounded-[1rem] border border-border/45 bg-muted/20 px-3 py-3 text-left transition-colors active:bg-muted/35"
+                  >
+                    <p className="text-[13px] font-semibold">
+                      {suggestion.title}
+                    </p>
+                    <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground/60">
+                      {suggestion.detail}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {suggestion.tags.slice(0, 4).map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full bg-background px-2 py-0.5 text-[10px] font-semibold text-muted-foreground/60"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section>
             <SectionHeader title="Today's diary" />
             <TodayDiaryCard
@@ -1950,24 +2021,41 @@ export default function Foods() {
             />
           </section>
 
-          <section>
-            <SectionHeader title="Calories and macros" />
-            <div className="flex flex-col gap-2.5">
-              <StatsBar
-                entries={todayEntries}
-                supplementTotals={todaySupplementTotals}
-                goals={goals}
-                loading={loading}
-              />
-              <GoalsCardWrapper
-                goals={goals}
-                apiGoals={apiGoals}
-                onSave={(g) => {
-                  void saveCustomGoals(g)
-                }}
-              />
-            </div>
-          </section>
+          {(visibleMetrics.calories ||
+            visibleMetrics.macros ||
+            visibleMetrics.protein) && (
+            <section>
+              <SectionHeader title="Calories and macros" />
+              <div className="flex flex-col gap-2.5">
+                {visibleMetrics.calories && (
+                  <StatsBar
+                    entries={todayEntries}
+                    supplementTotals={todaySupplementTotals}
+                    goals={goals}
+                    loading={loading}
+                  />
+                )}
+                {(visibleMetrics.macros || visibleMetrics.protein) && (
+                  <GoalsCardWrapper
+                    goals={
+                      visibleMetrics.macros
+                        ? goals
+                        : {
+                            calories: goals.calories,
+                            protein: goals.protein,
+                            carbs: 0,
+                            fat: 0,
+                          }
+                    }
+                    apiGoals={apiGoals}
+                    onSave={(g) => {
+                      void saveCustomGoals(g)
+                    }}
+                  />
+                )}
+              </div>
+            </section>
+          )}
 
           <section>
             <SectionHeader
@@ -2023,13 +2111,15 @@ export default function Foods() {
             )}
           </section>
 
-          <section>
-            <SectionHeader title="Nutrition details" />
-            <MicronutrientsCard
-              entries={todayEntries}
-              supplementTotals={todaySupplementTotals}
-            />
-          </section>
+          {visibleMetrics.micros && (
+            <section>
+              <SectionHeader title="Nutrition details" />
+              <MicronutrientsCard
+                entries={todayEntries}
+                supplementTotals={todaySupplementTotals}
+              />
+            </section>
+          )}
 
           <section>
             <WaterCard dateKey={todayKey} />
@@ -2102,7 +2192,7 @@ export default function Foods() {
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="mb-3 app-surface overflow-hidden">
+            <div className="app-surface mb-3 overflow-hidden">
               <button
                 onClick={() => {
                   setAddOpen(false)
@@ -2229,7 +2319,8 @@ export default function Foods() {
                               {recipe.name}
                             </p>
                             <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {totals.calories} kcal ·{" "}
+                              {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>
                           </div>

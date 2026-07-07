@@ -37,6 +37,8 @@
     "clsx": "^2.1.1",
     "convex": "^1.39.1",
     "dotenv": "^17.4.2",
+    "framer-motion": "^12.42.2",
+    "motion": "^12.42.2",
     "posthog-js": "^1.377.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",

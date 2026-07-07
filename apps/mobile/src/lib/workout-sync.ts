@@ -53,9 +53,6 @@ export type CachedWorkoutLog = {
     sets: Array<{
       weight: string | number
       reps: string | number
-      leftReps?: string | number
-      rightReps?: string | number
-      rpe?: string | number
       completed: boolean
     }>
     cardio?: CardioWorkoutDetails

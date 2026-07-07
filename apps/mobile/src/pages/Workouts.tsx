@@ -6,6 +6,7 @@ import {
   Copy,
   Fire,
   Heart,
+  PencilIcon,
   PencilSimple,
   Plus,
   Trash,
@@ -13,7 +14,6 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { useBottomBarAction } from "@/components/bottom-bar"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { useQuery } from "convex/react"
@@ -231,15 +231,22 @@ function TrainingMetricTile({
   detail,
   icon,
   complete,
+  compact,
 }: {
   label: string
   value: string | number
   detail: string
   icon: React.ReactNode
   complete?: boolean
+  compact?: boolean
 }) {
   return (
-    <div className="bg-foreground/[0.045] px-3 py-3 rounded-[0.8rem]">
+    <div
+      className={cn(
+        "bg-foreground/[0.045] rounded-[0.8rem]",
+        compact ? "px-2.5 py-2.5" : "px-3 py-3"
+      )}
+    >
       <div className="flex justify-between items-center gap-2">
         <p className="font-bold text-[10px] text-muted-foreground/66">
           {label}
@@ -253,10 +260,20 @@ function TrainingMetricTile({
           {icon}
         </span>
       </div>
-      <p className="mt-1.5 font-extrabold tabular-nums text-[1.35rem] leading-none">
+      <p
+        className={cn(
+          "font-extrabold tabular-nums leading-none",
+          compact ? "mt-1 text-[1.15rem]" : "mt-1.5 text-[1.35rem]"
+        )}
+      >
         {value}
       </p>
-      <p className="mt-1 font-semibold text-[10.5px] text-muted-foreground/52 leading-4">
+      <p
+        className={cn(
+          "mt-1 font-semibold text-muted-foreground/52",
+          compact ? "text-[9.5px] leading-3" : "text-[10.5px] leading-4"
+        )}
+      >
         {detail}
       </p>
     </div>
@@ -780,7 +797,6 @@ export default function Workouts() {
   const [showSecondWorkoutSheet, setShowSecondWorkoutSheet] = useState(false)
   const [pickRoutineDay, setPickRoutineDay] = useState<Day | null>(null)
   const [addOpen, setAddOpen] = useState(false)
-  useBottomBarAction(() => setAddOpen(true))
 
   const [drag, setDrag] = useState<DragState | null>(null)
   const [overDay, setOverDay] = useState<Day | null>(null)
@@ -1051,18 +1067,6 @@ export default function Workouts() {
     void removePresetMutation({ id: id as Id<"presets"> })
   }
 
-  function handlePrimaryTrainingAction() {
-    if (workoutLogs.length === 0 && todayPreset) {
-      navigate(`/workout/active/${todayPreset.id}`)
-      return
-    }
-    if (workoutLogs.length === 1 && todayPreset2) {
-      navigate(`/workout/active/${todayPreset2.id}?slot=2`)
-      return
-    }
-    setAddOpen(true)
-  }
-
   const heroTitle =
     workoutLogs.length === 2
       ? "Training complete"
@@ -1083,14 +1087,7 @@ export default function Workouts() {
         : todayPreset
           ? `${todayPreset.steps.length} exercises · ${todayPreset.duration}`
           : "No workout scheduled. Log an open session anytime."
-  const heroActionLabel =
-    workoutLogs.length === 2
-      ? "Done"
-      : workoutLogs.length === 0 && todayPreset
-        ? "Start"
-        : workoutLogs.length === 1 && todayPreset2
-          ? "Start next"
-          : "Add"
+  const isRestDayHero = workoutLogs.length === 0 && !todayPreset
 
   // ── Ghost ─────────────────────────────────────────────────────────────────
 
@@ -1103,59 +1100,42 @@ export default function Workouts() {
         <header className="app-header">
           <div className="min-w-0">
             <h1 className="app-title">Workouts</h1>
-            <p className="mt-1 text-[12px] text-muted-foreground/60">
-              Plan sessions, start lifts, and review exercises in one place.
-            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="app-header-icon-action md:hidden"
-            aria-label="Add workout"
-          >
-            <Plus weight="bold" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setAddOpen(true)}
-            className="hidden bg-foreground text-background app-button md:inline-flex"
-            aria-label="Add workout"
-          >
-            <Plus size={13} weight="bold" /> Add
-          </button>
         </header>
 
-        <section className="p-4 app-surface">
+        <section className={cn("app-surface", isRestDayHero ? "p-3" : "p-4")}>
           <div className="flex justify-between items-start gap-4">
             <div className="min-w-0">
               <p className="app-eyebrow">Today · {today}</p>
-              <p className="mt-2 font-extrabold text-[2.05rem] truncate leading-none tracking-tight">
+              <p
+                className={cn(
+                  "mt-2 font-extrabold truncate leading-none tracking-tight",
+                  isRestDayHero ? "text-[1.55rem]" : "text-[2.05rem]"
+                )}
+              >
                 {heroTitle}
               </p>
               <p className="mt-1 font-semibold text-[11px] text-muted-foreground/58">
                 {heroDetail}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handlePrimaryTrainingAction}
-              disabled={workoutLogs.length === 2}
-              className={cn(
-                "app-button app-button-quiet shrink-0",
-                workoutLogs.length === 2 && "opacity-50"
-              )}
-            >
-              {heroActionLabel}
-            </button>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
+          <div
+            className={cn(
+              "gap-2.5 grid",
+              isRestDayHero
+                ? "mt-3 grid-cols-2"
+                : "mt-5 grid-cols-1 min-[430px]:grid-cols-2"
+            )}
+          >
             <TrainingMetricTile
               label="Week"
               value={workoutsThisWeek}
               detail={`${workoutLogs.length}/2 today`}
               icon={<Barbell size={14} weight="bold" />}
               complete={workoutsThisWeek > 0}
+              compact={isRestDayHero}
             />
             <TrainingMetricTile
               label="Streak"
@@ -1163,20 +1143,23 @@ export default function Workouts() {
               detail="days in a row"
               icon={<Heart size={14} weight="bold" />}
               complete={trainingStreak > 0}
+              compact={isRestDayHero}
             />
-            <TrainingMetricTile
-              label="Presets"
-              value={presets.length}
-              detail="ready sessions"
-              icon={<Fire size={14} weight="bold" />}
-              complete={presets.length > 0}
+          </div>
+
+          <div className={cn(isRestDayHero ? "mt-3" : "mt-4")}>
+            <SwipeToStart
+              onComplete={() => navigate("/workout/active")}
+              label="Start open workout"
+              variant="default"
             />
           </div>
         </section>
 
-        <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+        <section className="lg:items-start gap-4 lg:gap-4 grid grid-cols-1 lg:grid-cols-2 mt-4 lg:mt-3 min-w-0">
           <div className="content-start gap-3 grid min-w-0">
-            <div className="p-4 app-surface">
+            { todayPreset !== null &&
+              <div className="p-4 app-surface">
               <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
                   <p className="app-section-title">Today's workout</p>
@@ -1275,17 +1258,12 @@ export default function Workouts() {
                   <p className="mt-1 text-[12px] text-muted-foreground/58">
                     No workout scheduled for today.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/workout/active")}
-                    className="mt-4 app-button app-button-quiet"
-                  >
-                    Log open workout
-                  </button>
                 </div>
               )}
             </div>
 
+            }
+            
             <div className="p-4 app-surface">
               <div className="flex justify-between items-center gap-3 mb-3">
                 <div>
@@ -1302,16 +1280,17 @@ export default function Workouts() {
                       "transition-colors app-button",
                       routineEditMode
                         ? "app-button-primary"
-                        : "app-button-quiet"
+                        : "app-button-quiet",
+                      "sm:bg-none"
                     )}
                   >
-                    {routineEditMode ? "Done" : "Edit"}
+                    {routineEditMode ? "Done" : <PencilIcon />}
                   </button>
                 </div>
               </div>
 
               <div className="min-w-0">
-                <div className="gap-1 md:gap-1.5 grid grid-cols-7 pb-1 md:pb-0 min-w-0">
+                <div className="flex flex-wrap justify-center md:justify-stretch gap-2 md:gap-1.5 md:grid md:grid-cols-7 pb-1 md:pb-0">
                   {DAYS.map((day) => {
                     const preset =
                       presets.find((p) => p.id === routine[day]) ?? null
@@ -1335,7 +1314,7 @@ export default function Workouts() {
                           slotRefs.current[day] = el
                         }}
                         className={cn(
-                          "relative flex flex-col items-center gap-1.5 md:gap-2 bg-foreground/[0.035] px-0.5 md:px-1 py-2 md:py-3 rounded-[0.8rem] min-w-0 min-h-[4.65rem] md:min-h-[5.5rem] overflow-hidden transition-all duration-200",
+                          "relative flex flex-col items-center gap-1.5 md:gap-2 bg-foreground/[0.035] px-2 md:px-1 py-2.5 md:py-3 rounded-[0.9rem] md:rounded-[0.8rem] min-w-0 min-h-[5.25rem] md:min-h-[5.5rem] overflow-hidden transition-all duration-200 basis-[calc((100%-1rem)/3)] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:basis-auto",
                           isToday && !isOver && "bg-foreground/[0.07]",
                           isOver && "scale-[1.04] bg-foreground/[0.1]"
                         )}
@@ -1368,7 +1347,7 @@ export default function Workouts() {
 
                         <span
                           className={cn(
-                            "font-bold text-[9.5px] uppercase",
+                            "font-bold text-[10px] md:text-[9.5px] uppercase",
                             isToday
                               ? "text-foreground"
                               : "text-muted-foreground/62"
@@ -1391,14 +1370,16 @@ export default function Workouts() {
                           >
                             <div className="flex flex-col items-center gap-1 pb-1 w-full">
                               <FocusIcon
-                                size={preset2 ? 11 : 15}
+                                size={preset2 ? 12 : 16}
                                 weight="duotone"
                                 className="text-foreground/55"
                               />
                               <span
                                 className={cn(
                                   "px-1 max-w-full font-bold text-foreground/72 text-center truncate leading-tight",
-                                  preset2 ? "text-[8.5px]" : "text-[9.5px]"
+                                  preset2
+                                    ? "text-[9px] md:text-[8.5px]"
+                                    : "text-[10px] md:text-[9.5px]"
                                 )}
                               >
                                 {preset.name}
@@ -1409,11 +1390,11 @@ export default function Workouts() {
                               <div className="slide-in-from-bottom-1 flex flex-col items-center gap-1 w-full animate-in duration-200 fade-in-0">
                                 <div className="mb-1 bg-border/55 rounded-full w-7 md:w-[54px] h-px" />
                                 <FocusIcon2
-                                  size={11}
+                                  size={12}
                                   weight="duotone"
                                   className="text-foreground/55"
                                 />
-                                <span className="px-1 max-w-full font-bold text-[8.5px] text-foreground/72 text-center truncate leading-tight">
+                                <span className="px-1 max-w-full font-bold text-[9px] text-foreground/72 md:text-[8.5px] text-center truncate leading-tight">
                                   {preset2.name}
                                 </span>
                               </div>
@@ -1423,7 +1404,7 @@ export default function Workouts() {
                           <button
                             type="button"
                             onClick={() => setPickRoutineDay(day)}
-                            className="flex flex-col justify-center items-center gap-1 px-2 min-h-10 font-bold text-[10px] text-muted-foreground/62 active:text-foreground transition-colors"
+                            className="flex flex-col justify-center items-center gap-1 px-2 min-h-11 md:min-h-10 font-bold text-[10px] text-muted-foreground/62 active:text-foreground transition-colors"
                           >
                             <Plus size={14} weight="bold" />
                             Add
@@ -1473,6 +1454,26 @@ export default function Workouts() {
                       />
                     ))}
                   </>
+                )}
+                {!syncing && presets.length === 0 && (
+                  <div className="rounded-[0.9rem] bg-foreground/[0.035] px-3.5 py-4">
+                    <p className="font-bold text-[13px] text-foreground">
+                      No presets yet
+                    </p>
+                    <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[12px] leading-relaxed text-muted-foreground/66">
+                      <li>Tap <span className="font-bold text-foreground/80">New</span>.</li>
+                      <li>Name the workout and choose its focus.</li>
+                      <li>Add exercises, then save it.</li>
+                      <li>Return here and assign it to a routine day.</li>
+                    </ol>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/workouts/new")}
+                      className="mt-3 h-10 w-full app-button app-button-primary"
+                    >
+                      Create your first preset
+                    </button>
+                  </div>
                 )}
                 {presets.map((preset, idx) => {
                   const FocusIcon = FOCUS_ICON[preset.focus]

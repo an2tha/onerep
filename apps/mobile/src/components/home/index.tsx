@@ -14,6 +14,7 @@ type PrimaryAction = {
   label: string
   detail: string
   onClick: () => void
+  tooltip?: (children: ReactNode) => ReactNode
 }
 
 export type MacroProgress = {
@@ -118,6 +119,15 @@ export function DailyLedgerHero({
   const waterPct = pct(waterMl, waterGoalMl)
   const overTarget = caloriesLeft < 0
   const calorieStatus = caloriesLeft >= 0 ? "left" : "over"
+  const foodButton = (
+    <button
+      type="button"
+      onClick={food.onClick}
+      className="app-button app-button-primary motion-tactile shrink-0"
+    >
+      {food.label}
+    </button>
+  )
 
   return (
     <section className="app-rail-surface motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
@@ -144,13 +154,7 @@ export function DailyLedgerHero({
               {fmt(consumed)} eaten of {fmt(caloriesTarget)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={food.onClick}
-            className="app-button app-button-primary motion-tactile shrink-0"
-          >
-            {food.label}
-          </button>
+          {food.tooltip ? food.tooltip(foodButton) : foodButton}
         </div>
 
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/[0.065]">
