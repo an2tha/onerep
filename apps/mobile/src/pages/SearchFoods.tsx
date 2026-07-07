@@ -35,6 +35,7 @@ import {
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
+import { GooeyInput } from "@/components/ui/gooey-input"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
@@ -311,8 +312,8 @@ export default function SearchFoods() {
 
   return (
     <>
-      <div className="desktop-canvas flex min-h-svh flex-col bg-background">
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
+      <div className="flex flex-col bg-background min-h-svh desktop-canvas">
+        <div className="flex flex-col flex-1 mx-auto w-full max-w-lg md:max-w-4xl">
           <div
             className="flex items-center gap-3 px-[var(--app-page-x)] pb-4"
             style={{
@@ -329,23 +330,25 @@ export default function SearchFoods() {
 
             <div className="relative flex-1">
               {searchState === "loading" ? (
-                <div className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
+                <div className="top-1/2 left-3 absolute border border-muted-foreground/20 border-t-muted-foreground/60 rounded-full w-3.5 h-3.5 -translate-y-1/2 animate-spin pointer-events-none" />
               ) : (
                 <MagnifyingGlass
                   size={14}
-                  className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground/50"
+                  className="top-1/2 left-3 absolute text-muted-foreground/50 -translate-y-1/2 pointer-events-none"
                 />
               )}
               <input
-                ref={inputRef}
                 type="text"
                 name="food-search-query"
                 placeholder="Search foods…"
                 value={query}
+                ref={inputRef}
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label="Search foods"
-                className="app-input h-11 w-full border-border/60 bg-muted/45 pr-10 pl-8 text-[14px] placeholder:text-muted-foreground/40"
+                className="bg-muted/45 pr-10 pl-8 border-border/60 w-full h-11 text-[14px] placeholder:text-muted-foreground/40 app-input"
               />
+
+              
               {query.length > 0 && (
                 <button
                   onClick={() => {
@@ -354,7 +357,7 @@ export default function SearchFoods() {
                     setSearchState("idle")
                   }}
                   aria-label="Clear search"
-                  className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted-foreground/40 transition-opacity active:opacity-60"
+                  className="top-1/2 right-0 absolute flex justify-center items-center active:opacity-60 w-10 h-10 text-muted-foreground/40 transition-opacity -translate-y-1/2"
                 >
                   <X size={13} weight="bold" />
                 </button>
@@ -362,22 +365,22 @@ export default function SearchFoods() {
             </div>
           </div>
 
-          <div className="mx-[var(--app-page-x)] h-px bg-border/40" />
+          <div className="mx-[var(--app-page-x)] bg-border/40 h-px" />
 
           <div
-            className="flex-1 overflow-y-auto px-[var(--app-page-x)] pt-3 [&::-webkit-scrollbar]:hidden"
+            className="[&::-webkit-scrollbar]:hidden flex-1 px-[var(--app-page-x)] pt-3 overflow-y-auto"
             style={{
               paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
             }}
           >
             {searchState === "idle" && (
-              <div className="mt-8 grid gap-5">
-                <div className="app-empty justify-center text-center">
+              <div className="gap-5 grid mt-8">
+                <div className="justify-center text-center app-empty">
                   <MagnifyingGlass
                     size={18}
-                    className="shrink-0 text-muted-foreground/35"
+                    className="text-muted-foreground/35 shrink-0"
                   />
-                  <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  <p className="font-medium text-[12.5px] text-muted-foreground/70">
                     Type a food, brand, or barcode number.
                   </p>
                 </div>
@@ -401,17 +404,17 @@ export default function SearchFoods() {
             )}
 
             {searchState === "error" && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <Warning size={18} className="shrink-0 text-destructive/70" />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+              <div className="justify-center mt-8 text-center app-empty">
+                <Warning size={18} className="text-destructive/70 shrink-0" />
+                <p className="font-medium text-[12.5px] text-muted-foreground/70">
                   Food search failed. Check your connection and try again.
                 </p>
               </div>
             )}
 
             {showEmpty && (
-              <div className="app-empty mt-8 justify-center text-center">
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+              <div className="justify-center mt-8 text-center app-empty">
+                <p className="font-medium text-[12.5px] text-muted-foreground/70">
                   No results for "{query}"
                 </p>
               </div>
@@ -419,32 +422,32 @@ export default function SearchFoods() {
 
             {showResults && (
               <>
-                <p className="app-eyebrow mt-1 mb-2 px-1 text-muted-foreground/55">
+                <p className="mt-1 mb-2 px-1 text-muted-foreground/55 app-eyebrow">
                   {results.length} result{results.length !== 1 ? "s" : ""}
                 </p>
-                <div className="app-ledger md:grid md:grid-cols-2 md:gap-0">
+                <div className="md:gap-0 md:grid md:grid-cols-2 app-ledger">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
                     const isAdding = addingFoodId === item.id
                     return (
                       <div
                         key={item.id}
-                        className="app-ledger-row w-full text-left"
+                        className="w-full text-left app-ledger-row"
                       >
                         <button
                           type="button"
                           onClick={() => openFoodReview(item)}
-                          className="motion-list-row flex min-w-0 flex-1 items-center gap-3 text-left active:bg-muted/30"
+                          className="flex flex-1 items-center gap-3 active:bg-muted/30 min-w-0 text-left motion-list-row"
                         >
                           <CalorieBadge calories={Number(item.calories)} />
 
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13.5px] leading-snug font-medium">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-[13.5px] truncate leading-snug">
                               {item.name}
                             </p>
-                            <div className="mt-0.5 flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 mt-0.5">
                               {item.brand && (
-                                <span className="truncate text-[10.5px] text-muted-foreground/40">
+                                <span className="text-[10.5px] text-muted-foreground/40 truncate">
                                   {item.brand}
                                 </span>
                               )}
@@ -453,11 +456,11 @@ export default function SearchFoods() {
                                   ·
                                 </span>
                               )}
-                              <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
+                              <span className="text-[10.5px] text-muted-foreground/40 shrink-0">
                                 {item.serving}
                               </span>
                             </div>
-                            <div className="mt-1 flex gap-2.5">
+                            <div className="flex gap-2.5 mt-1">
                               <MacroPill
                                 label="P"
                                 value={Number(item.protein)}
@@ -489,7 +492,7 @@ export default function SearchFoods() {
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
                           className={cn(
-                            "motion-tactile flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] border border-border/50 bg-muted/55 disabled:opacity-60",
+                            "flex justify-center items-center bg-muted/55 disabled:opacity-60 border border-border/50 rounded-[8px] w-10 h-10 motion-tactile shrink-0",
                             isAdded && "motion-success-pop"
                           )}
                         >
@@ -498,9 +501,9 @@ export default function SearchFoods() {
                               ✓
                             </span>
                           ) : isAdding ? (
-                            <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
+                            <span className="border border-muted-foreground/20 border-t-muted-foreground/60 rounded-full w-3.5 h-3.5 animate-spin" />
                           ) : (
-                            <span className="text-[18px] leading-none font-light text-foreground/50">
+                            <span className="font-light text-[18px] text-foreground/50 leading-none">
                               +
                             </span>
                           )}
@@ -568,7 +571,7 @@ function SearchSuggestionGroup({
 }) {
   return (
     <section>
-      <p className="app-eyebrow mb-2 px-1 text-muted-foreground/55">
+      <p className="mb-2 px-1 text-muted-foreground/55 app-eyebrow">
         {title}
       </p>
       <div className="flex flex-wrap gap-2">
@@ -577,7 +580,7 @@ function SearchSuggestionGroup({
             key={suggestion}
             type="button"
             onClick={() => onSelect(suggestion)}
-            className="motion-tactile min-h-10 rounded-xl bg-muted/55 px-3.5 text-[12.5px] font-semibold text-foreground/75 active:bg-muted"
+            className="bg-muted/55 active:bg-muted px-3.5 rounded-xl min-h-10 font-semibold text-[12.5px] text-foreground/75 motion-tactile"
           >
             {suggestion}
           </button>
@@ -589,17 +592,17 @@ function SearchSuggestionGroup({
 
 function CalorieBadge({ calories }: { calories: number }) {
   return (
-    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-[9px] bg-muted/60 text-center">
+    <div className="flex flex-col justify-center items-center bg-muted/60 rounded-[9px] w-14 h-14 text-center shrink-0">
       <div
         className="flex items-center gap-0.5"
         style={{ color: APP_ACCENT_COLORS.food }}
       >
         <Fire size={13} weight="fill" />
-        <span className="text-[13px] leading-none font-semibold tabular-nums">
+        <span className="font-semibold tabular-nums text-[13px] leading-none">
           {Math.round(calories)}
         </span>
       </div>
-      <span className="mt-0.5 text-[8.5px] font-semibold tracking-[0.08em] text-muted-foreground/40 uppercase">
+      <span className="mt-0.5 font-semibold text-[8.5px] text-muted-foreground/40 uppercase tracking-[0.08em]">
         kcal
       </span>
     </div>
@@ -618,7 +621,7 @@ function MacroPill({
   return (
     <span className="flex items-baseline gap-0.5">
       <span
-        className="text-[9.5px] font-semibold"
+        className="font-semibold text-[9.5px]"
         style={{ color, opacity: 0.7 }}
       >
         {label}
@@ -654,26 +657,26 @@ function MealSelectSheet({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
+        className="z-40 fixed inset-0 bg-black/30 backdrop-blur-[2px]"
         onClick={onClose}
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[calc(100svh-1rem)] w-full max-w-sm overflow-y-auto rounded-t-[24px] border border-border/40 bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.18)] md:top-1/2 md:right-auto md:bottom-auto md:left-1/2 md:mx-0 md:w-[min(24rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-[28px] md:shadow-2xl"
+        className="md:top-1/2 md:right-auto bottom-0 md:bottom-auto md:left-1/2 z-50 fixed inset-x-0 bg-card shadow-[0_-16px_50px_rgba(0,0,0,0.18)] md:shadow-2xl mx-auto md:mx-0 px-4 pt-4 border border-border/40 md:rounded-[28px] rounded-t-[24px] w-full md:w-[min(24rem,calc(100vw-2rem))] max-w-sm max-h-[calc(100svh-1rem)] overflow-y-auto md:-translate-x-1/2 md:-translate-y-1/2"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
         }}
       >
-        <div className="mx-auto mb-3 h-1 w-8 rounded-full bg-foreground/10" />
+        <div className="bg-foreground/10 mx-auto mb-3 rounded-full w-8 h-1" />
         <p
           id={titleId}
-          className="mb-0.5 text-[15px] leading-snug font-semibold tracking-[-0.01em]"
+          className="mb-0.5 font-semibold text-[15px] leading-snug tracking-[-0.01em]"
         >
           Add to…
         </p>
-        <p className="mb-4 truncate text-[11.5px] text-muted-foreground/45">
+        <p className="mb-4 text-[11.5px] text-muted-foreground/45 truncate">
           {item.name}
         </p>
         <div className="flex flex-col gap-1.5">
@@ -692,7 +695,7 @@ function MealSelectSheet({
               }}
               disabled={Boolean(savingMeal)}
               aria-busy={savingMeal === cat.id}
-              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985]"
+              className="flex justify-between items-center px-4 py-3 rounded-2xl active:scale-[0.985] transition-all"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
                 outline:
@@ -701,7 +704,7 @@ function MealSelectSheet({
               }}
             >
               <span
-                className="text-[13.5px] font-semibold"
+                className="font-semibold text-[13.5px]"
                 style={{
                   color: cat.id === suggested ? cat.color : "var(--foreground)",
                   opacity: cat.id === suggested ? 1 : 0.75,
@@ -711,7 +714,7 @@ function MealSelectSheet({
               </span>
               {cat.id === suggested && (
                 <span
-                  className="text-[10px] font-medium"
+                  className="font-medium text-[10px]"
                   style={{ color: cat.color, opacity: 0.6 }}
                 >
                   suggested

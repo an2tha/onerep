@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
 import { AppleLogo, Eye, EyeSlash, GoogleLogo } from "@phosphor-icons/react"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
@@ -12,6 +7,7 @@ import {
   betterAuthErrorMessage,
   useAppAuth,
 } from "@/lib/auth-client"
+import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
@@ -36,7 +32,12 @@ const OAUTH_PROVIDERS: {
   icon: typeof GoogleLogo
   disabled?: boolean
 }[] = [
-  { label: "Google", strategy: "oauth_google", icon: GoogleLogo, disabled: true },
+  {
+    label: "Google",
+    strategy: "oauth_google",
+    icon: GoogleLogo,
+    disabled: true,
+  },
   { label: "Apple", strategy: "oauth_apple", icon: AppleLogo },
 ]
 
@@ -192,6 +193,7 @@ export default function Login() {
   }
 
   function switchMode(nextMode: LoginMode) {
+    hapticSelection()
     setMode(nextMode)
     setError(undefined)
     setMessage(undefined)
@@ -202,6 +204,7 @@ export default function Login() {
   }
 
   function finishIntro(nextMode: LoginMode) {
+    hapticMedium()
     if (typeof window !== "undefined") {
       safeLocalStorageSet(PRELOGIN_SEEN_KEY, "true")
     }
@@ -210,6 +213,7 @@ export default function Login() {
   }
 
   function handleIntroNext() {
+    hapticTap()
     if (introIndex < INTRO_SLIDES.length - 1) {
       setIntroIndex((current) => current + 1)
       return
@@ -231,6 +235,7 @@ export default function Login() {
   }
 
   async function handleOAuth(strategy: OAuthStrategy) {
+    hapticTap()
     if (authActionRef.current || submitting) return
     if (redirectIfSignedIn()) return
 
@@ -252,7 +257,10 @@ export default function Login() {
       )
     } catch (error) {
       setError(
-        betterAuthErrorMessage(error, `Could not continue with ${providerLabel}`)
+        betterAuthErrorMessage(
+          error,
+          `Could not continue with ${providerLabel}`
+        )
       )
     } finally {
       authActionRef.current = false
@@ -385,7 +393,7 @@ export default function Login() {
     const isLastSlide = introIndex === INTRO_SLIDES.length - 1
 
     return (
-      <div className="min-h-svh bg-background text-foreground">
+      <div className="auth-light-only min-h-svh bg-background text-foreground">
         <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem] short-phone:px-5">
           <header className="flex items-center justify-center pt-4 short-phone:pt-1">
             <div className="flex items-center gap-2.5">
@@ -394,15 +402,18 @@ export default function Login() {
                 alt=""
                 className="h-8 w-8 rounded-full"
               />
-              <span className="text-[13px] font-semibold">
-                OneRep
-              </span>
+              <span className="text-[13px] font-semibold">OneRep</span>
             </div>
           </header>
 
           <section
+            key={introIndex}
             className="flex flex-1 flex-col justify-center"
             aria-live="polite"
+            style={{
+              animation:
+                "onboarding-step-forward 260ms var(--motion-ease-emphasized) both",
+            }}
           >
             <IntroIllustration index={introIndex} />
 
@@ -424,7 +435,10 @@ export default function Login() {
                   key={item.kicker}
                   type="button"
                   aria-label={`Show ${item.kicker}`}
-                  onClick={() => setIntroIndex(index)}
+                  onClick={() => {
+                    hapticSelection()
+                    setIntroIndex(index)
+                  }}
                   className="flex h-10 w-10 items-center justify-center rounded-[8px] transition-colors active:bg-muted/45"
                 >
                   <span
@@ -462,7 +476,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="auth-light-only min-h-svh bg-background text-foreground">
       <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
         <header className="mb-8 flex flex-col items-center short-phone:mb-5">
           <img

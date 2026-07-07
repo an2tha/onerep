@@ -14,17 +14,12 @@ type AgentSetDraft = {
   type?: SetType;
   weight?: string;
   reps?: string;
-  leftReps?: string;
-  rightReps?: string;
-  rpe?: string;
   restSeconds?: number;
 };
 
 type AgentExerciseDraft = {
   name: string;
   sets?: AgentSetDraft[];
-  trackRpe?: boolean;
-  trackUnilateral?: boolean;
 };
 
 type AgentPresetDraft = {
@@ -61,9 +56,6 @@ function normalizeSet(value: unknown): AgentSetDraft {
     type: normalizeSetType(input.type),
     weight: clampText(input.weight, 16),
     reps: clampText(input.reps, 18),
-    leftReps: clampText(input.leftReps, 18),
-    rightReps: clampText(input.rightReps, 18),
-    rpe: clampText(input.rpe, 8),
     restSeconds: clampNumber(input.restSeconds, 0, 600, 120),
   };
 }
@@ -79,10 +71,6 @@ function normalizeExercise(value: unknown): AgentExerciseDraft | null {
   return {
     name,
     sets,
-    trackRpe: Boolean(input.trackRpe) || sets.some((set) => Boolean(set.rpe)),
-    trackUnilateral:
-      Boolean(input.trackUnilateral) ||
-      sets.some((set) => Boolean(set.leftReps || set.rightReps)),
   };
 }
 
@@ -221,7 +209,6 @@ function fallbackDraftFromText(text: string): AgentPresetDraft {
     if (exerciseName.length < 3 || exerciseName.length > 80) continue;
 
     const { count, reps } = parseSetCountAndReps(line);
-    const rpeMatch = line.match(/\brpe\s*(\d+(?:\.\d+)?)/i);
     const setType = inferSetType(line);
     const weight = parseWeightKg(line);
     const restSeconds = parseRestSeconds(line);
@@ -229,15 +216,12 @@ function fallbackDraftFromText(text: string): AgentPresetDraft {
       type: setType,
       weight,
       reps,
-      rpe: rpeMatch?.[1] ?? "",
       restSeconds,
     }));
 
     exercises.push({
       name: exerciseName,
       sets,
-      trackRpe: Boolean(rpeMatch),
-      trackUnilateral: /\b(each|per side|\/side|left|right)\b/i.test(line),
     });
 
     if (exercises.length >= MAX_EXERCISES) break;
@@ -271,11 +255,11 @@ async function draftWithOpenAI(text: string, fallbackName: string) {
         {
           role: "system",
           content:
-            "You convert messy workout notes into a structured workout preset draft. Return JSON only. Use exercise names that would likely exist in a general fitness exercise catalog. Do not invent extra exercises. Convert pounds to kg numeric strings for weight. Use empty strings for unknown weights, reps, and RPE. Allowed set types: working, warmup, failure, myoreps, drop.",
+            "You convert messy workout notes into a structured workout preset draft. Return JSON only. Use exercise names that would likely exist in a general fitness exercise catalog. Do not invent extra exercises. Convert pounds to kg numeric strings for weight. Use empty strings for unknown weights and reps. Allowed set types: working, warmup, failure, myoreps, drop.",
         },
         {
           role: "user",
-          content: `Create a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","rpe":"","restSeconds":120}],"trackRpe":false,"trackUnilateral":false}],"notes":"optional"}. Limit to ${MAX_EXERCISES} exercises and ${MAX_SETS_PER_EXERCISE} sets each.\n\n${text}`,
+          content: `Create a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","restSeconds":120}]}],"notes":"optional"}. Limit to ${MAX_EXERCISES} exercises and ${MAX_SETS_PER_EXERCISE} sets each.\n\n${text}`,
         },
       ],
     }),

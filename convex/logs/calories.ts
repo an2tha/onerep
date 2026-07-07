@@ -33,9 +33,9 @@ export const getGoals = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
-    if (profile) return calculateCalories(profile);
-
     const onboarding = await getLatestOnboardingProfile(ctx, user._id);
+
+    if (profile) return calculateCalories(profile, onboarding);
 
     if (!onboarding) return null;
     return estimateOnboardingCalories(onboarding);

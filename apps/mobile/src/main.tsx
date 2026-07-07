@@ -59,12 +59,14 @@ import Water from "./pages/Water.tsx"
 import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import Progress from "./pages/Progress.tsx"
+import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
+import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
 import {
   BottomBar,
   BottomBarActionProvider,
@@ -85,6 +87,7 @@ function shouldShowBottomBar(pathname: string) {
     pathname === "/water" ||
     pathname === "/supplements" ||
     pathname === "/progress" ||
+    pathname === "/coach" ||
     pathname === "/exercises" ||
     pathname === "/settings"
   )
@@ -243,6 +246,8 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
+  const showPersistentQuickAdd =
+    showBottomBar && location.pathname !== "/workouts"
 
   const setBottomBarAction = useCallback((action?: () => void) => {
     setBottomBarActionState(() => action)
@@ -452,7 +457,7 @@ function NavSync() {
           chromeState={currentChromeState}
         />
       )}
-      {showBottomBar && (
+      {showPersistentQuickAdd && (
         <PersistentQuickAdd onAdd={bottomBarAction ?? fallbackQuickAddAction} />
       )}
     </BottomBarActionProvider>
@@ -469,22 +474,22 @@ function AuthCallback() {
   }, [navigate, nextPath])
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
-        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
+    <div className="bg-background min-h-svh text-foreground">
+      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
+        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
+            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
           />
-          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
+          <h1 className="mt-4 short-phone:mt-3 font-semibold text-[1.65rem] short-phone:text-[1.45rem] tracking-tight">
             OneRep
           </h1>
         </header>
 
-        <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
-          <p className="mt-4 text-[14px] font-semibold tracking-tight">
+        <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-4 short-phone:p-3.5 border border-border/70 rounded-[28px] short-phone:rounded-[24px] text-center">
+          <div className="mx-auto border-2 border-muted-foreground/20 border-t-foreground rounded-full w-8 h-8 animate-spin" />
+          <p className="mt-4 font-semibold text-[14px] tracking-tight">
             Finishing sign in...
           </p>
         </section>
@@ -541,7 +546,7 @@ const router = createBrowserRouter([
         path: "/onboarding",
         element: (
           <AuthGuard>
-            <Onboarding />
+            <OnboardingMobile />
           </AuthGuard>
         ),
       },
@@ -655,6 +660,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Progress">
               <Progress />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/coach",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Coach">
+              <Coach />
             </ErrorBoundary>
           </AuthGuard>
         ),

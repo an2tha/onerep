@@ -29,6 +29,10 @@ type Env = {
   readonly OPENAI_COACH_MODEL: string | undefined;
   readonly OPENAI_METRIC_MODEL: string | undefined;
   readonly OPENAI_WORKOUT_PRESET_MODEL: string | undefined;
+  readonly REVENUECAT_MONTHLY_PRICE_LABEL: string | undefined;
+  readonly REVENUECAT_PUBLIC_SDK_KEY: string | undefined;
+  readonly REVENUECAT_SECRET_KEY: string | undefined;
+  readonly REVENUECAT_WEB_CHECKOUT_URL: string | undefined;
 };
 
 /**

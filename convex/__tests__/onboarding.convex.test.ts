@@ -138,6 +138,25 @@ describe("onboarding Convex functions", () => {
         age: 26,
         heightCm: 170,
         goal: "lose",
+        nutritionGoal: "lose_fat",
+        consent: {
+          dataUse: true,
+          weightData: true,
+          foodLogging: true,
+          wearableIntegrations: false,
+        },
+        safetyFlags: ["diabetes"],
+        safetyMode: "clinician",
+        weightTrend: "stable",
+        occupationActivity: "mixed",
+        dietType: "omnivore",
+        allergies: ["dairy"],
+        cookingSkill: "intermediate",
+        budget: "moderate",
+        mealFrequency: 3,
+        trackingMode: "protein_calories",
+        loggingFeatures: ["barcode", "saved_meals"],
+        firstNutritionAction: "log_first_meal",
       });
 
       const profiles = await t.run(async (ctx) => {
@@ -153,6 +172,25 @@ describe("onboarding Convex functions", () => {
         age: 26,
         heightCm: 170,
         goal: "lose",
+        nutritionGoal: "lose_fat",
+        consent: {
+          dataUse: true,
+          weightData: true,
+          foodLogging: true,
+          wearableIntegrations: false,
+        },
+        safetyFlags: ["diabetes"],
+        safetyMode: "clinician",
+        weightTrend: "stable",
+        occupationActivity: "mixed",
+        dietType: "omnivore",
+        allergies: ["dairy"],
+        cookingSkill: "intermediate",
+        budget: "moderate",
+        mealFrequency: 3,
+        trackingMode: "protein_calories",
+        loggingFeatures: ["barcode", "saved_meals"],
+        firstNutritionAction: "log_first_meal",
       });
     });
   });

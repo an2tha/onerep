@@ -33,6 +33,65 @@ export const save = mutation({
       v.literal("health"),
       v.literal("performance"),
     ),
+    nutritionGoal: v.optional(
+      v.union(
+        v.literal("maintain"),
+        v.literal("lose_fat"),
+        v.literal("gain_muscle"),
+        v.literal("performance"),
+        v.literal("macros_only"),
+        v.literal("medical"),
+      ),
+    ),
+    consent: v.optional(
+      v.object({
+        dataUse: v.boolean(),
+        weightData: v.boolean(),
+        foodLogging: v.boolean(),
+        wearableIntegrations: v.boolean(),
+      }),
+    ),
+    safetyFlags: v.optional(v.array(v.string())),
+    safetyMode: v.optional(
+      v.union(
+        v.literal("standard"),
+        v.literal("habit"),
+        v.literal("clinician"),
+        v.literal("recovery"),
+      ),
+    ),
+    weightTrend: v.optional(
+      v.union(
+        v.literal("losing"),
+        v.literal("stable"),
+        v.literal("gaining"),
+        v.literal("unknown"),
+      ),
+    ),
+    occupationActivity: v.optional(
+      v.union(
+        v.literal("desk"),
+        v.literal("mixed"),
+        v.literal("on_feet"),
+        v.literal("manual"),
+      ),
+    ),
+    dietType: v.optional(v.string()),
+    allergies: v.optional(v.array(v.string())),
+    cookingSkill: v.optional(v.string()),
+    budget: v.optional(v.string()),
+    mealFrequency: v.optional(v.number()),
+    trackingMode: v.optional(
+      v.union(
+        v.literal("full"),
+        v.literal("protein_calories"),
+        v.literal("photo_portion"),
+        v.literal("habit"),
+        v.literal("recovery"),
+      ),
+    ),
+    loggingFeatures: v.optional(v.array(v.string())),
+    firstNutritionAction: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -53,6 +112,7 @@ export const save = mutation({
         userId: user._id,
         ...args,
         updatedAt: now,
+        shownTooltips: []
       });
     }
   },

@@ -23,9 +23,9 @@ describe("New preset accessibility contract", () => {
       "aria-label={`Set ${index + 1} weight in ${unit}`}",
     )
     expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-reps`}')
-    expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-left-reps`}')
-    expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-right-reps`}')
-    expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-rpe`}')
+    expect(NEW_PRESET_SOURCE).not.toContain("left-reps")
+    expect(NEW_PRESET_SOURCE).not.toContain("right-reps")
+    expect(NEW_PRESET_SOURCE).not.toContain('name={`preset-set-${index + 1}-rpe`}')
     expect(NEW_PRESET_SOURCE).toContain(
       "aria-label={`Set ${index + 1} rest time`}",
     )

@@ -8,28 +8,31 @@ import {
   type PurchasesOffering,
   type PurchasesPackage,
 } from "@revenuecat/purchases-capacitor"
-import type {
-  CustomerInfo as WebCustomerInfo,
-  Offering as WebOffering,
-  Package as WebPackage,
-  Purchases as WebPurchases,
-} from "@revenuecat/purchases-js"
+import { useAction, useQuery } from "convex/react"
+import { api } from "../../../../convex/_generated/api"
 
-export const REVENUECAT_API_KEY =
-  (import.meta.env.VITE_REVENUECAT_API_KEY as string | undefined) ||
-  "test_ZtFaeAWMEPSMwTZvghYNfBcMBvP"
 export const ONEREP_PRO_ENTITLEMENT = "OneRep Pro"
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
 export const REVENUECAT_OFFERING_IDENTIFIER = "default"
-export const REVENUECAT_WEB_CHECKOUT_URL =
-  (import.meta.env.VITE_REVENUECAT_WEB_CHECKOUT_URL as string | undefined) ||
-  "https://pay.rev.cat/sandbox/mqvkhnnxqaxmwfms/"
 const REVENUECAT_REQUEST_TIMEOUT_MS = 8000
 
 type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
-type AnyCustomerInfo = CustomerInfo | WebCustomerInfo
-type AnyOffering = PurchasesOffering | WebOffering
-type AnyPackage = PurchasesPackage | WebPackage
+type AnyCustomerInfo = CustomerInfo | ConvexSubscriptionStatus
+type AnyOffering = PurchasesOffering
+type AnyPackage = PurchasesPackage
+
+type ConvexSubscriptionStatus = {
+  activeSubscriptions: string[]
+  expiresAt: string | null
+  fetchedAt: number
+  hasActiveSubscription: boolean
+  isActive: boolean
+  managementUrl: string | null
+  productIdentifier: string | null
+  source: "revenuecat_api" | "manual"
+  store: string | null
+  updatedAt?: number
+}
 
 type RevenueCatState = {
   customerInfo: AnyCustomerInfo | null
@@ -50,8 +53,7 @@ type UseRevenueCatOptions = {
 
 let configuredAppUserId: string | null = null
 let configurePromise: Promise<void> | null = null
-let configuredWebAppUserId: string | null = null
-let configureWebPromise: Promise<WebPurchases> | null = null
+let configuredNativeSdkKey: string | null = null
 
 function revenueCatErrorMessage(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null) {
@@ -107,6 +109,9 @@ type EntitlementContainer = {
     all?: Record<string, { isActive?: boolean } | undefined>
   }
   activeSubscriptions?: Set<string> | string[]
+  isActive?: boolean
+  hasActiveSubscription?: boolean
+  managementUrl?: string | null
   managementURL?: string | null
 }
 
@@ -122,11 +127,20 @@ function isEntitlementActive(
 }
 
 function hasOneRepPro(customerInfo: AnyCustomerInfo | null) {
+  if ((customerInfo as EntitlementContainer | null)?.isActive === true) {
+    return true
+  }
   return isEntitlementActive(customerInfo, ONEREP_PRO_ENTITLEMENT)
 }
 
 function hasActiveSubscription(customerInfo: AnyCustomerInfo | null) {
   if (hasOneRepPro(customerInfo)) return true
+  if (
+    (customerInfo as EntitlementContainer | null)?.hasActiveSubscription ===
+    true
+  ) {
+    return true
+  }
   const subscriptions = (customerInfo as EntitlementContainer | null)
     ?.activeSubscriptions
   if (subscriptions instanceof Set) return subscriptions.size > 0
@@ -138,27 +152,7 @@ function monthlyPriceString(monthlyPackage: AnyPackage | null) {
   if ("product" in monthlyPackage) {
     return monthlyPackage.product.priceString
   }
-  return monthlyPackage.webBillingProduct.currentPrice.formattedPrice
-}
-
-function buildRevenueCatWebCheckoutUrl({
-  appUserId,
-  email,
-  packageId = MONTHLY_PACKAGE_IDENTIFIER,
-}: {
-  appUserId: string
-  email?: string | null
-  packageId?: string
-}) {
-  const url = new URL(
-    `${REVENUECAT_WEB_CHECKOUT_URL.replace(/\/+$/, "")}/${encodeURIComponent(
-      appUserId
-    )}`
-  )
-  url.searchParams.set("package_id", packageId)
-  url.searchParams.set("hide_back_button", "true")
-  if (email) url.searchParams.set("email", email)
-  return url.toString()
+  return null
 }
 
 function withRevenueCatTimeout<T>(promise: Promise<T>, label: string) {
@@ -180,49 +174,29 @@ function withRevenueCatTimeout<T>(promise: Promise<T>, label: string) {
   })
 }
 
-async function configureRevenueCat(appUserId: string) {
-  if (configuredAppUserId === appUserId && configurePromise) {
+async function configureRevenueCat(appUserId: string, apiKey: string) {
+  if (
+    configuredAppUserId === appUserId &&
+    configuredNativeSdkKey === apiKey &&
+    configurePromise
+  ) {
     await configurePromise
     return
   }
 
   configuredAppUserId = appUserId
+  configuredNativeSdkKey = apiKey
   configurePromise = (async () => {
     await Purchases.setLogLevel({
       level: import.meta.env.DEV ? LOG_LEVEL.DEBUG : LOG_LEVEL.INFO,
     })
     await Purchases.configure({
-      apiKey: REVENUECAT_API_KEY,
+      apiKey,
       appUserID: appUserId,
     })
   })()
 
   await configurePromise
-}
-
-async function configureWebRevenueCat(appUserId: string) {
-  if (configuredWebAppUserId === appUserId && configureWebPromise) {
-    return await configureWebPromise
-  }
-
-  configuredWebAppUserId = appUserId
-  configureWebPromise = (async () => {
-    const { LogLevel, Purchases: WebPurchasesSdk } =
-      await import("@revenuecat/purchases-js")
-    WebPurchasesSdk.setLogLevel(
-      import.meta.env.DEV ? LogLevel.Debug : LogLevel.Warn
-    )
-    const purchases = WebPurchasesSdk.configure({
-      apiKey: REVENUECAT_API_KEY,
-      appUserId,
-    })
-    await purchases.preload().catch(() => {
-      // Best-effort preload; normal refresh will surface actionable errors.
-    })
-    return purchases
-  })()
-
-  return await configureWebPromise
 }
 
 async function syncCustomerAttributes(options: UseRevenueCatOptions) {
@@ -240,7 +214,11 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
   const isNative = isNativePurchasesAvailable()
   const isWeb = isWebPurchasesAvailable()
   const listenerIdRef = useRef<PurchasesCallbackId | null>(null)
-  const webPurchasesRef = useRef<WebPurchases | null>(null)
+  const subscriptionQuery = useQuery(api.subscriptions.getStatus)
+  const createCheckout = useAction(api.subscriptions.createCheckout)
+  const refreshFromRevenueCat = useAction(
+    api.subscriptions.refreshFromRevenueCat
+  )
   const [state, setState] = useState<RevenueCatState>({
     customerInfo: null,
     currentOffering: null,
@@ -252,16 +230,43 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     status: isNative || isWeb ? "idle" : "unsupported",
   })
 
+  useEffect(() => {
+    if (isNative || subscriptionQuery === undefined) return
+    const status = subscriptionQuery.status
+    setState((current) => ({
+      ...current,
+      customerInfo: status,
+      currentOffering: null,
+      error: null,
+      isConfigured: Boolean(subscriptionQuery.appUserId),
+      isNative,
+      isWeb,
+      monthlyPackage: null,
+      status: isWeb ? "ready" : "unsupported",
+    }))
+  }, [isNative, isWeb, subscriptionQuery])
+
   const refresh = useCallback(async () => {
     if (!isNative && !isWeb) return null
     setState((current) => ({ ...current, error: null, status: "loading" }))
     try {
-      const customerInfoPromise = isNative
-        ? Purchases.getCustomerInfo().then((result) => result.customerInfo)
-        : webPurchasesRef.current?.getCustomerInfo()
-      const offeringsPromise = isNative
-        ? Purchases.getOfferings()
-        : webPurchasesRef.current?.getOfferings()
+      if (!isNative) {
+        const status = await refreshFromRevenueCat({})
+        setState((current) => ({
+          ...current,
+          customerInfo: status,
+          currentOffering: null,
+          error: null,
+          isConfigured: true,
+          isNative,
+          isWeb,
+          monthlyPackage: null,
+          status: "ready",
+        }))
+        return status
+      }
+      const customerInfoPromise = isNative ? refreshFromRevenueCat({}) : null
+      const offeringsPromise = isNative ? Purchases.getOfferings() : null
       if (!customerInfoPromise || !offeringsPromise) {
         setState((current) => ({
           ...current,
@@ -309,7 +314,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       }))
       return null
     }
-  }, [isNative, isWeb])
+  }, [isNative, isWeb, refreshFromRevenueCat])
 
   useEffect(() => {
     let canceled = false
@@ -341,30 +346,33 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       setState((current) => ({ ...current, error: null, status: "loading" }))
       try {
         if (isNative) {
+          const nativeSdkKey = subscriptionQuery?.nativeSdkKey
+          if (!nativeSdkKey) {
+            throw new Error(
+              "RevenueCat native SDK key is not configured in Convex"
+            )
+          }
           await withRevenueCatTimeout(
-            configureRevenueCat(options.userId),
+            configureRevenueCat(options.userId, nativeSdkKey),
             "Subscription setup"
           )
           await syncCustomerAttributes(options)
           if (canceled) return
           const listenerId = await Purchases.addCustomerInfoUpdateListener(
-            (customerInfo) => {
+            () => {
+              void refresh()
               setState((current) => ({
                 ...current,
-                customerInfo,
                 error: null,
                 status: "ready",
               }))
             }
           )
           listenerIdRef.current = listenerId
-        } else {
-          webPurchasesRef.current = await withRevenueCatTimeout(
-            configureWebRevenueCat(options.userId),
-            "Subscription setup"
-          )
+        } else if (!subscriptionQuery?.status) {
+          await refresh()
         }
-        await refresh()
+        if (isNative) await refresh()
       } catch (error) {
         if (canceled) return
         setState((current) => ({
@@ -389,7 +397,15 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         })
       }
     }
-  }, [isNative, isWeb, options.email, options.name, options.userId, refresh])
+  }, [
+    isNative,
+    isWeb,
+    options.email,
+    options.name,
+    options.userId,
+    refresh,
+    subscriptionQuery,
+  ])
 
   const restorePurchases = useCallback(async () => {
     if (!isNative) {
@@ -397,14 +413,8 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       if (customerInfo) return customerInfo
       throw new Error("Could not refresh desktop subscription status")
     }
-    const { customerInfo } = await Purchases.restorePurchases()
-    setState((current) => ({
-      ...current,
-      customerInfo,
-      error: null,
-      status: "ready",
-    }))
-    return customerInfo
+    await Purchases.restorePurchases()
+    return await refresh()
   }, [isNative, isWeb, refresh])
 
   const purchaseMonthly = useCallback(async () => {
@@ -416,26 +426,23 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       if (typeof window === "undefined") {
         throw new Error("Checkout is only available in the browser")
       }
-      window.location.assign(
-        buildRevenueCatWebCheckoutUrl({
-          appUserId: options.userId,
-          email: options.email,
-        })
-      )
+      const checkout = await createCheckout({})
+      window.location.assign(checkout.url)
       return state.customerInfo
     }
     if (!monthlyPackage) throw new Error("Monthly package is not configured")
-    const { customerInfo } = await Purchases.purchasePackage({
+    await Purchases.purchasePackage({
       aPackage: monthlyPackage as PurchasesPackage,
     })
-    setState((current) => ({
-      ...current,
-      customerInfo,
-      error: null,
-      status: "ready",
-    }))
-    return customerInfo
-  }, [isNative, options.email, refresh, state.monthlyPackage])
+    return await refresh()
+  }, [
+    createCheckout,
+    isNative,
+    options.userId,
+    refresh,
+    state.customerInfo,
+    state.monthlyPackage,
+  ])
 
   return useMemo(
     () => ({
@@ -446,11 +453,16 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         (isNative ? Boolean(state.monthlyPackage) : isWeb && !!options.userId),
       hasActiveSubscription: hasActiveSubscription(state.customerInfo),
       hasOneRepPro: hasOneRepPro(state.customerInfo),
-      monthlyPrice: monthlyPriceString(state.monthlyPackage),
+      monthlyPrice:
+        monthlyPriceString(state.monthlyPackage) ??
+        (isWeb ? (subscriptionQuery?.monthlyPriceLabel ?? null) : null),
       purchaseMonthly,
       refresh,
       restorePurchases,
-      subscriptionManagementUrl: state.customerInfo?.managementURL ?? null,
+      subscriptionManagementUrl:
+        (state.customerInfo as EntitlementContainer | null)?.managementURL ??
+        (state.customerInfo as EntitlementContainer | null)?.managementUrl ??
+        null,
     }),
     [
       isNative,
@@ -460,13 +472,9 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       refresh,
       restorePurchases,
       state,
+      subscriptionQuery?.monthlyPriceLabel,
     ]
   )
 }
 
-export {
-  buildRevenueCatWebCheckoutUrl,
-  hasActiveSubscription,
-  hasOneRepPro,
-  revenueCatErrorMessage,
-}
+export { hasActiveSubscription, hasOneRepPro, revenueCatErrorMessage }

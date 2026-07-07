@@ -50,6 +50,13 @@ export type EffectiveGoalsResult = {
     fat: number
     bmr: number
     tdee: number
+    fiber?: number
+    saturatedFatLimit?: number
+    sodiumLimit?: number
+    calorieStrategy?: string
+    safetyMode?: string
+    trackingMode?: string
+    guidance?: string[]
     source: "healthProfile" | "onboarding"
   } | null
   effective: {
@@ -64,12 +71,69 @@ export type EffectiveGoalsResult = {
   workoutAdjustmentEnabled: boolean
 }
 
+export type NutritionPlan = {
+  targets: {
+    calories: number
+    protein: number
+    carbs: number
+    fat: number
+    fiber: number
+    saturatedFatLimit: number
+    sodiumLimit: number
+  }
+  safetyMode: "standard" | "habit" | "clinician" | "recovery" | string
+  trackingMode:
+    | "full"
+    | "protein_calories"
+    | "photo_portion"
+    | "habit"
+    | "recovery"
+    | string
+  visibleMetrics: {
+    calories: boolean
+    macros: boolean
+    protein: boolean
+    micros: boolean
+    habits: boolean
+    water: boolean
+    streaks: boolean
+  }
+  guidance: string[]
+  nextBestAction: {
+    kind: string
+    label: string
+    path: string
+    detail?: string
+  }
+  calibration: {
+    status: string
+    title: string
+    detail: string
+    canApply: boolean
+    targets?: {
+      calories: number
+      protein: number
+      carbs: number
+      fat: number
+    }
+  }
+  mealSuggestions: Array<{
+    id: string
+    title: string
+    detail: string
+    action: string
+    tags: string[]
+    presetId?: string
+    recipeId?: string
+  }>
+}
+
 export function isOnboardingGoal(value: unknown): value is OnboardingGoal {
   return ONBOARDING_GOALS.includes(value as OnboardingGoal)
 }
 
 export function mapOnboardingGoalToCalorieGoal(
-  goal: OnboardingGoal,
+  goal: OnboardingGoal
 ): CalorieGoal {
   switch (goal) {
     case "lose":

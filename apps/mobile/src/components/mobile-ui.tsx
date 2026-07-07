@@ -71,11 +71,7 @@ export function PageHeader({
       <div className="flex min-w-0 items-start gap-3">
         {leading}
         <div className="min-w-0">
-          {subtitle && (
-            <p className="app-eyebrow truncate">
-              {subtitle}
-            </p>
-          )}
+          {subtitle && <p className="app-eyebrow truncate">{subtitle}</p>}
           <h1
             className={cn(
               "app-title truncate",
@@ -103,19 +99,10 @@ export function SectionHeader({
   className?: string
 }) {
   return (
-    <div
-      className={cn(
-        "motion-item app-section-header",
-        className
-      )}
-    >
+    <div className={cn("motion-item app-section-header", className)}>
       <div className="min-w-0">
         <h2 className="app-section-title">{title}</h2>
-        {subtitle && (
-          <p className="app-section-subtitle">
-            {subtitle}
-          </p>
-        )}
+        {subtitle && <p className="app-section-subtitle">{subtitle}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -194,16 +181,24 @@ export function ActionDock({
       )}
     >
       {danger && (
-        <DockButton action={danger} variant="danger" className="basis-14 grow" />
+        <DockButton
+          action={danger}
+          variant="danger"
+          className="grow basis-14"
+        />
       )}
       {secondary && (
         <DockButton
           action={secondary}
           variant="secondary"
-          className="basis-14 grow"
+          className="grow basis-14"
         />
       )}
-      <DockButton action={primary} variant="primary" className="basis-32 grow-[2]" />
+      <DockButton
+        action={primary}
+        variant="primary"
+        className="grow-[2] basis-32"
+      />
     </div>
   )
 }

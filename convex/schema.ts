@@ -164,6 +164,28 @@ export default defineSchema({
     age: v.number(),
     heightCm: v.number(),
     goal: v.string(), // "lose" | "build" | "health" | "performance"
+    nutritionGoal: v.optional(v.string()), // "maintain" | "lose_fat" | "gain_muscle" | "performance" | "macros_only" | "medical"
+    consent: v.optional(
+      v.object({
+        dataUse: v.boolean(),
+        weightData: v.boolean(),
+        foodLogging: v.boolean(),
+        wearableIntegrations: v.boolean(),
+      }),
+    ),
+    safetyFlags: v.optional(v.array(v.string())),
+    safetyMode: v.optional(v.string()), // "standard" | "habit" | "clinician" | "recovery"
+    weightTrend: v.optional(v.string()), // "losing" | "stable" | "gaining" | "unknown"
+    occupationActivity: v.optional(v.string()), // "desk" | "mixed" | "on_feet" | "manual"
+    dietType: v.optional(v.string()),
+    allergies: v.optional(v.array(v.string())),
+    cookingSkill: v.optional(v.string()),
+    budget: v.optional(v.string()),
+    mealFrequency: v.optional(v.number()),
+    trackingMode: v.optional(v.string()),
+    loggingFeatures: v.optional(v.array(v.string())),
+    firstNutritionAction: v.optional(v.string()),
+    shownTooltips: v.optional(v.array(v.number())),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -516,6 +538,24 @@ export default defineSchema({
     count: v.number(),
     updatedAt: v.number(),
   }).index("by_userId_date", ["userId", "date"]),
+
+  // ── Subscription status (server-owned RevenueCat cache) ──────────────────
+  subscriptionStates: defineTable({
+    userId: v.string(),
+    appUserId: v.string(),
+    entitlementId: v.string(),
+    isActive: v.boolean(),
+    hasActiveSubscription: v.boolean(),
+    activeSubscriptions: v.array(v.string()),
+    managementUrl: v.union(v.string(), v.null()),
+    productIdentifier: v.union(v.string(), v.null()),
+    store: v.union(v.string(), v.null()),
+    expiresAt: v.union(v.string(), v.null()),
+    rawCustomerInfo: v.optional(v.any()),
+    source: v.union(v.literal("revenuecat_api"), v.literal("manual")),
+    fetchedAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
 
   // ── Active workout (persisted during workout to prevent data loss on mobile) ──
   activeWorkouts: defineTable({

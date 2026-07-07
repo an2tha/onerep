@@ -105,10 +105,12 @@ import {
   Calendar,
   Card,
   CardTitle,
+  GuidedTooltip,
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
+import { hapticMedium } from "@/lib/haptics"
 import {
   APP_ACCENT_COLORS,
   MACRO_COLORS,
@@ -172,6 +174,7 @@ const FOOD_COLOR = APP_ACCENT_COLORS.food
 const FOOD_BG = tint(FOOD_COLOR, 10)
 const WATER_COLOR = APP_ACCENT_COLORS.water
 const WATER_BG = tint(WATER_COLOR, 13)
+const DASHBOARD_LOG_DINNER_TOOLTIP_ID = 1
 
 const EMPTY_WORKOUT_ROUTINE: Routine = {
   Mon: null,
@@ -2309,9 +2312,7 @@ function ProgressSmall({
   measurements,
 }: {
   measurements:
-    | Array<{ weightKg?: number; loggedAt: string }>
-    | null
-    | undefined
+    Array<{ weightKg?: number; loggedAt: string }> | null | undefined
 }) {
   const navigate = useSmoothNavigate()
   const latest =
@@ -2473,7 +2474,7 @@ function SortableWidget({
         zIndex: isDragging ? 50 : undefined,
       }}
       className={cn(
-        "relative flex min-h-0 shrink-0 snap-center basis-[min(84vw,20rem)] md:shrink md:basis-auto md:snap-none",
+        "relative flex min-h-0 shrink-0 basis-[min(84vw,20rem)] snap-center md:shrink md:basis-auto md:snap-none",
         size === "full"
           ? "basis-[min(90vw,22rem)] md:col-span-2 md:row-span-2"
           : "md:col-span-1 md:row-span-1"
@@ -2535,6 +2536,10 @@ export default function App() {
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
+  const dashboardLogDinnerTooltipCompleted = useQuery(
+    api.users.tooltips.isTooltipCompleted,
+    { id: DASHBOARD_LOG_DINNER_TOOLTIP_ID }
+  )
 
   const syncTimezone = useOfflineMutation(
     api.users.users.syncTimezone,
@@ -2557,6 +2562,9 @@ export default function App() {
     "logs.supplements.removeEntry"
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
+  const markTooltipCompleted = useMutation(
+    api.users.tooltips.markTooltipCompleted
+  )
   const saveWidgetLayout = useOfflineMutation(
     api.users.users.setWidgetLayout,
     "users.users.setWidgetLayout"
@@ -3167,6 +3175,25 @@ export default function App() {
                     ? `${foodEntries.length} logged today`
                     : "Search, scan, or repeat meal",
                 onClick: () => setHomeAddOpen(true),
+                tooltip: (button) => (
+                  <GuidedTooltip
+                    id={DASHBOARD_LOG_DINNER_TOOLTIP_ID}
+                    order={DASHBOARD_LOG_DINNER_TOOLTIP_ID}
+                    completed={dashboardLogDinnerTooltipCompleted !== false}
+                    content={`Tap here to log ${currentMealLabel.toLowerCase()}, scan a barcode, or describe the meal.`}
+                    targetClassName="shrink-0"
+                    side="bottom"
+                    align="end"
+                    onOpenHaptic={hapticMedium}
+                    onComplete={() =>
+                      markTooltipCompleted({
+                        tooltipId: DASHBOARD_LOG_DINNER_TOOLTIP_ID,
+                      })
+                    }
+                  >
+                    {button}
+                  </GuidedTooltip>
+                ),
               }}
               workout={{
                 label: activeWorkout
@@ -3200,7 +3227,7 @@ export default function App() {
                   <div
                     ref={statsScrollRef}
                     onScroll={updateStatsScrollIndicator}
-                    className="app-scroll-strip -mx-[var(--app-page-x)] mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-[calc(var(--app-page-x)+1rem)] pb-2 scroll-px-[calc(var(--app-page-x)+1rem)] md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 md:scroll-px-0"
+                    className="app-scroll-strip -mx-[var(--app-page-x)] mt-4 flex snap-x snap-mandatory scroll-px-[calc(var(--app-page-x)+1rem)] gap-3 overflow-x-auto overscroll-x-contain px-[calc(var(--app-page-x)+1rem)] pb-2 md:mx-0 md:grid md:scroll-px-0 md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0"
                   >
                     {widgetLayout.map((widget) => (
                       <SortableWidget
@@ -3396,7 +3423,8 @@ export default function App() {
                               {recipe.name}
                             </p>
                             <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                              {totals.calories} kcal · {recipe.ingredients.length} ingredient
+                              {totals.calories} kcal ·{" "}
+                              {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>
                           </div>

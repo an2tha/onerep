@@ -8,52 +8,60 @@ const modules = import.meta.glob("../**/*.ts");
 describe("users Convex functions", () => {
   test("getCurrentUser returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getCurrentUser, {})).resolves.toBeNull();
+    await expect(
+      t.query(api.users.users.getCurrentUser, {}),
+    ).resolves.toBeNull();
   });
 
   test("getPreferences returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getPreferences, {})).resolves.toBeNull();
+    await expect(
+      t.query(api.users.users.getPreferences, {}),
+    ).resolves.toBeNull();
   });
 
   test("syncTimezone is a no-op when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.users.users.syncTimezone, { timeZone: "America/New_York" })
+      t.mutation(api.users.users.syncTimezone, {
+        timeZone: "America/New_York",
+      }),
     ).resolves.toEqual({ timeZone: "America/New_York" });
   });
 
   test("syncTimezone normalizes invalid timezone when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.users.users.syncTimezone, { timeZone: "Not/A_Zone" })
+      t.mutation(api.users.users.syncTimezone, { timeZone: "Not/A_Zone" }),
     ).resolves.toEqual({ timeZone: "UTC" });
   });
 
   test("setWeightUnit throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.users.users.setWeightUnit, { unit: "kg" })
+      t.mutation(api.users.users.setWeightUnit, { unit: "kg" }),
     ).rejects.toThrow();
   });
 
   test("setWaterGoal throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.users.users.setWaterGoal, { goalMl: 2000 })
+      t.mutation(api.users.users.setWaterGoal, { goalMl: 2000 }),
     ).rejects.toThrow();
   });
 
   test("setCustomGoals throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.users.users.setCustomGoals, { calories: 2000 })
+      t.mutation(api.users.users.setCustomGoals, { calories: 2000 }),
     ).rejects.toThrow();
   });
 
   test("getEffectiveGoals returns null when unauthenticated", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.users.users.getEffectiveGoals, {})).resolves.toBeNull();
+    await expect(
+      t.query(api.users.users.getEffectiveGoals, {}),
+    ).resolves.toBeNull();
   });
 
   test("stores user preferences correctly", async () => {
@@ -244,6 +252,338 @@ describe("users Convex functions", () => {
         source: "healthProfile",
       });
       expect(goals!.health!.calories).not.toBe(goals!.effective.calories);
+    });
+  });
+
+  test("getEffectiveGoals uses onboarding nutrition context to keep targets safe", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "safe-nutrition-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "female",
+        age: 28,
+        weightKg: 68,
+        heightCm: 166,
+        activityLevel: "lightly_active",
+        goal: "lose",
+      });
+      await t.mutation(api.users.onboarding.save, {
+        age: 28,
+        heightCm: 166,
+        goal: "lose",
+        nutritionGoal: "lose_fat",
+        safetyMode: "clinician",
+        weightTrend: "stable",
+        occupationActivity: "mixed",
+        dietType: "vegetarian",
+        allergies: ["dairy"],
+        cookingSkill: "beginner",
+        budget: "low",
+        mealFrequency: 3,
+        trackingMode: "protein_calories",
+        loggingFeatures: ["saved_meals"],
+        firstNutritionAction: "build_template",
+      });
+
+      const goals = await t.query(api.users.users.getEffectiveGoals, {});
+
+      expect(goals!.health).toMatchObject({
+        calories: 1948,
+        bmr: 1417,
+        tdee: 1948,
+        source: "healthProfile",
+        safetyMode: "clinician",
+        trackingMode: "protein_calories",
+      });
+      expect(goals!.health!.calorieStrategy).toContain("Clinician-guided mode");
+      expect(goals!.health!.guidance).toContain(
+        "Keep targets conservative and prompt clinician guidance.",
+      );
+      expect(goals!.effective.calories).toBe(1948);
+      expect(goals!.effective.protein).toBeGreaterThan(100);
+    });
+  });
+
+  test("getNutritionPlan keeps recovery mode non-numeric and protected", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "recovery-plan-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "female",
+        age: 25,
+        weightKg: 65,
+        heightCm: 168,
+        activityLevel: "lightly_active",
+        goal: "lose",
+      });
+      await t.mutation(api.users.onboarding.save, {
+        age: 25,
+        heightCm: 168,
+        goal: "lose",
+        nutritionGoal: "lose_fat",
+        safetyMode: "recovery",
+        trackingMode: "recovery",
+        firstNutritionAction: "skip_habit",
+      });
+
+      const plan = await t.query(api.users.users.getNutritionPlan, {
+        date: "2026-07-14",
+      });
+
+      expect(plan!.safetyMode).toBe("recovery");
+      expect(plan!.trackingMode).toBe("recovery");
+      expect(plan!.visibleMetrics.calories).toBe(false);
+      expect(plan!.visibleMetrics.streaks).toBe(false);
+      expect(plan!.calibration).toMatchObject({
+        status: "protected",
+        canApply: false,
+      });
+      expect(plan!.calibration.detail).not.toMatch(/deficit/i);
+    });
+  });
+
+  test("getNutritionPlan waits for enough data before calibration", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "nutrition-plan-sparse-user" }, async () => {
+      await t.mutation(api.users.onboarding.save, {
+        age: 30,
+        heightCm: 180,
+        goal: "health",
+        nutritionGoal: "maintain",
+        safetyMode: "standard",
+        trackingMode: "full",
+      });
+
+      const plan = await t.query(api.users.users.getNutritionPlan, {
+        date: "2026-07-14",
+      });
+
+      expect(plan!.calibration).toMatchObject({
+        status: "collect_more_data",
+        canApply: false,
+      });
+      expect(plan!.nextBestAction.kind).toBe("add_check_in");
+    });
+  });
+
+  test("fat-loss calibration adjusts modestly after sufficient logs and body trend", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "fat-loss-calibration-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "female",
+        age: 28,
+        weightKg: 68,
+        heightCm: 166,
+        activityLevel: "lightly_active",
+        goal: "lose",
+      });
+      await t.mutation(api.users.onboarding.save, {
+        age: 28,
+        heightCm: 166,
+        goal: "lose",
+        nutritionGoal: "lose_fat",
+        safetyMode: "standard",
+        trackingMode: "full",
+      });
+
+      const user = await t.query(api.users.users.getCurrentUser, {});
+      const userId = user!._id;
+      await t.run(async (ctx) => {
+        for (let day = 1; day <= 8; day += 1) {
+          await ctx.db.insert("foodLogs", {
+            userId,
+            date: `2026-07-${String(day).padStart(2, "0")}`,
+            entries: [
+              {
+                name: "planned day",
+                calories: 1450,
+                protein: 122,
+                carbs: 140,
+                fat: 45,
+              },
+            ],
+            updatedAt: Date.now(),
+          });
+        }
+        await ctx.db.insert("bodyMeasurements", {
+          userId,
+          clientId: "start",
+          loggedAt: "2026-07-01",
+          weightKg: 68,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        await ctx.db.insert("bodyMeasurements", {
+          userId,
+          clientId: "end",
+          loggedAt: "2026-07-14",
+          weightKg: 68.1,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      });
+
+      const plan = await t.query(api.users.users.getNutritionPlan, {
+        date: "2026-07-14",
+      });
+
+      expect(plan!.calibration.status).toBe("decrease_calories");
+      expect(plan!.calibration.canApply).toBe(true);
+      expect(plan!.calibration.targets!.calories).toBeLessThan(
+        plan!.targets.calories,
+      );
+      expect(plan!.targets.calories - plan!.calibration.targets!.calories).toBe(
+        120,
+      );
+    });
+  });
+
+  test("performance calibration prioritizes fueling when training data is thin", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "performance-fueling-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "male",
+        age: 31,
+        weightKg: 82,
+        heightCm: 182,
+        activityLevel: "moderately_active",
+        goal: "gain",
+      });
+      await t.mutation(api.users.onboarding.save, {
+        age: 31,
+        heightCm: 182,
+        goal: "performance",
+        nutritionGoal: "performance",
+        safetyMode: "standard",
+        trackingMode: "full",
+      });
+
+      const user = await t.query(api.users.users.getCurrentUser, {});
+      const userId = user!._id;
+      await t.run(async (ctx) => {
+        for (let day = 1; day <= 8; day += 1) {
+          await ctx.db.insert("foodLogs", {
+            userId,
+            date: `2026-07-${String(day).padStart(2, "0")}`,
+            entries: [
+              {
+                name: "training fuel",
+                calories: 3300,
+                protein: 190,
+                carbs: 390,
+                fat: 95,
+              },
+            ],
+            updatedAt: Date.now(),
+          });
+        }
+        await ctx.db.insert("bodyMeasurements", {
+          userId,
+          clientId: "start",
+          loggedAt: "2026-07-01",
+          weightKg: 82,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+        await ctx.db.insert("bodyMeasurements", {
+          userId,
+          clientId: "end",
+          loggedAt: "2026-07-14",
+          weightKg: 82,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      });
+
+      const plan = await t.query(api.users.users.getNutritionPlan, {
+        date: "2026-07-14",
+      });
+
+      expect(plan!.calibration.status).toBe("improve_fueling");
+      expect(plan!.calibration.canApply).toBe(true);
+      expect(plan!.calibration.targets!.calories).toBeGreaterThan(
+        plan!.targets.calories,
+      );
+      expect(plan!.calibration.targets!.carbs).toBeGreaterThan(
+        plan!.targets.carbs,
+      );
+    });
+  });
+
+  test("meal suggestions carry onboarding diet and allergy constraints", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "meal-suggestion-user" }, async () => {
+      await t.mutation(api.users.onboarding.save, {
+        age: 29,
+        heightCm: 172,
+        goal: "health",
+        nutritionGoal: "maintain",
+        safetyMode: "standard",
+        trackingMode: "photo_portion",
+        dietType: "vegetarian",
+        allergies: ["dairy"],
+        cookingSkill: "beginner",
+        budget: "low",
+        mealFrequency: 3,
+      });
+
+      const plan = await t.query(api.users.users.getNutritionPlan, {
+        date: "2026-07-14",
+      });
+
+      const tags = plan!.mealSuggestions.flatMap(
+        (suggestion) => suggestion.tags,
+      );
+      expect(tags).toContain("vegetarian");
+      expect(tags).toContain("no dairy");
+      expect(tags).toContain("budget");
+      expect(tags).toContain("simple");
+      expect(
+        plan!.mealSuggestions.some((item) => item.action === "photo_log"),
+      ).toBe(true);
+    });
+  });
+
+  test("applyNutritionCalibration updates custom goals and preserves health goals", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "apply-calibration-user" }, async () => {
+      await t.mutation(api.logs.calories.setProfile, {
+        sex: "male",
+        age: 30,
+        weightKg: 80,
+        heightCm: 175,
+        activityLevel: "moderately_active",
+        goal: "maintain",
+      });
+
+      const applied = await t.mutation(
+        api.users.users.applyNutritionCalibration,
+        {
+          calories: 2400.4,
+          protein: 180.2,
+          carbs: 250.8,
+          fat: 76.1,
+        },
+      );
+      const goals = await t.query(api.users.users.getEffectiveGoals, {});
+
+      expect(applied).toEqual({
+        calories: 2400,
+        protein: 180,
+        carbs: 251,
+        fat: 76,
+      });
+      expect(goals!.custom).toEqual(applied);
+      expect(goals!.effective).toEqual(applied);
+      expect(goals!.health).toMatchObject({
+        calories: 2711,
+        source: "healthProfile",
+      });
     });
   });
 });
