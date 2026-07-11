@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef } from "react"
 import {
-  ArrowSquareOut,
+  ArrowsClockwise,
   CaretRight,
+  CheckCircle,
+  CloudArrowUp,
   Minus,
+  Moon,
   Plus,
   Sun,
-  Moon,
-  X,
+  Warning,
+  WifiSlash,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
   cn,
-  logDevWarn,
   safeLocalStorageGet,
   safeLocalStorageRemove,
   safeLocalStorageSet,
@@ -45,8 +47,15 @@ import {
   clearOfflineQueue,
   flushOfflineQueue,
   getOfflineQueueSummary,
+  isBrowserOnline,
+  subscribeOfflineQueue,
 } from "@/lib/offline-queue"
+import {
+  offlineSyncErrorText,
+  offlineSyncStatusCopy,
+} from "@/lib/offline-sync-status"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import {
   formatReminderLabel,
   mergeReminderSettings,
@@ -63,6 +72,7 @@ import {
   revenueCatErrorMessage,
   useRevenueCat,
 } from "@/lib/revenuecat"
+import { resetCoachOnboarding } from "@/lib/coach-onboarding"
 
 // ─── Theme helper ─────────────────────────────────────────────────────────────
 
@@ -128,6 +138,7 @@ type FoodSearchLanguage = "en" | "es" | "fr" | "de" | "it" | "pt"
 const SETTINGS_SECTION_TRIGGER_CLASS =
   "app-rail-surface px-4 py-3 text-left hover:no-underline data-[state=open]:rounded-b-none short-phone:py-2.5"
 const SETTINGS_PANEL_CLASS = "app-surface overflow-hidden rounded-t-none"
+const SHOW_DEV_SETTINGS = import.meta.env.DEV
 
 /**
  * Renders the Settings sheet UI for viewing and editing user preferences, goals, theme, and account actions.
@@ -192,6 +203,7 @@ export default function Settings({
     "users.users.setPrivacySettings"
   )
   const clearOnboarding = useMutation(api.users.onboarding.clear)
+  const resetShownTooltips = useMutation(api.users.tooltips.resetShownTooltips)
   const deleteMyDataBatch = useMutation(api.users.users.deleteMyDataBatch)
 
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(
@@ -242,6 +254,10 @@ export default function Settings({
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
   const [offlineQueueTotal, setOfflineQueueTotal] = useState(0)
+  const [offlineQueueError, setOfflineQueueError] = useState<string | null>(
+    null
+  )
+  const [offlineOnline, setOfflineOnline] = useState(() => isBrowserOnline())
   const [syncingOfflineQueue, setSyncingOfflineQueue] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -250,6 +266,7 @@ export default function Settings({
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [resettingOnboarding, setResettingOnboarding] = useState(false)
+  const [refreshingTooltips, setRefreshingTooltips] = useState(false)
   const [theme, setThemeState] = useState<Theme>("light")
   const [hapticsOn, setHapticsOn] = useState(() => {
     if (typeof window === "undefined") return true
@@ -265,6 +282,22 @@ export default function Settings({
     hasPrompt: pwaInstallPrompt !== null,
     installed: pwaInstalled,
   })
+  const offlineSyncStatus = offlineSyncStatusCopy({
+    online: offlineOnline,
+    canSync: Boolean(user),
+    syncing: syncingOfflineQueue,
+    total: offlineQueueTotal,
+    lastError: offlineQueueError,
+  })
+  const offlineSyncActionLabel = syncingOfflineQueue
+    ? "Syncing"
+    : !offlineOnline
+      ? "Offline"
+      : offlineQueueError
+        ? "Retry"
+        : offlineQueueTotal > 0
+          ? "Sync"
+          : "Synced"
 
   // Initialize theme
   useEffect(() => {
@@ -359,15 +392,20 @@ export default function Settings({
   }, [effectiveGoals])
 
   useEffect(() => {
-    const refresh = () => setOfflineQueueTotal(getOfflineQueueSummary().total)
+    const refresh = () => {
+      const summary = getOfflineQueueSummary()
+      setOfflineQueueTotal(summary.total)
+      setOfflineQueueError(summary.lastError)
+      setOfflineOnline(isBrowserOnline())
+    }
     refresh()
+    const unsubscribe = subscribeOfflineQueue(refresh)
     window.addEventListener("online", refresh)
     window.addEventListener("offline", refresh)
-    window.addEventListener("onerep:offline-queue-changed", refresh)
     return () => {
+      unsubscribe()
       window.removeEventListener("online", refresh)
       window.removeEventListener("offline", refresh)
-      window.removeEventListener("onerep:offline-queue-changed", refresh)
     }
   }, [])
 
@@ -495,6 +533,33 @@ export default function Settings({
     }
   }
 
+  async function handleRefreshShownTooltips() {
+    if (refreshingTooltips) return
+    hapticTap()
+    setRefreshingTooltips(true)
+    try {
+      await resetShownTooltips({})
+      toast.success("Shown tooltips refreshed")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not refresh tooltips"
+      )
+    } finally {
+      setRefreshingTooltips(false)
+    }
+  }
+
+  function handleResetCoachOnboarding() {
+    hapticTap()
+    const reset = resetCoachOnboarding()
+
+    if (reset) {
+      toast.success("Coach introduction will show on your next visit")
+      return
+    }
+    toast.error("Could not reset Coach introduction")
+  }
+
   function updateReminder(
     kind: keyof ReminderSettings,
     patch: Partial<ReminderSettings[keyof ReminderSettings]>
@@ -507,19 +572,46 @@ export default function Settings({
 
   async function handleFlushOfflineQueue() {
     if (syncingOfflineQueue) return
+    if (!isBrowserOnline()) {
+      const summary = getOfflineQueueSummary()
+      setOfflineQueueTotal(summary.total)
+      setOfflineQueueError(summary.lastError)
+      setOfflineOnline(false)
+      toast.message(
+        summary.total > 0
+          ? `${summary.total} change${summary.total === 1 ? "" : "s"} saved on this device. They’ll sync when you reconnect.`
+          : "You’re offline. New changes stay saved on this device."
+      )
+      return
+    }
+
     hapticTap()
     setSyncingOfflineQueue(true)
     try {
       const result = await flushOfflineQueue()
-      setOfflineQueueTotal(result.remaining)
-      if (result.remaining === 0) toast.success("Offline changes synced")
-      else
-        toast.message(
-          `${result.remaining} change${result.remaining === 1 ? "" : "s"} still waiting`
+      const summary = getOfflineQueueSummary()
+      setOfflineQueueTotal(summary.total)
+      setOfflineQueueError(summary.lastError)
+      setOfflineOnline(isBrowserOnline())
+      if (result.remaining === 0) {
+        toast.success(
+          result.flushed > 0
+            ? "Offline changes synced"
+            : "All changes are synced"
         )
+      } else if (summary.lastError) {
+        toast.error("Some changes need attention. Tap Retry to try again.")
+      } else {
+        toast.message(
+          `${result.remaining} change${result.remaining === 1 ? "" : "s"} saved locally and waiting to sync.`
+        )
+      }
     } catch (error) {
-      setOfflineQueueTotal(getOfflineQueueSummary().total)
-      toast.error(error instanceof Error ? error.message : "Sync failed")
+      const summary = getOfflineQueueSummary()
+      setOfflineQueueTotal(summary.total)
+      setOfflineQueueError(offlineSyncErrorText(error))
+      setOfflineOnline(isBrowserOnline())
+      toast.error(offlineSyncErrorText(error))
     } finally {
       setSyncingOfflineQueue(false)
     }
@@ -818,11 +910,18 @@ export default function Settings({
                         />
                       </SettingsRow>
                     </div>
-                    <SectionSaveButton
-                      label="Save targets"
-                      saving={saving}
-                      onClick={handleSaveTargets}
-                    />
+                    <AppTooltip
+                      id={APP_TOOLTIP_IDS.settingsTargets}
+                      content="After changing targets, save here so the dashboard and nutrition pages use the new numbers."
+                      targetClassName="block"
+                      side="top"
+                    >
+                      <SectionSaveButton
+                        label="Save targets"
+                        saving={saving}
+                        onClick={handleSaveTargets}
+                      />
+                    </AppTooltip>
                   </AccordionContent>
                 </AccordionItem>
 
@@ -1191,23 +1290,50 @@ export default function Settings({
                         onClick={handleFlushOfflineQueue}
                         disabled={syncingOfflineQueue}
                         aria-busy={syncingOfflineQueue}
-                        className="flex w-full items-center justify-between px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
+                        aria-label={`${offlineSyncStatus.title}. ${offlineSyncStatus.body}${offlineSyncActionLabel === "Retry" ? " Retry saved changes." : ""}`}
+                        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
                       >
-                        <span>
+                        <span className="min-w-0">
                           <span className="block text-[14px] font-medium">
-                            {syncingOfflineQueue
-                              ? "Syncing offline queue..."
-                              : "Sync offline queue"}
+                            Data sync
                           </span>
-                          <span className="mt-0.5 block text-[11px] text-muted-foreground/45">
-                            {offlineQueueTotal} pending change
-                            {offlineQueueTotal === 1 ? "" : "s"}
+                          <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/45">
+                            {offlineSyncStatus.body}
                           </span>
                         </span>
-                        <CaretRight
-                          className="text-muted-foreground/30"
-                          size={16}
-                        />
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={cn(
+                              "inline-flex min-h-7 items-center gap-1.5 rounded-full px-2 text-[10px] font-bold",
+                              offlineSyncStatus.tone === "error"
+                                ? "bg-destructive/10 text-destructive"
+                                : offlineSyncStatus.tone === "synced"
+                                  ? "bg-muted/70 text-muted-foreground/70"
+                                  : "bg-muted/70 text-muted-foreground/70"
+                            )}
+                          >
+                            {syncingOfflineQueue ? (
+                              <ArrowsClockwise
+                                size={12}
+                                className="animate-spin"
+                                weight="bold"
+                              />
+                            ) : offlineSyncStatus.tone === "error" ? (
+                              <Warning size={12} weight="bold" />
+                            ) : offlineSyncStatus.tone === "synced" ? (
+                              <CheckCircle size={12} weight="bold" />
+                            ) : !offlineOnline ? (
+                              <WifiSlash size={12} weight="bold" />
+                            ) : (
+                              <CloudArrowUp size={12} weight="bold" />
+                            )}
+                            {offlineSyncActionLabel}
+                          </span>
+                          <CaretRight
+                            className="text-muted-foreground/30"
+                            size={16}
+                          />
+                        </span>
                       </button>
                       <RowDivider />
                       <button
@@ -1304,6 +1430,60 @@ export default function Settings({
                     </div>
                   </AccordionContent>
                 </AccordionItem>
+
+                {SHOW_DEV_SETTINGS && (
+                  <AccordionItem value="developer" className="border-none">
+                    <AccordionTrigger
+                      className={SETTINGS_SECTION_TRIGGER_CLASS}
+                    >
+                      <span className="text-[13px] font-semibold tracking-widest text-muted-foreground/50 uppercase">
+                        Developer
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent className="!h-auto px-0 pt-1">
+                      <div className={SETTINGS_PANEL_CLASS}>
+                        <button
+                          type="button"
+                          onClick={handleResetCoachOnboarding}
+                          className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-opacity active:opacity-60"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-[14px] font-medium">
+                              Reset Coach introduction
+                            </span>
+                            <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/45">
+                              Shows the Coach skill walkthrough again on your
+                              next visit.
+                            </span>
+                          </span>
+                          <span className="app-button app-button-quiet pointer-events-none min-h-8 px-3 text-[11px]">
+                            Reset
+                          </span>
+                        </button>
+                        <RowDivider />
+                        <button
+                          type="button"
+                          onClick={handleRefreshShownTooltips}
+                          disabled={refreshingTooltips}
+                          aria-busy={refreshingTooltips}
+                          className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-opacity active:opacity-60 disabled:opacity-50"
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-[14px] font-medium">
+                              Refresh shown tooltips
+                            </span>
+                            <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground/45">
+                              Clears completed tooltip state for this account.
+                            </span>
+                          </span>
+                          <span className="app-button app-button-quiet pointer-events-none min-h-8 px-3 text-[11px]">
+                            {refreshingTooltips ? "Refreshing..." : "Refresh"}
+                          </span>
+                        </button>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
               </Accordion>
             </div>
           </>
@@ -1464,25 +1644,26 @@ function RevenueCatSubscriptionPanel({
   revenueCat: ReturnType<typeof useRevenueCat>
 }) {
   const [action, setAction] = useState<
-    "purchase" | "restore" | "refresh" | null
+    "purchase" | "restore" | "refresh" | "cancel" | null
   >(null)
-  const [managementOpen, setManagementOpen] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
   const active = revenueCat.hasOneRepPro
-  const canManage = revenueCat.hasActiveSubscription
-  const managementUrl = revenueCat.subscriptionManagementUrl
+  const canceling = action === "cancel"
+  const opensSubscriptionManagement = revenueCat.cancelOpensManagement
   const loading = revenueCat.status === "loading"
   const unsupported = revenueCat.status === "unsupported"
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
+  const subscriptionDiagnostic = revenueCat.subscriptionDiagnostic
   const disabled = unsupported || loading || action !== null
-  const purchaseDisabled = disabled || !revenueCat.canPurchase
-
-  function openSubscriptionManagement() {
-    if (managementUrl) {
-      window.open(managementUrl, "_blank", "noopener,noreferrer")
-      return
-    }
-    setManagementOpen(true)
-  }
+  const purchaseDisabled = revenueCat.isNative
+    ? disabled || !revenueCat.canPurchase
+    : action !== null || !revenueCat.canPurchase
+  const refreshLabel =
+    action === "refresh"
+      ? "Checking..."
+      : subscriptionDiagnostic.canRetry
+        ? "Retry status"
+        : "Refresh"
 
   async function runRevenueCatAction(
     nextAction: Exclude<typeof action, null>,
@@ -1500,7 +1681,10 @@ function RevenueCatSubscriptionPanel({
               entitlements: { active: Record<string, unknown> }
             })
           : null
-      if (hasOneRepPro(customerInfo as Parameters<typeof hasOneRepPro>[0])) {
+      if (
+        nextAction !== "cancel" &&
+        hasOneRepPro(customerInfo as Parameters<typeof hasOneRepPro>[0])
+      ) {
         celebrateSubscription()
         if (successMessage) toast.success(successMessage)
       } else if (nextAction === "restore") {
@@ -1533,8 +1717,9 @@ function RevenueCatSubscriptionPanel({
               OneRep Pro
             </p>
             <p className="mt-1 max-w-[34rem] text-[12.5px] leading-relaxed text-muted-foreground/58">
-              Optional AI features for food photo analysis, workout generation,
-              and progress insights.
+              {active
+                ? "AI meal analysis, workout generation, and progress insights are unlocked."
+                : "Optional AI features for food photo analysis, workout generation, and progress insights."}
             </p>
           </div>
           <span
@@ -1549,63 +1734,86 @@ function RevenueCatSubscriptionPanel({
           </span>
         </div>
 
-        <div className="mt-4 grid gap-2 md:grid-cols-3">
-          {[
-            "Analyze meals from photos",
-            "Generate workouts with AI",
-            "Ask for progress insights",
-          ].map((benefit) => (
-            <div
-              key={benefit}
-              className="rounded-[12px] border border-border/35 bg-background/45 px-3 py-2.5"
-            >
-              <p className="text-[11.5px] leading-snug font-bold text-foreground/78">
-                {benefit}
-              </p>
-            </div>
-          ))}
-        </div>
+        {!active && (
+          <div className="mt-4 grid gap-2 md:grid-cols-3">
+            {[
+              "Analyze meals from photos",
+              "Generate workouts with AI",
+              "Ask for progress insights",
+            ].map((benefit) => (
+              <div
+                key={benefit}
+                className="rounded-[12px] border border-border/35 bg-background/45 px-3 py-2.5"
+              >
+                <p className="text-[11.5px] leading-snug font-bold text-foreground/78">
+                  {benefit}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 rounded-[14px] bg-muted/25 p-3">
           <div className="flex items-baseline justify-between gap-3">
             <p className="text-[13px] font-bold text-foreground/86">
               Monthly plan
             </p>
-            <p className="text-[15px] font-black tracking-tight text-foreground">
+            <p className="shrink-0 text-[15px] font-black tracking-tight whitespace-nowrap text-foreground tabular-nums">
               {monthlyPrice}
             </p>
           </div>
           <p className="mt-1 text-[11.5px] leading-snug text-muted-foreground/58">
             {active
-              ? "Your Pro subscription is active. You can manage or cancel it anytime."
+              ? "Active on this account. Manage renewal through the original purchase store."
               : "Upgrade only if you want AI features. Core tracking stays free."}
           </p>
         </div>
 
-        {revenueCat.error && (
-          <p className="mt-2 rounded-[10px] border border-destructive/20 bg-destructive/8 px-2.5 py-2 text-[10.5px] font-medium text-destructive">
-            {revenueCat.error}
-          </p>
-        )}
-
-        {unsupported ? (
-          <p className="mt-2 rounded-[10px] bg-background px-2.5 py-2 text-[10.5px] font-medium text-muted-foreground/60">
-            Subscription checkout is available on web, iOS, and Android.
-          </p>
-        ) : null}
+        <div
+          role="status"
+          aria-live={
+            subscriptionDiagnostic.tone === "attention" ? "assertive" : "polite"
+          }
+          className={cn(
+            "mt-2 flex min-h-8 items-center gap-2 rounded-[10px] px-2.5 py-2 text-[10.5px] font-medium",
+            subscriptionDiagnostic.tone === "attention"
+              ? "border border-destructive/20 bg-destructive/8 text-destructive"
+              : "bg-background text-muted-foreground/60"
+          )}
+        >
+          {subscriptionDiagnostic.tone === "attention" ? (
+            <Warning size={13} weight="bold" className="shrink-0" />
+          ) : subscriptionDiagnostic.tone === "success" ? (
+            <CheckCircle size={13} weight="bold" className="shrink-0" />
+          ) : subscriptionDiagnostic.tone === "pending" ? (
+            <ArrowsClockwise
+              size={13}
+              weight="bold"
+              className="shrink-0 animate-spin"
+            />
+          ) : (
+            <CloudArrowUp size={13} weight="bold" className="shrink-0" />
+          )}
+          <span className="min-w-0 truncate">
+            <span className="font-bold">{subscriptionDiagnostic.title}</span>
+            <span className="text-muted-foreground/55">
+              {" · "}
+              {subscriptionDiagnostic.detail}
+            </span>
+          </span>
+        </div>
 
         <div className="mt-3 grid gap-2">
           <button
             type="button"
             disabled={active ? disabled : purchaseDisabled}
-            aria-busy={action === "purchase"}
+            aria-busy={active ? action === "cancel" : action === "purchase"}
             onClick={() =>
               active
-                ? setManagementOpen(true)
+                ? setConfirmCancel(true)
                 : void runRevenueCatAction(
                     "purchase",
-                    revenueCat.purchaseMonthly,
-                    "Subscription status updated"
+                    revenueCat.purchaseMonthly
                   )
             }
             className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
@@ -1613,32 +1821,45 @@ function RevenueCatSubscriptionPanel({
             {action === "purchase"
               ? "Starting checkout..."
               : active
-                ? "Manage subscription"
+                ? action === "cancel"
+                  ? "Canceling..."
+                  : opensSubscriptionManagement
+                    ? "Manage subscription"
+                    : "Cancel renewal"
                 : revenueCat.canPurchase
                   ? "Upgrade to Pro"
                   : "Products unavailable"}
           </button>
 
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-            <button
-              type="button"
-              disabled={disabled}
-              aria-busy={action === "restore"}
-              onClick={() =>
-                void runRevenueCatAction(
-                  "restore",
-                  revenueCat.restorePurchases,
-                  "Purchases restored"
-                )
-              }
-              className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
-            >
-              {action === "restore" ? "..." : "Restore"}
-            </button>
+          <div
+            className={cn("grid gap-2", active ? "grid-cols-1" : "grid-cols-2")}
+          >
+            {!active && (
+              <button
+                type="button"
+                disabled={disabled}
+                aria-busy={action === "restore"}
+                onClick={() =>
+                  void runRevenueCatAction(
+                    "restore",
+                    revenueCat.restorePurchases,
+                    "Purchases restored"
+                  )
+                }
+                className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
+              >
+                {action === "restore" ? "..." : "Restore"}
+              </button>
+            )}
             <button
               type="button"
               disabled={disabled}
               aria-busy={action === "refresh"}
+              aria-label={
+                subscriptionDiagnostic.canRetry
+                  ? "Retry subscription status"
+                  : "Refresh subscription status"
+              }
               onClick={() =>
                 void runRevenueCatAction(
                   "refresh",
@@ -1648,232 +1869,13 @@ function RevenueCatSubscriptionPanel({
               }
               className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
             >
-              {action === "refresh" ? "..." : "Refresh"}
-            </button>
-            <button
-              type="button"
-              disabled={unsupported || loading}
-              onClick={openSubscriptionManagement}
-              className="min-h-9 rounded-xl bg-background px-2 text-[10.5px] font-bold text-foreground/78 ring-1 ring-border/45 transition-opacity active:opacity-75 disabled:opacity-45"
-            >
-              {canManage ? "Manage" : "Status"}
+              {refreshLabel}
             </button>
           </div>
         </div>
       </div>
 
-      {managementOpen && (
-        <RevenueCatManagementDialog
-          revenueCat={revenueCat}
-          action={action}
-          disabled={disabled}
-          onClose={() => setManagementOpen(false)}
-          onRunAction={runRevenueCatAction}
-        />
-      )}
-    </div>
-  )
-}
-
-function RevenueCatManagementDialog({
-  revenueCat,
-  action,
-  disabled,
-  onClose,
-  onRunAction,
-}: {
-  revenueCat: ReturnType<typeof useRevenueCat>
-  action: "purchase" | "restore" | "refresh" | null
-  disabled: boolean
-  onClose: () => void
-  onRunAction: (
-    nextAction: Exclude<typeof action, null>,
-    task: () => Promise<unknown>,
-    successMessage?: string
-  ) => Promise<void>
-}) {
-  const active = revenueCat.hasOneRepPro
-  const hasActiveSubscription = revenueCat.hasActiveSubscription
-  const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
-  const managementUrl = revenueCat.subscriptionManagementUrl
-  const purchaseDisabled = disabled || !revenueCat.canPurchase
-  const [confirmCancel, setConfirmCancel] = useState(false)
-
-  function openManagementUrl() {
-    if (!managementUrl) return
-    window.open(managementUrl, "_blank", "noopener,noreferrer")
-  }
-
-  function refreshManagementLink() {
-    void onRunAction("refresh", revenueCat.refresh)
-  }
-
-  function openCancelFlow() {
-    if (!managementUrl) {
-      toast.message("Refreshing your subscription management link…")
-      refreshManagementLink()
-      return
-    }
-    setConfirmCancel(true)
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-background/70 px-3 py-4 backdrop-blur-xl"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="subscription-management-title"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full max-w-[24rem] overflow-hidden rounded-[20px] border border-border/55 bg-card shadow-2xl"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close subscription management"
-          className="absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border/55 backdrop-blur transition-colors active:bg-muted active:text-foreground"
-        >
-          <X size={15} weight="bold" />
-        </button>
-
-        <div className="border-b border-border/45 bg-muted/25 px-4 pt-4 pb-3">
-          <p className="text-[9.5px] font-bold tracking-[0.18em] text-muted-foreground/58 uppercase">
-            Subscription
-          </p>
-          <h2
-            id="subscription-management-title"
-            className="mt-1 max-w-[18rem] text-[21px] leading-tight font-semibold tracking-tight text-foreground"
-          >
-            OneRep Pro
-          </h2>
-          <p className="mt-1.5 max-w-[21rem] text-[12px] leading-relaxed text-muted-foreground/68">
-            Your Pro membership is connected to this OneRep account.
-          </p>
-        </div>
-
-        <div className="px-4 py-3.5">
-          <div className="rounded-[13px] border border-border/45 bg-background/45 p-3">
-            <div className="flex items-baseline justify-between gap-3">
-              <p className="text-[13px] font-bold text-foreground/88">
-                Monthly plan
-              </p>
-              <p className="text-[15px] font-bold tracking-tight text-foreground">
-                {monthlyPrice}
-              </p>
-            </div>
-            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground/62">
-              {active
-                ? "Pro is active on this account."
-                : hasActiveSubscription
-                  ? "Your subscription is still syncing."
-                  : "Core tracking stays free. Upgrade only if you want AI features."}
-            </p>
-          </div>
-
-          {revenueCat.error && (
-            <p className="mt-2 rounded-[12px] border border-destructive/20 bg-destructive/8 px-3 py-2 text-[11px] font-medium text-destructive">
-              {revenueCat.error}
-            </p>
-          )}
-
-          <div className="mt-3 grid gap-2">
-            {active ? (
-              <div className="grid gap-2">
-                <button
-                  type="button"
-                  disabled={!managementUrl && disabled}
-                  aria-busy={action === "refresh"}
-                  onClick={
-                    managementUrl ? openManagementUrl : refreshManagementLink
-                  }
-                  className="flex min-h-10 items-center justify-center gap-2 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
-                >
-                  {managementUrl ? (
-                    <>
-                      Manage subscription
-                      <ArrowSquareOut size={15} weight="bold" />
-                    </>
-                  ) : action === "refresh" ? (
-                    "Refreshing..."
-                  ) : (
-                    "Refresh management link"
-                  )}
-                </button>
-                <button
-                  type="button"
-                  disabled={!managementUrl || disabled}
-                  onClick={openCancelFlow}
-                  className="min-h-10 rounded-xl border border-destructive/25 bg-destructive/10 px-3 text-[12.5px] font-bold text-destructive transition-opacity active:opacity-75 disabled:opacity-45"
-                >
-                  Cancel subscription
-                </button>
-                {!managementUrl && (
-                  <p className="text-center text-[10.5px] font-medium text-muted-foreground/55">
-                    Cancellation is available after the management link syncs.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={purchaseDisabled}
-                aria-busy={action === "purchase"}
-                onClick={() =>
-                  void onRunAction(
-                    "purchase",
-                    revenueCat.purchaseMonthly,
-                    "Subscription status updated"
-                  )
-                }
-                className="min-h-10 rounded-xl bg-foreground px-3 text-[12.5px] font-bold text-background transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                {action === "purchase"
-                  ? "Starting checkout..."
-                  : revenueCat.canPurchase
-                    ? "Upgrade"
-                    : "Products unavailable"}
-              </button>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={disabled}
-                aria-busy={action === "restore"}
-                onClick={() =>
-                  void onRunAction(
-                    "restore",
-                    revenueCat.restorePurchases,
-                    "Purchases restored"
-                  )
-                }
-                className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                {action === "restore" ? "Restoring..." : "Restore"}
-              </button>
-              <button
-                type="button"
-                disabled={disabled}
-                aria-busy={action === "refresh"}
-                onClick={() =>
-                  void onRunAction(
-                    "refresh",
-                    revenueCat.refresh,
-                    "Subscription refreshed"
-                  )
-                }
-                className="min-h-9 rounded-xl bg-muted px-3 text-[11.5px] font-bold text-foreground/70 transition-opacity active:opacity-75 disabled:opacity-50"
-              >
-                {action === "refresh" ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {confirmCancel && managementUrl && (
+      {confirmCancel && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-background/75 px-4 backdrop-blur-xl"
           role="alertdialog"
@@ -1892,23 +1894,39 @@ function RevenueCatManagementDialog({
               Cancel OneRep Pro?
             </h3>
             <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground/65">
-              You will be taken to subscription management to confirm
-              cancellation. Pro access usually remains available until the end
-              of your current billing period.
+              {opensSubscriptionManagement
+                ? "We’ll open the secure subscription page for the store where you purchased OneRep Pro."
+                : "Your subscription will stop renewing. Pro access usually remains available until the end of your current billing period."}
             </p>
             <div className="mt-4 grid gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setConfirmCancel(false)
-                  openManagementUrl()
-                }}
-                className="text-destructive-foreground min-h-10 rounded-xl bg-destructive px-3 text-[12.5px] font-bold transition-opacity active:opacity-80"
+                disabled={canceling}
+                aria-busy={canceling}
+                onClick={() =>
+                  void runRevenueCatAction(
+                    "cancel",
+                    async () => {
+                      const result = await revenueCat.cancelSubscription()
+                      setConfirmCancel(false)
+                      return result
+                    },
+                    opensSubscriptionManagement
+                      ? undefined
+                      : "Subscription canceled"
+                  )
+                }
+                className="text-destructive-foreground min-h-10 rounded-xl bg-destructive px-3 text-[12.5px] font-bold transition-opacity active:opacity-80 disabled:opacity-50"
               >
-                Continue to cancel
+                {canceling
+                  ? "Canceling..."
+                  : opensSubscriptionManagement
+                    ? "Continue to manage"
+                    : "Confirm cancellation"}
               </button>
               <button
                 type="button"
+                disabled={canceling}
                 onClick={() => setConfirmCancel(false)}
                 className="min-h-10 rounded-xl bg-muted px-3 text-[12.5px] font-bold text-foreground/75 transition-opacity active:opacity-75"
               >

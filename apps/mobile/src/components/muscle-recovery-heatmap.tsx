@@ -1,6 +1,7 @@
 import { useId } from "react"
 import { Card } from "@repo/ui"
 import type { MuscleRecovery, MuscleRecoveryStatus } from "@/lib/muscle-volume"
+import { MuscleBodySvg } from "@/components/muscle-body-svg"
 
 const COLUMNS = [
   { label: "0", caption: "today" },
@@ -17,16 +18,12 @@ const STATUS_LABEL: Record<MuscleRecoveryStatus, string> = {
   overdue: "overdue",
 }
 
-// Source: Bootstrap Icons "person-standing" (MIT).
-// https://icons.getbootstrap.com/icons/person-standing/
-const PERSON_STANDING_PATH =
-  "M8 3a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3M6 6.75v8.5a.75.75 0 0 0 1.5 0V10.5a.5.5 0 0 1 1 0v4.75a.75.75 0 0 0 1.5 0v-8.5a.25.25 0 1 1 .5 0v2.5a.75.75 0 0 0 1.5 0V6.5a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v2.75a.75.75 0 0 0 1.5 0v-2.5a.25.25 0 0 1 .5 0"
-
 const CHART_WIDTH = 390
 const GRID_X = 102
 const PERSON_X = 155
-const PERSON_Y = 30
-const PERSON_SIZE = 86
+const PERSON_Y = 24
+const PERSON_WIDTH = 80
+const PERSON_HEIGHT = 128
 const GRID_HEADER_Y = 184
 const GRID_GROUP_Y = 166
 const GRID_Y = 202
@@ -115,7 +112,6 @@ export function MuscleRecoveryHeatmapCard({
   const maxEffectiveSets = Math.max(
     ...muscleRecovery.map((item) => item.effectiveSets)
   )
-  const personOpacity = loadOpacity(maxEffectiveSets, maxEffectiveSets)
   const chartHeight =
     GRID_Y + muscleRecovery.length * ROW_HEIGHT + LEGEND_HEIGHT
   const legendY = GRID_Y + muscleRecovery.length * ROW_HEIGHT + 20
@@ -262,32 +258,14 @@ export function MuscleRecoveryHeatmapCard({
               {counts.overdue} overdue
             </text>
 
-            <svg
+            <MuscleBodySvg
+              recovery={muscleRecovery}
               x={PERSON_X}
               y={PERSON_Y}
-              width={PERSON_SIZE}
-              height={PERSON_SIZE}
-              viewBox="0 0 16 16"
-              aria-hidden="true"
-            >
-              <path
-                d={PERSON_STANDING_PATH}
-                fill="currentColor"
-                fillOpacity="0.08"
-              />
-              <path
-                d={PERSON_STANDING_PATH}
-                fill="var(--accent-workout)"
-                fillOpacity={personOpacity}
-              />
-              {counts.overdue > 0 && (
-                <path
-                  d={PERSON_STANDING_PATH}
-                  fill={`url(#${hatchId})`}
-                  fillOpacity="0.58"
-                />
-              )}
-            </svg>
+              width={PERSON_WIDTH}
+              height={PERSON_HEIGHT}
+              className="text-foreground"
+            />
 
             <text
               x="0"

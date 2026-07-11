@@ -1,14 +1,19 @@
 import type { ReactNode } from "react"
 import {
+  ArrowRight,
   Barbell,
+  Coffee,
   Fire,
   ForkKnife,
+  Heart,
+  Lightning,
   Pill,
   PintGlass,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { SectionHeader } from "@/components/mobile-ui"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import type { DashboardBriefing } from "@/lib/dashboard-briefing"
 
 type PrimaryAction = {
   label: string
@@ -24,6 +29,34 @@ export type MacroProgress = {
   target: number
   color: string
   unit?: string
+}
+
+export type DashboardQuickAction = {
+  id: string
+  label: string
+  icon: ReactNode
+  onClick: () => void
+  tone?: "food" | "water" | "workout" | "default"
+  badge?: string
+}
+
+export type WorkoutWeekDay = {
+  date: string
+  label: string
+  hasWorkout: boolean
+  isToday: boolean
+}
+
+export type MealCadenceSlot = {
+  id: string
+  label: string
+  logged: boolean
+}
+
+export type RecoveryProgress = {
+  score: number
+  proteinPercent: number
+  waterPercent: number
 }
 
 function pct(current: number, target: number) {
@@ -93,47 +126,313 @@ export function TodayHeader({
   )
 }
 
+function quickActionTone(tone: DashboardQuickAction["tone"]) {
+  if (tone === "food")
+    return "bg-[var(--accent-food-bg)] text-[var(--accent-food)]"
+  if (tone === "water")
+    return "bg-[var(--accent-water-bg)] text-[var(--accent-water)]"
+  if (tone === "workout") return "bg-muted text-foreground"
+  return "bg-muted/55 text-muted-foreground"
+}
+
+export function DashboardQuickActions({
+  actions,
+}: {
+  actions: DashboardQuickAction[]
+}) {
+  return (
+    <nav
+      aria-label="Quick actions"
+      className="app-rail-surface mx-[var(--app-page-x)] mt-3 grid grid-cols-5 overflow-hidden md:mx-8"
+    >
+      {actions.map((action, index) => (
+        <button
+          key={action.id}
+          type="button"
+          onClick={action.onClick}
+          aria-label={action.label}
+          className={cn(
+            "motion-tactile flex min-h-[4.25rem] flex-col items-center justify-center gap-1.5 px-2 py-2 text-center active:opacity-70",
+            index > 0 && "border-l border-border/40"
+          )}
+        >
+          <span className="relative">
+            <span
+              className={cn(
+                "flex h-7 w-7 items-center justify-center rounded-full",
+                quickActionTone(action.tone)
+              )}
+            >
+              {action.icon}
+            </span>
+            {action.badge && (
+              <span className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-foreground px-0.5 text-[8px] font-bold text-background tabular-nums">
+                {action.badge}
+              </span>
+            )}
+          </span>
+          <span className="text-[9.5px] font-bold text-muted-foreground/64">
+            {action.label}
+          </span>
+        </button>
+      ))}
+    </nav>
+  )
+}
+
+export function WorkoutWeekStrip({
+  days,
+  onClick,
+}: {
+  days: WorkoutWeekDay[]
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Open weekly workout history"
+      className="motion-tactile app-rail-surface mx-[var(--app-page-x)] mt-3 flex min-h-[4.1rem] w-[calc(100%-2*var(--app-page-x))] items-center justify-between gap-2 px-3 py-2 active:opacity-70 md:mx-8 md:w-[calc(100%-4rem)]"
+    >
+      {days.map((day) => (
+        <span
+          key={day.date}
+          className="flex min-w-0 flex-1 flex-col items-center gap-1"
+        >
+          <span
+            className={cn(
+              "flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-bold",
+              day.hasWorkout
+                ? "border-foreground bg-foreground text-background"
+                : "border-border/55 bg-muted/30 text-muted-foreground/48",
+              day.isToday && !day.hasWorkout && "border-foreground/55"
+            )}
+          >
+            {day.hasWorkout ? <Barbell size={11} weight="bold" /> : day.label}
+          </span>
+          <span
+            className={cn(
+              "text-[9px] font-bold",
+              day.isToday ? "text-foreground" : "text-muted-foreground/45"
+            )}
+          >
+            {day.label}
+          </span>
+        </span>
+      ))}
+    </button>
+  )
+}
+
+function MealCadence({
+  slots,
+  onClick,
+}: {
+  slots: MealCadenceSlot[]
+  onClick: (slot: MealCadenceSlot) => void
+}) {
+  return (
+    <div
+      aria-label="Meal cadence"
+      className="mt-3 grid grid-cols-4 gap-2 border-t border-border/40 pt-3"
+    >
+      {slots.map((slot) => (
+        <button
+          key={slot.id}
+          type="button"
+          onClick={() => onClick(slot)}
+          aria-label={`${slot.label}: ${slot.logged ? "logged" : "add meal"}`}
+          className="motion-tactile flex min-h-11 items-center justify-center rounded-xl bg-muted/28 px-2 active:opacity-70"
+        >
+          <span
+            className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full",
+              slot.logged
+                ? "bg-[var(--accent-food)] text-background"
+                : "bg-background text-muted-foreground/45 ring-1 ring-border/45"
+            )}
+          >
+            {slot.id === "breakfast" ? (
+              <Coffee size={12} weight="bold" />
+            ) : (
+              <ForkKnife size={12} weight="bold" />
+            )}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function RecoveryMeter({
+  recovery,
+  onClick,
+}: {
+  recovery: RecoveryProgress
+  onClick: () => void
+}) {
+  const score = Math.max(0, Math.min(100, Math.round(recovery.score)))
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Recovery progress ${score} percent. Protein ${Math.round(recovery.proteinPercent)} percent, water ${Math.round(recovery.waterPercent)} percent.`}
+      className="motion-tactile mt-3 flex min-h-12 w-full items-center gap-3 rounded-xl bg-muted/28 px-3 active:opacity-70"
+    >
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+        style={{
+          background: `conic-gradient(var(--accent-progress) ${score}%, var(--background) 0)`,
+        }}
+      >
+        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-card">
+          <Heart
+            size={12}
+            weight="fill"
+            className="text-[var(--accent-progress)]"
+          />
+        </span>
+      </span>
+      <span className="flex min-w-0 flex-1 items-center gap-2.5">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <ForkKnife
+            size={13}
+            weight="bold"
+            className="text-[var(--accent-food)]"
+          />
+          <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-background">
+            <span
+              className="block h-full rounded-full bg-[var(--accent-food)]"
+              style={{
+                width: `${Math.max(0, Math.min(100, recovery.proteinPercent))}%`,
+              }}
+            />
+          </span>
+        </span>
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <PintGlass
+            size={13}
+            weight="bold"
+            className="text-[var(--accent-water)]"
+          />
+          <span className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-background">
+            <span
+              className="block h-full rounded-full bg-[var(--accent-water)]"
+              style={{
+                width: `${Math.max(0, Math.min(100, recovery.waterPercent))}%`,
+              }}
+            />
+          </span>
+        </span>
+      </span>
+      <span className="shrink-0 text-[12px] font-extrabold tabular-nums">
+        {score}%
+      </span>
+    </button>
+  )
+}
+
 export function DailyLedgerHero({
   caloriesLeft,
   caloriesTarget,
   waterMl,
   waterGoalMl,
   workoutState,
-  food,
   workout,
+  workoutProgress,
+  mealSlots = [],
+  onMealSlotClick,
+  recovery,
+  onRecoveryClick,
   water,
+  briefing,
+  onBriefingAction,
+  proteinLeft,
+  streak,
+  workoutsThisWeek,
   macros = [],
+  className,
 }: {
   caloriesLeft: number
   caloriesTarget: number
   waterMl: number
   waterGoalMl: number
   workoutState: string
-  food: PrimaryAction
   workout: PrimaryAction
+  workoutProgress?: {
+    completedSets: number
+    totalSets: number
+    elapsedMinutes: number
+  } | null
+  mealSlots?: MealCadenceSlot[]
+  onMealSlotClick?: (slot: MealCadenceSlot) => void
+  recovery?: RecoveryProgress | null
+  onRecoveryClick?: () => void
   water: PrimaryAction
+  briefing: DashboardBriefing
+  onBriefingAction: () => void
+  proteinLeft: number
+  streak: number
+  workoutsThisWeek: number
   macros?: MacroProgress[]
+  className?: string
 }) {
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const waterPct = pct(waterMl, waterGoalMl)
   const overTarget = caloriesLeft < 0
   const calorieStatus = caloriesLeft >= 0 ? "left" : "over"
-  const foodButton = (
+  const waterButton = (
     <button
       type="button"
-      onClick={food.onClick}
-      className="app-button app-button-primary motion-tactile shrink-0"
+      onClick={water.onClick}
+      aria-label={`${water.label}: ${water.detail}`}
+      className="motion-tactile flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-xl bg-muted/32 px-2 py-2.5 text-center active:opacity-70"
     >
-      {food.label}
+      <PintGlass
+        size={17}
+        weight="bold"
+        className="text-[var(--accent-water)]"
+      />
+      <span className="text-[14px] leading-none font-extrabold tabular-nums">
+        {waterPct}%
+      </span>
+      <span className="text-[9.5px] font-bold text-muted-foreground/52 uppercase">
+        Water
+      </span>
+    </button>
+  )
+  const workoutButton = (
+    <button
+      type="button"
+      onClick={workout.onClick}
+      aria-label={`${workout.label}: ${workout.detail}`}
+      className="motion-tactile flex min-h-20 w-full flex-col items-center justify-center gap-1 rounded-xl bg-muted/32 px-2 py-2.5 text-center active:opacity-70"
+    >
+      <Barbell size={17} weight="bold" />
+      <span className="truncate text-[14px] leading-none font-extrabold">
+        {workoutProgress && workoutProgress.totalSets > 0
+          ? `${workoutProgress.completedSets}/${workoutProgress.totalSets}`
+          : workoutProgress && workoutProgress.elapsedMinutes > 0
+            ? `${workoutProgress.elapsedMinutes}m`
+            : workoutState}
+      </span>
+      <span className="text-[9.5px] font-bold text-muted-foreground/52 uppercase">
+        {workoutProgress ? "Active" : `${workoutsThisWeek}/wk`}
+      </span>
     </button>
   )
 
   return (
-    <section className="app-rail-surface motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8">
+    <section
+      className={cn(
+        "app-rail-surface motion-card mx-[var(--app-page-x)] overflow-hidden md:mx-8",
+        className
+      )}
+    >
       <div className="p-4 short-phone:p-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+        <div>
+          <div className="min-w-0">
             <p className="app-eyebrow">Today</p>
             <div className="mt-2 flex min-w-0 items-baseline gap-2">
               <span className="app-display text-[2.35rem] tabular-nums short-phone:text-[2rem]">
@@ -154,7 +453,6 @@ export function DailyLedgerHero({
               {fmt(consumed)} eaten of {fmt(caloriesTarget)}
             </p>
           </div>
-          {food.tooltip ? food.tooltip(foodButton) : foodButton}
         </div>
 
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-foreground/[0.065]">
@@ -178,49 +476,59 @@ export function DailyLedgerHero({
           </div>
         )}
 
-        <div className="mt-4 divide-y divide-border/45 border-t border-border/45">
-          <button
-            type="button"
-            onClick={water.onClick}
-            className="motion-tactile flex min-h-13 w-full items-center justify-between gap-3 py-3 text-left active:opacity-70"
-          >
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/72">
-                <PintGlass size={14} weight="bold" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-bold">Water</span>
-                <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-muted-foreground/58">
-                  {waterPct}% complete · {water.detail}
-                </span>
-              </span>
-            </span>
-            <span className="shrink-0 text-[12px] font-bold text-muted-foreground/70 tabular-nums">
-              {fmt(waterMl)} / {fmt(waterGoalMl)} ml
-            </span>
-          </button>
+        {mealSlots.length > 0 && onMealSlotClick && (
+          <MealCadence slots={mealSlots} onClick={onMealSlotClick} />
+        )}
 
-          <button
-            type="button"
-            onClick={workout.onClick}
-            className="motion-tactile flex min-h-13 w-full items-center justify-between gap-3 py-3 text-left active:opacity-70"
-          >
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/72">
-                <Barbell size={14} weight="bold" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[13px] font-bold">Workout</span>
-                <span className="mt-0.5 block truncate text-[11.5px] font-semibold text-muted-foreground/58">
-                  {workout.detail}
-                </span>
-              </span>
+        <div className="mt-4 grid grid-cols-4 gap-2 border-t border-border/40 pt-4 short-phone:gap-1.5">
+          {workout.tooltip ? workout.tooltip(workoutButton) : workoutButton}
+          {water.tooltip ? water.tooltip(waterButton) : waterButton}
+          <div className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-muted/32 px-2 py-2.5 text-center">
+            <ForkKnife
+              size={17}
+              weight="bold"
+              className="text-[var(--accent-food)]"
+            />
+            <span className="text-[14px] leading-none font-extrabold tabular-nums">
+              {proteinLeft > 0 ? `${fmt(proteinLeft)}g` : "Hit"}
             </span>
-            <span className="max-w-[42%] min-w-0 shrink-0 truncate text-right text-[12px] font-bold text-muted-foreground/70">
-              {workoutState}
+            <span className="text-[9.5px] font-bold text-muted-foreground/52 uppercase">
+              Protein
             </span>
-          </button>
+          </div>
+          <div className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-muted/32 px-2 py-2.5 text-center">
+            <Fire
+              size={17}
+              weight="fill"
+              className="text-[var(--status-caution)]"
+            />
+            <span className="text-[14px] leading-none font-extrabold tabular-nums">
+              {streak}d
+            </span>
+            <span className="text-[9.5px] font-bold text-muted-foreground/52 uppercase">
+              Streak
+            </span>
+          </div>
         </div>
+
+        {recovery && onRecoveryClick && (
+          <RecoveryMeter recovery={recovery} onClick={onRecoveryClick} />
+        )}
+
+        <button
+          type="button"
+          onClick={onBriefingAction}
+          className="motion-tactile mt-3 flex min-h-11 w-full items-center gap-2 rounded-xl bg-foreground px-3.5 text-left text-background active:opacity-75"
+        >
+          <Lightning size={15} weight="fill" className="shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-[12.5px] font-bold">
+            {briefing.title}
+          </span>
+          <span className="shrink-0 text-[11px] font-bold text-background/65">
+            {briefing.actionLabel}
+          </span>
+          <ArrowRight size={13} weight="bold" className="shrink-0" />
+        </button>
       </div>
     </section>
   )
@@ -254,6 +562,14 @@ function TimelineIcon({ kind }: { kind: TimelineEvent["kind"] }) {
   return <ForkKnife size={14} weight="bold" />
 }
 
+function timelineIconTone(kind: TimelineEvent["kind"]) {
+  if (kind === "water")
+    return "bg-[var(--accent-water-bg)] text-[var(--accent-water)]"
+  if (kind === "food")
+    return "bg-[var(--accent-food-bg)] text-[var(--accent-food)]"
+  return "bg-muted/45 text-muted-foreground/72"
+}
+
 export function TodayTimeline({
   events,
   onLogFood,
@@ -268,41 +584,61 @@ export function TodayTimeline({
 }) {
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
-      <SectionHeader
-        title="Today’s ledger"
-        action={
-          <button
-            type="button"
-            onClick={onLogFood}
-            className="app-button app-button-quiet motion-tactile"
-          >
-            Full log
-          </button>
-        }
-      />
+      <SectionHeader title="Recent" />
 
       <div
         className="app-rail-surface mt-3 overflow-hidden"
         data-motion-stagger
       >
         {events.length > 0 ? (
-          events.slice(0, 6).map((event, index) => {
+          events.slice(0, 4).map((event, index) => {
             const rowClassName = cn(
-              "motion-list-row flex min-h-[3.35rem] items-center justify-between gap-3 bg-card px-3.5 py-2.5 md:min-h-[3.55rem] md:px-4 md:py-3",
+              "motion-list-row flex min-h-12 items-center justify-between gap-3 bg-card px-3.5 py-2 md:px-4",
               index > 0 && "border-t border-border/40"
             )
             const content = (
               <>
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/72">
-                    <TimelineIcon kind={event.kind} />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13.5px] font-bold md:text-[13px]">
-                      {event.title}
+                  {event.kind === "food" || event.kind === "water" ? (
+                    <button
+                      type="button"
+                      onClick={
+                        event.kind === "food"
+                          ? onLogFood
+                          : (onLogWater ?? (() => {}))
+                      }
+                      onPointerDown={(pointerEvent) =>
+                        pointerEvent.stopPropagation()
+                      }
+                      className={cn(
+                        "motion-tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                        timelineIconTone(event.kind)
+                      )}
+                      aria-label={
+                        event.kind === "food"
+                          ? "Open food selector"
+                          : "Add 250 ml water"
+                      }
+                    >
+                      <TimelineIcon kind={event.kind} />
+                    </button>
+                  ) : (
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+                        timelineIconTone(event.kind)
+                      )}
+                    >
+                      <TimelineIcon kind={event.kind} />
                     </span>
-                    <span className="mt-0.5 block truncate text-[12px] text-muted-foreground/62">
-                      {event.detail}
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-[12.5px] font-bold md:text-[13px]">
+                      {event.title}
+                      <span className="font-medium text-muted-foreground/58">
+                        {" · "}
+                        {event.detail}
+                      </span>
                     </span>
                   </span>
                 </span>
@@ -333,73 +669,34 @@ export function TodayTimeline({
             )
           })
         ) : (
-          <div className="app-empty m-3">
-            <Fire size={16} className="shrink-0 text-muted-foreground" />
-            <div className="min-w-0 flex-1">
-              <p className="text-[12.5px] leading-5 text-muted-foreground">
-                Nothing logged yet.
-              </p>
-              <div className="mt-2 flex gap-2">
+          <div className="m-2.5 flex min-h-14 items-center gap-2 rounded-[14px] border border-dashed border-border/55 bg-card/35 px-3 py-2.5 md:m-3 md:min-h-16 md:px-3.5">
+            <Fire size={14} className="shrink-0 text-muted-foreground/65" />
+            <p className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-muted-foreground/65">
+              Nothing logged yet.
+            </p>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                onClick={onLogFood}
+                className="app-icon-button motion-tactile h-8 w-8 bg-foreground text-background"
+                aria-label="Open food selector"
+              >
+                <ForkKnife size={14} weight="bold" />
+              </button>
+              {onLogWater && (
                 <button
                   type="button"
-                  onClick={onLogFood}
-                  className="app-button motion-tactile h-9 bg-foreground text-background"
+                  onClick={onLogWater}
+                  className="app-icon-button motion-tactile h-8 w-8 bg-muted text-muted-foreground"
+                  aria-label="Add water"
                 >
-                  Log food
+                  <PintGlass size={13} weight="bold" />
                 </button>
-                {onLogWater && (
-                  <button
-                    type="button"
-                    onClick={onLogWater}
-                    className="app-button app-button-quiet motion-tactile h-9"
-                  >
-                    + Water
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           </div>
         )}
       </div>
-    </section>
-  )
-}
-
-export function InsightWidgets({
-  editMode,
-  children,
-  onToggleEdit,
-}: {
-  editMode: boolean
-  children: ReactNode
-  onToggleEdit: () => void
-}) {
-  return (
-    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
-      <div className="motion-item app-section-header">
-        <div className="min-w-0">
-          <h2 className="app-section-title">Stats preview</h2>
-          <p className="app-section-subtitle md:hidden">
-            Swipe sideways to see every card.
-          </p>
-          <p className="app-section-subtitle hidden md:block">
-            Reorder the cards you care about.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onToggleEdit}
-          className={cn(
-            "app-button hidden shrink-0 md:inline-flex",
-            editMode
-              ? "bg-foreground text-background"
-              : "bg-muted text-foreground"
-          )}
-        >
-          {editMode ? "Done" : "Customize"}
-        </button>
-      </div>
-      {children}
     </section>
   )
 }

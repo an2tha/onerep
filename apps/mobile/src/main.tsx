@@ -10,6 +10,7 @@ import {
 import { createRoot } from "react-dom/client"
 import {
   createBrowserRouter,
+  Navigate,
   useLocation,
   useOutlet,
   useSearchParams,
@@ -53,9 +54,7 @@ import ActiveWorkout from "./pages/ActiveWorkout.tsx"
 import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import FoodReview from "./pages/FoodReview.tsx"
-import Foods from "./pages/Foods.tsx"
 import Nutrition from "./pages/Nutrition.tsx"
-import Water from "./pages/Water.tsx"
 import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import Progress from "./pages/Progress.tsx"
@@ -67,11 +66,7 @@ import { ThemeProvider, Toaster } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
-import {
-  BottomBar,
-  BottomBarActionProvider,
-  PersistentQuickAdd,
-} from "./components/bottom-bar"
+import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
 import {
   clearRouteMotion,
   prefersReducedMotion,
@@ -81,12 +76,9 @@ import {
 function shouldShowBottomBar(pathname: string) {
   return (
     pathname === "/" ||
-    pathname === "/foods" ||
     pathname === "/nutrition" ||
     pathname === "/workouts" ||
-    pathname === "/water" ||
     pathname === "/supplements" ||
-    pathname === "/progress" ||
     pathname === "/coach" ||
     pathname === "/exercises" ||
     pathname === "/settings"
@@ -178,12 +170,12 @@ function waitForRouteLoadingMarkers(frame: HTMLElement, signal: AbortSignal) {
       return
     }
 
-    let maxTimeout: number | undefined
     const observer = new MutationObserver(check)
+    const maxTimeout = window.setTimeout(finish, ROUTE_LOADING_MARKER_WAIT_MS)
 
     function cleanup() {
       observer.disconnect()
-      if (maxTimeout != null) window.clearTimeout(maxTimeout)
+      window.clearTimeout(maxTimeout)
       signal.removeEventListener("abort", finish)
     }
 
@@ -202,7 +194,6 @@ function waitForRouteLoadingMarkers(frame: HTMLElement, signal: AbortSignal) {
       subtree: true,
       attributeFilter: ["aria-busy", "class", "role"],
     })
-    maxTimeout = window.setTimeout(finish, ROUTE_LOADING_MARKER_WAIT_MS)
     signal.addEventListener("abort", finish, { once: true })
     check()
   })
@@ -231,9 +222,6 @@ function NavSync() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
   const outlet = useOutlet()
-  const [bottomBarAction, setBottomBarActionState] = useState<
-    (() => void) | undefined
-  >()
   const [routeTransition, setRouteTransition] =
     useState<RouteTransitionState | null>(null)
   const activeRouteFrameRef = useRef<HTMLDivElement | null>(null)
@@ -246,16 +234,11 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
-  const showPersistentQuickAdd =
-    showBottomBar && location.pathname !== "/workouts"
 
-  const setBottomBarAction = useCallback((action?: () => void) => {
-    setBottomBarActionState(() => action)
-  }, [])
-
-  const fallbackQuickAddAction = useCallback(() => {
-    navigate("/foods/search", { motion: "forward" })
-  }, [navigate])
+  const setBottomBarAction = useCallback(
+    (_action?: () => void) => undefined,
+    []
+  )
 
   useEffect(() => {
     function clearHold() {
@@ -457,9 +440,6 @@ function NavSync() {
           chromeState={currentChromeState}
         />
       )}
-      {showPersistentQuickAdd && (
-        <PersistentQuickAdd onAdd={bottomBarAction ?? fallbackQuickAddAction} />
-      )}
     </BottomBarActionProvider>
   )
 }
@@ -474,27 +454,34 @@ function AuthCallback() {
   }, [navigate, nextPath])
 
   return (
-    <div className="bg-background min-h-svh text-foreground">
-      <main className="py-[var(--app-safe-bottom-lg)] flex flex-col justify-center mx-auto px-5 w-full short-phone:max-w-[23rem] max-w-sm min-h-svh">
-        <header className="flex flex-col items-center mb-8 short-phone:mb-5">
+    <div className="min-h-svh bg-background text-foreground">
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
+        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
           <img
             src="/app-icon.svg"
             alt=""
-            className="rounded-full w-11 short-phone:w-9 h-11 short-phone:h-9"
+            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
           />
-          <h1 className="mt-4 short-phone:mt-3 font-semibold text-[1.65rem] short-phone:text-[1.45rem] tracking-tight">
+          <h1 className="mt-4 text-[1.65rem] font-semibold tracking-tight short-phone:mt-3 short-phone:text-[1.45rem]">
             OneRep
           </h1>
         </header>
 
-        <section className="bg-card shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 p-4 short-phone:p-3.5 border border-border/70 rounded-[28px] short-phone:rounded-[24px] text-center">
-          <div className="mx-auto border-2 border-muted-foreground/20 border-t-foreground rounded-full w-8 h-8 animate-spin" />
-          <p className="mt-4 font-semibold text-[14px] tracking-tight">
+        <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
+          <p className="mt-4 text-[14px] font-semibold tracking-tight">
             Finishing sign in...
           </p>
         </section>
       </main>
     </div>
+  )
+}
+
+function LegacyNutritionRedirect() {
+  const location = useLocation()
+  return (
+    <Navigate to={`/nutrition${location.search}${location.hash}`} replace />
   )
 }
 
@@ -584,9 +571,7 @@ const router = createBrowserRouter([
         path: "/foods",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Food">
-              <Foods />
-            </ErrorBoundary>
+            <LegacyNutritionRedirect />
           </AuthGuard>
         ),
       },
@@ -604,9 +589,7 @@ const router = createBrowserRouter([
         path: "/water",
         element: (
           <AuthGuard>
-            <ErrorBoundary label="Water">
-              <Water />
-            </ErrorBoundary>
+            <LegacyNutritionRedirect />
           </AuthGuard>
         ),
       },

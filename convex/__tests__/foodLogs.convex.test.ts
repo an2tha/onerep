@@ -9,14 +9,14 @@ describe("foodLogs Convex functions", () => {
   test("getDay returns empty array when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.query(api.logs.foodLogs.getDay, { date: "2024-01-15" })
+      t.query(api.logs.foodLogs.getDay, { date: "2024-01-15" }),
     ).resolves.toEqual([]);
   });
 
   test("setDay throws when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.foodLogs.setDay, { date: "2024-01-15", entries: [] })
+      t.mutation(api.logs.foodLogs.setDay, { date: "2024-01-15", entries: [] }),
     ).rejects.toThrow();
   });
 
@@ -88,8 +88,11 @@ describe("foodLogs Convex functions", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.insert("foodLogs", {
-        userId, date: "2024-01-15",
-        entries: [{ name: "Apple", calories: 95, protein: 0.5, carbs: 25, fat: 0.3 }],
+        userId,
+        date: "2024-01-15",
+        entries: [
+          { name: "Apple", calories: 95, protein: 0.5, carbs: 25, fat: 0.3 },
+        ],
         updatedAt: Date.now(),
       });
     });
@@ -113,7 +116,8 @@ describe("foodLogs Convex functions", () => {
 
     const id = await t.run(async (ctx) => {
       return ctx.db.insert("foodLogs", {
-        userId, date: "2024-01-16",
+        userId,
+        date: "2024-01-16",
         entries: [{ name: "Banana", calories: 89 }],
         updatedAt: Date.now(),
       });
@@ -121,7 +125,10 @@ describe("foodLogs Convex functions", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.patch(id, {
-        entries: [{ name: "Banana", calories: 89 }, { name: "Oatmeal", calories: 150 }],
+        entries: [
+          { name: "Banana", calories: 89 },
+          { name: "Oatmeal", calories: 150 },
+        ],
         updatedAt: Date.now(),
       });
     });
@@ -136,10 +143,16 @@ describe("foodLogs Convex functions", () => {
 
     await t.run(async (ctx) => {
       await ctx.db.insert("foodLogs", {
-        userId, date: "2024-01-15", entries: [{ name: "Day 1" }], updatedAt: Date.now(),
+        userId,
+        date: "2024-01-15",
+        entries: [{ name: "Day 1" }],
+        updatedAt: Date.now(),
       });
       await ctx.db.insert("foodLogs", {
-        userId, date: "2024-01-16", entries: [{ name: "Day 2" }], updatedAt: Date.now(),
+        userId,
+        date: "2024-01-16",
+        entries: [{ name: "Day 2" }],
+        updatedAt: Date.now(),
       });
     });
 
@@ -152,5 +165,82 @@ describe("foodLogs Convex functions", () => {
 
     expect(all).toHaveLength(2);
     expect(all.map((d) => d.date).sort()).toEqual(["2024-01-15", "2024-01-16"]);
+  });
+
+  test("setDay keeps the latest copy of a duplicate client entry id", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "food-dedupe-user" }, async () => {
+      await t.mutation(api.logs.foodLogs.setDay, {
+        date: "2024-02-01",
+        entries: [
+          {
+            id: "same-entry",
+            name: "First copy",
+            calories: 100,
+            protein: 10,
+            carbs: 10,
+            fat: 2,
+            meal: "lunch",
+            loggedAt: "2024-02-01T12:00:00.000Z",
+          },
+          {
+            id: "same-entry",
+            name: "Corrected copy",
+            calories: 220,
+            protein: -5,
+            carbs: 20,
+            fat: 4,
+            meal: "lunch",
+            loggedAt: "2024-02-01T12:01:00.000Z",
+          },
+        ],
+      });
+
+      const entries = await t.query(api.logs.foodLogs.getDay, {
+        date: "2024-02-01",
+      });
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        id: "same-entry",
+        name: "Corrected copy",
+        calories: 220,
+        protein: 0,
+      });
+    });
+  });
+
+  test("addEntry is retry-safe for a repeated client entry id", async () => {
+    const t = convexTest(schema, modules);
+    const entry = {
+      id: "offline-retry-entry",
+      name: "Yogurt",
+      calories: 170,
+      protein: 15,
+      carbs: 8,
+      fat: 4,
+      meal: "breakfast",
+      loggedAt: "2024-02-02T08:00:00.000Z",
+    };
+
+    await t.withIdentity({ name: "food-retry-user" }, async () => {
+      await t.mutation(api.logs.foodLogs.addEntry, {
+        date: "2024-02-02",
+        entry,
+      });
+      await t.mutation(api.logs.foodLogs.addEntry, {
+        date: "2024-02-02",
+        entry: { ...entry, calories: 180 },
+      });
+
+      const entries = await t.query(api.logs.foodLogs.getDay, {
+        date: "2024-02-02",
+      });
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        id: entry.id,
+        calories: 180,
+      });
+    });
   });
 });

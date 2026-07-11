@@ -6,11 +6,11 @@ import { api } from "../_generated/api";
 const modules = import.meta.glob("../**/*.ts");
 
 describe("workoutLogs Convex functions", () => {
-  test("getLog returns null when unauthenticated", async () => {
+  test("getLog returns an empty session list when unauthenticated", async () => {
     const t = convexTest(schema, modules);
     await expect(
       t.query(api.logs.workouts.getLog, { date: "2024-01-15" }),
-    ).resolves.toBeNull();
+    ).resolves.toEqual([]);
   });
 
   test("getHistory returns empty array when unauthenticated", async () => {
@@ -157,10 +157,11 @@ describe("workoutLogs Convex functions", () => {
         ],
       });
 
-      const log = await t.query(api.logs.workouts.getLog, {
+      const logs = await t.query(api.logs.workouts.getLog, {
         date: "2024-03-01",
       });
-      expect(log!.exercises[0]).toMatchObject({
+      expect(logs).toHaveLength(1);
+      expect(logs[0]!.exercises[0]).toMatchObject({
         id: "zone-2-run",
         category: "cardio",
         cardio: {
@@ -172,6 +173,45 @@ describe("workoutLogs Convex functions", () => {
           source: { provider: "strava", externalId: "strava-123" },
         },
       });
+    });
+  });
+
+  test("keeps two daily sessions separate and retries each session idempotently", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "two-session-user" }, async () => {
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2024-03-02",
+        sessionId: "morning-strength",
+        slot: 1,
+        durationSeconds: 1800,
+        exercises: [{ id: "squat", name: "Squat", sets: [] }],
+      });
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2024-03-02",
+        sessionId: "evening-cardio",
+        slot: 2,
+        durationSeconds: 1200,
+        exercises: [{ id: "run", name: "Run", sets: [] }],
+      });
+      // An offline retry updates only the matching session.
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2024-03-02",
+        sessionId: "morning-strength",
+        slot: 1,
+        durationSeconds: 1900,
+        exercises: [{ id: "squat", name: "Squat", sets: [] }],
+      });
+
+      const logs = await t.query(api.logs.workouts.getLog, {
+        date: "2024-03-02",
+      });
+      expect(logs).toHaveLength(2);
+      expect(logs.map((log) => log.sessionId)).toEqual([
+        "morning-strength",
+        "evening-cardio",
+      ]);
+      expect(logs.map((log) => log.durationSeconds)).toEqual([1900, 1200]);
     });
   });
 });

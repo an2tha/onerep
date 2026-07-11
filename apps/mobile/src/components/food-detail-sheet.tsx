@@ -28,6 +28,7 @@ import {
 } from "@/lib/food-log"
 import type { FoodResult, FoodDetail } from "@repo/models"
 import { getFoodDetail } from "@/lib/openfoodfacts"
+import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import {
   APP_ACCENT_COLORS,
   MACRO_COLORS,
@@ -1029,17 +1030,11 @@ export function FoodDetailSheet({
 
   // ── Scaled values ─────────────────────────────────────────────────────────
 
-  const nutriRow = (key: string) => detail?.nutrients.find((n) => n.key === key)
-
-  const s = (key: string) => {
-    const r = nutriRow(key)
-    return r ? scale(r.per100g, grams) : 0
-  }
-
-  const calories = s("energy") || scale(Number(item.calories), grams)
-  const protein = s("protein") || scale(Number(item.protein), grams)
-  const carbs = s("carbs") || scale(Number(item.carbs), grams)
-  const fat = s("fat") || scale(Number(item.fat), grams)
+  const { calories, protein, carbs, fat } = scaledFoodMacros(
+    item,
+    grams,
+    detail
+  )
   const portion: FoodPortion = {
     amount: amountFromFoodPortionGrams(grams, unit),
     unit,
@@ -1098,7 +1093,7 @@ export function FoodDetailSheet({
       overlayClassName={isPage ? "hidden" : "bg-black/32 backdrop-blur-[4px]"}
       panelClassName={
         isPage
-          ? "app-sheet-panel mx-auto !h-svh !min-h-svh !max-h-svh !w-full !max-w-none !rounded-none !border-0 bg-background md:!max-w-none"
+          ? "app-sheet-panel sheet-panel-fullscreen mx-auto !h-svh !min-h-svh !max-h-svh !w-full !max-w-none !rounded-none !border-0 bg-background md:!max-w-none"
           : "app-sheet-panel mx-auto w-[calc(100vw-0.75rem)] max-w-[30rem] overflow-hidden border border-border/55 md:!w-[min(92vw,44rem)] md:!max-w-[44rem]"
       }
       minHeight={isPage ? "100svh" : undefined}

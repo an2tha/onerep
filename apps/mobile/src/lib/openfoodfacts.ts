@@ -10,7 +10,10 @@ import type {
   OpenFoodFactsProduct,
 } from "@repo/models"
 
-const PRODUCT_FIELDS = [
+// Search results are rendered as compact cards. Keep that response focused on
+// the data needed to rank, display, and quick-log a food. Product detail still
+// requests the fuller image payload below when a user opens a result.
+const SEARCH_PRODUCT_FIELDS = [
   "code",
   "product_name",
   "product_name_en",
@@ -19,15 +22,19 @@ const PRODUCT_FIELDS = [
   "quantity",
   "serving_size",
   "serving_quantity",
-  "image_url",
-  "image_front_url",
   "image_front_small_url",
   "image_front_thumb_url",
-  "selected_images",
   "nutriments",
   "nutriments_estimated",
   "nutriscore_grade",
   "nova_group",
+].join(",")
+
+const DETAIL_PRODUCT_FIELDS = [
+  SEARCH_PRODUCT_FIELDS,
+  "image_url",
+  "image_front_url",
+  "selected_images",
 ].join(",")
 
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000
@@ -94,9 +101,33 @@ function asRecord(value: unknown): Record<string, unknown> {
 function toNumber(value: unknown): number {
   if (value === null || value === undefined || value === "") return 0
   if (typeof value === "number") return Number.isFinite(value) ? value : 0
-  const normalized = String(value)
-    .replace(",", ".")
-    .replace(/[^0-9.-]/g, "")
+  const token = String(value)
+    .replace(/[\s\u00a0]/g, "")
+    .match(/[+-]?(?:\d[\d.,]*|[.,]\d+)/)?.[0]
+  if (!token) return 0
+
+  const lastComma = token.lastIndexOf(",")
+  const lastDot = token.lastIndexOf(".")
+  let normalized = token
+
+  // Products can contain localized values such as `1,234.5` or `1.234,5`.
+  // When both separators are present, the final one is the decimal separator.
+  if (lastComma >= 0 && lastDot >= 0) {
+    if (lastComma > lastDot) {
+      normalized = normalized.replace(/\./g, "").replace(",", ".")
+    } else {
+      normalized = normalized.replace(/,/g, "")
+    }
+  } else if (lastComma >= 0) {
+    const firstComma = normalized.indexOf(",")
+    if (firstComma !== lastComma) {
+      normalized = normalized.replace(/,(?=.*,)/g, "").replace(",", ".")
+    } else {
+      normalized = normalized.replace(",", ".")
+    }
+  } else if (normalized.indexOf(".") !== lastDot) {
+    normalized = normalized.replace(/\.(?=.*\.)/g, "")
+  }
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : 0
 }
@@ -159,7 +190,12 @@ function nutrientValue(
 ): number {
   const n = nutriments(product)
   const estimated = includeEstimated ? estimatedNutriments(product) : {}
-  return firstNumber(n[`${key}_100g`], n[key], estimated[`${key}_100g`], estimated[key])
+  return firstNumber(
+    n[`${key}_100g`],
+    n[key],
+    estimated[`${key}_100g`],
+    estimated[key]
+  )
 }
 
 function nutrientUnit(
@@ -230,8 +266,10 @@ function titleCaseName(value: string): string {
     if (/^[A-Z0-9&.'-]+$/.test(word) && word.length <= 4) return word
     return word
       .toLowerCase()
-      .replace(/^([\p{L}\p{N}])|([\s'’\-/])([\p{L}\p{N}])/gu, (match, first, sep, next) =>
-        first ? first.toUpperCase() : `${sep}${next.toUpperCase()}`
+      .replace(
+        /^([\p{L}\p{N}])|([\s'’\-/])([\p{L}\p{N}])/gu,
+        (match, first, sep, next) =>
+          first ? first.toUpperCase() : `${sep}${next.toUpperCase()}`
       )
   })
 }
@@ -576,7 +614,7 @@ export async function searchFoods(
     json: "1",
     sort_by: "unique_scans_n",
     page_size: String(pageSize),
-    fields: PRODUCT_FIELDS,
+    fields: SEARCH_PRODUCT_FIELDS,
   })
 
   return cached(searchCache, cacheKey, SEARCH_CACHE_TTL_MS, async () => {
@@ -596,7 +634,7 @@ export async function searchFoods(
 
 async function loadFoodDetail(id: string): Promise<FoodDetail | null> {
   const encoded = encodeURIComponent(id)
-  const params = new URLSearchParams({ fields: PRODUCT_FIELDS })
+  const params = new URLSearchParams({ fields: DETAIL_PRODUCT_FIELDS })
   let data: OpenFoodFactsProductResponse
   try {
     data = await openFoodFactsFetch<OpenFoodFactsProductResponse>(
@@ -613,11 +651,8 @@ async function loadFoodDetail(id: string): Promise<FoodDetail | null> {
 }
 
 export async function getFoodDetail(id: string): Promise<FoodDetail | null> {
-  return cached(
-    detailCache,
-    id.trim(),
-    DETAIL_CACHE_TTL_MS,
-    () => loadFoodDetail(id)
+  return cached(detailCache, id.trim(), DETAIL_CACHE_TTL_MS, () =>
+    loadFoodDetail(id)
   )
 }
 

@@ -16,7 +16,18 @@ export const MONTHLY_PACKAGE_IDENTIFIER = "monthly"
 export const REVENUECAT_OFFERING_IDENTIFIER = "default"
 const REVENUECAT_REQUEST_TIMEOUT_MS = 8000
 
-type RevenueCatStatus = "idle" | "loading" | "ready" | "unsupported" | "error"
+export type RevenueCatStatus =
+  "idle" | "loading" | "ready" | "unsupported" | "error"
+
+export type SubscriptionDiagnosticTone =
+  "success" | "pending" | "attention" | "muted"
+
+export type SubscriptionDiagnostic = {
+  title: string
+  detail: string
+  tone: SubscriptionDiagnosticTone
+  canRetry: boolean
+}
 type AnyCustomerInfo = CustomerInfo | ConvexSubscriptionStatus
 type AnyOffering = PurchasesOffering
 type AnyPackage = PurchasesPackage
@@ -29,7 +40,7 @@ type ConvexSubscriptionStatus = {
   isActive: boolean
   managementUrl: string | null
   productIdentifier: string | null
-  source: "revenuecat_api" | "manual"
+  source: "revenuecat_api" | "revenuecat_webhook" | "manual"
   store: string | null
   updatedAt?: number
 }
@@ -54,6 +65,24 @@ type UseRevenueCatOptions = {
 let configuredAppUserId: string | null = null
 let configurePromise: Promise<void> | null = null
 let configuredNativeSdkKey: string | null = null
+const inFlightStatusRefreshes = new Map<string, Promise<unknown>>()
+
+function refreshServerStatus<T>(
+  userId: string | null | undefined,
+  request: () => Promise<T>
+) {
+  const key = userId ?? "anonymous"
+  const existing = inFlightStatusRefreshes.get(key) as Promise<T> | undefined
+  if (existing) return existing
+
+  const requestPromise = request().finally(() => {
+    if (inFlightStatusRefreshes.get(key) === requestPromise) {
+      inFlightStatusRefreshes.delete(key)
+    }
+  })
+  inFlightStatusRefreshes.set(key, requestPromise)
+  return requestPromise
+}
 
 function revenueCatErrorMessage(error: unknown, fallback: string) {
   if (typeof error === "object" && error !== null) {
@@ -113,6 +142,18 @@ type EntitlementContainer = {
   hasActiveSubscription?: boolean
   managementUrl?: string | null
   managementURL?: string | null
+  store?: string | null
+  source?: ConvexSubscriptionStatus["source"]
+}
+
+function subscriptionManagementUrl(customerInfo: AnyCustomerInfo | null) {
+  const info = customerInfo as EntitlementContainer | null
+  return info?.managementURL ?? info?.managementUrl ?? null
+}
+
+function openSubscriptionManagement(url: string) {
+  const opened = window.open(url, "_blank", "noopener,noreferrer")
+  if (!opened) window.location.assign(url)
 }
 
 function isEntitlementActive(
@@ -145,6 +186,137 @@ function hasActiveSubscription(customerInfo: AnyCustomerInfo | null) {
     ?.activeSubscriptions
   if (subscriptions instanceof Set) return subscriptions.size > 0
   return Array.isArray(subscriptions) && subscriptions.length > 0
+}
+
+function shortSubscriptionError(message: string) {
+  const compact = message.replace(/\s+/g, " ").trim()
+  if (compact.length <= 88) return compact
+  return `${compact.slice(0, 85)}...`
+}
+
+function subscriptionDiagnosticError(message: string) {
+  if (/network|fetch|offline|disconnected|websocket|timed out/i.test(message)) {
+    return "Couldn’t reach purchases. Check your connection and retry."
+  }
+  if (
+    /api.?key|sdk.?key|not configured|unauthorized|forbidden/i.test(message)
+  ) {
+    return "Purchases are temporarily unavailable. Try again later."
+  }
+  return shortSubscriptionError(message)
+}
+
+function subscriptionStoreLabel(store: string | null | undefined) {
+  const normalized = store?.trim().toLowerCase()
+  if (!normalized) return null
+  if (normalized.includes("app_store") || normalized.includes("apple")) {
+    return "App Store"
+  }
+  if (normalized.includes("play_store") || normalized.includes("google")) {
+    return "Google Play"
+  }
+  if (normalized === "rc_billing" || normalized.includes("stripe")) {
+    return "Web checkout"
+  }
+  return "Purchase store"
+}
+
+function subscriptionSourceLabel(
+  source: ConvexSubscriptionStatus["source"] | undefined,
+  isNative: boolean
+) {
+  if (source === "revenuecat_webhook") return "RevenueCat sync"
+  if (source === "revenuecat_api") return "RevenueCat"
+  if (source === "manual") return "account record"
+  return isNative ? "this device" : "RevenueCat"
+}
+
+/**
+ * Small, user-facing purchase health copy for Settings. It deliberately avoids
+ * product internals while exposing enough state to recover from a delayed
+ * restore, a disconnected billing service, or a configuration issue.
+ */
+export function subscriptionDiagnosticCopy({
+  customerInfo,
+  error,
+  isConfigured,
+  isNative,
+  isWeb,
+  status,
+}: {
+  customerInfo: unknown
+  error: string | null
+  isConfigured: boolean
+  isNative: boolean
+  isWeb: boolean
+  status: RevenueCatStatus
+}): SubscriptionDiagnostic {
+  const info = customerInfo as EntitlementContainer | null
+  const canRetry = isNative || isWeb
+  const store = subscriptionStoreLabel(info?.store)
+  const source = subscriptionSourceLabel(info?.source, isNative)
+  const origin = store ? `${source} · ${store}` : source
+
+  if (error) {
+    return {
+      title: "Subscription needs attention",
+      detail: subscriptionDiagnosticError(error),
+      tone: "attention",
+      canRetry,
+    }
+  }
+
+  if (status === "loading") {
+    return {
+      title: "Checking subscription",
+      detail: "Your current access stays available while we check.",
+      tone: "pending",
+      canRetry: false,
+    }
+  }
+
+  if (status === "unsupported") {
+    return {
+      title: "Purchases unavailable",
+      detail: "Use web, iOS, or Android to manage OneRep Pro.",
+      tone: "muted",
+      canRetry: false,
+    }
+  }
+
+  if (!isConfigured) {
+    return {
+      title: "Connecting subscriptions",
+      detail: "Status will update automatically when your account is ready.",
+      tone: "pending",
+      canRetry,
+    }
+  }
+
+  if (hasOneRepPro(customerInfo as AnyCustomerInfo | null)) {
+    return {
+      title: "Pro active",
+      detail: `Status confirmed via ${origin}.`,
+      tone: "success",
+      canRetry: false,
+    }
+  }
+
+  if (hasActiveSubscription(customerInfo as AnyCustomerInfo | null)) {
+    return {
+      title: "Restoring Pro access",
+      detail: "A purchase was found. Refresh to finish checking access.",
+      tone: "attention",
+      canRetry,
+    }
+  }
+
+  return {
+    title: "Free plan",
+    detail: `Status checked via ${origin}.`,
+    tone: "muted",
+    canRetry: false,
+  }
 }
 
 function monthlyPriceString(monthlyPackage: AnyPackage | null) {
@@ -210,12 +382,13 @@ async function syncCustomerAttributes(options: UseRevenueCatOptions) {
   await Promise.allSettled(tasks)
 }
 
-export function useRevenueCat(options: UseRevenueCatOptions) {
+export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
   const isNative = isNativePurchasesAvailable()
   const isWeb = isWebPurchasesAvailable()
   const listenerIdRef = useRef<PurchasesCallbackId | null>(null)
   const subscriptionQuery = useQuery(api.subscriptions.getStatus)
   const createCheckout = useAction(api.subscriptions.createCheckout)
+  const cancelFromRevenueCat = useAction(api.subscriptions.cancelFromRevenueCat)
   const refreshFromRevenueCat = useAction(
     api.subscriptions.refreshFromRevenueCat
   )
@@ -251,7 +424,9 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
     setState((current) => ({ ...current, error: null, status: "loading" }))
     try {
       if (!isNative) {
-        const status = await refreshFromRevenueCat({})
+        const status = await refreshServerStatus(userId, () =>
+          refreshFromRevenueCat({})
+        )
         setState((current) => ({
           ...current,
           customerInfo: status,
@@ -265,7 +440,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         }))
         return status
       }
-      const customerInfoPromise = isNative ? refreshFromRevenueCat({}) : null
+      const customerInfoPromise = isNative ? Purchases.getCustomerInfo() : null
       const offeringsPromise = isNative ? Purchases.getOfferings() : null
       if (!customerInfoPromise || !offeringsPromise) {
         setState((current) => ({
@@ -275,11 +450,8 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         }))
         return null
       }
-      const [customerInfo, offerings] = await Promise.all([
-        withRevenueCatTimeout(
-          customerInfoPromise as Promise<AnyCustomerInfo>,
-          "Subscription status"
-        ),
+      const [customerInfoResult, offerings] = await Promise.all([
+        withRevenueCatTimeout(customerInfoPromise, "Subscription status"),
         withRevenueCatTimeout(
           offeringsPromise as Promise<{
             all: Record<string, AnyOffering>
@@ -288,6 +460,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
           "Subscription products"
         ),
       ])
+      const customerInfo = customerInfoResult.customerInfo
       const currentOffering = getConfiguredOffering(offerings)
       const monthlyPackage = getMonthlyPackage(currentOffering)
       setState((current) => ({
@@ -314,7 +487,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       }))
       return null
     }
-  }, [isNative, isWeb, refreshFromRevenueCat])
+  }, [isNative, isWeb, refreshFromRevenueCat, userId])
 
   useEffect(() => {
     let canceled = false
@@ -329,7 +502,7 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
         }))
         return
       }
-      if (!options.userId) {
+      if (!userId) {
         setState({
           customerInfo: null,
           currentOffering: null,
@@ -353,19 +526,24 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
             )
           }
           await withRevenueCatTimeout(
-            configureRevenueCat(options.userId, nativeSdkKey),
+            configureRevenueCat(userId, nativeSdkKey),
             "Subscription setup"
           )
-          await syncCustomerAttributes(options)
+          await syncCustomerAttributes({ email, name })
           if (canceled) return
           const listenerId = await Purchases.addCustomerInfoUpdateListener(
-            () => {
-              void refresh()
+            (customerInfo) => {
               setState((current) => ({
                 ...current,
+                customerInfo,
                 error: null,
                 status: "ready",
               }))
+              void refreshServerStatus(userId, () =>
+                refreshFromRevenueCat({})
+              ).catch(() => {
+                // The SDK result is authoritative on-device; server sync is best effort.
+              })
             }
           )
           listenerIdRef.current = listenerId
@@ -400,10 +578,11 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
   }, [
     isNative,
     isWeb,
-    options.email,
-    options.name,
-    options.userId,
+    email,
+    name,
+    userId,
     refresh,
+    refreshFromRevenueCat,
     subscriptionQuery,
   ])
 
@@ -413,44 +592,108 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       if (customerInfo) return customerInfo
       throw new Error("Could not refresh desktop subscription status")
     }
-    await Purchases.restorePurchases()
-    return await refresh()
-  }, [isNative, isWeb, refresh])
+    const { customerInfo } = await Purchases.restorePurchases()
+    setState((current) => ({
+      ...current,
+      customerInfo,
+      error: null,
+      status: "ready",
+    }))
+    void refreshServerStatus(userId, () => refreshFromRevenueCat({})).catch(
+      () => {
+        // Webhook/server status can catch up without hiding a restored entitlement.
+      }
+    )
+    return customerInfo
+  }, [isNative, isWeb, refresh, refreshFromRevenueCat, userId])
 
   const purchaseMonthly = useCallback(async () => {
     const monthlyPackage = state.monthlyPackage
     if (!isNative) {
-      if (!options.userId) {
-        throw new Error("Sign in before starting checkout")
-      }
       if (typeof window === "undefined") {
         throw new Error("Checkout is only available in the browser")
+      }
+      const checkoutUrl = subscriptionQuery?.checkoutUrl
+      if (checkoutUrl) {
+        window.location.assign(checkoutUrl)
+        return state.customerInfo
       }
       const checkout = await createCheckout({})
       window.location.assign(checkout.url)
       return state.customerInfo
     }
     if (!monthlyPackage) throw new Error("Monthly package is not configured")
-    await Purchases.purchasePackage({
+    const { customerInfo } = await Purchases.purchasePackage({
       aPackage: monthlyPackage as PurchasesPackage,
     })
-    return await refresh()
+    setState((current) => ({
+      ...current,
+      customerInfo,
+      error: null,
+      status: "ready",
+    }))
+    void refreshServerStatus(userId, () => refreshFromRevenueCat({})).catch(
+      () => {
+        // Preserve the successful SDK purchase while server state catches up.
+      }
+    )
+    return customerInfo
   }, [
     createCheckout,
     isNative,
-    options.userId,
-    refresh,
+    refreshFromRevenueCat,
     state.customerInfo,
     state.monthlyPackage,
+    subscriptionQuery?.checkoutUrl,
+    userId,
   ])
+
+  const cancelSubscription = useCallback(async () => {
+    const managementUrl = subscriptionManagementUrl(state.customerInfo)
+    const store = (
+      state.customerInfo as EntitlementContainer | null
+    )?.store?.toLowerCase()
+    if (managementUrl && (isNative || store !== "rc_billing")) {
+      openSubscriptionManagement(managementUrl)
+      return state.customerInfo
+    }
+    if (isNative) {
+      throw new Error(
+        "Subscription management is not available yet. Refresh and try again."
+      )
+    }
+    const status = await cancelFromRevenueCat({})
+    setState((current) => ({
+      ...current,
+      customerInfo: status,
+      currentOffering: null,
+      error: null,
+      isConfigured: true,
+      isNative,
+      isWeb,
+      monthlyPackage: null,
+      status: "ready",
+    }))
+    return status
+  }, [cancelFromRevenueCat, isNative, isWeb, state.customerInfo])
+
+  const managementUrl = subscriptionManagementUrl(state.customerInfo)
+  const subscriptionStore = (
+    state.customerInfo as EntitlementContainer | null
+  )?.store?.toLowerCase()
+  const cancelOpensManagement =
+    Boolean(managementUrl) && (isNative || subscriptionStore !== "rc_billing")
 
   return useMemo(
     () => ({
       ...state,
-      canPurchase:
-        state.status !== "loading" &&
-        state.status !== "unsupported" &&
-        (isNative ? Boolean(state.monthlyPackage) : isWeb && !!options.userId),
+      cancelOpensManagement,
+      cancelSubscription,
+      canPurchase: isNative
+        ? state.status !== "loading" &&
+          state.status !== "unsupported" &&
+          Boolean(state.monthlyPackage)
+        : isWeb,
       hasActiveSubscription: hasActiveSubscription(state.customerInfo),
       hasOneRepPro: hasOneRepPro(state.customerInfo),
       monthlyPrice:
@@ -459,15 +702,22 @@ export function useRevenueCat(options: UseRevenueCatOptions) {
       purchaseMonthly,
       refresh,
       restorePurchases,
-      subscriptionManagementUrl:
-        (state.customerInfo as EntitlementContainer | null)?.managementURL ??
-        (state.customerInfo as EntitlementContainer | null)?.managementUrl ??
-        null,
+      subscriptionDiagnostic: subscriptionDiagnosticCopy({
+        customerInfo: state.customerInfo,
+        error: state.error,
+        isConfigured: state.isConfigured,
+        isNative,
+        isWeb,
+        status: state.status,
+      }),
+      subscriptionManagementUrl: managementUrl,
     }),
     [
       isNative,
       isWeb,
-      options.userId,
+      cancelOpensManagement,
+      cancelSubscription,
+      managementUrl,
       purchaseMonthly,
       refresh,
       restorePurchases,

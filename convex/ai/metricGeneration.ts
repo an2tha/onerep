@@ -42,13 +42,57 @@ type CoachChatMessage = {
   content: string;
 };
 
+type CoachUiStat = {
+  label: string;
+  value: string;
+  detail?: string;
+  trend?: "up" | "down" | "flat";
+};
+
+type CoachUiAction =
+  | "open_nutrition"
+  | "open_workouts"
+  | "open_progress"
+  | "open_settings"
+  | "open_workout_builder"
+  | "open_recipe_builder"
+  | "log_food";
+
+type CoachUiBlock =
+  | {
+      type: "card";
+      label: string;
+      title: string;
+      detail: string;
+    }
+  | {
+      type: "stat_group";
+      title: string;
+      stats: CoachUiStat[];
+    }
+  | {
+      type: "checklist";
+      title: string;
+      items: Array<{ label: string; detail?: string; done?: boolean }>;
+    }
+  | {
+      type: "action_row";
+      title: string;
+      actions: Array<{ label: string; action: CoachUiAction }>;
+    };
+
 type CoachChatResult = {
   reply: string;
+  uiBlocks: CoachUiBlock[];
   source: "openai" | "fallback";
 };
 
 type CoachContext = {
   goal: string | null;
+  experienceLevel: string | null;
+  safetyMode: string;
+  safetyFlags: string[];
+  nutritionGuidance: string[];
   weightPaceKgPerWeek: number | null;
   weightStatus: string;
   calorieTarget: number;
@@ -183,14 +227,221 @@ function normalizeCoachAdvice(value: unknown): CoachAdvice[] | null {
   return advice.length > 0 ? advice : null;
 }
 
-function normalizeCoachChatReply(value: unknown) {
+function normalizeCoachUiStats(value: unknown): CoachUiStat[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const label = clampText(row.label, 28);
+      const statValue = clampText(row.value, 28);
+      if (!label || !statValue) return null;
+      const trend = clampText(row.trend, 8);
+      return {
+        label,
+        value: statValue,
+        ...(clampText(row.detail, 64)
+          ? { detail: clampText(row.detail, 64) }
+          : {}),
+        ...(trend === "up" || trend === "down" || trend === "flat"
+          ? { trend }
+          : {}),
+      };
+    })
+    .filter((item): item is CoachUiStat => Boolean(item))
+    .slice(0, 4);
+}
+
+function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const type = clampText(row.type, 24);
+
+      if (type === "card") {
+        const label = clampText(row.label, 28);
+        const title = clampText(row.title, 86);
+        const detail = clampText(row.detail, 220);
+        if (!label || !title || !detail) return null;
+        return { type, label, title, detail };
+      }
+
+      if (type === "stat_group") {
+        const title = clampText(row.title, 64);
+        const stats = normalizeCoachUiStats(row.stats);
+        if (!title || stats.length === 0) return null;
+        return { type, title, stats };
+      }
+
+      if (type === "checklist") {
+        const title = clampText(row.title, 64);
+        const rawItems = Array.isArray(row.items) ? row.items : [];
+        const items = rawItems
+          .map((rawItem) => {
+            if (!rawItem || typeof rawItem !== "object") return null;
+            const checklistItem = rawItem as Record<string, unknown>;
+            const label = clampText(checklistItem.label, 72);
+            if (!label) return null;
+            return {
+              label,
+              ...(clampText(checklistItem.detail, 120)
+                ? { detail: clampText(checklistItem.detail, 120) }
+                : {}),
+              ...(typeof checklistItem.done === "boolean"
+                ? { done: checklistItem.done }
+                : {}),
+            };
+          })
+          .filter(
+            (
+              checklistItem,
+            ): checklistItem is {
+              label: string;
+              detail?: string;
+              done?: boolean;
+            } => Boolean(checklistItem),
+          )
+          .slice(0, 5);
+        if (!title || items.length === 0) return null;
+        return { type, title, items };
+      }
+
+      if (type === "action_row") {
+        const title = clampText(row.title, 64);
+        const rawActions = Array.isArray(row.actions) ? row.actions : [];
+        const allowedActions = new Set<CoachUiAction>([
+          "open_nutrition",
+          "open_workouts",
+          "open_progress",
+          "open_settings",
+          "open_workout_builder",
+          "open_recipe_builder",
+          "log_food",
+        ]);
+        const actions = rawActions
+          .map((rawAction) => {
+            if (!rawAction || typeof rawAction !== "object") return null;
+            const actionRow = rawAction as Record<string, unknown>;
+            const label = clampText(actionRow.label, 36);
+            const action = clampText(actionRow.action, 32) as CoachUiAction;
+            if (!label || !allowedActions.has(action)) return null;
+            return { label, action };
+          })
+          .filter(
+            (action): action is { label: string; action: CoachUiAction } =>
+              Boolean(action),
+          )
+          .slice(0, 3);
+        if (!title || actions.length === 0) return null;
+        return { type, title, actions };
+      }
+
+      return null;
+    })
+    .filter((item): item is CoachUiBlock => Boolean(item))
+    .slice(0, 4);
+}
+
+function normalizeCoachChatResponse(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   const reply = clampText(input.reply, 900);
-  return reply || null;
+  if (!reply) return null;
+  return {
+    reply,
+    uiBlocks: normalizeCoachUiBlocks(input.uiBlocks),
+  };
 }
 
-function fallbackCoachChatReply({
+function fallbackCoachUiBlocks(context: CoachContext): CoachUiBlock[] {
+  if (context.safetyMode !== "standard" || context.safetyFlags.length > 0) {
+    return [
+      {
+        type: "card",
+        label: "Safety context",
+        title: "Keep the next step conservative",
+        detail:
+          context.nutritionGuidance[0] ??
+          "Use gradual changes and qualified guidance where your setup context calls for it.",
+      },
+      {
+        type: "action_row",
+        title: "Choose a safe next step",
+        actions: [
+          { label: "Workouts", action: "open_workouts" },
+          { label: "Nutrition", action: "open_nutrition" },
+        ],
+      },
+    ];
+  }
+
+  const blocks: CoachUiBlock[] = [
+    {
+      type: "stat_group",
+      title: "Current signals",
+      stats: [
+        {
+          label: "Calories",
+          value: `${Math.round(context.averageCalories)} kcal`,
+          detail: `Target ${Math.round(context.calorieTarget)}`,
+          trend: "flat",
+        },
+        {
+          label: "Protein",
+          value: `${Math.round(context.averageProtein)}g`,
+          detail: `Target ${Math.round(context.proteinTarget)}g`,
+          trend:
+            context.averageProtein >= context.proteinTarget ? "up" : "down",
+        },
+        {
+          label: "Training",
+          value: `${Math.round(context.workoutDays7)} days`,
+          detail: `${Math.round(context.hardSets7)} sets`,
+          trend: context.workoutDays7 >= 3 ? "up" : "flat",
+        },
+      ],
+    },
+  ];
+
+  if (context.proteinAdherence < 75) {
+    blocks.push({
+      type: "checklist",
+      title: "Protein reset",
+      items: [
+        { label: "Pick one repeatable high-protein meal" },
+        { label: "Log it for the next 3 days" },
+        {
+          label: "Adjust calories only after protein is stable",
+          detail: "This keeps the next change easier to interpret.",
+        },
+      ],
+    });
+  } else {
+    blocks.push({
+      type: "card",
+      label: "Next step",
+      title: "Keep the plan measurable",
+      detail:
+        "Repeat the same targets and workout exposure this week so the trend can show whether the current setup is working.",
+    });
+  }
+
+  blocks.push({
+    type: "action_row",
+    title: "Open a tracker",
+    actions: [
+      { label: "Nutrition", action: "open_nutrition" },
+      { label: "Workouts", action: "open_workouts" },
+      { label: "Progress", action: "open_progress" },
+    ],
+  });
+
+  return blocks;
+}
+
+function fallbackCoachChatResponse({
   message,
   context,
   focusInsight,
@@ -198,23 +449,47 @@ function fallbackCoachChatReply({
   message: string;
   context: CoachContext;
   focusInsight?: CoachAdvice;
-}) {
+}): Pick<CoachChatResult, "reply" | "uiBlocks"> {
+  const uiBlocks = fallbackCoachUiBlocks(context);
+  if (context.safetyMode !== "standard" || context.safetyFlags.length > 0) {
+    return {
+      reply:
+        "I’ll keep your plan conservative and treat the context you shared during setup as a hard constraint. I can help with simple routines and meal structure, but I won’t prescribe aggressive calorie, fasting, or training changes where clinician guidance is more appropriate.",
+      uiBlocks,
+    };
+  }
   if (focusInsight) {
-    return `${focusInsight.title}: ${focusInsight.detail} Start by making this measurable for the next 7 days, then reassess before changing multiple variables at once.`;
+    return {
+      reply: `${focusInsight.title}: ${focusInsight.detail} Start by making this measurable for the next 7 days, then reassess before changing multiple variables at once.`,
+      uiBlocks,
+    };
   }
   if (context.proteinAdherence < 75) {
-    return `The highest-leverage move is protein consistency. You're averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target. Aim for one repeatable protein anchor meal before changing calories or training.`;
+    return {
+      reply: `The highest-leverage move is protein consistency. You're averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target. Aim for one repeatable protein anchor meal before changing calories or training.`,
+      uiBlocks,
+    };
   }
   if (
     context.volumeChange7Pct != null &&
     Math.abs(context.volumeChange7Pct) > 35
   ) {
-    return `Your training load changed ${Math.round(context.volumeChange7Pct)}% versus the prior week. Keep the next week boring and repeatable so you can tell whether performance is adapting or just reacting to fatigue.`;
+    return {
+      reply: `Your training load changed ${Math.round(context.volumeChange7Pct)}% versus the prior week. Keep the next week boring and repeatable so you can tell whether performance is adapting or just reacting to fatigue.`,
+      uiBlocks,
+    };
   }
   if (message.toLowerCase().includes("calorie")) {
-    return `Use the scale trend and food accuracy together. If your average calories stay near ${Math.round(context.calorieTarget)} and weight pace is still off for 10–14 days, then adjust by a small amount instead of making a large cut or bulk change.`;
+    return {
+      reply: `Use the scale trend and food accuracy together. If your average calories stay near ${Math.round(context.calorieTarget)} and weight pace is still off for 10-14 days, then adjust by a small amount instead of making a large cut or bulk change.`,
+      uiBlocks,
+    };
   }
-  return "Pick one variable to improve this week: logging consistency, protein, or repeatable training exposure. Your next adjustment should be small enough that the trend can prove whether it worked.";
+  return {
+    reply:
+      "Pick one variable to improve this week: logging consistency, protein, or repeatable training exposure. Your next adjustment should be small enough that the trend can prove whether it worked.",
+    uiBlocks,
+  };
 }
 
 function fallbackCoachAdvice(context: CoachContext): CoachAdvice[] {
@@ -351,14 +626,16 @@ async function generateCoachAdviceWithOpenAI(context: CoachContext) {
     body: JSON.stringify({
       model:
         (env as unknown as Record<string, string | undefined>)
-          .OPENAI_COACH_MODEL ?? env.OPENAI_METRIC_MODEL ?? "gpt-4o-mini",
+          .OPENAI_COACH_MODEL ??
+        env.OPENAI_METRIC_MODEL ??
+        "gpt-4o-mini",
       temperature: 0.35,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
-            "You are a concise fitness progress coach. Return JSON only with 2-4 advice cards. Be specific, non-medical, and action-oriented. Do not repeat the existing heuristic cards verbatim. Avoid generic motivation.",
+            "You are a concise fitness progress coach. Return JSON only with 2-4 advice cards. Be specific, non-medical, and action-oriented. Treat safetyMode, safetyFlags, and nutritionGuidance as hard constraints and match complexity to experienceLevel. Never recommend aggressive deficits, fasting, maximal training, or advice that conflicts with the supplied safety context. Do not repeat the existing heuristic cards verbatim. Avoid generic motivation.",
         },
         {
           role: "user",
@@ -415,14 +692,16 @@ async function generateCoachChatWithOpenAI({
     body: JSON.stringify({
       model:
         (env as unknown as Record<string, string | undefined>)
-          .OPENAI_COACH_MODEL ?? env.OPENAI_METRIC_MODEL ?? "gpt-4o-mini",
+          .OPENAI_COACH_MODEL ??
+        env.OPENAI_METRIC_MODEL ??
+        "gpt-4o-mini",
       temperature: 0.3,
       response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
-            "You are a concise fitness progress coach in a mobile app. Answer the user's coaching question with specific, non-medical, actionable guidance tied to their metrics. Return JSON only: { reply: string }. Keep it under 120 words. Do not claim certainty when data confidence is low.",
+            "You are a concise fitness progress coach in a mobile app. Answer the user's coaching question with specific, non-medical, actionable guidance tied to their metrics. Treat safetyMode, safetyFlags, and nutritionGuidance as hard constraints across workout and food advice: do not recommend aggressive deficits, fasting, maximal training, or advice that conflicts with them; suggest qualified clinician input when appropriate. Match complexity to experienceLevel, using simple plans and minimal jargon for beginners. Do not re-ask for safety facts already present in context. When a beginner finishes workout or recipe setup, offer open_workout_builder or open_recipe_builder in an action_row. Return JSON only. Keep reply under 120 words. You may include 1-3 safe UI blocks using only these types: card, stat_group, checklist, action_row. Do not output HTML, JSX, markdown tables, CSS, arbitrary component names, or unknown action names. Do not claim certainty when data confidence is low.",
         },
         {
           role: "user",
@@ -431,11 +710,55 @@ async function generateCoachChatWithOpenAI({
             focusInsight,
             recentConversation: history.slice(-8),
             message,
-            responseShape: { reply: "short tailored answer" },
+            responseShape: {
+              reply: "short tailored answer",
+              uiBlocks: [
+                {
+                  type: "stat_group",
+                  title: "short title",
+                  stats: [
+                    {
+                      label: "metric label",
+                      value: "display value",
+                      detail: "optional short context",
+                      trend: "up | down | flat",
+                    },
+                  ],
+                },
+                {
+                  type: "card",
+                  label: "short category",
+                  title: "specific headline",
+                  detail: "one recommendation tied to the metrics",
+                },
+                {
+                  type: "checklist",
+                  title: "short title",
+                  items: [
+                    {
+                      label: "task",
+                      detail: "optional short context",
+                      done: false,
+                    },
+                  ],
+                },
+                {
+                  type: "action_row",
+                  title: "short title",
+                  actions: [
+                    {
+                      label: "button label",
+                      action:
+                        "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
+                    },
+                  ],
+                },
+              ],
+            },
           }),
         },
       ],
-      max_tokens: 450,
+      max_tokens: 900,
     }),
   });
 
@@ -448,7 +771,7 @@ async function generateCoachChatWithOpenAI({
   };
   const content = data.choices?.[0]?.message?.content;
   if (!content) return null;
-  return normalizeCoachChatReply(JSON.parse(content));
+  return normalizeCoachChatResponse(JSON.parse(content));
 }
 
 export const generateMetricSet = action({
@@ -523,6 +846,10 @@ export const generateMetricSet = action({
 
 const coachContextValidator = v.object({
   goal: v.union(v.string(), v.null()),
+  experienceLevel: v.union(v.string(), v.null()),
+  safetyMode: v.string(),
+  safetyFlags: v.array(v.string()),
+  nutritionGuidance: v.array(v.string()),
   weightPaceKgPerWeek: v.union(v.number(), v.null()),
   weightStatus: v.string(),
   calorieTarget: v.number(),
@@ -552,6 +879,16 @@ function sanitizeCoachContext(input: CoachContext): CoachContext {
   return {
     ...input,
     goal: clampText(input.goal, 32) || null,
+    experienceLevel: clampText(input.experienceLevel, 24) || null,
+    safetyMode: clampText(input.safetyMode, 24) || "standard",
+    safetyFlags: input.safetyFlags
+      .slice(0, 16)
+      .map((flag) => clampText(flag, 64))
+      .filter(Boolean),
+    nutritionGuidance: input.nutritionGuidance
+      .slice(0, 12)
+      .map((guidance) => clampText(guidance, 180))
+      .filter(Boolean),
     weightStatus: clampText(input.weightStatus, 40),
     selectedExerciseName: clampText(input.selectedExerciseName, 80) || null,
     existingInsights: input.existingInsights
@@ -628,19 +965,24 @@ export const generateCoachChatMessage = action({
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     try {
-      const reply = await generateCoachChatWithOpenAI({
+      const response = await generateCoachChatWithOpenAI({
         context,
         message,
         history,
         focusInsight,
       });
-      if (reply) return { reply, source: "openai" };
+      if (response) return { ...response, source: "openai" };
     } catch (error) {
       console.warn("Falling back to server coach chat", error);
     }
 
+    const fallback = fallbackCoachChatResponse({
+      message,
+      context,
+      focusInsight,
+    });
     return {
-      reply: fallbackCoachChatReply({ message, context, focusInsight }),
+      ...fallback,
       source: "fallback",
     };
   },

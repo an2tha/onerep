@@ -52,6 +52,11 @@ describe("Open Food Facts client", () => {
       value: "greek yogurt",
     })
     expect(args.params).toContainEqual({ key: "page_size", value: "100" })
+    const requestedFields = args.params.find(({ key }) => key === "fields")
+      ?.value
+    expect(requestedFields).toContain("image_front_small_url")
+    expect(requestedFields).toContain("nutriments")
+    expect(requestedFields).not.toContain("selected_images")
   })
 
   test("searchFoods filters invalid products and normalizes names, brands, serving, and macros", async () => {
@@ -97,6 +102,32 @@ describe("Open Food Facts client", () => {
         { key: "calcium", name: "Calcium", per100g: 0.004, unit: "mg" },
         { key: "iron", name: "Iron", per100g: 0.001, unit: "mg" },
       ]),
+    })
+  })
+
+  test("searchFoods keeps localized nutrition values instead of dropping them", async () => {
+    actionMock.mockResolvedValueOnce({
+      products: [
+        {
+          code: "localized-1",
+          product_name: "Localized Granola",
+          nutriments: {
+            "energy-kcal_100g": "1.234,5 kcal",
+            proteins_100g: "20,25 g",
+            carbohydrates_100g: "18.05 g",
+            fat_100g: "7,1 g",
+          },
+        },
+      ],
+    })
+
+    const [result] = await searchFoods("granola")
+
+    expect(result).toMatchObject({
+      calories: 1235,
+      protein: 20.3,
+      carbs: 18.1,
+      fat: 7.1,
     })
   })
 
@@ -153,6 +184,9 @@ describe("Open Food Facts client", () => {
     const args = lastActionArgs()
 
     expect(args.path).toBe("/api/v2/product/abc%2F123.json")
+    expect(args.params.find(({ key }) => key === "fields")?.value).toContain(
+      "selected_images"
+    )
     expect(detail).toMatchObject({
       id: "abc/123",
       name: "Sparkling Water",

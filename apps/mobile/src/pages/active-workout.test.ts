@@ -175,9 +175,7 @@ describe("handleFinish – weight parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("non-numeric string weight falls back to 0", () => {
-    const sets: RawSet[] = [
-      { weight: "bodyweight", reps: 8, completed: true },
-    ]
+    const sets: RawSet[] = [{ weight: "bodyweight", reps: 8, completed: true }]
     expect(mapSets(sets)[0].weight).toBe(0)
   })
 
@@ -209,9 +207,7 @@ describe("handleFinish – reps parsing (parseFloat(String(x)) || 0)", () => {
   })
 
   test("non-numeric string reps falls back to 0", () => {
-    const sets: RawSet[] = [
-      { weight: 80, reps: "AMRAP", completed: true },
-    ]
+    const sets: RawSet[] = [{ weight: 80, reps: "AMRAP", completed: true }]
     expect(mapSets(sets)[0].reps).toBe(0)
   })
 })
@@ -391,7 +387,7 @@ describe("active workout sync production safeguards", () => {
       'aria-label="Retry active workout sync"'
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      'onClick={() => syncToConvex({ immediate: true })}'
+      "onClick={() => syncToConvex({ immediate: true })}"
     )
   })
 
@@ -433,7 +429,9 @@ describe("active workout sync production safeguards", () => {
   })
 
   test("AI workout updates prevent duplicate submissions", () => {
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("const aiUpdatingRef = useRef(false)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "const aiUpdatingRef = useRef(false)"
+    )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "if (aiUpdatingRef.current || aiUpdating) return"
     )
@@ -450,8 +448,12 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "if (appleHealthLoadingRef.current || appleHealthLoading) return"
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("appleHealthLoadingRef.current = true")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("appleHealthLoadingRef.current = false")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "appleHealthLoadingRef.current = true"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "appleHealthLoadingRef.current = false"
+    )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={appleHealthLoading}")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={appleHealthLoading}")
   })
@@ -469,18 +471,28 @@ describe("active workout sync production safeguards", () => {
 
   test("rest timers persist across app close", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain("REST_TIMER_PREFIX")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("function useRestCountdown(storageKey: string)")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "function useRestCountdown(storageKey: string)"
+    )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageSet(storageKey")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageGet(storageKey)")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("safeLocalStorageRemove(storageKey)")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("const rest = useRestCountdown(restTimerKey(slot))")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "safeLocalStorageRemove(storageKey)"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "const rest = useRestCountdown(restTimerKey(slot))"
+    )
   })
 
   test("active set completion has visible and haptic feedback", () => {
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("const [completedPulseKey, setCompletedPulseKey]")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "const [completedPulseKey, setCompletedPulseKey]"
+    )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("setCompletedPulseKey(pulseKey)")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("hapticMedium()")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("completedPulseKey && \"motion-success-pop\"")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'completedPulseKey && "motion-success-pop"'
+    )
   })
 
   test("active workout UI stays simple without drag notches", () => {
@@ -502,8 +514,55 @@ describe("active workout sync production safeguards", () => {
       "min-w-0 flex-1 text-center text-[2rem]"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      'grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]'
+      "grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("hideLabel")
+  })
+})
+
+describe("exercise picker search surface", () => {
+  test("opens into a focused, accessible search instead of fetching every exercise", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('name="exercise-search-query"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('aria-label="Search exercises"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'aria-busy={searchState === "loading"}'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("autoFocus")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "q.length >= 2 || activeCategory !== null"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "categories: activeCategory ? [activeCategory] : undefined"
+    )
+  })
+
+  test("keeps useful browse and recovery states visible", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('label="Recent"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('label="Popular"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("function ExerciseCategoryFilters")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("function ExerciseSearchResult")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'aria-label="Clear exercise search"'
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("Exercise search is unavailable.")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("No matches{query.trim()")
+  })
+
+  test("lets a person add several exercises before closing the picker", () => {
+    const pickerSource = ACTIVE_WORKOUT_SOURCE.slice(
+      ACTIVE_WORKOUT_SOURCE.indexOf("function AddExerciseSheet"),
+      ACTIVE_WORKOUT_SOURCE.indexOf("function AiWorkoutSheet")
+    )
+
+    const addHandlerSource = pickerSource.slice(
+      pickerSource.indexOf("function addAndRememberExercise"),
+      pickerSource.indexOf("function requestClose")
+    )
+
+    expect(addHandlerSource).toContain(
+      "setRecentExercises(rememberRecentExerciseSearch(exercise))"
+    )
+    expect(addHandlerSource).toContain("hapticSelection()")
+    expect(addHandlerSource).not.toContain("requestClose()")
   })
 })

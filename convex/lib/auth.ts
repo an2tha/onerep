@@ -48,16 +48,15 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       requireEmailVerification: false,
       revokeSessionsOnPasswordReset: true,
     },
-    plugins: [
-      crossDomain({ siteUrl }),
-      convex({ authConfig }),
-    ],
+    plugins: [crossDomain({ siteUrl }), convex({ authConfig })],
   } satisfies BetterAuthOptions;
 
   return betterAuth(options);
-}
+};
 
-export async function safeGetAuthUser(ctx: AuthCtx): Promise<CurrentUser | null> {
+export async function safeGetAuthUser(
+  ctx: AuthCtx,
+): Promise<CurrentUser | null> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return null;
 
@@ -65,10 +64,10 @@ export async function safeGetAuthUser(ctx: AuthCtx): Promise<CurrentUser | null>
     optionalString(identity.tokenIdentifier) ??
     `${identity.issuer}|${identity.subject}`;
   const email = optionalString(identity.email);
-  
+
   return {
     _id: tokenIdentifier,
-    id: tokenIdentifier,
+    id: identity.subject,
     tokenIdentifier,
     subject: identity.subject,
     issuer: identity.issuer,

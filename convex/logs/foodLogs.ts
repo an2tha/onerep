@@ -43,6 +43,92 @@ const foodLogEntryValidator = v.object({
   alcohol: v.optional(v.number()),
 });
 
+type FoodLogEntryCore = {
+  id: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  quantityGrams?: number;
+  servingGrams?: number;
+};
+
+const OPTIONAL_FOOD_NUMBER_FIELDS = [
+  "quantityGrams",
+  "servingGrams",
+  "fiber",
+  "sugar",
+  "saturatedFat",
+  "transFat",
+  "cholesterol",
+  "sodium",
+  "potassium",
+  "calcium",
+  "iron",
+  "magnesium",
+  "phosphorus",
+  "zinc",
+  "vitaminC",
+  "vitaminA",
+  "vitaminD",
+  "vitaminB12",
+  "caffeine",
+  "alcohol",
+] as const;
+
+function nonNegativeFiniteNumber(value: number) {
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function normalizeFoodLogEntry<T extends FoodLogEntryCore>(entry: T): T {
+  const id = entry.id.trim();
+  if (!id) throw new Error("Food entry id is required");
+
+  const source = entry as T & Record<string, unknown>;
+  const normalized: Record<string, unknown> = {
+    ...entry,
+    id,
+    calories: nonNegativeFiniteNumber(entry.calories),
+    protein: nonNegativeFiniteNumber(entry.protein),
+    carbs: nonNegativeFiniteNumber(entry.carbs),
+    fat: nonNegativeFiniteNumber(entry.fat),
+  };
+
+  for (const key of OPTIONAL_FOOD_NUMBER_FIELDS) {
+    const value = source[key];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+      normalized[key] = value;
+    } else {
+      delete normalized[key];
+    }
+  }
+
+  return normalized as T;
+}
+
+function normalizeFoodLogEntries<T extends FoodLogEntryCore>(
+  entries: T[],
+): T[] {
+  const entriesById = new Map<string, T>();
+  for (const entry of entries) {
+    const normalized = normalizeFoodLogEntry(entry);
+    // A client-generated id makes the mutation retry-safe. If a queued request
+    // is replayed, the latest copy replaces the previous one instead of adding
+    // its calories and macros a second time.
+    entriesById.set(normalized.id, normalized);
+  }
+  return [...entriesById.values()];
+}
+
+function entryHasId(entry: unknown, id: string) {
+  return (
+    typeof entry === "object" &&
+    entry !== null &&
+    "id" in entry &&
+    (entry as { id?: unknown }).id === id
+  );
+}
+
 // ── getDay ────────────────────────────────────────────────────────────────────
 
 export const getDay = query({
@@ -73,7 +159,10 @@ export const getRecent = query({
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
 
-    const limit = Math.max(1, Math.min(30, Math.floor(args.limit ?? 21)));
+    const requestedLimit = args.limit ?? 21;
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(30, Math.floor(requestedLimit)))
+      : 21;
     const beforeOrOn = args.beforeOrOn ?? "9999-12-31";
 
     const docs = await ctx.db
@@ -103,6 +192,8 @@ export const setDay = mutation({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
+    const entries = normalizeFoodLogEntries(args.entries);
+
     const existing = await ctx.db
       .query("foodLogs")
       .withIndex("by_userId_date", (q) =>
@@ -113,14 +204,14 @@ export const setDay = mutation({
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
-        entries: args.entries,
+        entries,
         updatedAt: now,
       });
     } else {
       await ctx.db.insert("foodLogs", {
         userId: user._id,
         date: args.date,
-        entries: args.entries,
+        entries,
         updatedAt: now,
       });
     }
@@ -140,6 +231,8 @@ export const addEntry = mutation({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
+    const entry = normalizeFoodLogEntry(args.entry);
+
     const existing = await ctx.db
       .query("foodLogs")
       .withIndex("by_userId_date", (q) =>
@@ -150,14 +243,19 @@ export const addEntry = mutation({
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
-        entries: [...existing.entries, args.entry],
+        entries: [
+          ...existing.entries.filter(
+            (existingEntry) => !entryHasId(existingEntry, entry.id),
+          ),
+          entry,
+        ],
         updatedAt: now,
       });
     } else {
       await ctx.db.insert("foodLogs", {
         userId: user._id,
         date: args.date,
-        entries: [args.entry],
+        entries: [entry],
         updatedAt: now,
       });
     }

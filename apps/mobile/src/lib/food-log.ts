@@ -10,6 +10,7 @@ import {
   safeLocalStorageGet,
   safeLocalStorageSet,
 } from "@/lib/utils"
+import { scaledFoodMacros } from "./food-search-nutrition"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,8 +114,7 @@ export type LogMealPresetSuggestion = {
 }
 
 export type SmartMealPresetSuggestion =
-  | SaveMealPresetSuggestion
-  | LogMealPresetSuggestion
+  SaveMealPresetSuggestion | LogMealPresetSuggestion
 
 export type FoodHistoryMealSummary = {
   meal: MealType
@@ -228,12 +228,45 @@ const OPEN_FOOD_FACTS_MICROS: Record<
 function numberFromFoodValue(value: unknown): number {
   if (value === null || value === undefined || value === "") return 0
   if (typeof value === "number") return Number.isFinite(value) ? value : 0
-  const parsed = Number(
-    String(value)
-      .replace(",", ".")
-      .replace(/[^0-9.-]/g, "")
-  )
+  const token = String(value)
+    .replace(/[\s\u00a0]/g, "")
+    .match(/[+-]?(?:\d[\d.,]*|[.,]\d+)/)?.[0]
+  if (!token) return 0
+
+  const lastComma = token.lastIndexOf(",")
+  const lastDot = token.lastIndexOf(".")
+  let normalized = token
+
+  // Open Food Facts values can use either `1,234.5` or `1.234,5`.
+  // Treat the final separator as the decimal separator when both appear.
+  if (lastComma >= 0 && lastDot >= 0) {
+    if (lastComma > lastDot) {
+      normalized = normalized.replace(/\./g, "").replace(",", ".")
+    } else {
+      normalized = normalized.replace(/,/g, "")
+    }
+  } else if (lastComma >= 0) {
+    const firstComma = normalized.indexOf(",")
+    if (firstComma !== lastComma) {
+      normalized = normalized.replace(/,(?=.*,)/g, "").replace(",", ".")
+    } else {
+      normalized = normalized.replace(",", ".")
+    }
+  } else if (normalized.indexOf(".") !== lastDot) {
+    normalized = normalized.replace(/\.(?=.*\.)/g, "")
+  }
+
+  const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function nonNegativeFoodNumber(value: unknown): number {
+  return Math.max(0, numberFromFoodValue(value))
+}
+
+function positiveFoodNumber(value: unknown): number | null {
+  const parsed = nonNegativeFoodNumber(value)
+  return parsed > 0 ? parsed : null
 }
 
 function firstPositiveFoodNumber(...values: unknown[]): number {
@@ -265,13 +298,24 @@ function normalizeFoodMass(
   fromUnit: string,
   toUnit: FoodMicronutrientUnit
 ): number {
-  const normalized = fromUnit.toLowerCase().replace("µ", "u").trim()
+  if (!Number.isFinite(value) || value <= 0) return 0
+  const normalized = fromUnit
+    .toLowerCase()
+    .replace(/[µμ]/g, "u")
+    .replace(/[.\s]/g, "")
   const inMg =
-    normalized === "g"
+    normalized === "g" || normalized === "gram" || normalized === "grams"
       ? value * 1000
-      : normalized === "ug" || normalized === "mcg"
-        ? value / 1000
-        : value
+      : normalized === "kg" ||
+          normalized === "kilogram" ||
+          normalized === "kilograms"
+        ? value * 1_000_000
+        : normalized === "ug" ||
+            normalized === "mcg" ||
+            normalized === "microgram" ||
+            normalized === "micrograms"
+          ? value / 1000
+          : value
 
   if (toUnit === "g") return inMg / 1000
   if (toUnit === "mcg") return inMg * 1000
@@ -279,6 +323,7 @@ function normalizeFoodMass(
 }
 
 function roundFoodNutrient(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) return 0
   if (value >= 100) return Math.round(value)
   if (value >= 10) return Math.round(value * 10) / 10
   return Math.round(value * 100) / 100
@@ -291,8 +336,10 @@ function scaledDetailNutrient(
   targetUnit: FoodMicronutrientUnit
 ): number | undefined {
   const row = rows.find((nutrient) => nutrient.key === sourceKey)
-  if (!row || row.per100g <= 0) return undefined
-  const scaled = (row.per100g * grams) / 100
+  const per100g = numberFromFoodValue(row?.per100g)
+  const safeGrams = positiveFoodNumber(grams)
+  if (!row || per100g <= 0 || safeGrams === null) return undefined
+  const scaled = (per100g * safeGrams) / 100
   const normalized = normalizeFoodMass(scaled, row.unit, targetUnit)
   return normalized > 0 ? roundFoodNutrient(normalized) : undefined
 }
@@ -301,7 +348,7 @@ export function logMicrosFromFoodDetail(
   detail: FoodDetail | null | undefined,
   grams: number
 ): LogMicros {
-  if (!detail) return {}
+  if (!detail || positiveFoodNumber(grams) === null) return {}
   const rows = [...(detail.nutrients ?? []), ...(detail.extraNutrients ?? [])]
   const micros: LogMicros = {}
 
@@ -335,34 +382,45 @@ function loggedFoodScale(
   entry: FoodLogEntry,
   nutriments: OpenFoodFactsNutriments
 ): number {
+  // quantityGrams is captured when the entry is logged, so it is more reliable
+  // than reconstructing a serving from rounded calories or macros.
+  const quantityScale = positiveRatio(
+    numberFromFoodValue(entry.quantityGrams),
+    100
+  )
+  if (quantityScale) return quantityScale
+
   const caloriesRatio = positiveRatio(
-    Number(entry.calories),
+    numberFromFoodValue(entry.calories),
     foodNutrientPer100(nutriments, "energy-kcal")
   )
   if (caloriesRatio) return caloriesRatio
 
   const macroRatios = [
     positiveRatio(
-      Number(entry.protein),
+      numberFromFoodValue(entry.protein),
       foodNutrientPer100(nutriments, "proteins")
     ),
     positiveRatio(
-      Number(entry.carbs),
+      numberFromFoodValue(entry.carbs),
       foodNutrientPer100(nutriments, "carbohydrates")
     ),
-    positiveRatio(Number(entry.fat), foodNutrientPer100(nutriments, "fat")),
+    positiveRatio(
+      numberFromFoodValue(entry.fat),
+      foodNutrientPer100(nutriments, "fat")
+    ),
   ].filter((value): value is number => value !== null)
 
   if (macroRatios.length > 0) {
     return macroRatios.sort((a, b) => a - b)[Math.floor(macroRatios.length / 2)]
   }
 
-  if (entry.quantityGrams && entry.quantityGrams > 0) {
-    return entry.quantityGrams / 100
-  }
-
-  if (entry.servingGrams && entry.servingGrams > 0) {
-    return entry.servingGrams / 100
+  const servingScale = positiveRatio(
+    numberFromFoodValue(entry.servingGrams),
+    100
+  )
+  if (servingScale) {
+    return servingScale
   }
 
   return 1
@@ -372,8 +430,8 @@ function micronutrientForEntry(
   entry: FoodLogEntry,
   key: FoodMicronutrientKey
 ): number {
-  const logged = entry[key]
-  if (typeof logged === "number" && Number.isFinite(logged) && logged > 0) {
+  const logged = numberFromFoodValue(entry[key])
+  if (logged > 0) {
     return logged
   }
 
@@ -412,13 +470,7 @@ export function nutritionDetailTotals(entries: FoodLogEntry[]) {
 }
 
 export type FoodPortionUnit =
-  | "g"
-  | "oz"
-  | "ml"
-  | "fl_oz"
-  | "cup"
-  | "tbsp"
-  | "tsp"
+  "g" | "oz" | "ml" | "fl_oz" | "cup" | "tbsp" | "tsp"
 
 export type FoodPortion = {
   amount: number
@@ -459,9 +511,10 @@ function roundPortion(value: number) {
 }
 
 export function gramsFromFoodPortion(amount: number, unit: FoodPortionUnit) {
+  const safeAmount = nonNegativeFoodNumber(amount)
   return Math.max(
     0.1,
-    Math.round(amount * portionUnitConfig(unit).gramsPerUnit * 10) / 10
+    Math.round(safeAmount * portionUnitConfig(unit).gramsPerUnit * 10) / 10
   )
 }
 
@@ -469,7 +522,9 @@ export function amountFromFoodPortionGrams(
   grams: number,
   unit: FoodPortionUnit
 ) {
-  return roundPortion(grams / portionUnitConfig(unit).gramsPerUnit)
+  return roundPortion(
+    nonNegativeFoodNumber(grams) / portionUnitConfig(unit).gramsPerUnit
+  )
 }
 
 export function formatFoodPortionAmount(amount: number) {
@@ -522,6 +577,21 @@ function normalizedPortionAmount(
   return amount
 }
 
+function explicitMassGrams(label: string): number | null {
+  const matches = label.matchAll(
+    /([0-9]+(?:[.,][0-9]+)?)\s*(kilograms?|kg|grams?|g)\b/gi
+  )
+
+  for (const match of matches) {
+    const amount = positiveFoodNumber(match[1])
+    if (amount === null) continue
+    const unit = match[2].toLowerCase()
+    return unit === "kg" || unit.startsWith("kilogram") ? amount * 1000 : amount
+  }
+
+  return null
+}
+
 export function parseFoodPortionLabel(
   label?: string | null
 ): FoodPortion | null {
@@ -531,17 +601,20 @@ export function parseFoodPortionLabel(
   )
   if (!match) return null
 
-  const rawAmount = Number(match[1].replace(",", "."))
+  const rawAmount = numberFromFoodValue(match[1])
   const unit = normalizePortionUnit(match[2])
   if (!Number.isFinite(rawAmount) || rawAmount <= 0 || !unit) return null
 
   const amount = roundPortion(
     normalizedPortionAmount(rawAmount, match[2], unit)
   )
+  const exactMass = explicitMassGrams(label)
   return {
     amount,
     unit,
-    grams: gramsFromFoodPortion(amount, unit),
+    // Labels such as "1 cup (230 g)" include an exact source mass. Preserve it
+    // instead of assuming a generic volume-to-mass conversion.
+    grams: exactMass ?? gramsFromFoodPortion(amount, unit),
   }
 }
 
@@ -658,8 +731,7 @@ function normalizeSignatureText(value: unknown) {
 }
 
 function signatureNumber(value: unknown, decimals = 1) {
-  const number = Number(value)
-  if (!Number.isFinite(number)) return 0
+  const number = nonNegativeFoodNumber(value)
   const factor = 10 ** decimals
   return Math.round(number * factor) / factor
 }
@@ -691,9 +763,8 @@ export function foodLogEntryFromFoodResult(
     loggedAt?: string
   } = {}
 ): FoodLogEntry {
-  const grams = options.grams ?? 100
-  const factor = grams / 100
-  const roundMacro = (value: number) => Math.round(value * factor * 10) / 10
+  const grams = positiveFoodNumber(options.grams ?? 100) ?? 100
+  const macros = scaledFoodMacros(food, grams, options.detail)
   const portionLabel = options.portion
     ? foodPortionLabel(options.portion)
     : `${grams} g`
@@ -704,16 +775,13 @@ export function foodLogEntryFromFoodResult(
       grams === 100 && !options.portion
         ? food.name
         : `${food.name} (${portionLabel})`,
-    calories: Math.round(Number(food.calories) * factor),
-    protein: roundMacro(Number(food.protein)),
-    carbs: roundMacro(Number(food.carbs)),
-    fat: roundMacro(Number(food.fat)),
+    ...macros,
     loggedAt: options.loggedAt ?? new Date().toISOString(),
     meal: options.meal ?? defaultMeal(),
     source: "openfoodfacts" as const,
     foodCode: food.code,
     quantityGrams: grams,
-    servingGrams: options.detail?.servingGrams ?? undefined,
+    servingGrams: positiveFoodNumber(options.detail?.servingGrams) ?? undefined,
     servingLabel: options.detail?.servingLabel ?? food.serving,
     imageUrl: options.detail?.imageUrl ?? food.imageUrl,
     openFoodFacts: options.detail?.openFoodFacts ?? food.openFoodFacts,

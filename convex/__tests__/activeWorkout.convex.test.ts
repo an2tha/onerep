@@ -152,23 +152,27 @@ describe("activeWorkout Convex functions", () => {
       await expect(
         t.query(api.logs.activeWorkout.getActive, { slot: 1 }),
       ).resolves.toBe(null);
-      const log = await t.query(api.logs.workouts.getLog, { date: today });
-      expect(log).toMatchObject({
+      const logs = await t.query(api.logs.workouts.getLog, { date: today });
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
         date: today,
         durationSeconds: 1800,
       });
-      expect(log!.exercises).toHaveLength(1);
+      expect(logs[0]!.exercises).toHaveLength(1);
       await expect(
         t.mutation(api.logs.activeWorkout.finishActive, {
           slot: 1,
           exercises: [],
           durationSeconds: 0,
         }),
-      ).rejects.toThrow("Workout already completed");
+      ).resolves.toEqual({ ok: true });
+      expect(
+        await t.query(api.logs.workouts.getLog, { date: today }),
+      ).toHaveLength(1);
     });
   });
 
-  test("finishActive appends to an existing workout log for today", async () => {
+  test("finishActive preserves an existing daily workout as a separate session", async () => {
     const t = convexTest(schema, modules);
     const today = new Date().toISOString().split("T")[0];
 
@@ -189,11 +193,16 @@ describe("activeWorkout Convex functions", () => {
         durationSeconds: 900,
       });
 
-      const log = await t.query(api.logs.workouts.getLog, { date: today });
-      expect(log!.durationSeconds).toBe(1500);
-      expect(
-        log!.exercises.map((exercise: { id: string }) => exercise.id),
-      ).toEqual(["bench", "squat"]);
+      const logs = await t.query(api.logs.workouts.getLog, { date: today });
+      expect(logs).toHaveLength(2);
+      expect(logs.find((log) => log.slot === 1)).toMatchObject({
+        durationSeconds: 900,
+        exercises: [{ id: "squat" }],
+      });
+      expect(logs.find((log) => log.slot === undefined)).toMatchObject({
+        durationSeconds: 600,
+        exercises: [{ id: "bench" }],
+      });
     });
   });
 
@@ -236,8 +245,8 @@ describe("activeWorkout Convex functions", () => {
         durationSeconds: 1500,
       });
 
-      const log = await t.query(api.logs.workouts.getLog, { date: today });
-      expect(log!.exercises[0]).toMatchObject({
+      const logs = await t.query(api.logs.workouts.getLog, { date: today });
+      expect(logs[0]!.exercises[0]).toMatchObject({
         id: "run",
         category: "cardio",
         cardio: {

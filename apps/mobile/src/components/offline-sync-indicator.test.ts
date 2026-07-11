@@ -21,7 +21,12 @@ describe("offline sync indicator production contract", () => {
     expect(SOURCE).toContain('aria-live="polite"')
     expect(SOURCE).toContain("disabled={syncing}")
     expect(SOURCE).toContain("aria-busy={syncing}")
-    expect(SOURCE).toContain('{syncing ? "Syncing" : "Sync"}')
+    expect(SOURCE).toContain(
+      'const actionLabel = status.tone === "error" ? "Retry" : "Sync"'
+    )
+    expect(SOURCE).toContain('{syncing ? "Syncing" : actionLabel}')
+    expect(SOURCE).toContain('"Retry offline sync"')
+    expect(SOURCE).toContain('"Sync saved changes"')
   })
 
   test("does not allow dismissing the status while a sync is in progress", () => {

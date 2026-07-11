@@ -175,7 +175,7 @@ export function MobileSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       style={{ overflow: "visible" }}
     >
       {/* Backdrop — blur effect */}
@@ -190,13 +190,13 @@ export function MobileSheet({
         }}
       />
 
-      {/* Panel — slides in/out, centered, resizable */}
+      {/* Panel — slides in/out from the bottom, resizable */}
       <div
         ref={panelRef}
         className={cn(
-          "app-sheet-panel relative flex w-full flex-col overflow-hidden will-change-transform sm:max-w-lg",
+          "app-sheet-panel relative flex w-full max-w-lg flex-col overflow-hidden will-change-transform md:border md:border-border/50",
           panelClassName,
-          "md:w-[min(92vw,46rem)] md:max-w-2xl md:border md:border-border/50",
+          "max-sm:!rounded-b-none",
           isClosing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         style={{

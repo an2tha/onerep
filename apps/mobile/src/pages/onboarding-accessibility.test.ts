@@ -26,25 +26,22 @@ describe("Onboarding page production contract", () => {
     )
   })
 
-  test("mobile nutrition first action routes once after onboarding", () => {
-    expect(ONBOARDING_MOBILE_SOURCE).toContain(
-      'const FIRST_NUTRITION_ACTION_DONE_KEY = "onerep:first-nutrition-action-done"'
-    )
-    expect(ONBOARDING_MOBILE_SOURCE).toContain(
+  test("mobile onboarding stays concise and guides beginners into Coach", () => {
+    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Choose what OneRep can use")
+    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("What should be ready?")
+    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Start with one action")
+    expect(ONBOARDING_MOBILE_SOURCE).not.toContain(
       "function firstNutritionActionPath"
     )
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('return "/foods/search"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('return "/foods/recipe/new"')
+    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Setup mode")
+    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "goal"')
+    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "experience"')
+    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "review"')
     expect(ONBOARDING_MOBILE_SOURCE).toContain(
-      'return "/nutrition?plan=tomorrow"'
+      'experienceLevel === "beginner" ? "/coach?setup=beginner" : "/"'
     )
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('return "/foods?history=1"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('return "/nutrition?mode=habit"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain(
-      'safeSessionStorageSet(FIRST_NUTRITION_ACTION_DONE_KEY, "true")'
-    )
-    expect(ONBOARDING_MOBILE_SOURCE).toContain(
-      "navigate(firstNutritionActionPath(firstNutritionAction)"
-    )
+    expect(ONBOARDING_MOBILE_SOURCE).toContain("icon: GenderFemale")
+    expect(ONBOARDING_MOBILE_SOURCE).toContain("icon: GenderMale")
+    expect(ONBOARDING_MOBILE_SOURCE).toContain("<ArrowRight")
   })
 })

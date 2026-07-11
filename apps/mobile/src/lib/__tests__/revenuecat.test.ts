@@ -4,6 +4,7 @@ import {
   hasOneRepPro,
   ONEREP_PRO_ENTITLEMENT,
   revenueCatErrorMessage,
+  subscriptionDiagnosticCopy,
 } from "@/lib/revenuecat"
 
 function customerInfo(overrides: Record<string, unknown>) {
@@ -58,5 +59,79 @@ describe("RevenueCat subscription helpers", () => {
     expect(revenueCatErrorMessage({ userCancelled: true }, "Fallback")).toBe(
       "Purchase canceled"
     )
+  })
+
+  test("shows a compact recovery state when a purchase exists before Pro unlocks", () => {
+    expect(
+      subscriptionDiagnosticCopy({
+        customerInfo: customerInfo({
+          activeSubscriptions: ["monthly"],
+          entitlements: { active: {}, all: {} },
+        }),
+        error: null,
+        isConfigured: true,
+        isNative: false,
+        isWeb: true,
+        status: "ready",
+      })
+    ).toEqual({
+      title: "Restoring Pro access",
+      detail: "A purchase was found. Refresh to finish checking access.",
+      tone: "attention",
+      canRetry: true,
+    })
+  })
+
+  test("reports an active subscription source without exposing billing internals", () => {
+    expect(
+      subscriptionDiagnosticCopy({
+        customerInfo: customerInfo({
+          isActive: true,
+          source: "revenuecat_webhook",
+          store: "app_store",
+        }),
+        error: null,
+        isConfigured: true,
+        isNative: false,
+        isWeb: true,
+        status: "ready",
+      })
+    ).toEqual({
+      title: "Pro active",
+      detail: "Status confirmed via RevenueCat sync · App Store.",
+      tone: "success",
+      canRetry: false,
+    })
+  })
+
+  test("makes failed subscription checks actionable", () => {
+    expect(
+      subscriptionDiagnosticCopy({
+        customerInfo: null,
+        error:
+          "Subscription status request timed out while checking the account",
+        isConfigured: true,
+        isNative: false,
+        isWeb: true,
+        status: "error",
+      })
+    ).toMatchObject({
+      title: "Subscription needs attention",
+      tone: "attention",
+      canRetry: true,
+    })
+  })
+
+  test("does not expose billing configuration details in user-facing diagnostics", () => {
+    expect(
+      subscriptionDiagnosticCopy({
+        customerInfo: null,
+        error: "RevenueCat native SDK key is not configured in Convex",
+        isConfigured: false,
+        isNative: true,
+        isWeb: false,
+        status: "error",
+      }).detail
+    ).toBe("Purchases are temporarily unavailable. Try again later.")
   })
 })

@@ -27,6 +27,16 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain('aria-label="Add nutrition entry"')
   })
 
+  test("repeat foods are compact, named, and single-flight", () => {
+    expect(NUTRITION_SOURCE).toContain("buildQuickRepeatFoods")
+    expect(NUTRITION_SOURCE).toContain('aria-label="Repeat foods"')
+    expect(NUTRITION_SOURCE).toContain("const [quickRepeatBusyKey")
+    expect(NUTRITION_SOURCE).toContain("async function repeatFood")
+    expect(NUTRITION_SOURCE).toContain("disabled={quickRepeatBusyKey !== null}")
+    expect(NUTRITION_SOURCE).toContain("aria-busy={busy}")
+    expect(NUTRITION_SOURCE).toContain("setAddOpen(false)")
+  })
+
   test("quick water and supplement actions expose single-flight busy states", () => {
     expect(NUTRITION_SOURCE).toContain(
       "const [loggingWaterAmount, setLoggingWaterAmount]"
@@ -39,7 +49,7 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain(
       "aria-busy={loggingWaterAmount === amount}"
     )
-    expect(NUTRITION_SOURCE).toContain("saving={loggingWaterAmount !== null}")
+    expect(NUTRITION_SOURCE).toContain("savingAmount={loggingWaterAmount}")
     expect(NUTRITION_SOURCE).toContain(
       "const [loggingSupplementId, setLoggingSupplementId]"
     )
@@ -48,9 +58,22 @@ describe("Nutrition page accessibility contract", () => {
     )
     expect(NUTRITION_SOURCE).toContain("await logSupplementTaken({")
     expect(NUTRITION_SOURCE).toContain(
-      "disabled={loggingSupplementId !== null}"
+      "saving={loggingSupplementId === String(plan.item._id)}"
     )
     expect(NUTRITION_SOURCE).toContain("aria-busy={saving}")
+  })
+
+  test("merged food and water page functions are available on nutrition", () => {
+    expect(NUTRITION_SOURCE).toContain("WaterGoalSheet")
+    expect(NUTRITION_SOURCE).toContain('name="water-goal-ml"')
+    expect(NUTRITION_SOURCE).toContain("WaterGlassControls")
+    expect(NUTRITION_SOURCE).toContain("SmartMealPresetCard")
+    expect(NUTRITION_SOURCE).toContain("DescribeMealSheet")
+    expect(NUTRITION_SOURCE).toContain("RecipeLogSheet")
+    expect(NUTRITION_SOURCE).toContain("RecipeManagementBox")
+    expect(NUTRITION_SOURCE).toContain("api.logs.recipes.remove")
+    expect(NUTRITION_SOURCE).toContain("api.logs.mealPresets.create")
+    expect(NUTRITION_SOURCE).toContain("api.logs.snap.describeText")
   })
 
   test("nutrition page consumes plan metadata for tracking modes and calibration", () => {
@@ -61,11 +84,6 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain(
       "const visibleMetrics = nutritionPlan?.visibleMetrics"
     )
-    expect(NUTRITION_SOURCE).toContain(
-      "const mealSuggestions = nutritionPlan?.mealSuggestions ?? []"
-    )
-    expect(NUTRITION_SOURCE).toContain("Suggested starts")
-    expect(NUTRITION_SOURCE).toContain("runMealSuggestion")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.calories")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.micros")
     expect(NUTRITION_SOURCE).toContain("applyPlanCalibration")

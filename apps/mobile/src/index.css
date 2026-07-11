@@ -590,6 +590,36 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   transform-origin: bottom center;
 }
 
+body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
+  .app-route-chrome {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(100% + 1rem));
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
+@media (max-width: 639px) {
+  .sheet-overlay > .sheet-panel:not(.sheet-panel-fullscreen),
+  .sheet-overlay .app-sheet-panel:not(.sheet-panel-fullscreen),
+  .app-sheet-panel:not(.sheet-panel-fullscreen) {
+    width: min(calc(100% - 2rem), 30rem) !important;
+    max-width: calc(100% - 2rem) !important;
+    margin-inline: auto !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .sheet-overlay > .sheet-panel.sheet-panel-fullscreen,
+  .sheet-overlay .app-sheet-panel.sheet-panel-fullscreen,
+  .app-sheet-panel.sheet-panel-fullscreen {
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+  }
+}
+
 @keyframes weight-selector-overlay-in {
   from {
     opacity: 0;

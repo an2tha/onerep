@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
   Barcode,
+  CalendarDots,
   CaretDown,
   CaretLeft,
   CaretRight,
   Coffee,
-  DotsSixVertical,
   Fire,
   ForkKnife,
   Lightning,
@@ -21,29 +21,7 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core"
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSortingStrategy,
-  arrayMove,
-} from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import { useAppAuth } from "@/lib/auth-client"
-import {
-  resolveLayout,
-  type WidgetConfig,
-  type WidgetId,
-} from "@/lib/widget-layout"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../convex/_generated/api"
@@ -52,17 +30,26 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
-  InsightWidgets,
+  DashboardQuickActions,
   TodayHeader,
   TodayTimeline,
+  WorkoutWeekStrip,
+  type DashboardQuickAction,
   type MacroProgress,
   type TimelineEvent,
+  type WorkoutWeekDay,
 } from "@/components/home"
+import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
+import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useAiFeatureGate } from "@/lib/ai-access"
-import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
+import {
+  buildCalendarDays,
+  calcStreak,
+  calcWorkoutsThisWeek,
+} from "@/lib/training-consistency"
 import {
   compactCardioSummary,
   hasCardioDetails,
@@ -77,7 +64,6 @@ import {
   dateForOffset,
   defaultMeal,
   detectTimeZone,
-  nutritionDetailTotals,
   offsetDateKey,
   stripUndefined,
   type FoodLogEntry,
@@ -94,11 +80,14 @@ import {
 import {
   SUPPLEMENT_DEFINITIONS,
   SUPPLEMENT_LIST,
+  buildSupplementDayPlan,
   completedSupplementCount,
   formatSupplementAmount,
   supplementEntryLabel,
   supplementTotals,
   type SupplementKind,
+  type SupplementIntakeLog,
+  type SupplementItem,
   type SupplementLogEntry,
 } from "@/lib/supplements"
 import {
@@ -111,17 +100,21 @@ import {
   PopoverTrigger,
 } from "@repo/ui"
 import { hapticMedium } from "@/lib/haptics"
+import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 import {
-  APP_ACCENT_COLORS,
-  MACRO_COLORS,
-  MICRO_COLORS,
-  tint,
-} from "@/lib/design-tokens"
+  DashboardProgressPanels,
+  type TrendMetric,
+} from "@/components/dashboard-progress-panels"
+import { useMuscleRecovery } from "@/lib/use-muscle-recovery"
+import type { BodyMeasurementEntry } from "@/lib/body-progress"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type WorkoutFocus = "strength" | "cardio" | "mobility"
-type DashboardSettings = { workoutFocus: WorkoutFocus }
+type DashboardSettings = {
+  workoutFocus: WorkoutFocus
+  trendMetric?: TrendMetric
+}
 
 type CalorieInfo = {
   target: number
@@ -135,26 +128,20 @@ type CalorieInfo = {
   burnedCalories?: number
 }
 
-type DashboardStatLine = {
-  label: string
-  value: string
-  progress?: number
-  color?: string
-}
-
-type DashboardStat = {
-  title: string
-  value: string
-  detail?: string
-  lines?: DashboardStatLine[]
-  onClick?: () => void
-}
-
 type ActiveWorkoutCandidate = {
   slot?: 1 | 2
   completedAt?: number
   abortedAt?: number
   status?: string
+  exerciseData?: unknown
+  elapsedSeconds?: number
+}
+
+type DashboardSupplementOverview = {
+  items: SupplementItem[]
+  logs: SupplementIntakeLog[]
+  legacyEntries: Array<{ id: string }>
+  isTrainingDay: boolean
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -174,7 +161,8 @@ const FOOD_COLOR = APP_ACCENT_COLORS.food
 const FOOD_BG = tint(FOOD_COLOR, 10)
 const WATER_COLOR = APP_ACCENT_COLORS.water
 const WATER_BG = tint(WATER_COLOR, 13)
-const DASHBOARD_LOG_DINNER_TOOLTIP_ID = 1
+const DASHBOARD_WATER_TOOLTIP_ID = 2
+const DASHBOARD_WORKOUT_TOOLTIP_ID = 3
 
 const EMPTY_WORKOUT_ROUTINE: Routine = {
   Mon: null,
@@ -329,50 +317,6 @@ function isLiveActiveWorkout(
   return status !== "aborted" && status !== "complete" && status !== "completed"
 }
 
-function statPct(value: number, target: number) {
-  if (target <= 0) return undefined
-  return Math.max(0, Math.min(100, Math.round((value / target) * 100)))
-}
-
-function fmtStatNutrient(value: number | undefined, unit: "g" | "mg" | "mcg") {
-  const safe = Number.isFinite(value) ? Math.max(0, value ?? 0) : 0
-  if (unit === "g") {
-    return `${safe >= 10 ? Math.round(safe) : safe.toFixed(1).replace(/\.0$/, "")}g`
-  }
-  if (unit === "mg") return `${Math.round(safe).toLocaleString("en-US")}mg`
-  return `${Math.round(safe).toLocaleString("en-US")}mcg`
-}
-
-function ProgressCard() {
-  const navigate = useSmoothNavigate()
-  const measurements = useQuery(api.bodyProgress.list, {})
-  const latest =
-    measurements && measurements.length > 0
-      ? measurements[measurements.length - 1]
-      : null
-
-  return (
-    <Card>
-      <button
-        onClick={() => navigate("/progress")}
-        className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors active:bg-muted/20"
-      >
-        <div className="min-w-0">
-          <p className="text-sm font-semibold">Body progress</p>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground/60">
-            {latest?.weightKg != null
-              ? `Latest check-in: ${latest.weightKg.toFixed(1)} kg on ${new Date(`${latest.loggedAt}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}.`
-              : "Log weight, body fat, waist, and more to see your trend."}
-          </p>
-        </div>
-        <div className="rounded-[10px] bg-foreground/[0.06] px-3 py-2">
-          <span className="text-[11px] font-semibold">Open</span>
-        </div>
-      </button>
-    </Card>
-  )
-}
-
 // ─── Date nav ─────────────────────────────────────────────────────────────────
 
 function DateNav({
@@ -415,8 +359,12 @@ function DateNav({
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button className="min-h-10 min-w-[84px] rounded-lg px-2 text-center text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground active:bg-muted/45 active:text-foreground">
-            {dayOffsetLabel(offset, timeZone)}
+          <button
+            type="button"
+            className="app-icon-button h-10 w-10 bg-transparent text-muted-foreground hover:text-foreground"
+            aria-label={`Choose date, ${dayOffsetLabel(offset, timeZone)}`}
+          >
+            <CalendarDots size={15} weight="bold" />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="end">
@@ -1237,7 +1185,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
         <div className="mb-2 flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Water</CardTitle>
           <button
-            onClick={() => navigate("/water")}
+            onClick={() => navigate("/nutrition")}
             className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10.5px] font-medium text-muted-foreground/45 active:bg-muted/45 active:text-muted-foreground/70"
           >
             Open
@@ -2308,197 +2256,6 @@ function FoodSmall({
   )
 }
 
-function ProgressSmall({
-  measurements,
-}: {
-  measurements:
-    Array<{ weightKg?: number; loggedAt: string }> | null | undefined
-}) {
-  const navigate = useSmoothNavigate()
-  const latest =
-    measurements && measurements.length > 0
-      ? measurements[measurements.length - 1]
-      : null
-
-  return (
-    <Card className="h-full">
-      <button
-        onClick={() => navigate("/progress")}
-        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
-      >
-        <div className="flex w-full items-start justify-between">
-          <p className="text-[10px] font-semibold text-muted-foreground/50">
-            Progress
-          </p>
-          <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
-        </div>
-        <div>
-          {latest?.weightKg != null ? (
-            <>
-              <div className="flex items-baseline gap-1">
-                <span className="text-[1.35rem] leading-none font-bold tracking-tight tabular-nums">
-                  {latest.weightKg.toFixed(1)}
-                </span>
-                <span className="text-[9.5px] text-muted-foreground/40">
-                  kg
-                </span>
-              </div>
-              <p className="mt-0.5 text-[9px] text-muted-foreground/35">
-                {new Date(`${latest.loggedAt}T12:00:00Z`).toLocaleDateString(
-                  "en-US",
-                  {
-                    month: "short",
-                    day: "numeric",
-                  }
-                )}
-              </p>
-            </>
-          ) : (
-            <p className="text-[11px] text-muted-foreground/40">
-              Tap to check in
-            </p>
-          )}
-        </div>
-      </button>
-    </Card>
-  )
-}
-
-// ─── Stats preview ────────────────────────────────────────────────────────────
-
-function DashboardStatCard({
-  stat,
-  compact,
-}: {
-  stat: DashboardStat
-  compact: boolean
-}) {
-  const lines = compact ? stat.lines?.slice(0, 2) : stat.lines
-  const content = (
-    <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="app-eyebrow text-[0.62rem] text-muted-foreground/64">
-            {stat.title}
-          </p>
-          <p className="mt-2 truncate text-[1.35rem] leading-none font-extrabold tabular-nums">
-            {stat.value}
-          </p>
-        </div>
-        {stat.onClick && (
-          <span className="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-bold text-muted-foreground/70">
-            Open
-          </span>
-        )}
-      </div>
-      {stat.detail && (
-        <p className="mt-2 line-clamp-2 text-[11.5px] leading-4 font-semibold text-muted-foreground/60">
-          {stat.detail}
-        </p>
-      )}
-      {lines && lines.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {lines.map((line) => (
-            <div key={line.label}>
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <span className="truncate text-[10.5px] font-semibold text-muted-foreground/62">
-                  {line.label}
-                </span>
-                <span className="shrink-0 text-[10.5px] font-bold text-foreground/72 tabular-nums">
-                  {line.value}
-                </span>
-              </div>
-              {line.progress != null && (
-                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
-                  <div
-                    className="h-full rounded-full bg-foreground/70"
-                    style={{
-                      width: `${Math.max(0, Math.min(100, line.progress))}%`,
-                      backgroundColor: line.color ?? "var(--foreground)",
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </>
-  )
-
-  const className = cn(
-    "app-surface flex h-full min-h-[8.4rem] w-full flex-col p-3.5 text-left transition-colors active:bg-muted/20",
-    compact ? "min-h-[8.4rem]" : "min-h-[10.5rem]"
-  )
-
-  if (stat.onClick) {
-    return (
-      <button type="button" onClick={stat.onClick} className={className}>
-        {content}
-      </button>
-    )
-  }
-
-  return <div className={className}>{content}</div>
-}
-
-// ─── Sortable widget wrapper ──────────────────────────────────────────────────
-
-function SortableWidget({
-  id,
-  editMode,
-  size,
-  children,
-}: {
-  id: WidgetId
-  editMode: boolean
-  size: "full" | "small"
-  children: React.ReactNode
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id })
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.45 : 1,
-        zIndex: isDragging ? 50 : undefined,
-      }}
-      className={cn(
-        "relative flex min-h-0 shrink-0 basis-[min(84vw,20rem)] snap-center md:shrink md:basis-auto md:snap-none",
-        size === "full"
-          ? "basis-[min(90vw,22rem)] md:col-span-2 md:row-span-2"
-          : "md:col-span-1 md:row-span-1"
-      )}
-    >
-      {children}
-      {editMode && (
-        <div className="pointer-events-none absolute inset-0 z-10 hidden overflow-hidden rounded-[12px] md:flex">
-          {/* drag handle */}
-          <button
-            {...attributes}
-            {...listeners}
-            className="pointer-events-auto flex w-10 shrink-0 touch-none items-center justify-center bg-foreground/[0.07] text-muted-foreground/50 transition-colors active:bg-foreground/[0.13]"
-            aria-label="Drag to reorder"
-          >
-            <DotsSixVertical size={15} weight="bold" />
-          </button>
-          <div className="flex-1" />
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -2523,8 +2280,8 @@ export default function App() {
   })
   const serverPresets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
-  const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
+  const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
 
@@ -2533,14 +2290,20 @@ export default function App() {
   const supplementLogs = useQuery(api.logs.supplements.getDay, {
     date: selectedDate,
   })
+  const supplementOverviewRaw = useQuery(api.logs.supplements.getOverview, {
+    date: selectedDate,
+  })
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
-  const dashboardLogDinnerTooltipCompleted = useQuery(
+  const dashboardWaterTooltipCompleted = useQuery(
     api.users.tooltips.isTooltipCompleted,
-    { id: DASHBOARD_LOG_DINNER_TOOLTIP_ID }
+    { id: DASHBOARD_WATER_TOOLTIP_ID }
   )
-
+  const dashboardWorkoutTooltipCompleted = useQuery(
+    api.users.tooltips.isTooltipCompleted,
+    { id: DASHBOARD_WORKOUT_TOOLTIP_ID }
+  )
   const syncTimezone = useOfflineMutation(
     api.users.users.syncTimezone,
     "users.users.syncTimezone"
@@ -2565,9 +2328,8 @@ export default function App() {
   const markTooltipCompleted = useMutation(
     api.users.tooltips.markTooltipCompleted
   )
-  const saveWidgetLayout = useOfflineMutation(
-    api.users.users.setWidgetLayout,
-    "users.users.setWidgetLayout"
+  const setDashboardTrendMetric = useMutation(
+    api.users.users.setDashboardTrendMetric
   )
 
   // ── Dashboard settings ───────────────────────────────────────────────────
@@ -2579,93 +2341,6 @@ export default function App() {
       }
     )
   }, [preferences])
-
-  // ── Widget layout ─────────────────────────────────────────────────────────
-
-  const [widgetLayout, setWidgetLayout] = useState<WidgetConfig[]>(() =>
-    resolveLayout(null)
-  )
-  // Sync from Convex once loaded (only on initial load)
-  const layoutInitialized = useRef(false)
-  useEffect(() => {
-    if (!layoutInitialized.current && preferences !== undefined) {
-      layoutInitialized.current = true
-      const stored = preferences?.widgetLayout as WidgetConfig[] | undefined
-      setWidgetLayout(resolveLayout(stored))
-    }
-  }, [preferences])
-
-  const [editMode, setEditMode] = useState(false)
-  const statsScrollRef = useRef<HTMLDivElement | null>(null)
-  const [statsScrollIndicator, setStatsScrollIndicator] = useState({
-    visible: false,
-    leftPct: 0,
-    thumbPct: 30,
-  })
-
-  function updateStatsScrollIndicator() {
-    const el = statsScrollRef.current
-    if (!el) {
-      setStatsScrollIndicator({ visible: false, leftPct: 0, thumbPct: 30 })
-      return
-    }
-
-    const maxScroll = el.scrollWidth - el.clientWidth
-    const visible = maxScroll > 2
-    const progress = visible
-      ? Math.max(0, Math.min(1, el.scrollLeft / maxScroll))
-      : 0
-    const thumbPct = visible
-      ? Math.max(18, Math.min(70, (el.clientWidth / el.scrollWidth) * 100))
-      : 100
-    const leftPct = progress * (100 - thumbPct)
-
-    setStatsScrollIndicator((current) => {
-      if (
-        current.visible === visible &&
-        Math.abs(current.leftPct - leftPct) < 0.25 &&
-        Math.abs(current.thumbPct - thumbPct) < 0.25
-      ) {
-        return current
-      }
-
-      return { visible, leftPct, thumbPct }
-    })
-  }
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(updateStatsScrollIndicator)
-    const el = statsScrollRef.current
-    let resizeObserver: ResizeObserver | undefined
-
-    if (el && typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(updateStatsScrollIndicator)
-      resizeObserver.observe(el)
-      Array.from(el.children).forEach((child) => resizeObserver?.observe(child))
-    }
-
-    window.addEventListener("resize", updateStatsScrollIndicator)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      resizeObserver?.disconnect()
-      window.removeEventListener("resize", updateStatsScrollIndicator)
-    }
-  }, [widgetLayout.length])
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-    if (!over || active.id === over.id) return
-    const oldIndex = widgetLayout.findIndex((w) => w.id === active.id)
-    const newIndex = widgetLayout.findIndex((w) => w.id === over.id)
-    const next = arrayMove(widgetLayout, oldIndex, newIndex)
-    setWidgetLayout(next)
-    void saveWidgetLayout({ layout: next })
-  }
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
 
   // ── Mappings ──────────────────────────────────────────────────────────────
 
@@ -2704,11 +2379,12 @@ export default function App() {
   }, [schedule])
 
   const workoutLogs = useMemo(
-    () =>
-      workoutLogsQuery
-        ? ([workoutLogsQuery] as unknown as CachedWorkoutLog[])
-        : [],
+    () => (workoutLogsQuery ?? []) as unknown as CachedWorkoutLog[],
     [workoutLogsQuery]
+  )
+  const muscleRecovery = useMuscleRecovery(
+    workoutHistory as unknown as
+      import("@/lib/exercise-history").WorkoutHistoryLog[] | undefined
   )
   const foodEntries = useMemo(
     () => (foodLogs ?? []) as FoodLogEntry[],
@@ -2727,23 +2403,48 @@ export default function App() {
     () => (supplementLogs ?? []) as SupplementLogEntry[],
     [supplementLogs]
   )
+  const supplementOverview = useMemo(
+    () =>
+      (supplementOverviewRaw ?? {
+        items: [],
+        logs: [],
+        legacyEntries: [],
+        isTrainingDay: false,
+      }) as unknown as DashboardSupplementOverview,
+    [supplementOverviewRaw]
+  )
 
   const loading =
     onboarding === undefined ||
     effectiveGoals === undefined ||
     preferences === undefined
 
-  const now = new Date()
+  const now = useMemo(() => new Date(), [])
 
   const workoutDates = useMemo(
     () =>
       new Set((workoutHistory ?? []).map((log: { date: string }) => log.date)),
     [workoutHistory]
   )
-  const streak = useMemo(() => calcStreak(workoutDates, now), [workoutDates])
+  const streak = useMemo(
+    () => calcStreak(workoutDates, now),
+    [now, workoutDates]
+  )
   const workoutsThisWeek = useMemo(
     () => calcWorkoutsThisWeek(workoutDates, now),
-    [workoutDates]
+    [now, workoutDates]
+  )
+  const workoutWeekDays = useMemo<WorkoutWeekDay[]>(
+    () =>
+      buildCalendarDays(now, 7).map((date) => ({
+        date,
+        label: dateKeyToCalendarDate(date).toLocaleDateString("en-US", {
+          weekday: "narrow",
+        }),
+        hasWorkout: workoutDates.has(date),
+        isToday: date === todayKey,
+      })),
+    [now, todayKey, workoutDates]
   )
 
   // ── Effects ───────────────────────────────────────────────────────────────
@@ -2829,6 +2530,10 @@ export default function App() {
           isLiveActiveWorkout(workout) && workout.slot !== recentlyAbortedSlot
       ) ?? null)
     : null
+  const activeWorkoutProgress = useMemo(
+    () => getActiveWorkoutProgress(activeWorkout),
+    [activeWorkout]
+  )
 
   useEffect(() => {
     if (!recentlyAbortedSlot || activeWorkouts === undefined) return
@@ -2887,143 +2592,112 @@ export default function App() {
       color: MACRO_COLORS.fat,
     },
   ]
-  const supplementDoneCount = completedSupplementCount(supplementEntries)
-  const supplementTargetCount = SUPPLEMENT_LIST.length
-  const supplementRemainingCount = Math.max(
-    0,
-    supplementTargetCount - supplementDoneCount
-  )
-  const waterPct = statPct(waterTotalMl, waterGoalMl) ?? 0
-  const caloriePct = statPct(foodTotals.calories, caloriesTarget) ?? 0
-  const supplementPct = statPct(supplementDoneCount, supplementTargetCount) ?? 0
-  const goalsHit =
-    (foodEntries.length > 0 && caloriesLeft >= 0 ? 1 : 0) +
-    (waterTotalMl >= waterGoalMl ? 1 : 0) +
-    (supplementRemainingCount === 0 ? 1 : 0)
-  const microTotals = useMemo(
-    () => nutritionDetailTotals(foodEntries),
+  const proteinLeft = Math.max(0, proteinTarget - foodTotals.protein)
+  const proteinProgress =
+    proteinTarget > 0
+      ? Math.min(100, (foodTotals.protein / proteinTarget) * 100)
+      : 100
+  const waterProgress =
+    waterGoalMl > 0 ? Math.min(100, (waterTotalMl / waterGoalMl) * 100) : 0
+  const mealSlots = useMemo(
+    () =>
+      DEFAULT_MEAL_CATEGORIES.map((meal) => ({
+        id: meal.id,
+        label: meal.label,
+        logged: foodEntries.some((entry) => entry.meal === meal.id),
+      })),
     [foodEntries]
   )
-  const measurements = (bodyMeasurements ?? []) as Array<{
-    weightKg?: number
-    loggedAt: string
-  }>
-  const latestMeasurement =
-    measurements.length > 0 ? measurements[measurements.length - 1] : null
-  const previousMeasurement =
-    measurements.length > 1 ? measurements[measurements.length - 2] : null
-  const weightDelta =
-    latestMeasurement?.weightKg != null && previousMeasurement?.weightKg != null
-      ? latestMeasurement.weightKg - previousMeasurement.weightKg
+  const supplementPlan = useMemo(
+    () =>
+      buildSupplementDayPlan({
+        items: supplementOverview.items,
+        logs: supplementOverview.logs,
+        date: selectedDate,
+        today: todayKey,
+        isTrainingDay: supplementOverview.isTrainingDay,
+      }),
+    [selectedDate, supplementOverview, todayKey]
+  )
+  const scheduledSupplements = supplementPlan.filter((item) => item.isScheduled)
+  const takenSupplements = supplementPlan.filter(
+    (item) => item.state === "taken"
+  )
+  const supplementDone =
+    takenSupplements.length + supplementOverview.legacyEntries.length
+  const supplementTarget = Math.max(scheduledSupplements.length, supplementDone)
+  const recovery =
+    isTodaySelected && hasCompletedWorkout
+      ? {
+          score: (proteinProgress + waterProgress) / 2,
+          proteinPercent: proteinProgress,
+          waterPercent: waterProgress,
+        }
       : null
-  const weightDetail = latestMeasurement
-    ? `${new Date(`${latestMeasurement.loggedAt}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}${weightDelta != null ? ` · ${weightDelta >= 0 ? "+" : ""}${weightDelta.toFixed(1)} kg` : ""}`
-    : "Log weight, waist, or body fat"
-  const microLines: DashboardStatLine[] = [
-    {
-      label: "Fiber",
-      value: `${fmtStatNutrient(microTotals.fiber, "g")} / 30g`,
-      progress: statPct(microTotals.fiber ?? 0, 30),
-      color: MICRO_COLORS.fiber,
-    },
-    {
-      label: "Sodium",
-      value: `${fmtStatNutrient(microTotals.sodium, "mg")} / 2,300mg`,
-      progress: statPct(microTotals.sodium ?? 0, 2300),
-      color: MICRO_COLORS.sodium,
-    },
-    {
-      label: "Sugar",
-      value: fmtStatNutrient(microTotals.sugar, "g"),
-      color: MICRO_COLORS.sugar,
-    },
-  ]
-  const workoutPreviewDetail = activeWorkout
-    ? "Active session in progress"
-    : hasCompletedWorkout
-      ? `${workoutLogs.length} workout${workoutLogs.length === 1 ? "" : "s"} logged`
-      : scheduledWorkout
-        ? `${scheduledWorkout.duration} · ${scheduledWorkout.steps.slice(0, 2).join(" · ")}`
-        : "No workout scheduled"
-  const statsByWidget: Record<WidgetId, DashboardStat> = {
-    water: {
-      title: "Daily goals",
-      value: `${goalsHit}/3`,
-      lines: [
-        {
-          label: "Calories",
-          value: `${fmtKcal(foodTotals.calories)} / ${fmtKcal(caloriesTarget)}`,
-          progress: caloriePct,
-          color: caloriesLeft < 0 ? DANGER_COLOR : FOOD_COLOR,
-        },
-        {
-          label: "Water",
-          value: `${fmtWater(waterTotalMl)} / ${fmtWater(waterGoalMl)}`,
-          progress: waterPct,
-          color: WATER_COLOR,
-        },
-        {
-          label: "Supplements",
-          value: `${supplementDoneCount}/${supplementTargetCount}`,
-          progress: supplementPct,
-          color: COMPLETE_COLOR,
-        },
-      ],
-    },
-    workout: {
-      title: "Today’s workout",
-      value: activeWorkout
-        ? "Active"
-        : hasCompletedWorkout
-          ? "Done"
-          : (scheduledWorkout?.name ?? "Rest"),
-      detail: workoutPreviewDetail,
-      lines: scheduledWorkout
-        ? scheduledWorkout.steps.slice(0, 3).map((step, index) => ({
-            label: `Step ${index + 1}`,
-            value: step,
-          }))
-        : undefined,
-      onClick: hasCompletedWorkout
-        ? () => navigate("/workouts")
-        : openWorkoutAction,
-    },
-    streak: {
-      title: "Training week",
-      value: `${workoutsThisWeek}`,
-      detail:
-        workoutsThisWeek === 1
-          ? "1 workout logged this week"
-          : `${workoutsThisWeek} workouts logged this week`,
-      lines: [
-        {
-          label: "Current streak",
-          value: `${streak} day${streak === 1 ? "" : "s"}`,
-          progress: Math.min(100, streak * 14),
-          color: COMPLETE_COLOR,
-        },
-      ],
-      onClick: () => navigate("/workouts"),
-    },
-    food: {
-      title: "Micros",
-      value:
-        (microTotals.fiber ?? 0) > 0
-          ? `${fmtStatNutrient(microTotals.fiber, "g")} fiber`
-          : "No detail",
-      detail: "Fiber, sodium, and sugar from foods with nutrition details.",
-      lines: microLines,
-      onClick: () => navigate("/foods"),
-    },
-    progress: {
-      title: "Body",
-      value:
-        latestMeasurement?.weightKg != null
-          ? `${latestMeasurement.weightKg.toFixed(1)} kg`
-          : "Check in",
-      detail: weightDetail,
-      onClick: () => navigate("/progress"),
-    },
+  const dashboardBriefing = buildDashboardBriefing({
+    activeWorkout: activeWorkout !== null,
+    completedWorkout: hasCompletedWorkout,
+    scheduledWorkout: scheduledWorkout !== null,
+    isToday: isTodaySelected,
+    foodLogCount: foodEntries.length,
+    proteinLeft,
+    waterProgress,
+    burnedCalories: calorieInfo?.burnedCalories ?? 0,
+  })
+
+  function runDashboardBriefingAction() {
+    if (
+      dashboardBriefing.action === "resume_workout" ||
+      dashboardBriefing.action === "start_workout"
+    ) {
+      openWorkoutAction()
+      return
+    }
+    if (dashboardBriefing.action === "add_water") {
+      addQuickWater()
+      return
+    }
+    if (
+      dashboardBriefing.action === "log_meal" ||
+      dashboardBriefing.action === "log_recovery_food"
+    ) {
+      setHomeAddOpen(true)
+      return
+    }
+    navigate(`/nutrition?date=${selectedDate}`, { motion: "switch" })
+  }
+  function renderDashboardTooltip({
+    id,
+    completed,
+    content,
+    children,
+    targetClassName = "w-full",
+    side = "bottom",
+    align = "center",
+  }: {
+    id: number
+    completed: boolean
+    content: React.ReactNode
+    children: React.ReactNode
+    targetClassName?: string
+    side?: React.ComponentProps<typeof GuidedTooltip>["side"]
+    align?: React.ComponentProps<typeof GuidedTooltip>["align"]
+  }) {
+    return (
+      <GuidedTooltip
+        id={id}
+        order={id}
+        completed={completed}
+        content={content}
+        targetClassName={targetClassName}
+        side={side}
+        align={align}
+        onOpenHaptic={hapticMedium}
+        onComplete={() => markTooltipCompleted({ tooltipId: id })}
+      >
+        {children}
+      </GuidedTooltip>
+    )
   }
 
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
@@ -3131,17 +2805,58 @@ export default function App() {
     navigate("/workout/active")
   }
 
+  const dashboardQuickActions: DashboardQuickAction[] = [
+    {
+      id: "food",
+      label: "Food",
+      icon: <ForkKnife size={15} weight="bold" />,
+      onClick: () => setHomeAddOpen(true),
+      tone: "food",
+    },
+    {
+      id: "water",
+      label: "Water",
+      icon: <PintGlass size={15} weight="bold" />,
+      onClick: addQuickWater,
+      tone: "water",
+    },
+    {
+      id: "workout",
+      label: "Workout",
+      icon: <Barbell size={15} weight="bold" />,
+      onClick: openWorkoutAction,
+      tone: "workout",
+    },
+    {
+      id: "scan",
+      label: "Scan",
+      icon: <Aperture size={15} weight="bold" />,
+      onClick: openSnapCamera,
+    },
+    {
+      id: "supplements",
+      label: "Supps",
+      icon: <Pill size={15} weight="bold" />,
+      onClick: () => navigate("/supplements", { motion: "switch" }),
+      badge:
+        supplementTarget > 0
+          ? `${supplementDone}/${supplementTarget}`
+          : undefined,
+    },
+  ]
+
   const homeBodyReady =
-    bodyMeasurements !== undefined &&
     preferences !== undefined &&
     effectiveGoals !== undefined &&
     foodLogs !== undefined &&
     waterLogs !== undefined &&
     supplementLogs !== undefined &&
+    supplementOverviewRaw !== undefined &&
     workoutLogsQuery !== undefined &&
     activeWorkouts !== undefined &&
     serverPresets !== undefined &&
-    schedule !== undefined
+    schedule !== undefined &&
+    bodyMeasurements !== undefined
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
@@ -3167,34 +2882,21 @@ export default function App() {
               waterMl={waterTotalMl}
               waterGoalMl={waterGoalMl}
               workoutState={workoutState}
+              workoutProgress={activeWorkoutProgress}
+              mealSlots={mealSlots}
+              onMealSlotClick={() => setHomeAddOpen(true)}
+              recovery={recovery}
+              onRecoveryClick={() =>
+                navigate(`/nutrition?date=${selectedDate}`, {
+                  motion: "switch",
+                })
+              }
+              briefing={dashboardBriefing}
+              onBriefingAction={runDashboardBriefingAction}
+              proteinLeft={proteinLeft}
+              streak={streak}
+              workoutsThisWeek={workoutsThisWeek}
               macros={macroProgress}
-              food={{
-                label: `Log ${currentMealLabel.toLowerCase()}`,
-                detail:
-                  foodEntries.length > 0
-                    ? `${foodEntries.length} logged today`
-                    : "Search, scan, or repeat meal",
-                onClick: () => setHomeAddOpen(true),
-                tooltip: (button) => (
-                  <GuidedTooltip
-                    id={DASHBOARD_LOG_DINNER_TOOLTIP_ID}
-                    order={DASHBOARD_LOG_DINNER_TOOLTIP_ID}
-                    completed={dashboardLogDinnerTooltipCompleted !== false}
-                    content={`Tap here to log ${currentMealLabel.toLowerCase()}, scan a barcode, or describe the meal.`}
-                    targetClassName="shrink-0"
-                    side="bottom"
-                    align="end"
-                    onOpenHaptic={hapticMedium}
-                    onComplete={() =>
-                      markTooltipCompleted({
-                        tooltipId: DASHBOARD_LOG_DINNER_TOOLTIP_ID,
-                      })
-                    }
-                  >
-                    {button}
-                  </GuidedTooltip>
-                ),
-              }}
               workout={{
                 label: activeWorkout
                   ? "Continue"
@@ -3203,72 +2905,55 @@ export default function App() {
                     : "Workout",
                 detail: workoutActionDetail,
                 onClick: openWorkoutAction,
+                tooltip: (button) =>
+                  renderDashboardTooltip({
+                    id: DASHBOARD_WORKOUT_TOOLTIP_ID,
+                    completed: dashboardWorkoutTooltipCompleted !== false,
+                    content: "Start, resume, or review today’s workout here.",
+                    targetClassName: "flex w-full",
+                    side: "bottom",
+                    align: "center",
+                    children: button,
+                  }),
               }}
               water={{
                 label: "Water",
                 detail: "+250 ml",
                 onClick: addQuickWater,
+                tooltip: (button) =>
+                  renderDashboardTooltip({
+                    id: DASHBOARD_WATER_TOOLTIP_ID,
+                    completed: dashboardWaterTooltipCompleted !== false,
+                    content: "Tap to add 250 ml.",
+                    targetClassName: "flex w-full",
+                    side: "bottom",
+                    align: "center",
+                    children: button,
+                  }),
               }}
             />
 
-            <InsightWidgets
-              editMode={editMode}
-              onToggleEdit={() => setEditMode((value) => !value)}
-            >
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={widgetLayout.map((widget) => widget.id)}
-                  strategy={rectSortingStrategy}
-                >
-                  <div
-                    ref={statsScrollRef}
-                    onScroll={updateStatsScrollIndicator}
-                    className="app-scroll-strip -mx-[var(--app-page-x)] mt-4 flex snap-x snap-mandatory scroll-px-[calc(var(--app-page-x)+1rem)] gap-3 overflow-x-auto overscroll-x-contain px-[calc(var(--app-page-x)+1rem)] pb-2 md:mx-0 md:grid md:scroll-px-0 md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0"
-                  >
-                    {widgetLayout.map((widget) => (
-                      <SortableWidget
-                        key={widget.id}
-                        id={widget.id}
-                        editMode={editMode}
-                        size={widget.size}
-                      >
-                        <DashboardStatCard
-                          stat={statsByWidget[widget.id]}
-                          compact={widget.size === "small"}
-                        />
-                      </SortableWidget>
-                    ))}
-                    <div
-                      aria-hidden="true"
-                      className="w-[calc(var(--app-page-x)+2rem)] shrink-0 md:hidden"
-                    />
-                  </div>
-                  <div
-                    className={cn(
-                      "home-scroll-hint md:hidden",
-                      !statsScrollIndicator.visible && "opacity-0"
-                    )}
-                    style={
-                      {
-                        "--scroll-thumb-left": `${statsScrollIndicator.leftPct}%`,
-                        "--scroll-thumb-width": `${statsScrollIndicator.thumbPct}%`,
-                      } as React.CSSProperties
-                    }
-                    aria-hidden="true"
-                  >
-                    <div className="home-scroll-hint-thumb" />
-                  </div>
-                </SortableContext>
-              </DndContext>
-            </InsightWidgets>
+            <DashboardQuickActions actions={dashboardQuickActions} />
+            <WorkoutWeekStrip
+              days={workoutWeekDays}
+              onClick={() => navigate("/workouts", { motion: "switch" })}
+            />
+
+            <DashboardProgressPanels
+              measurements={(bodyMeasurements ?? []) as BodyMeasurementEntry[]}
+              metric={settings.trendMetric ?? "bodyFatPct"}
+              onMetricChange={(metric) =>
+                void setDashboardTrendMetric({ metric })
+              }
+              tdee={calorieInfo?.tdee ?? caloriesTarget}
+              calorieTarget={caloriesTarget}
+              muscleRecovery={muscleRecovery}
+              weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+            />
 
             <TodayTimeline
               events={timelineEvents}
-              onLogFood={() => navigate("/foods")}
+              onLogFood={() => setHomeAddOpen(true)}
               onLogWater={addQuickWater}
               onDeleteEvent={deleteTimelineEvent}
             />
@@ -3288,74 +2973,108 @@ export default function App() {
         <MobileSheet
           onClose={() => setHomeAddOpen(false)}
           overlayClassName="bg-black/50 backdrop-blur-[8px]"
-          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] md:!w-full md:!max-w-sm"
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="app-surface mb-3 overflow-hidden">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="app-eyebrow">Quick add</p>
+                <h2 className="mt-1 text-[1.35rem] leading-tight font-bold">
+                  Log {currentMealLabel.toLowerCase()}
+                </h2>
+              </div>
               <button
+                type="button"
+                onClick={() => setHomeAddOpen(false)}
+                aria-label="Close quick add"
+                className="app-icon-button h-9 w-9 shrink-0 bg-muted/55 text-muted-foreground/70"
+              >
+                <X size={12} weight="bold" />
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setHomeAddOpen(false)
+                navigate("/foods/search")
+              }}
+              className="flex w-full items-center justify-between gap-3 rounded-[1.35rem] bg-foreground px-4 py-4 text-left text-background shadow-[0_12px_32px_rgba(0,0,0,0.18)] transition-opacity active:opacity-80"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] bg-background/14">
+                  <MagnifyingGlass size={19} weight="bold" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold">
+                    Search food
+                  </span>
+                  <span className="mt-0.5 block text-[12px] font-semibold text-background/68">
+                    Find an item and log exact portions
+                  </span>
+                </span>
+              </span>
+              <CaretRight size={15} className="shrink-0 text-background/55" />
+            </button>
+
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
                 onClick={() => {
                   setHomeAddOpen(false)
                   navigate("/camera?mode=barcode")
                 }}
-                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+                className="min-h-[5.75rem] rounded-[1.15rem] border border-border/55 bg-[var(--accent-food-bg)] p-3 text-left transition-opacity active:opacity-80"
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
-                    <Barcode size={16} weight="bold" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-semibold">
-                      Scan barcode
-                    </span>
-                    <span className="block text-[11.5px] text-muted-foreground/60">
-                      Packaged food
-                    </span>
-                  </span>
+                <span className="app-icon-button pointer-events-none h-9 w-9 bg-background/80 text-[var(--accent-food)]">
+                  <Barcode size={16} weight="bold" />
                 </span>
-                <CaretRight size={12} className="text-muted-foreground/35" />
+                <span className="mt-3 block text-[13px] font-bold">
+                  Scan barcode
+                </span>
+                <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/65">
+                  Packaged food
+                </span>
               </button>
 
               <button
+                type="button"
                 onClick={openSnapCamera}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+                className="min-h-[5.75rem] rounded-[1.15rem] border border-border/55 bg-muted/28 p-3 text-left transition-colors active:bg-muted/45"
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
-                    <Aperture size={17} weight="bold" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-semibold">
-                      Snap meal
-                    </span>
-                    <span className="block text-[11.5px] text-muted-foreground/60">
-                      Estimate from photo
-                    </span>
-                  </span>
+                <span className="app-icon-button pointer-events-none h-9 w-9 bg-background/80 text-muted-foreground/75">
+                  <Aperture size={17} weight="bold" />
                 </span>
-                <CaretRight size={12} className="text-muted-foreground/35" />
+                <span className="mt-3 block text-[13px] font-bold">
+                  Snap meal
+                </span>
+                <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/65">
+                  Estimate from photo
+                </span>
               </button>
 
               <button
+                type="button"
                 onClick={() => {
                   if (!requireAiAccess()) return
                   setHomeAddOpen(false)
-                  navigate("/foods?describe=1")
+                  navigate("/nutrition?describe=1")
                 }}
-                className="flex w-full items-center justify-between gap-3 border-t border-border/40 px-4 py-3.5 text-left transition-colors active:bg-muted/35"
+                className="col-span-2 flex min-h-[4.75rem] items-center justify-between gap-3 rounded-[1.15rem] border border-border/55 bg-muted/28 px-3.5 py-3 text-left transition-colors active:bg-muted/45"
               >
                 <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/60 text-muted-foreground/70">
+                  <span className="app-icon-button pointer-events-none h-10 w-10 bg-background/80 text-muted-foreground/75">
                     <Sparkle size={16} weight="fill" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[13px] font-semibold">
+                    <span className="block text-[13px] font-bold">
                       Describe meal
                     </span>
-                    <span className="block text-[11.5px] text-muted-foreground/60">
+                    <span className="mt-0.5 block text-[11.5px] font-medium text-muted-foreground/65">
                       AI builds a temporary recipe
                     </span>
                   </span>
@@ -3364,127 +3083,97 @@ export default function App() {
               </button>
             </div>
 
-            <div className="app-surface overflow-hidden">
-              <button
-                onClick={() => {
-                  setHomeAddOpen(false)
-                  navigate("/foods/search")
-                }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
-              >
-                <div className="flex items-center gap-2.5">
-                  <MagnifyingGlass
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">Search Food</span>
+            {recipes.length > 0 && (
+              <div className="app-surface mt-4 overflow-hidden">
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
+                    Saved recipes
+                  </p>
                 </div>
-                <CaretRight size={11} className="text-muted-foreground/30" />
-              </button>
-              <div className="mx-4 h-px bg-border/50" />
-              <button
-                onClick={() => {
-                  setHomeAddOpen(false)
-                  navigate("/foods/recipe/new")
-                }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
-              >
-                <div className="flex items-center gap-2.5">
-                  <ForkKnife
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">New Recipe</span>
-                </div>
-                <CaretRight size={11} className="text-muted-foreground/30" />
-              </button>
-              {recipes.length > 0 && (
-                <>
-                  <div className="mx-4 h-px bg-border/50" />
-                  <div className="px-4 pt-3 pb-1">
-                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
-                      Saved recipes
-                    </p>
-                  </div>
-                  {recipes.slice(0, 5).map((recipe) => {
-                    const totals = totalsForRecipe(recipe.ingredients)
-                    return (
-                      <div
-                        key={recipe._id ?? recipe.name}
-                        className="flex w-full items-center gap-1 px-2 py-1"
+                {recipes.slice(0, 5).map((recipe) => {
+                  const totals = totalsForRecipe(recipe.ingredients)
+                  return (
+                    <div
+                      key={recipe._id ?? recipe.name}
+                      className="flex w-full items-center gap-1 px-2 py-1"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => logRecipeFromQuickAdd(recipe)}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
                       >
+                        <div className="min-w-0 text-left">
+                          <p className="truncate text-[13px] font-medium">
+                            {recipe.name}
+                          </p>
+                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                            {totals.calories} kcal · {recipe.ingredients.length}{" "}
+                            ingredient
+                            {recipe.ingredients.length === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <CaretRight
+                          size={11}
+                          className="shrink-0 text-muted-foreground/30"
+                        />
+                      </button>
+                      {recipe._id && (
                         <button
                           type="button"
-                          onClick={() => logRecipeFromQuickAdd(recipe)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                          onClick={() => {
+                            setHomeAddOpen(false)
+                            navigate(`/foods/recipe/${recipe._id}`)
+                          }}
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                          aria-label={`Edit ${recipe.name}`}
                         >
-                          <div className="min-w-0 text-left">
-                            <p className="truncate text-[13px] font-medium">
-                              {recipe.name}
-                            </p>
-                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                              {totals.calories} kcal ·{" "}
-                              {recipe.ingredients.length} ingredient
-                              {recipe.ingredients.length === 1 ? "" : "s"}
-                            </p>
-                          </div>
-                          <CaretRight
-                            size={11}
-                            className="shrink-0 text-muted-foreground/30"
-                          />
+                          <PencilSimple size={13} weight="bold" />
                         </button>
-                        {recipe._id && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setHomeAddOpen(false)
-                              navigate(`/foods/recipe/${recipe._id}`)
-                            }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
-                            aria-label={`Edit ${recipe.name}`}
-                          >
-                            <PencilSimple size={13} weight="bold" />
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </>
-              )}
-              <div className="mx-4 h-px bg-border/50" />
-              <button
-                onClick={() => {
-                  setHomeAddOpen(false)
-                  navigate("/foods")
-                }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
-              >
-                <div className="flex items-center gap-2.5">
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="mt-4">
+              <p className="app-eyebrow px-1">More</p>
+              <div className="mt-2 grid grid-cols-2 gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHomeAddOpen(false)
+                    navigate("/foods/recipe/new")
+                  }}
+                  className="flex min-h-[4.75rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-border/50 bg-muted/24 px-2 text-center transition-colors active:bg-muted/42"
+                >
+                  <ForkKnife
+                    size={17}
+                    weight="bold"
+                    className="text-muted-foreground/68"
+                  />
+                  <span className="text-[11.5px] leading-tight font-bold">
+                    New recipe
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHomeAddOpen(false)
+                    navigate("/supplements")
+                  }}
+                  className="flex min-h-[4.75rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-border/50 bg-muted/24 px-2 text-center transition-colors active:bg-muted/42"
+                >
                   <Pill
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
+                    size={17}
+                    weight="bold"
+                    className="text-muted-foreground/68"
                   />
-                  <span className="text-[13px] font-medium">Supplements</span>
-                </div>
-                <CaretRight size={11} className="text-muted-foreground/30" />
-              </button>
-              <div className="mx-4 h-px bg-border/50" />
-              <button
-                onClick={() => {
-                  setHomeAddOpen(false)
-                  navigate("/workout/active")
-                }}
-                className="flex w-full items-center justify-between px-4 py-3.5 transition-colors active:bg-muted/40"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Barbell
-                    size={13}
-                    className="shrink-0 text-muted-foreground/50"
-                  />
-                  <span className="text-[13px] font-medium">Log Workout</span>
-                </div>
-                <CaretRight size={11} className="text-muted-foreground/30" />
-              </button>
+                  <span className="text-[11.5px] leading-tight font-bold">
+                    Supplements
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 

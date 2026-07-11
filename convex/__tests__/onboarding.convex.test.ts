@@ -18,6 +18,7 @@ describe("onboarding Convex functions", () => {
         age: 25,
         heightCm: 170,
         goal: "lose",
+        experienceLevel: "beginner",
       }),
     ).rejects.toThrow();
   });
@@ -138,6 +139,7 @@ describe("onboarding Convex functions", () => {
         age: 26,
         heightCm: 170,
         goal: "lose",
+        experienceLevel: "beginner",
         nutritionGoal: "lose_fat",
         consent: {
           dataUse: true,
@@ -172,6 +174,7 @@ describe("onboarding Convex functions", () => {
         age: 26,
         heightCm: 170,
         goal: "lose",
+        experienceLevel: "beginner",
         nutritionGoal: "lose_fat",
         consent: {
           dataUse: true,

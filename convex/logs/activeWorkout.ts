@@ -219,42 +219,42 @@ export const finishActive = mutation({
       throw new Error("No active workout found");
     }
 
-    // Check if already completed
-    if (active.completedAt) {
-      throw new Error("Workout already completed");
-    }
-
-    // Mark as completed
-    await ctx.db.patch(active._id, {
-      completedAt: Date.now(),
-    });
-
-    // Log the workout
     const now = Date.now();
     const today = new Date(now).toISOString().split("T")[0];
-
-    const existing = await ctx.db
+    const sessionId = String(active._id);
+    const existingLog = await ctx.db
       .query("workoutLogs")
-      .withIndex("by_userId_date", (q) =>
-        q.eq("userId", user._id).eq("date", today)
+      .withIndex("by_userId_and_date_and_sessionId", (q) =>
+        q.eq("userId", user._id).eq("date", today).eq("sessionId", sessionId),
       )
-      .first();
+      .unique();
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        exercises: [...(existing.exercises || []), ...args.exercises],
-        durationSeconds: (existing.durationSeconds || 0) + args.durationSeconds,
-        completedAt: now,
-      });
-    } else {
-      await ctx.db.insert("workoutLogs", {
-        userId: user._id,
-        date: today,
-        exercises: args.exercises,
-        durationSeconds: args.durationSeconds,
-        completedAt: now,
-      });
+    // A retry after an interrupted request is a successful no-op once the
+    // session log exists. If a request stopped after marking the active record
+    // complete but before inserting the log, the retry safely finishes it.
+    if (existingLog) {
+      if (!active.completedAt) {
+        await ctx.db.patch(active._id, { completedAt: now });
+      }
+      return { ok: true };
     }
+
+    if (!active.completedAt) {
+      await ctx.db.patch(active._id, { completedAt: now });
+    }
+
+    // A completed active workout is a distinct session. This prevents a second
+    // workout on the same day from overwriting or silently merging into the
+    // first one.
+    await ctx.db.insert("workoutLogs", {
+      userId: user._id,
+      date: today,
+      sessionId,
+      slot: args.slot,
+      exercises: args.exercises,
+      durationSeconds: args.durationSeconds,
+      completedAt: now,
+    });
 
     return { ok: true };
   },
