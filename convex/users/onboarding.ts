@@ -33,6 +33,13 @@ export const save = mutation({
       v.literal("health"),
       v.literal("performance"),
     ),
+    experienceLevel: v.optional(
+      v.union(
+        v.literal("beginner"),
+        v.literal("intermediate"),
+        v.literal("advanced"),
+      ),
+    ),
     nutritionGoal: v.optional(
       v.union(
         v.literal("maintain"),
@@ -112,7 +119,7 @@ export const save = mutation({
         userId: user._id,
         ...args,
         updatedAt: now,
-        shownTooltips: []
+        shownTooltips: [],
       });
     }
   },

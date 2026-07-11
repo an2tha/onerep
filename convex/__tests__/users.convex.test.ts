@@ -586,4 +586,67 @@ describe("users Convex functions", () => {
       });
     });
   });
+
+  test("workout calories connect training logs to nutrition targets", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "workout-fuel-user" }, async () => {
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2026-07-10",
+        exercises: [],
+        durationSeconds: 3600,
+      });
+
+      const fixedTarget = await t.query(api.users.users.getEffectiveGoals, {
+        date: "2026-07-10",
+      });
+      expect(fixedTarget).toMatchObject({
+        burnedCalories: 375,
+        isTrainingDay: true,
+        workoutAdjustmentEnabled: false,
+        effective: { calories: 2000 },
+      });
+
+      await t.mutation(api.users.users.setWorkoutAdjustment, { enabled: true });
+      const adjustedTarget = await t.query(api.users.users.getEffectiveGoals, {
+        date: "2026-07-10",
+      });
+      expect(adjustedTarget).toMatchObject({
+        burnedCalories: 375,
+        isTrainingDay: true,
+        workoutAdjustmentEnabled: true,
+        effective: { calories: 2375 },
+      });
+    });
+  });
+
+  test("two daily sessions aggregate into one nutrition adjustment", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "two-session-fuel-user" }, async () => {
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2026-07-11",
+        sessionId: "strength-am",
+        slot: 1,
+        exercises: [],
+        durationSeconds: 1800,
+      });
+      await t.mutation(api.logs.workouts.completion, {
+        date: "2026-07-11",
+        sessionId: "cardio-pm",
+        slot: 2,
+        exercises: [],
+        durationSeconds: 1800,
+      });
+      await t.mutation(api.users.users.setWorkoutAdjustment, { enabled: true });
+
+      await expect(
+        t.query(api.users.users.getEffectiveGoals, { date: "2026-07-11" }),
+      ).resolves.toMatchObject({
+        isTrainingDay: true,
+        burnedCalories: 375,
+        effective: { calories: 2375 },
+      });
+    });
+  });
 });

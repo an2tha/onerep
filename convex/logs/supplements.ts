@@ -418,7 +418,7 @@ export const getOverview = query({
       };
     }
 
-    const [items, logs, legacyDoc, recentLogs, workoutLog] = await Promise.all([
+    const [items, logs, legacyDoc, recentLogs, workoutLogs] = await Promise.all([
       ctx.db
         .query("supplementItems")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -447,7 +447,7 @@ export const getOverview = query({
         .withIndex("by_userId_date", (q) =>
           q.eq("userId", user._id).eq("date", args.date),
         )
-        .unique(),
+        .take(1),
     ]);
 
     const legacyEntries = (legacyDoc?.entries ?? []).map((entry: unknown) => {
@@ -481,7 +481,7 @@ export const getOverview = query({
           nutrients: entry.nutrients,
         })),
       ]),
-      isTrainingDay: !!workoutLog,
+      isTrainingDay: workoutLogs.length > 0,
     };
   },
 });

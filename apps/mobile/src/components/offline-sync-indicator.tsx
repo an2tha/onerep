@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { CloudArrowUp, Warning, WifiSlash, X } from "@phosphor-icons/react"
+import {
+  ArrowsClockwise,
+  CloudArrowUp,
+  Warning,
+  WifiSlash,
+  X,
+} from "@phosphor-icons/react"
 import { useConvexAuth } from "convex/react"
 import { useAppAuth } from "@/lib/auth-client"
 import {
@@ -35,21 +41,21 @@ export function OfflineSyncIndicator() {
     setOfflineQueueOwner(userId ?? null)
   }, [userId])
 
-  const refresh = useCallback((options: { clearError?: boolean } = {}) => {
+  const refresh = useCallback(() => {
     setOnline(onlineNow())
     setSummary(getOfflineQueueSummary())
-    if (options.clearError) setSyncError(null)
   }, [])
 
   const tryFlush = useCallback(() => {
-    refresh({ clearError: true })
+    refresh()
     if (!canSync || syncingRef.current) return
 
     syncingRef.current = true
     setSyncing(true)
+    setSyncError(null)
     void flushOfflineQueue()
       .then(() => {
-        refresh({ clearError: true })
+        refresh()
       })
       .catch((error) => {
         setOnline(onlineNow())
@@ -64,7 +70,7 @@ export function OfflineSyncIndicator() {
 
   useEffect(() => {
     const handleOffline = () => {
-      refresh({ clearError: true })
+      refresh()
     }
 
     const unsubscribe = subscribeOfflineQueue(refresh)
@@ -97,6 +103,7 @@ export function OfflineSyncIndicator() {
     lastError: syncError ?? summary.lastError,
   })
   const accent = status.tone === "error" ? danger : caution
+  const actionLabel = status.tone === "error" ? "Retry" : "Sync"
 
   return (
     <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+10px)] z-[10000] flex justify-center px-4">
@@ -128,12 +135,8 @@ export function OfflineSyncIndicator() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] leading-tight font-bold">
-            {status.title}
-          </p>
-          <p className="truncate text-[10.5px] opacity-65">
-            {status.body}
-          </p>
+          <p className="text-[12px] leading-tight font-bold">{status.title}</p>
+          <p className="truncate text-[10.5px] opacity-65">{status.body}</p>
         </div>
         {status.canRetry && (
           <button
@@ -141,9 +144,19 @@ export function OfflineSyncIndicator() {
             onClick={tryFlush}
             disabled={syncing}
             aria-busy={syncing}
+            aria-label={
+              status.tone === "error"
+                ? "Retry offline sync"
+                : "Sync saved changes"
+            }
             className="rounded-[8px] bg-foreground px-2.5 py-1 text-[10px] font-bold text-background"
           >
-            {syncing ? "Syncing" : "Sync"}
+            <span className="inline-flex items-center gap-1">
+              {syncing && (
+                <ArrowsClockwise size={11} className="animate-spin" />
+              )}
+              {syncing ? "Syncing" : actionLabel}
+            </span>
           </button>
         )}
         <button

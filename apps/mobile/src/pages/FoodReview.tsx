@@ -8,6 +8,7 @@ import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { getFoodDetail } from "@/lib/openfoodfacts"
+import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import {
   currentDateKey,
   defaultMeal,
@@ -35,7 +36,9 @@ export default function FoodReview() {
   const [added, setAdded] = useState(false)
 
   const preferences = useQuery(api.users.users.getPreferences, {})
-  const date = currentDateKey(preferences?.lastActiveTimezone || detectTimeZone())
+  const date = currentDateKey(
+    preferences?.lastActiveTimezone || detectTimeZone()
+  )
   const addFoodEntry = useOfflineMutation(
     api.logs.foodLogs.addEntry,
     "logs.foodLogs.addEntry"
@@ -86,8 +89,7 @@ export default function FoodReview() {
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
-    const factor = grams / 100
-    const round = (value: number) => Math.round(value * factor * 10) / 10
+    const macros = scaledFoodMacros(food, grams, detail)
     const product = detail?.openFoodFacts ?? food.openFoodFacts
     const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
@@ -95,10 +97,7 @@ export default function FoodReview() {
         grams === 100 && !portion
           ? food.name
           : `${food.name} (${portion ? foodPortionLabel(portion) : `${grams} g`})`,
-      calories: Math.round(Number(food.calories) * factor),
-      protein: round(Number(food.protein)),
-      carbs: round(Number(food.carbs)),
-      fat: round(Number(food.fat)),
+      ...macros,
       loggedAt: new Date().toISOString(),
       meal,
       source: "openfoodfacts" as const,
@@ -114,7 +113,7 @@ export default function FoodReview() {
     await addFoodEntry({ date, entry })
     posthog.capture("food_logged", {
       food_name: food.name,
-      calories: Math.round(Number(food.calories) * factor),
+      calories: macros.calories,
       grams,
       meal,
       source: "search_review_page",

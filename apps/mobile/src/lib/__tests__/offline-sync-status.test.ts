@@ -65,6 +65,21 @@ describe("offline sync status copy", () => {
     })
   })
 
+  test("confirms that online changes are backed up once the queue is clear", () => {
+    expect(
+      offlineSyncStatusCopy({
+        online: true,
+        canSync: true,
+        total: 0,
+      })
+    ).toEqual({
+      title: "All changes synced",
+      body: "Your latest changes are backed up.",
+      tone: "synced",
+      canRetry: false,
+    })
+  })
+
   test("shows an in-progress state while a flush is running", () => {
     expect(
       offlineSyncStatusCopy({

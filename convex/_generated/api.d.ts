@@ -20,6 +20,7 @@ import type * as lib_deleteUserData from "../lib/deleteUserData.js";
 import type * as lib_estimateOnboardingCalories from "../lib/estimateOnboardingCalories.js";
 import type * as lib_nutritionPlan from "../lib/nutritionPlan.js";
 import type * as lib_onboardingProfiles from "../lib/onboardingProfiles.js";
+import type * as lib_subscriptionPrice from "../lib/subscriptionPrice.js";
 import type * as logs_activeWorkout from "../logs/activeWorkout.js";
 import type * as logs_calories from "../logs/calories.js";
 import type * as logs_foodLogs from "../logs/foodLogs.js";
@@ -58,6 +59,7 @@ declare const fullApi: ApiFromModules<{
   "lib/estimateOnboardingCalories": typeof lib_estimateOnboardingCalories;
   "lib/nutritionPlan": typeof lib_nutritionPlan;
   "lib/onboardingProfiles": typeof lib_onboardingProfiles;
+  "lib/subscriptionPrice": typeof lib_subscriptionPrice;
   "logs/activeWorkout": typeof logs_activeWorkout;
   "logs/calories": typeof logs_calories;
   "logs/foodLogs": typeof logs_foodLogs;
@@ -107,4 +109,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   crons: import("@convex-dev/crons/_generated/component.js").ComponentApi<"crons">;
   betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+  revenuecat: import("convex-revenuecat/_generated/component.js").ComponentApi<"revenuecat">;
 };

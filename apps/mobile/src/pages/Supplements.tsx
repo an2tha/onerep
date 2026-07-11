@@ -21,6 +21,7 @@ import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useBottomBarAction } from "@/components/bottom-bar"
+import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
@@ -2145,17 +2146,25 @@ export default function Supplements() {
                           {bulkLogging ? "Logging" : `Take ${remainingScheduledCount}`}
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTab("catalog")
-                          setSheet({ kind: "edit" })
-                        }}
-                        className="app-button app-button-secondary motion-tactile"
+                      <AppTooltip
+                        id={APP_TOOLTIP_IDS.supplementsCreate}
+                        content="Add supplements here, then schedule them by training day, rest day, or every day."
+                        targetClassName="inline-flex"
+                        side="bottom"
+                        align="end"
                       >
-                        <Plus size={11} weight="bold" />
-                        Add
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTab("catalog")
+                            setSheet({ kind: "edit" })
+                          }}
+                          className="app-button app-button-secondary motion-tactile"
+                        >
+                          <Plus size={11} weight="bold" />
+                          Add
+                        </button>
+                      </AppTooltip>
                     </div>
                   }
                 />

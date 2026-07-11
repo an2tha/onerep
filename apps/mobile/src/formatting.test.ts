@@ -5,8 +5,7 @@
  * implementations here and verify their logic matches what is in the source.
  *
  * Source locations:
- *  - fmtWater: apps/mobile/src/App.tsx (and Foods.tsx – identical)
- *  - fmtMl:    apps/mobile/src/pages/Water.tsx (identical logic to fmtWater)
+ *  - fmtWater: apps/mobile/src/App.tsx and apps/mobile/src/pages/Nutrition.tsx
  *  - getInitials: apps/mobile/src/App.tsx
  */
 
@@ -16,8 +15,7 @@ import assert from "node:assert/strict"
 // ─── Mirror implementations (kept in sync with source) ───────────────────────
 
 /**
- * Mirror of fmtWater from App.tsx:1034–1040 and Foods.tsx (identical).
- * Also identical to fmtMl in Water.tsx.
+ * Mirror of fmtWater from App.tsx and Nutrition.tsx.
  */
 function fmtWater(ml: number): string {
   if (ml >= 1000) {

@@ -19,6 +19,8 @@ import {
   Plus,
   Sparkle,
   Timer,
+  TrendUp,
+  Warning,
   X,
 } from "@phosphor-icons/react"
 import {
@@ -42,6 +44,7 @@ import {
   searchExercises,
   visiblePopularExerciseSearches,
   type Exercise,
+  type ExerciseCategory,
 } from "@/lib/exercise-catalog"
 import {
   readRecentExerciseSearches,
@@ -74,6 +77,7 @@ import {
 } from "@/lib/apple-health"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@/components/workout/apple-fitness-set-row"
+import { suggestDoubleProgression } from "@/lib/workout-progression"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1022,7 +1026,8 @@ function readActiveWorkoutDraft(slot: 1 | 2): LocalActiveWorkoutDraft | null {
         typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
       exerciseData: parsed.exerciseData as Record<string, ExerciseState>,
       items: parsed.items as WorkoutItem[],
-      presetId: typeof parsed.presetId === "string" ? parsed.presetId : undefined,
+      presetId:
+        typeof parsed.presetId === "string" ? parsed.presetId : undefined,
       savedAt: parsed.savedAt,
       slot,
       startedAt: parsed.startedAt,
@@ -1985,9 +1990,7 @@ function ActiveSetRow({
           value: type,
           label: SET_CFG[type].label,
         }))}
-        onTypeChange={(value) =>
-          onUpdate({ ...set, type: value as SetType })
-        }
+        onTypeChange={(value) => onUpdate({ ...set, type: value as SetType })}
         onDelete={onDelete}
         onToggleComplete={toggleDone}
         onWeightClick={() => setShowWeight(true)}
@@ -2192,7 +2195,9 @@ function CardioDetailsPanel({
             <button
               type="button"
               onClick={() =>
-                appleHealthLoading ? undefined : setShowAppleHealthWorkouts(false)
+                appleHealthLoading
+                  ? undefined
+                  : setShowAppleHealthWorkouts(false)
               }
               disabled={appleHealthLoading}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
@@ -2567,6 +2572,26 @@ function ActiveExerciseCard({
   const doneSets = data.sets.filter((s) => s.completed).length
   const totalRest = data.sets.reduce((sum, set) => sum + set.restSeconds, 0)
   const selectedBarType = normalizeBarType(data.barType, data.barWeight)
+  const progression = useMemo(
+    () =>
+      lastSession
+        ? suggestDoubleProgression(lastSession.sets, data.sets.length)
+        : null,
+    [data.sets.length, lastSession]
+  )
+
+  function applyProgression() {
+    if (!progression) return
+    onUpdate({
+      ...data,
+      sets: data.sets.map((set, index) => {
+        const target = progression.targets[index]
+        return target
+          ? { ...set, weight: String(target.weight), reps: String(target.reps) }
+          : set
+      }),
+    })
+  }
 
   return (
     <div
@@ -2716,9 +2741,20 @@ function ActiveExerciseCard({
                         day: "numeric",
                       })}
                     </span>
-                    <span className="min-w-0 truncate text-[10.5px] text-muted-foreground/55 tabular-nums">
+                    <span className="min-w-0 flex-1 truncate text-[10.5px] text-muted-foreground/55 tabular-nums">
                       {summary}
                     </span>
+                    {progression && doneSets === 0 && (
+                      <button
+                        type="button"
+                        onClick={applyProgression}
+                        aria-label={`Apply progression: ${progression.label}`}
+                        className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-foreground/[0.06] px-2 text-[9px] font-bold text-foreground/65 transition-colors active:bg-foreground/[0.11]"
+                      >
+                        <TrendUp size={11} weight="bold" />
+                        {progression.label}
+                      </button>
+                    )}
                   </div>
                 )
               })()}
@@ -2776,9 +2812,7 @@ function ActiveExerciseCard({
                   }}
                 >
                   <Plus size={14} weight="bold" />
-                  <span className="text-[13px] font-bold">
-                    Add set
-                  </span>
+                  <span className="text-[13px] font-bold">Add set</span>
                 </button>
               </>
             )}
@@ -2803,6 +2837,7 @@ function formatSessionDate(date: string) {
 // ─── Exercise history sheet ───────────────────────────────────────────────────
 
 type HistorySession = {
+  id?: string
   date: string
   sets: Array<{
     weight: number
@@ -3087,7 +3122,7 @@ function ExerciseHistorySheet({
               <div className="max-h-[240px] overflow-y-auto">
                 {[...completedSessions].reverse().map((session, i) => (
                   <div
-                    key={session.date}
+                    key={session.id ?? `${session.date}-${i}`}
                     className="flex items-start gap-3 px-4 py-2.5"
                     style={
                       i > 0
@@ -3135,6 +3170,9 @@ function AddExerciseSheet({
     "idle" | "loading" | "done" | "error"
   >("idle")
   const [searchAttempt, setSearchAttempt] = useState(0)
+  const [activeCategory, setActiveCategory] = useState<ExerciseCategory | null>(
+    null
+  )
   const [remoteExercises, setRemoteExercises] = useState<Exercise[]>([])
   const [recentExercises, setRecentExercises] = useState(() =>
     readRecentExerciseSearches()
@@ -3147,18 +3185,26 @@ function AddExerciseSheet({
     const t = setTimeout(() => inputRef.current?.focus(), 80)
     return () => clearTimeout(t)
   }, [])
+
   useEffect(() => {
     const q = query.trim()
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    searchSeqRef.current += 1
-    const delay = q.length === 0 ? 0 : 280
+
+    const requestSeq = ++searchSeqRef.current
+    const shouldSearch = q.length >= 2 || activeCategory !== null
+    if (!shouldSearch) {
+      setRemoteExercises([])
+      setSearchState("idle")
+      return
+    }
+
+    setSearchState("loading")
     debounceRef.current = setTimeout(async () => {
-      const requestSeq = ++searchSeqRef.current
-      setSearchState("loading")
       try {
         const results = await searchExercises({
           query: q,
-          limit: 25,
+          categories: activeCategory ? [activeCategory] : undefined,
+          limit: 30,
         })
         if (requestSeq !== searchSeqRef.current) return
         setRemoteExercises(results as Exercise[])
@@ -3168,24 +3214,32 @@ function AddExerciseSheet({
         setRemoteExercises([])
         setSearchState("error")
       }
-    }, delay)
+    }, 280)
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, searchAttempt])
+  }, [activeCategory, query, searchAttempt])
+
   const filtered = remoteExercises
   const recentSuggestions = visibleRecentExerciseSearches(
     addedIds,
     recentExercises
+  ).filter(
+    (exercise) => !activeCategory || exercise.category === activeCategory
   )
   const recentSuggestionIds = new Set(
     recentSuggestions.map((exercise) => exercise.id)
   )
-  const popularSuggestions = visiblePopularExerciseSearches(addedIds).filter(
-    (exercise) => !recentSuggestionIds.has(exercise.id)
-  )
+  const popularSuggestions = visiblePopularExerciseSearches(addedIds)
+    .filter((exercise) => !recentSuggestionIds.has(exercise.id))
+    .filter(
+      (exercise) => !activeCategory || exercise.category === activeCategory
+    )
+
   function chooseSuggestion(exercise: ExerciseSearchSuggestion) {
     setQuery(exercise.name)
+    setActiveCategory(exercise.category)
     inputRef.current?.focus()
   }
 
@@ -3196,7 +3250,7 @@ function AddExerciseSheet({
   function addAndRememberExercise(exercise: Exercise) {
     onAdd(exercise)
     setRecentExercises(rememberRecentExerciseSearch(exercise))
-    requestClose()
+    hapticSelection()
   }
 
   function requestClose() {
@@ -3216,20 +3270,39 @@ function AddExerciseSheet({
     >
       <div
         className={cn(
-          "sheet-panel flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-[28px] md:border md:border-border/45 md:shadow-2xl",
+          "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-[28px] md:border md:border-border/45 md:shadow-2xl",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add exercises"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3">
+          <button
+            type="button"
+            onClick={requestClose}
+            aria-label="Close exercise search"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/55 transition-colors active:bg-muted/60 active:text-foreground"
+          >
+            <X size={16} weight="bold" />
+          </button>
           <div className="relative flex-1">
-            <MagnifyingGlass
-              size={15}
-              className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground/40"
-            />
+            {searchState === "loading" ? (
+              <div className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/70" />
+            ) : (
+              <MagnifyingGlass
+                size={15}
+                className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground/40"
+              />
+            )}
             <input
               ref={inputRef}
               type="search"
+              name="exercise-search-query"
+              aria-label="Search exercises"
+              aria-busy={searchState === "loading"}
+              autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
@@ -3237,84 +3310,81 @@ function AddExerciseSheet({
             />
             {query && (
               <button
-                onClick={() => setQuery("")}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground/40 active:text-foreground"
+                type="button"
+                onClick={() => {
+                  setQuery("")
+                  setActiveCategory(null)
+                }}
+                aria-label="Clear exercise search"
+                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground/40 active:text-foreground"
               >
                 <X size={13} weight="bold" />
               </button>
             )}
           </div>
-          <button
-            onClick={requestClose}
-            className="shrink-0 text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
-          >
-            Done
-          </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <ExerciseCategoryFilters
+          activeCategory={activeCategory}
+          onChange={setActiveCategory}
+        />
+        <div
+          className="flex-1 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom,2rem))]"
+          aria-live="polite"
+        >
           {searchState === "loading" ? (
-            <div className="flex flex-col items-center gap-2 py-20">
+            <div className="flex flex-col items-center gap-2 py-16">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/70" />
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                Searching exercises…
+              <p className="text-[12px] font-medium text-muted-foreground/65">
+                Finding exercises
               </p>
             </div>
           ) : filtered.length > 0 ? (
-            <div className="flex flex-col divide-y divide-border/30">
-              {filtered.map((ex) => {
-                const already = addedIds.includes(ex.id)
-                return (
-                  <div
-                    key={ex.id}
-                    className={cn(
-                      "flex items-stretch",
-                      already && "opacity-50"
-                    )}
-                  >
-                    <div className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pr-2 pl-4 text-left">
-                      <p className="truncate text-[14px] leading-snug font-semibold">
-                        {ex.name}
-                      </p>
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground/55">
-                        {ex.muscle}
-                      </p>
-                      {already && (
-                        <p className="mt-1 text-[10.5px] font-semibold text-muted-foreground/45">
-                          already added
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (!already) {
-                          addAndRememberExercise(ex)
-                        }
-                      }}
-                      disabled={already}
-                      className="flex items-center pr-4 pl-2 text-muted-foreground/40 transition-colors active:text-foreground disabled:pointer-events-none"
-                    >
-                      {already ? (
-                        <Check
-                          size={14}
-                          weight="bold"
-                          className="text-foreground/60"
-                        />
-                      ) : (
-                        <Plus size={16} weight="bold" />
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
+            <>
+              <p className="mt-4 mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                {filtered.length} result{filtered.length === 1 ? "" : "s"}
+              </p>
+              <div className="divide-y divide-border/35 overflow-hidden rounded-[20px] border border-border/40 bg-card/45">
+                {filtered.map((ex) => {
+                  const already = addedIds.includes(ex.id)
+                  return (
+                    <ExerciseSearchResult
+                      key={ex.id}
+                      exercise={ex}
+                      added={already}
+                      onAdd={() => addAndRememberExercise(ex)}
+                    />
+                  )
+                })}
+              </div>
+            </>
+          ) : searchState === "idle" ? (
+            <div className="grid gap-5 pt-8">
+              <div className="app-empty justify-center text-center">
+                <MagnifyingGlass
+                  size={18}
+                  className="shrink-0 text-muted-foreground/35"
+                />
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  {query.trim()
+                    ? "Type one more letter to search."
+                    : "Search a movement or browse below."}
+                </p>
+              </div>
+              <ExerciseSuggestionGroups
+                recentSuggestions={recentSuggestions}
+                popularSuggestions={popularSuggestions}
+                onChoose={chooseSuggestion}
+              />
             </div>
           ) : searchState === "done" ? (
-            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-[13px] font-semibold text-muted-foreground">
-                  No exercises found
-                </p>
-                <p className="text-[11px] text-muted-foreground/50">
-                  Try a different search
+            <div className="flex flex-col items-center gap-5 px-2 py-16 text-center">
+              <div className="app-empty justify-center">
+                <MagnifyingGlass
+                  size={18}
+                  className="shrink-0 text-muted-foreground/35"
+                />
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  No matches{query.trim() ? ` for “${query.trim()}”` : ""}.
                 </p>
               </div>
               <ExerciseSuggestionGroups
@@ -3324,20 +3394,18 @@ function AddExerciseSheet({
               />
             </div>
           ) : searchState === "error" ? (
-            <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
-              <div className="flex flex-col items-center gap-2">
-                <p className="text-[13px] font-semibold text-muted-foreground">
-                  Search failed
-                </p>
-                <p className="text-[11px] text-muted-foreground/50">
-                  Check your connection and try again
+            <div className="flex flex-col items-center gap-5 px-2 py-16 text-center">
+              <div className="app-empty justify-center">
+                <Warning size={18} className="shrink-0 text-destructive/70" />
+                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                  Exercise search is unavailable.
                 </p>
                 <button
                   type="button"
                   onClick={retrySearch}
                   className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
                 >
-                  Retry search
+                  Retry
                 </button>
               </div>
               <ExerciseSuggestionGroups
@@ -3353,9 +3421,138 @@ function AddExerciseSheet({
   )
 }
 
-type ExerciseSearchSuggestion =
-  | Exercise
-  | RecentExerciseSearch
+type ExerciseSearchSuggestion = Exercise | RecentExerciseSearch
+
+const EXERCISE_CATEGORY_FILTERS: Array<{
+  category: ExerciseCategory
+  label: string
+}> = [
+  { category: "strength", label: "Strength" },
+  { category: "cardio", label: "Cardio" },
+  { category: "mobility", label: "Mobility" },
+  { category: "core", label: "Core" },
+]
+
+function ExerciseCategoryGlyph({
+  category,
+  size = 14,
+}: {
+  category: ExerciseCategory
+  size?: number
+}) {
+  if (category === "strength") return <Barbell size={size} weight="bold" />
+  if (category === "cardio") return <TrendUp size={size} weight="bold" />
+  if (category === "mobility") return <Sparkle size={size} weight="bold" />
+  return <ChartLine size={size} weight="bold" />
+}
+
+function ExerciseCategoryFilters({
+  activeCategory,
+  onChange,
+}: {
+  activeCategory: ExerciseCategory | null
+  onChange: (category: ExerciseCategory | null) => void
+}) {
+  return (
+    <div
+      className="flex gap-2 overflow-x-auto border-b border-border/30 px-4 py-2.5 [&::-webkit-scrollbar]:hidden"
+      aria-label="Filter exercises by type"
+      role="group"
+    >
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        aria-label="Show all exercise types"
+        aria-pressed={activeCategory === null}
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+          activeCategory === null
+            ? "border-foreground bg-foreground text-background"
+            : "border-border/50 bg-muted/35 text-muted-foreground/55 active:bg-muted/65"
+        )}
+      >
+        <MagnifyingGlass size={14} weight="bold" />
+      </button>
+      {EXERCISE_CATEGORY_FILTERS.map(({ category, label }) => {
+        const active = activeCategory === category
+        return (
+          <button
+            key={category}
+            type="button"
+            onClick={() => onChange(active ? null : category)}
+            aria-label={`${active ? "Clear" : "Show"} ${label} exercises`}
+            aria-pressed={active}
+            title={label}
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+              active
+                ? "border-foreground bg-foreground text-background"
+                : "border-border/50 bg-muted/35 text-muted-foreground/55 active:bg-muted/65"
+            )}
+          >
+            <ExerciseCategoryGlyph category={category} />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function ExerciseSearchResult({
+  exercise,
+  added,
+  onAdd,
+}: {
+  exercise: Exercise
+  added: boolean
+  onAdd: () => void
+}) {
+  return (
+    <button
+      type="button"
+      disabled={added}
+      onClick={onAdd}
+      aria-label={
+        added ? `${exercise.name}, already added` : `Add ${exercise.name}`
+      }
+      className={cn(
+        "flex w-full items-center gap-3 px-3 py-3 text-left transition-colors active:bg-muted/55 disabled:cursor-default",
+        added && "opacity-45"
+      )}
+    >
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+        style={{
+          backgroundColor: `${exercise.color}1F`,
+          color: exercise.color,
+        }}
+      >
+        <ExerciseCategoryGlyph category={exercise.category} size={15} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13.5px] leading-snug font-semibold">
+          {exercise.name}
+        </p>
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-[10.5px] text-muted-foreground/50">
+            {exercise.muscle}
+          </span>
+          <span className="text-[10px] text-muted-foreground/25">·</span>
+          <span className="shrink-0 text-[10.5px] text-muted-foreground/50">
+            {exercise.sets}
+          </span>
+        </div>
+      </div>
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/65">
+        {added ? (
+          <Check size={14} weight="bold" className="text-foreground/70" />
+        ) : (
+          <Plus size={15} weight="bold" />
+        )}
+      </span>
+    </button>
+  )
+}
 
 function ExerciseSuggestionGroups({
   recentSuggestions,
@@ -3371,14 +3568,14 @@ function ExerciseSuggestionGroups({
   }
 
   return (
-    <div className="flex w-full flex-col gap-4">
+    <div className="flex w-full flex-col gap-5">
       <ExerciseSuggestionChips
         label="Recent"
         suggestions={recentSuggestions}
         onChoose={onChoose}
       />
       <ExerciseSuggestionChips
-        label="Try instead"
+        label="Popular"
         suggestions={popularSuggestions}
         onChoose={onChoose}
       />
@@ -3399,18 +3596,29 @@ function ExerciseSuggestionChips({
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+      <p className="mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
         {label}
       </p>
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="grid gap-2 sm:grid-cols-2">
         {suggestions.map((exercise) => (
           <button
             key={exercise.id}
             type="button"
             onClick={() => onChoose(exercise)}
-            className="flex min-h-9 items-center rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+            className="flex min-h-11 min-w-0 items-center gap-2 rounded-[14px] border border-border/45 bg-card/45 px-3 text-left transition-all active:scale-[0.99] active:bg-muted/60"
           >
-            {exercise.name}
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+              style={{
+                backgroundColor: `${exercise.color}1F`,
+                color: exercise.color,
+              }}
+            >
+              <ExerciseCategoryGlyph category={exercise.category} size={13} />
+            </span>
+            <span className="truncate text-[12px] font-semibold text-foreground/75">
+              {exercise.name}
+            </span>
           </button>
         ))}
       </div>
@@ -3896,9 +4104,7 @@ function renderSupersetItem(
           </span>
         </div>
       )}
-      <div
-        className="flex items-center justify-between gap-3 border-b border-border/45 bg-foreground/[0.035] px-3 py-2.5"
-      >
+      <div className="flex items-center justify-between gap-3 border-b border-border/45 bg-foreground/[0.035] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div
             {...makeDragHandlers(key)}
@@ -4081,8 +4287,9 @@ export default function ActiveWorkout() {
     exData,
     exerciseLookup
   )
-  const dragLabel =
-    drag?.active ? workoutDragLabel(drag.itemKey, items, exerciseLookup) : ""
+  const dragLabel = drag?.active
+    ? workoutDragLabel(drag.itemKey, items, exerciseLookup)
+    : ""
 
   const lastSessionMap = useMemo(() => {
     if (!workoutHistory)
@@ -4156,39 +4363,42 @@ export default function ActiveWorkout() {
       }
       setWorkoutSyncStatus("pending")
 
-      syncTimeoutRef.current = setTimeout(async () => {
-        if (abortingRef.current) return
-        if (!isDirtyRef.current) return
-        isSyncingRef.current = true
-        syncTimeoutRef.current = null
-        try {
-          while (!abortingRef.current && isDirtyRef.current) {
-            const syncVersion = dirtyVersionRef.current
-            setWorkoutSyncStatus("saving")
-            await updateActive({
-              slot: slotRef.current,
-              items: itemsRef.current,
-              exerciseData: exDataRef.current,
-              elapsedSeconds: elapsedRef.current,
-            })
-            if (dirtyVersionRef.current === syncVersion) {
-              isDirtyRef.current = false
-              setWorkoutSyncError("")
-              setWorkoutSyncStatus("saved")
-            } else {
-              setWorkoutSyncStatus("pending")
+      syncTimeoutRef.current = setTimeout(
+        async () => {
+          if (abortingRef.current) return
+          if (!isDirtyRef.current) return
+          isSyncingRef.current = true
+          syncTimeoutRef.current = null
+          try {
+            while (!abortingRef.current && isDirtyRef.current) {
+              const syncVersion = dirtyVersionRef.current
+              setWorkoutSyncStatus("saving")
+              await updateActive({
+                slot: slotRef.current,
+                items: itemsRef.current,
+                exerciseData: exDataRef.current,
+                elapsedSeconds: elapsedRef.current,
+              })
+              if (dirtyVersionRef.current === syncVersion) {
+                isDirtyRef.current = false
+                setWorkoutSyncError("")
+                setWorkoutSyncStatus("saved")
+              } else {
+                setWorkoutSyncStatus("pending")
+              }
             }
+          } catch (err) {
+            logDevWarn("Failed to sync workout to Convex:", err)
+            setWorkoutSyncError(
+              "Workout changes are not synced. Check your connection and retry."
+            )
+            setWorkoutSyncStatus("error")
+          } finally {
+            isSyncingRef.current = false
           }
-        } catch (err) {
-          logDevWarn("Failed to sync workout to Convex:", err)
-          setWorkoutSyncError(
-            "Workout changes are not synced. Check your connection and retry."
-          )
-          setWorkoutSyncStatus("error")
-        } finally {
-          isSyncingRef.current = false
-        }
-      }, options.immediate ? 0 : 500) // Debounce 500ms
+        },
+        options.immediate ? 0 : 500
+      ) // Debounce 500ms
     },
     [updateActive]
   )
@@ -4661,6 +4871,12 @@ export default function ActiveWorkout() {
   }
 
   async function handleFinish() {
+    // Retain this ID across the direct attempt and offline fallback. If the
+    // network resolves late, Convex will upsert the same session instead of
+    // creating a duplicate completion.
+    const completionSessionId = activeWorkout?._id
+      ? String(activeWorkout._id)
+      : `local:${slot}:${localStartedAt ?? Date.now()}`
     const exercises = items.flatMap((item) => {
       const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
       return ids.flatMap((id) => {
@@ -4715,6 +4931,8 @@ export default function ActiveWorkout() {
       try {
         await logCompletion({
           date: todayIso(),
+          sessionId: completionSessionId,
+          slot,
           exercises,
           durationSeconds: elapsed,
         })
@@ -4849,10 +5067,7 @@ export default function ActiveWorkout() {
             </div>
           </div>
           <section
-            className={cn(
-              "pb-3",
-              completedPulseKey && "motion-success-pop"
-            )}
+            className={cn("pb-3", completedPulseKey && "motion-success-pop")}
           >
             <div className="flex items-center gap-3">
               {workoutSyncStatus === "error" && (

@@ -140,7 +140,10 @@ export const setDashboardSettings = mutation({
 
     if (existing) {
       await ctx.db.patch(existing._id, {
-        dashboardSettings: args,
+        dashboardSettings: {
+          ...args,
+          trendMetric: existing.dashboardSettings?.trendMetric,
+        },
         updatedAt: Date.now(),
       });
     } else {
@@ -148,6 +151,44 @@ export const setDashboardSettings = mutation({
         userId: user._id,
         lastActiveTimezone: "UTC",
         dashboardSettings: args,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const setDashboardTrendMetric = mutation({
+  args: {
+    metric: v.union(
+      v.literal("bodyFatPct"),
+      v.literal("waistCm"),
+      v.literal("chestCm"),
+      v.literal("armsCm"),
+      v.literal("thighsCm"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const dashboardSettings = {
+      workoutFocus: existing?.dashboardSettings?.workoutFocus ?? "strength",
+      trendMetric: args.metric,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        dashboardSettings,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        dashboardSettings,
         updatedAt: Date.now(),
       });
     }
@@ -679,15 +720,15 @@ export const getEffectiveGoals = query({
     };
 
     // 1. Handle Macro Cycling
-    const isTrainingDay = args.date
+    const workoutLogs = args.date
       ? await ctx.db
           .query("workoutLogs")
           .withIndex("by_userId_date", (q) =>
             q.eq("userId", user._id).eq("date", args.date!),
           )
-          .unique()
-          .then((l) => !!l)
-      : false;
+          .take(2)
+      : [];
+    const isTrainingDay = workoutLogs.length > 0;
 
     if (prefs?.macroCyclingEnabled && prefs.macroCyclingTargets) {
       const target = isTrainingDay
@@ -698,19 +739,16 @@ export const getEffectiveGoals = query({
 
     // 2. Handle Workout Adjustment
     let burnedCalories = 0;
-    if (prefs?.workoutAdjustmentEnabled && args.date) {
-      const log = await ctx.db
-        .query("workoutLogs")
-        .withIndex("by_userId_date", (q) =>
-          q.eq("userId", user._id).eq("date", args.date!),
-        )
-        .unique();
-
-      if (log) {
-        // MET (5) * weight_kg * duration_hours
-        const weightKg = healthProfile?.weightKg ?? 75;
-        const hours = (log.durationSeconds || 0) / 3600;
-        burnedCalories = Math.round(5 * weightKg * hours);
+    if (workoutLogs.length > 0) {
+      // Conservative general-training estimate: MET (5) * kg * hours.
+      const weightKg = healthProfile?.weightKg ?? 75;
+      const durationSeconds = workoutLogs.reduce(
+        (total, log) => total + Math.max(0, log.durationSeconds),
+        0,
+      );
+      const hours = durationSeconds / 3600;
+      burnedCalories = Math.round(5 * weightKg * hours);
+      if (prefs?.workoutAdjustmentEnabled) {
         effective.calories += burnedCalories;
       }
     }
@@ -827,7 +865,9 @@ export const getNutritionPlan = query({
             q.eq("userId", user._id).lte("date", date),
           )
           .order("desc")
-          .take(21),
+          // Keep roughly three weeks of training-day context now that a day
+          // can contain two independently logged sessions.
+          .take(42),
         ctx.db
           .query("recipes")
           .withIndex("by_userId", (q) => q.eq("userId", user._id))

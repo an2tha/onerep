@@ -63,6 +63,10 @@ const completedExerciseValidator = v.object({
 export const completion = mutation({
   args: {
     date: v.string(),
+    // A stable client-generated key makes an offline retry idempotent while
+    // allowing more than one completed session on the same calendar day.
+    sessionId: v.optional(v.string()),
+    slot: v.optional(v.union(v.literal(1), v.literal(2))),
     exercises: v.array(completedExerciseValidator),
     durationSeconds: v.number(),
   },
@@ -70,16 +74,35 @@ export const completion = mutation({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    const existing = await ctx.db
-      .query("workoutLogs")
-      .withIndex("by_userId_date", (q) =>
-        q.eq("userId", user._id).eq("date", args.date),
-      )
-      .unique();
+    // Old clients did not send a session ID. Keep their one-log-per-day
+    // behavior intact, while new clients can safely create two daily sessions.
+    const sessionId = args.sessionId ?? `legacy:${args.date}`;
+    const existing = args.sessionId
+      ? await ctx.db
+          .query("workoutLogs")
+          .withIndex("by_userId_and_date_and_sessionId", (q) =>
+            q
+              .eq("userId", user._id)
+              .eq("date", args.date)
+              .eq("sessionId", sessionId),
+          )
+          .unique()
+      : (
+          await ctx.db
+            .query("workoutLogs")
+            .withIndex("by_userId_date", (q) =>
+              q.eq("userId", user._id).eq("date", args.date),
+            )
+            .take(2)
+        ).find(
+          (log) => log.sessionId === undefined || log.sessionId === sessionId,
+        );
 
     const now = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
+        sessionId,
+        ...(args.slot === undefined ? {} : { slot: args.slot }),
         exercises: args.exercises,
         durationSeconds: args.durationSeconds,
         completedAt: now,
@@ -88,6 +111,8 @@ export const completion = mutation({
       await ctx.db.insert("workoutLogs", {
         userId: user._id,
         date: args.date,
+        sessionId,
+        ...(args.slot === undefined ? {} : { slot: args.slot }),
         exercises: args.exercises,
         durationSeconds: args.durationSeconds,
         completedAt: now,
@@ -104,14 +129,21 @@ export const getLog = query({
   args: { date: v.string() },
   handler: async (ctx, args) => {
     const user = await safeGetAuthUser(ctx);
-    if (!user) return null;
+    if (!user) return [];
 
-    return ctx.db
+    const logs = await ctx.db
       .query("workoutLogs")
       .withIndex("by_userId_date", (q) =>
         q.eq("userId", user._id).eq("date", args.date),
       )
-      .unique();
+      .take(2);
+
+    return logs.sort((a, b) => {
+      if (a.slot !== undefined && b.slot !== undefined) return a.slot - b.slot;
+      if (a.slot !== undefined) return -1;
+      if (b.slot !== undefined) return 1;
+      return a.completedAt - b.completedAt;
+    });
   },
 });
 
@@ -126,7 +158,7 @@ export const getHistory = query({
       .query("workoutLogs")
       .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
       .order("desc")
-      .collect();
+      .take(120);
   },
 });
 
@@ -141,12 +173,21 @@ export const historyForExercise = query({
       .query("workoutLogs")
       .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
       .order("asc")
-      .collect();
+      .take(120);
     return logs
       .filter((log) => log.exercises.some((e: any) => e.id === exerciseId))
       .map((log) => {
         const ex = log.exercises.find((e: any) => e.id === exerciseId)!;
-        return { date: log.date as string, sets: ex.sets as Array<{ weight: number; reps: number; completed: boolean; type: string }> };
+        return {
+          id: String(log._id),
+          date: log.date as string,
+          sets: ex.sets as Array<{
+            weight: number;
+            reps: number;
+            completed: boolean;
+            type: string;
+          }>,
+        };
       });
   },
 });
@@ -177,9 +218,9 @@ export const removeBySlot = mutation({
       .withIndex("by_userId_date", (q) =>
         q.eq("userId", user._id).eq("date", date),
       )
-      .collect();
+      .take(2);
 
-    const target = logs[slot - 1];
+    const target = logs.find((log) => log.slot === slot) ?? logs[slot - 1];
     if (!target) throw new Error("Workout slot not found");
     await ctx.db.delete(target._id);
     return { ok: true };

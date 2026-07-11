@@ -28,6 +28,12 @@ type AgentPresetDraft = {
   notes?: string;
 };
 
+type PlanContext = {
+  experienceLevel?: string;
+  safetyMode?: string;
+  safetyFlags?: string[];
+};
+
 function clampText(value: unknown, maxLength: number) {
   return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
 }
@@ -237,7 +243,11 @@ function fallbackDraftFromText(text: string): AgentPresetDraft {
   };
 }
 
-async function draftWithOpenAI(text: string, fallbackName: string) {
+async function draftWithOpenAI(
+  text: string,
+  fallbackName: string,
+  context: PlanContext,
+) {
   const apiKey = env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
@@ -255,11 +265,11 @@ async function draftWithOpenAI(text: string, fallbackName: string) {
         {
           role: "system",
           content:
-            "You convert messy workout notes into a structured workout preset draft. Return JSON only. Use exercise names that would likely exist in a general fitness exercise catalog. Do not invent extra exercises. Convert pounds to kg numeric strings for weight. Use empty strings for unknown weights and reps. Allowed set types: working, warmup, failure, myoreps, drop.",
+            "You convert messy workout notes into a structured workout preset draft. Return JSON only. Use exercise names that would likely exist in a general fitness exercise catalog. Do not invent extra exercises. Convert pounds to kg numeric strings for weight. Use empty strings for unknown weights and reps. Allowed set types: working, warmup, failure, myoreps, drop. Treat the supplied safety context as a hard constraint: do not intensify the source plan or introduce maximal/failure work when safetyMode is protected. For beginners, preserve a simple exercise order and conservative set structure.",
         },
         {
           role: "user",
-          content: `Create a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","restSeconds":120}]}],"notes":"optional"}. Limit to ${MAX_EXERCISES} exercises and ${MAX_SETS_PER_EXERCISE} sets each.\n\n${text}`,
+          content: `User context: ${JSON.stringify(context)}\n\nCreate a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","restSeconds":120}]}],"notes":"optional"}. Limit to ${MAX_EXERCISES} exercises and ${MAX_SETS_PER_EXERCISE} sets each.\n\n${text}`,
         },
       ],
     }),
@@ -278,7 +288,12 @@ async function draftWithOpenAI(text: string, fallbackName: string) {
 }
 
 export const createFromText = action({
-  args: { text: v.string() },
+  args: {
+    text: v.string(),
+    experienceLevel: v.optional(v.string()),
+    safetyMode: v.optional(v.string()),
+    safetyFlags: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args): Promise<AgentPresetDraft> => {
     const user = await getAuthUser(ctx);
 
@@ -292,7 +307,14 @@ export const createFromText = action({
     const fallback = fallbackDraftFromText(text);
 
     try {
-      const aiDraft = await draftWithOpenAI(text, fallback.name);
+      const aiDraft = await draftWithOpenAI(text, fallback.name, {
+        experienceLevel: clampText(args.experienceLevel, 24) || undefined,
+        safetyMode: clampText(args.safetyMode, 24) || undefined,
+        safetyFlags: (args.safetyFlags ?? [])
+          .slice(0, 16)
+          .map((flag) => clampText(flag, 64))
+          .filter(Boolean),
+      });
       if (aiDraft) return aiDraft;
     } catch (error) {
       console.warn("Falling back to local workout text parser", error);

@@ -43,3 +43,23 @@ export const markTooltipCompleted = mutation({
     }
   },
 });
+
+export const resetShownTooltips = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthUser(ctx);
+
+    const data = await ctx.db
+      .query("onboardingProfiles")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .first();
+
+    if (!data) return { reset: false };
+
+    await ctx.db.patch(data._id, {
+      shownTooltips: [],
+    });
+
+    return { reset: true };
+  },
+});

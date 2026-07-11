@@ -16,7 +16,9 @@ import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import { useQuery } from "convex/react"
+import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
+import { DateSelectorButton } from "@/components/date-selector-button"
+import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
@@ -31,10 +33,12 @@ import {
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
 import {
+  computeMuscleRecovery,
   computeWeeklyMuscleVolume,
   buildCatalogMap,
   type MuscleSets,
 } from "@/lib/muscle-volume"
+import { MuscleRecoveryHeatmapCard } from "@/components/muscle-recovery-heatmap"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import {
   getLoggedExerciseId,
@@ -45,6 +49,7 @@ import {
   APP_ACCENT_COLORS,
   MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
 } from "@/lib/design-tokens"
+import { offsetDateKey } from "@/lib/food-log"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -119,6 +124,24 @@ function todayDay(): Day {
   return map[new Date().getDay()]
 }
 
+function dayFromDateKey(dateKey: string): Day {
+  const map: Day[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const date = new Date(`${dateKey}T12:00:00Z`)
+  return map[date.getUTCDay()]
+}
+
+function formatDateLabel(dateKey: string, todayKey: string) {
+  if (dateKey === todayKey) return "Today"
+  const yesterday = offsetDateKey(todayKey, -1)
+  if (dateKey === yesterday) return "Yesterday"
+  const date = new Date(`${dateKey}T12:00:00Z`)
+  return date.toLocaleDateString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
 import {
   dateToIso,
   calcStreak,
@@ -145,32 +168,32 @@ function TrainingConsistencyCard({
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
   return (
-    <div className="px-4 pt-3.5 short-phone:pt-3 pb-4 short-phone:pb-3.5 overflow-hidden app-surface">
+    <div className="app-surface overflow-hidden px-4 pt-3.5 pb-4 short-phone:pt-3 short-phone:pb-3.5">
       {/* Header row */}
-      <div className="flex justify-between items-start mb-3">
+      <div className="mb-3 flex items-start justify-between">
         <div>
           <p className="app-eyebrow">Training</p>
-          <p className="mt-0.5 font-bold text-[15px]">Consistency</p>
+          <p className="mt-0.5 text-[15px] font-bold">Consistency</p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="font-semibold text-[10px] text-muted-foreground/40 uppercase">
+            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
               Streak
             </p>
-            <p className="mt-0.5 font-black tabular-nums text-[22px] leading-none">
+            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
               {streak}
-              <span className="ml-0.5 font-medium text-[11px] text-muted-foreground/40">
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
                 days
               </span>
             </p>
           </div>
           <div className="text-right">
-            <p className="font-semibold text-[10px] text-muted-foreground/40 uppercase">
+            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
               This week
             </p>
-            <p className="mt-0.5 font-black tabular-nums text-[22px] leading-none">
+            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
               {thisWeek}
-              <span className="ml-0.5 font-medium text-[11px] text-muted-foreground/40">
+              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
                 / 7
               </span>
             </p>
@@ -179,11 +202,11 @@ function TrainingConsistencyCard({
       </div>
 
       {/* Day-of-week labels */}
-      <div className="gap-1 grid grid-cols-7 mb-1 px-0.5">
+      <div className="mb-1 grid grid-cols-7 gap-1 px-0.5">
         {dayLabels.map((l, i) => (
           <p
             key={i}
-            className="font-semibold text-[8px] text-muted-foreground/30 text-center uppercase"
+            className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase"
           >
             {l}
           </p>
@@ -191,7 +214,7 @@ function TrainingConsistencyCard({
       </div>
 
       {/* 4 weeks × 7 days grid */}
-      <div className="gap-1 grid grid-cols-7">
+      <div className="grid grid-cols-7 gap-1">
         {calendarDays.map((iso) => {
           const isToday = iso === todayIso
           const hasWorkout = workoutDates.has(iso)
@@ -199,7 +222,7 @@ function TrainingConsistencyCard({
           return (
             <div
               key={iso}
-              className="rounded-md aspect-square transition-colors"
+              className="aspect-square rounded-md transition-colors"
               style={{
                 background: isFuture
                   ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
@@ -243,12 +266,12 @@ function TrainingMetricTile({
   return (
     <div
       className={cn(
-        "bg-foreground/[0.045] rounded-[0.8rem]",
+        "rounded-[0.8rem] bg-foreground/[0.045]",
         compact ? "px-2.5 py-2.5" : "px-3 py-3"
       )}
     >
-      <div className="flex justify-between items-center gap-2">
-        <p className="font-bold text-[10px] text-muted-foreground/66">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-bold text-muted-foreground/66">
           {label}
         </p>
         <span
@@ -262,7 +285,7 @@ function TrainingMetricTile({
       </div>
       <p
         className={cn(
-          "font-extrabold tabular-nums leading-none",
+          "leading-none font-extrabold tabular-nums",
           compact ? "mt-1 text-[1.15rem]" : "mt-1.5 text-[1.35rem]"
         )}
       >
@@ -291,22 +314,22 @@ function PresetSteps({
   const hidden = Math.max(0, preset.steps.length - visible.length)
 
   return (
-    <div className="space-y-1.5 mt-3">
+    <div className="mt-3 space-y-1.5">
       {visible.map((step, i) => (
         <div
           key={`${preset.id}-${step}-${i}`}
-          className="flex items-center gap-2.5 bg-foreground/[0.035] px-2.5 py-2 rounded-[0.7rem]"
+          className="flex items-center gap-2.5 rounded-[0.7rem] bg-foreground/[0.035] px-2.5 py-2"
         >
-          <span className="flex justify-center items-center bg-foreground/[0.07] rounded-[0.45rem] w-5 h-5 font-bold text-[10px] text-muted-foreground/66 shrink-0">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.45rem] bg-foreground/[0.07] text-[10px] font-bold text-muted-foreground/66">
             {i + 1}
           </span>
-          <span className="min-w-0 font-semibold text-[12.5px] text-foreground/78 truncate">
+          <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground/78">
             {step}
           </span>
         </div>
       ))}
       {hidden > 0 && (
-        <p className="px-1 font-semibold text-[10.5px] text-muted-foreground/48">
+        <p className="px-1 text-[10.5px] font-semibold text-muted-foreground/48">
           +{hidden} more movement{hidden === 1 ? "" : "s"}
         </p>
       )}
@@ -327,32 +350,32 @@ function ConfirmDeleteSheet({
 }) {
   return (
     <div
-      className="z-50 fixed inset-0 flex justify-center items-end bg-black/30 backdrop-blur-[2px] sheet-overlay"
+      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px]"
       onClick={onCancel}
     >
       <div
-        className="bg-background px-5 pt-5 border-border border-t w-full max-w-sm sheet-panel app-sheet-panel"
+        className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mb-5 bg-border rounded-full w-10 h-1" />
-        <h2 className="font-semibold text-base">Delete "{preset.name}"?</h2>
-        <p className="mt-1.5 text-muted-foreground text-sm">
+        <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
+        <h2 className="text-base font-semibold">Delete "{preset.name}"?</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
           This preset will be permanently removed. Any routine days using it
           will be cleared.
         </p>
-        <div className="flex flex-col gap-2 mt-6">
+        <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={onConfirm}
-            className="w-full h-12 app-button app-button-danger"
+            className="app-button app-button-danger h-12 w-full"
           >
             Delete preset
           </button>
           <button
             onClick={onCancel}
-            className="w-full h-12 app-button app-button-quiet"
+            className="app-button app-button-quiet h-12 w-full"
           >
             Keep it
           </button>
@@ -392,9 +415,9 @@ function WorkoutLogSummary({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="bg-muted/55 px-2 py-0.5 rounded-full font-bold text-[10px] text-muted-foreground/70 uppercase">
+          <span className="rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-bold text-muted-foreground/70 uppercase">
             Done
           </span>
           <span className="text-[11px] text-muted-foreground">
@@ -404,7 +427,7 @@ function WorkoutLogSummary({
         {onEdit && (
           <button
             onClick={onEdit}
-            className="bg-muted/45 w-10 h-10 app-icon-button"
+            className="app-icon-button h-10 w-10 bg-muted/45"
             aria-label="Edit workout"
           >
             <PencilSimple size={13} />
@@ -421,15 +444,15 @@ function WorkoutLogSummary({
           return (
             <div
               key={id}
-              className="flex items-center gap-3 bg-muted/35 px-3.5 py-2.5 rounded-xl"
+              className="flex items-center gap-3 rounded-xl bg-muted/35 px-3.5 py-2.5"
             >
-              <span className="flex justify-center items-center bg-foreground/10 rounded-full w-5 h-5 font-bold text-[9px] text-foreground/65 shrink-0">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/65">
                 ✓
               </span>
-              <span className="flex-1 min-w-0 font-medium text-[13px] text-foreground/78 truncate">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/78">
                 {ex.name}
               </span>
-              <span className="max-w-[12rem] tabular-nums text-[11px] text-muted-foreground/58 text-right truncate shrink">
+              <span className="max-w-[12rem] shrink truncate text-right text-[11px] text-muted-foreground/58 tabular-nums">
                 {isCardio
                   ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
                   : `${done}/${total}`}
@@ -439,7 +462,7 @@ function WorkoutLogSummary({
         })}
       </div>
 
-      <div className="flex justify-between items-center text-[10px] text-muted-foreground/50">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
           {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
@@ -482,7 +505,7 @@ function WorkoutLogCarousel({
     <div className="flex flex-col gap-3">
       {/* Slides */}
       <div
-        className="rounded-xl overflow-hidden"
+        className="overflow-hidden rounded-xl"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -508,7 +531,7 @@ function WorkoutLogCarousel({
       </div>
 
       {/* Dot indicators */}
-      <div className="flex justify-center items-center gap-1.5">
+      <div className="flex items-center justify-center gap-1.5">
         {logs.map((_, i) => (
           <button
             key={i}
@@ -544,24 +567,24 @@ function PickSecondWorkoutSheet({
 
   return (
     <div
-      className="z-50 fixed inset-0 flex justify-center items-end bg-black/40 backdrop-blur-[3px] sheet-overlay"
+      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[3px]"
       onClick={onClose}
     >
       <div
-        className="bg-card shadow-2xl rounded-t-3xl w-full max-w-sm overflow-hidden sheet-panel"
+        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3 pb-1">
-          <div className="bg-foreground/[0.12] rounded-full w-10 h-1" />
+          <div className="h-1 w-10 rounded-full bg-foreground/[0.12]" />
         </div>
-        <div className="flex justify-between items-center px-5 py-3">
-          <p className="font-semibold text-[15px] tracking-tight">{title}</p>
+        <div className="flex items-center justify-between px-5 py-3">
+          <p className="text-[15px] font-semibold tracking-tight">{title}</p>
           <button
             onClick={onClose}
-            className="flex justify-center items-center bg-muted/60 active:bg-muted rounded-full w-10 h-10 text-muted-foreground transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
           </button>
@@ -574,17 +597,17 @@ function PickSecondWorkoutSheet({
               <button
                 key={preset.id}
                 onClick={() => onPick(preset.id)}
-                className="flex items-center gap-3 bg-muted/40 active:bg-muted/70 px-4 py-3.5 rounded-2xl text-left transition-colors"
+                className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted/70"
               >
-                <div className="flex justify-center items-center bg-background/70 rounded-lg w-8 h-8 shrink-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
                   <Icon
                     size={14}
                     weight="duotone"
                     className="text-foreground/60"
                   />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[13px]">{preset.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold">{preset.name}</p>
                   <p className="text-[11px] text-muted-foreground">
                     {preset.steps.length} exercises · {preset.duration}
                   </p>
@@ -619,7 +642,7 @@ function muscleColor(muscle: string): string {
 function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   if (muscleVolume.length === 0) {
     return (
-      <div className="p-4 text-center app-surface">
+      <div className="app-surface p-4 text-center">
         <p className="text-[12px] text-muted-foreground/40">
           No workouts logged this week yet
         </p>
@@ -630,7 +653,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   const maxSets = Math.max(...muscleVolume.map((m) => m.effectiveSets))
 
   return (
-    <div className="p-4 app-surface">
+    <div className="app-surface p-4">
       <div className="mb-3">
         <p className="app-section-title">Volume</p>
         <p className="app-section-subtitle">This week · sets per muscle</p>
@@ -641,19 +664,19 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
           const color = muscleColor(item.muscle)
           return (
             <div key={item.muscle}>
-              <div className="flex justify-between items-center mb-1">
-                <span className="font-bold text-[12px] text-foreground/78 capitalize">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[12px] font-bold text-foreground/78 capitalize">
                   {item.muscle}
                 </span>
-                <span className="font-semibold tabular-nums text-[10.5px] text-muted-foreground/50">
+                <span className="text-[10.5px] font-semibold text-muted-foreground/50 tabular-nums">
                   {item.primarySets}p
                   {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
                   sets
                 </span>
               </div>
-              <div className="bg-foreground/[0.06] rounded-full w-full h-1.5 overflow-hidden">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
                 <div
-                  className="rounded-full h-full motion-progress-fill"
+                  className="motion-progress-fill h-full rounded-full"
                   style={{
                     width: `${pct}%`,
                     backgroundColor: color,
@@ -674,11 +697,16 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
 
 export default function Workouts() {
   const navigate = useSmoothNavigate()
+  const todayKey = todayIso()
+  const [dateKey, setDateKey] = useState(todayKey)
+  const [dateSelectorOpen, setDateSelectorOpen] = useState(false)
+  const isToday = dateKey === todayKey
+  const dateLabel = formatDateLabel(dateKey, todayKey)
 
   // ── Convex ────────────────────────────────────────────────────────────────
   const serverPresets = useQuery(api.logs.presets.list)
   const schedule = useQuery(api.users.schedules.get)
-  const todayLog = useQuery(api.logs.workouts.getLog, { date: todayIso() })
+  const selectedLog = useQuery(api.logs.workouts.getLog, { date: dateKey })
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
   const setSchedule = useOfflineMutation(
     api.users.schedules.set,
@@ -691,6 +719,11 @@ export default function Workouts() {
   const removePresetMutation = useOfflineMutation(
     api.logs.presets.remove,
     "logs.presets.remove"
+  )
+  const removeWorkoutLog = useMutation(api.logs.workouts.remove)
+  const replaceWorkoutLog = useOfflineMutation(
+    api.logs.workouts.completion,
+    "logs.workouts.completion"
   )
 
   function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
@@ -789,9 +822,9 @@ export default function Workouts() {
   const [routine2, setRoutine2] = useState<Routine>(EMPTY_ROUTINE)
 
   const syncing = serverPresets === undefined
-  const workoutLogs: CachedWorkoutLog[] = todayLog
-    ? [todayLog as unknown as CachedWorkoutLog]
-    : []
+  const workoutLogs: CachedWorkoutLog[] = (selectedLog ??
+    []) as unknown as CachedWorkoutLog[]
+  const selectedWorkoutLog = workoutLogs[0] ?? null
 
   const [routineEditMode, setRoutineEditMode] = useState(false)
   const [showSecondWorkoutSheet, setShowSecondWorkoutSheet] = useState(false)
@@ -813,7 +846,7 @@ export default function Workouts() {
   const slotRefs = useRef<Partial<Record<Day, HTMLDivElement | null>>>({})
   const presetRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  const today = todayDay()
+  const today = isToday ? todayDay() : dayFromDateKey(dateKey)
   const todayPreset = presets.find((p) => p.id === routine[today]) ?? null
   const todayPreset2 = presets.find((p) => p.id === routine2[today]) ?? null
 
@@ -870,6 +903,12 @@ export default function Workouts() {
     if (workoutRecords.length === 0 || exerciseCatalog.size === 0) return []
     const catalog = buildCatalogMap(Array.from(exerciseCatalog.values()))
     return computeWeeklyMuscleVolume(workoutRecords, catalog, new Date())
+  }, [workoutRecords, exerciseCatalog])
+
+  const muscleRecovery = useMemo(() => {
+    if (workoutRecords.length === 0 || exerciseCatalog.size === 0) return []
+    const catalog = buildCatalogMap(Array.from(exerciseCatalog.values()))
+    return computeMuscleRecovery(workoutRecords, catalog, new Date())
   }, [workoutRecords, exerciseCatalog])
 
   const trainingStatsDate = useMemo(() => {
@@ -1067,6 +1106,46 @@ export default function Workouts() {
     void removePresetMutation({ id: id as Id<"presets"> })
   }
 
+  function deleteSelectedWorkout() {
+    const id = selectedWorkoutLog?._id as Id<"workoutLogs"> | undefined
+    if (!id) return
+    void removeWorkoutLog({ id })
+  }
+
+  function removeLoggedExercise(exerciseKey: string) {
+    if (!selectedWorkoutLog) return
+    const nextExercises = selectedWorkoutLog.exercises
+      .filter((exercise) => {
+        const key = getLoggedExerciseId(exercise) ?? exercise.name
+        return key !== exerciseKey
+      })
+      .map((exercise) => ({
+        id: getLoggedExerciseId(exercise) ?? exercise.name,
+        name: exercise.name,
+        ...(exercise.category ? { category: exercise.category } : {}),
+        sets: (exercise.sets ?? []).map((set) => ({
+          type: "type" in set ? String(set.type) : "normal",
+          reps: Number(set.reps) || 0,
+          weight: Number(set.weight) || 0,
+          completed: Boolean(set.completed),
+        })),
+        ...(exercise.cardio ? { cardio: exercise.cardio } : {}),
+      }))
+    if (nextExercises.length === 0) {
+      deleteSelectedWorkout()
+      return
+    }
+    void replaceWorkoutLog({
+      date: dateKey,
+      ...(selectedWorkoutLog.sessionId
+        ? { sessionId: selectedWorkoutLog.sessionId }
+        : {}),
+      ...(selectedWorkoutLog.slot ? { slot: selectedWorkoutLog.slot } : {}),
+      exercises: nextExercises,
+      durationSeconds: selectedWorkoutLog.durationSeconds,
+    })
+  }
+
   const heroTitle =
     workoutLogs.length === 2
       ? "Training complete"
@@ -1095,508 +1174,633 @@ export default function Workouts() {
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
+    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page">
         <header className="app-header">
           <div className="min-w-0">
             <h1 className="app-title">Workouts</h1>
           </div>
+          <div className="ml-auto flex items-center gap-1">
+            <DateSelectorButton
+              value={dateKey}
+              todayKey={todayKey}
+              onChange={setDateKey}
+              open={dateSelectorOpen}
+              onOpenChange={setDateSelectorOpen}
+              label="Workout date"
+            />
+          </div>
         </header>
 
-        <section className={cn("app-surface", isRestDayHero ? "p-3" : "p-4")}>
-          <div className="flex justify-between items-start gap-4">
-            <div className="min-w-0">
-              <p className="app-eyebrow">Today · {today}</p>
-              <p
-                className={cn(
-                  "mt-2 font-extrabold truncate leading-none tracking-tight",
-                  isRestDayHero ? "text-[1.55rem]" : "text-[2.05rem]"
-                )}
-              >
-                {heroTitle}
-              </p>
-              <p className="mt-1 font-semibold text-[11px] text-muted-foreground/58">
-                {heroDetail}
-              </p>
-            </div>
-          </div>
-
-          <div
-            className={cn(
-              "gap-2.5 grid",
-              isRestDayHero
-                ? "mt-3 grid-cols-2"
-                : "mt-5 grid-cols-1 min-[430px]:grid-cols-2"
-            )}
-          >
-            <TrainingMetricTile
-              label="Week"
-              value={workoutsThisWeek}
-              detail={`${workoutLogs.length}/2 today`}
-              icon={<Barbell size={14} weight="bold" />}
-              complete={workoutsThisWeek > 0}
-              compact={isRestDayHero}
-            />
-            <TrainingMetricTile
-              label="Streak"
-              value={trainingStreak}
-              detail="days in a row"
-              icon={<Heart size={14} weight="bold" />}
-              complete={trainingStreak > 0}
-              compact={isRestDayHero}
-            />
-          </div>
-
-          <div className={cn(isRestDayHero ? "mt-3" : "mt-4")}>
-            <SwipeToStart
-              onComplete={() => navigate("/workout/active")}
-              label="Start open workout"
-              variant="default"
-            />
-          </div>
-        </section>
-
-        <section className="lg:items-start gap-4 lg:gap-4 grid grid-cols-1 lg:grid-cols-2 mt-4 lg:mt-3 min-w-0">
-          <div className="content-start gap-3 grid min-w-0">
-            { todayPreset !== null &&
-              <div className="p-4 app-surface">
-              <div className="flex justify-between items-center gap-3 mb-3">
-                <div>
-                  <p className="app-section-title">Today's workout</p>
-                  <p className="app-section-subtitle">
-                    {workoutLogs.length === 2
-                      ? "Both sessions complete"
-                      : workoutLogs.length === 1
-                        ? "Session one complete"
-                        : todayPreset
-                          ? todayPreset.duration
-                          : "Open training"}
-                  </p>
-                </div>
-                {workoutLogs.length === 1 && (
-                  <span className="bg-foreground/[0.055] px-2.5 py-1 rounded-full font-bold text-[10px] text-muted-foreground/62">
-                    1 of 2 done
-                  </span>
-                )}
+        {!isToday && (
+          <section className="app-surface p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="app-eyebrow">{dateLabel}</p>
+                <p className="mt-1 text-[1.55rem] leading-none font-extrabold">
+                  {selectedWorkoutLog ? "Workout logged" : "No workout"}
+                </p>
+                <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+                  {selectedWorkoutLog
+                    ? `${selectedWorkoutLog.exercises.length} exercises · ${fmtDuration(selectedWorkoutLog.durationSeconds)}`
+                    : "No completed training on this date."}
+                </p>
               </div>
-
-              {workoutLogs.length === 2 ? (
-                <WorkoutLogCarousel
-                  logs={workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]}
-                />
-              ) : workoutLogs.length === 1 ? (
-                <div className="space-y-3.5">
-                  <WorkoutLogSummary log={workoutLogs[0]} slot={1} />
-
-                  {todayPreset2 ? (
-                    <div className="pt-3.5 border-border/35 border-t">
-                      <div className="flex justify-between items-baseline gap-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-[15px] truncate">
-                            {todayPreset2.name}
-                          </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground/56">
-                            Workout 2 · {todayPreset2.duration}
-                          </p>
-                        </div>
-                      </div>
-                      <PresetSteps preset={todayPreset2} limit={3} />
-                      <div className="mt-3">
-                        <SwipeToStart
-                          onComplete={() =>
-                            navigate(
-                              `/workout/active/${todayPreset2.id}?slot=2`
-                            )
-                          }
-                          label="Start second workout"
-                          variant="default"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowSecondWorkoutSheet(true)}
-                      className="justify-center active:bg-muted/20 py-3 w-full font-semibold text-[13px] active:text-foreground transition-colors app-empty"
-                    >
-                      <Plus size={13} weight="bold" />
-                      Add second workout
-                    </button>
-                  )}
-                </div>
-              ) : todayPreset ? (
-                <div>
-                  <div className="flex justify-between items-baseline gap-3">
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-[1.25rem] truncate leading-tight tracking-tight">
-                        {todayPreset.name}
-                      </p>
-                      {todayPreset2 && (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground/56 truncate">
-                          + {todayPreset2.name} after
-                        </p>
-                      )}
-                    </div>
-                    <span className="font-semibold text-[11px] text-muted-foreground/56 shrink-0">
-                      {todayPreset.duration}
-                    </span>
-                  </div>
-                  <PresetSteps preset={todayPreset} />
-                  <div className="mt-4">
-                    <SwipeToStart
-                      onComplete={() =>
-                        navigate(`/workout/active/${todayPreset.id}`)
-                      }
-                      label="Start workout"
-                      variant="default"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-foreground/[0.035] px-4 py-5 rounded-[0.9rem] text-center">
-                  <p className="font-bold text-[14px]">Rest day</p>
-                  <p className="mt-1 text-[12px] text-muted-foreground/58">
-                    No workout scheduled for today.
-                  </p>
-                </div>
+              {selectedWorkoutLog && (
+                <button
+                  type="button"
+                  onClick={deleteSelectedWorkout}
+                  className="app-header-icon-action text-destructive/70"
+                  aria-label="Delete workout log"
+                >
+                  <Trash size={13} weight="bold" />
+                </button>
               )}
             </div>
 
-            }
-            
-            <div className="p-4 app-surface">
-              <div className="flex justify-between items-center gap-3 mb-3">
-                <div>
-                  <p className="app-section-title">Routine</p>
-                  <p className="app-section-subtitle">
-                    Drag presets while editing
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRoutineEditMode((value) => !value)}
-                    className={cn(
-                      "transition-colors app-button",
-                      routineEditMode
-                        ? "app-button-primary"
-                        : "app-button-quiet",
-                      "sm:bg-none"
-                    )}
-                  >
-                    {routineEditMode ? "Done" : <PencilIcon />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="min-w-0">
-                <div className="flex flex-wrap justify-center md:justify-stretch gap-2 md:gap-1.5 md:grid md:grid-cols-7 pb-1 md:pb-0">
-                  {DAYS.map((day) => {
-                    const preset =
-                      presets.find((p) => p.id === routine[day]) ?? null
-                    const preset2 =
-                      presets.find((p) => p.id === routine2[day]) ?? null
-                    const isToday = day === today
-                    const isOver =
-                      overDay === day && hasMoved && routineEditMode
-                    const isSlot2Drop = isOver && !!preset
-                    const isRemoving = removingDays.has(day)
-                    const isPressing = pressingDay === day
-                    const FocusIcon = preset ? FOCUS_ICON[preset.focus] : null
-                    const FocusIcon2 = preset2
-                      ? FOCUS_ICON[preset2.focus]
-                      : null
-
-                    return (
-                      <div
-                        key={day}
-                        ref={(el) => {
-                          slotRefs.current[day] = el
-                        }}
-                        className={cn(
-                          "relative flex flex-col items-center gap-1.5 md:gap-2 bg-foreground/[0.035] px-2 md:px-1 py-2.5 md:py-3 rounded-[0.9rem] md:rounded-[0.8rem] min-w-0 min-h-[5.25rem] md:min-h-[5.5rem] overflow-hidden transition-all duration-200 basis-[calc((100%-1rem)/3)] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:basis-auto",
-                          isToday && !isOver && "bg-foreground/[0.07]",
-                          isOver && "scale-[1.04] bg-foreground/[0.1]"
-                        )}
-                      >
-                        {isPressing && (
-                          <div
-                            className="bottom-0 absolute inset-x-0 bg-destructive h-[3px] origin-left"
-                            style={{
-                              animation: `sweep-delete ${SLOT_PRESS_MS}ms linear forwards`,
-                            }}
-                          />
-                        )}
-
-                        {isSlot2Drop && (
-                          <div className="top-1.5 right-1.5 absolute flex justify-center items-center bg-foreground rounded-full w-4 h-4 font-black text-[8px] text-background animate-in duration-150 zoom-in-50">
-                            +2
-                          </div>
-                        )}
-
-                        {routineEditMode && (preset || preset2) && (
-                          <button
-                            type="button"
-                            onClick={() => removeSlot(day)}
-                            className="top-1 md:top-1.5 right-1 md:right-1.5 z-10 absolute bg-background/80 w-8 md:w-9 h-8 md:h-9 text-destructive app-icon-button"
-                            aria-label={`Remove workout from ${day}`}
-                          >
-                            <X size={11} weight="bold" />
-                          </button>
-                        )}
-
-                        <span
-                          className={cn(
-                            "font-bold text-[10px] md:text-[9.5px] uppercase",
-                            isToday
-                              ? "text-foreground"
-                              : "text-muted-foreground/62"
-                          )}
-                        >
-                          {day}
-                        </span>
-
-                        {preset && FocusIcon ? (
-                          <button
-                            type="button"
-                            onPointerDown={() => onSlotPressStart(day)}
-                            onPointerUp={onSlotPressEnd}
-                            onPointerLeave={onSlotPressEnd}
-                            onPointerCancel={onSlotPressEnd}
-                            className={cn(
-                              "flex flex-col items-center gap-0 w-full transition-all duration-200",
-                              isRemoving && "scale-50 opacity-0"
-                            )}
-                          >
-                            <div className="flex flex-col items-center gap-1 pb-1 w-full">
-                              <FocusIcon
-                                size={preset2 ? 12 : 16}
-                                weight="duotone"
-                                className="text-foreground/55"
-                              />
-                              <span
-                                className={cn(
-                                  "px-1 max-w-full font-bold text-foreground/72 text-center truncate leading-tight",
-                                  preset2
-                                    ? "text-[9px] md:text-[8.5px]"
-                                    : "text-[10px] md:text-[9.5px]"
-                                )}
-                              >
-                                {preset.name}
-                              </span>
-                            </div>
-
-                            {preset2 && FocusIcon2 && (
-                              <div className="slide-in-from-bottom-1 flex flex-col items-center gap-1 w-full animate-in duration-200 fade-in-0">
-                                <div className="mb-1 bg-border/55 rounded-full w-7 md:w-[54px] h-px" />
-                                <FocusIcon2
-                                  size={12}
-                                  weight="duotone"
-                                  className="text-foreground/55"
-                                />
-                                <span className="px-1 max-w-full font-bold text-[9px] text-foreground/72 md:text-[8.5px] text-center truncate leading-tight">
-                                  {preset2.name}
-                                </span>
-                              </div>
-                            )}
-                          </button>
-                        ) : routineEditMode ? (
-                          <button
-                            type="button"
-                            onClick={() => setPickRoutineDay(day)}
-                            className="flex flex-col justify-center items-center gap-1 px-2 min-h-11 md:min-h-10 font-bold text-[10px] text-muted-foreground/62 active:text-foreground transition-colors"
-                          >
-                            <Plus size={14} weight="bold" />
-                            Add
-                          </button>
-                        ) : (
-                          <span className="py-1.5 text-[10px] text-muted-foreground/35">
-                            Rest
-                          </span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {muscleVolume.length > 0 && (
-              <MuscleVolumeCard muscleVolume={muscleVolume} />
-            )}
-          </div>
-
-          <div className="content-start gap-3 grid min-w-0">
-            <div className="p-4 app-surface">
-              <div className="flex justify-between items-center gap-3 mb-3">
-                <div>
-                  <p className="app-section-title">Presets</p>
-                  <p className="app-section-subtitle">
-                    Build and assign reusable sessions
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/workouts/new")}
-                  className="h-9 app-button app-button-quiet"
-                >
-                  New
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {syncing && presets.length === 0 && (
-                  <>
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        className="bg-foreground/[0.04] rounded-[0.8rem] h-[62px] animate-pulse"
-                      />
-                    ))}
-                  </>
-                )}
-                {!syncing && presets.length === 0 && (
-                  <div className="rounded-[0.9rem] bg-foreground/[0.035] px-3.5 py-4">
-                    <p className="font-bold text-[13px] text-foreground">
-                      No presets yet
-                    </p>
-                    <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[12px] leading-relaxed text-muted-foreground/66">
-                      <li>Tap <span className="font-bold text-foreground/80">New</span>.</li>
-                      <li>Name the workout and choose its focus.</li>
-                      <li>Add exercises, then save it.</li>
-                      <li>Return here and assign it to a routine day.</li>
-                    </ol>
-                    <button
-                      type="button"
-                      onClick={() => navigate("/workouts/new")}
-                      className="mt-3 h-10 w-full app-button app-button-primary"
-                    >
-                      Create your first preset
-                    </button>
-                  </div>
-                )}
-                {presets.map((preset, idx) => {
-                  const FocusIcon = FOCUS_ICON[preset.focus]
-                  const isDraggingThis =
-                    drag?.presetId === preset.id && hasMoved
-                  const isDropTarget =
-                    dragOverIdx === idx &&
-                    hasMoved &&
-                    drag?.presetId !== preset.id
-                  const isPressing = pressingPreset === preset.id
-
+            {selectedWorkoutLog ? (
+              <div className="mt-4 space-y-2 border-t border-border/35 pt-4">
+                {selectedWorkoutLog.exercises.map((exercise) => {
+                  const isCardio = hasCardioDetails(exercise.cardio)
+                  const done = (exercise.sets ?? []).filter(
+                    (set) => set.completed
+                  ).length
+                  const total = exercise.sets?.length ?? 0
+                  const key = getLoggedExerciseId(exercise) ?? exercise.name
                   return (
-                    <div key={preset.id} className="relative">
-                      {isDropTarget && (
-                        <div className="-top-1 absolute inset-x-3 bg-foreground/30 rounded-full h-0.5" />
-                      )}
-
-                      <div
-                        ref={(el) => {
-                          presetRefs.current[idx] = el
-                        }}
-                        className={cn(
-                          "relative bg-foreground/[0.035] rounded-[0.8rem] overflow-hidden transition-all duration-150 touch-pan-y select-none",
-                          isDraggingThis && "scale-[0.98] opacity-40",
-                          isDropTarget && "scale-[1.01] bg-foreground/[0.07]"
-                        )}
-                        onPointerDown={
-                          !routineEditMode
-                            ? undefined
-                            : (e) => onPresetPointerDown(e, preset.id)
-                        }
-                        onPointerMove={
-                          !routineEditMode ? undefined : onPresetPointerMove
-                        }
-                        onPointerUp={
-                          !routineEditMode ? undefined : onPresetPointerUp
-                        }
-                        onPointerCancel={
-                          !routineEditMode ? undefined : onPresetPointerUp
-                        }
-                      >
-                        {isPressing && (
-                          <div
-                            className="bottom-0 z-10 absolute inset-x-0 bg-destructive h-[3px] origin-left"
-                            style={{
-                              animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
-                            }}
-                          />
-                        )}
-
-                        <div className="flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-2.5">
-                          <span className="bg-foreground/[0.055] w-8 h-8 pointer-events-none app-icon-button shrink-0">
-                            <FocusIcon
-                              size={14}
-                              weight="duotone"
-                              className="text-foreground/62"
-                            />
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-[12.5px] truncate leading-tight">
-                              {preset.name}
-                            </p>
-                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/55">
-                              {preset.steps.length} exercises ·{" "}
-                              {preset.duration}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() =>
-                              navigate(`/workouts/edit/${preset.id}`)
-                            }
-                            className="bg-transparent w-9 h-9 app-icon-button shrink-0"
-                            aria-label={`Edit ${preset.name}`}
-                          >
-                            <PencilSimple size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => duplicatePreset(preset)}
-                            className="bg-transparent w-9 h-9 app-icon-button shrink-0"
-                            aria-label={`Duplicate ${preset.name}`}
-                          >
-                            <Copy size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={() => setConfirmDeleteId(preset.id)}
-                            className="bg-transparent w-9 h-9 text-destructive/70 app-icon-button shrink-0"
-                            aria-label={`Delete ${preset.name}`}
-                          >
-                            <Trash size={12} />
-                          </button>
-                        </div>
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-2 rounded-xl bg-muted/35 px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-bold">
+                          {exercise.name}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                          {isCardio
+                            ? compactCardioSummary(
+                                exercise.cardio,
+                                exercise.cardio?.distanceUnit
+                              )
+                            : `${done}/${total} sets`}
+                        </p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLoggedExercise(key)}
+                        className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-destructive/70"
+                        aria-label={`Remove ${exercise.name}`}
+                      >
+                        <Trash size={12} weight="bold" />
+                      </button>
                     </div>
                   )
                 })}
+                <p className="pt-1 text-[10px] text-muted-foreground/45">
+                  Completed{" "}
+                  {new Date(selectedWorkoutLog.completedAt).toLocaleTimeString(
+                    [],
+                    { hour: "numeric", minute: "2-digit" }
+                  )}
+                </p>
               </div>
-            </div>
-
-            {workoutHistory !== undefined && workoutDates.size > 0 && (
-              <TrainingConsistencyCard workoutDates={workoutDates} />
+            ) : (
+              <div className="mt-4 rounded-[0.9rem] bg-muted/30 px-4 py-5 text-center">
+                <p className="text-[12px] leading-5 text-muted-foreground/58">
+                  Use today’s workout flow to create new logs; past logs can be
+                  trimmed or deleted here once they exist.
+                </p>
+              </div>
             )}
-          </div>
-        </section>
+          </section>
+        )}
+
+        {!isToday ? null : (
+          <>
+            <section
+              className={cn("app-surface", isRestDayHero ? "p-3" : "p-4")}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="app-eyebrow">Today · {today}</p>
+                  <p
+                    className={cn(
+                      "mt-2 truncate leading-none font-extrabold tracking-tight",
+                      isRestDayHero ? "text-[1.55rem]" : "text-[2.05rem]"
+                    )}
+                  >
+                    {heroTitle}
+                  </p>
+                  <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+                    {heroDetail}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className={cn(
+                  "grid gap-2.5",
+                  isRestDayHero
+                    ? "mt-3 grid-cols-2"
+                    : "mt-5 grid-cols-1 min-[430px]:grid-cols-2"
+                )}
+              >
+                <TrainingMetricTile
+                  label="Week"
+                  value={workoutsThisWeek}
+                  detail={`${workoutLogs.length}/2 today`}
+                  icon={<Barbell size={14} weight="bold" />}
+                  complete={workoutsThisWeek > 0}
+                  compact={isRestDayHero}
+                />
+                <TrainingMetricTile
+                  label="Streak"
+                  value={trainingStreak}
+                  detail="days in a row"
+                  icon={<Heart size={14} weight="bold" />}
+                  complete={trainingStreak > 0}
+                  compact={isRestDayHero}
+                />
+              </div>
+
+              <div className={cn(isRestDayHero ? "mt-3" : "mt-4")}>
+                <AppTooltip
+                  id={APP_TOOLTIP_IDS.workoutsStart}
+                  content="Slide here to start an open workout when you do not want to use a preset."
+                  targetClassName="block w-full"
+                >
+                  <SwipeToStart
+                    onComplete={() => navigate("/workout/active")}
+                    label="Start open workout"
+                    variant="default"
+                  />
+                </AppTooltip>
+              </div>
+            </section>
+
+            <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+              <div className="grid min-w-0 content-start gap-3">
+                {todayPreset !== null && (
+                  <div className="app-surface p-4">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="app-section-title">Today's workout</p>
+                        <p className="app-section-subtitle">
+                          {workoutLogs.length === 2
+                            ? "Both sessions complete"
+                            : workoutLogs.length === 1
+                              ? "Session one complete"
+                              : todayPreset
+                                ? todayPreset.duration
+                                : "Open training"}
+                        </p>
+                      </div>
+                      {workoutLogs.length === 1 && (
+                        <span className="rounded-full bg-foreground/[0.055] px-2.5 py-1 text-[10px] font-bold text-muted-foreground/62">
+                          1 of 2 done
+                        </span>
+                      )}
+                    </div>
+
+                    {workoutLogs.length === 2 ? (
+                      <WorkoutLogCarousel
+                        logs={
+                          workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]
+                        }
+                      />
+                    ) : workoutLogs.length === 1 ? (
+                      <div className="space-y-3.5">
+                        <WorkoutLogSummary log={workoutLogs[0]} slot={1} />
+
+                        {todayPreset2 ? (
+                          <div className="border-t border-border/35 pt-3.5">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-[15px] font-bold">
+                                  {todayPreset2.name}
+                                </p>
+                                <p className="mt-0.5 text-[11px] text-muted-foreground/56">
+                                  Workout 2 · {todayPreset2.duration}
+                                </p>
+                              </div>
+                            </div>
+                            <PresetSteps preset={todayPreset2} limit={3} />
+                            <div className="mt-3">
+                              <SwipeToStart
+                                onComplete={() =>
+                                  navigate(
+                                    `/workout/active/${todayPreset2.id}?slot=2`
+                                  )
+                                }
+                                label="Start second workout"
+                                variant="default"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowSecondWorkoutSheet(true)}
+                            className="app-empty w-full justify-center py-3 text-[13px] font-semibold transition-colors active:bg-muted/20 active:text-foreground"
+                          >
+                            <Plus size={13} weight="bold" />
+                            Add second workout
+                          </button>
+                        )}
+                      </div>
+                    ) : todayPreset ? (
+                      <div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-[1.25rem] leading-tight font-extrabold tracking-tight">
+                              {todayPreset.name}
+                            </p>
+                            {todayPreset2 && (
+                              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/56">
+                                + {todayPreset2.name} after
+                              </p>
+                            )}
+                          </div>
+                          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/56">
+                            {todayPreset.duration}
+                          </span>
+                        </div>
+                        <PresetSteps preset={todayPreset} />
+                        <div className="mt-4">
+                          <SwipeToStart
+                            onComplete={() =>
+                              navigate(`/workout/active/${todayPreset.id}`)
+                            }
+                            label="Start workout"
+                            variant="default"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-[0.9rem] bg-foreground/[0.035] px-4 py-5 text-center">
+                        <p className="text-[14px] font-bold">Rest day</p>
+                        <p className="mt-1 text-[12px] text-muted-foreground/58">
+                          No workout scheduled for today.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="app-surface p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="app-section-title">Routine</p>
+                      <p className="app-section-subtitle">
+                        Drag presets while editing
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setRoutineEditMode((value) => !value)}
+                        className={cn(
+                          "app-button transition-colors",
+                          routineEditMode
+                            ? "app-button-primary"
+                            : "app-button-quiet",
+                          "sm:bg-none"
+                        )}
+                      >
+                        {routineEditMode ? "Done" : <PencilIcon />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap justify-center gap-2 pb-1 md:grid md:grid-cols-7 md:justify-stretch md:gap-1.5 md:pb-0">
+                      {DAYS.map((day) => {
+                        const preset =
+                          presets.find((p) => p.id === routine[day]) ?? null
+                        const preset2 =
+                          presets.find((p) => p.id === routine2[day]) ?? null
+                        const isToday = day === today
+                        const isOver =
+                          overDay === day && hasMoved && routineEditMode
+                        const isSlot2Drop = isOver && !!preset
+                        const isRemoving = removingDays.has(day)
+                        const isPressing = pressingDay === day
+                        const FocusIcon = preset
+                          ? FOCUS_ICON[preset.focus]
+                          : null
+                        const FocusIcon2 = preset2
+                          ? FOCUS_ICON[preset2.focus]
+                          : null
+
+                        return (
+                          <div
+                            key={day}
+                            ref={(el) => {
+                              slotRefs.current[day] = el
+                            }}
+                            className={cn(
+                              "relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center gap-1.5 overflow-hidden rounded-[0.9rem] bg-foreground/[0.035] px-2 py-2.5 transition-all duration-200 min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:gap-2 md:rounded-[0.8rem] md:px-1 md:py-3",
+                              isToday && !isOver && "bg-foreground/[0.07]",
+                              isOver && "scale-[1.04] bg-foreground/[0.1]"
+                            )}
+                          >
+                            {isPressing && (
+                              <div
+                                className="absolute inset-x-0 bottom-0 h-[3px] origin-left bg-destructive"
+                                style={{
+                                  animation: `sweep-delete ${SLOT_PRESS_MS}ms linear forwards`,
+                                }}
+                              />
+                            )}
+
+                            {isSlot2Drop && (
+                              <div className="absolute top-1.5 right-1.5 flex h-4 w-4 animate-in items-center justify-center rounded-full bg-foreground text-[8px] font-black text-background duration-150 zoom-in-50">
+                                +2
+                              </div>
+                            )}
+
+                            {routineEditMode && (preset || preset2) && (
+                              <button
+                                type="button"
+                                onClick={() => removeSlot(day)}
+                                className="app-icon-button absolute top-1 right-1 z-10 h-8 w-8 bg-background/80 text-destructive md:top-1.5 md:right-1.5 md:h-9 md:w-9"
+                                aria-label={`Remove workout from ${day}`}
+                              >
+                                <X size={11} weight="bold" />
+                              </button>
+                            )}
+
+                            <span
+                              className={cn(
+                                "text-[10px] font-bold uppercase md:text-[9.5px]",
+                                isToday
+                                  ? "text-foreground"
+                                  : "text-muted-foreground/62"
+                              )}
+                            >
+                              {day}
+                            </span>
+
+                            {preset && FocusIcon ? (
+                              <button
+                                type="button"
+                                onPointerDown={() => onSlotPressStart(day)}
+                                onPointerUp={onSlotPressEnd}
+                                onPointerLeave={onSlotPressEnd}
+                                onPointerCancel={onSlotPressEnd}
+                                className={cn(
+                                  "flex w-full flex-col items-center gap-0 transition-all duration-200",
+                                  isRemoving && "scale-50 opacity-0"
+                                )}
+                              >
+                                <div className="flex w-full flex-col items-center gap-1 pb-1">
+                                  <FocusIcon
+                                    size={preset2 ? 12 : 16}
+                                    weight="duotone"
+                                    className="text-foreground/55"
+                                  />
+                                  <span
+                                    className={cn(
+                                      "max-w-full truncate px-1 text-center leading-tight font-bold text-foreground/72",
+                                      preset2
+                                        ? "text-[9px] md:text-[8.5px]"
+                                        : "text-[10px] md:text-[9.5px]"
+                                    )}
+                                  >
+                                    {preset.name}
+                                  </span>
+                                </div>
+
+                                {preset2 && FocusIcon2 && (
+                                  <div className="flex w-full animate-in flex-col items-center gap-1 duration-200 fade-in-0 slide-in-from-bottom-1">
+                                    <div className="mb-1 h-px w-7 rounded-full bg-border/55 md:w-[54px]" />
+                                    <FocusIcon2
+                                      size={12}
+                                      weight="duotone"
+                                      className="text-foreground/55"
+                                    />
+                                    <span className="max-w-full truncate px-1 text-center text-[9px] leading-tight font-bold text-foreground/72 md:text-[8.5px]">
+                                      {preset2.name}
+                                    </span>
+                                  </div>
+                                )}
+                              </button>
+                            ) : routineEditMode ? (
+                              <button
+                                type="button"
+                                onClick={() => setPickRoutineDay(day)}
+                                className="flex min-h-11 flex-col items-center justify-center gap-1 px-2 text-[10px] font-bold text-muted-foreground/62 transition-colors active:text-foreground md:min-h-10"
+                              >
+                                <Plus size={14} weight="bold" />
+                                Add
+                              </button>
+                            ) : (
+                              <span className="py-1.5 text-[10px] text-muted-foreground/35">
+                                Rest
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {muscleVolume.length > 0 && (
+                  <MuscleVolumeCard muscleVolume={muscleVolume} />
+                )}
+
+                <div>
+                  <div className="mb-2 px-1">
+                    <p className="app-section-title">Muscle recovery</p>
+                    <p className="app-section-subtitle">
+                      Based on completed sets and days since training
+                    </p>
+                  </div>
+                  <MuscleRecoveryHeatmapCard muscleRecovery={muscleRecovery} />
+                </div>
+              </div>
+
+              <div className="grid min-w-0 content-start gap-3">
+                <div className="app-surface p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="app-section-title">Presets</p>
+                      <p className="app-section-subtitle">
+                        Build and assign reusable sessions
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate("/workouts/new")}
+                      className="app-button app-button-quiet h-9"
+                    >
+                      New
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {syncing && presets.length === 0 && (
+                      <>
+                        {[0, 1, 2].map((i) => (
+                          <div
+                            key={i}
+                            className="h-[62px] animate-pulse rounded-[0.8rem] bg-foreground/[0.04]"
+                          />
+                        ))}
+                      </>
+                    )}
+                    {!syncing && presets.length === 0 && (
+                      <div className="rounded-[0.9rem] bg-foreground/[0.035] px-3.5 py-4">
+                        <p className="text-[13px] font-bold text-foreground">
+                          No presets yet
+                        </p>
+                        <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[12px] leading-relaxed text-muted-foreground/66">
+                          <li>
+                            Tap{" "}
+                            <span className="font-bold text-foreground/80">
+                              New
+                            </span>
+                            .
+                          </li>
+                          <li>Name the workout and choose its focus.</li>
+                          <li>Add exercises, then save it.</li>
+                          <li>Return here and assign it to a routine day.</li>
+                        </ol>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/workouts/new")}
+                          className="app-button app-button-primary mt-3 h-10 w-full"
+                        >
+                          Create your first preset
+                        </button>
+                      </div>
+                    )}
+                    {presets.map((preset, idx) => {
+                      const FocusIcon = FOCUS_ICON[preset.focus]
+                      const isDraggingThis =
+                        drag?.presetId === preset.id && hasMoved
+                      const isDropTarget =
+                        dragOverIdx === idx &&
+                        hasMoved &&
+                        drag?.presetId !== preset.id
+                      const isPressing = pressingPreset === preset.id
+
+                      return (
+                        <div key={preset.id} className="relative">
+                          {isDropTarget && (
+                            <div className="absolute inset-x-3 -top-1 h-0.5 rounded-full bg-foreground/30" />
+                          )}
+
+                          <div
+                            ref={(el) => {
+                              presetRefs.current[idx] = el
+                            }}
+                            className={cn(
+                              "relative touch-pan-y overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] transition-all duration-150 select-none",
+                              isDraggingThis && "scale-[0.98] opacity-40",
+                              isDropTarget &&
+                                "scale-[1.01] bg-foreground/[0.07]"
+                            )}
+                            onPointerDown={
+                              !routineEditMode
+                                ? undefined
+                                : (e) => onPresetPointerDown(e, preset.id)
+                            }
+                            onPointerMove={
+                              !routineEditMode ? undefined : onPresetPointerMove
+                            }
+                            onPointerUp={
+                              !routineEditMode ? undefined : onPresetPointerUp
+                            }
+                            onPointerCancel={
+                              !routineEditMode ? undefined : onPresetPointerUp
+                            }
+                          >
+                            {isPressing && (
+                              <div
+                                className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
+                                style={{
+                                  animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
+                                }}
+                              />
+                            )}
+
+                            <div className="flex items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
+                              <span className="app-icon-button pointer-events-none h-8 w-8 shrink-0 bg-foreground/[0.055]">
+                                <FocusIcon
+                                  size={14}
+                                  weight="duotone"
+                                  className="text-foreground/62"
+                                />
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-[12.5px] leading-tight font-bold">
+                                  {preset.name}
+                                </p>
+                                <p className="mt-0.5 text-[10.5px] text-muted-foreground/55">
+                                  {preset.steps.length} exercises ·{" "}
+                                  {preset.duration}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() =>
+                                  navigate(`/workouts/edit/${preset.id}`)
+                                }
+                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                                aria-label={`Edit ${preset.name}`}
+                              >
+                                <PencilSimple size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => duplicatePreset(preset)}
+                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                                aria-label={`Duplicate ${preset.name}`}
+                              >
+                                <Copy size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => setConfirmDeleteId(preset.id)}
+                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-destructive/70"
+                                aria-label={`Delete ${preset.name}`}
+                              >
+                                <Trash size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {workoutHistory !== undefined && workoutDates.size > 0 && (
+                  <TrainingConsistencyCard workoutDates={workoutDates} />
+                )}
+              </div>
+            </section>
+          </>
+        )}
       </main>
 
       {/* ── Drag ghost ──────────────────────────────────────────────────── */}
       {hasMoved && ghostPreset && GhostIcon && drag && (
         <div
-          className="z-50 fixed flex items-center gap-2 bg-background/95 shadow-2xl shadow-black/20 backdrop-blur-sm px-3 py-2 rounded-xl pointer-events-none"
+          className="pointer-events-none fixed z-50 flex items-center gap-2 rounded-xl bg-background/95 px-3 py-2 shadow-2xl shadow-black/20 backdrop-blur-sm"
           style={{ left: drag.x - 80, top: drag.y - 20, minWidth: 150 }}
         >
           <GhostIcon
             size={13}
             weight="duotone"
-            className="text-foreground/50 shrink-0"
+            className="shrink-0 text-foreground/50"
           />
-          <span className="font-semibold text-[12px]">{ghostPreset.name}</span>
+          <span className="text-[12px] font-semibold">{ghostPreset.name}</span>
         </div>
       )}
 
@@ -1651,35 +1855,35 @@ export default function Workouts() {
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-4 pt-1 pb-4">
-            <div className="overflow-hidden app-surface">
+            <div className="app-surface overflow-hidden">
               <button
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workout/active")
                 }}
-                className="flex justify-between items-center active:bg-muted/40 px-4 py-3.5 w-full text-left transition-colors"
+                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
               >
-                <span className="flex items-center gap-3 min-w-0">
-                  <span className="bg-muted/55 w-9 h-9 text-muted-foreground/70 pointer-events-none app-icon-button">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
                     <Barbell size={16} weight="bold" />
                   </span>
-                  <span className="font-semibold text-[13px]">Log workout</span>
+                  <span className="text-[13px] font-semibold">Log workout</span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>
-              <div className="mx-4 bg-border/50 h-px" />
+              <div className="mx-4 h-px bg-border/50" />
               <button
                 onClick={() => {
                   setAddOpen(false)
                   navigate("/workouts/new")
                 }}
-                className="flex justify-between items-center active:bg-muted/40 px-4 py-3.5 w-full text-left transition-colors"
+                className="flex w-full items-center justify-between px-4 py-3.5 text-left transition-colors active:bg-muted/40"
               >
-                <span className="flex items-center gap-3 min-w-0">
-                  <span className="bg-muted/55 w-9 h-9 text-muted-foreground/70 pointer-events-none app-icon-button">
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
                     <Plus size={16} weight="bold" />
                   </span>
-                  <span className="font-semibold text-[13px]">New preset</span>
+                  <span className="text-[13px] font-semibold">New preset</span>
                 </span>
                 <CaretRight size={11} className="text-muted-foreground/30" />
               </button>

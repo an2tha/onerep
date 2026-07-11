@@ -16,6 +16,13 @@ type GuidedTooltipEntry = {
   mountedAt: number
 }
 
+type GuidedTooltipRect = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 const guidedTooltipEntries = new Map<string, GuidedTooltipEntry>()
 const guidedTooltipListeners = new Set<() => void>()
 let guidedTooltipActiveId: string | null = null
@@ -23,6 +30,27 @@ let guidedTooltipMountCounter = 0
 
 function emitGuidedTooltipChange() {
   guidedTooltipListeners.forEach((listener) => listener())
+}
+
+function getNextGuidedTooltipId() {
+  return [...guidedTooltipEntries.values()]
+    .filter((entry) => entry.visible && !entry.completed)
+    .sort(
+      (a, b) =>
+        a.order - b.order ||
+        a.mountedAt - b.mountedAt ||
+        a.id.localeCompare(b.id)
+    )[0]?.id
+}
+
+function syncGuidedTooltipActive() {
+  const activeEntry = guidedTooltipActiveId
+    ? guidedTooltipEntries.get(guidedTooltipActiveId)
+    : null
+
+  if (activeEntry?.visible && !activeEntry.completed) return
+
+  guidedTooltipActiveId = getNextGuidedTooltipId() ?? null
 }
 
 function subscribeGuidedTooltips(listener: () => void) {
@@ -34,14 +62,7 @@ function subscribeGuidedTooltips(listener: () => void) {
 
 function upsertGuidedTooltip(entry: GuidedTooltipEntry) {
   guidedTooltipEntries.set(entry.id, entry)
-
-  if (
-    guidedTooltipActiveId === entry.id &&
-    (entry.completed || !entry.visible)
-  ) {
-    guidedTooltipActiveId = null
-  }
-
+  syncGuidedTooltipActive()
   emitGuidedTooltipChange()
 }
 
@@ -52,6 +73,7 @@ function removeGuidedTooltip(id: string) {
     guidedTooltipActiveId = null
   }
 
+  syncGuidedTooltipActive()
   emitGuidedTooltipChange()
 }
 
@@ -65,18 +87,8 @@ function completeGuidedTooltip(id: string) {
     guidedTooltipActiveId = null
   }
 
+  syncGuidedTooltipActive()
   emitGuidedTooltipChange()
-}
-
-function getNextGuidedTooltipId() {
-  return [...guidedTooltipEntries.values()]
-    .filter((entry) => entry.visible && !entry.completed)
-    .sort(
-      (a, b) =>
-        a.order - b.order ||
-        a.mountedAt - b.mountedAt ||
-        a.id.localeCompare(b.id)
-    )[0]?.id
 }
 
 function requestGuidedTooltipActive(id: string) {
@@ -158,7 +170,7 @@ function TooltipContent({
 
 type GuidedTooltipProps = Omit<
   React.ComponentProps<typeof TooltipPrimitive.Content>,
-  "children" | "className" | "id" | "sideOffset"
+  "children" | "className" | "content" | "id" | "sideOffset"
 > & {
   id: GuidedTooltipId
   content: React.ReactNode
@@ -170,6 +182,7 @@ type GuidedTooltipProps = Omit<
   targetClassName?: string
   overlayClassName?: string
   sideOffset?: number
+  spotlightPadding?: number
   dismissOnTargetClick?: boolean
   onComplete?: (id: GuidedTooltipId) => void | Promise<void>
   onOpenHaptic?: () => void
@@ -188,6 +201,7 @@ function GuidedTooltip({
   side = "bottom",
   align = "center",
   sideOffset = 10,
+  spotlightPadding = 6,
   dismissOnTargetClick = true,
   onComplete,
   onOpenHaptic,
@@ -203,6 +217,8 @@ function GuidedTooltip({
   const [isVisible, setIsVisible] = React.useState(false)
   const [locallyCompleted, setLocallyCompleted] = React.useState(false)
   const [portalNode, setPortalNode] = React.useState<HTMLElement | null>(null)
+  const [targetRect, setTargetRect] =
+    React.useState<GuidedTooltipRect | null>(null)
   const isCompleted = completed || locallyCompleted
 
   React.useEffect(() => {
@@ -252,6 +268,38 @@ function GuidedTooltip({
 
   const open = enabled && isVisible && !isCompleted && guidedTooltipActiveId === key
 
+  React.useEffect(() => {
+    if (!open) {
+      setTargetRect(null)
+      return
+    }
+
+    function updateTargetRect() {
+      const target = targetRef.current
+      if (!target) return
+
+      const rect = target.getBoundingClientRect()
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      setTargetRect({
+        top: Math.max(0, rect.top - spotlightPadding),
+        right: Math.min(viewportWidth, rect.right + spotlightPadding),
+        bottom: Math.min(viewportHeight, rect.bottom + spotlightPadding),
+        left: Math.max(0, rect.left - spotlightPadding),
+      })
+    }
+
+    updateTargetRect()
+    window.addEventListener("resize", updateTargetRect)
+    document.addEventListener("scroll", updateTargetRect, true)
+
+    return () => {
+      window.removeEventListener("resize", updateTargetRect)
+      document.removeEventListener("scroll", updateTargetRect, true)
+    }
+  }, [open, spotlightPadding])
+
   const complete = React.useCallback(() => {
     if (completionStartedRef.current) return
     completionStartedRef.current = true
@@ -292,20 +340,57 @@ function GuidedTooltip({
     window.setTimeout(complete, 0)
   }
 
+  const overlayPieces = targetRect
+    ? [
+        {
+          top: 0,
+          left: 0,
+          width: "100%",
+          height: targetRect.top,
+        },
+        {
+          top: targetRect.bottom,
+          left: 0,
+          width: "100%",
+          height: `calc(100dvh - ${targetRect.bottom}px)`,
+        },
+        {
+          top: targetRect.top,
+          left: 0,
+          width: targetRect.left,
+          height: Math.max(0, targetRect.bottom - targetRect.top),
+        },
+        {
+          top: targetRect.top,
+          left: targetRect.right,
+          width: `calc(100vw - ${targetRect.right}px)`,
+          height: Math.max(0, targetRect.bottom - targetRect.top),
+        },
+      ]
+    : []
+
   return (
     <>
       {open &&
         portalNode &&
+        targetRect &&
         createPortal(
-          <button
-            type="button"
-            aria-label="Dismiss tooltip"
-            className={cn(
-              "fixed inset-0 z-40 cursor-default bg-black/45 backdrop-brightness-50",
-              overlayClassName
-            )}
-            onClick={complete}
-          />,
+          <div className="fixed inset-0 z-40 pointer-events-none">
+            {overlayPieces.map((style, index) => (
+              <button
+                key={index}
+                type="button"
+                tabIndex={-1}
+                aria-label="Dismiss tooltip"
+                className={cn(
+                  "pointer-events-auto absolute cursor-default bg-black/45 backdrop-brightness-50",
+                  overlayClassName
+                )}
+                style={style}
+                onClick={complete}
+              />
+            ))}
+          </div>,
           portalNode
         )}
       <TooltipPrimitive.Provider delayDuration={0}>

@@ -229,10 +229,11 @@ export function useAiFeatureGate() {
       onOpenPaywall={() => {
         if (paywallBusy) return
         setPaywallBusy(true)
-        void revenueCat
-          .purchaseMonthly()
-          .then((customerInfo) => customerInfo ?? revenueCat.refresh())
-          .then((customerInfo) => {
+        void (async () => {
+          try {
+            const purchasedCustomerInfo = await revenueCat.purchaseMonthly()
+            const customerInfo =
+              purchasedCustomerInfo ?? (await revenueCat.refresh())
             if (hasOneRepPro(customerInfo)) {
               celebrateSubscription()
               setModalOpen(false)
@@ -240,15 +241,16 @@ export function useAiFeatureGate() {
               toast.message("Subscription is pending. Refreshing access...")
               void revenueCat.refresh()
             }
-          })
-          .catch((error) => {
+          } catch (error) {
             const message =
               error instanceof Error && error.message
                 ? error.message
                 : "Could not open the paywall"
             if (message !== "Purchase canceled") toast.error(message)
-          })
-          .finally(() => setPaywallBusy(false))
+          } finally {
+            setPaywallBusy(false)
+          }
+        })()
       }}
       onRestore={() => {
         if (paywallBusy) return

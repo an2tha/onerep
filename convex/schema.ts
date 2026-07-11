@@ -26,6 +26,7 @@ export default defineSchema({
     dashboardSettings: v.optional(
       v.object({
         workoutFocus: v.string(), // "strength" | "cardio" | "mobility"
+        trendMetric: v.optional(v.string()), // bodyFatPct | waistCm | chestCm | armsCm | thighsCm
       }),
     ),
     widgetLayout: v.optional(
@@ -164,6 +165,7 @@ export default defineSchema({
     age: v.number(),
     heightCm: v.number(),
     goal: v.string(), // "lose" | "build" | "health" | "performance"
+    experienceLevel: v.optional(v.string()), // "beginner" | "intermediate" | "advanced"
     nutritionGoal: v.optional(v.string()), // "maintain" | "lose_fat" | "gain_muscle" | "performance" | "macros_only" | "medical"
     consent: v.optional(
       v.object({
@@ -222,14 +224,19 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
-  // ── Completed workout logs (one per user+date) ─────────────────────────────
+  // ── Completed workout logs (up to one per session; legacy rows lack sessionId) ──
   workoutLogs: defineTable({
     userId: v.string(),
     date: v.string(), // YYYY-MM-DD
+    // Added as a widening migration so existing daily logs remain valid.
+    sessionId: v.optional(v.string()),
+    slot: v.optional(v.union(v.literal(1), v.literal(2))),
     exercises: v.array(v.any()),
     durationSeconds: v.number(),
     completedAt: v.number(),
-  }).index("by_userId_date", ["userId", "date"]),
+  })
+    .index("by_userId_date", ["userId", "date"])
+    .index("by_userId_and_date_and_sessionId", ["userId", "date", "sessionId"]),
 
   // ── Food logs (one doc per user+date, stores all entries) ─────────────────
   foodLogs: defineTable({
@@ -552,7 +559,11 @@ export default defineSchema({
     store: v.union(v.string(), v.null()),
     expiresAt: v.union(v.string(), v.null()),
     rawCustomerInfo: v.optional(v.any()),
-    source: v.union(v.literal("revenuecat_api"), v.literal("manual")),
+    source: v.union(
+      v.literal("revenuecat_api"),
+      v.literal("revenuecat_webhook"),
+      v.literal("manual"),
+    ),
     fetchedAt: v.number(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),

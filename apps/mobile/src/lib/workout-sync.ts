@@ -43,6 +43,9 @@ export type CardioWorkoutDetails = {
 export type CachedWorkoutLog = {
   _id?: string // Convex ID
   date: string // YYYY-MM-DD
+  // Optional while legacy one-log-per-day records are still in the database.
+  sessionId?: string
+  slot?: 1 | 2
   exercises: Array<{
     id?: string
     exerciseId?: string

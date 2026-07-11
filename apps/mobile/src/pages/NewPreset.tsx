@@ -592,9 +592,7 @@ function SetRow({
           value: type,
           label: SET_CFG[type].label,
         }))}
-        onTypeChange={(value) =>
-          onUpdate({ ...set, type: value as SetType })
-        }
+        onTypeChange={(value) => onUpdate({ ...set, type: value as SetType })}
         onDelete={onDelete}
         onWeightClick={() => setShowWeight(true)}
         weightActionLabel={
@@ -857,13 +855,8 @@ function PresetExerciseCard({
                   onClick={addSet}
                   className="flex w-full items-center justify-center gap-2 border-t border-border/30 px-4 py-3 text-left text-muted-foreground/70 transition-colors active:bg-muted/30 active:text-foreground"
                 >
-                  <Plus
-                    size={14}
-                    weight="bold"
-                  />
-                  <span className="text-[13px] font-bold">
-                    Add set
-                  </span>
+                  <Plus size={14} weight="bold" />
+                  <span className="text-[13px] font-bold">Add set</span>
                 </button>
               </>
             )}
@@ -982,7 +975,7 @@ function SearchSheet({
     >
       <div
         className={cn(
-          "sheet-panel flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
+          "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         onClick={(e) => e.stopPropagation()}
@@ -1091,9 +1084,7 @@ function SearchSheet({
   )
 }
 
-type ExerciseSearchSuggestion =
-  | Exercise
-  | RecentExerciseSearch
+type ExerciseSearchSuggestion = Exercise | RecentExerciseSearch
 
 function ExerciseSuggestionGroups({
   recentSuggestions,
@@ -1422,6 +1413,7 @@ export default function NewPreset() {
     Record<string, Exercise>
   >({})
   const preferences = useQuery(api.users.users.getPreferences)
+  const onboarding = useQuery(api.users.onboarding.get, {})
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
@@ -1504,12 +1496,7 @@ export default function NewPreset() {
   // ── Save ──────────────────────────────────────────────────
 
   async function handleSave() {
-    if (
-      savingRef.current ||
-      saving ||
-      loadingPreset ||
-      addedIds.length === 0
-    ) {
+    if (savingRef.current || saving || loadingPreset || addedIds.length === 0) {
       return
     }
     savingRef.current = true
@@ -1565,7 +1552,12 @@ export default function NewPreset() {
     generatingPresetRef.current = true
     setGeneratingPreset(true)
     try {
-      const draft = (await createPresetDraft({ text })) as AgentPresetDraft
+      const draft = (await createPresetDraft({
+        text,
+        experienceLevel: onboarding?.experienceLevel,
+        safetyMode: onboarding?.safetyMode,
+        safetyFlags: onboarding?.safetyFlags,
+      })) as AgentPresetDraft
       const draftExercises = (draft.exercises ?? []).filter((exercise) =>
         exercise.name?.trim()
       )
@@ -2093,7 +2085,9 @@ export default function NewPreset() {
             )}
           >
             <Plus size={items.length === 0 ? 17 : 16} weight="bold" />
-            <span className={items.length === 0 ? "text-[14.5px]" : "text-[14px]"}>
+            <span
+              className={items.length === 0 ? "text-[14.5px]" : "text-[14px]"}
+            >
               {items.length === 0 ? "Add exercises" : "Add another exercise"}
             </span>
           </button>

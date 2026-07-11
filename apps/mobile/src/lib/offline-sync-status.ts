@@ -1,4 +1,5 @@
-export type OfflineSyncStatusTone = "offline" | "pending" | "syncing" | "error"
+export type OfflineSyncStatusTone =
+  "offline" | "pending" | "syncing" | "error" | "synced"
 
 export type OfflineSyncStatusCopy = {
   title: string
@@ -93,10 +94,19 @@ export function offlineSyncStatusCopy({
     }
   }
 
+  if (canSync) {
+    return {
+      title: "All changes synced",
+      body: "Your latest changes are backed up.",
+      tone: "synced",
+      canRetry: false,
+    }
+  }
+
   return {
-    title: "Offline mode",
-    body: "Keep logging. Changes are saved locally.",
-    tone: "offline",
+    title: "Waiting to sync",
+    body: "Sign-in is still connecting. New changes are saved locally.",
+    tone: "pending",
     canRetry: false,
   }
 }

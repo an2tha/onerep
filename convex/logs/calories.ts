@@ -86,6 +86,29 @@ export const setProfile = mutation({
 // ── calculate (pure, no db) ───────────────────────────────────────────────────
 
 export const calculate = query({
-  args: healthProfileArgs,
-  handler: (_, args): CaloricGoals => calculateCalories(args),
+  args: {
+    ...healthProfileArgs,
+    nutritionGoal: v.optional(v.string()),
+    safetyMode: v.optional(v.string()),
+    weightTrend: v.optional(v.string()),
+    occupationActivity: v.optional(v.string()),
+    trackingMode: v.optional(v.string()),
+  },
+  handler: (_, args): CaloricGoals => {
+    const {
+      nutritionGoal,
+      safetyMode,
+      weightTrend,
+      occupationActivity,
+      trackingMode,
+      ...profile
+    } = args;
+    return calculateCalories(profile, {
+      nutritionGoal,
+      safetyMode,
+      weightTrend,
+      occupationActivity,
+      trackingMode,
+    });
+  },
 });

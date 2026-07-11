@@ -1,5 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { ArrowLeft, Check, Minus, Plus } from "@phosphor-icons/react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Barbell,
+  Check,
+  GenderFemale,
+  GenderMale,
+  Heart,
+  Lightning,
+  Minus,
+  PersonSimpleRun,
+  Plus,
+  Scales,
+  ShieldCheck,
+  Trophy,
+  TrendDown,
+  type Icon,
+} from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -15,12 +32,7 @@ import {
   mapOnboardingGoalToCalorieGoal,
 } from "@/lib/health-goals"
 import { useSmoothNavigate } from "@/lib/navigation"
-import {
-  cn,
-  safeLocalStorageRemove,
-  safeLocalStorageSet,
-  safeSessionStorageSet,
-} from "@/lib/utils"
+import { cn, safeLocalStorageRemove } from "@/lib/utils"
 import {
   hapticHeavy,
   hapticMedium,
@@ -34,19 +46,15 @@ const HEIGHT_MIN = 100
 const HEIGHT_MAX = 250
 const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
-const WATER_MIN = 1000
-const WATER_MAX = 6000
 const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
-const THEME_KEY = "theme"
-const FIRST_NUTRITION_ACTION_DONE_KEY = "onerep:first-nutrition-action-done"
 
 const activities = [
-  ["sedentary", "Sedentary", "Mostly seated, little planned movement."],
-  ["lightly_active", "Light", "Walks or light training a few days per week."],
-  ["moderately_active", "Moderate", "Training or active work most weeks."],
-  ["very_active", "Very active", "Hard training or active work most days."],
-  ["extra_active", "Athlete", "Demanding training plus a physical schedule."],
-] satisfies [ActivityLevel, string, string][]
+  ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
+  ["lightly_active", "Light", "A few active days", PersonSimpleRun],
+  ["moderately_active", "Moderate", "Active most weeks", PersonSimpleRun],
+  ["very_active", "Very active", "Training most days", PersonSimpleRun],
+  ["extra_active", "Athlete", "High training load", PersonSimpleRun],
+] satisfies [ActivityLevel, string, string, Icon][]
 
 type NutritionGoal =
   | "maintain"
@@ -56,6 +64,7 @@ type NutritionGoal =
   | "macros_only"
   | "medical"
 type SafetyMode = "standard" | "habit" | "clinician" | "recovery"
+type ExperienceLevel = "beginner" | "intermediate" | "advanced"
 type WeightTrend = "losing" | "stable" | "gaining" | "unknown"
 type OccupationActivity = "desk" | "mixed" | "on_feet" | "manual"
 type DietType =
@@ -85,13 +94,16 @@ type ConsentState = {
 }
 
 const nutritionGoals = [
-  ["maintain", "Maintain weight", "Eat healthier without aggressive targets."],
-  ["lose_fat", "Lose fat", "Use a modest, trend-based calorie target."],
-  ["gain_muscle", "Gain muscle", "Fuel lifting, recovery, and protein."],
-  ["performance", "Fuel workouts", "Support training quality and energy."],
-  ["macros_only", "Track macros only", "Keep calories secondary."],
-  ["medical", "Medical nutrition goal", "Use clinician-guided setup."],
-] satisfies [NutritionGoal, string, string][]
+  ["lose_fat", "Lose fat", "Steady, sustainable deficit", TrendDown],
+  ["gain_muscle", "Build muscle", "More fuel and protein", Barbell],
+  ["maintain", "Stay healthy", "Maintain and build consistency", Heart],
+] satisfies [NutritionGoal, string, string, Icon][]
+
+const experienceLevels = [
+  ["beginner", "New to this", "Keep setup simple", Heart],
+  ["intermediate", "Some experience", "I know the basics", Lightning],
+  ["advanced", "Very experienced", "Give me full control", Trophy],
+] satisfies [ExperienceLevel, string, string, Icon][]
 
 const safetyOptions = [
   ["under_18", "Under 18"],
@@ -132,17 +144,6 @@ const dietTypes = [
   ["other", "Other"],
 ] satisfies [DietType, string][]
 
-const allergyOptions = [
-  ["none", "No major allergies"],
-  ["dairy", "Dairy"],
-  ["gluten", "Gluten"],
-  ["eggs", "Eggs"],
-  ["peanuts", "Peanuts"],
-  ["tree_nuts", "Tree nuts"],
-  ["soy", "Soy"],
-  ["fish_shellfish", "Fish/shellfish"],
-] satisfies [string, string][]
-
 const cookingSkills = [
   ["beginner", "Keep it simple"],
   ["intermediate", "I can cook"],
@@ -163,14 +164,6 @@ const trackingModes = [
   ["recovery", "Non-numeric recovery"],
 ] satisfies [TrackingMode, string][]
 
-const loggingFeatureOptions = [
-  ["barcode", "Barcode scanner"],
-  ["saved_meals", "Saved meals"],
-  ["restaurant_search", "Restaurant search"],
-  ["meal_reminders", "Meal reminders"],
-  ["wearable_energy", "Wearable energy"],
-] satisfies [string, string][]
-
 const firstNutritionActions = [
   ["log_first_meal", "Log first meal"],
   ["build_template", "Build a meal template"],
@@ -181,153 +174,78 @@ const firstNutritionActions = [
 
 const steps = [
   {
-    label: "Setup",
-    title: "Set up nutrition",
-    accent: "nutrition",
-    body: "Two minutes, optional, and editable anytime.",
-    image: "/onboarding/unboxing.svg",
-  },
-  {
-    label: "Consent",
-    title: "Choose what OneRep can use",
-    accent: "use",
-    body: "Your answers personalize calories, macros, and logging.",
-    image: "/onboarding/plant.svg",
-  },
-  {
+    id: "goal",
     label: "Goal",
-    title: "What is your nutrition goal?",
+    title: "What's your goal?",
     accent: "goal",
-    body: "This sets the safest starting point for feedback.",
+    body: "Pick the closest match.",
     image: "/onboarding/sprinting.svg",
   },
   {
+    id: "experience",
+    label: "Experience",
+    title: "Your experience",
+    accent: "experience",
+    body: "We'll match the level of guidance.",
+    image: "/onboarding/unboxing.svg",
+  },
+  {
+    id: "profile",
     label: "Body",
-    title: "Which profile should we use?",
+    title: "Choose a profile",
     accent: "profile",
-    body: "This is only used for calorie math. You can change it later.",
+    body: "Used only for estimates.",
     image: "/onboarding/reading.svg",
   },
   {
+    id: "age",
     label: "Age",
-    title: "How old are you?",
-    accent: "old",
-    body: "Age helps estimate your baseline energy needs.",
+    title: "Your age",
+    accent: "age",
+    body: "Helps estimate your baseline.",
     image: "/onboarding/sit-reading.svg",
   },
   {
+    id: "safety",
     label: "Safety",
-    title: "Any safety context?",
-    accent: "safety",
-    body: "These answers keep targets conservative when needed.",
+    title: "Anything we should know?",
+    accent: "know",
+    body: "Select any that apply.",
     image: "/onboarding/sleek.svg",
   },
   {
+    id: "height",
     label: "Height",
-    title: "How tall are you?",
-    accent: "tall",
-    body: "Height is part of the starting calorie calculation.",
+    title: "Your height",
+    accent: "height",
+    body: "Used for calorie estimates.",
     image: "/onboarding/rolling.svg",
   },
   {
+    id: "weight",
     label: "Weight",
-    title: "What's your current weight?",
+    title: "Your weight",
     accent: "weight",
-    body: "Use today's best estimate. This is just your starting point.",
+    body: "Your current best estimate.",
     image: "/onboarding/petting.svg",
   },
   {
-    label: "Trend",
-    title: "What is your weight doing?",
-    accent: "doing",
-    body: "Trends matter more than one weigh-in.",
-    image: "/onboarding/dancing.svg",
-  },
-  {
+    id: "activity",
     label: "Activity",
-    title: "Choose a normal week",
-    accent: "normal",
-    body: "Pick the option that matches most weeks, not your perfect week.",
+    title: "Your activity",
+    accent: "activity",
+    body: "Choose a typical week.",
     image: "/onboarding/running.svg",
   },
   {
-    label: "Workday",
-    title: "How active is your day?",
-    accent: "active",
-    body: "This covers movement outside workouts.",
-    image: "/onboarding/strolling.svg",
-  },
-  {
-    label: "Diet",
-    title: "What diet fits you?",
-    accent: "diet",
-    body: "OneRep will avoid suggestions that do not fit your food rules.",
-    image: "/onboarding/coffee.svg",
-  },
-  {
-    label: "Constraints",
-    title: "Any allergies or intolerances?",
-    accent: "allergies",
-    body: "Pick the important ones. You can add details later.",
-    image: "/onboarding/selfie.svg",
-  },
-  {
-    label: "Meals",
-    title: "How should meals feel?",
-    accent: "meals",
-    body: "Cooking, budget, and meal frequency shape practical plans.",
-    image: "/onboarding/swinging.svg",
-  },
-  {
-    label: "Units",
-    title: "Which units feel natural?",
-    accent: "units",
-    body: "OneRep will use this in logging and settings.",
-    image: "/onboarding/meditating.svg",
-  },
-  {
-    label: "Water",
-    title: "Set a water target",
-    accent: "water",
-    body: "Choose a simple daily target to start with.",
-    image: "/onboarding/float.svg",
-  },
-  {
-    label: "Tracking",
-    title: "Choose a tracking style",
-    accent: "tracking",
-    body: "Use numbers, photos, habits, or recovery mode.",
-    image: "/onboarding/ice-cream.svg",
-  },
-  {
-    label: "Logging",
-    title: "What should be ready?",
-    accent: "ready",
-    body: "OneRep can prioritize the tools you actually want.",
-    image: "/onboarding/groovy.svg",
-  },
-  {
-    label: "First action",
-    title: "Start with one action",
-    accent: "action",
-    body: "Choose what happens after onboarding.",
-    image: "/onboarding/groovy-sitting.svg",
-  },
-  {
-    label: "Theme",
-    title: "Choose your app theme",
-    accent: "theme",
-    body: "Onboarding stays light. This applies once setup is done.",
-    image: "/onboarding/loving.svg",
-  },
-  {
+    id: "review",
     label: "Review",
-    title: "Your first targets",
-    accent: "targets",
-    body: "Use these as a starting point. You can tune everything later.",
+    title: "You're ready",
+    accent: "ready",
+    body: "Adjust anything later in Settings.",
     image: "/onboarding/ballet.svg",
   },
-]
+] as const
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max))
@@ -341,16 +259,12 @@ function lbsToKg(lbs: number) {
   return Math.round((lbs / 2.20462) * 10) / 10
 }
 
-function formatLiters(ml: number) {
-  return `${(ml / 1000).toFixed(1)} L`
-}
-
 function selectedActivityLabel(activity: ActivityLevel) {
   return activities.find(([id]) => id === activity)?.[1] ?? "Moderate"
 }
 
 function selectedLabel<T extends string>(
-  options: readonly (readonly [T, string, ...string[]])[],
+  options: readonly (readonly [T, string, ...unknown[]])[],
   value: T
 ) {
   return options.find(([id]) => id === value)?.[1] ?? value
@@ -375,6 +289,10 @@ function isActivityLevel(value: unknown): value is ActivityLevel {
 
 function isNutritionGoal(value: unknown): value is NutritionGoal {
   return nutritionGoals.some(([id]) => id === value)
+}
+
+function isExperienceLevel(value: unknown): value is ExperienceLevel {
+  return experienceLevels.some(([id]) => id === value)
 }
 
 function isWeightTrend(value: unknown): value is WeightTrend {
@@ -442,28 +360,13 @@ function deriveSafetyMode(
   return "standard"
 }
 
-function safetyModeLabel(mode: SafetyMode) {
-  if (mode === "habit") return "Habit + education mode"
-  if (mode === "clinician") return "Clinician-guided mode"
-  if (mode === "recovery") return "Non-numeric recovery mode"
-  return "Standard targets"
-}
-
-function firstNutritionActionPath(action: FirstNutritionAction) {
-  if (action === "build_template") return "/foods/recipe/new"
-  if (action === "tomorrow_plan") return "/nutrition?plan=tomorrow"
-  if (action === "import_yesterday") return "/foods?history=1"
-  if (action === "skip_habit") return "/nutrition?mode=habit"
-  return "/foods/search"
-}
-
 function OnboardingIllustration({ step }: { step: number }) {
   return (
-    <div className="mx-auto flex h-[235px] w-full items-end justify-center pt-4 short-phone:h-[178px]">
+    <div className="mx-auto flex h-[165px] w-full items-end justify-center pt-2 short-phone:h-[115px]">
       <img
         src={steps[step].image}
         alt=""
-        className="h-full max-h-[225px] w-full max-w-[18.5rem] object-contain short-phone:max-h-[170px]"
+        className="h-full max-h-[160px] w-full max-w-[15rem] object-contain short-phone:max-h-[110px]"
       />
     </div>
   )
@@ -550,14 +453,15 @@ function PillToggle<T extends string>({
   options,
   onChange,
 }: {
-  value: T
-  options: { value: T; label: string }[]
+  value: T | null
+  options: { value: T; label: string; icon?: Icon }[]
   onChange: (value: T) => void
 }) {
   return (
     <div className="grid gap-2">
       {options.map((option) => {
         const selected = value === option.value
+        const OptionIcon = option.icon
         return (
           <button
             key={option.value}
@@ -567,12 +471,13 @@ function PillToggle<T extends string>({
               onChange(option.value)
             }}
             className={cn(
-              "min-h-12 rounded-[6px] px-4 text-[14px] font-black transition-colors",
+              "flex min-h-12 items-center justify-center gap-2 rounded-[6px] px-4 text-[14px] font-black transition-colors",
               selected
                 ? "bg-[#171a18] text-[#f8faf7]"
                 : "bg-[#e8e7e3] text-[#171a18] active:bg-[#deddd8]"
             )}
           >
+            {OptionIcon && <OptionIcon size={17} weight="bold" />}
             {option.label}
           </button>
         )
@@ -586,14 +491,15 @@ function OptionList<T extends string>({
   options,
   onChange,
 }: {
-  value: T
-  options: readonly (readonly [T, string, ...string[]])[]
+  value: T | null
+  options: readonly (readonly [T, string, string?, Icon?])[]
   onChange: (value: T) => void
 }) {
   return (
     <div className="grid gap-2">
-      {options.map(([id, label, body]) => {
+      {options.map(([id, label, body, icon]) => {
         const selected = value === id
+        const OptionIcon = icon
         return (
           <button
             key={id}
@@ -611,7 +517,10 @@ function OptionList<T extends string>({
             )}
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[14px] font-black">{label}</span>
+              <span className="flex items-center gap-3 text-[14px] font-black">
+                {OptionIcon && <OptionIcon size={18} weight="bold" />}
+                {label}
+              </span>
               {selected && <Check size={16} weight="bold" />}
             </div>
             {body && (
@@ -635,10 +544,12 @@ function MultiSelectList({
   values,
   options,
   onChange,
+  icon: SharedIcon,
 }: {
   values: string[]
   options: readonly (readonly [string, string])[]
   onChange: (values: string[]) => void
+  icon?: Icon
 }) {
   function toggle(id: string) {
     hapticSelection()
@@ -672,7 +583,10 @@ function MultiSelectList({
             )}
           >
             <span className="flex items-center justify-between gap-2">
-              {label}
+              <span className="flex items-center gap-2">
+                {SharedIcon && <SharedIcon size={15} weight="bold" />}
+                {label}
+              </span>
               {selected && <Check size={14} weight="bold" />}
             </span>
           </button>
@@ -714,6 +628,8 @@ export function OnboardingMobile() {
     wearableIntegrations: false,
   })
   const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal>("maintain")
+  const [experienceLevel, setExperienceLevel] =
+    useState<ExperienceLevel | null>(null)
   const [safetyFlags, setSafetyFlags] = useState<string[]>(["none"])
   const [weightTrend, setWeightTrend] = useState<WeightTrend>("stable")
   const [occupationActivity, setOccupationActivity] =
@@ -732,9 +648,6 @@ export function OnboardingMobile() {
     useState<FirstNutritionAction>("log_first_meal")
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg")
   const [waterGoalMl, setWaterGoalMl] = useState(2500)
-  const [themePreference, setThemePreference] = useState<"light" | "dark">(
-    "light"
-  )
   const [transitionDirection, setTransitionDirection] = useState<
     "forward" | "back"
   >("forward")
@@ -756,6 +669,11 @@ export function OnboardingMobile() {
           heightCm: profile.heightCm,
           activityLevel: profile.activityLevel,
           goal: calorieGoal,
+          nutritionGoal,
+          safetyMode: deriveSafetyMode(profile.age, nutritionGoal, safetyFlags),
+          weightTrend,
+          occupationActivity,
+          trackingMode,
         }
       : "skip"
   )
@@ -804,9 +722,7 @@ export function OnboardingMobile() {
           ? "lose_fat"
           : nextGoal === "build"
             ? "gain_muscle"
-            : nextGoal === "performance"
-              ? "performance"
-              : "maintain"
+            : "maintain"
         : "maintain"
     const nextSafetyFlags =
       Array.isArray(onboardingProfile?.safetyFlags) &&
@@ -835,6 +751,11 @@ export function OnboardingMobile() {
       }
     )
     setNutritionGoal(nextNutritionGoal)
+    setExperienceLevel(
+      isExperienceLevel(onboardingProfile?.experienceLevel)
+        ? onboardingProfile.experienceLevel
+        : null
+    )
     setSafetyFlags(nextSafetyFlags)
     setWeightTrend(
       isWeightTrend(onboardingProfile?.weightTrend)
@@ -906,13 +827,16 @@ export function OnboardingMobile() {
   }, [calorieGoal])
 
   const stepReady = useMemo(() => {
-    if (step === 1) return consent.dataUse && consent.foodLogging
-    if (step === 2) return draft.goal !== null
-    if (step === 3) return profile.sex !== null
-    if (step === steps.length - 1)
-      return draft.goal !== null && profile.sex !== null
+    const stepId = steps[step].id
+    if (stepId === "goal") return draft.goal !== null
+    if (stepId === "experience") return experienceLevel !== null
+    if (stepId === "profile") return profile.sex !== null
+    if (stepId === "review")
+      return (
+        draft.goal !== null && experienceLevel !== null && profile.sex !== null
+      )
     return true
-  }, [consent.dataUse, consent.foodLogging, draft.goal, profile.sex, step])
+  }, [draft.goal, experienceLevel, profile.sex, step])
 
   async function goNext() {
     setError(null)
@@ -920,11 +844,9 @@ export function OnboardingMobile() {
     if (!stepReady) {
       hapticHeavy()
       setError(
-        step === 1
-          ? "Allow nutrition data and food logging to personalize setup."
-          : step === 3
-            ? "Choose sex so OneRep can calculate your first targets."
-            : "Complete this step before continuing."
+        steps[step].id === "profile"
+          ? "Choose a profile for the estimate."
+          : "Choose an option to continue."
       )
       return
     }
@@ -933,7 +855,14 @@ export function OnboardingMobile() {
       setStep((current) => Math.min(current + 1, steps.length - 1))
       return
     }
-    if (!draft.goal || !profile.sex || savingRef.current || saving) return
+    if (
+      !draft.goal ||
+      !experienceLevel ||
+      !profile.sex ||
+      savingRef.current ||
+      saving
+    )
+      return
 
     hapticHeavy()
     savingRef.current = true
@@ -944,6 +873,7 @@ export function OnboardingMobile() {
           age: profile.age,
           heightCm: profile.heightCm,
           goal: draft.goal,
+          experienceLevel,
           nutritionGoal,
           consent,
           safetyFlags: safetyFlags.filter((flag) => flag !== "none"),
@@ -971,13 +901,7 @@ export function OnboardingMobile() {
         saveWaterGoal({ goalMl: waterGoalMl }),
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
-      safeLocalStorageSet(THEME_KEY, themePreference)
-      safeSessionStorageSet(FIRST_NUTRITION_ACTION_DONE_KEY, "true")
-      document.documentElement.classList.toggle(
-        "dark",
-        themePreference === "dark"
-      )
-      navigate(firstNutritionActionPath(firstNutritionAction), {
+      navigate(experienceLevel === "beginner" ? "/coach?setup=beginner" : "/", {
         replace: true,
       })
     } catch (saveError) {
@@ -1005,8 +929,6 @@ export function OnboardingMobile() {
       : kgToLbs(profile.weightKg)
   const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
-  const safetyMode = deriveSafetyMode(profile.age, nutritionGoal, safetyFlags)
-
   return (
     <main className="auth-light-only min-h-svh overflow-hidden bg-[#f4f3ef] text-[#171a18]">
       <section className="mx-auto flex min-h-svh w-full max-w-md flex-col px-7 pt-[calc(var(--app-safe-top)+10px)] pb-[calc(var(--app-safe-bottom)+14px)]">
@@ -1033,6 +955,20 @@ export function OnboardingMobile() {
             </div>
             <span aria-hidden="true" />
           </div>
+          <div
+            className="mt-3 flex items-center gap-3"
+            aria-label={`Step ${step + 1} of ${steps.length}`}
+          >
+            <div className="h-3 flex-1 overflow-hidden rounded-full bg-[#deddd8]">
+              <div
+                className="h-full rounded-full bg-[#58cc02] transition-[width] duration-300"
+                style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+              />
+            </div>
+            <span className="text-[11px] font-black text-[#6f6d68] tabular-nums">
+              {step + 1}/{steps.length}
+            </span>
+          </div>
         </header>
 
         <div
@@ -1046,70 +982,16 @@ export function OnboardingMobile() {
         >
           <OnboardingIllustration step={step} />
 
-          <div className="mt-6 mb-5 text-center">
+          <div className="mt-4 mb-4 text-center">
             <h1 className="text-[1.95rem] leading-[1.08] font-black tracking-tight text-[#171a18]">
               <StepTitle title={meta.title} accent={meta.accent} />
             </h1>
-            <p className="mx-auto mt-3 max-w-[19rem] text-[13px] leading-5 text-[#6f6d68]">
+            <p className="mx-auto mt-2 max-w-[19rem] text-[12.5px] leading-5 text-[#6f6d68]">
               {meta.body}
             </p>
           </div>
 
-          {step === 0 && (
-            <div className="rounded-[6px] bg-[#e8e7e3] p-4 text-center">
-              <p className="text-[14px] leading-6 font-bold text-[#171a18]">
-                OneRep will estimate safe starting targets, then adjust them
-                after 7-14 days using food logs, weight trends, workouts,
-                hunger, energy, and adherence.
-              </p>
-            </div>
-          )}
-
-          {step === 1 && (
-            <div className="grid gap-2">
-              {(
-                [
-                  ["dataUse", "Nutrition personalization"],
-                  ["weightData", "Weight trend data"],
-                  ["foodLogging", "Food logging"],
-                  ["wearableIntegrations", "Wearable integrations"],
-                ] as const
-              ).map(([id, label]) => {
-                const selected = consent[id]
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => {
-                      hapticSelection()
-                      setConsent((current) => ({
-                        ...current,
-                        [id]: !current[id],
-                      }))
-                    }}
-                    aria-pressed={selected}
-                    className={cn(
-                      "min-h-12 rounded-[6px] px-4 text-left text-[14px] font-black transition-colors",
-                      selected
-                        ? "bg-[#171a18] text-[#f8faf7]"
-                        : "bg-[#e8e7e3] text-[#171a18] active:bg-[#deddd8]"
-                    )}
-                  >
-                    <span className="flex items-center justify-between gap-3">
-                      {label}
-                      {selected && <Check size={16} weight="bold" />}
-                    </span>
-                  </button>
-                )
-              })}
-              <p className="px-1 text-center text-[12px] leading-5 text-[#6f6d68]">
-                Nutrition personalization and food logging are required for this
-                setup. Wearables are optional.
-              </p>
-            </div>
-          )}
-
-          {step === 2 && (
+          {meta.id === "goal" && (
             <OptionList
               value={nutritionGoal}
               options={nutritionGoals}
@@ -1123,12 +1005,20 @@ export function OnboardingMobile() {
             />
           )}
 
-          {step === 3 && (
+          {meta.id === "experience" && (
+            <OptionList<ExperienceLevel>
+              value={experienceLevel}
+              options={experienceLevels}
+              onChange={setExperienceLevel}
+            />
+          )}
+
+          {meta.id === "profile" && (
             <PillToggle
               value={profile.sex ?? "female"}
               options={[
-                { value: "female", label: "Female" },
-                { value: "male", label: "Male" },
+                { value: "female", label: "Female", icon: GenderFemale },
+                { value: "male", label: "Male", icon: GenderMale },
               ]}
               onChange={(sex: Sex) =>
                 setProfile((current) => ({ ...current, sex }))
@@ -1136,7 +1026,7 @@ export function OnboardingMobile() {
             />
           )}
 
-          {step === 4 && (
+          {meta.id === "age" && (
             <NumberQuestion
               label="Age"
               value={profile.age}
@@ -1147,25 +1037,16 @@ export function OnboardingMobile() {
             />
           )}
 
-          {step === 5 && (
-            <div className="space-y-3">
-              <MultiSelectList
-                values={safetyFlags}
-                options={[["none", "None"], ...safetyOptions]}
-                onChange={setSafetyFlags}
-              />
-              <div className="rounded-[6px] bg-[#e8e7e3] p-3 text-center">
-                <p className="text-[11px] font-black tracking-[0.14em] text-[#6f6d68] uppercase">
-                  Setup mode
-                </p>
-                <p className="mt-1 text-[14px] font-black text-[#171a18]">
-                  {safetyModeLabel(safetyMode)}
-                </p>
-              </div>
-            </div>
+          {meta.id === "safety" && (
+            <MultiSelectList
+              values={safetyFlags}
+              options={[["none", "None"], ...safetyOptions]}
+              onChange={setSafetyFlags}
+              icon={ShieldCheck}
+            />
           )}
 
-          {step === 6 && (
+          {meta.id === "height" && (
             <NumberQuestion
               label="Height"
               value={profile.heightCm}
@@ -1178,31 +1059,33 @@ export function OnboardingMobile() {
             />
           )}
 
-          {step === 7 && (
-            <NumberQuestion
-              label="Weight"
-              value={weightValue}
-              display={`${weightValue} ${weightUnit}`}
-              min={weightMin}
-              max={weightMax}
-              onChange={(value) =>
-                setProfile((current) => ({
-                  ...current,
-                  weightKg: weightUnit === "kg" ? value : lbsToKg(value),
-                }))
-              }
-            />
+          {meta.id === "weight" && (
+            <div className="space-y-2">
+              <PillToggle
+                value={weightUnit}
+                options={[
+                  { value: "kg" as const, label: "Kilograms", icon: Scales },
+                  { value: "lbs" as const, label: "Pounds", icon: Scales },
+                ]}
+                onChange={(unit) => setWeightUnit(unit)}
+              />
+              <NumberQuestion
+                label="Weight"
+                value={weightValue}
+                display={`${weightValue} ${weightUnit}`}
+                min={weightMin}
+                max={weightMax}
+                onChange={(value) =>
+                  setProfile((current) => ({
+                    ...current,
+                    weightKg: weightUnit === "kg" ? value : lbsToKg(value),
+                  }))
+                }
+              />
+            </div>
           )}
 
-          {step === 8 && (
-            <OptionList
-              value={weightTrend}
-              options={weightTrends}
-              onChange={(value) => setWeightTrend(value as WeightTrend)}
-            />
-          )}
-
-          {step === 9 && (
+          {meta.id === "activity" && (
             <OptionList
               value={profile.activityLevel}
               options={activities}
@@ -1212,120 +1095,47 @@ export function OnboardingMobile() {
             />
           )}
 
-          {step === 10 && (
-            <OptionList
-              value={occupationActivity}
-              options={occupationActivities}
-              onChange={(value) =>
-                setOccupationActivity(value as OccupationActivity)
-              }
-            />
-          )}
-
-          {step === 11 && (
-            <OptionList
-              value={dietType}
-              options={dietTypes}
-              onChange={(value) => setDietType(value as DietType)}
-            />
-          )}
-
-          {step === 12 && (
-            <MultiSelectList
-              values={allergies}
-              options={allergyOptions}
-              onChange={setAllergies}
-            />
-          )}
-
-          {step === 13 && (
+          {meta.id === "review" && (
             <div className="space-y-3">
-              <PillToggle
-                value={cookingSkill}
-                options={cookingSkills.map(([value, label]) => ({
-                  value,
-                  label,
-                }))}
-                onChange={(value) => setCookingSkill(value as CookingSkill)}
-              />
-              <PillToggle
-                value={budget}
-                options={budgets.map(([value, label]) => ({ value, label }))}
-                onChange={(value) => setBudget(value as Budget)}
-              />
-              <NumberQuestion
-                label="Meals per day"
-                value={mealFrequency}
-                display={String(mealFrequency)}
-                min={2}
-                max={6}
-                onChange={setMealFrequency}
-              />
-            </div>
-          )}
-
-          {step === 14 && (
-            <PillToggle
-              value={weightUnit}
-              options={[
-                { value: "kg" as const, label: "Kilograms" },
-                { value: "lbs" as const, label: "Pounds" },
-              ]}
-              onChange={(unit) => setWeightUnit(unit)}
-            />
-          )}
-
-          {step === 15 && (
-            <NumberQuestion
-              label="Water"
-              value={waterGoalMl}
-              display={formatLiters(waterGoalMl)}
-              min={WATER_MIN}
-              max={WATER_MAX}
-              step={250}
-              onChange={setWaterGoalMl}
-            />
-          )}
-
-          {step === 16 && (
-            <OptionList
-              value={trackingMode}
-              options={trackingModes}
-              onChange={(value) => setTrackingMode(value as TrackingMode)}
-            />
-          )}
-
-          {step === 17 && (
-            <MultiSelectList
-              values={loggingFeatures}
-              options={loggingFeatureOptions}
-              onChange={setLoggingFeatures}
-            />
-          )}
-
-          {step === 18 && (
-            <OptionList
-              value={firstNutritionAction}
-              options={firstNutritionActions}
-              onChange={(value) =>
-                setFirstNutritionAction(value as FirstNutritionAction)
-              }
-            />
-          )}
-
-          {step === 19 && (
-            <PillToggle
-              value={themePreference}
-              options={[
-                { value: "light" as const, label: "Light" },
-                { value: "dark" as const, label: "Dark" },
-              ]}
-              onChange={(theme) => setThemePreference(theme)}
-            />
-          )}
-
-          {step === 20 && (
-            <div className="space-y-3">
+              <div className="rounded-[6px] bg-[#171a18] p-4 text-[#f8faf7]">
+                <p className="text-[10px] font-black tracking-[0.14em] text-[#f8faf7]/55 uppercase">
+                  Daily calorie budget
+                </p>
+                <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
+                  <div>
+                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
+                      Maintain
+                    </p>
+                    <p className="mt-1 text-[16px] font-black tabular-nums">
+                      {preview?.tdee ?? "..."}
+                    </p>
+                  </div>
+                  <span className="text-[#f8faf7]/35">−</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
+                      Deficit
+                    </p>
+                    <p className="mt-1 text-[16px] font-black tabular-nums">
+                      {preview
+                        ? Math.max(0, preview.tdee - preview.targetCalories)
+                        : "..."}
+                    </p>
+                  </div>
+                  <span className="text-[#f8faf7]/35">=</span>
+                  <div>
+                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
+                      Budget
+                    </p>
+                    <p className="mt-1 text-[16px] font-black tabular-nums">
+                      {preview?.targetCalories ?? "..."}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-center text-[10px] font-bold text-[#f8faf7]/55">
+                  {preview?.calorieStrategy ??
+                    "Calculating your starting budget..."}
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
                   ["Calories", preview?.targetCalories ?? "..."],
@@ -1346,12 +1156,13 @@ export function OnboardingMobile() {
               <div className="rounded-[6px] bg-[#e8e7e3] p-4">
                 {[
                   ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
-                  ["Mode", safetyModeLabel(safetyMode)],
+                  [
+                    "Experience",
+                    experienceLevel
+                      ? selectedLabel(experienceLevels, experienceLevel)
+                      : "Not selected",
+                  ],
                   ["Activity", selectedActivityLabel(profile.activityLevel)],
-                  ["Diet", selectedLabel(dietTypes, dietType)],
-                  ["Tracking", selectedLabel(trackingModes, trackingMode)],
-                  ["Water", formatLiters(waterGoalMl)],
-                  ["Theme", themePreference === "dark" ? "Dark" : "Light"],
                   [
                     "Body",
                     `${profile.age} yrs, ${Math.round(profile.weightKg)} kg`,
@@ -1388,8 +1199,9 @@ export function OnboardingMobile() {
             type="button"
             onClick={goBack}
             disabled={step === 0 || saving}
-            className="order-2 min-h-11 rounded-[6px] bg-[#e8e7e3] px-4 text-[13px] font-black text-[#171a18] transition-opacity active:opacity-75 disabled:opacity-35"
+            className="order-2 flex min-h-11 items-center justify-center gap-2 rounded-[6px] bg-[#e8e7e3] px-4 text-[13px] font-black text-[#171a18] transition-opacity active:opacity-75 disabled:opacity-35"
           >
+            <ArrowLeft size={15} weight="bold" />
             Back
           </button>
           <button
@@ -1399,11 +1211,19 @@ export function OnboardingMobile() {
             aria-busy={saving}
             className="order-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-[#171a18] px-5 text-[13px] font-black text-[#f8faf7] transition-transform active:scale-[0.985] disabled:opacity-50"
           >
-            {saving
-              ? "Saving..."
-              : step === steps.length - 1
-                ? "Finish"
-                : "Continue"}
+            {saving ? (
+              "Saving..."
+            ) : step === steps.length - 1 ? (
+              <>
+                Finish
+                <Check size={16} weight="bold" />
+              </>
+            ) : (
+              <>
+                Continue
+                <ArrowRight size={16} weight="bold" />
+              </>
+            )}
           </button>
         </footer>
       </section>
