@@ -48,6 +48,8 @@ const completedSetValidator = v.object({
   reps: v.number(),
   weight: v.number(),
   completed: v.boolean(),
+  rpe: v.optional(v.number()),
+  rir: v.optional(v.number()),
 });
 
 const completedExerciseValidator = v.object({
@@ -69,7 +71,7 @@ export const getActive = query({
     const active = await ctx.db
       .query("activeWorkouts")
       .withIndex("by_userId_slot", (q) =>
-        q.eq("userId", user._id).eq("slot", args.slot)
+        q.eq("userId", user._id).eq("slot", args.slot),
       )
       .first();
 
@@ -112,7 +114,7 @@ export const createActive = mutation({
     const existing = await ctx.db
       .query("activeWorkouts")
       .withIndex("by_userId_slot", (q) =>
-        q.eq("userId", user._id).eq("slot", args.slot)
+        q.eq("userId", user._id).eq("slot", args.slot),
       )
       .first();
 
@@ -152,7 +154,7 @@ export const updateActive = mutation({
     const active = await ctx.db
       .query("activeWorkouts")
       .withIndex("by_userId_slot", (q) =>
-        q.eq("userId", user._id).eq("slot", args.slot)
+        q.eq("userId", user._id).eq("slot", args.slot),
       )
       .first();
 
@@ -181,7 +183,7 @@ export const abortActive = mutation({
     const active = await ctx.db
       .query("activeWorkouts")
       .withIndex("by_userId_slot", (q) =>
-        q.eq("userId", user._id).eq("slot", args.slot)
+        q.eq("userId", user._id).eq("slot", args.slot),
       )
       .first();
 
@@ -211,7 +213,7 @@ export const finishActive = mutation({
     const active = await ctx.db
       .query("activeWorkouts")
       .withIndex("by_userId_slot", (q) =>
-        q.eq("userId", user._id).eq("slot", args.slot)
+        q.eq("userId", user._id).eq("slot", args.slot),
       )
       .first();
 

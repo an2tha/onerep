@@ -28,11 +28,19 @@ function numberInputCommit(draft: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, draft))
 }
 
-function numberInputDecrement(draft: number, step: number, min: number): number {
+function numberInputDecrement(
+  draft: number,
+  step: number,
+  min: number
+): number {
   return Math.max(min, draft - step)
 }
 
-function numberInputIncrement(draft: number, step: number, max: number): number {
+function numberInputIncrement(
+  draft: number,
+  step: number,
+  max: number
+): number {
   return Math.min(max, draft + step)
 }
 
@@ -163,24 +171,21 @@ describe("Settings destructive actions", () => {
     )
     assert.match(
       SETTINGS_SOURCE,
-      /disabled=\{resettingOnboarding\}\s+aria-busy=\{resettingOnboarding\}/
+      /disabled=\{resettingOnboarding\}\s+busy=\{resettingOnboarding\}/
     )
-    assert.match(SETTINGS_SOURCE, /Resetting onboarding\.\.\./)
+    assert.match(SETTINGS_SOURCE, /Resetting health profile…/)
   })
 
   test("long-running account and data actions expose busy state", () => {
     assert.match(
       SETTINGS_SOURCE,
-      /disabled=\{loggingOut\}\s+aria-busy=\{loggingOut\}/
+      /disabled=\{loggingOut\}\s+busy=\{loggingOut\}/
     )
     assert.match(
       SETTINGS_SOURCE,
-      /disabled=\{syncingOfflineQueue\}\s+aria-busy=\{syncingOfflineQueue\}/
+      /disabled=\{syncingOfflineQueue\}\s+busy=\{syncingOfflineQueue\}/
     )
-    assert.match(
-      SETTINGS_SOURCE,
-      /disabled=\{exporting\}\s+aria-busy=\{exporting\}/
-    )
+    assert.match(SETTINGS_SOURCE, /disabled=\{exporting\}\s+busy=\{exporting\}/)
     assert.match(
       SETTINGS_SOURCE,
       /disabled=\{deleteConfirmText !== "DELETE" \|\| deleting\}\s+aria-busy=\{deleting\}/
@@ -212,7 +217,12 @@ function resolveEffective(
 
 describe("getEffectiveGoals – priority: custom > health > default", () => {
   test("when custom and health are null, returns hardcoded defaults", () => {
-    assert.deepStrictEqual(resolveEffective(null, null), { calories: 2000, protein: 150, carbs: 200, fat: 65 })
+    assert.deepStrictEqual(resolveEffective(null, null), {
+      calories: 2000,
+      protein: 150,
+      carbs: 200,
+      fat: 65,
+    })
   })
 
   test("custom goals override health and defaults for all fields", () => {
@@ -220,38 +230,58 @@ describe("getEffectiveGoals – priority: custom > health > default", () => {
       { calories: 2500, protein: 180, carbs: 250, fat: 80 },
       { calories: 1800, protein: 120, carbs: 180, fat: 60 }
     )
-    assert.deepStrictEqual(result, { calories: 2500, protein: 180, carbs: 250, fat: 80 })
+    assert.deepStrictEqual(result, {
+      calories: 2500,
+      protein: 180,
+      carbs: 250,
+      fat: 80,
+    })
   })
 
   test("health goals are used when custom is null", () => {
-    const result = resolveEffective(null, { calories: 1800, protein: 120, carbs: 180, fat: 60 })
-    assert.deepStrictEqual(result, { calories: 1800, protein: 120, carbs: 180, fat: 60 })
+    const result = resolveEffective(null, {
+      calories: 1800,
+      protein: 120,
+      carbs: 180,
+      fat: 60,
+    })
+    assert.deepStrictEqual(result, {
+      calories: 1800,
+      protein: 120,
+      carbs: 180,
+      fat: 60,
+    })
   })
 
   test("custom calories overrides health, health protein overrides default", () => {
     const result = resolveEffective(
-      { calories: 2500 },       // custom only has calories
+      { calories: 2500 }, // custom only has calories
       { calories: 1800, protein: 120, carbs: 180, fat: 60 }
     )
-    assert.strictEqual(result.calories, 2500)  // from custom
-    assert.strictEqual(result.protein, 120)    // from health (custom.protein is undefined)
-    assert.strictEqual(result.carbs, 180)      // from health
-    assert.strictEqual(result.fat, 60)         // from health
+    assert.strictEqual(result.calories, 2500) // from custom
+    assert.strictEqual(result.protein, 120) // from health (custom.protein is undefined)
+    assert.strictEqual(result.carbs, 180) // from health
+    assert.strictEqual(result.fat, 60) // from health
   })
 
   test("defaults used for fields missing in both custom and health", () => {
     const result = resolveEffective(
-      { calories: 2500 },   // only calories
-      { protein: 130 }      // only protein
+      { calories: 2500 }, // only calories
+      { protein: 130 } // only protein
     )
-    assert.strictEqual(result.calories, 2500)  // custom
-    assert.strictEqual(result.protein, 130)    // health
-    assert.strictEqual(result.carbs, 200)      // default
-    assert.strictEqual(result.fat, 65)         // default
+    assert.strictEqual(result.calories, 2500) // custom
+    assert.strictEqual(result.protein, 130) // health
+    assert.strictEqual(result.carbs, 200) // default
+    assert.strictEqual(result.fat, 65) // default
   })
 
   test("undefined custom is treated same as null", () => {
-    const result = resolveEffective(undefined, { calories: 1900, protein: 140, carbs: 195, fat: 62 })
+    const result = resolveEffective(undefined, {
+      calories: 1900,
+      protein: 140,
+      carbs: 195,
+      fat: 62,
+    })
     assert.strictEqual(result.calories, 1900)
   })
 
@@ -281,26 +311,31 @@ describe("Settings – production feature visibility", () => {
   })
 
   test("privacy and data sections are reachable", () => {
-    assert.match(SETTINGS_SOURCE, /AccordionItem value="privacy"/)
-    assert.match(SETTINGS_SOURCE, /AccordionItem value="data"/)
-    assert.match(SETTINGS_SOURCE, /AccordionItem value="nutrition-logic"/)
-    assert.match(SETTINGS_SOURCE, /Install app/)
+    assert.match(SETTINGS_SOURCE, /\| "privacy"/)
+    assert.match(SETTINGS_SOURCE, /\| "data"/)
+    assert.match(SETTINGS_SOURCE, /\| "nutrition"/)
+    assert.match(SETTINGS_SOURCE, /title="Privacy & sync"/)
+    assert.match(SETTINGS_SOURCE, /title="Data & account"/)
+    assert.match(SETTINGS_SOURCE, /title="Nutrition strategy"/)
+    assert.match(SETTINGS_SOURCE, /Install OneRep/)
     assert.match(SETTINGS_SOURCE, /handleInstallApp/)
-    assert.match(SETTINGS_SOURCE, /SettingsRow label="Haptics"/)
+    assert.match(SETTINGS_SOURCE, /SettingsRow label="Haptic feedback"/)
     assert.match(SETTINGS_SOURCE, /handleHapticsChange/)
     assert.match(SETTINGS_SOURCE, /oneRepExportDocument/)
     assert.match(SETTINGS_SOURCE, /Export downloaded with checksum/)
-    assert.doesNotMatch(
+    assert.doesNotMatch(SETTINGS_SOURCE, /AccordionItem/)
+  })
+
+  test("uses the native settings hierarchy and accessible controls", () => {
+    assert.match(SETTINGS_SOURCE, /<NavigationBar/)
+    assert.match(SETTINGS_SOURCE, /<GroupedList/)
+    assert.match(SETTINGS_SOURCE, /<DisclosureRow/)
+    assert.match(SETTINGS_SOURCE, /role="switch"/)
+    assert.match(SETTINGS_SOURCE, /aria-checked=\{checked\}/)
+    assert.match(SETTINGS_SOURCE, /role="progressbar"/)
+    assert.match(
       SETTINGS_SOURCE,
-      /AccordionItem value="privacy" className="hidden"/
-    )
-    assert.doesNotMatch(
-      SETTINGS_SOURCE,
-      /AccordionItem value="data" className="hidden"/
-    )
-    assert.doesNotMatch(
-      SETTINGS_SOURCE,
-      /AccordionItem value="nutrition-logic" className="hidden"/
+      /<span className="sr-only">\{label\} reminder time<\/span>/
     )
   })
 })
@@ -333,14 +368,20 @@ describe("Settings – preference defaults", () => {
   })
 
   test("workoutFocus defaults to 'strength' when dashboardSettings is absent", () => {
-    const preferences = null as { dashboardSettings?: { workoutFocus?: string } } | null
-    const focus = (preferences?.dashboardSettings?.workoutFocus as "strength" | "cardio" | "mobility") || "strength"
+    const preferences = null as {
+      dashboardSettings?: { workoutFocus?: string }
+    } | null
+    const focus =
+      (preferences?.dashboardSettings?.workoutFocus as
+        "strength" | "cardio" | "mobility") || "strength"
     assert.strictEqual(focus, "strength")
   })
 
   test("workoutFocus uses stored 'cardio' value when available", () => {
     const preferences = { dashboardSettings: { workoutFocus: "cardio" } }
-    const focus = (preferences?.dashboardSettings?.workoutFocus as "strength" | "cardio" | "mobility") || "strength"
+    const focus =
+      (preferences?.dashboardSettings?.workoutFocus as
+        "strength" | "cardio" | "mobility") || "strength"
     assert.strictEqual(focus, "cardio")
   })
 
@@ -363,7 +404,7 @@ function numberStepperCommit(
   draft: string,
   _value: number,
   min: number,
-  max: number,
+  max: number
 ): number | "revert" {
   const parsed = parseInt(draft, 10)
   if (!isNaN(parsed)) {
@@ -373,11 +414,19 @@ function numberStepperCommit(
   return "revert"
 }
 
-function numberStepperDecrement(value: number, step: number, min: number): number {
+function numberStepperDecrement(
+  value: number,
+  step: number,
+  min: number
+): number {
   return Math.max(min, value - step)
 }
 
-function numberStepperIncrement(value: number, step: number, max: number): number {
+function numberStepperIncrement(
+  value: number,
+  step: number,
+  max: number
+): number {
   return Math.min(max, value + step)
 }
 

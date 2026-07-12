@@ -4,12 +4,9 @@ import { Eye, EyeSlash } from "@phosphor-icons/react"
 import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
-const FIELD_CLASS =
-  "block rounded-[10px] border border-border/60 bg-background px-4 py-3 transition-colors focus-within:border-foreground/25 focus-within:bg-card short-phone:py-2.5"
-const LABEL_CLASS =
-  "block text-[9.5px] font-semibold tracking-[0.18em] text-muted-foreground/60 uppercase"
-const INPUT_CLASS =
-  "mt-1.5 min-h-10 w-full bg-transparent text-[15px] font-medium text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-60"
+const FIELD_CLASS = "native-field"
+const LABEL_CLASS = "native-field-label"
+const INPUT_CLASS = "native-input disabled:opacity-60"
 const PASSWORD_CHANGED_MESSAGE =
   "Password changed. Sign in with the new password."
 
@@ -50,7 +47,7 @@ function PasswordInput({
           type="button"
           onClick={onToggleVisible}
           disabled={disabled}
-          className="mt-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground/60 transition-colors active:bg-muted/45 active:text-foreground disabled:opacity-40"
+          className="native-toolbar-button h-11 w-11 shrink-0 border border-border text-muted-foreground disabled:opacity-40"
           aria-label={visible ? `Hide ${label}` : `Show ${label}`}
           aria-pressed={visible}
         >
@@ -99,7 +96,9 @@ export default function ResetPassword() {
         redirectTo: "/reset-password",
       })
       if (sent.error) {
-        setError(betterAuthErrorMessage(sent.error, "Could not send reset link"))
+        setError(
+          betterAuthErrorMessage(sent.error, "Could not send reset link")
+        )
         return
       }
 
@@ -163,36 +162,26 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
-        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
-          <img
-            src="/app-icon.svg"
-            alt=""
-            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
-          />
-          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
-            OneRep
-          </h1>
+      <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
+        <header className="mb-8 flex items-center gap-2.5">
+          <img src="/app-icon.svg" alt="" className="size-8" />
+          <span className="native-row-title font-semibold">OneRep</span>
         </header>
 
-        <section className="app-rail-surface p-3.5 short-phone:p-3">
-          <div className="mb-3 px-1.5 py-1 short-phone:mb-2">
-            <p className="app-eyebrow text-muted-foreground/60">
-              Reset password
-            </p>
-            <h2 className="app-display mt-2 text-[1.9rem] short-phone:text-[1.55rem]">
-              {codeSent ? "Choose a password." : "Get a reset link."}
-            </h2>
-            <p className="mt-2 text-[13.5px] leading-5 font-medium text-muted-foreground/70">
-              {codeSent
-                ? "Use the reset link from your email, then choose a new password."
-                : "Enter your account email and OneRep will send a password reset link."}
-            </p>
-          </div>
+        <section aria-labelledby="reset-password-title">
+          <p className="native-supporting">Account security</p>
+          <h1 id="reset-password-title" className="native-large-title mt-2">
+            {codeSent ? "Choose a new password" : "Reset your password"}
+          </h1>
+          <p className="native-body mt-3 text-muted-foreground">
+            {codeSent
+              ? "Use the link from your email and enter a new password below."
+              : "Enter your account email. We’ll send you a secure reset link."}
+          </p>
 
           <form
             onSubmit={codeSent ? changePassword : sendCode}
-            className="space-y-2.5 short-phone:space-y-2"
+            className="mt-7 space-y-4"
           >
             {!codeSent && (
               <label className={FIELD_CLASS}>
@@ -242,14 +231,17 @@ export default function ResetPassword() {
             {error && (
               <p
                 role="alert"
-                className="rounded-[10px] border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive"
+                className="border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
               >
                 {error}
               </p>
             )}
 
             {message && (
-              <p className="rounded-[10px] border border-foreground/10 bg-muted/55 px-3.5 py-2.5 text-[12.5px] font-medium text-muted-foreground">
+              <p
+                role="status"
+                className="border-l-2 border-border py-2 pl-3 text-[14px] font-medium text-muted-foreground"
+              >
                 {message}
               </p>
             )}
@@ -258,7 +250,7 @@ export default function ResetPassword() {
               <button
                 type="button"
                 onClick={() => navigate("/login", { replace: true })}
-                className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 short-phone:h-12"
+                className="native-primary-button min-h-12 w-full"
               >
                 Back to sign in
               </button>
@@ -267,7 +259,7 @@ export default function ResetPassword() {
                 type="submit"
                 disabled={loading}
                 aria-busy={loading}
-                className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
+                className="native-primary-button min-h-12 w-full disabled:opacity-50"
               >
                 {loading
                   ? codeSent
@@ -286,7 +278,7 @@ export default function ResetPassword() {
               onClick={() => void sendCode()}
               disabled={loading}
               aria-busy={loading}
-              className="mt-2 h-[48px] w-full rounded-[10px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/50 active:text-foreground disabled:opacity-50 short-phone:h-10"
+              className="native-toolbar-button mt-3 min-h-12 w-full border border-border text-muted-foreground disabled:opacity-50"
             >
               Resend link
             </button>

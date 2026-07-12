@@ -492,6 +492,10 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-countdown-fill,
   .motion-set-complete,
   .motion-success-pop,
+  .native-collapsible::details-content,
+  .native-collapsible > summary > svg:last-child,
+  [data-slot="accordion-content"],
+  [data-slot="accordion-trigger-icon"],
   [data-slot="card"],
   .scan-line,
   .animate-in,
@@ -520,6 +524,314 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* ─── Native application language ────────────────────────────────────────── */
+
+@layer components {
+  .native-page {
+    background: var(--background);
+  }
+
+  .native-navigation-bar {
+    display: flex;
+    min-height: 5.75rem;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: var(--app-safe-top) var(--app-page-x) 0.85rem;
+  }
+
+  .native-large-title {
+    font-size: 2rem;
+    line-height: 1.08;
+    font-weight: 740;
+    letter-spacing: -0.035em;
+  }
+
+  .native-title {
+    font-size: 1.25rem;
+    line-height: 1.25;
+    font-weight: 680;
+    letter-spacing: -0.018em;
+  }
+
+  .native-section-title {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    font-weight: 680;
+    letter-spacing: -0.012em;
+  }
+
+  .native-body,
+  .native-row-title {
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    font-weight: 540;
+  }
+
+  .native-supporting,
+  .native-row-detail,
+  .native-field-hint,
+  .native-field-error {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--muted-foreground);
+  }
+
+  .native-supporting {
+    font-weight: 560;
+  }
+
+  .native-group {
+    overflow: clip;
+    border-top: 1px solid var(--divider);
+    border-bottom: 1px solid var(--divider);
+    background: var(--surface-panel);
+  }
+
+  .native-list-row {
+    display: flex;
+    min-height: 3.5rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem var(--app-page-x);
+    color: var(--foreground);
+    text-align: left;
+  }
+
+  .native-list-row + .native-list-row {
+    border-top: 1px solid var(--divider);
+  }
+
+  button.native-list-row:active {
+    background: var(--surface-pressed);
+  }
+
+  button.native-list-row:disabled {
+    opacity: 0.45;
+  }
+
+  .native-row-leading {
+    display: inline-flex;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .native-row-value {
+    font-size: 0.9375rem;
+    line-height: 1.3;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .native-summary {
+    margin-inline: var(--app-page-x);
+    border-top: 1px solid var(--divider);
+    border-bottom: 1px solid var(--divider);
+    padding: 1rem 0;
+  }
+
+  .native-summary-value {
+    font-size: 1.75rem;
+    line-height: 1.05;
+    font-weight: 720;
+    letter-spacing: -0.03em;
+  }
+
+  .native-stat-row {
+    display: grid;
+    min-height: 2.9rem;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    border-top: 1px solid var(--divider);
+    padding-block: 0.55rem;
+  }
+
+  .native-stat-row:first-child {
+    border-top: 0;
+  }
+
+  .native-stat-block {
+    min-height: 5rem;
+    border-bottom: 1px solid var(--divider);
+    padding: 0.75rem 0;
+  }
+
+  .native-primary-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.7rem;
+    background: var(--foreground);
+    padding-inline: 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    font-weight: 670;
+    color: var(--background);
+  }
+
+  .native-primary-button:active {
+    opacity: 0.78;
+  }
+
+  .native-primary-button:disabled {
+    opacity: 0.42;
+  }
+
+  .native-toolbar-button {
+    display: inline-flex;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    border-radius: 0.65rem;
+    padding-inline: 0.65rem;
+    font-size: 0.9375rem;
+    font-weight: 620;
+    color: var(--foreground);
+  }
+
+  .native-toolbar-button:active {
+    background: var(--surface-pressed);
+  }
+
+  .native-field {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  .native-field-label {
+    font-size: 0.875rem;
+    line-height: 1.3;
+    font-weight: 620;
+  }
+
+  .native-input {
+    min-height: 2.75rem;
+    width: 100%;
+    border: 1px solid var(--divider-strong);
+    border-radius: 0.65rem;
+    background: var(--surface-raised);
+    padding-inline: 0.75rem;
+    font-size: 1rem;
+    color: var(--foreground);
+    outline: none;
+  }
+
+  .native-input:focus-visible {
+    border-color: var(--foreground);
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px var(--foreground);
+  }
+
+  .native-field-error {
+    color: var(--status-danger);
+  }
+}
+
+.settings-native-list .uppercase {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Compatibility layer while page markup migrates to the semantic primitives. */
+@layer components {
+  .app-title {
+    font-size: 2rem;
+    line-height: 1.08;
+    font-weight: 740;
+    letter-spacing: -0.035em;
+    font-stretch: normal;
+  }
+
+  .app-display {
+    line-height: 1.05;
+    font-weight: 720;
+    font-stretch: normal;
+  }
+
+  .app-section-title {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    font-weight: 680;
+    font-stretch: normal;
+  }
+
+  .app-section-subtitle {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .app-eyebrow {
+    display: block;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+    font-weight: 560;
+    text-transform: none;
+    letter-spacing: 0;
+    font-stretch: normal;
+  }
+
+  .app-surface,
+  .app-rail-surface,
+  .home-ledger-hero,
+  .home-dashboard-card,
+  .mobile-surface {
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--surface-panel);
+    box-shadow: none;
+  }
+
+  .app-button,
+  .app-icon-button,
+  .app-header-icon-action,
+  .mobile-control {
+    min-height: 2.75rem;
+  }
+
+  .app-icon-button,
+  .app-header-icon-action {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.65rem;
+  }
+
+  .motion-page,
+  .motion-card,
+  [data-slot="card"] {
+    animation: none;
+  }
+}
+
+@layer utilities {
+  .text-\[8px\],
+  .text-\[9px\],
+  .text-\[9\.5px\],
+  .text-\[10px\],
+  .text-\[10\.5px\],
+  .text-\[11px\],
+  .text-\[11\.5px\],
+  .text-\[12px\] {
+    font-size: 0.8125rem;
+    line-height: 1.35;
+  }
+}
+
+@media (min-width: 768px) {
+  .native-group {
+    border: 1px solid var(--divider);
+    border-radius: 0.75rem;
   }
 }
 
@@ -865,48 +1177,48 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --divider-strong: color-mix(in srgb, #171a18 20%, transparent);
   --shadow-surface: 0 1px 0 color-mix(in srgb, #171a18 7%, transparent);
   --rail-neutral: color-mix(in srgb, #6f706b 62%, transparent);
-  --accent-food: #746f68;
+  --accent-food: #b55324;
   --accent-food-bg: color-mix(in srgb, var(--accent-food) 8%, transparent);
-  --accent-water: #6e7472;
+  --accent-water: #1673b1;
   --accent-water-bg: color-mix(in srgb, var(--accent-water) 8%, transparent);
-  --accent-supplement: #6f726a;
+  --accent-supplement: #3f7d44;
   --accent-supplement-bg: color-mix(
     in srgb,
     var(--accent-supplement) 8%,
     transparent
   );
-  --accent-workout: #686a64;
+  --accent-workout: #5b5bd6;
   --accent-workout-bg: color-mix(
     in srgb,
     var(--accent-workout) 8%,
     transparent
   );
-  --accent-progress: #716f76;
+  --accent-progress: #9b4d96;
   --accent-progress-bg: color-mix(
     in srgb,
     var(--accent-progress) 8%,
     transparent
   );
-  --status-success: #687064;
+  --status-success: #2f7d4a;
   --status-complete: var(--status-success);
   --status-complete-bg: color-mix(
     in srgb,
     var(--status-complete) 7%,
     transparent
   );
-  --status-warning: #7a705f;
+  --status-warning: #9a5d00;
   --status-caution: var(--status-warning);
   --status-caution-bg: color-mix(
     in srgb,
     var(--status-caution) 8%,
     transparent
   );
-  --status-error: #7b6464;
+  --status-error: #b42335;
   --status-danger: var(--status-error);
   --status-danger-bg: color-mix(in srgb, var(--status-danger) 8%, transparent);
-  --macro-protein: #746f68;
-  --macro-carbs: #6e7472;
-  --macro-fat: #716f76;
+  --macro-protein: #b55324;
+  --macro-carbs: #1673b1;
+  --macro-fat: #9b4d96;
   --background: var(--surface-app);
   --foreground: #171a18;
   --card: var(--surface-panel);
@@ -942,20 +1254,20 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 .dark {
-  --accent-food: #a6a097;
-  --accent-water: #a0a7a5;
-  --accent-supplement: #a1a69a;
-  --accent-workout: #aaa99f;
-  --accent-progress: #aaa6ae;
-  --status-success: #9fa99a;
+  --accent-food: #ef9a68;
+  --accent-water: #66b8ef;
+  --accent-supplement: #80c786;
+  --accent-workout: #a6a6ff;
+  --accent-progress: #d69bd1;
+  --status-success: #78c993;
   --status-complete: var(--status-success);
-  --status-warning: #aaa18f;
+  --status-warning: #efbd62;
   --status-caution: var(--status-warning);
-  --status-error: #aa9696;
+  --status-error: #f08b98;
   --status-danger: var(--status-error);
-  --macro-protein: #a6a097;
-  --macro-carbs: #a0a7a5;
-  --macro-fat: #aaa6ae;
+  --macro-protein: #ef9a68;
+  --macro-carbs: #66b8ef;
+  --macro-fat: #d69bd1;
   --surface-app: #0d0d0c;
   --surface-panel: #161615;
   --surface-raised: #1d1d1b;
@@ -1080,6 +1392,13 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     border-radius: var(--radius-panel);
     background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
     box-shadow: var(--shadow-surface);
+  }
+
+  .desktop-sidebar {
+    border-right: 1px solid var(--divider);
+    border-radius: 0;
+    background: var(--background);
+    box-shadow: none;
   }
 
   .mobile-tabbar {
@@ -2090,25 +2409,65 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 @keyframes accordion-down {
   from {
     height: 0;
+    opacity: 0;
   }
   to {
     height: var(--radix-accordion-content-height);
+    opacity: 1;
   }
 }
 @keyframes accordion-up {
   from {
     height: var(--radix-accordion-content-height);
+    opacity: 1;
   }
   to {
     height: 0;
+    opacity: 0;
   }
 }
 
-[data-state="open"].animate-accordion-down {
-  animation: accordion-down 0.2s ease-out;
+[data-state="open"].animate-accordion-down,
+[data-slot="accordion-content"][data-state="open"] {
+  animation: accordion-down var(--motion-medium) var(--motion-ease-standard);
 }
-[data-state="closed"].animate-accordion-up {
-  animation: accordion-up 0.2s ease-out;
+[data-state="closed"].animate-accordion-up,
+[data-slot="accordion-content"][data-state="closed"] {
+  animation: accordion-up var(--motion-medium) var(--motion-ease-standard);
+}
+
+.native-collapsible {
+  interpolate-size: allow-keywords;
+}
+
+.native-collapsible::details-content {
+  block-size: 0;
+  overflow: clip;
+  opacity: 0;
+  transition:
+    block-size var(--motion-medium) var(--motion-ease-standard),
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    content-visibility var(--motion-medium) allow-discrete;
+}
+
+.native-collapsible[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+
+.native-collapsible > summary > svg:last-child {
+  transition: transform var(--motion-medium) var(--motion-ease-standard);
+}
+
+.native-collapsible[open] > summary > svg:last-child {
+  transform: rotate(180deg);
+}
+
+@starting-style {
+  .native-collapsible[open]::details-content {
+    block-size: 0;
+    opacity: 0;
+  }
 }
 
 /* Grounded mobile previews — targeted polish for Today, food review, and active workout. */
@@ -2159,4 +2518,104 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
       padding: 0.75rem 0;
     }
   }
+}
+
+/* Keep these compatibility rules last until all legacy page markup is removed. */
+@layer components {
+  .app-title {
+    font-size: 2rem;
+    line-height: 1.08;
+    font-weight: 740;
+    letter-spacing: -0.035em;
+    font-stretch: normal;
+  }
+
+  .app-display {
+    line-height: 1.05;
+    font-weight: 720;
+    font-stretch: normal;
+  }
+
+  .app-section-title {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    font-weight: 680;
+    font-stretch: normal;
+  }
+
+  .app-section-subtitle,
+  .app-eyebrow {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-stretch: normal;
+  }
+
+  .app-eyebrow {
+    display: block;
+    font-weight: 560;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .app-surface,
+  .app-rail-surface,
+  .home-ledger-hero,
+  .home-dashboard-card,
+  .mobile-surface,
+  .app-ledger {
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--surface-panel);
+    box-shadow: none;
+  }
+
+  .motion-page,
+  .motion-card,
+  [data-motion-stagger] > *,
+  [data-slot="card"] {
+    animation: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .app-page > .app-surface,
+  .app-page > .app-grid > .app-surface,
+  .app-screen-inner > .app-surface {
+    border-top: 1px solid var(--divider);
+    border-bottom: 1px solid var(--divider);
+    border-radius: 0;
+  }
+
+  .app-surface .app-surface,
+  .app-rail-surface .app-surface {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+.app-route-frame-animated[data-route-motion="switch"] {
+  animation: none;
+}
+
+/* Decorative glass, icon bubbles, and boxed empty states were recurring
+   generated-UI tells. Keep depth only where it communicates an overlay. */
+[class*="backdrop-blur"] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.app-icon-button,
+.app-header-icon-action {
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-empty {
+  border: 0;
+  border-top: 1px solid var(--divider);
+  border-bottom: 1px solid var(--divider);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }

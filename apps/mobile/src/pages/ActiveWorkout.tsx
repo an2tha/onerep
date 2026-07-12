@@ -783,7 +783,7 @@ function SetNumberField({
   return (
     <label className="flex min-w-0 flex-col gap-1.5">
       {!hideLabel && (
-        <span className="px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+        <span className="px-1 text-[13px] leading-none font-bold text-muted-foreground">
           {label}
         </span>
       )}
@@ -1236,7 +1236,7 @@ function RestTimerSheet({
               type="button"
               onClick={() => onSelect(s)}
               className={cn(
-                "h-[52px] rounded-[10px] text-[14px] font-black tabular-nums transition-all active:scale-[0.985]",
+                "h-[52px] rounded-[10px] text-[14px] font-semibold tabular-nums transition-all",
                 s === current
                   ? "bg-foreground text-background"
                   : "bg-muted/50 text-muted-foreground/80 active:bg-muted"
@@ -1247,12 +1247,12 @@ function RestTimerSheet({
           ))}
         </div>
         <div className="border-t border-border/40 px-4 pt-3 pb-2">
-          <p className="mb-2.5 text-[9px] font-medium tracking-[0.18em] text-muted-foreground/45 uppercase">
+          <p className="mb-2.5 text-[13px] font-medium text-muted-foreground">
             Custom
           </p>
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/35 uppercase">
+              <span className="text-[13px] font-bold text-muted-foreground">
                 Min
               </span>
               <input
@@ -1261,14 +1261,14 @@ function RestTimerSheet({
                 inputMode="numeric"
                 value={minutes}
                 onChange={(event) => setMinutes(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
+                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-semibold tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
               />
             </label>
-            <span className="mb-3 text-[18px] font-light text-muted-foreground/30">
+            <span className="mb-3 text-[18px] font-light text-muted-foreground">
               :
             </span>
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/35 uppercase">
+              <span className="text-[13px] font-bold text-muted-foreground">
                 Sec
               </span>
               <input
@@ -1278,7 +1278,7 @@ function RestTimerSheet({
                 inputMode="numeric"
                 value={secs}
                 onChange={(event) => setSecs(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-black tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
+                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-semibold tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
               />
             </label>
             <button
@@ -1538,8 +1538,8 @@ export function WeightSelectorSheet({
               <Barbell size={17} weight="bold" />
             </span>
             <div>
-              <p className="text-[15px] font-black tracking-tight">Weight</p>
-              <p className="text-[11px] text-muted-foreground/55">
+              <p className="text-[15px] font-semibold tracking-tight">Weight</p>
+              <p className="text-[13px] text-muted-foreground">
                 {lastWeightLabel
                   ? `Last set ${lastWeightLabel}`
                   : hasBar
@@ -1560,10 +1560,10 @@ export function WeightSelectorSheet({
           <div className="rounded-[26px] border border-border/45 bg-background p-3">
             <div className="flex items-center justify-between gap-3 px-1">
               <div className="min-w-0">
-                <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                <p className="text-[13px] font-semibold text-muted-foreground">
                   Bar setup
                 </p>
-                <p className="mt-1 truncate text-[12px] font-semibold text-foreground/75">
+                <p className="mt-1 truncate text-[13px] font-semibold text-foreground/75">
                   {hasBar
                     ? `${activeBarLabel} · ${barDisplayValue} ${unit}`
                     : "No bar added"}
@@ -1573,7 +1573,7 @@ export function WeightSelectorSheet({
                 type="button"
                 onClick={toggleBar}
                 className={cn(
-                  "h-10 shrink-0 rounded-[18px] px-4 text-[12px] font-black transition-all active:scale-[0.985]",
+                  "h-10 shrink-0 rounded-[18px] px-4 text-[13px] font-semibold transition-all",
                   hasBar
                     ? "bg-foreground text-background"
                     : "bg-muted/55 text-muted-foreground/75 active:bg-muted active:text-foreground"
@@ -1607,7 +1607,7 @@ export function WeightSelectorSheet({
                     type="button"
                     onClick={() => selectBarType(profile.type)}
                     className={cn(
-                      "min-w-0 overflow-hidden rounded-[20px] border p-2 text-left transition-all active:scale-[0.985]",
+                      "min-w-0 overflow-hidden rounded-[20px] border p-2 text-left transition-all",
                       selected
                         ? "border-foreground/20 bg-foreground text-background shadow-sm"
                         : "border-border/40 bg-card/65 active:border-primary/20 active:bg-card"
@@ -1629,15 +1629,15 @@ export function WeightSelectorSheet({
                       />
                     </div>
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate text-[11px] font-black">
+                      <span className="min-w-0 truncate text-[13px] font-semibold">
                         {profile.shortLabel}
                       </span>
                       <span
                         className={cn(
-                          "shrink-0 text-[10px] font-black tabular-nums",
+                          "shrink-0 text-[13px] font-semibold tabular-nums",
                           selected
                             ? "text-background/70"
-                            : "text-muted-foreground/55"
+                            : "text-muted-foreground"
                         )}
                       >
                         {presetWeight}
@@ -1658,10 +1658,10 @@ export function WeightSelectorSheet({
                     onChange={(event) =>
                       setCustomBarDisplay(event.target.value)
                     }
-                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/50 bg-card px-3 pr-12 text-center text-[18px] font-black tabular-nums transition-all outline-none focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/50 bg-card px-3 pr-12 text-center text-[18px] font-semibold tabular-nums transition-all outline-none focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     aria-label={`Bar weight in ${unit}`}
                   />
-                  <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[9px] font-black tracking-[0.14em] text-muted-foreground/45 uppercase">
+                  <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                     {unit}
                   </span>
                 </label>
@@ -1669,7 +1669,7 @@ export function WeightSelectorSheet({
                   type="button"
                   onClick={() => setCustomBarDisplay(barInput || "0")}
                   className={cn(
-                    "h-12 rounded-[20px] px-3 text-[11px] font-black tracking-[0.12em] uppercase transition-all active:scale-[0.985]",
+                    "h-12 rounded-[20px] px-3 text-[13px] font-semibold transition-all",
                     selectedBarType === "custom"
                       ? "bg-foreground text-background"
                       : "bg-muted/50 text-muted-foreground/70 active:bg-muted active:text-foreground"
@@ -1685,14 +1685,14 @@ export function WeightSelectorSheet({
             <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                  <p className="text-[13px] font-semibold text-muted-foreground">
                     Plates per side
                   </p>
-                  <p className="mt-1 text-[12px] font-semibold text-foreground/75">
+                  <p className="mt-1 text-[13px] font-semibold text-foreground/75">
                     Total {weightInput || "0"} {unit}
                   </p>
                 </div>
-                <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[10px] font-black tracking-[0.1em] text-muted-foreground/65 uppercase">
+                <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[13px] font-semibold text-muted-foreground/65">
                   {activeBarLabel}
                 </span>
               </div>
@@ -1700,7 +1700,7 @@ export function WeightSelectorSheet({
                 <button
                   type="button"
                   onClick={() => applyPlateDelta(-(unit === "kg" ? 1.25 : 2.5))}
-                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
                   aria-label="Decrease plates per side"
                 >
                   <Minus size={15} weight="bold" />
@@ -1714,17 +1714,17 @@ export function WeightSelectorSheet({
                       setPlatePerSideDisplay(event.target.value)
                     }
                     placeholder="0"
-                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-black tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground/25 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-12 w-full [appearance:textfield] rounded-[20px] border border-border/55 bg-card px-4 pr-14 text-center text-[22px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     aria-label={`Plates per side in ${unit}`}
                   />
-                  <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+                  <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                     {unit}
                   </span>
                 </label>
                 <button
                   type="button"
                   onClick={() => applyPlateDelta(unit === "kg" ? 1.25 : 2.5)}
-                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                  className="flex h-11 items-center justify-center rounded-[18px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
                   aria-label="Increase plates per side"
                 >
                   <Plus size={15} weight="bold" />
@@ -1736,7 +1736,7 @@ export function WeightSelectorSheet({
                     key={delta}
                     type="button"
                     onClick={() => applyPlateDelta(delta)}
-                    className="h-9 rounded-[15px] bg-muted/40 text-[11px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-muted active:text-foreground"
+                    className="h-9 rounded-[15px] bg-muted/40 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-muted active:text-foreground"
                   >
                     +{delta}
                   </button>
@@ -1748,7 +1748,7 @@ export function WeightSelectorSheet({
                     key={plate}
                     type="button"
                     onClick={() => selectPlatePerSide(plate)}
-                    className="h-9 rounded-[15px] bg-card/80 text-[11px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-card active:text-foreground"
+                    className="h-9 rounded-[15px] bg-card/80 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-card active:text-foreground"
                   >
                     {plate}
                   </button>
@@ -1760,10 +1760,10 @@ export function WeightSelectorSheet({
           <div className="mt-3 rounded-[24px] border border-border/50 bg-background px-4 py-4 md:mt-0">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+                <p className="text-[13px] font-semibold text-muted-foreground">
                   Total weight
                 </p>
-                <p className="mt-1 text-[12px] font-semibold text-foreground/75">
+                <p className="mt-1 text-[13px] font-semibold text-foreground/75">
                   {hasBar
                     ? `${barDisplayValue} ${unit} bar + ${plateDisplayValue || "0"} ${unit}/side`
                     : `Direct entry in ${unit}`}
@@ -1774,7 +1774,7 @@ export function WeightSelectorSheet({
               <button
                 type="button"
                 onClick={() => applyDelta(-(unit === "kg" ? 2.5 : 5))}
-                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
                 aria-label="Decrease weight"
               >
                 <Minus size={16} weight="bold" />
@@ -1786,17 +1786,17 @@ export function WeightSelectorSheet({
                   value={weightInput}
                   onChange={(event) => setWeightDisplay(event.target.value)}
                   placeholder="0"
-                  className="h-[58px] w-full [appearance:textfield] rounded-[22px] border border-border/55 bg-card px-4 pr-14 text-center text-[28px] leading-none font-black tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground/25 focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  className="h-[58px] w-full [appearance:textfield] rounded-[22px] border border-border/55 bg-card px-4 pr-14 text-center text-[28px] leading-none font-semibold tracking-tight tabular-nums transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   aria-label={`Total weight in ${unit}`}
                 />
-                <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+                <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                   {unit}
                 </span>
               </label>
               <button
                 type="button"
                 onClick={() => applyDelta(unit === "kg" ? 2.5 : 5)}
-                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:scale-[0.985] active:bg-muted"
+                className="flex h-12 items-center justify-center rounded-[20px] bg-muted/55 text-muted-foreground/70 transition-all active:bg-muted"
                 aria-label="Increase weight"
               >
                 <Plus size={16} weight="bold" />
@@ -1806,7 +1806,7 @@ export function WeightSelectorSheet({
               <button
                 type="button"
                 onClick={toggleBar}
-                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-muted/55 text-[13px] font-black text-foreground/80 transition-all active:scale-[0.985] active:bg-muted"
+                className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-[18px] bg-muted/55 text-[13px] font-semibold text-foreground/80 transition-all active:bg-muted"
               >
                 <Plus size={14} weight="bold" />
                 Add bar
@@ -1818,7 +1818,7 @@ export function WeightSelectorSheet({
                   key={delta}
                   type="button"
                   onClick={() => applyDelta(delta)}
-                  className="h-10 rounded-[16px] bg-muted/40 text-[12px] font-black text-muted-foreground/75 tabular-nums transition-all active:scale-[0.985] active:bg-muted active:text-foreground"
+                  className="h-10 rounded-[16px] bg-muted/40 text-[13px] font-semibold text-muted-foreground/75 tabular-nums transition-all active:bg-muted active:text-foreground"
                 >
                   +{delta}
                 </button>
@@ -1829,7 +1829,7 @@ export function WeightSelectorSheet({
           <button
             type="button"
             onClick={dismiss}
-            className="mt-3 h-12 w-full rounded-[20px] bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-85 md:col-span-2"
+            className="mt-3 h-12 w-full rounded-[20px] bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-85 md:col-span-2"
           >
             Done
           </button>
@@ -1880,17 +1880,17 @@ function WeightSelectorButton({
           : "h-12 rounded-[20px] px-3 text-[17px]",
         disabled
           ? "border-border/30 bg-muted/30 text-foreground/50"
-          : "border-border/45 bg-muted/20 active:scale-[0.985] active:border-foreground/20 active:bg-card/80"
+          : "border-border/45 bg-muted/20 active:border-foreground/20 active:bg-card/80"
       )}
     >
       <span className="min-w-0 truncate">{display || placeholder}</span>
       {display && (
-        <span className="ml-1.5 shrink-0 text-[9px] font-black tracking-[0.12em] text-muted-foreground/45 uppercase">
+        <span className="ml-1.5 shrink-0 text-[13px] font-semibold text-muted-foreground">
           {unit}
         </span>
       )}
       {plateLabel && !compact && (
-        <span className="ml-2 min-w-0 truncate rounded-full bg-muted/55 px-2 py-0.5 text-[9px] font-black tracking-[0.08em] text-muted-foreground/65 uppercase">
+        <span className="ml-2 min-w-0 truncate rounded-full bg-muted/55 px-2 py-0.5 text-[13px] font-semibold text-muted-foreground/65">
           {plateLabel}
         </span>
       )}
@@ -2142,9 +2142,9 @@ function CardioDetailsPanel({
   }
 
   const fieldCls =
-    "h-12 w-full [appearance:textfield] rounded-[20px] border border-border/45 bg-muted/20 px-3 text-center text-[16px] font-semibold tabular-nums outline-none transition-all placeholder:text-muted-foreground/25 focus:border-foreground/30 focus:bg-card/80 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+    "h-12 w-full [appearance:textfield] rounded-[20px] border border-border/45 bg-muted/20 px-3 text-center text-[16px] font-semibold tabular-nums outline-none transition-all placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80 focus:ring-2 focus:ring-foreground/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
   const labelCls =
-    "px-1 text-[10px] leading-none font-bold tracking-[0.14em] text-muted-foreground/55 uppercase"
+    "px-1 text-[13px] leading-none font-bold text-muted-foreground"
 
   return (
     <div
@@ -2155,10 +2155,10 @@ function CardioDetailsPanel({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black tracking-[0.18em] text-muted-foreground/45 uppercase">
+          <p className="text-[13px] font-semibold text-muted-foreground">
             Cardio
           </p>
-          <p className="mt-1 truncate text-[12px] font-semibold text-foreground/70">
+          <p className="mt-1 truncate text-[13px] font-semibold text-foreground/70">
             {compactCardioSummary(details, cardio.distanceUnit)}
           </p>
         </div>
@@ -2169,13 +2169,13 @@ function CardioDetailsPanel({
               onClick={loadAppleHealthWorkouts}
               disabled={appleHealthLoading}
               aria-busy={appleHealthLoading}
-              className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[10px] font-black text-background transition-opacity active:opacity-80 disabled:opacity-55"
+              className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[13px] font-semibold text-background transition-opacity active:opacity-80 disabled:opacity-55"
             >
               <AppleLogo size={13} weight="fill" />
               {appleHealthLoading ? "Syncing" : "Health"}
             </button>
           )}
-          <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-black text-muted-foreground/60 tabular-nums">
+          <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[13px] font-semibold text-muted-foreground/60 tabular-nums">
             {paceLabel}
           </span>
         </div>
@@ -2185,10 +2185,10 @@ function CardioDetailsPanel({
         <div className="mb-3 rounded-[22px] border border-border/45 bg-background p-2.5">
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
             <div className="min-w-0">
-              <p className="text-[10px] font-black tracking-[0.16em] text-muted-foreground/45 uppercase">
+              <p className="text-[13px] font-semibold text-muted-foreground">
                 Apple Health
               </p>
-              <p className="truncate text-[11px] font-semibold text-muted-foreground/60">
+              <p className="truncate text-[13px] font-semibold text-muted-foreground/60">
                 Recent cardio workouts
               </p>
             </div>
@@ -2207,7 +2207,7 @@ function CardioDetailsPanel({
             </button>
           </div>
           {appleHealthError && (
-            <p className="rounded-[16px] bg-muted/35 px-3 py-2 text-[12px] font-semibold text-muted-foreground/75">
+            <p className="rounded-[16px] bg-muted/35 px-3 py-2 text-[13px] font-semibold text-muted-foreground/75">
               {appleHealthError}
             </p>
           )}
@@ -2221,10 +2221,10 @@ function CardioDetailsPanel({
                   className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[17px] bg-muted/25 px-3 py-2 text-left transition-colors active:bg-muted/55"
                 >
                   <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-black text-foreground/85">
+                    <span className="block truncate text-[13px] font-semibold text-foreground/85">
                       {workout.activityName}
                     </span>
-                    <span className="mt-0.5 block truncate text-[11px] font-semibold text-muted-foreground/60">
+                    <span className="mt-0.5 block truncate text-[13px] font-semibold text-muted-foreground/60">
                       {[
                         formatCardioDistance(
                           workout.totalDistanceMeters,
@@ -2239,7 +2239,7 @@ function CardioDetailsPanel({
                         .join(" · ")}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[10px] font-black text-muted-foreground/50">
+                  <span className="shrink-0 text-[13px] font-semibold text-muted-foreground">
                     {formatAppleHealthWorkoutDate(workout.startedAt)}
                   </span>
                 </button>
@@ -2261,7 +2261,7 @@ function CardioDetailsPanel({
               placeholder="0"
               className={fieldCls}
             />
-            <div className="flex h-12 overflow-hidden rounded-[20px] border border-border/45 bg-muted/25 text-[11px] font-black uppercase">
+            <div className="flex h-12 overflow-hidden rounded-[20px] border border-border/45 bg-muted/25 text-[13px] font-semibold">
               {(["km", "mi"] as CardioDistanceUnit[]).map((unit) => (
                 <button
                   key={unit}
@@ -2303,7 +2303,7 @@ function CardioDetailsPanel({
                   placeholder="0"
                   className={cn(fieldCls, "pr-7")}
                 />
-                <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[9px] font-black text-muted-foreground/40 uppercase">
+                <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                   {label}
                 </span>
               </label>
@@ -2326,7 +2326,7 @@ function CardioDetailsPanel({
                 placeholder="0"
                 className={cn(fieldCls, "pr-9")}
               />
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[9px] font-black text-muted-foreground/40 uppercase">
+              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                 min
               </span>
             </label>
@@ -2342,7 +2342,7 @@ function CardioDetailsPanel({
                 placeholder="0"
                 className={cn(fieldCls, "pr-9")}
               />
-              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[9px] font-black text-muted-foreground/40 uppercase">
+              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-[13px] font-semibold text-muted-foreground">
                 sec
               </span>
             </label>
@@ -2380,7 +2380,7 @@ function CardioDetailsPanel({
         <div className="mt-1.5 grid grid-cols-5 gap-1.5">
           {HEART_RATE_ZONES.map(({ key, label }) => (
             <label key={key} className="min-w-0">
-              <span className="mb-1 block text-center text-[9px] font-black text-muted-foreground/45">
+              <span className="mb-1 block text-center text-[13px] font-semibold text-muted-foreground">
                 {label}
               </span>
               <input
@@ -2390,7 +2390,7 @@ function CardioDetailsPanel({
                 value={cardio.zones[key]}
                 onChange={(event) => updateZone(key, event.target.value)}
                 placeholder="m"
-                className="h-10 w-full [appearance:textfield] rounded-[16px] border border-border/40 bg-muted/20 px-1.5 text-center text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground/25 focus:border-foreground/30 focus:bg-card/80 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                className="h-10 w-full [appearance:textfield] rounded-[16px] border border-border/40 bg-muted/20 px-1.5 text-center text-[13px] font-semibold tabular-nums outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </label>
           ))}
@@ -2422,7 +2422,7 @@ function CardioDetailsPanel({
             value={cardio.sourceName}
             onChange={(event) => update({ sourceName: event.target.value })}
             placeholder="Morning run"
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-card/80"
+            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
@@ -2433,7 +2433,7 @@ function CardioDetailsPanel({
               update({ sourceExternalId: event.target.value })
             }
             placeholder="Import ID"
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-card/80"
+            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
@@ -2442,7 +2442,7 @@ function CardioDetailsPanel({
             value={cardio.routeName}
             onChange={(event) => update({ routeName: event.target.value })}
             placeholder="Route name"
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-card/80"
+            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
         <label className="flex min-w-0 flex-col gap-1.5">
@@ -2452,12 +2452,12 @@ function CardioDetailsPanel({
             value={cardio.routeUrl}
             onChange={(event) => update({ routeUrl: event.target.value })}
             placeholder="https://"
-            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-card/80"
+            className="h-12 rounded-[20px] border border-border/45 bg-muted/20 px-3 text-[13px] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-card/80"
           />
         </label>
       </div>
 
-      <div className="mt-3 flex items-center justify-between text-[10px] font-semibold text-muted-foreground/45">
+      <div className="mt-3 flex items-center justify-between text-[13px] font-semibold text-muted-foreground">
         <span>{durationLabel}</span>
         <span>{sourceLabel}</span>
       </div>
@@ -2597,43 +2597,43 @@ function ActiveExerciseCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden transition-[border-color,opacity,transform] duration-150",
+        "relative flex overflow-hidden transition-[border-color,opacity] duration-150",
         inSuperset
           ? "border-t border-border/18 bg-transparent first:border-t-0"
-          : "rounded-lg border border-border/20 bg-card",
+          : "border-y border-border bg-transparent",
         !inSuperset && allDone && "border-border/25 bg-muted/[0.05]",
         !inSuperset && dropActive && "border-foreground/20",
         !inSuperset &&
           supersetDropActive &&
           "border-foreground/70 bg-foreground/[0.035] shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_22%,transparent)] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background",
-        isDragging && "scale-[0.985] opacity-25"
+        isDragging && "opacity-25"
       )}
     >
       {supersetDropActive && !inSuperset && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
-          <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold tracking-tight text-background shadow-lg">
+          <span className="rounded-full bg-foreground px-3 py-1.5 text-[13px] font-semibold tracking-tight text-background shadow-lg">
             drop to superset
           </span>
         </div>
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={cn("px-3 py-2 md:py-2.5", inSuperset && "pl-4")}>
+        <div className={cn("px-1 py-2 md:py-2.5", inSuperset && "pl-4")}>
           <div className="flex items-center gap-2">
             {dragHandlers && (
               <div
                 {...dragHandlers}
                 role="button"
                 aria-label="Reorder exercise"
-                className="flex h-7 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/22 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/60"
+                className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
               >
                 <DotsSixVertical size={13} weight="bold" />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13.5px] leading-tight font-semibold tracking-tight">
+              <p className="truncate text-[16px] leading-tight font-semibold tracking-tight">
                 {exercise.name}
               </p>
-              <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
+              <p className="mt-1 truncate text-[13px] text-muted-foreground">
                 {collapsed
                   ? isCardio
                     ? compactCardioSummary(
@@ -2646,10 +2646,8 @@ function ActiveExerciseCard({
             </div>
             <span
               className={cn(
-                "shrink-0 rounded-md px-1.5 py-0.5 text-[10.5px] font-semibold tracking-tight tabular-nums transition-colors",
-                allDone
-                  ? "bg-muted/60 text-foreground/65"
-                  : "bg-muted/35 text-muted-foreground/65"
+                "shrink-0 text-[13px] font-medium tabular-nums transition-colors",
+                allDone ? "text-primary" : "text-muted-foreground"
               )}
             >
               {isCardio
@@ -2658,35 +2656,10 @@ function ActiveExerciseCard({
                   : "Open"
                 : `${doneSets}/${data.sets.length}`}
             </span>
-            {!isCardio && (
-              <button
-                onClick={onShowHistory}
-                aria-label="Open exercise history"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/42 transition-colors active:bg-muted/30 active:text-foreground"
-              >
-                <ChartLine size={14} weight="bold" />
-              </button>
-            )}
-            {onAiChange && (
-              <button
-                onClick={onAiChange}
-                aria-label={`AI change ${exercise.name}`}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/42 transition-colors active:bg-muted/30 active:text-foreground"
-              >
-                <Sparkle size={13} weight="fill" />
-              </button>
-            )}
-            <button
-              onClick={onRemove}
-              aria-label="Remove exercise"
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/34 transition-colors active:bg-muted/30 active:text-foreground"
-            >
-              <X size={14} weight="bold" />
-            </button>
             <button
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/45 transition-colors active:bg-muted/30 active:text-foreground"
+              className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
             >
               {collapsed ? (
                 <CaretDown size={14} weight="bold" />
@@ -2695,6 +2668,33 @@ function ActiveExerciseCard({
               )}
             </button>
           </div>
+        </div>
+        <div className="flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
+          {!isCardio && (
+            <button
+              onClick={onShowHistory}
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground active:bg-muted/30 active:text-foreground"
+            >
+              <ChartLine size={15} weight="bold" />
+              History
+            </button>
+          )}
+          {onAiChange && (
+            <button
+              onClick={onAiChange}
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground active:bg-muted/30 active:text-foreground"
+            >
+              <Sparkle size={14} weight="fill" />
+              Change
+            </button>
+          )}
+          <button
+            onClick={onRemove}
+            className="flex min-h-11 flex-1 items-center justify-center gap-2 text-destructive active:bg-destructive/10"
+          >
+            <X size={15} weight="bold" />
+            Remove
+          </button>
         </div>
         <div
           className={cn(
@@ -2733,7 +2733,7 @@ function ActiveExerciseCard({
                         flexShrink: 0,
                       }}
                     />
-                    <span className="text-[10.5px] font-medium text-muted-foreground/45">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                       {new Date(
                         `${lastSession.date}T12:00:00Z`
                       ).toLocaleDateString("en-US", {
@@ -2741,7 +2741,7 @@ function ActiveExerciseCard({
                         day: "numeric",
                       })}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[10.5px] text-muted-foreground/55 tabular-nums">
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-muted-foreground tabular-nums">
                       {summary}
                     </span>
                     {progression && doneSets === 0 && (
@@ -2749,7 +2749,7 @@ function ActiveExerciseCard({
                         type="button"
                         onClick={applyProgression}
                         aria-label={`Apply progression: ${progression.label}`}
-                        className="flex h-7 shrink-0 items-center gap-1 rounded-full bg-foreground/[0.06] px-2 text-[9px] font-bold text-foreground/65 transition-colors active:bg-foreground/[0.11]"
+                        className="flex min-h-11 shrink-0 items-center gap-1 px-3 text-[13px] font-semibold text-foreground transition-colors active:bg-muted"
                       >
                         <TrendUp size={11} weight="bold" />
                         {progression.label}
@@ -2915,10 +2915,10 @@ function ExerciseHistorySheet({
             <ArrowLeft size={14} weight="bold" />
           </button>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[17px] font-black tracking-tight">
+            <h2 className="truncate text-[17px] font-semibold tracking-tight">
               {exerciseName}
             </h2>
-            <p className="text-[11px] text-muted-foreground/50">
+            <p className="text-[13px] text-muted-foreground">
               Strength history
             </p>
           </div>
@@ -2926,9 +2926,7 @@ function ExerciseHistorySheet({
 
         {history === undefined ? (
           <div className="flex items-center justify-center py-16">
-            <span className="text-[13px] text-muted-foreground/40">
-              Loading…
-            </span>
+            <span className="text-[13px] text-muted-foreground">Loading…</span>
           </div>
         ) : completedSessions.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16">
@@ -2938,10 +2936,10 @@ function ExerciseHistorySheet({
                 color: "color-mix(in srgb, var(--foreground) 18%, transparent)",
               }}
             />
-            <p className="text-[13px] font-semibold text-muted-foreground/50">
+            <p className="text-[13px] font-semibold text-muted-foreground">
               No history yet
             </p>
-            <p className="text-[11px] text-muted-foreground/30">
+            <p className="text-[13px] text-muted-foreground">
               Complete this exercise to start tracking
             </p>
           </div>
@@ -2949,7 +2947,7 @@ function ExerciseHistorySheet({
           <>
             {completedSessions.length >= 2 && (
               <div className="mx-5 mb-4 overflow-hidden rounded-2xl bg-foreground/[0.04] px-4 py-4">
-                <p className="mb-3 text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
+                <p className="mb-3 text-[13px] font-bold text-muted-foreground">
                   Max weight · {unit}
                 </p>
                 <svg
@@ -2991,10 +2989,10 @@ function ExerciseHistorySheet({
                   })}
                 </svg>
                 <div className="mt-2 flex justify-between">
-                  <span className="text-[10px] text-muted-foreground/35">
+                  <span className="text-[13px] text-muted-foreground">
                     {formatSessionDate(completedSessions[0].date)}
                   </span>
-                  <span className="text-[10px] text-muted-foreground/35">
+                  <span className="text-[13px] text-muted-foreground">
                     {formatSessionDate(
                       completedSessions[completedSessions.length - 1].date
                     )}
@@ -3068,10 +3066,10 @@ function ExerciseHistorySheet({
                         "1px solid color-mix(in srgb, var(--foreground) 6%, transparent)",
                     }}
                   >
-                    <p className="text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
+                    <p className="text-[13px] font-bold text-muted-foreground">
                       Estimated 1RM
                     </p>
-                    <p className="text-[9px] text-muted-foreground/30">
+                    <p className="text-[13px] text-muted-foreground">
                       from {fmtW(bestSet.weight)} {unit} × {bestSet.reps} reps
                     </p>
                   </div>
@@ -3084,21 +3082,21 @@ function ExerciseHistorySheet({
                           className="flex flex-col items-center gap-0.5 px-2 py-3"
                         >
                           <span
-                            className="text-[16px] leading-none font-black tracking-tight tabular-nums"
+                            className="text-[16px] leading-none font-semibold tracking-tight tabular-nums"
                             style={{ color }}
                           >
                             {fmtW(val)}
                           </span>
-                          <span className="mt-0.5 text-[7.5px] font-medium tracking-widest text-muted-foreground/35 uppercase">
+                          <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">
                             {unit}
                           </span>
                           <span
-                            className="mt-1 text-[9px] font-semibold"
+                            className="mt-1 text-[13px] font-semibold"
                             style={{ color }}
                           >
                             {pct}%
                           </span>
-                          <span className="text-center text-[8.5px] leading-tight text-muted-foreground/35">
+                          <span className="text-center text-[13px] leading-tight text-muted-foreground">
                             {label}
                           </span>
                         </div>
@@ -3116,7 +3114,7 @@ function ExerciseHistorySheet({
                   "1px solid color-mix(in srgb, var(--foreground) 7%, transparent)",
               }}
             >
-              <p className="px-4 pt-3 pb-2 text-[9px] font-bold tracking-[0.18em] text-muted-foreground/40 uppercase">
+              <p className="px-4 pt-3 pb-2 text-[13px] font-bold text-muted-foreground">
                 Sessions
               </p>
               <div className="max-h-[240px] overflow-y-auto">
@@ -3133,13 +3131,13 @@ function ExerciseHistorySheet({
                         : undefined
                     }
                   >
-                    <span className="w-[52px] shrink-0 text-[11px] font-semibold text-muted-foreground/50">
+                    <span className="w-[52px] shrink-0 text-[13px] font-semibold text-muted-foreground">
                       {formatSessionDate(session.date)}
                     </span>
-                    <span className="min-w-0 flex-1 text-[11px] leading-snug text-foreground/70">
+                    <span className="min-w-0 flex-1 text-[13px] leading-snug text-foreground/70">
                       {fmtSets(session.sets)}
                     </span>
-                    <span className="shrink-0 text-[10px] font-bold text-muted-foreground/40 tabular-nums">
+                    <span className="shrink-0 text-[13px] font-bold text-muted-foreground tabular-nums">
                       {fmtWeight(
                         Math.max(...session.sets.map((s) => s.weight || 0))
                       )}{" "}
@@ -3283,7 +3281,7 @@ function AddExerciseSheet({
             type="button"
             onClick={requestClose}
             aria-label="Close exercise search"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/55 transition-colors active:bg-muted/60 active:text-foreground"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground"
           >
             <X size={16} weight="bold" />
           </button>
@@ -3293,7 +3291,7 @@ function AddExerciseSheet({
             ) : (
               <MagnifyingGlass
                 size={15}
-                className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground/40"
+                className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
               />
             )}
             <input
@@ -3306,7 +3304,7 @@ function AddExerciseSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              className="h-11 w-full rounded-[20px] border border-border/45 bg-muted/35 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground/35 focus:border-foreground/30 focus:bg-background"
+              className="h-11 w-full rounded-[20px] border border-border/45 bg-muted/35 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-background"
             />
             {query && (
               <button
@@ -3316,7 +3314,7 @@ function AddExerciseSheet({
                   setActiveCategory(null)
                 }}
                 aria-label="Clear exercise search"
-                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground/40 active:text-foreground"
+                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground active:text-foreground"
               >
                 <X size={13} weight="bold" />
               </button>
@@ -3334,13 +3332,13 @@ function AddExerciseSheet({
           {searchState === "loading" ? (
             <div className="flex flex-col items-center gap-2 py-16">
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/25 border-t-muted-foreground/70" />
-              <p className="text-[12px] font-medium text-muted-foreground/65">
+              <p className="text-[13px] font-medium text-muted-foreground/65">
                 Finding exercises
               </p>
             </div>
           ) : filtered.length > 0 ? (
             <>
-              <p className="mt-4 mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+              <p className="mt-4 mb-2 px-1 text-[13px] font-semibold text-muted-foreground">
                 {filtered.length} result{filtered.length === 1 ? "" : "s"}
               </p>
               <div className="divide-y divide-border/35 overflow-hidden rounded-[20px] border border-border/40 bg-card/45">
@@ -3362,9 +3360,9 @@ function AddExerciseSheet({
               <div className="app-empty justify-center text-center">
                 <MagnifyingGlass
                   size={18}
-                  className="shrink-0 text-muted-foreground/35"
+                  className="shrink-0 text-muted-foreground"
                 />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                <p className="text-[13px] font-medium text-muted-foreground/70">
                   {query.trim()
                     ? "Type one more letter to search."
                     : "Search a movement or browse below."}
@@ -3381,9 +3379,9 @@ function AddExerciseSheet({
               <div className="app-empty justify-center">
                 <MagnifyingGlass
                   size={18}
-                  className="shrink-0 text-muted-foreground/35"
+                  className="shrink-0 text-muted-foreground"
                 />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                <p className="text-[13px] font-medium text-muted-foreground/70">
                   No matches{query.trim() ? ` for “${query.trim()}”` : ""}.
                 </p>
               </div>
@@ -3397,13 +3395,13 @@ function AddExerciseSheet({
             <div className="flex flex-col items-center gap-5 px-2 py-16 text-center">
               <div className="app-empty justify-center">
                 <Warning size={18} className="shrink-0 text-destructive/70" />
-                <p className="text-[12.5px] font-medium text-muted-foreground/70">
+                <p className="text-[13px] font-medium text-muted-foreground/70">
                   Exercise search is unavailable.
                 </p>
                 <button
                   type="button"
                   onClick={retrySearch}
-                  className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
+                  className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[13px] font-semibold text-background active:opacity-85"
                 >
                   Retry
                 </button>
@@ -3468,7 +3466,7 @@ function ExerciseCategoryFilters({
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
           activeCategory === null
             ? "border-foreground bg-foreground text-background"
-            : "border-border/50 bg-muted/35 text-muted-foreground/55 active:bg-muted/65"
+            : "border-border/50 bg-muted/35 text-muted-foreground active:bg-muted/65"
         )}
       >
         <MagnifyingGlass size={14} weight="bold" />
@@ -3487,7 +3485,7 @@ function ExerciseCategoryFilters({
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
               active
                 ? "border-foreground bg-foreground text-background"
-                : "border-border/50 bg-muted/35 text-muted-foreground/55 active:bg-muted/65"
+                : "border-border/50 bg-muted/35 text-muted-foreground active:bg-muted/65"
             )}
           >
             <ExerciseCategoryGlyph category={category} />
@@ -3534,11 +3532,11 @@ function ExerciseSearchResult({
           {exercise.name}
         </p>
         <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[10.5px] text-muted-foreground/50">
+          <span className="truncate text-[13px] text-muted-foreground">
             {exercise.muscle}
           </span>
-          <span className="text-[10px] text-muted-foreground/25">·</span>
-          <span className="shrink-0 text-[10.5px] text-muted-foreground/50">
+          <span className="text-[13px] text-muted-foreground">·</span>
+          <span className="shrink-0 text-[13px] text-muted-foreground">
             {exercise.sets}
           </span>
         </div>
@@ -3596,7 +3594,7 @@ function ExerciseSuggestionChips({
 
   return (
     <div className="w-full">
-      <p className="mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+      <p className="mb-2 px-1 text-[13px] font-semibold text-muted-foreground">
         {label}
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -3605,7 +3603,7 @@ function ExerciseSuggestionChips({
             key={exercise.id}
             type="button"
             onClick={() => onChoose(exercise)}
-            className="flex min-h-11 min-w-0 items-center gap-2 rounded-[14px] border border-border/45 bg-card/45 px-3 text-left transition-all active:scale-[0.99] active:bg-muted/60"
+            className="flex min-h-11 min-w-0 items-center gap-2 rounded-[14px] border border-border/45 bg-card/45 px-3 text-left transition-all active:bg-muted/60"
           >
             <span
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
@@ -3616,7 +3614,7 @@ function ExerciseSuggestionChips({
             >
               <ExerciseCategoryGlyph category={exercise.category} size={13} />
             </span>
-            <span className="truncate text-[12px] font-semibold text-foreground/75">
+            <span className="truncate text-[13px] font-semibold text-foreground/75">
               {exercise.name}
             </span>
           </button>
@@ -3669,10 +3667,10 @@ function AiWorkoutSheet({
               <Sparkle size={17} weight="fill" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black tracking-[0.2em] text-muted-foreground/45 uppercase">
+              <p className="text-[13px] font-semibold text-muted-foreground">
                 Workout AI
               </p>
-              <h2 className="mt-1 text-[19px] leading-tight font-black tracking-tight">
+              <h2 className="mt-1 text-[19px] leading-tight font-semibold tracking-tight">
                 {title}
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
@@ -3682,7 +3680,7 @@ function AiWorkoutSheet({
             <button
               onClick={onClose}
               disabled={loading}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
               aria-label="Close workout AI"
             >
               <X size={15} weight="bold" />
@@ -3690,7 +3688,7 @@ function AiWorkoutSheet({
           </div>
 
           {!target?.exerciseId && hasExisting && (
-            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[12px] font-bold">
+            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[13px] font-bold">
               {(
                 [
                   { value: "append", label: "Add" },
@@ -3705,7 +3703,7 @@ function AiWorkoutSheet({
                     "h-10 rounded-xl transition-all",
                     mode === option.value
                       ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground/55 active:text-foreground"
+                      : "text-muted-foreground active:text-foreground"
                   )}
                 >
                   {option.label}
@@ -3723,7 +3721,7 @@ function AiWorkoutSheet({
                 ? "Swap for incline dumbbell press 3x10, keep rest around 90s"
                 : "Add cable row 3x12 and face pulls 3x15\nOr paste a full lower-body day to replace this workout"
             }
-            className="mt-5 min-h-48 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/30 focus:border-foreground/20 disabled:opacity-60"
+            className="mt-5 min-h-48 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground/20 disabled:opacity-60"
           />
 
           <div className="mt-4 flex flex-col gap-2">
@@ -3731,7 +3729,7 @@ function AiWorkoutSheet({
               onClick={() => void onGenerate(text.trim(), activeMode)}
               disabled={!canGenerate}
               aria-busy={loading}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
             >
               <Sparkle
                 size={15}
@@ -3801,7 +3799,7 @@ function ResumeWorkoutSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-black tracking-tight">
+          <h2 className="text-[20px] font-semibold tracking-tight">
             You have an active workout
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
@@ -3815,7 +3813,7 @@ function ResumeWorkoutSheet({
             type="button"
             onClick={onResume}
             disabled={discarding}
-            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
           >
             Resume workout
           </button>
@@ -3884,14 +3882,14 @@ function FinishSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-black tracking-tight">
+          <h2 className="text-[20px] font-semibold tracking-tight">
             {allDone ? "Workout complete" : "Finish early?"}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
             {!allDone &&
               `${totalSets - doneSets} set${totalSets - doneSets > 1 ? "s" : ""} still incomplete. `}
             Total time:{" "}
-            <span className="font-black text-foreground tabular-nums">
+            <span className="font-semibold text-foreground tabular-nums">
               {formatElapsed(elapsed)}
             </span>
           </p>
@@ -3904,10 +3902,10 @@ function FinishSheet({
                 key={label}
                 className="flex flex-1 flex-col gap-0.5 rounded-[20px] bg-muted/40 px-3 py-2.5"
               >
-                <span className="text-[9px] font-black tracking-[0.18em] text-muted-foreground/50 uppercase">
+                <span className="text-[13px] font-semibold text-muted-foreground">
                   {label}
                 </span>
-                <span className="text-[18px] font-black tracking-tight tabular-nums">
+                <span className="text-[18px] font-semibold tracking-tight tabular-nums">
                   {value}
                 </span>
               </div>
@@ -3920,7 +3918,7 @@ function FinishSheet({
             onClick={() => void confirmFinish()}
             disabled={finishing}
             aria-busy={finishing}
-            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-60"
           >
             {finishing ? "Finishing..." : "Finish workout"}
           </button>
@@ -3973,7 +3971,7 @@ function AbortSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-black tracking-tight">
+          <h2 className="text-[20px] font-semibold tracking-tight">
             Abort workout?
           </h2>
           <p className="mt-1.5 text-[13px] text-muted-foreground/70">
@@ -3986,7 +3984,7 @@ function AbortSheet({
             onClick={() => void confirmAbort()}
             disabled={aborting}
             aria-busy={aborting}
-            className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-black tracking-tight text-white transition-opacity active:opacity-80 disabled:opacity-60"
+            className="h-[52px] w-full rounded-[20px] bg-destructive text-[15px] font-semibold tracking-tight text-white transition-opacity active:opacity-80 disabled:opacity-60"
           >
             {aborting ? "Aborting..." : "Abort workout"}
           </button>
@@ -4099,7 +4097,7 @@ function renderSupersetItem(
     >
       {supersetDropActive && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
-          <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold tracking-tight text-background shadow-lg">
+          <span className="rounded-full bg-foreground px-3 py-1.5 text-[13px] font-semibold tracking-tight text-background shadow-lg">
             drop to superset
           </span>
         </div>
@@ -4110,22 +4108,22 @@ function renderSupersetItem(
             {...makeDragHandlers(key)}
             role="button"
             aria-label="Reorder superset"
-            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/35 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
+            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
           >
             <DotsSixVertical size={15} weight="bold" />
           </div>
           <div className="min-w-0">
-            <span className="text-[10.5px] font-bold tracking-[0.08em] text-muted-foreground/75">
+            <span className="text-[13px] font-bold text-muted-foreground/75">
               superset
             </span>
-            <p className="mt-1 truncate text-[12px] text-muted-foreground/55">
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">
               {item.exerciseIds.length} exercises
             </p>
           </div>
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-lg px-2 py-1 text-[11.5px] font-semibold tabular-nums",
+            "shrink-0 rounded-lg px-2 py-1 text-[13px] font-semibold tabular-nums",
             allDone
               ? "bg-primary/[0.10] text-primary"
               : "bg-muted/45 text-muted-foreground/70"
@@ -5013,15 +5011,19 @@ export default function ActiveWorkout() {
           >
             <button
               type="button"
-              aria-label="Abort workout"
-              title="Abort workout"
+              aria-label="Discard or leave workout"
               onClick={() => setConfirmAbort(true)}
               className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
             >
               <X size={22} weight="bold" />
             </button>
-            <div className="min-w-0 flex-1 text-center text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]">
-              {formatElapsed(rest.remaining ?? elapsed)}
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-[13px] font-medium text-muted-foreground">
+                {rest.remaining !== null ? "Rest remaining" : "Workout time"}
+              </p>
+              <p className="mt-1 text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]">
+                {formatElapsed(rest.remaining ?? elapsed)}
+              </p>
             </div>
             {rest.remaining !== null ? (
               <button
@@ -5034,7 +5036,7 @@ export default function ActiveWorkout() {
               <button
                 onClick={completeNextSet}
                 className={cn(
-                  "motion-tactile h-11 shrink-0 rounded-xl px-4 text-[13px] font-extrabold transition-colors",
+                  "motion-tactile min-h-11 shrink-0 rounded-xl px-4 text-[13px] font-semibold transition-colors",
                   nextTarget?.kind === "set"
                     ? "bg-muted text-foreground"
                     : totalSets > 0
@@ -5043,13 +5045,16 @@ export default function ActiveWorkout() {
                 )}
               >
                 {nextTarget?.kind === "set"
-                  ? "Done"
+                  ? "Complete set"
                   : totalSets > 0
                     ? "Finish"
                     : "Add"}
               </button>
             )}
-            <div className="flex h-10 shrink-0 overflow-hidden rounded-[10px] border border-border/45 bg-muted/35 text-[11px] font-bold">
+            <div
+              className="flex h-11 shrink-0 overflow-hidden border border-border text-[13px] font-semibold"
+              aria-label="Weight unit"
+            >
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
                   key={u}
@@ -5057,8 +5062,8 @@ export default function ActiveWorkout() {
                   className={cn(
                     "motion-tactile min-w-10 px-2.5 md:min-w-12 md:px-3",
                     unit === u
-                      ? "bg-foreground text-background shadow-sm"
-                      : "text-muted-foreground/65 active:bg-muted/60 active:text-foreground"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground active:bg-muted active:text-foreground"
                   )}
                 >
                   {u}
@@ -5074,31 +5079,40 @@ export default function ActiveWorkout() {
                 <button
                   type="button"
                   onClick={() => syncToConvex({ immediate: true })}
-                  className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[11px] font-extrabold text-destructive"
+                  className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[13px] font-extrabold text-destructive"
                   aria-label="Retry active workout sync"
                 >
                   Retry
                 </button>
               )}
-              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted/55">
+              <div
+                className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-label="Workout completion"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={
+                  totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
+                }
+              >
                 <div
                   className="motion-progress-fill h-full rounded-full bg-primary/55"
                   style={{ width: progressPct }}
                 />
               </div>
-              <span className="shrink-0 text-[10px] font-bold text-muted-foreground/45 tabular-nums">
+              <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
                 {progressPct}
               </span>
             </div>
-            <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[10px] font-bold text-muted-foreground/50 uppercase">
+            <div className="mt-2 flex min-w-0 items-center justify-center gap-2 text-[13px] font-medium text-muted-foreground">
               <span className="truncate">
                 {uniqueExerciseIds.length > 0
                   ? `${activeExerciseIndex}/${uniqueExerciseIds.length} · ${nextSetLabel}`
                   : "Active workout"}
               </span>
               {slot === 2 && (
-                <span className="shrink-0 rounded-[8px] bg-muted/55 px-2 py-0.5 text-[9px] text-muted-foreground/80">
-                  Slot 2
+                <span className="shrink-0 text-[13px] text-muted-foreground">
+                  Second workout
                 </span>
               )}
               {workoutSyncStatus !== "idle" && (
@@ -5107,10 +5121,10 @@ export default function ActiveWorkout() {
                   aria-live="polite"
                   title={workoutSyncError || undefined}
                   className={cn(
-                    "shrink-0 rounded-[8px] px-2 py-0.5 text-[9px]",
+                    "shrink-0 text-[13px]",
                     workoutSyncStatus === "error"
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-muted/55 text-muted-foreground/80"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
                   )}
                 >
                   {workoutSyncLabel}
@@ -5128,13 +5142,13 @@ export default function ActiveWorkout() {
                   weight="bold"
                   className="shrink-0 text-foreground/65"
                 />
-                <p className="min-w-0 flex-1 text-[12px] leading-snug font-semibold">
-                  drag one exercise onto another to make a superset.
+                <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
+                  Drag one exercise onto another to make a superset.
                 </p>
                 <button
                   type="button"
                   onClick={dismissSupersetTip}
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors active:bg-muted active:text-foreground"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
                   aria-label="Hide superset tip"
                 >
                   <X size={12} weight="bold" />
@@ -5212,13 +5226,29 @@ export default function ActiveWorkout() {
               )
             })}
           </div>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="app-empty h-14 w-full justify-center text-[13px] font-medium transition-colors active:bg-muted/25 active:text-foreground"
-          >
-            <Plus size={14} weight="bold" />
-            Add exercise
-          </button>
+          {items.length === 0 ? (
+            <section className="border-y border-border py-8 text-center">
+              <h2 className="text-[18px] font-semibold">Build this workout</h2>
+              <p className="mx-auto mt-2 max-w-sm text-[15px] leading-6 text-muted-foreground">
+                Add an exercise to start logging sets, weight, reps, and rest.
+              </p>
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="app-button app-button-primary mt-5 min-h-12 w-full"
+              >
+                <Plus size={16} weight="bold" />
+                Add first exercise
+              </button>
+            </section>
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="app-button app-button-secondary min-h-12 w-full"
+            >
+              <Plus size={15} weight="bold" />
+              Add exercise
+            </button>
+          )}
           <button
             onClick={() => openAiWorkoutSheet({})}
             disabled={aiUpdating}

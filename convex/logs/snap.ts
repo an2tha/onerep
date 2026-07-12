@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { action, env, internalMutation } from "../_generated/server";
+import { action, internalMutation } from "../_generated/server";
+import { hasGatewayApiKey, requestGatewayJson } from "../ai/gateway";
+import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
 
@@ -82,7 +84,10 @@ function cleanSearchQueries(value: unknown) {
   const queries: string[] = [];
   for (const item of values) {
     const query = cleanText(item, 80);
-    const key = query.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const key = query
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
     if (!key || seen.has(key)) continue;
     seen.add(key);
     queries.push(query);
@@ -177,7 +182,9 @@ function titleCaseName(value: string): string {
   });
 }
 
-function selectedImageUrl(product: Record<string, unknown>): string | undefined {
+function selectedImageUrl(
+  product: Record<string, unknown>,
+): string | undefined {
   const selectedImages = asRecord(product.selected_images);
   const front = asRecord(selectedImages.front);
   for (const groupName of ["display", "small", "thumb"]) {
@@ -241,7 +248,10 @@ function productToFoodResult(raw: unknown): FoodResult | null {
     brands: firstString(product.brands),
     quantity: firstString(product.quantity),
     serving_size: firstString(product.serving_size, product.serving),
-    serving_quantity: firstString(product.serving_quantity, product.servingQuantity),
+    serving_quantity: firstString(
+      product.serving_quantity,
+      product.servingQuantity,
+    ),
     image_url: firstString(product.image_url),
     image_front_url: firstString(product.image_front_url),
     image_front_small_url: firstString(product.image_front_small_url),
@@ -281,7 +291,10 @@ function dedupeFoods(results: FoodResult[]): FoodResult[] {
 }
 
 function normalizeSearchKey(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function searchQueriesForDetection(detection: SnapSearchDetection) {
@@ -298,7 +311,9 @@ function searchQueriesForDetection(detection: SnapSearchDetection) {
   return queries;
 }
 
-function detectionsFromAnalysis(aiResult: AnalyzeResult): SnapSearchDetection[] {
+function detectionsFromAnalysis(
+  aiResult: AnalyzeResult,
+): SnapSearchDetection[] {
   const ingredients = aiResult.ingredients ?? [];
   if (ingredients.length > 0) {
     return ingredients.slice(0, 8).map((ingredient, index) => ({
@@ -357,54 +372,20 @@ async function searchOpenFoodFacts(
     .filter((item) => normalizeSearchKey(item.name).length > 0);
 }
 
-async function analyzeFoodDescriptionWithOpenAI(
+async function analyzeFoodDescriptionWithGateway(
   text: string,
-  apiKey: string,
 ): Promise<AnalyzeResult> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.15,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You convert meal descriptions into temporary nutrition recipes. Respond with JSON only.
-Break mixed meals into visible/probable ingredients. Prefer useful ingredients for nutrition logging over dish names. For each ingredient, estimate edible grams and include 3-5 Open Food Facts search queries: generic food name, cooked/raw state, common alternate names, and simpler fallbacks.
-Shape:
-{
-  "foodName": "short temporary recipe name",
-  "estimatedQuantity": null,
-  "searchQueries": [],
-  "ingredients": [
-    { "name": "ingredient", "quantityInGrams": "grams or range", "searchQueries": ["best query", "generic query", "alternate query"] }
-  ]
-}
-Always include foodName, estimatedQuantity, searchQueries, and ingredients keys.`,
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            description: text,
-            instruction:
-              "Break this meal down into ingredients for a temporary recipe to log once.",
-          }),
-        },
-      ],
-      max_tokens: 900,
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("meal_description"),
+    user: JSON.stringify({
+      description: text,
+      instruction:
+        "Break this meal down into ingredients for a temporary recipe to log once.",
     }),
+    temperature: 0.15,
+    maxTokens: 900,
   });
-
-  if (!response.ok) throw new Error("OpenAI description parsing failed");
-  const data = (await response.json()) as {
-    choices: { message: { content: string } }[];
-  };
-  return normalizeAnalyzeResult(JSON.parse(data.choices[0].message.content));
+  return normalizeAnalyzeResult(JSON.parse(content));
 }
 
 function normalizeAnalyzeResult(value: unknown): AnalyzeResult {
@@ -427,62 +408,19 @@ function normalizeAnalyzeResult(value: unknown): AnalyzeResult {
   };
 }
 
-async function analyzeImageWithOpenAI(
+async function analyzeImageWithGateway(
   imageData: string,
-  apiKey: string,
 ): Promise<AnalyzeResult> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a careful meal photo parser for nutrition logging. Respond with JSON only.
-Prefer a list of visible foods/ingredients over a single dish name unless the image is truly one single food.
-For every ingredient, include 3-5 short searchQueries that would work well in Open Food Facts: generic food name, cooked/raw state, common alternate names, and simpler fallback names. Do not include brands unless visible on packaging.
-Estimate edible grams conservatively. If uncertain, give a reasonable gram range like "80-120 g".
-Shape:
-{
-  "foodName": "single food name or null",
-  "estimatedQuantity": "single food grams or null",
-  "searchQueries": ["single food query", "alternate query"],
-  "ingredients": [
-    { "name": "specific visible food", "quantityInGrams": "grams or range", "searchQueries": ["best query", "generic query", "alternate query"] }
-  ]
-}
-Always include foodName, estimatedQuantity, searchQueries, and ingredients keys.`,
-        },
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients/search queries.`,
-            },
-            { type: "image_url", image_url: { url: imageData, detail: "high" } },
-          ],
-        },
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 800,
-    }),
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("meal_image"),
+    user: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients or search queries.`,
+    image: { url: imageData, detail: "high" },
+    maxTokens: 800,
   });
-
-  if (!response.ok) throw new Error("OpenAI request failed");
-  const data = (await response.json()) as {
-    choices: { message: { content: string } }[];
-  };
-
-  return normalizeAnalyzeResult(JSON.parse(data.choices[0].message.content));
+  return normalizeAnalyzeResult(JSON.parse(content));
 }
 
-async function chooseBestFoodsWithOpenAI(
-  apiKey: string,
+async function chooseBestFoodsWithGateway(
   groups: Array<{
     detection: SnapSearchDetection;
     candidates: FoodResult[];
@@ -504,49 +442,22 @@ async function chooseBestFoodsWithOpenAI(
     })),
   }));
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model:
-        (env as unknown as Record<string, string | undefined>)
-          .OPENAI_SNAP_MATCH_MODEL ?? "gpt-4o-mini",
-      temperature: 0.05,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You pick the best Open Food Facts product for each meal-photo food detection. Return JSON only. Choose a candidate code only if it plausibly matches the detected food and cooked/raw state. Prefer generic/basic entries over irrelevant branded packaged products when the photo shows unpackaged food. If no candidate is plausible, use null. Do not invent codes.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            responseShape: {
-              matches: [
-                {
-                  detectionIndex: 0,
-                  selectedCode: "candidate code or null",
-                },
-              ],
-            },
-            detections: candidatesForPrompt,
-          }),
-        },
-      ],
-      max_tokens: 700,
+  const rawContent = await requestGatewayJson({
+    system: renderSystemPrompt("food_match"),
+    user: JSON.stringify({
+      responseShape: {
+        matches: [
+          {
+            detectionIndex: 0,
+            selectedCode: "candidate code or null",
+          },
+        ],
+      },
+      detections: candidatesForPrompt,
     }),
+    temperature: 0.05,
+    maxTokens: 700,
   });
-
-  if (!response.ok) throw new Error("OpenAI snap matching failed");
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const rawContent = data.choices?.[0]?.message?.content;
-  if (!rawContent) return new Map<number, string | null>();
 
   const parsed = JSON.parse(rawContent) as { matches?: unknown[] };
   const selected = new Map<number, string | null>();
@@ -566,7 +477,6 @@ async function chooseBestFoodsWithOpenAI(
 
 async function buildFoodMatches(
   aiResult: AnalyzeResult,
-  apiKey: string,
   language?: string,
 ): Promise<FoodMatchResult[]> {
   const detections = detectionsFromAnalysis(aiResult);
@@ -584,10 +494,7 @@ async function buildFoodMatches(
       );
       return {
         detection,
-        candidates: dedupeFoods(results).slice(
-          0,
-          MAX_CANDIDATES_PER_DETECTION,
-        ),
+        candidates: dedupeFoods(results).slice(0, MAX_CANDIDATES_PER_DETECTION),
       };
     }),
   );
@@ -595,7 +502,7 @@ async function buildFoodMatches(
   let selectedByDetection = new Map<number, string | null>();
   if (groups.some((group) => group.candidates.length > 0)) {
     try {
-      selectedByDetection = await chooseBestFoodsWithOpenAI(apiKey, groups);
+      selectedByDetection = await chooseBestFoodsWithGateway(groups);
     } catch (error) {
       console.warn("Falling back to first snap search result", error);
     }
@@ -606,9 +513,9 @@ async function buildFoodMatches(
     const selectedFood =
       selectedCode === null
         ? null
-        : candidates.find((candidate) => candidate.code === selectedCode) ??
+        : (candidates.find((candidate) => candidate.code === selectedCode) ??
           candidates[0] ??
-          null;
+          null);
     const alternatives = selectedFood
       ? [
           selectedFood,
@@ -672,15 +579,13 @@ function utcDateKey() {
 // ── snap ──────────────────────────────────────────────────────────────────────
 
 async function runAiMealAnalysis({
-  apiKey,
   aiResult,
   language,
 }: {
-  apiKey: string;
   aiResult: AnalyzeResult;
   language?: string;
 }) {
-  const matches = await buildFoodMatches(aiResult, apiKey, language);
+  const matches = await buildFoodMatches(aiResult, language);
   return {
     aiResult,
     matches,
@@ -700,8 +605,8 @@ export const snap = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    const apiKey = env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Photo analysis is not configured");
+    if (!hasGatewayApiKey())
+      throw new Error("Photo analysis is not configured");
 
     const mimeType = args.mimeType ?? "image/jpeg";
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -719,14 +624,13 @@ export const snap = action({
       });
     if (!quota.allowed) throw new Error("Daily photo analysis limit reached");
 
-    // One app-level AI usage count covers both OpenAI calls in this action:
+    // One app-level AI usage count covers both Gateway calls in this action:
     // photo parsing first, then candidate selection from search results.
     await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
-    const aiResult = await analyzeImageWithOpenAI(imageData, apiKey);
+    const aiResult = await analyzeImageWithGateway(imageData);
     return await runAiMealAnalysis({
-      apiKey,
       aiResult,
       language: args.language,
     });
@@ -742,8 +646,9 @@ export const describeText = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    const apiKey = env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Meal description AI is not configured");
+    if (!hasGatewayApiKey()) {
+      throw new Error("Meal description AI is not configured");
+    }
 
     const text = args.text.trim().slice(0, 2_000);
     if (text.length < 4) throw new Error("Describe what you ate.");
@@ -752,9 +657,8 @@ export const describeText = action({
     // selection from search results.
     await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
-    const aiResult = await analyzeFoodDescriptionWithOpenAI(text, apiKey);
+    const aiResult = await analyzeFoodDescriptionWithGateway(text);
     return await runAiMealAnalysis({
-      apiKey,
       aiResult,
       language: args.language,
     });

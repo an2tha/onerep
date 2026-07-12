@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const SOURCE = readFileSync(
@@ -6,10 +7,44 @@ const SOURCE = readFileSync(
   "utf8"
 )
 
+function expect(value: string) {
+  return {
+    toContain(expected: string) {
+      assert.ok(
+        value.includes(expected),
+        `Expected source to contain ${expected}`
+      )
+    },
+    not: {
+      toContain(expected: string) {
+        assert.ok(
+          !value.includes(expected),
+          `Expected source not to contain ${expected}`
+        )
+      },
+    },
+  }
+}
+
 describe("bottom bar accessibility contract", () => {
   test("mobile tab buttons expose names and current page state", () => {
     expect(SOURCE).toContain("aria-label={label}")
     expect(SOURCE).toContain('aria-current={active ? "page" : undefined}')
+  })
+
+  test("primary navigation exposes five stable labeled destinations", () => {
+    for (const label of [
+      "Today",
+      "Nutrition",
+      "Training",
+      "Progress",
+      "Coach",
+    ]) {
+      expect(SOURCE).toContain(`label: "${label}"`)
+    }
+    expect(SOURCE).toContain(
+      'className="mx-auto grid h-[4.25rem] max-w-xl grid-cols-5'
+    )
   })
 
   test("desktop brand action exposes an explicit accessible name", () => {
@@ -30,12 +65,10 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).not.toContain('className="app-route-chrome desktop-sidebar')
   })
 
-  test("settings moves from the primary tabs into responsive profile actions", () => {
+  test("settings stays out of the primary tabs and remains in the desktop profile area", () => {
     expect(SOURCE).not.toContain('{ path: "/settings", Icon:')
     expect(SOURCE).toContain('aria-label="Open profile and settings"')
-    expect(SOURCE).toContain("APP_TOOLTIP_IDS.profileMobile")
     expect(SOURCE).toContain("APP_TOOLTIP_IDS.profileDesktop")
-    expect(SOURCE).toContain("top-[var(--app-safe-top)]")
     expect(SOURCE).toContain("Profile & settings")
   })
 })

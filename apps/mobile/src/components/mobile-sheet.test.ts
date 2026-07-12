@@ -14,6 +14,26 @@
 
 import { test, describe } from "node:test"
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
+
+const SHEET_SOURCE = readFileSync(
+  new URL("./mobile-sheet.tsx", import.meta.url),
+  "utf8"
+)
+
+describe("MobileSheet – accessible dialog contract", () => {
+  test("exposes modal semantics and a programmatic focus target", () => {
+    assert.match(SHEET_SOURCE, /role="dialog"/)
+    assert.match(SHEET_SOURCE, /aria-modal="true"/)
+    assert.match(SHEET_SOURCE, /tabIndex=\{-1\}/)
+  })
+
+  test("supports Escape, traps Tab, and restores previous focus", () => {
+    assert.match(SHEET_SOURCE, /event\.key === "Escape"/)
+    assert.match(SHEET_SOURCE, /event\.key !== "Tab"/)
+    assert.match(SHEET_SOURCE, /previousFocus\?\.focus/)
+  })
+})
 
 // ─── Snap point algorithm ─────────────────────────────────────────────────────
 // Mirror of the snap point snapping in mobile-sheet.tsx::handlePointerEnd:
@@ -21,9 +41,14 @@ import assert from "node:assert/strict"
 //     Math.abs(curr - newHeight) < Math.abs(prev - newHeight) ? curr : prev
 //   )
 
-function findClosestSnapPoint(snapPoints: number[], currentHeight: number): number {
+function findClosestSnapPoint(
+  snapPoints: number[],
+  currentHeight: number
+): number {
   return snapPoints.reduce((prev, curr) =>
-    Math.abs(curr - currentHeight) < Math.abs(prev - currentHeight) ? curr : prev
+    Math.abs(curr - currentHeight) < Math.abs(prev - currentHeight)
+      ? curr
+      : prev
   )
 }
 
@@ -83,13 +108,18 @@ describe("MobileSheet – snap point algorithm", () => {
 // Mirror of the height clamping in mobile-sheet.tsx::handlePointerMove and handlePointerEnd:
 //   Math.max(parseFloat(minHeight), Math.min(parseFloat(maxHeight), startHeight - delta))
 
-function clampHeight(startHeight: number, delta: number, minHeight: number, maxHeight: number): number {
+function clampHeight(
+  startHeight: number,
+  delta: number,
+  minHeight: number,
+  maxHeight: number
+): number {
   return Math.max(minHeight, Math.min(maxHeight, startHeight - delta))
 }
 
 describe("MobileSheet – height clamping during drag", () => {
-  const minH = 100  // represents parseFloat("15vh") in test context
-  const maxH = 700  // represents parseFloat("85vh") in test context
+  const minH = 100 // represents parseFloat("15vh") in test context
+  const maxH = 700 // represents parseFloat("85vh") in test context
 
   test("no delta returns startHeight unchanged", () => {
     assert.strictEqual(clampHeight(450, 0, minH, maxH), 450)
@@ -147,7 +177,10 @@ describe("MobileSheet – drag offset formula (PR change: 0.18 → 0.3)", () => 
   test("resistance factor produces less visual offset than the actual drag", () => {
     const rawDelta = -80
     const offset = computeDragOffset(rawDelta)
-    assert.ok(Math.abs(offset) < Math.abs(rawDelta), "resistance should reduce visual offset")
+    assert.ok(
+      Math.abs(offset) < Math.abs(rawDelta),
+      "resistance should reduce visual offset"
+    )
   })
 })
 
@@ -237,13 +270,17 @@ describe("MobileSheet – new prop defaults", () => {
     const resolved = resolveProps({})
     assert.strictEqual(resolved.defaultHeight, 0)
     // In the component: currentHeight || undefined → undefined when 0
-    const heightStyle = resolved.defaultHeight ? { height: `${resolved.defaultHeight}px` } : {}
+    const heightStyle = resolved.defaultHeight
+      ? { height: `${resolved.defaultHeight}px` }
+      : {}
     assert.deepStrictEqual(heightStyle, {})
   })
 
   test("non-zero defaultHeight produces height style", () => {
     const resolved = resolveProps({ defaultHeight: 450 })
-    const heightStyle = resolved.defaultHeight ? { height: `${resolved.defaultHeight}px` } : {}
+    const heightStyle = resolved.defaultHeight
+      ? { height: `${resolved.defaultHeight}px` }
+      : {}
     assert.deepStrictEqual(heightStyle, { height: "450px" })
   })
 })

@@ -38,12 +38,10 @@ function TrendChart({
           <div className="flex items-end justify-between gap-3">
             <p className="text-[1.55rem] leading-none font-extrabold tabular-nums">
               {latest?.toFixed(1)}{" "}
-              <span className="text-[11px] text-muted-foreground/55">
-                {unit}
-              </span>
+              <span className="text-[13px] text-muted-foreground">{unit}</span>
             </p>
             {change !== null && recent.length > 1 && (
-              <p className="text-[10px] font-bold text-muted-foreground/60 tabular-nums">
+              <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
                 {change > 0 ? "+" : ""}
                 {change.toFixed(1)} {unit}
               </p>
@@ -79,7 +77,7 @@ function TrendChart({
           </svg>
         </>
       ) : (
-        <p className="py-7 text-center text-[11px] font-semibold text-muted-foreground/45">
+        <p className="py-7 text-center text-[13px] text-muted-foreground">
           Log {label.toLowerCase()} in Progress to start this trend.
         </p>
       )}
@@ -94,29 +92,50 @@ function BudgetChart({
   maintenance: number
   budget: number
 }) {
-  const safeMaintenance = Math.max(maintenance, budget, 1)
-  const budgetWidth = Math.min(100, (budget / safeMaintenance) * 100)
+  const deficit = Math.max(0, Math.round(maintenance - budget))
 
   return (
     <div
-      className="mt-4"
+      className="mt-5"
       role="img"
-      aria-label="Calorie budget compared with maintenance"
+      aria-label={`${Math.round(maintenance).toLocaleString()} maintenance calories minus ${deficit.toLocaleString()} planned deficit calories equals a ${Math.round(budget).toLocaleString()} calorie daily budget`}
     >
-      <div className="relative h-12 overflow-hidden rounded-xl bg-foreground/[0.045]">
-        <div
-          className="h-full rounded-xl bg-[var(--accent-food)] opacity-80"
-          style={{ width: `${budgetWidth}%` }}
-        />
-        <div className="absolute inset-0 flex items-center justify-between px-3 text-[9px] font-bold">
-          <span className="text-background">Daily budget</span>
-          <span className="text-muted-foreground/55">Maintenance</span>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full border border-border bg-muted/55 px-2 text-center">
+          <span className="text-[13px] font-semibold text-muted-foreground">
+            Maintain
+          </span>
+          <strong className="mt-0.5 text-[15px] font-bold text-foreground tabular-nums">
+            {Math.round(maintenance).toLocaleString()}
+          </strong>
+        </div>
+        <span className="text-[18px] text-muted-foreground" aria-hidden="true">
+          −
+        </span>
+        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full border border-[var(--accent-food)]/35 bg-[var(--accent-food-bg)] px-2 text-center">
+          <span className="text-[13px] font-semibold text-muted-foreground">
+            Deficit
+          </span>
+          <strong className="mt-0.5 text-[15px] font-bold text-foreground tabular-nums">
+            {deficit.toLocaleString()}
+          </strong>
+        </div>
+        <span className="text-[18px] text-muted-foreground" aria-hidden="true">
+          =
+        </span>
+        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full bg-foreground px-2 text-center text-background">
+          <span className="text-[13px] font-semibold text-background/80">
+            Daily
+          </span>
+          <strong className="mt-0.5 text-[15px] font-bold tabular-nums">
+            {Math.round(budget).toLocaleString()}
+          </strong>
         </div>
       </div>
-      <div className="mt-1.5 flex justify-between text-[10px] font-bold text-muted-foreground/55 tabular-nums">
-        <span>{budget.toLocaleString()} kcal</span>
-        <span>{maintenance.toLocaleString()} kcal</span>
-      </div>
+      <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
+        Values are daily kcal. Your budget is maintenance minus the planned
+        deficit.
+      </p>
     </div>
   )
 }
@@ -154,7 +173,7 @@ function RecoveryChart({
               }}
             />
           </div>
-          <p className="mt-2 text-[10px] font-bold text-muted-foreground/55">
+          <p className="mt-2 text-[13px] font-medium text-muted-foreground">
             {bar.label}
           </p>
           <p className="text-[13px] font-extrabold tabular-nums">{bar.value}</p>
@@ -214,33 +233,7 @@ export function DashboardProgressPanels({
           maintenance={tdee || calorieTarget}
           budget={calorieTarget}
         />
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 rounded-xl bg-foreground/[0.035] p-3 text-center">
-          <div>
-            <p className="text-[9px] font-bold text-muted-foreground/50">
-              Maintain
-            </p>
-            <p className="text-[13px] font-extrabold tabular-nums">
-              {tdee || calorieTarget}
-            </p>
-          </div>
-          <span className="text-muted-foreground/35">−</span>
-          <div>
-            <p className="text-[9px] font-bold text-muted-foreground/50">
-              Deficit
-            </p>
-            <p className="text-[13px] font-extrabold tabular-nums">{deficit}</p>
-          </div>
-          <span className="text-muted-foreground/35">=</span>
-          <div>
-            <p className="text-[9px] font-bold text-muted-foreground/50">
-              Budget
-            </p>
-            <p className="text-[13px] font-extrabold tabular-nums">
-              {calorieTarget}
-            </p>
-          </div>
-        </div>
-        <p className="mt-2 text-[10px] font-semibold text-muted-foreground/52">
+        <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
           {deficit > 0
             ? `About ${weeklyKg.toFixed(2)} kg/week at the estimated rate.`
             : "Maintenance budget — no planned deficit."}
@@ -250,9 +243,7 @@ export function DashboardProgressPanels({
       <Card className="h-full p-4">
         <div>
           <p className="app-eyebrow">Weight trend</p>
-          <p className="text-[11px] font-semibold text-muted-foreground/50">
-            Last 14 check-ins
-          </p>
+          <p className="text-[13px] text-muted-foreground">Last 14 check-ins</p>
         </div>
         <TrendChart values={weightValues} label="Weight" unit={weightUnit} />
       </Card>
@@ -261,7 +252,7 @@ export function DashboardProgressPanels({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="app-eyebrow">Other metric</p>
-            <p className="text-[11px] font-semibold text-muted-foreground/50">
+            <p className="text-[13px] text-muted-foreground">
               Choose what appears here
             </p>
           </div>
@@ -272,7 +263,7 @@ export function DashboardProgressPanels({
               onChange={(event) =>
                 onMetricChange(event.target.value as TrendMetric)
               }
-              className="h-9 rounded-lg border border-border/60 bg-background px-3 py-0 text-[11px] font-bold"
+              className="h-11 rounded-lg border border-border bg-background px-3 py-0 text-[13px] font-semibold"
             >
               {METRICS.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -292,7 +283,7 @@ export function DashboardProgressPanels({
       <Card className="h-full p-4">
         <div>
           <p className="app-eyebrow">Muscle recovery</p>
-          <p className="mt-1 text-[11px] font-semibold text-muted-foreground/50">
+          <p className="mt-1 text-[13px] text-muted-foreground">
             Recovery distribution across tracked muscle groups
           </p>
         </div>
@@ -309,7 +300,7 @@ export function DashboardProgressPanels({
             />
           </div>
         ) : (
-          <p className="py-10 text-center text-[11px] font-semibold text-muted-foreground/45">
+          <p className="py-10 text-center text-[13px] text-muted-foreground">
             Finish a workout to start the recovery chart.
           </p>
         )}

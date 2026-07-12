@@ -68,7 +68,7 @@ export function SwipeToStart({
           ? tint(completeColor, 10)
           : isDanger
             ? "color-mix(in srgb, var(--destructive) 9%, transparent)"
-          : "color-mix(in srgb, var(--foreground) 7%, transparent)",
+            : "color-mix(in srgb, var(--foreground) 7%, transparent)",
       }}
     >
       {/* Fill sweep */}
@@ -85,7 +85,7 @@ export function SwipeToStart({
 
       {/* Label */}
       <span
-        className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-[12px] font-semibold tracking-wide"
+        className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-[15px] font-semibold"
         style={{
           opacity: Math.max(0, 1 - progress * 3),
           transition: "opacity var(--motion-fast) var(--motion-ease-standard)",
@@ -93,7 +93,7 @@ export function SwipeToStart({
             ? `color-mix(in srgb, ${completeColor} 72%, var(--foreground))`
             : isDanger
               ? "color-mix(in srgb, var(--destructive) 74%, var(--foreground))"
-            : "color-mix(in srgb, var(--foreground) 100%, transparent)",
+              : "color-mix(in srgb, var(--foreground) 100%, transparent)",
         }}
       >
         {label}

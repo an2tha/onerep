@@ -45,7 +45,6 @@ import App from "./App.tsx"
 import Exercises from "./pages/Exercises.tsx"
 import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
-import Onboarding from "./pages/Onboarding.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx"
 import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import Workouts from "./pages/Workouts.tsx"
@@ -78,6 +77,7 @@ function shouldShowBottomBar(pathname: string) {
     pathname === "/" ||
     pathname === "/nutrition" ||
     pathname === "/workouts" ||
+    pathname === "/progress" ||
     pathname === "/supplements" ||
     pathname === "/coach" ||
     pathname === "/exercises" ||

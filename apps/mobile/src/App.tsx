@@ -19,6 +19,7 @@ import {
   Plus,
   Sparkle,
   Trash,
+  UserCircle,
   X,
 } from "@phosphor-icons/react"
 import { useAppAuth } from "@/lib/auth-client"
@@ -30,11 +31,9 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
-  DashboardQuickActions,
   TodayHeader,
   TodayTimeline,
   WorkoutWeekStrip,
-  type DashboardQuickAction,
   type MacroProgress,
   type TimelineEvent,
   type WorkoutWeekDay,
@@ -80,14 +79,11 @@ import {
 import {
   SUPPLEMENT_DEFINITIONS,
   SUPPLEMENT_LIST,
-  buildSupplementDayPlan,
   completedSupplementCount,
   formatSupplementAmount,
   supplementEntryLabel,
   supplementTotals,
   type SupplementKind,
-  type SupplementIntakeLog,
-  type SupplementItem,
   type SupplementLogEntry,
 } from "@/lib/supplements"
 import {
@@ -135,13 +131,6 @@ type ActiveWorkoutCandidate = {
   status?: string
   exerciseData?: unknown
   elapsedSeconds?: number
-}
-
-type DashboardSupplementOverview = {
-  items: SupplementItem[]
-  logs: SupplementIntakeLog[]
-  legacyEntries: Array<{ id: string }>
-  isTrainingDay: boolean
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -2290,9 +2279,6 @@ export default function App() {
   const supplementLogs = useQuery(api.logs.supplements.getDay, {
     date: selectedDate,
   })
-  const supplementOverviewRaw = useQuery(api.logs.supplements.getOverview, {
-    date: selectedDate,
-  })
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
@@ -2403,17 +2389,6 @@ export default function App() {
     () => (supplementLogs ?? []) as SupplementLogEntry[],
     [supplementLogs]
   )
-  const supplementOverview = useMemo(
-    () =>
-      (supplementOverviewRaw ?? {
-        items: [],
-        logs: [],
-        legacyEntries: [],
-        isTrainingDay: false,
-      }) as unknown as DashboardSupplementOverview,
-    [supplementOverviewRaw]
-  )
-
   const loading =
     onboarding === undefined ||
     effectiveGoals === undefined ||
@@ -2608,24 +2583,6 @@ export default function App() {
       })),
     [foodEntries]
   )
-  const supplementPlan = useMemo(
-    () =>
-      buildSupplementDayPlan({
-        items: supplementOverview.items,
-        logs: supplementOverview.logs,
-        date: selectedDate,
-        today: todayKey,
-        isTrainingDay: supplementOverview.isTrainingDay,
-      }),
-    [selectedDate, supplementOverview, todayKey]
-  )
-  const scheduledSupplements = supplementPlan.filter((item) => item.isScheduled)
-  const takenSupplements = supplementPlan.filter(
-    (item) => item.state === "taken"
-  )
-  const supplementDone =
-    takenSupplements.length + supplementOverview.legacyEntries.length
-  const supplementTarget = Math.max(scheduledSupplements.length, supplementDone)
   const recovery =
     isTodaySelected && hasCompletedWorkout
       ? {
@@ -2805,53 +2762,12 @@ export default function App() {
     navigate("/workout/active")
   }
 
-  const dashboardQuickActions: DashboardQuickAction[] = [
-    {
-      id: "food",
-      label: "Food",
-      icon: <ForkKnife size={15} weight="bold" />,
-      onClick: () => setHomeAddOpen(true),
-      tone: "food",
-    },
-    {
-      id: "water",
-      label: "Water",
-      icon: <PintGlass size={15} weight="bold" />,
-      onClick: addQuickWater,
-      tone: "water",
-    },
-    {
-      id: "workout",
-      label: "Workout",
-      icon: <Barbell size={15} weight="bold" />,
-      onClick: openWorkoutAction,
-      tone: "workout",
-    },
-    {
-      id: "scan",
-      label: "Scan",
-      icon: <Aperture size={15} weight="bold" />,
-      onClick: openSnapCamera,
-    },
-    {
-      id: "supplements",
-      label: "Supps",
-      icon: <Pill size={15} weight="bold" />,
-      onClick: () => navigate("/supplements", { motion: "switch" }),
-      badge:
-        supplementTarget > 0
-          ? `${supplementDone}/${supplementTarget}`
-          : undefined,
-    },
-  ]
-
   const homeBodyReady =
     preferences !== undefined &&
     effectiveGoals !== undefined &&
     foodLogs !== undefined &&
     waterLogs !== undefined &&
     supplementLogs !== undefined &&
-    supplementOverviewRaw !== undefined &&
     workoutLogsQuery !== undefined &&
     activeWorkouts !== undefined &&
     serverPresets !== undefined &&
@@ -2866,11 +2782,29 @@ export default function App() {
           salutation={salutation}
           firstName={firstName}
           action={
-            <DateNav
-              offset={dayOffset}
-              timeZone={activeTimezone}
-              onChange={setDayOffset}
-            />
+            <div className="flex items-center gap-1">
+              <DateNav
+                offset={dayOffset}
+                timeZone={activeTimezone}
+                onChange={setDayOffset}
+              />
+              <button
+                type="button"
+                aria-label="Add food, water, workout, or supplement"
+                onClick={() => setHomeAddOpen(true)}
+                className="native-toolbar-button px-0"
+              >
+                <Plus size={22} weight="bold" />
+              </button>
+              <button
+                type="button"
+                aria-label="Open profile and settings"
+                onClick={() => navigate("/settings", { motion: "forward" })}
+                className="native-toolbar-button px-0"
+              >
+                <UserCircle size={22} weight="regular" />
+              </button>
+            </div>
           }
         />
 
@@ -2933,23 +2867,32 @@ export default function App() {
               }}
             />
 
-            <DashboardQuickActions actions={dashboardQuickActions} />
             <WorkoutWeekStrip
               days={workoutWeekDays}
               onClick={() => navigate("/workouts", { motion: "switch" })}
             />
 
-            <DashboardProgressPanels
-              measurements={(bodyMeasurements ?? []) as BodyMeasurementEntry[]}
-              metric={settings.trendMetric ?? "bodyFatPct"}
-              onMetricChange={(metric) =>
-                void setDashboardTrendMetric({ metric })
-              }
-              tdee={calorieInfo?.tdee ?? caloriesTarget}
-              calorieTarget={caloriesTarget}
-              muscleRecovery={muscleRecovery}
-              weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
-            />
+            <details className="native-collapsible mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
+                Insights
+                <CaretDown size={18} className="text-muted-foreground" />
+              </summary>
+              <div className="pb-4">
+                <DashboardProgressPanels
+                  measurements={
+                    (bodyMeasurements ?? []) as BodyMeasurementEntry[]
+                  }
+                  metric={settings.trendMetric ?? "bodyFatPct"}
+                  onMetricChange={(metric) =>
+                    void setDashboardTrendMetric({ metric })
+                  }
+                  tdee={calorieInfo?.tdee ?? caloriesTarget}
+                  calorieTarget={caloriesTarget}
+                  muscleRecovery={muscleRecovery}
+                  weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+                />
+              </div>
+            </details>
 
             <TodayTimeline
               events={timelineEvents}
@@ -2972,15 +2915,12 @@ export default function App() {
       {homeAddOpen && (
         <MobileSheet
           onClose={() => setHomeAddOpen(false)}
-          overlayClassName="bg-black/50 backdrop-blur-[8px]"
-          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] md:!w-full md:!max-w-sm"
-          panelStyle={{
-            paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
-          }}
+          overlayClassName="bg-black/55"
+          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-2xl border-t border-border bg-card md:!w-full md:!max-w-sm"
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
-          <div className="px-4 pt-1 pb-4">
-            <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div className="min-w-0">
                 <p className="app-eyebrow">Quick add</p>
                 <h2 className="mt-1 text-[1.35rem] leading-tight font-bold">
@@ -2991,170 +2931,141 @@ export default function App() {
                 type="button"
                 onClick={() => setHomeAddOpen(false)}
                 aria-label="Close quick add"
-                className="app-icon-button h-9 w-9 shrink-0 bg-muted/55 text-muted-foreground/70"
+                className="native-toolbar-button -mt-1 -mr-2 h-11 w-11 shrink-0 px-0 text-muted-foreground"
               >
                 <X size={12} weight="bold" />
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setHomeAddOpen(false)
-                navigate("/foods/search")
-              }}
-              className="flex w-full items-center justify-between gap-3 rounded-[1.35rem] bg-foreground px-4 py-4 text-left text-background shadow-[0_12px_32px_rgba(0,0,0,0.18)] transition-opacity active:opacity-80"
-            >
-              <span className="flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1rem] bg-background/14">
-                  <MagnifyingGlass size={19} weight="bold" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-bold">
-                    Search food
+            <div className="overflow-hidden border-y border-border">
+              {[
+                {
+                  label: "Search food",
+                  detail: "Find an item and log an exact portion",
+                  Icon: MagnifyingGlass,
+                  action: () => {
+                    setHomeAddOpen(false)
+                    navigate("/foods/search")
+                  },
+                },
+                {
+                  label: "Scan barcode",
+                  detail: "Log a packaged food",
+                  Icon: Barcode,
+                  action: () => {
+                    setHomeAddOpen(false)
+                    navigate("/camera?mode=barcode")
+                  },
+                },
+                {
+                  label: "Snap meal",
+                  detail: "Estimate nutrition from a photo",
+                  Icon: Aperture,
+                  action: openSnapCamera,
+                },
+                {
+                  label: "Describe meal",
+                  detail: "Build a temporary recipe with Coach",
+                  Icon: Sparkle,
+                  action: () => {
+                    if (!requireAiAccess()) return
+                    setHomeAddOpen(false)
+                    navigate("/nutrition?describe=1")
+                  },
+                },
+              ].map(({ label, detail, Icon, action }, index) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={action}
+                  className={cn(
+                    "flex min-h-16 w-full items-center gap-3 px-1 text-left active:bg-muted/40",
+                    index > 0 && "border-t border-border"
+                  )}
+                >
+                  <span className="native-row-leading text-muted-foreground">
+                    <Icon size={19} weight="regular" />
                   </span>
-                  <span className="mt-0.5 block text-[12px] font-semibold text-background/68">
-                    Find an item and log exact portions
+                  <span className="min-w-0 flex-1">
+                    <span className="native-row-title block">{label}</span>
+                    <span className="native-row-detail block">{detail}</span>
                   </span>
-                </span>
-              </span>
-              <CaretRight size={15} className="shrink-0 text-background/55" />
-            </button>
-
-            <div className="mt-3 grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setHomeAddOpen(false)
-                  navigate("/camera?mode=barcode")
-                }}
-                className="min-h-[5.75rem] rounded-[1.15rem] border border-border/55 bg-[var(--accent-food-bg)] p-3 text-left transition-opacity active:opacity-80"
-              >
-                <span className="app-icon-button pointer-events-none h-9 w-9 bg-background/80 text-[var(--accent-food)]">
-                  <Barcode size={16} weight="bold" />
-                </span>
-                <span className="mt-3 block text-[13px] font-bold">
-                  Scan barcode
-                </span>
-                <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/65">
-                  Packaged food
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openSnapCamera}
-                className="min-h-[5.75rem] rounded-[1.15rem] border border-border/55 bg-muted/28 p-3 text-left transition-colors active:bg-muted/45"
-              >
-                <span className="app-icon-button pointer-events-none h-9 w-9 bg-background/80 text-muted-foreground/75">
-                  <Aperture size={17} weight="bold" />
-                </span>
-                <span className="mt-3 block text-[13px] font-bold">
-                  Snap meal
-                </span>
-                <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground/65">
-                  Estimate from photo
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  if (!requireAiAccess()) return
-                  setHomeAddOpen(false)
-                  navigate("/nutrition?describe=1")
-                }}
-                className="col-span-2 flex min-h-[4.75rem] items-center justify-between gap-3 rounded-[1.15rem] border border-border/55 bg-muted/28 px-3.5 py-3 text-left transition-colors active:bg-muted/45"
-              >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="app-icon-button pointer-events-none h-10 w-10 bg-background/80 text-muted-foreground/75">
-                    <Sparkle size={16} weight="fill" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-bold">
-                      Describe meal
-                    </span>
-                    <span className="mt-0.5 block text-[11.5px] font-medium text-muted-foreground/65">
-                      AI builds a temporary recipe
-                    </span>
-                  </span>
-                </span>
-                <CaretRight size={12} className="text-muted-foreground/35" />
-              </button>
+                  <CaretRight size={18} className="text-muted-foreground" />
+                </button>
+              ))}
             </div>
 
             {recipes.length > 0 && (
-              <div className="app-surface mt-4 overflow-hidden">
-                <div className="px-4 pt-3 pb-1">
-                  <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
-                    Saved recipes
-                  </p>
-                </div>
-                {recipes.slice(0, 5).map((recipe) => {
-                  const totals = totalsForRecipe(recipe.ingredients)
-                  return (
-                    <div
-                      key={recipe._id ?? recipe.name}
-                      className="flex w-full items-center gap-1 px-2 py-1"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => logRecipeFromQuickAdd(recipe)}
-                        className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+              <section className="mt-5" aria-label="Saved recipes">
+                <p className="native-section-title mb-2">Saved recipes</p>
+                <div className="divide-y divide-border border-y border-border">
+                  {recipes.slice(0, 5).map((recipe) => {
+                    const totals = totalsForRecipe(recipe.ingredients)
+                    return (
+                      <div
+                        key={recipe._id ?? recipe.name}
+                        className="flex min-h-14 w-full items-center gap-1"
                       >
-                        <div className="min-w-0 text-left">
-                          <p className="truncate text-[13px] font-medium">
-                            {recipe.name}
-                          </p>
-                          <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-                            {totals.calories} kcal · {recipe.ingredients.length}{" "}
-                            ingredient
-                            {recipe.ingredients.length === 1 ? "" : "s"}
-                          </p>
-                        </div>
-                        <CaretRight
-                          size={11}
-                          className="shrink-0 text-muted-foreground/30"
-                        />
-                      </button>
-                      {recipe._id && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setHomeAddOpen(false)
-                            navigate(`/foods/recipe/${recipe._id}`)
-                          }}
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
-                          aria-label={`Edit ${recipe.name}`}
+                          onClick={() => logRecipeFromQuickAdd(recipe)}
+                          className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 px-1 py-2 text-left transition-colors active:bg-muted/40"
                         >
-                          <PencilSimple size={13} weight="bold" />
+                          <div className="min-w-0 text-left">
+                            <p className="native-row-title truncate">
+                              {recipe.name}
+                            </p>
+                            <p className="native-row-detail mt-0.5">
+                              {totals.calories} kcal ·{" "}
+                              {recipe.ingredients.length} ingredient
+                              {recipe.ingredients.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                          <CaretRight
+                            size={18}
+                            className="shrink-0 text-muted-foreground"
+                          />
                         </button>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+                        {recipe._id && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setHomeAddOpen(false)
+                              navigate(`/foods/recipe/${recipe._id}`)
+                            }}
+                            className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
+                            aria-label={`Edit ${recipe.name}`}
+                          >
+                            <PencilSimple size={17} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
             )}
 
-            <div className="mt-4">
-              <p className="app-eyebrow px-1">More</p>
-              <div className="mt-2 grid grid-cols-2 gap-2.5">
+            <div className="mt-5">
+              <p className="native-section-title mb-2">More</p>
+              <div className="divide-y divide-border border-y border-border">
                 <button
                   type="button"
                   onClick={() => {
                     setHomeAddOpen(false)
                     navigate("/foods/recipe/new")
                   }}
-                  className="flex min-h-[4.75rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-border/50 bg-muted/24 px-2 text-center transition-colors active:bg-muted/42"
+                  className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted/40"
                 >
                   <ForkKnife
-                    size={17}
+                    size={19}
                     weight="bold"
-                    className="text-muted-foreground/68"
+                    className="text-muted-foreground"
                   />
-                  <span className="text-[11.5px] leading-tight font-bold">
+                  <span className="native-row-title min-w-0 flex-1">
                     New recipe
                   </span>
+                  <CaretRight size={18} className="text-muted-foreground" />
                 </button>
                 <button
                   type="button"
@@ -3162,16 +3073,17 @@ export default function App() {
                     setHomeAddOpen(false)
                     navigate("/supplements")
                   }}
-                  className="flex min-h-[4.75rem] flex-col items-center justify-center gap-2 rounded-[1rem] border border-border/50 bg-muted/24 px-2 text-center transition-colors active:bg-muted/42"
+                  className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted/40"
                 >
                   <Pill
-                    size={17}
+                    size={19}
                     weight="bold"
-                    className="text-muted-foreground/68"
+                    className="text-muted-foreground"
                   />
-                  <span className="text-[11.5px] leading-tight font-bold">
+                  <span className="native-row-title min-w-0 flex-1">
                     Supplements
                   </span>
+                  <CaretRight size={18} className="text-muted-foreground" />
                 </button>
               </div>
             </div>

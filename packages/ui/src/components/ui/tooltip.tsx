@@ -156,7 +156,7 @@ function TooltipContent({
         data-slot="tooltip-content"
         sideOffset={sideOffset}
         className={cn(
-          "z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs text-background has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "z-50 inline-flex w-fit max-w-xs origin-(--radix-tooltip-content-transform-origin) items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-[13px] leading-5 text-background shadow-xl has-data-[slot=kbd]:pr-1.5 data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 **:data-[slot=kbd]:relative **:data-[slot=kbd]:isolate **:data-[slot=kbd]:z-50 **:data-[slot=kbd]:rounded-sm motion-reduce:animate-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           className
         )}
         {...props}
@@ -217,8 +217,9 @@ function GuidedTooltip({
   const [isVisible, setIsVisible] = React.useState(false)
   const [locallyCompleted, setLocallyCompleted] = React.useState(false)
   const [portalNode, setPortalNode] = React.useState<HTMLElement | null>(null)
-  const [targetRect, setTargetRect] =
-    React.useState<GuidedTooltipRect | null>(null)
+  const [targetRect, setTargetRect] = React.useState<GuidedTooltipRect | null>(
+    null
+  )
   const isCompleted = completed || locallyCompleted
 
   React.useEffect(() => {
@@ -266,7 +267,8 @@ function GuidedTooltip({
     }
   }, [enabled, isCompleted, isVisible, key])
 
-  const open = enabled && isVisible && !isCompleted && guidedTooltipActiveId === key
+  const open =
+    enabled && isVisible && !isCompleted && guidedTooltipActiveId === key
 
   React.useEffect(() => {
     if (!open) {
@@ -375,7 +377,7 @@ function GuidedTooltip({
         portalNode &&
         targetRect &&
         createPortal(
-          <div className="fixed inset-0 z-40 pointer-events-none">
+          <div className="pointer-events-none fixed inset-0 z-40">
             {overlayPieces.map((style, index) => (
               <button
                 key={index}
@@ -383,7 +385,7 @@ function GuidedTooltip({
                 tabIndex={-1}
                 aria-label="Dismiss tooltip"
                 className={cn(
-                  "pointer-events-auto absolute cursor-default bg-black/45 backdrop-brightness-50",
+                  "pointer-events-auto absolute cursor-default bg-black/32 backdrop-brightness-75",
                   overlayClassName
                 )}
                 style={style}
@@ -399,8 +401,8 @@ function GuidedTooltip({
             <span
               ref={targetRef}
               className={cn(
-                "relative z-[60] inline-flex w-fit",
-                open && "isolate",
+                "relative inline-flex w-fit",
+                open && "isolate z-[60]",
                 targetClassName
               )}
               onClickCapture={onTargetClick}
@@ -415,7 +417,7 @@ function GuidedTooltip({
               align={align}
               sideOffset={sideOffset}
               className={cn(
-                "z-[70] max-w-[min(18rem,calc(100vw-2rem))] rounded-lg bg-foreground px-3.5 py-2.5 text-left text-[12px] leading-5 font-semibold text-background shadow-2xl data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=delayed-open]:animate-in data-[state=delayed-open]:fade-in-0 data-[state=delayed-open]:zoom-in-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95",
+                "z-[70] max-w-[min(20rem,calc(100vw-2rem))] rounded-lg bg-foreground px-3.5 py-2.5 text-left text-[13px] leading-5 font-medium text-background shadow-2xl data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 motion-reduce:animate-none data-open:animate-in data-open:fade-in-0",
                 className
               )}
               {...contentProps}

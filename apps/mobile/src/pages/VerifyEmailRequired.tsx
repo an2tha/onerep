@@ -14,35 +14,24 @@ export default function VerifyEmailRequired() {
 
   return (
     <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 py-[var(--app-safe-bottom-lg)] short-phone:max-w-[23rem]">
-        <header className="mb-8 flex flex-col items-center short-phone:mb-5">
-          <img
-            src="/app-icon.svg"
-            alt=""
-            className="h-11 w-11 rounded-full short-phone:h-9 short-phone:w-9"
-          />
-          <h1 className="app-display mt-4 text-[1.8rem] short-phone:mt-3 short-phone:text-[1.45rem]">
-            OneRep
-          </h1>
+      <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
+        <header className="mb-8 flex items-center gap-2.5">
+          <img src="/app-icon.svg" alt="" className="size-8" />
+          <span className="native-row-title font-semibold">OneRep</span>
         </header>
 
-        <section className="app-rail-surface p-4 short-phone:p-3.5">
-          <div className="rounded-[10px] border border-border/60 bg-background px-4 py-5 text-center short-phone:py-4">
-            <p className="app-eyebrow text-muted-foreground/60">
-              Verify email
-            </p>
-            <h2 className="app-display mt-3 text-[1.9rem] short-phone:text-[1.55rem]">
-              Verify your email first.
-            </h2>
-            <p className="mx-auto mt-3 max-w-[268px] text-[14px] leading-6 font-medium text-muted-foreground/70 short-phone:text-[13px] short-phone:leading-5">
-              OneRep needs a verified email before you can sign in.
-              {email
-                ? ` Return to sign up and check the verification email sent to ${email}.`
-                : " Return to sign up and check your verification email."}
-            </p>
-          </div>
+        <section aria-labelledby="verify-email-title">
+          <p className="native-supporting">Account security</p>
+          <h1 id="verify-email-title" className="native-large-title mt-2">
+            Check your email
+          </h1>
+          <p className="native-body mt-3 text-muted-foreground">
+            {email
+              ? `Open the verification message sent to ${email}, then return here to sign in.`
+              : "Open the verification message we sent you, then return here to sign in."}
+          </p>
 
-          <div className="mt-3 space-y-2.5">
+          <div className="mt-7">
             <button
               type="button"
               onClick={() =>
@@ -50,7 +39,7 @@ export default function VerifyEmailRequired() {
                   replace: true,
                 })
               }
-              className="h-[52px] w-full rounded-[10px] bg-foreground text-[15px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-50 short-phone:h-12"
+              className="native-primary-button min-h-12 w-full"
             >
               {hasPendingEmail ? "Back to sign up" : "Back to sign in"}
             </button>

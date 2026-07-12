@@ -18,6 +18,7 @@ type MobileSheetProps = {
   maxHeight?: string
   snapPoints?: number[]
   defaultHeight?: number
+  ariaLabel?: string
 }
 
 const CLOSE_MS = 180
@@ -38,6 +39,7 @@ export function MobileSheet({
   maxHeight = "85vh",
   snapPoints,
   defaultHeight,
+  ariaLabel = "Sheet",
 }: MobileSheetProps) {
   const [offsetY, setOffsetY] = React.useState(0)
   const [dragging, setDragging] = React.useState(false)
@@ -74,6 +76,55 @@ export function MobileSheet({
     setIsClosing(true)
     setTimeout(onClose, CLOSE_MS)
   }, [onClose])
+
+  React.useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null
+    const panel = panelRef.current
+    if (!panel) return
+
+    const focusableSelector =
+      'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    const focusables = () =>
+      Array.from(panel.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+        (element) => element.getClientRects().length > 0
+      )
+
+    const frame = requestAnimationFrame(() => {
+      ;(focusables()[0] ?? panel).focus({ preventScroll: true })
+    })
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        dismiss()
+        return
+      }
+      if (event.key !== "Tab") return
+
+      const items = focusables()
+      if (items.length === 0) {
+        event.preventDefault()
+        panel.focus()
+        return
+      }
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => {
+      cancelAnimationFrame(frame)
+      document.removeEventListener("keydown", handleKeyDown)
+      previousFocus?.focus({ preventScroll: true })
+    }
+  }, [dismiss])
 
   React.useEffect(() => {
     if (!dragging || !panelRef.current) return
@@ -178,10 +229,10 @@ export function MobileSheet({
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       style={{ overflow: "visible" }}
     >
-      {/* Backdrop — blur effect */}
+      {/* Backdrop */}
       <div
         className={cn(
-          "absolute inset-0 bg-background/60 backdrop-blur-sm",
+          "absolute inset-0 bg-black/45",
           overlayClassName,
           isClosing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
         )}
@@ -193,6 +244,10 @@ export function MobileSheet({
       {/* Panel — slides in/out from the bottom, resizable */}
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        tabIndex={-1}
         className={cn(
           "app-sheet-panel relative flex w-full max-w-lg flex-col overflow-hidden will-change-transform md:border md:border-border/50",
           panelClassName,
@@ -215,18 +270,13 @@ export function MobileSheet({
           <button
             type="button"
             onPointerDown={handlePointerDown}
-            className="flex w-full shrink-0 touch-none items-center justify-center pt-3 pb-2 md:hidden"
-            aria-label="Drag to resize"
+            className="flex h-11 w-full shrink-0 touch-none items-center justify-center md:hidden"
+            aria-label="Drag down to close or up to resize sheet"
           >
-            <div
-              className={cn(
-                "app-sheet-handle",
-                notchClassName
-              )}
-            />
+            <div className={cn("app-sheet-handle", notchClassName)} />
           </button>
         )}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {children}
         </div>
         {bottom && <div className="shrink-0">{bottom}</div>}

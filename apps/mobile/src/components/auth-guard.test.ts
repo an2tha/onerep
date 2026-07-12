@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 
 const AUTH_GUARD_SOURCE = readFileSync(
   new URL("./auth-guard.tsx", import.meta.url),
-  "utf8",
+  "utf8"
 )
 
 describe("AuthGuard source contract", () => {
@@ -22,7 +22,17 @@ describe("AuthGuard source contract", () => {
     expect(AUTH_GUARD_SOURCE).toContain("Taking you to sign in")
     expect(AUTH_GUARD_SOURCE).toContain("Continue to sign in")
     expect(AUTH_GUARD_SOURCE).toContain(
-      "void handleUnauthenticatedSession({ navigate, signOut })",
+      "void handleUnauthenticatedSession({ navigate, signOut })"
+    )
+  })
+
+  test("protected routes wait for Convex authentication", () => {
+    expect(AUTH_GUARD_SOURCE).toContain("useConvexAuth")
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (!isLoaded || (isSignedIn && convexAuth.isLoading))"
+    )
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (!isSignedIn || !convexAuth.isAuthenticated)"
     )
   })
 })

@@ -243,4 +243,42 @@ describe("foodLogs Convex functions", () => {
       });
     });
   });
+
+  test("Coach can correct and remove one entry without replacing the day", async () => {
+    const t = convexTest(schema, modules);
+    const base = {
+      calories: 200,
+      protein: 20,
+      carbs: 20,
+      fat: 5,
+      meal: "lunch",
+      loggedAt: "2024-03-01T12:00:00.000Z",
+    };
+    await t.withIdentity({ name: "coach-food-edit-user" }, async () => {
+      await t.mutation(api.logs.foodLogs.setDay, {
+        date: "2024-03-01",
+        entries: [
+          { ...base, id: "keep", name: "Keep me" },
+          { ...base, id: "edit", name: "Edit me" },
+        ],
+      });
+      await t.mutation(api.logs.foodLogs.updateEntry, {
+        date: "2024-03-01",
+        entry: { ...base, id: "edit", name: "Edited", calories: 300 },
+      });
+      let entries = await t.query(api.logs.foodLogs.getDay, {
+        date: "2024-03-01",
+      });
+      expect(entries).toHaveLength(2);
+      expect(entries.find((entry) => entry.id === "edit")?.calories).toBe(300);
+      await t.mutation(api.logs.foodLogs.removeEntry, {
+        date: "2024-03-01",
+        entryId: "edit",
+      });
+      entries = await t.query(api.logs.foodLogs.getDay, {
+        date: "2024-03-01",
+      });
+      expect(entries.map((entry) => entry.id)).toEqual(["keep"]);
+    });
+  });
 });

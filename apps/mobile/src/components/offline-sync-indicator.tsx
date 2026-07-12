@@ -111,7 +111,7 @@ export function OfflineSyncIndicator() {
         role="status"
         aria-live="polite"
         className={cn(
-          "pointer-events-auto flex max-w-sm items-center gap-3 rounded-[10px] border px-3 py-2 shadow-xl backdrop-blur-md",
+          "pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[10px] border px-3 py-2 shadow-xl backdrop-blur-md",
           online
             ? "text-foreground"
             : "border-border/50 bg-card/95 text-foreground"
@@ -125,7 +125,7 @@ export function OfflineSyncIndicator() {
             : undefined
         }
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-foreground/10">
+        <div className="flex h-11 w-8 shrink-0 items-center justify-center">
           {status.tone === "error" ? (
             <Warning size={15} weight="bold" />
           ) : online ? (
@@ -135,8 +135,12 @@ export function OfflineSyncIndicator() {
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] leading-tight font-bold">{status.title}</p>
-          <p className="truncate text-[10.5px] opacity-65">{status.body}</p>
+          <p className="text-[14px] leading-tight font-semibold">
+            {status.title}
+          </p>
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+            {status.body}
+          </p>
         </div>
         {status.canRetry && (
           <button
@@ -149,7 +153,7 @@ export function OfflineSyncIndicator() {
                 ? "Retry offline sync"
                 : "Sync saved changes"
             }
-            className="rounded-[8px] bg-foreground px-2.5 py-1 text-[10px] font-bold text-background"
+            className="min-h-11 rounded-[8px] bg-foreground px-3 text-[13px] font-semibold text-background"
           >
             <span className="inline-flex items-center gap-1">
               {syncing && (
@@ -166,7 +170,7 @@ export function OfflineSyncIndicator() {
           }}
           disabled={syncing}
           aria-label="Dismiss offline sync status"
-          className="flex h-6 w-6 items-center justify-center rounded-[7px] bg-foreground/10 disabled:opacity-40"
+          className="flex h-11 w-11 items-center justify-center rounded-[8px] text-muted-foreground transition-colors active:bg-muted disabled:opacity-40"
         >
           <X size={12} weight="bold" />
         </button>

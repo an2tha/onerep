@@ -11,7 +11,6 @@ import {
   Minus,
   PersonSimpleRun,
   Plus,
-  Scales,
   ShieldCheck,
   Trophy,
   TrendDown,
@@ -174,76 +173,34 @@ const firstNutritionActions = [
 
 const steps = [
   {
-    id: "goal",
-    label: "Goal",
-    title: "What's your goal?",
-    accent: "goal",
-    body: "Pick the closest match.",
-    image: "/onboarding/sprinting.svg",
+    id: "goals",
+    label: "Goals",
+    title: "What are you working toward?",
+    body: "Choose a goal and the amount of guidance you want.",
   },
   {
-    id: "experience",
-    label: "Experience",
-    title: "Your experience",
-    accent: "experience",
-    body: "We'll match the level of guidance.",
-    image: "/onboarding/unboxing.svg",
-  },
-  {
-    id: "profile",
-    label: "Body",
-    title: "Choose a profile",
-    accent: "profile",
-    body: "Used only for estimates.",
-    image: "/onboarding/reading.svg",
-  },
-  {
-    id: "age",
-    label: "Age",
-    title: "Your age",
-    accent: "age",
-    body: "Helps estimate your baseline.",
-    image: "/onboarding/sit-reading.svg",
-  },
-  {
-    id: "safety",
-    label: "Safety",
-    title: "Anything we should know?",
-    accent: "know",
-    body: "Select any that apply.",
-    image: "/onboarding/sleek.svg",
-  },
-  {
-    id: "height",
-    label: "Height",
-    title: "Your height",
-    accent: "height",
-    body: "Used for calorie estimates.",
-    image: "/onboarding/rolling.svg",
-  },
-  {
-    id: "weight",
-    label: "Weight",
-    title: "Your weight",
-    accent: "weight",
-    body: "Your current best estimate.",
-    image: "/onboarding/petting.svg",
+    id: "baseline",
+    label: "Baseline",
+    title: "Add your baseline",
+    body: "These measurements are used to estimate your starting energy needs.",
   },
   {
     id: "activity",
     label: "Activity",
-    title: "Your activity",
-    accent: "activity",
-    body: "Choose a typical week.",
-    image: "/onboarding/running.svg",
+    title: "Describe a typical week",
+    body: "Choose the option that best reflects your usual activity, not your best week.",
+  },
+  {
+    id: "safety",
+    label: "Health",
+    title: "Health considerations",
+    body: "Optional. This helps OneRep avoid unsuitable calorie recommendations.",
   },
   {
     id: "review",
     label: "Review",
-    title: "You're ready",
-    accent: "ready",
-    body: "Adjust anything later in Settings.",
-    image: "/onboarding/ballet.svg",
+    title: "Review your starting targets",
+    body: "These are estimates, not medical advice. You can change them in Settings.",
   },
 ] as const
 
@@ -360,30 +317,6 @@ function deriveSafetyMode(
   return "standard"
 }
 
-function OnboardingIllustration({ step }: { step: number }) {
-  return (
-    <div className="mx-auto flex h-[165px] w-full items-end justify-center pt-2 short-phone:h-[115px]">
-      <img
-        src={steps[step].image}
-        alt=""
-        className="h-full max-h-[160px] w-full max-w-[15rem] object-contain short-phone:max-h-[110px]"
-      />
-    </div>
-  )
-}
-
-function StepTitle({ title, accent }: { title: string; accent: string }) {
-  const parts = title.split(accent)
-  if (parts.length === 1) return <>{title}</>
-  return (
-    <>
-      {parts[0]}
-      <span className="text-[#171a18]">{accent}</span>
-      {parts.slice(1).join(accent)}
-    </>
-  )
-}
-
 function NumberQuestion({
   label,
   value,
@@ -401,49 +334,57 @@ function NumberQuestion({
   step?: number
   onChange: (value: number) => void
 }) {
+  const inputId = `onboarding-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
+
   function update(next: number) {
     hapticSelection()
     onChange(clamp(next, min, max))
   }
 
   return (
-    <div className="py-2">
-      <p className="text-center text-[11px] font-black tracking-[0.16em] text-[#6f6d68] uppercase">
-        {label}
-      </p>
-      <p className="mt-4 text-center text-[4.35rem] leading-none font-black tracking-tight text-[#171a18] tabular-nums">
-        {display}
-      </p>
-      <div className="mt-5 flex items-center justify-center gap-3">
+    <div className="flex min-h-16 items-center gap-3 border-b border-border py-3 last:border-b-0">
+      <label className="min-w-0 flex-1" htmlFor={inputId}>
+        <span className="native-row-title block font-semibold">{label}</span>
+        <span className="native-row-detail mt-0.5 block">
+          {min.toLocaleString()}–{max.toLocaleString()}
+        </span>
+      </label>
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => update(value - step)}
           disabled={value <= min}
           aria-label={`Decrease ${label}`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] bg-[#e8e7e3] text-[#171a18] transition-opacity active:opacity-70 disabled:opacity-35"
+          className="native-toolbar-button size-11 shrink-0 bg-muted disabled:opacity-35"
         >
           <Minus size={16} weight="bold" />
         </button>
+        <input
+          id={inputId}
+          type="number"
+          inputMode="numeric"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => {
+            const next = Number(event.target.value)
+            if (Number.isFinite(next)) update(next)
+          }}
+          aria-label={label}
+          className="native-input w-24 text-center font-semibold tabular-nums"
+        />
         <button
           type="button"
           onClick={() => update(value + step)}
           disabled={value >= max}
           aria-label={`Increase ${label}`}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] bg-[#e8e7e3] text-[#171a18] transition-opacity active:opacity-70 disabled:opacity-35"
+          className="native-toolbar-button size-11 shrink-0 bg-muted disabled:opacity-35"
         >
           <Plus size={16} weight="bold" />
         </button>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-6 h-10 w-full accent-[#171a18]"
-        aria-label={label}
-      />
+      <span className="sr-only">Current value: {display}</span>
     </div>
   )
 }
@@ -458,7 +399,7 @@ function PillToggle<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="divide-y divide-border border-y border-border">
       {options.map((option) => {
         const selected = value === option.value
         const OptionIcon = option.icon
@@ -471,14 +412,15 @@ function PillToggle<T extends string>({
               onChange(option.value)
             }}
             className={cn(
-              "flex min-h-12 items-center justify-center gap-2 rounded-[6px] px-4 text-[14px] font-black transition-colors",
+              "flex min-h-14 w-full items-center gap-3 px-1 text-left text-[15px] font-semibold transition-colors",
               selected
-                ? "bg-[#171a18] text-[#f8faf7]"
-                : "bg-[#e8e7e3] text-[#171a18] active:bg-[#deddd8]"
+                ? "text-foreground"
+                : "text-muted-foreground active:bg-muted/45"
             )}
           >
-            {OptionIcon && <OptionIcon size={17} weight="bold" />}
-            {option.label}
+            {OptionIcon && <OptionIcon size={20} weight="regular" />}
+            <span className="flex-1">{option.label}</span>
+            {selected && <Check size={18} weight="bold" aria-hidden="true" />}
           </button>
         )
       })}
@@ -496,7 +438,7 @@ function OptionList<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="grid gap-2">
+    <div className="divide-y divide-border border-y border-border">
       {options.map(([id, label, body, icon]) => {
         const selected = value === id
         const OptionIcon = icon
@@ -510,24 +452,24 @@ function OptionList<T extends string>({
             }}
             aria-pressed={selected}
             className={cn(
-              "min-h-12 rounded-[6px] px-4 py-3 text-left transition-colors",
+              "min-h-16 w-full px-1 py-3 text-left transition-colors",
               selected
-                ? "bg-[#171a18] text-[#f8faf7]"
-                : "bg-[#e8e7e3] text-[#171a18] active:bg-[#deddd8]"
+                ? "text-foreground"
+                : "text-muted-foreground active:bg-muted/45"
             )}
           >
             <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-3 text-[14px] font-black">
-                {OptionIcon && <OptionIcon size={18} weight="bold" />}
+              <span className="flex items-center gap-3 text-[15px] font-semibold">
+                {OptionIcon && <OptionIcon size={20} weight="regular" />}
                 {label}
               </span>
-              {selected && <Check size={16} weight="bold" />}
+              {selected && <Check size={18} weight="bold" />}
             </div>
             {body && (
               <p
                 className={cn(
-                  "mt-1 text-[12px] leading-4",
-                  selected ? "text-[#f8faf7]/70" : "text-[#6f6d68]"
+                  "native-row-detail mt-1 pl-8",
+                  selected ? "text-foreground/70" : "text-muted-foreground"
                 )}
               >
                 {body}
@@ -566,7 +508,7 @@ function MultiSelectList({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="divide-y divide-border border-y border-border">
       {options.map(([id, label]) => {
         const selected = values.includes(id)
         return (
@@ -576,10 +518,10 @@ function MultiSelectList({
             onClick={() => toggle(id)}
             aria-pressed={selected}
             className={cn(
-              "min-h-11 rounded-[6px] px-3 text-left text-[12.5px] font-black transition-colors",
+              "min-h-13 w-full px-1 py-2.5 text-left text-[14px] font-semibold transition-colors",
               selected
-                ? "bg-[#171a18] text-[#f8faf7]"
-                : "bg-[#e8e7e3] text-[#171a18] active:bg-[#deddd8]"
+                ? "text-foreground"
+                : "text-muted-foreground active:bg-muted/45"
             )}
           >
             <span className="flex items-center justify-between gap-2">
@@ -828,9 +770,9 @@ export function OnboardingMobile() {
 
   const stepReady = useMemo(() => {
     const stepId = steps[step].id
-    if (stepId === "goal") return draft.goal !== null
-    if (stepId === "experience") return experienceLevel !== null
-    if (stepId === "profile") return profile.sex !== null
+    if (stepId === "goals")
+      return draft.goal !== null && experienceLevel !== null
+    if (stepId === "baseline") return profile.sex !== null
     if (stepId === "review")
       return (
         draft.goal !== null && experienceLevel !== null && profile.sex !== null
@@ -844,9 +786,9 @@ export function OnboardingMobile() {
     if (!stepReady) {
       hapticHeavy()
       setError(
-        steps[step].id === "profile"
-          ? "Choose a profile for the estimate."
-          : "Choose an option to continue."
+        steps[step].id === "baseline"
+          ? "Choose the body profile used for your estimate."
+          : "Complete the required choices to continue."
       )
       return
     }
@@ -930,111 +872,161 @@ export function OnboardingMobile() {
   const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
   return (
-    <main className="auth-light-only min-h-svh overflow-hidden bg-[#f4f3ef] text-[#171a18]">
-      <section className="mx-auto flex min-h-svh w-full max-w-md flex-col px-7 pt-[calc(var(--app-safe-top)+10px)] pb-[calc(var(--app-safe-bottom)+14px)]">
-        <header className="shrink-0">
-          <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center gap-3">
-            <button
-              type="button"
-              onClick={goBack}
-              disabled={step === 0 || saving}
-              aria-label="Back"
-              className="flex h-10 w-10 items-center justify-center rounded-[6px] text-[#171a18] transition-opacity active:opacity-75 disabled:opacity-20"
-            >
-              <ArrowLeft size={18} weight="bold" />
-            </button>
-            <div className="flex items-center justify-center gap-2">
-              <img
-                src="/app-icon.svg"
-                alt=""
-                className="h-5 w-5 rounded-full"
-              />
-              <span className="text-[12px] font-black text-[#171a18]">
-                OneRep
-              </span>
+    <main className="min-h-svh bg-background text-foreground">
+      <section className="mx-auto flex min-h-svh w-full max-w-lg flex-col">
+        <header className="shrink-0 border-b border-border px-6 pt-[calc(var(--app-safe-top)+1rem)] pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <img src="/app-icon.svg" alt="" className="size-7" />
+              <span className="native-row-title font-semibold">OneRep</span>
             </div>
-            <span aria-hidden="true" />
+            <span className="native-supporting tabular-nums">
+              Step {step + 1} of {steps.length}: {meta.label}
+            </span>
           </div>
           <div
-            className="mt-3 flex items-center gap-3"
-            aria-label={`Step ${step + 1} of ${steps.length}`}
+            className="mt-4 h-1 overflow-hidden bg-muted"
+            role="progressbar"
+            aria-label="Profile setup progress"
+            aria-valuemin={1}
+            aria-valuemax={steps.length}
+            aria-valuenow={step + 1}
           >
-            <div className="h-3 flex-1 overflow-hidden rounded-full bg-[#deddd8]">
-              <div
-                className="h-full rounded-full bg-[#58cc02] transition-[width] duration-300"
-                style={{ width: `${((step + 1) / steps.length) * 100}%` }}
-              />
-            </div>
-            <span className="text-[11px] font-black text-[#6f6d68] tabular-nums">
-              {step + 1}/{steps.length}
-            </span>
+            <div
+              className="h-full bg-foreground transition-[width] duration-200"
+              style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+            />
           </div>
         </header>
 
         <div
           key={step}
           className={cn(
-            "flex flex-1 flex-col justify-center py-4",
+            "min-h-0 flex-1 overflow-y-auto px-6 py-7",
             transitionDirection === "back"
-              ? "[animation:onboarding-step-back_260ms_var(--motion-ease-emphasized)_both]"
-              : "[animation:onboarding-step-forward_260ms_var(--motion-ease-emphasized)_both]"
+              ? "[animation:onboarding-step-back_180ms_var(--motion-ease-standard)_both]"
+              : "[animation:onboarding-step-forward_180ms_var(--motion-ease-standard)_both]"
           )}
         >
-          <OnboardingIllustration step={step} />
-
-          <div className="mt-4 mb-4 text-center">
-            <h1 className="text-[1.95rem] leading-[1.08] font-black tracking-tight text-[#171a18]">
-              <StepTitle title={meta.title} accent={meta.accent} />
-            </h1>
-            <p className="mx-auto mt-2 max-w-[19rem] text-[12.5px] leading-5 text-[#6f6d68]">
+          <div className="mb-7">
+            <h1 className="native-large-title">{meta.title}</h1>
+            <p className="native-body mt-2 text-muted-foreground">
               {meta.body}
             </p>
           </div>
 
-          {meta.id === "goal" && (
-            <OptionList
-              value={nutritionGoal}
-              options={nutritionGoals}
-              onChange={(goal) => {
-                setNutritionGoal(goal)
-                setDraft((current) => ({
-                  ...current,
-                  goal: nutritionGoalToOnboardingGoal(goal),
-                }))
-              }}
-            />
+          {meta.id === "goals" && (
+            <div className="space-y-7">
+              <section aria-labelledby="goal-heading">
+                <h2 id="goal-heading" className="native-section-title mb-2">
+                  Primary goal
+                </h2>
+                <OptionList
+                  value={nutritionGoal}
+                  options={nutritionGoals}
+                  onChange={(goal) => {
+                    setNutritionGoal(goal)
+                    setDraft((current) => ({
+                      ...current,
+                      goal: nutritionGoalToOnboardingGoal(goal),
+                    }))
+                  }}
+                />
+              </section>
+              <section aria-labelledby="experience-heading">
+                <h2
+                  id="experience-heading"
+                  className="native-section-title mb-2"
+                >
+                  Training experience
+                </h2>
+                <OptionList<ExperienceLevel>
+                  value={experienceLevel}
+                  options={experienceLevels}
+                  onChange={setExperienceLevel}
+                />
+              </section>
+            </div>
           )}
 
-          {meta.id === "experience" && (
-            <OptionList<ExperienceLevel>
-              value={experienceLevel}
-              options={experienceLevels}
-              onChange={setExperienceLevel}
-            />
-          )}
-
-          {meta.id === "profile" && (
-            <PillToggle
-              value={profile.sex ?? "female"}
-              options={[
-                { value: "female", label: "Female", icon: GenderFemale },
-                { value: "male", label: "Male", icon: GenderMale },
-              ]}
-              onChange={(sex: Sex) =>
-                setProfile((current) => ({ ...current, sex }))
-              }
-            />
-          )}
-
-          {meta.id === "age" && (
-            <NumberQuestion
-              label="Age"
-              value={profile.age}
-              display={String(profile.age)}
-              min={AGE_MIN}
-              max={AGE_MAX}
-              onChange={(age) => setProfile((current) => ({ ...current, age }))}
-            />
+          {meta.id === "baseline" && (
+            <div className="space-y-7">
+              <section aria-labelledby="body-profile-heading">
+                <h2
+                  id="body-profile-heading"
+                  className="native-section-title mb-2"
+                >
+                  Body profile used for the estimate
+                </h2>
+                <PillToggle
+                  value={profile.sex}
+                  options={[
+                    { value: "female", label: "Female", icon: GenderFemale },
+                    { value: "male", label: "Male", icon: GenderMale },
+                  ]}
+                  onChange={(sex: Sex) =>
+                    setProfile((current) => ({ ...current, sex }))
+                  }
+                />
+              </section>
+              <section aria-labelledby="measurements-heading">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <h2
+                    id="measurements-heading"
+                    className="native-section-title"
+                  >
+                    Measurements
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setWeightUnit((current) =>
+                        current === "kg" ? "lbs" : "kg"
+                      )
+                    }
+                    className="native-toolbar-button border border-border"
+                    aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+                  >
+                    {weightUnit === "kg" ? "kg" : "lb"}
+                  </button>
+                </div>
+                <div className="border-y border-border">
+                  <NumberQuestion
+                    label="Age"
+                    value={profile.age}
+                    display={`${profile.age} years`}
+                    min={AGE_MIN}
+                    max={AGE_MAX}
+                    onChange={(age) =>
+                      setProfile((current) => ({ ...current, age }))
+                    }
+                  />
+                  <NumberQuestion
+                    label="Height (cm)"
+                    value={profile.heightCm}
+                    display={`${profile.heightCm} cm`}
+                    min={HEIGHT_MIN}
+                    max={HEIGHT_MAX}
+                    onChange={(heightCm) =>
+                      setProfile((current) => ({ ...current, heightCm }))
+                    }
+                  />
+                  <NumberQuestion
+                    label={`Weight (${weightUnit})`}
+                    value={weightValue}
+                    display={`${weightValue} ${weightUnit}`}
+                    min={weightMin}
+                    max={weightMax}
+                    onChange={(value) =>
+                      setProfile((current) => ({
+                        ...current,
+                        weightKg: weightUnit === "kg" ? value : lbsToKg(value),
+                      }))
+                    }
+                  />
+                </div>
+              </section>
+            </div>
           )}
 
           {meta.id === "safety" && (
@@ -1044,45 +1036,6 @@ export function OnboardingMobile() {
               onChange={setSafetyFlags}
               icon={ShieldCheck}
             />
-          )}
-
-          {meta.id === "height" && (
-            <NumberQuestion
-              label="Height"
-              value={profile.heightCm}
-              display={`${profile.heightCm} cm`}
-              min={HEIGHT_MIN}
-              max={HEIGHT_MAX}
-              onChange={(heightCm) =>
-                setProfile((current) => ({ ...current, heightCm }))
-              }
-            />
-          )}
-
-          {meta.id === "weight" && (
-            <div className="space-y-2">
-              <PillToggle
-                value={weightUnit}
-                options={[
-                  { value: "kg" as const, label: "Kilograms", icon: Scales },
-                  { value: "lbs" as const, label: "Pounds", icon: Scales },
-                ]}
-                onChange={(unit) => setWeightUnit(unit)}
-              />
-              <NumberQuestion
-                label="Weight"
-                value={weightValue}
-                display={`${weightValue} ${weightUnit}`}
-                min={weightMin}
-                max={weightMax}
-                onChange={(value) =>
-                  setProfile((current) => ({
-                    ...current,
-                    weightKg: weightUnit === "kg" ? value : lbsToKg(value),
-                  }))
-                }
-              />
-            </div>
           )}
 
           {meta.id === "activity" && (
@@ -1096,110 +1049,99 @@ export function OnboardingMobile() {
           )}
 
           {meta.id === "review" && (
-            <div className="space-y-3">
-              <div className="rounded-[6px] bg-[#171a18] p-4 text-[#f8faf7]">
-                <p className="text-[10px] font-black tracking-[0.14em] text-[#f8faf7]/55 uppercase">
-                  Daily calorie budget
-                </p>
-                <div className="mt-3 grid grid-cols-[1fr_auto_1fr_auto_1fr] items-center gap-2 text-center">
-                  <div>
-                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
-                      Maintain
+            <div className="space-y-7">
+              <section aria-labelledby="starting-targets-heading">
+                <h2
+                  id="starting-targets-heading"
+                  className="native-section-title"
+                >
+                  Starting daily targets
+                </h2>
+                <div className="mt-2 border-y border-border">
+                  <div className="py-4">
+                    <p className="native-supporting">Calories</p>
+                    <p className="native-summary-value mt-1 tabular-nums">
+                      {preview?.targetCalories?.toLocaleString() ??
+                        "Calculating…"}
+                      {preview ? " kcal" : ""}
                     </p>
-                    <p className="mt-1 text-[16px] font-black tabular-nums">
-                      {preview?.tdee ?? "..."}
-                    </p>
-                  </div>
-                  <span className="text-[#f8faf7]/35">−</span>
-                  <div>
-                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
-                      Deficit
-                    </p>
-                    <p className="mt-1 text-[16px] font-black tabular-nums">
-                      {preview
-                        ? Math.max(0, preview.tdee - preview.targetCalories)
-                        : "..."}
+                    <p className="native-row-detail mt-2">
+                      {preview?.calorieStrategy ??
+                        "Calculating your starting budget from the information above."}
                     </p>
                   </div>
-                  <span className="text-[#f8faf7]/35">=</span>
-                  <div>
-                    <p className="text-[10px] font-bold text-[#f8faf7]/55">
-                      Budget
-                    </p>
-                    <p className="mt-1 text-[16px] font-black tabular-nums">
-                      {preview?.targetCalories ?? "..."}
-                    </p>
-                  </div>
+                  {[
+                    [
+                      "Maintenance estimate",
+                      preview ? `${preview.tdee.toLocaleString()} kcal` : "—",
+                    ],
+                    ["Protein", preview ? `${preview.protein} g` : "—"],
+                    ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
+                    ["Fat", preview ? `${preview.fat} g` : "—"],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-h-12 items-center justify-between gap-4 border-t border-border py-2"
+                    >
+                      <span className="native-row-title">{label}</span>
+                      <span className="native-row-value text-right">
+                        {value}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <p className="mt-3 text-center text-[10px] font-bold text-[#f8faf7]/55">
-                  {preview?.calorieStrategy ??
-                    "Calculating your starting budget..."}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ["Calories", preview?.targetCalories ?? "..."],
-                  ["Protein", preview ? `${preview.protein}g` : "..."],
-                  ["Carbs", preview ? `${preview.carbs}g` : "..."],
-                  ["Fat", preview ? `${preview.fat}g` : "..."],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded-[6px] bg-[#e8e7e3] p-4">
-                    <p className="text-[11px] font-black tracking-[0.12em] text-[#6f6d68] uppercase">
-                      {label}
-                    </p>
-                    <p className="mt-2 text-[1.8rem] leading-none font-black tracking-tight text-[#171a18] tabular-nums">
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-[6px] bg-[#e8e7e3] p-4">
-                {[
-                  ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
-                  [
-                    "Experience",
-                    experienceLevel
-                      ? selectedLabel(experienceLevels, experienceLevel)
-                      : "Not selected",
-                  ],
-                  ["Activity", selectedActivityLabel(profile.activityLevel)],
-                  [
-                    "Body",
-                    `${profile.age} yrs, ${Math.round(profile.weightKg)} kg`,
-                  ],
-                ].map(([label, value]) => (
-                  <div
-                    key={label}
-                    className="flex items-center justify-between gap-3 border-b border-[#f4f3ef] py-2.5 last:border-0"
-                  >
-                    <span className="text-[12px] font-semibold text-[#6f6d68]">
-                      {label}
-                    </span>
-                    <span className="min-w-0 truncate text-right text-[13px] font-black text-[#171a18]">
-                      {value}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              </section>
+              <section aria-labelledby="estimate-inputs-heading">
+                <h2
+                  id="estimate-inputs-heading"
+                  className="native-section-title"
+                >
+                  Estimate inputs
+                </h2>
+                <dl className="mt-2 divide-y divide-border border-y border-border">
+                  {[
+                    ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
+                    [
+                      "Experience",
+                      experienceLevel
+                        ? selectedLabel(experienceLevels, experienceLevel)
+                        : "Not selected",
+                    ],
+                    ["Activity", selectedActivityLabel(profile.activityLevel)],
+                    [
+                      "Body",
+                      `${profile.age} years, ${Math.round(profile.weightKg)} kg`,
+                    ],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-h-12 items-center justify-between gap-4 py-2"
+                    >
+                      <dt className="native-row-title">{label}</dt>
+                      <dd className="native-row-value text-right">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
             </div>
           )}
 
           {error && (
             <p
               role="alert"
-              className="mt-4 rounded-[6px] border border-[#7b6464]/25 bg-[#7b6464]/10 px-4 py-3 text-[12.5px] font-bold text-[#7b6464]"
+              className="mt-5 border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
             >
               {error}
             </p>
           )}
         </div>
 
-        <footer className="grid shrink-0 gap-2">
+        <footer className="grid shrink-0 grid-cols-[auto_1fr] gap-3 border-t border-border bg-background px-6 pt-3 pb-[calc(var(--app-safe-bottom)+0.75rem)]">
           <button
             type="button"
             onClick={goBack}
             disabled={step === 0 || saving}
-            className="order-2 flex min-h-11 items-center justify-center gap-2 rounded-[6px] bg-[#e8e7e3] px-4 text-[13px] font-black text-[#171a18] transition-opacity active:opacity-75 disabled:opacity-35"
+            className="native-toolbar-button min-h-12 border border-border px-4 disabled:opacity-35"
           >
             <ArrowLeft size={15} weight="bold" />
             Back
@@ -1207,9 +1149,9 @@ export function OnboardingMobile() {
           <button
             type="button"
             onClick={goNext}
-            disabled={saving || !stepReady}
+            disabled={saving}
             aria-busy={saving}
-            className="order-1 flex min-h-12 w-full items-center justify-center gap-2 rounded-[6px] bg-[#171a18] px-5 text-[13px] font-black text-[#f8faf7] transition-transform active:scale-[0.985] disabled:opacity-50"
+            className="native-primary-button min-h-12 w-full disabled:opacity-50"
           >
             {saving ? (
               "Saving..."

@@ -15,7 +15,6 @@ import {
   Camera as CameraIcon,
   Plus,
   Minus,
-  Fire,
   X,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
@@ -536,16 +535,16 @@ export default function SnapAndLog() {
           )}
           {cameraState === "denied" && (
             <>
-              <p className="text-[13px] font-medium text-white/70">
+              <p className="text-[17px] font-semibold text-white">
                 Camera access denied
               </p>
-              <p className="max-w-[200px] text-center text-[11px] text-white/35">
+              <p className="max-w-[280px] text-center text-[14px] leading-5 text-white/75">
                 Allow camera access in Settings to use Snap &amp; Log.
               </p>
             </>
           )}
           {cameraState === "unsupported" && (
-            <p className="text-[13px] font-medium text-white/70">
+            <p className="text-[17px] font-semibold text-white">
               Camera not available
             </p>
           )}
@@ -564,7 +563,7 @@ export default function SnapAndLog() {
           <p className="text-[15px] font-medium text-white/80">
             {mode === "snap" ? "Open native camera" : "Capture a barcode photo"}
           </p>
-          <p className="max-w-[240px] text-[11px] leading-relaxed text-white/38">
+          <p className="max-w-[300px] text-[14px] leading-5 text-white/75">
             {mode === "snap"
               ? "iOS uses the native camera for more reliable capture."
               : "Take a clear photo of the barcode and OneRep will scan it after capture."}
@@ -637,7 +636,7 @@ export default function SnapAndLog() {
                 <div className="scan-line absolute right-2 left-2 h-px bg-white/60" />
               )}
             </div>
-            <p className="mt-3 text-center text-[11px] font-medium tracking-wide text-white/40">
+            <p className="mt-3 text-center text-[14px] font-medium text-white/80">
               {barcodeScanning ? "Looking for barcode…" : "Point at a barcode"}
             </p>
           </div>
@@ -652,8 +651,10 @@ export default function SnapAndLog() {
         }}
       >
         <button
+          type="button"
           onClick={() => navigate(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white backdrop-blur-md transition-opacity active:opacity-60"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/25 bg-black/70 text-white transition-opacity active:opacity-60"
+          aria-label="Close camera"
         >
           <ArrowLeft size={16} weight="bold" />
         </button>
@@ -661,30 +662,37 @@ export default function SnapAndLog() {
         {/* Mode toggle pill */}
         <div className="flex items-center gap-1 rounded-[14px] border border-white/10 bg-black/45 p-1 backdrop-blur-md">
           <button
+            type="button"
             onClick={() => {
               void hapticTap()
               switchMode("snap")
             }}
-            className={`flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-[11px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/50"}`}
+            className={`flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition-colors ${mode === "snap" ? "bg-white text-black" : "text-white/80"}`}
+            aria-pressed={mode === "snap"}
           >
-            <CameraIcon size={12} weight="bold" />
+            <CameraIcon size={16} weight="bold" />
             Snap
           </button>
           <button
+            type="button"
             onClick={() => {
               void hapticTap()
               switchMode("barcode")
             }}
-            className={`flex min-h-9 items-center gap-1.5 rounded-[10px] px-3 text-[11px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/50"}`}
+            className={`flex min-h-11 items-center gap-2 rounded-[10px] px-3 text-[14px] font-semibold transition-colors ${mode === "barcode" ? "bg-white text-black" : "text-white/80"}`}
+            aria-pressed={mode === "barcode"}
           >
-            <Barcode size={12} weight="bold" />
+            <Barcode size={16} weight="bold" />
             Scan
           </button>
         </div>
 
         <button
+          type="button"
           onClick={() => setFlash((f) => !f)}
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white backdrop-blur-md transition-opacity active:opacity-60"
+          className="flex h-11 w-11 items-center justify-center rounded-lg border border-white/25 bg-black/70 text-white transition-opacity active:opacity-60"
+          aria-label={flash ? "Turn flash off" : "Turn flash on"}
+          aria-pressed={flash}
         >
           {flash ? (
             <Lightning
@@ -708,7 +716,7 @@ export default function SnapAndLog() {
         >
           <div className="flex items-center gap-2 rounded-[12px] border border-white/10 bg-black/70 px-3 py-2 backdrop-blur-md">
             <div className="h-3 w-3 animate-spin rounded-full border border-white/30 border-t-white/70" />
-            <span className="text-[11px] font-medium text-white/70">
+            <span className="text-[14px] font-medium text-white">
               Analysing…
             </span>
           </div>
@@ -725,6 +733,7 @@ export default function SnapAndLog() {
           }}
         >
           <button
+            type="button"
             onClick={() =>
               setFacingMode((f) =>
                 f === "environment" ? "user" : "environment"
@@ -732,6 +741,7 @@ export default function SnapAndLog() {
             }
             disabled={useNativeCapture || mode !== "snap"}
             className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-white/10 bg-black/45 text-white/70 backdrop-blur-md transition-opacity active:opacity-60 disabled:opacity-30"
+            aria-label="Switch camera"
           >
             <ArrowsClockwise size={18} />
           </button>
@@ -858,7 +868,7 @@ function ResultsSheet({
 
   return (
     <div
-      className="absolute right-0 bottom-0 left-0 flex max-h-[82vh] flex-col rounded-t-[18px] border-t border-white/10 bg-black/88 backdrop-blur-md md:right-6 md:bottom-6 md:left-auto md:w-[440px] md:rounded-[18px] md:border md:border-white/10 md:shadow-[0_18px_60px_rgba(0,0,0,0.36)]"
+      className="absolute right-0 bottom-0 left-0 flex max-h-[82vh] flex-col rounded-t-2xl border-t border-white/20 bg-black/95 md:right-6 md:bottom-6 md:left-auto md:w-[440px] md:rounded-2xl md:border md:border-white/20"
       style={{ paddingBottom: "var(--app-safe-bottom)" }}
     >
       {/* Handle */}
@@ -869,26 +879,28 @@ function ResultsSheet({
       {/* Header row — fixed */}
       <div className="flex shrink-0 items-center justify-between px-5 pb-3">
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold text-white">{title}</p>
+          <p className="text-[18px] font-semibold text-white">{title}</p>
           {!hasError && !isEmpty && isSnap && (
-            <p className="mt-0.5 truncate text-[10.5px] text-white/40">
+            <p className="mt-0.5 truncate text-[13px] text-white/75">
               {selectedSnapCount} selected
               {snapRaw ? ` · ${snapRaw}` : ""}
             </p>
           )}
         </div>
         <button
+          type="button"
           onClick={onDismiss}
-          className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white/10 transition-opacity active:opacity-60"
+          className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10 transition-opacity active:opacity-60"
+          aria-label="Close capture results"
         >
-          <X size={13} weight="bold" className="text-white/60" />
+          <X size={17} weight="bold" className="text-white" />
         </button>
       </div>
 
       {/* Error / empty states */}
       {hasError && (
         <div className="shrink-0 px-5 pb-4">
-          <p className="text-[12px] text-white/40">
+          <p className="text-[14px] leading-5 text-white/80">
             {mode === "barcode"
               ? barcodeError
               : "Couldn't analyse image. Try again."}
@@ -902,7 +914,7 @@ function ResultsSheet({
       )}
       {isEmpty && (
         <div className="shrink-0 px-5 pb-4">
-          <p className="text-[12px] text-white/40">
+          <p className="text-[14px] leading-5 text-white/80">
             {mode === "barcode"
               ? "No product found for this barcode."
               : "No matching foods found."}
@@ -920,15 +932,18 @@ function ResultsSheet({
           <div className="flex shrink-0 gap-1.5 overflow-x-auto px-5 pb-3 [&::-webkit-scrollbar]:hidden">
             {DEFAULT_MEAL_CATEGORIES.map((m) => (
               <button
+                type="button"
                 key={m.id}
                 onClick={() => onMealChange(m.id)}
-                className="shrink-0 rounded-[9px] px-2.5 py-1 text-[10px] font-semibold tracking-wide transition-colors"
+                className="min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-semibold transition-colors"
+                aria-pressed={meal === m.id}
+                aria-label={`Log to ${m.label}`}
                 style={
                   meal === m.id
                     ? { backgroundColor: m.bg, color: m.color }
                     : {
                         backgroundColor: "rgba(255,255,255,0.07)",
-                        color: "rgba(255,255,255,0.35)",
+                        color: "rgba(255,255,255,0.8)",
                       }
                 }
               >
@@ -970,7 +985,7 @@ function ResultsSheet({
                 type="button"
                 onClick={snapCanLog ? onConfirmSnap : onSearchManually}
                 disabled={snapLogged || snapLogging}
-                className="flex min-h-11 w-full items-center justify-center rounded-[12px] px-4 text-[13px] font-semibold transition-all active:scale-[0.985] disabled:opacity-50"
+                className="flex min-h-12 w-full items-center justify-center rounded-lg px-4 text-[15px] font-semibold transition-opacity active:opacity-80 disabled:opacity-50"
                 style={{
                   backgroundColor: snapLogged
                     ? tint(APP_ACCENT_COLORS.complete, 14)
@@ -1026,53 +1041,43 @@ function SnapReviewRow({
   return (
     <div className="py-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-[10px] bg-white/[0.07]">
-          <Fire
-            size={11}
-            weight="fill"
-            style={{ color: APP_ACCENT_COLORS.food }}
-          />
-          <span className="mt-0.5 text-[10px] leading-none font-semibold text-white/70">
-            {scaled ? scaled.calories : "--"}
-          </span>
-        </div>
-
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-white">
+          <p className="truncate text-[15px] font-semibold text-white">
             {food?.name ?? item.detectedName}
           </p>
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
-            <span className="max-w-full truncate text-[10.5px] text-white/35">
+            <span className="max-w-full truncate text-[13px] text-white/70">
               {food ? item.detectedName : "No searchable match"}
             </span>
-            {food?.brand && <span className="text-white/20">·</span>}
+            {food?.brand && <span className="text-white/50">·</span>}
             {food?.brand && (
-              <span className="max-w-[9rem] truncate text-[10.5px] text-white/35">
+              <span className="max-w-[9rem] truncate text-[13px] text-white/70">
                 {food.brand}
               </span>
             )}
-            {food && <span className="text-white/20">·</span>}
+            {food && <span className="text-white/50">·</span>}
             {food && (
-              <span className="text-[10.5px] text-white/35">
-                {food.serving}
-              </span>
+              <span className="text-[13px] text-white/70">{food.serving}</span>
             )}
           </div>
 
           {scaled && (
-            <div className="mt-1 flex gap-2.5">
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              <span className="text-[13px] font-medium text-white/80 tabular-nums">
+                {scaled.calories} kcal
+              </span>
               <DarkMacroPill
-                label="P"
+                label="Protein"
                 value={scaled.protein}
                 color={MACRO_COLORS.protein}
               />
               <DarkMacroPill
-                label="C"
+                label="Carbs"
                 value={scaled.carbs}
                 color={MACRO_COLORS.carbs}
               />
               <DarkMacroPill
-                label="F"
+                label="Fat"
                 value={scaled.fat}
                 color={MACRO_COLORS.fat}
               />
@@ -1094,22 +1099,22 @@ function SnapReviewRow({
               ? `Exclude ${item.detectedName}`
               : `Include ${item.detectedName}`
           }
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-all active:scale-[0.985] disabled:opacity-30"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-opacity active:opacity-75 disabled:opacity-30"
           style={{
             backgroundColor: selected ? mealCfg.bg : "rgba(255,255,255,0.1)",
           }}
         >
           {selected ? (
-            <span className="text-[11px]" style={{ color: mealCfg.color }}>
+            <span className="text-[15px]" style={{ color: mealCfg.color }}>
               ✓
             </span>
           ) : (
-            <Plus size={13} weight="bold" className="text-white/50" />
+            <Plus size={16} weight="bold" className="text-white/80" />
           )}
         </button>
       </div>
 
-      <div className="mt-2 pl-[52px]">
+      <div className="mt-2">
         <SnapQuantityControl
           grams={item.grams}
           disabled={!food}
@@ -1122,48 +1127,50 @@ function SnapReviewRow({
           }
         />
 
-        {item.alternatives.length > 0 && (!food || item.alternatives.length > 1) && (
-          <div className="mt-2">
-            <p className="mb-1 text-[9.5px] font-bold tracking-[0.12em] text-white/28 uppercase">
-              More matches
-            </p>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
-              {item.alternatives.slice(0, 8).map((alternative) => {
-                const active = food?.id === alternative.id
-                return (
-                  <button
-                    key={alternative.id}
-                    type="button"
-                    onClick={() =>
-                      onChange((current) => ({
-                        ...current,
-                        food: alternative,
-                        selected: true,
-                      }))
-                    }
-                    className="min-h-9 max-w-[11rem] shrink-0 rounded-[9px] px-2.5 text-left text-[10.5px] font-semibold transition-all active:scale-[0.985]"
-                    style={{
-                      backgroundColor: active
-                        ? "rgba(255,255,255,0.9)"
-                        : "rgba(255,255,255,0.08)",
-                      color: active ? "#000" : "rgba(255,255,255,0.5)",
-                    }}
-                  >
-                    <span className="block truncate">{alternative.name}</span>
-                    {alternative.brand && (
-                      <span
-                        className="block truncate text-[9.5px]"
-                        style={{ opacity: active ? 0.58 : 0.48 }}
-                      >
-                        {alternative.brand}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+        {item.alternatives.length > 0 &&
+          (!food || item.alternatives.length > 1) && (
+            <div className="mt-2">
+              <p className="mb-1 text-[13px] font-semibold text-white/75">
+                More matches
+              </p>
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
+                {item.alternatives.slice(0, 8).map((alternative) => {
+                  const active = food?.id === alternative.id
+                  return (
+                    <button
+                      key={alternative.id}
+                      type="button"
+                      onClick={() =>
+                        onChange((current) => ({
+                          ...current,
+                          food: alternative,
+                          selected: true,
+                        }))
+                      }
+                      className="min-h-11 max-w-[12rem] shrink-0 rounded-lg px-3 text-left text-[13px] font-semibold transition-opacity active:opacity-75"
+                      aria-pressed={active}
+                      style={{
+                        backgroundColor: active
+                          ? "rgba(255,255,255,0.9)"
+                          : "rgba(255,255,255,0.08)",
+                        color: active ? "#000" : "rgba(255,255,255,0.5)",
+                      }}
+                    >
+                      <span className="block truncate">{alternative.name}</span>
+                      {alternative.brand && (
+                        <span
+                          className="block truncate text-[13px]"
+                          style={{ opacity: active ? 0.58 : 0.48 }}
+                        >
+                          {alternative.brand}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     </div>
   )
@@ -1199,7 +1206,7 @@ function SnapQuantityControl({
   }
 
   return (
-    <div className="grid grid-cols-[2rem_minmax(0,5rem)_2rem] items-center gap-1.5">
+    <div className="grid grid-cols-[2.75rem_minmax(0,6rem)_2.75rem] items-center gap-2">
       <button
         type="button"
         disabled={disabled}
@@ -1208,14 +1215,15 @@ function SnapQuantityControl({
           step(-1)
         }}
         aria-label="Decrease quantity"
-        className="flex h-8 items-center justify-center rounded-[9px] bg-white/[0.08] text-white/50 transition-all active:scale-[0.985] disabled:opacity-30"
+        className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
       >
         <Minus size={12} weight="bold" />
       </button>
 
-      <label className="flex h-8 min-w-0 items-center justify-center rounded-[9px] bg-white/[0.08] px-2">
+      <label className="flex h-11 min-w-0 items-center justify-center rounded-lg bg-white/10 px-2">
         <input
           type="text"
+          name="snap-food-grams"
           inputMode="decimal"
           disabled={disabled}
           value={inputValue}
@@ -1224,9 +1232,10 @@ function SnapQuantityControl({
           onKeyDown={(event) => {
             if (event.key === "Enter") event.currentTarget.blur()
           }}
-          className="h-6 min-w-0 flex-1 bg-transparent text-center text-[12px] font-semibold text-white outline-none disabled:opacity-40"
+          className="h-9 min-w-0 flex-1 bg-transparent text-center text-[15px] font-semibold text-white outline-none disabled:opacity-40"
+          aria-label="Snap food quantity in grams"
         />
-        <span className="ml-1 shrink-0 text-[10px] font-semibold text-white/35">
+        <span className="ml-1 shrink-0 text-[13px] font-semibold text-white/70">
           g
         </span>
       </label>
@@ -1239,7 +1248,7 @@ function SnapQuantityControl({
           step(1)
         }}
         aria-label="Increase quantity"
-        className="flex h-8 items-center justify-center rounded-[9px] bg-white/[0.08] text-white/50 transition-all active:scale-[0.985] disabled:opacity-30"
+        className="flex h-11 items-center justify-center rounded-lg bg-white/10 text-white/80 transition-opacity active:opacity-70 disabled:opacity-30"
       >
         <Plus size={12} weight="bold" />
       </button>
@@ -1262,56 +1271,53 @@ function BarcodeResultRow({
 
   return (
     <div className="flex items-center gap-3 py-3">
-      <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-[10px] bg-white/[0.07]">
-        <Fire
-          size={11}
-          weight="fill"
-          style={{ color: APP_ACCENT_COLORS.food }}
-        />
-        <span className="mt-0.5 text-[10px] leading-none font-semibold text-white/70">
-          {item.calories}
-        </span>
-      </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-medium text-white">
+        <p className="truncate text-[15px] font-semibold text-white">
           {item.name}
         </p>
         <div className="mt-0.5 flex items-center gap-1.5">
           {item.brand && (
-            <span className="truncate text-[10.5px] text-white/35">
+            <span className="truncate text-[13px] text-white/70">
               {item.brand}
             </span>
           )}
-          {item.brand && <span className="text-white/20">·</span>}
-          <span className="text-[10.5px] text-white/35">{item.serving}</span>
+          {item.brand && <span className="text-white/50">·</span>}
+          <span className="text-[13px] text-white/70">{item.serving}</span>
         </div>
-        <div className="mt-1 flex gap-2.5">
+        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+          <span className="text-[13px] font-medium text-white/80 tabular-nums">
+            {item.calories} kcal
+          </span>
           <DarkMacroPill
-            label="P"
+            label="Protein"
             value={item.protein}
             color={MACRO_COLORS.protein}
           />
           <DarkMacroPill
-            label="C"
+            label="Carbs"
             value={item.carbs}
             color={MACRO_COLORS.carbs}
           />
-          <DarkMacroPill label="F" value={item.fat} color={MACRO_COLORS.fat} />
+          <DarkMacroPill
+            label="Fat"
+            value={item.fat}
+            color={MACRO_COLORS.fat}
+          />
         </div>
       </div>
       <button
+        type="button"
         onClick={() => onAdd(item)}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] transition-all active:scale-[0.985]"
+        className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
+        aria-label={added ? `${item.name} added` : `Add ${item.name}`}
         style={{
           backgroundColor: added ? mealCfg.bg : "rgba(255,255,255,0.1)",
         }}
       >
         {added ? (
-          <span className="text-[11px]" style={{ color: mealCfg.color }}>
-            ✓
-          </span>
+          <span style={{ color: mealCfg.color }}>Added</span>
         ) : (
-          <Plus size={13} weight="bold" className="text-white/50" />
+          <span className="text-white">Add</span>
         )}
       </button>
     </div>
@@ -1332,14 +1338,14 @@ function ResultFallbackActions({
       <button
         type="button"
         onClick={onRetake}
-        className="min-h-10 rounded-[10px] bg-white/10 px-3 text-[12px] font-semibold text-white/75 transition-opacity active:opacity-70"
+        className="min-h-11 rounded-lg bg-white/10 px-3 text-[14px] font-semibold text-white transition-opacity active:opacity-70"
       >
         {retakeLabel}
       </button>
       <button
         type="button"
         onClick={onSearchManually}
-        className="min-h-10 rounded-[10px] bg-white px-3 text-[12px] font-semibold text-black transition-opacity active:opacity-80"
+        className="min-h-11 rounded-lg bg-white px-3 text-[14px] font-semibold text-black transition-opacity active:opacity-80"
       >
         Search manually
       </button>
@@ -1357,14 +1363,11 @@ function DarkMacroPill({
   color: string
 }) {
   return (
-    <span className="flex items-baseline gap-0.5">
-      <span
-        className="text-[9.5px] font-semibold"
-        style={{ color, opacity: 0.7 }}
-      >
+    <span className="flex items-baseline gap-1 text-[13px] tabular-nums">
+      <span className="font-medium" style={{ color }}>
         {label}
       </span>
-      <span className="text-[10px] text-white/40">{value}g</span>
+      <span className="text-white/75">{value} g</span>
     </span>
   )
 }

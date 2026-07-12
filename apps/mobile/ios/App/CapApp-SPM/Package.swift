@@ -16,6 +16,7 @@ let package = Package(
         .package(name: "CapacitorHaptics", path: "../../../../../node_modules/.bun/@capacitor+haptics@8.0.2+767ac80cbab8ae50/node_modules/@capacitor/haptics"),
         .package(name: "CapacitorLocalNotifications", path: "../../../../../node_modules/.bun/@capacitor+local-notifications@8.2.0+767ac80cbab8ae50/node_modules/@capacitor/local-notifications"),
         .package(name: "CapacitorPreferences", path: "../../../../../node_modules/.bun/@capacitor+preferences@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/preferences"),
+        .package(name: "CapgoCapacitorSpeechRecognition", path: "../../../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition"),
         .package(name: "RevenuecatPurchasesCapacitor", path: "../../../../../node_modules/.bun/@revenuecat+purchases-capacitor@13.2.1+767ac80cbab8ae50/node_modules/@revenuecat/purchases-capacitor"),
         .package(name: "RevenuecatPurchasesCapacitorUi", path: "../../../../../node_modules/.bun/@revenuecat+purchases-capacitor-ui@13.2.1+d6e569917ebbfeaa/node_modules/@revenuecat/purchases-capacitor-ui")
     ],
@@ -29,6 +30,7 @@ let package = Package(
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapacitorPreferences", package: "CapacitorPreferences"),
+                .product(name: "CapgoCapacitorSpeechRecognition", package: "CapgoCapacitorSpeechRecognition"),
                 .product(name: "RevenuecatPurchasesCapacitor", package: "RevenuecatPurchasesCapacitor"),
                 .product(name: "RevenuecatPurchasesCapacitorUi", package: "RevenuecatPurchasesCapacitorUi")
             ]
