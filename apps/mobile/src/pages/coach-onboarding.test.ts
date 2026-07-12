@@ -1,18 +1,34 @@
-import { describe, expect, test } from "bun:test"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const COACH_SOURCE = readFileSync(
   new URL("./Coach.tsx", import.meta.url),
   "utf8"
 )
-const COACH_ONBOARDING_SOURCE = readFileSync(
-  new URL("../lib/coach-onboarding.ts", import.meta.url),
-  "utf8"
-)
 const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
 )
+
+function expect(value: string) {
+  return {
+    toContain(expected: string) {
+      assert.ok(
+        value.includes(expected),
+        `Expected source to contain ${expected}`
+      )
+    },
+    not: {
+      toContain(expected: string) {
+        assert.ok(
+          !value.includes(expected),
+          `Expected source not to contain ${expected}`
+        )
+      },
+    },
+  }
+}
 const COACH_ACTION_SOURCE = readFileSync(
   new URL("../../../../convex/ai/metricGeneration.ts", import.meta.url),
   "utf8"
@@ -21,29 +37,23 @@ const PRESET_AGENT_SOURCE = readFileSync(
   new URL("../../../../convex/logs/presetAgent.ts", import.meta.url),
   "utf8"
 )
+const COACH_PROMPT_SOURCE = readFileSync(
+  new URL("../../../../convex/ai/prompts/coach_chat.yaml", import.meta.url),
+  "utf8"
+).replace(/\s+/g, " ")
+const PRESET_PROMPT_SOURCE = readFileSync(
+  new URL("../../../../convex/ai/prompts/workout_preset.yaml", import.meta.url),
+  "utf8"
+).replace(/\s+/g, " ")
 
 describe("Coach first-open experience", () => {
-  test("shows a persistent and accessible feature introduction", () => {
-    expect(COACH_ONBOARDING_SOURCE).toContain(
-      '"onerep:coach-onboarding-seen:v1"'
-    )
-    expect(COACH_ONBOARDING_SOURCE).toContain(
-      'safeLocalStorageGet(COACH_ONBOARDING_SEEN_KEY) === "1"'
-    )
-    expect(COACH_ONBOARDING_SOURCE).toContain(
-      'safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "1")'
-    )
-    expect(COACH_SOURCE).toContain('role="dialog"')
-    expect(COACH_SOURCE).toContain('aria-modal="true"')
-    expect(COACH_SOURCE).toContain('aria-label="Close Coach introduction"')
-    expect(COACH_SOURCE).toContain('if (event.key === "Escape") onDismiss()')
-  })
-
-  test("uses replaceable screenshot placeholders across the walkthrough", () => {
-    expect(COACH_SOURCE).toContain("Daily coaching overview screenshot")
-    expect(COACH_SOURCE).toContain("Progress insight cards screenshot")
-    expect(COACH_SOURCE).toContain("Coach quick actions screenshot")
-    expect(COACH_SOURCE).toContain("Screenshot placeholder")
+  test("opens directly to useful conversation content without a promotional tour", () => {
+    expect(COACH_SOURCE).toContain("What do you want to work on?")
+    expect(COACH_SOURCE).toContain("coachBrief(context)")
+    expect(COACH_SOURCE).not.toContain("CoachOnboarding")
+    expect(COACH_SOURCE).not.toContain("Screenshot placeholder")
+    expect(COACH_SOURCE).not.toContain("bg-gradient-to-br")
+    expect(COACH_SOURCE).not.toContain('aria-label="Close Coach introduction"')
   })
 
   test("offers focused skills and a fresh-chat action", () => {
@@ -56,12 +66,9 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachNewChat")
   })
 
-  test("can be reset from developer settings", () => {
-    expect(COACH_ONBOARDING_SOURCE).toContain(
-      "safeLocalStorageRemove(COACH_ONBOARDING_SEEN_KEY)"
-    )
-    expect(SETTINGS_SOURCE).toContain("handleResetCoachOnboarding")
-    expect(SETTINGS_SOURCE).toContain("Reset Coach introduction")
+  test("does not expose obsolete introduction controls in settings", () => {
+    expect(SETTINGS_SOURCE).not.toContain("handleResetCoachOnboarding")
+    expect(SETTINGS_SOURCE).not.toContain("Reset Coach introduction")
   })
 
   test("beginner setup and safety context reach Coach and plan builders", () => {
@@ -70,11 +77,64 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("Set up easy recipes")
     expect(COACH_SOURCE).toContain('action === "open_workout_builder"')
     expect(COACH_SOURCE).toContain('action === "open_recipe_builder"')
-    expect(COACH_ACTION_SOURCE).toContain(
+    expect(COACH_PROMPT_SOURCE).toContain(
       "Treat safetyMode, safetyFlags, and nutritionGuidance as hard constraints"
     )
-    expect(PRESET_AGENT_SOURCE).toContain(
-      "Treat the supplied safety context as a hard constraint"
+    expect(PRESET_PROMPT_SOURCE).toContain(
+      "Treat supplied safety context as a hard constraint"
+    )
+    expect(PRESET_AGENT_SOURCE).toContain('renderSystemPrompt("workout_preset"')
+  })
+
+  test("natural-language Coach commands can write app data without generated UI", () => {
+    expect(COACH_SOURCE).toContain("Visual summaries")
+    expect(COACH_SOURCE).toContain("generateUi")
+    expect(COACH_SOURCE).toContain("api.logs.recipes.save")
+    expect(COACH_SOURCE).toContain("api.logs.foodLogs.addEntry")
+    expect(COACH_SOURCE).toContain("api.logs.presets.create")
+    expect(COACH_SOURCE).toContain("api.users.schedules.set")
+    expect(COACH_SOURCE).toContain("CoachOperationResults")
+    expect(COACH_ACTION_SOURCE).toContain('type: "save_recipe"')
+    expect(COACH_ACTION_SOURCE).toContain('type: "log_nutrition"')
+    expect(COACH_ACTION_SOURCE).toContain('type: "create_workout_preset"')
+    expect(COACH_ACTION_SOURCE).toContain('type: "update_routine"')
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "Operations are real writes. Emit them only when the LATEST message directly asks"
+    )
+  })
+
+  test("Coach supports previews, undo, memory, check-ins, plans, and read-only analysis", () => {
+    expect(COACH_SOURCE).toContain("CoachProposal")
+    expect(COACH_SOURCE).toContain("Review changes")
+    expect(COACH_SOURCE).toContain("Coach activity")
+    expect(COACH_SOURCE).toContain("Coach memory")
+    expect(COACH_SOURCE).toContain("Quick recovery check-in")
+    expect(COACH_SOURCE).toContain("saveWeeklyPlan")
+    expect(COACH_SOURCE).toContain("undoCoachAction")
+    expect(COACH_SOURCE).toContain("updateFoodEntry")
+    expect(COACH_SOURCE).toContain("removeFoodEntry")
+    expect(COACH_SOURCE).toContain("CoachArtifacts")
+    expect(COACH_SOURCE).toContain("Validate my routine")
+    expect(COACH_SOURCE).toContain("Explore a scenario")
+    expect(COACH_ACTION_SOURCE).toContain("recovery_adaptation")
+    expect(COACH_ACTION_SOURCE).toContain("progress_explanation")
+    expect(COACH_ACTION_SOURCE).toContain("save_check_in")
+    expect(COACH_ACTION_SOURCE).toContain("save_weekly_plan")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "Questions, advice, explanations, comparisons, image questions, and hypothetical or simulation requests must have zero operations"
+    )
+  })
+
+  test("Coach supports user-managed memory, pictures, and streaming voice input", () => {
+    expect(COACH_SOURCE).toContain("Add memory")
+    expect(COACH_SOURCE).toContain("generateCoachUploadUrl")
+    expect(COACH_SOURCE).toContain("registerCoachUpload")
+    expect(COACH_SOURCE).toContain("attachmentId")
+    expect(COACH_SOURCE).toContain("useCoachDictation")
+    expect(COACH_SOURCE).toContain('aria-label="Attach a picture"')
+    expect(COACH_SOURCE).toContain("Start voice input")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "durable first-person coaching preference or constraint"
     )
   })
 })

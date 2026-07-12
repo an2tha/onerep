@@ -13,6 +13,7 @@ dependencies {
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-preferences')
+    implementation project(':capgo-capacitor-speech-recognition')
     implementation project(':revenuecat-purchases-capacitor')
     implementation project(':revenuecat-purchases-capacitor-ui')
 

@@ -263,3 +263,52 @@ export const addEntry = mutation({
     return { ok: true };
   },
 });
+
+// ── updateEntry / removeEntry ───────────────────────────────────────────────
+
+export const updateEntry = mutation({
+  args: {
+    date: v.string(),
+    entry: foodLogEntryValidator,
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const entry = normalizeFoodLogEntry(args.entry);
+    const existing = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (!existing) throw new Error("Nutrition log not found");
+    const index = existing.entries.findIndex((item) =>
+      entryHasId(item, entry.id),
+    );
+    if (index < 0) throw new Error("Nutrition entry not found");
+    const entries = [...existing.entries];
+    entries[index] = entry;
+    await ctx.db.patch(existing._id, { entries, updatedAt: Date.now() });
+    return { ok: true };
+  },
+});
+
+export const removeEntry = mutation({
+  args: { date: v.string(), entryId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const existing = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).eq("date", args.date),
+      )
+      .unique();
+    if (!existing) return { ok: true };
+    await ctx.db.patch(existing._id, {
+      entries: existing.entries.filter(
+        (item) => !entryHasId(item, args.entryId),
+      ),
+      updatedAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});

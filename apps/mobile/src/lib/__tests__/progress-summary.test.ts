@@ -63,12 +63,19 @@ describe("buildProgressSummary", () => {
     expect(summary.nutrition.loggedDays).toBe(2)
     expect(summary.nutrition.calorieTargetDays).toBe(2)
     expect(summary.nutrition.proteinTargetDays).toBe(2)
-    expect(summary.training).toEqual({
+    expect(summary.training).toMatchObject({
       workouts: 2,
       activeDays: 1,
       completedSets: 3,
       durationMinutes: 50,
+      averageSetsPerWorkout: 1.5,
+      previousWorkouts: 0,
+      previousCompletedSets: 0,
+      workoutChange: 2,
+      completedSetChange: 3,
     })
+    expect(summary.nutrition.previousLoggedDays).toBe(0)
+    expect(summary.nutrition.calorieDeltaFromTarget).toBe(25)
   })
 
   test("keeps the latest twelve valid weight measurements in date order", () => {
@@ -89,6 +96,10 @@ describe("buildProgressSummary", () => {
     expect(summary.body.latestWeightKg).toBe(79.1)
     expect(summary.body.latestBodyFatPct).toBe(19.4)
     expect(summary.body.weightDeltaKg).toBeCloseTo(-0.9)
+    expect(summary.body.weeklyWeightDeltaKg).toBeCloseTo(-0.21, 1)
+    expect(summary.body.weightTrendDays).toBe(21)
+    expect(summary.body.latestCheckInDate).toBe("2026-06-22")
+    expect(summary.body.bodyFatDeltaPct).toBeCloseTo(-0.6)
     expect(summary.body.weightPoints).toEqual([
       { date: "2026-06-01", weightKg: 80 },
       { date: "2026-06-15", weightKg: 79.4 },

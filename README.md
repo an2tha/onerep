@@ -119,6 +119,15 @@ Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. Set these with `bu
 
 Food search and barcode lookups use Open Food Facts Product Opener-compatible endpoints (`/cgi/search.pl` and `/api/v2/product/:code.json`) through a Convex proxy. `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
 
+Required for AI features in Convex env:
+
+```env
+AI_GATEWAY_API_KEY=
+AI_GATEWAY_MODEL=openai/gpt-5.4-mini
+```
+
+Create the key in Vercel AI Gateway, then set it with `bunx convex env set AI_GATEWAY_API_KEY <key>`. AI prompts live in `convex/ai/prompts/*.yaml`; run `bun run prompts:generate` after editing them. Typecheck, build, and tests verify that the generated Convex prompt bundle is current.
+
 ### Importing the exercise catalog
 
 The exercise catalog uses [free-exercise-db](https://github.com/yuhonas/free-exercise-db). The import stores compact metadata only: no image paths or image binaries, keeping Convex storage small.

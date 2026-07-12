@@ -112,95 +112,7 @@ function foodLooksLiquid(
   )
 }
 
-// ─── Donut ────────────────────────────────────────────────────────────────────
-
-const R = 48
-const SW = 9
-const CX = 60
-const CIRC = 2 * Math.PI * R
-const GAP = 3.5
-
-function DonutRing({
-  protein,
-  carbs,
-  fat,
-  calories,
-}: {
-  protein: number
-  carbs: number
-  fat: number
-  calories: number
-}) {
-  const [drawn, setDrawn] = useState(false)
-  const fracs = (() => {
-    const cP = protein * 4,
-      cC = carbs * 4,
-      cF = fat * 9
-    const total = cP + cC + cF || 1
-    return [cP / total, cC / total, cF / total]
-  })()
-  const COLORS = MACRO_CFG.map((m) => m.color)
-
-  let cursor = -CIRC / 4
-  const arcs = fracs.map((f, i) => {
-    const len = Math.max(f * CIRC - GAP, 0)
-    const offset = -cursor
-    cursor += f * CIRC
-    return { color: COLORS[i], len, offset }
-  })
-
-  useEffect(() => {
-    requestAnimationFrame(() => setDrawn(true))
-  }, [])
-
-  return (
-    <div
-      className="relative shrink-0"
-      style={{ width: CX * 2, height: CX * 2 }}
-    >
-      <svg width={CX * 2} height={CX * 2} viewBox={`0 0 ${CX * 2} ${CX * 2}`}>
-        <circle
-          cx={CX}
-          cy={CX}
-          r={R}
-          fill="none"
-          strokeWidth={SW}
-          stroke="currentColor"
-          className="text-foreground/[0.06]"
-        />
-        {arcs.map((a, i) => (
-          <circle
-            key={i}
-            cx={CX}
-            cy={CX}
-            r={R}
-            fill="none"
-            strokeWidth={SW}
-            strokeLinecap="butt"
-            stroke={a.color}
-            strokeDasharray={`${drawn ? a.len : 0} ${CIRC}`}
-            strokeDashoffset={a.offset}
-            style={{
-              transition: drawn
-                ? `stroke-dasharray var(--motion-slow) var(--motion-ease-out) ${i * 55}ms`
-                : "none",
-            }}
-          />
-        ))}
-      </svg>
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[24px] leading-none font-bold tabular-nums">
-          {formatNumber(calories, 0)}
-        </span>
-        <span className="mt-1 text-[9px] font-semibold tracking-[0.15em] text-muted-foreground/40 uppercase">
-          kcal
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// ─── Macro cards ─────────────────────────────────────────────────────────────
+// ─── Macro summary ───────────────────────────────────────────────────────────
 
 function MacroStack({
   protein,
@@ -216,49 +128,28 @@ function MacroStack({
   const macroKcalTotal = cals.reduce((a, b) => a + b, 0)
   const total = macroKcalTotal || 1
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/50 uppercase">
-            Macros
-          </p>
-          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
-            {Math.round(macroKcalTotal)} kcal from macros
-          </p>
-        </div>
-      </div>
+    <div className="border-y border-border">
       {MACRO_CFG.map((m, i) => {
         const pct = Math.round((cals[i] / total) * 100)
         return (
           <div
             key={m.key}
-            className="rounded-[14px] border border-border/45 bg-background/45 px-3 py-2.5"
+            className="grid min-h-14 grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-border py-3 last:border-b-0"
           >
-            <div className="mb-2 flex items-baseline justify-between gap-3">
-              <span className="text-[12px] font-semibold text-foreground/75">
-                {m.label}
-              </span>
-              <span className="shrink-0 text-[12px] font-bold tabular-nums">
-                {formatNutrientValue(vals[i])}
-                <span className="ml-0.5 text-[10px] font-medium text-muted-foreground/45">
-                  g
-                </span>
-              </span>
-            </div>
-            <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/[0.07]">
-              <div
-                className="motion-progress-fill h-full rounded-full"
-                style={{
-                  width: `${pct}%`,
-                  backgroundColor: m.color,
-                  opacity: 0.9,
-                }}
+            <span className="flex items-center gap-2 text-[15px] font-medium">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: m.color }}
+                aria-hidden="true"
               />
-            </div>
-            <div className="mt-1.5 flex items-center justify-between text-[10px] font-medium text-muted-foreground/45">
-              <span>{Math.round(cals[i])} kcal</span>
-              <span>{pct}%</span>
-            </div>
+              {m.label}
+            </span>
+            <span className="text-[13px] text-muted-foreground tabular-nums">
+              {Math.round(cals[i])} kcal · {pct}%
+            </span>
+            <strong className="text-[15px] tabular-nums">
+              {formatNutrientValue(vals[i])} g
+            </strong>
           </div>
         )
       })}
@@ -341,17 +232,15 @@ function PortionPicker({
     : FOOD_PORTION_UNITS.filter((option) => !VOLUME_UNITS.has(option.id))
 
   return (
-    <section className="mx-4 mt-4 rounded-[20px] border border-border/55 bg-card p-3">
+    <section className="mx-4 mt-4 border-y border-border py-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/50 uppercase">
-            Serving
-          </p>
-          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
+          <h3 className="text-[16px] font-semibold">Serving</h3>
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {formatNumber(grams, 1)} g equivalent
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-background/70 px-2.5 py-1 text-[10px] font-semibold text-muted-foreground/60">
+        <span className="shrink-0 text-[13px] font-medium text-muted-foreground">
           {secondaryHint}
         </span>
       </div>
@@ -365,7 +254,7 @@ function PortionPicker({
               type="button"
               onClick={() => onChange(p.grams, p.unit)}
               aria-pressed={active}
-              className="flex min-h-11 max-w-32 shrink-0 flex-col items-start justify-center rounded-[14px] border px-3 py-2 text-left transition-all active:scale-[0.985]"
+              className="flex min-h-11 max-w-36 shrink-0 flex-col items-start justify-center rounded-[10px] border px-3 py-2 text-left transition-colors active:bg-muted"
               style={
                 active
                   ? {
@@ -387,7 +276,7 @@ function PortionPicker({
               </span>
               {p.sub && (
                 <span
-                  className="mt-1 max-w-full truncate text-[9.5px] leading-none"
+                  className="mt-1 max-w-full truncate text-[13px] leading-none"
                   style={{ opacity: active ? 0.65 : 0.42 }}
                 >
                   {p.sub}
@@ -407,7 +296,7 @@ function PortionPicker({
               type="button"
               onClick={() => onChange(grams, option.id)}
               aria-pressed={active}
-              className="h-8 min-w-[3.75rem] shrink-0 rounded-[10px] px-2 text-[11px] font-bold transition-all active:scale-[0.985]"
+              className="h-11 min-w-[4rem] shrink-0 rounded-[10px] px-3 text-[13px] font-semibold transition-colors active:bg-muted"
               style={
                 active
                   ? {
@@ -435,12 +324,12 @@ function PortionPicker({
             stepAmount(-1)
           }}
           aria-label="Decrease portion"
-          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-[0.985] active:bg-muted"
+          className="flex h-12 items-center justify-center rounded-[10px] border border-border bg-background text-foreground transition-colors active:bg-muted"
         >
           <Minus size={14} weight="bold" />
         </button>
 
-        <div className="flex min-w-0 flex-col items-center justify-center rounded-[15px] bg-background px-3 py-1.5">
+        <div className="flex min-w-0 flex-col items-center justify-center border-x border-border bg-background px-3 py-1.5">
           <input
             type="text"
             name="food-portion-amount"
@@ -458,7 +347,7 @@ function PortionPicker({
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             className="h-6 w-full min-w-0 bg-transparent text-center text-[18px] leading-none font-bold tabular-nums outline-none"
           />
-          <span className="mt-0.5 text-[9.5px] font-medium text-muted-foreground/40">
+          <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">
             {formatNumber(grams, 1)} g
           </span>
         </div>
@@ -470,7 +359,7 @@ function PortionPicker({
             stepAmount(1)
           }}
           aria-label="Increase portion"
-          className="flex h-12 items-center justify-center rounded-[15px] bg-background text-foreground/60 transition-all active:scale-[0.985] active:bg-muted"
+          className="flex h-12 items-center justify-center rounded-[10px] border border-border bg-background text-foreground transition-colors active:bg-muted"
         >
           <Plus size={14} weight="bold" />
         </button>
@@ -494,68 +383,45 @@ function ScoresBadges({
 }) {
   if (!nutriscoreGrade && !novaGroup) return null
   return (
-    <div className="mx-4 mt-3 grid gap-2 sm:grid-cols-2">
+    <section
+      className="mx-4 mt-4 border-y border-border"
+      aria-label="Product ratings"
+    >
       {nutriscoreGrade && (
-        <div className="flex min-w-0 items-center justify-between gap-3 rounded-[16px] border border-border/50 bg-card px-3 py-2.5">
+        <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
-              Nutri-Score
-            </p>
-            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
-              Packaged food rating
+            <p className="text-[15px] font-semibold">Nutri-Score</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Overall packaged-food rating from A to E
             </p>
           </div>
-          <div className="flex gap-0.5">
-            {["a", "b", "c", "d", "e"].map((l) => {
-              const active = l === nutriscoreGrade.toLowerCase()
-              return (
-                <div
-                  key={l}
-                  className="flex h-6 w-6 items-center justify-center rounded-[7px] text-[9px] font-black text-white transition-transform"
-                  style={{
-                    backgroundColor: NS_COLORS[l],
-                    opacity: active ? 1 : 0.22,
-                    transform: active ? "scale(1.08)" : "scale(1)",
-                  }}
-                >
-                  {l.toUpperCase()}
-                </div>
-              )
-            })}
-          </div>
+          <strong
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[16px] text-white"
+            style={{
+              backgroundColor: NS_COLORS[nutriscoreGrade.toLowerCase()],
+            }}
+          >
+            {nutriscoreGrade.toUpperCase()}
+          </strong>
         </div>
       )}
       {novaGroup && (
-        <div className="flex min-w-0 items-center justify-between gap-3 rounded-[16px] border border-border/50 bg-card px-3 py-2.5">
+        <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
-              Nova group
-            </p>
-            <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
+            <p className="text-[15px] font-semibold">NOVA processing group</p>
+            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
               {NOVA_LABELS[novaGroup - 1] ?? `Group ${novaGroup}`}
             </p>
           </div>
-          <div className="flex gap-0.5">
-            {[1, 2, 3, 4].map((n) => {
-              const active = n === novaGroup
-              return (
-                <div
-                  key={n}
-                  className="flex h-6 w-6 items-center justify-center rounded-[7px] text-[9px] font-black text-white transition-transform"
-                  style={{
-                    backgroundColor: NOVA_COLORS[n - 1],
-                    opacity: active ? 1 : 0.22,
-                    transform: active ? "scale(1.08)" : "scale(1)",
-                  }}
-                >
-                  {n}
-                </div>
-              )
-            })}
-          </div>
+          <strong
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[16px] text-white"
+            style={{ backgroundColor: NOVA_COLORS[novaGroup - 1] }}
+          >
+            {novaGroup}
+          </strong>
         </div>
       )}
-    </div>
+    </section>
   )
 }
 
@@ -588,48 +454,13 @@ function NutrRow({
         className={`shrink-0 text-[13px] leading-none tabular-nums ${indent ? "text-muted-foreground/60" : bold ? "font-semibold" : ""}`}
       >
         {formatNutrientValue(value)}
-        <span className="ml-[2px] text-[10px] text-muted-foreground/35">
-          {unit}
-        </span>
+        <span className="ml-1 text-[13px] text-muted-foreground">{unit}</span>
       </span>
     </div>
   )
 }
 
 // ─── Header + highlights ─────────────────────────────────────────────────────
-
-function HeaderMetric({
-  label,
-  value,
-  unit,
-  detail,
-}: {
-  label: string
-  value: string
-  unit?: string
-  detail?: string
-}) {
-  return (
-    <div className="min-w-0 rounded-[16px] border border-border/45 bg-background/55 px-3 py-2.5">
-      <p className="truncate text-[9.5px] font-bold tracking-[0.12em] text-muted-foreground/45 uppercase">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-[15px] leading-none font-bold tabular-nums">
-        {value}
-        {unit && (
-          <span className="ml-1 text-[10px] font-semibold text-muted-foreground/45">
-            {unit}
-          </span>
-        )}
-      </p>
-      {detail && (
-        <p className="mt-1 truncate text-[10px] text-muted-foreground/45">
-          {detail}
-        </p>
-      )}
-    </div>
-  )
-}
 
 function ProductHeader({
   item,
@@ -665,30 +496,35 @@ function ProductHeader({
         </div>
       )}
       {productCode && (
-        <div
-          aria-hidden="true"
-          className="mb-3 h-14 rounded-[10px] opacity-70"
-          style={{
-            background:
-              "repeating-linear-gradient(90deg, var(--foreground) 0 2px, transparent 2px 6px, var(--foreground) 6px 9px, transparent 9px 15px)",
-          }}
-        />
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Product code {productCode}
+        </p>
       )}
 
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <HeaderMetric
-          label="Energy"
-          value={formatNumber(calories, 0)}
-          unit="kcal"
-          detail={foodPortionLabel(portion)}
-        />
-        <HeaderMetric
-          label="Amount"
-          value={foodPortionLabel(portion)}
-          detail={`${formatNumber(grams, 1)} g`}
-        />
-        <HeaderMetric label="Serving" value={servingLabel} detail="listed" />
-      </div>
+      <dl className="mt-4 border-y border-border">
+        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-border py-3">
+          <dt className="text-[15px] text-muted-foreground">Energy</dt>
+          <dd className="text-[17px] font-semibold tabular-nums">
+            {formatNumber(calories, 0)} kcal
+          </dd>
+        </div>
+        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-border py-3">
+          <dt className="text-[15px] text-muted-foreground">Selected amount</dt>
+          <dd className="text-right text-[15px] font-semibold">
+            {foodPortionLabel(portion)} · {formatNumber(grams, 1)} g
+          </dd>
+        </div>
+        {servingLabel && (
+          <div className="flex min-h-14 items-center justify-between gap-4 py-3">
+            <dt className="text-[15px] text-muted-foreground">
+              Package serving
+            </dt>
+            <dd className="max-w-[60%] truncate text-right text-[15px] font-semibold">
+              {servingLabel}
+            </dd>
+          </div>
+        )}
+      </dl>
     </header>
   )
 }
@@ -721,27 +557,25 @@ function NutrientHighlights({
   if (rows.length === 0) return null
 
   return (
-    <section className="mx-4 mt-3 rounded-[20px] border border-border/50 bg-card px-3 py-3">
+    <section className="mx-4 mt-4">
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/50 uppercase">
-          Highlights
-        </p>
-        <p className="truncate text-[10px] text-muted-foreground/40">
+        <h3 className="text-[16px] font-semibold">Nutrient highlights</h3>
+        <p className="truncate text-[13px] text-muted-foreground">
           per selected amount
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="border-y border-border">
         {rows.map((n) => (
           <div
             key={n.key}
-            className="min-w-0 rounded-[14px] bg-muted/30 px-3 py-2"
+            className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0"
           >
-            <p className="truncate text-[10.5px] font-semibold text-muted-foreground/58">
+            <p className="truncate text-[15px] text-muted-foreground">
               {n.name}
             </p>
-            <p className="mt-1 truncate text-[14px] leading-none font-bold tabular-nums">
+            <p className="truncate text-[15px] font-semibold tabular-nums">
               {formatNutrientValue(scale(n.per100g, grams))}
-              <span className="ml-1 text-[10px] font-semibold text-muted-foreground/45">
+              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
                 {n.unit}
               </span>
             </p>
@@ -814,10 +648,8 @@ function MealPicker({
       onClick={() => pendingDelete && setPendingDelete(null)}
     >
       <div className="mb-2 flex items-center justify-between gap-3 px-1">
-        <p className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/50 uppercase">
-          Meal
-        </p>
-        <p className="truncate text-[10px] text-muted-foreground/40">
+        <p className="text-[16px] font-semibold">Meal</p>
+        <p className="truncate text-[13px] text-muted-foreground">
           {categories.find((cat) => cat.id === value)?.label ?? "Selected"}
         </p>
       </div>
@@ -845,7 +677,7 @@ function MealPicker({
                   }
                 }}
                 aria-pressed={isSelected}
-                className="flex h-10 min-w-20 items-center justify-center rounded-[15px] border px-3 text-[12px] font-bold transition-all active:scale-[0.985]"
+                className="flex h-11 min-w-20 items-center justify-center rounded-[10px] border px-3 text-[13px] font-semibold transition-colors active:bg-muted"
                 style={
                   isSelected
                     ? {
@@ -874,7 +706,7 @@ function MealPicker({
                     handleDelete(cat.id)
                   }}
                   aria-label={`Delete ${cat.label} meal category`}
-                  className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive shadow-sm"
+                  className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive shadow-sm"
                 >
                   <X size={8} weight="bold" className="text-white" />
                 </button>
@@ -885,7 +717,7 @@ function MealPicker({
 
         {/* Add new */}
         {adding ? (
-          <div className="flex h-10 shrink-0 items-center gap-1 rounded-[15px] border border-border/50 bg-background pr-1.5 pl-3">
+          <div className="flex h-11 shrink-0 items-center gap-1 rounded-[10px] border border-border bg-background pr-1.5 pl-3">
             <input
               ref={inputRef}
               name="new-meal-category"
@@ -900,7 +732,7 @@ function MealPicker({
                 }
               }}
               placeholder="Name…"
-              className="w-24 bg-transparent text-[12px] font-semibold outline-none placeholder:text-muted-foreground/35"
+              className="w-24 bg-transparent text-[13px] font-semibold outline-none placeholder:text-muted-foreground"
             />
             <button
               type="button"
@@ -916,7 +748,7 @@ function MealPicker({
             type="button"
             onClick={() => setAdding(true)}
             aria-label="Add meal category"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[15px] border border-border/50 bg-background text-muted-foreground/55 transition-opacity active:opacity-70"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] border border-border bg-background text-muted-foreground transition-colors active:bg-muted"
           >
             <Plus size={12} weight="bold" />
           </button>
@@ -1192,7 +1024,7 @@ export function FoodDetailSheet({
               </span>
               <span className="min-w-0">
                 <b className="block text-[13px]">Serving changed</b>
-                <span className="mt-1 block text-[12px] leading-5 text-muted-foreground/72">
+                <span className="mt-1 block text-[13px] leading-5 text-muted-foreground">
                   Package lists {foodPortionLabel(servingPortion)}. You’re
                   saving {foodPortionLabel(portion)}.
                 </span>
@@ -1212,30 +1044,20 @@ export function FoodDetailSheet({
             showVolumeUnits={showVolumeUnits}
           />
 
-          {/* ── Donut + macros ────────────────────────────────────────── */}
-          <section className="app-surface app-surface-muted mx-4 mt-3 p-3">
+          {/* ── Nutrition summary ─────────────────────────────────────── */}
+          <section className="mx-4 mt-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-bold tracking-[0.16em] text-muted-foreground/50 uppercase">
-                  Nutrition
-                </p>
-                <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
+                <h3 className="text-[16px] font-semibold">Macros</h3>
+                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
                   {foodPortionLabel(portion)} · {formatNumber(grams, 1)} g
                 </p>
               </div>
-              <p className="shrink-0 text-[12px] font-bold tabular-nums">
+              <p className="shrink-0 text-[16px] font-semibold tabular-nums">
                 {formatNumber(calories, 0)} kcal
               </p>
             </div>
-            <div className="flex items-start gap-3">
-              <DonutRing
-                protein={protein}
-                carbs={carbs}
-                fat={fat}
-                calories={calories}
-              />
-              <MacroStack protein={protein} carbs={carbs} fat={fat} />
-            </div>
+            <MacroStack protein={protein} carbs={carbs} fat={fat} />
           </section>
 
           <NutrientHighlights detail={detail} grams={grams} />
@@ -1248,12 +1070,10 @@ export function FoodDetailSheet({
 
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (
-            <div className="app-surface mx-4 mt-3 overflow-hidden">
+            <div className="mx-4 mt-5 overflow-hidden border-y border-border">
               <div className="border-b-[3px] border-foreground/80 px-4 py-3.5">
-                <p className="text-[13px] font-black tracking-tight uppercase">
-                  Nutrition Facts
-                </p>
-                <p className="text-[10px] text-muted-foreground/50">
+                <p className="text-[16px] font-semibold">Nutrition Facts</p>
+                <p className="mt-0.5 text-[13px] text-muted-foreground">
                   Per {foodPortionLabel(portion)}
                 </p>
               </div>
@@ -1261,15 +1081,15 @@ export function FoodDetailSheet({
               <div className="px-4">
                 {/* Calories hero row */}
                 <div className="flex items-baseline justify-between border-b border-border/40 py-2.5">
-                  <span className="text-[12px] font-bold tracking-wide text-muted-foreground/60 uppercase">
+                  <span className="text-[13px] font-semibold text-muted-foreground">
                     Calories
                   </span>
                   <span className="text-[22px] leading-none font-black tabular-nums">
                     {formatNumber(calories, 0)}
                   </span>
                 </div>
-                <div className="flex justify-end py-1">
-                  <span className="text-[9.5px] font-semibold text-muted-foreground/35">
+                <div className="flex justify-end py-1.5">
+                  <span className="text-[13px] text-muted-foreground">
                     % Daily Value*
                   </span>
                 </div>
@@ -1298,7 +1118,7 @@ export function FoodDetailSheet({
 
           {/* ── More nutrients ────────────────────────────────────────── */}
           {detail?.extraNutrients && detail.extraNutrients.length > 0 && (
-            <div className="app-surface mx-4 mt-2 overflow-hidden">
+            <div className="mx-4 mt-3 overflow-hidden border-y border-border">
               <button
                 type="button"
                 onClick={() => setShowExtra((v) => !v)}
@@ -1310,16 +1130,16 @@ export function FoodDetailSheet({
                 }
                 className="flex w-full items-center justify-between px-4 py-3 transition-colors active:bg-muted/40"
               >
-                <span className="text-[12px] font-bold text-foreground/75">
+                <span className="text-[15px] font-semibold">
                   Minerals & vitamins
-                  <span className="ml-1.5 text-[10px] font-normal text-muted-foreground/35">
+                  <span className="ml-1.5 text-[13px] font-normal text-muted-foreground">
                     ({detail.extraNutrients.length})
                   </span>
                 </span>
                 <CaretDown
                   size={13}
                   weight="bold"
-                  className="text-muted-foreground/40 transition-transform duration-300"
+                  className="text-muted-foreground transition-transform duration-300"
                   style={{
                     transform: showExtra ? "rotate(180deg)" : "rotate(0)",
                   }}
@@ -1358,7 +1178,7 @@ export function FoodDetailSheet({
 
           {/* ── Meal picker ───────────────────────────────────────────── */}
           {showMealPicker && (
-            <div className="app-surface app-surface-muted mx-4 mt-3 pb-3">
+            <div className="mx-4 mt-4 border-y border-border pb-3">
               <MealPicker value={meal} onChange={setMeal} />
             </div>
           )}

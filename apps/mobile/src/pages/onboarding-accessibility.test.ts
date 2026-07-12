@@ -1,47 +1,34 @@
-import { describe, expect, test } from "bun:test"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const ONBOARDING_SOURCE = readFileSync(
-  new URL("./Onboarding.tsx", import.meta.url),
-  "utf8"
-)
-const ONBOARDING_MOBILE_SOURCE = readFileSync(
+const source = readFileSync(
   new URL("./OnboardingMobile.tsx", import.meta.url),
   "utf8"
 )
 
-describe("Onboarding page production contract", () => {
-  test("final setup save is single-flight and announced", () => {
-    expect(ONBOARDING_SOURCE).toContain("const savingRef = useRef(false)")
-    expect(ONBOARDING_SOURCE).toContain(
-      "if (!draft.goal || !profile.sex || savingRef.current || saving) return"
-    )
-    expect(ONBOARDING_SOURCE).toContain("savingRef.current = true")
-    expect(ONBOARDING_SOURCE).toContain("await Promise.all([")
-    expect(ONBOARDING_SOURCE).toContain("savingRef.current = false")
-    expect(ONBOARDING_SOURCE).toContain("disabled={saving || !stepReady}")
-    expect(ONBOARDING_SOURCE).toContain("aria-busy={saving}")
-    expect(ONBOARDING_SOURCE).toContain(
-      '{saving\n                ? "Saving..."'
-    )
+describe("Onboarding production contract", () => {
+  test("uses five task-oriented steps instead of illustrated micro-steps", () => {
+    for (const id of ["goals", "baseline", "activity", "safety", "review"]) {
+      assert.match(source, new RegExp(`id: "${id}"`))
+    }
+    assert.doesNotMatch(source, /Choose what OneRep can use/)
+    assert.doesNotMatch(source, /Setup mode/)
   })
 
-  test("mobile onboarding stays concise and guides beginners into Coach", () => {
-    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Choose what OneRep can use")
-    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("What should be ready?")
-    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Start with one action")
-    expect(ONBOARDING_MOBILE_SOURCE).not.toContain(
-      "function firstNutritionActionPath"
-    )
-    expect(ONBOARDING_MOBILE_SOURCE).not.toContain("Setup mode")
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "goal"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "experience"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain('id: "review"')
-    expect(ONBOARDING_MOBILE_SOURCE).toContain(
-      'experienceLevel === "beginner" ? "/coach?setup=beginner" : "/"'
-    )
-    expect(ONBOARDING_MOBILE_SOURCE).toContain("icon: GenderFemale")
-    expect(ONBOARDING_MOBILE_SOURCE).toContain("icon: GenderMale")
-    expect(ONBOARDING_MOBILE_SOURCE).toContain("<ArrowRight")
+  test("final setup save is single-flight and announced", () => {
+    assert.match(source, /const savingRef = useRef\(false\)/)
+    assert.match(source, /savingRef\.current = true/)
+    assert.match(source, /savingRef\.current = false/)
+    assert.match(source, /disabled=\{saving\}/)
+    assert.match(source, /aria-busy=\{saving\}/)
+  })
+
+  test("baseline fields and choices expose readable labels and state", () => {
+    assert.match(source, /aria-pressed=\{selected\}/)
+    assert.match(source, /aria-valuemin/)
+    assert.match(source, /aria-valuemax/)
+    assert.match(source, /role="progressbar"/)
+    assert.match(source, /Review your starting targets/)
   })
 })

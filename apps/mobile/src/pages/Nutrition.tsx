@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type CSSProperties,
-  type ReactNode,
-} from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router"
 import {
   Aperture,
@@ -22,6 +16,9 @@ import {
   Sparkle,
   Trash,
   X,
+  ShieldCheck,
+  SlidersHorizontal,
+  Target,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -29,6 +26,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
+import { StatRow, SummaryBlock } from "@/components/mobile-ui"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { DateSelectorButton } from "@/components/date-selector-button"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -332,10 +330,10 @@ function ProgressLine({
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-bold text-muted-foreground/68">
+        <span className="text-[13px] font-semibold text-muted-foreground">
           {label}
         </span>
-        <span className="text-[11px] font-semibold text-foreground/72 tabular-nums">
+        <span className="text-[13px] font-semibold text-foreground tabular-nums">
           {fmt(value)} / {fmt(target)} {suffix}
         </span>
       </div>
@@ -382,8 +380,10 @@ function MicroBreakdown({
         aria-expanded={open}
       >
         <span className="min-w-0">
-          <span className="block text-[12px] font-bold">Micros</span>
-          <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/55">
+          <span className="block text-[15px] font-semibold">
+            Micronutrients
+          </span>
+          <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
             {loggedCount > 0
               ? `${loggedCount} nutrients with logged detail`
               : "No micronutrients logged yet"}
@@ -391,7 +391,7 @@ function MicroBreakdown({
         </span>
         <span className="flex items-center gap-2">
           {highlights.length > 0 && (
-            <span className="hidden max-w-[11rem] truncate text-[10.5px] font-semibold text-muted-foreground/55 tabular-nums min-[390px]:block">
+            <span className="hidden max-w-[11rem] truncate text-[13px] font-medium text-muted-foreground tabular-nums min-[390px]:block">
               {highlights
                 .map((row) => `${row.label} ${fmtMicro(row.value, row.unit)}`)
                 .join(" · ")}
@@ -401,7 +401,7 @@ function MicroBreakdown({
             size={13}
             weight="bold"
             className={cn(
-              "text-muted-foreground/45 transition-transform",
+              "text-muted-foreground transition-transform",
               open && "rotate-180"
             )}
           />
@@ -418,11 +418,11 @@ function MicroBreakdown({
       >
         <div className="overflow-hidden">
           {loggedCount === 0 ? (
-            <p className="rounded-[0.9rem] bg-muted/25 px-3 py-3 text-[12px] leading-5 text-muted-foreground/58">
+            <p className="border-t border-border py-3 text-[14px] leading-5 text-muted-foreground">
               Micros appear when logged foods include nutrition details.
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="divide-y divide-border border-t border-border">
               {rows.map((row) => {
                 const hasValue = row.value > 0
                 const progress = row.target ? pct(row.value, row.target) : null
@@ -430,21 +430,21 @@ function MicroBreakdown({
                   <div
                     key={row.key}
                     className={cn(
-                      "rounded-[0.85rem] border border-border/45 px-3 py-2.5",
-                      hasValue ? "bg-muted/20" : "bg-muted/10 opacity-55"
+                      "min-h-12 px-1 py-2.5",
+                      !hasValue && "opacity-60"
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
                         <span
-                          className="h-1.5 w-1.5 shrink-0 rounded-full"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: row.color }}
                         />
-                        <span className="truncate text-[11.5px] font-semibold">
+                        <span className="truncate text-[14px] font-medium">
                           {row.label}
                         </span>
                       </span>
-                      <span className="shrink-0 text-[11px] font-bold text-foreground/72 tabular-nums">
+                      <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                         {fmtMicro(row.value, row.unit)}
                       </span>
                     </div>
@@ -459,7 +459,7 @@ function MicroBreakdown({
                             }}
                           />
                         </div>
-                        <p className="mt-1 text-[9.5px] text-muted-foreground/45 tabular-nums">
+                        <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
                           target {fmtMicro(row.target, row.unit)}
                         </p>
                       </>
@@ -501,7 +501,7 @@ function CustomWaterSheet({
     >
       <div className="px-5 pt-1 pb-4">
         <p className="text-[17px] font-bold">Custom water</p>
-        <p className="mt-1 text-[12px] text-muted-foreground/58">
+        <p className="mt-1 text-[13px] text-muted-foreground">
           Save any amount to today’s hydration log.
         </p>
         <div className="mt-4 flex items-center justify-between rounded-[1rem] bg-muted/35 p-1">
@@ -526,7 +526,7 @@ function CustomWaterSheet({
               onChange={(event) => setClamped(Number(event.target.value) || 0)}
               className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none"
             />
-            <span className="mt-1 block text-[11px] font-semibold text-muted-foreground/55">
+            <span className="mt-1 block text-[13px] font-medium text-muted-foreground">
               milliliters
             </span>
           </label>
@@ -592,7 +592,7 @@ function WaterGoalSheet({
             type="button"
             onClick={onClose}
             aria-label="Close daily goal"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground/50 active:opacity-60"
+            className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
           </button>
@@ -601,7 +601,7 @@ function WaterGoalSheet({
         <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
             <span className="text-[13px] font-medium">Water</span>
-            <span className="text-[10px] text-muted-foreground/40">ml</span>
+            <span className="text-[13px] text-muted-foreground">ml</span>
           </div>
           <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
             <button
@@ -760,12 +760,12 @@ function GoalsCardWrapper({
         aria-expanded={editing}
       >
         <span>
-          <span className="block text-[12px] font-bold">Daily goals</span>
-          <span className="mt-0.5 block text-[11px] text-muted-foreground/55">
+          <span className="block text-[15px] font-semibold">Daily goals</span>
+          <span className="mt-0.5 block text-[13px] text-muted-foreground">
             Edit persistent calorie and macro targets.
           </span>
         </span>
-        <PencilSimple size={13} className="text-muted-foreground/45" />
+        <PencilSimple size={16} className="text-muted-foreground" />
       </button>
 
       <div
@@ -785,7 +785,7 @@ function GoalsCardWrapper({
               >
                 <div className="flex items-baseline gap-1">
                   <span className="text-[13px] font-medium">{label}</span>
-                  <span className="text-[10px] text-muted-foreground/40">
+                  <span className="text-[13px] text-muted-foreground">
                     {unit}
                   </span>
                 </div>
@@ -897,30 +897,31 @@ function SmartMealPresetCard({
     suggestion.kind === "save" ? suggestion.name : suggestion.preset.name
 
   return (
-    <section
-      className="app-surface p-4"
-      style={{ "--rail-color": "var(--accent-food)" } as CSSProperties}
-    >
+    <section className="border-y border-border px-1 py-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-muted/55">
-          {isSave ? (
-            <BookBookmark size={15} className="text-muted-foreground/55" />
-          ) : (
-            <ForkKnife size={15} className="text-muted-foreground/55" />
-          )}
-        </div>
+        {isSave ? (
+          <BookBookmark
+            size={18}
+            className="mt-0.5 shrink-0 text-muted-foreground"
+          />
+        ) : (
+          <ForkKnife
+            size={18}
+            className="mt-0.5 shrink-0 text-muted-foreground"
+          />
+        )}
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] leading-snug font-semibold">
             {isSave ? `Save usual ${meal}` : `Log usual ${meal}`}
           </p>
-          <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {summary || fallbackName}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            <span className="text-[10.5px] font-semibold text-muted-foreground/55 tabular-nums">
+            <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
               {Math.round(totals.calories)} kcal
             </span>
-            <span className="text-[10.5px] text-muted-foreground/40 tabular-nums">
+            <span className="text-[13px] text-muted-foreground tabular-nums">
               P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
               {Math.round(totals.fat)}g
             </span>
@@ -931,29 +932,31 @@ function SmartMealPresetCard({
           onClick={onDismiss}
           disabled={busy}
           aria-label="Dismiss smart meal suggestion"
-          className="app-icon-button h-9 w-9 bg-transparent text-muted-foreground/45 disabled:opacity-35"
+          className="app-icon-button h-11 w-11 bg-transparent text-muted-foreground disabled:opacity-35"
         >
           <X size={10} weight="bold" />
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={() => {
-          void (isSave ? onSave() : onLog())
-        }}
-        disabled={busy}
-        aria-busy={busy}
-        className="mt-3 flex min-h-10 w-full items-center justify-center rounded-xl bg-foreground px-3 text-[12.5px] font-semibold text-background transition-opacity active:opacity-75 disabled:opacity-55"
-      >
-        {busy
-          ? isSave
-            ? "Saving..."
-            : "Logging..."
-          : isSave
-            ? "Save as preset"
-            : `Log usual ${meal}`}
-      </button>
+      <div className="mt-2 pl-7">
+        <button
+          type="button"
+          onClick={() => {
+            void (isSave ? onSave() : onLog())
+          }}
+          disabled={busy}
+          aria-busy={busy}
+          className="min-h-10 text-[13px] font-semibold text-[var(--accent-food)] disabled:opacity-55"
+        >
+          {busy
+            ? isSave
+              ? "Saving..."
+              : "Logging..."
+            : isSave
+              ? "Save as preset"
+              : `Log usual ${meal}`}
+        </button>
+      </div>
     </section>
   )
 }
@@ -1106,7 +1109,7 @@ function DescribeMealSheet({
           <p className="text-[15px] leading-snug font-semibold">
             Describe meal
           </p>
-          <p className="mt-1 text-[12px] leading-5 text-muted-foreground/58">
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
             AI creates a temporary recipe you can review before logging.
           </p>
         </div>
@@ -1127,7 +1130,7 @@ function DescribeMealSheet({
         disabled={busy}
         aria-label="Describe meal"
         placeholder="chicken burrito bowl with rice, beans, salsa, cheese, and guacamole"
-        className="min-h-36 w-full resize-none rounded-2xl border border-border/50 bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/35 focus:border-foreground/20 disabled:opacity-60"
+        className="min-h-36 w-full resize-none rounded-[10px] border border-border bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground disabled:opacity-60"
       />
 
       <button
@@ -1174,10 +1177,10 @@ function RecipeLogSheet({
       }}
     >
       <p className="text-[15px] leading-snug font-semibold">Log to...</p>
-      <p className="mb-0.5 truncate text-[11.5px] text-muted-foreground/45">
+      <p className="mb-0.5 truncate text-[13px] text-muted-foreground">
         {recipe.name}
       </p>
-      <p className="mb-3 text-[11px] text-muted-foreground/30 tabular-nums">
+      <p className="mb-3 text-[13px] text-muted-foreground tabular-nums">
         {totals.calories} kcal · P{totals.protein} C{totals.carbs} F{totals.fat}
         g
       </p>
@@ -1222,8 +1225,8 @@ function RecipeLogSheet({
               </span>
               {cat.id === suggested && (
                 <span
-                  className="text-[10px] font-medium"
-                  style={{ color: cat.color, opacity: 0.6 }}
+                  className="text-[13px] font-medium"
+                  style={{ color: cat.color }}
                 >
                   suggested
                 </span>
@@ -1242,19 +1245,23 @@ function RecipeManagementBox({
   onCreate,
   onEdit,
   onDelete,
+  embedded = false,
 }: {
   recipes: Recipe[]
   deletingRecipeId: string | null
   onCreate: () => void
   onEdit: (recipe: Recipe) => void
   onDelete: (recipe: Recipe) => void
+  embedded?: boolean
 }) {
   return (
-    <section className="app-surface mt-3 p-4">
+    <section
+      className={cn(embedded ? "py-3" : "mt-4 border-y border-border py-4")}
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="app-section-title">Recipes</p>
-          <p className="mt-0.5 text-[11px] font-semibold text-muted-foreground/50">
+          <p className="native-row-detail mt-0.5">
             {recipes.length === 0
               ? "No saved recipes"
               : `${recipes.length} saved`}
@@ -1263,9 +1270,9 @@ function RecipeManagementBox({
         <button
           type="button"
           onClick={onCreate}
-          className="app-button app-button-quiet"
+          className="native-toolbar-button border border-border bg-card"
         >
-          <Plus size={10} weight="bold" />
+          <Plus size={16} weight="bold" />
           New
         </button>
       </div>
@@ -1274,18 +1281,12 @@ function RecipeManagementBox({
         <button
           type="button"
           onClick={onCreate}
-          className="app-empty w-full transition-colors active:bg-muted/20"
+          className="flex min-h-16 w-full items-center gap-3 border-y border-border px-1 text-left transition-colors active:bg-muted/20"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-muted/60">
-            <BookBookmark size={15} className="text-muted-foreground/40" />
-          </div>
+          <BookBookmark size={20} className="text-muted-foreground" />
           <div className="text-left">
-            <p className="text-[13px] font-medium text-foreground/60">
-              Create recipe
-            </p>
-            <p className="text-[11px] text-muted-foreground/35">
-              Save repeat meals.
-            </p>
+            <p className="native-row-title">Create recipe</p>
+            <p className="native-row-detail">Save a meal you log regularly.</p>
           </div>
         </button>
       ) : (
@@ -1299,10 +1300,8 @@ function RecipeManagementBox({
                 className="flex items-center gap-2 py-2.5 first:pt-0 last:pb-0"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">
-                    {recipe.name}
-                  </p>
-                  <p className="mt-0.5 text-[10.5px] text-muted-foreground/45 tabular-nums">
+                  <p className="native-row-title truncate">{recipe.name}</p>
+                  <p className="native-row-detail mt-0.5 tabular-nums">
                     {totals.calories} kcal · {recipe.ingredients.length}{" "}
                     ingredient{recipe.ingredients.length === 1 ? "" : "s"}
                   </p>
@@ -1310,20 +1309,20 @@ function RecipeManagementBox({
                 <button
                   type="button"
                   onClick={() => onEdit(recipe)}
-                  className="app-header-icon-action h-9 min-h-9 w-9 min-w-9 text-muted-foreground/70"
+                  className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                   aria-label={`Edit ${recipe.name}`}
                 >
-                  <PencilSimple size={13} weight="bold" />
+                  <PencilSimple size={17} weight="bold" />
                 </button>
                 <button
                   type="button"
                   onClick={() => onDelete(recipe)}
                   disabled={deleting || !recipe._id}
                   aria-busy={deleting}
-                  className="app-header-icon-action h-9 min-h-9 w-9 min-w-9 text-destructive/70 disabled:opacity-45"
+                  className="native-toolbar-button h-11 w-11 px-0 text-destructive disabled:opacity-45"
                   aria-label={`Delete ${recipe.name}`}
                 >
-                  <Trash size={13} weight="bold" />
+                  <Trash size={17} weight="bold" />
                 </button>
               </div>
             )
@@ -1338,35 +1337,24 @@ function GoalTile({
   label,
   value,
   detail,
-  icon,
   complete,
 }: {
   label: string
   value: string
   detail: string
-  icon: ReactNode
   complete: boolean
 }) {
   return (
-    <div className="flex w-full items-center gap-3 rounded-[1rem] border border-border/50 bg-muted/20 px-4 py-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-background text-muted-foreground/72">
-        {icon}
-      </span>
-
+    <div className="flex min-h-14 w-full items-center gap-3 px-1 py-3">
       <div className="min-w-0 flex-1">
-        <p className="text-[14px] leading-none font-extrabold text-muted-foreground/70">
-          {label}
-        </p>
-
-        <p className="mt-1 truncate text-[13px] text-muted-foreground/50">
-          {detail}
+        <p className="text-[15px] font-semibold">{label}</p>
+        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+          {detail} of target
         </p>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
-        <p className="text-[18px] leading-none font-extrabold tabular-nums">
-          {value}
-        </p>
+        <p className="text-[17px] font-semibold tabular-nums">{value}</p>
 
         {complete && (
           <CheckCircle
@@ -1405,7 +1393,7 @@ function SupplementRow({
       />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-bold">{plan.item.name}</p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/55">
+        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
           {taken ? "Taken" : skipped ? "Skipped" : "Due"} ·{" "}
           {plan.item.servingLabel ?? "1 serving"}
         </p>
@@ -1641,9 +1629,6 @@ export default function Nutrition() {
   const visibleSupplements =
     dueSupplements.length > 0 ? dueSupplements : supplementPlan.slice(0, 3)
 
-  const currentMealLabel =
-    DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
-    "Food"
   const caloriesLeft = calorieTarget - intakeTotals.calories
   const workoutCalories = Math.max(0, effectiveGoals?.burnedCalories ?? 0)
   const isTrainingDay = effectiveGoals?.isTrainingDay === true
@@ -1966,7 +1951,7 @@ export default function Nutrition() {
             <button
               type="button"
               onClick={openSupplements}
-              className="mt-2 inline-flex min-h-7 items-center gap-1.5 rounded-full bg-muted/45 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground/72 transition-colors active:bg-muted/70 active:text-foreground"
+              className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
             >
               Supplements
               <CaretRight size={12} weight="bold" className="shrink-0" />
@@ -1993,19 +1978,21 @@ export default function Nutrition() {
                   <button
                     type="button"
                     onClick={() => setAddOpen(true)}
-                    className="app-header-icon-action"
+                    className="native-toolbar-button border border-border bg-card"
                     aria-label="Add nutrition entry"
                   >
                     <Plus weight="bold" />
+                    <span>Add</span>
                   </button>
                 </AppTooltip>
                 <button
                   type="button"
                   onClick={() => setAddOpen(true)}
-                  className="app-header-icon-action hidden md:inline-flex"
+                  className="native-toolbar-button hidden border border-border bg-card md:inline-flex"
                   aria-label="Add nutrition entry"
                 >
                   <Plus weight="bold" />
+                  <span className="ml-1">Add</span>
                 </button>
               </>
             )}
@@ -2013,16 +2000,17 @@ export default function Nutrition() {
         </header>
 
         {!isToday && (
-          <section className="app-surface p-4">
+          <section className="border-y border-border py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="app-eyebrow">{dateLabel}</p>
                 <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
                   {fmt(intakeTotals.calories)} kcal
                 </p>
-                <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
-                  {entries.length} food · {fmtWater(waterTotal)} water ·{" "}
-                  {supplementDone} supps
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  {entries.length} food{" "}
+                  {entries.length === 1 ? "entry" : "entries"} ·{" "}
+                  {fmtWater(waterTotal)} water · {supplementDone} supplements
                 </p>
               </div>
               <button
@@ -2035,26 +2023,23 @@ export default function Nutrition() {
               </button>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 divide-y divide-border border-y border-border">
               <GoalTile
                 label="Protein"
                 value={`${fmt(intakeTotals.protein)}g`}
                 detail={`${pct(intakeTotals.protein, macroTargets.protein)}%`}
-                icon={<ForkKnife size={15} weight="bold" />}
                 complete={intakeTotals.protein >= macroTargets.protein}
               />
               <GoalTile
                 label="Carbs"
                 value={`${fmt(intakeTotals.carbs)}g`}
                 detail={`${pct(intakeTotals.carbs, macroTargets.carbs)}%`}
-                icon={<ForkKnife size={15} weight="bold" />}
                 complete={intakeTotals.carbs >= macroTargets.carbs}
               />
               <GoalTile
                 label="Fat"
                 value={`${fmt(intakeTotals.fat)}g`}
                 detail={`${pct(intakeTotals.fat, macroTargets.fat)}%`}
-                icon={<ForkKnife size={15} weight="bold" />}
                 complete={intakeTotals.fat >= macroTargets.fat}
               />
             </div>
@@ -2066,24 +2051,25 @@ export default function Nutrition() {
                   <button
                     type="button"
                     onClick={openFoodSearch}
-                    className="app-header-icon-action h-8 min-h-8 w-8 min-w-8"
+                    className="native-toolbar-button h-11 px-3"
                     aria-label="Add food"
                   >
-                    <Plus size={13} weight="bold" />
+                    <Plus size={16} weight="bold" />
+                    Add food
                   </button>
                 </div>
                 {entries.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-border border-y border-border">
                     {entries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="flex items-center justify-between gap-2 rounded-xl bg-muted/35 px-3 py-2.5"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13px] font-bold">
+                          <p className="native-row-title truncate">
                             {entry.name}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)} · {fmt(entry.calories)}{" "}
                             kcal
                           </p>
@@ -2092,26 +2078,26 @@ export default function Nutrition() {
                           <button
                             type="button"
                             onClick={() => editRecipeFromLogEntry(entry)}
-                            className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-muted-foreground/70"
+                            className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                             aria-label={`Edit recipe for ${entry.name}`}
                           >
-                            <PencilSimple size={12} weight="bold" />
+                            <PencilSimple size={17} weight="bold" />
                           </button>
                         )}
                         <button
                           type="button"
                           onClick={() => removeFoodEntry(entry.id)}
-                          className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-destructive/70"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${entry.name}`}
                         >
-                          <Trash size={12} weight="bold" />
+                          <Trash size={17} weight="bold" />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] leading-5 text-muted-foreground/58">
-                    No food logged for this day.
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
+                    No food was logged on this day.
                   </p>
                 )}
               </div>
@@ -2123,40 +2109,40 @@ export default function Nutrition() {
                     type="button"
                     onClick={() => void addWater(250)}
                     disabled={loggingWaterAmount !== null}
-                    className="app-button app-button-quiet h-8 px-3 text-[11px]"
+                    className="native-toolbar-button h-11 border border-border bg-card px-3"
                   >
                     {loggingWaterAmount === 250 ? "Adding..." : "+250 ml"}
                   </button>
                 </div>
                 {waterEntries.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-border border-y border-border">
                     {waterEntries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="flex items-center justify-between gap-2 rounded-xl bg-muted/35 px-3 py-2.5"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
                         <div>
-                          <p className="text-[13px] font-bold">
+                          <p className="native-row-title">
                             {fmtWater(entry.amountMl)}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeWaterEntry(entry.id)}
-                          className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-destructive/70"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${fmtWater(entry.amountMl)}`}
                         >
-                          <Trash size={12} weight="bold" />
+                          <Trash size={17} weight="bold" />
                         </button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] leading-5 text-muted-foreground/58">
-                    No water logged for this day.
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
+                    No water was logged on this day.
                   </p>
                 )}
               </div>
@@ -2167,24 +2153,25 @@ export default function Nutrition() {
                   <button
                     type="button"
                     onClick={() => navigate("/supplements")}
-                    className="app-header-icon-action h-8 min-h-8 w-8 min-w-8"
+                    className="native-toolbar-button h-11 px-3"
                     aria-label="Manage supplements"
                   >
-                    <Pill size={13} weight="bold" />
+                    <Pill size={17} weight="bold" />
+                    Manage
                   </button>
                 </div>
                 {overview.logs.length + overview.legacyEntries.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="divide-y divide-border border-y border-border">
                     {overview.logs.map((log) => (
                       <div
                         key={String(log._id)}
-                        className="flex items-center justify-between gap-2 rounded-xl bg-muted/35 px-3 py-2.5"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-[13px] font-bold">
+                          <p className="native-row-title truncate">
                             {log.name}
                           </p>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(log.loggedAt)} · {log.servingLabel}
                           </p>
                         </div>
@@ -2195,30 +2182,27 @@ export default function Nutrition() {
                               log._id as Id<"supplementIntakeLogs">
                             )
                           }
-                          className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-destructive/70"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${log.name}`}
                         >
-                          <Trash size={12} weight="bold" />
+                          <Trash size={17} weight="bold" />
                         </button>
                       </div>
                     ))}
                     {overview.legacyEntries.map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="rounded-xl bg-muted/35 px-3 py-2.5"
-                      >
-                        <p className="truncate text-[13px] font-bold">
+                      <div key={entry.id} className="min-h-14 px-1 py-2.5">
+                        <p className="native-row-title truncate">
                           {entry.name ?? "Supplement"}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                        <p className="native-row-detail mt-0.5">
                           {timeLabel(entry.loggedAt)}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[12px] leading-5 text-muted-foreground/58">
-                    No supplements logged for this day.
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
+                    No supplements were logged on this day.
                   </p>
                 )}
               </div>
@@ -2238,84 +2222,58 @@ export default function Nutrition() {
 
         {!isToday ? null : (
           <>
-            <section className="app-surface p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="mt-2 text-[2.25rem] leading-none font-extrabold tabular-nums">
-                    {visibleMetrics.calories
-                      ? caloriesLeft >= 0
-                        ? fmt(caloriesLeft)
-                        : `+${fmt(Math.abs(caloriesLeft))}`
-                      : loggedToday}
-                  </p>
-                  <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
-                    {visibleMetrics.calories
-                      ? `kcal ${caloriesLeft >= 0 ? "left" : "over"} · ${loggedToday} logs`
-                      : `logs today · ${nutritionPlan?.trackingMode ?? "habit"} mode`}
-                  </p>
-                </div>
+            <SummaryBlock
+              title={
+                visibleMetrics.calories ? "Energy remaining" : "Meals logged"
+              }
+              value={
+                visibleMetrics.calories
+                  ? `${caloriesLeft >= 0 ? "" : "+"}${fmt(Math.abs(caloriesLeft))} kcal`
+                  : loggedToday
+              }
+              detail={
+                visibleMetrics.calories
+                  ? `${fmt(intakeTotals.calories)} of ${fmt(calorieTarget)} kcal · ${loggedToday} entries`
+                  : `${nutritionPlan?.trackingMode ?? "habit"} tracking mode`
+              }
+              tone="food"
+              action={
                 <button
                   type="button"
-                  onClick={openFoodSearch}
-                  className="app-header-icon-action"
-                  aria-label={`Log ${currentMealLabel.toLowerCase()}`}
+                  onClick={() => setAddOpen(true)}
+                  className="native-toolbar-button border border-border bg-card"
+                  aria-label="Add food, water, or supplements"
                 >
-                  <Plus weight="bold" />
+                  <Plus size={22} weight="bold" />
+                  <span>Add</span>
                 </button>
-              </div>
-
-              <div className="mt-5 grid grid-cols-1 gap-2.5 min-[430px]:grid-cols-3">
-                <GoalTile
-                  label={visibleMetrics.calories ? "Intake" : "Meals"}
-                  value={
-                    visibleMetrics.calories
-                      ? `${pct(intakeTotals.calories, calorieTarget)}%`
-                      : String(entries.length)
-                  }
-                  detail={
-                    visibleMetrics.calories
-                      ? `${fmt(intakeTotals.calories)} / ${fmt(calorieTarget)} kcal`
-                      : "food logs today"
-                  }
-                  icon={<ForkKnife size={15} weight="bold" />}
-                  complete={
-                    visibleMetrics.calories
-                      ? intakeTotals.calories > 0 && caloriesLeft >= 0
-                      : entries.length > 0
-                  }
-                />
-                <GoalTile
-                  label="Water"
-                  value={`${pct(waterTotal, waterGoal)}%`}
-                  detail={`${fmtWater(waterTotal)} / ${fmtWater(waterGoal)}`}
-                  icon={<PintGlass size={15} weight="bold" />}
-                  complete={waterTotal >= waterGoal}
-                />
-                <GoalTile
-                  label="Supps"
-                  value={`${supplementDone}/${supplementTarget || 0}`}
-                  detail={
-                    supplementTarget > 0 ? "planned taken" : "none planned"
-                  }
-                  icon={<Pill size={15} weight="bold" />}
-                  complete={
-                    supplementTarget > 0 && supplementDone >= supplementTarget
-                  }
-                />
-              </div>
+              }
+            >
+              <StatRow
+                label="Water"
+                value={`${fmtWater(waterTotal)} / ${fmtWater(waterGoal)}`}
+                detail={`${pct(waterTotal, waterGoal)}%`}
+                color="var(--accent-water)"
+              />
+              <StatRow
+                label="Supplements"
+                value={`${supplementDone} / ${supplementTarget || 0}`}
+                detail={supplementTarget > 0 ? "taken today" : "none planned"}
+                color="var(--accent-supplement)"
+              />
 
               {isTrainingDay && visibleMetrics.calories && (
                 <button
                   type="button"
                   onClick={() => navigate("/workouts", { motion: "switch" })}
-                  className="mt-3 flex w-full items-center justify-between gap-3 rounded-xl border border-border/35 bg-muted/25 px-3 py-2.5 text-left transition-colors active:bg-muted/45"
+                  className="mt-3 flex min-h-14 w-full items-center justify-between gap-3 border-y border-border px-1 py-2.5 text-left transition-colors active:bg-muted/45"
                   aria-label="Open today’s workout"
                 >
                   <div className="min-w-0">
-                    <p className="text-[11.5px] font-bold text-foreground/82">
-                      Workout and nutrition are linked
+                    <p className="text-[14px] font-semibold">
+                      Training-day target
                     </p>
-                    <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground/62">
+                    <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
                       {workoutAdjustmentEnabled
                         ? `Today’s target includes about ${fmt(workoutCalories)} kcal for training.`
                         : `Training is logged. Your ${fmt(calorieTarget)} kcal target stays fixed because workout adjustment is off.`}
@@ -2324,19 +2282,28 @@ export default function Nutrition() {
                   <CaretRight
                     size={14}
                     weight="bold"
-                    className="shrink-0 text-muted-foreground/55"
+                    className="shrink-0 text-muted-foreground"
                   />
                 </button>
               )}
-            </section>
+            </SummaryBlock>
 
-            <RecipeManagementBox
-              recipes={recipes}
-              deletingRecipeId={deletingRecipeId}
-              onCreate={createRecipe}
-              onEdit={editRecipe}
-              onDelete={(recipe) => void deleteRecipe(recipe)}
-            />
+            <details className="native-collapsible mt-4 border-y border-border">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
+                Saved recipes
+                <CaretDown size={18} className="text-muted-foreground" />
+              </summary>
+              <div className="pb-4">
+                <RecipeManagementBox
+                  recipes={recipes}
+                  deletingRecipeId={deletingRecipeId}
+                  onCreate={createRecipe}
+                  onEdit={editRecipe}
+                  onDelete={(recipe) => void deleteRecipe(recipe)}
+                  embedded
+                />
+              </div>
+            </details>
 
             {smartMealSuggestion && (
               <div className="mt-3">
@@ -2353,99 +2320,142 @@ export default function Nutrition() {
             )}
 
             {(compiledTarget?.calorieStrategy || targetGuidance.length > 0) && (
-              <section className="app-surface mt-3 p-4">
-                <div className="flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/45 text-foreground/72">
-                    <Sparkle size={16} weight="bold" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="app-section-title">Personalized plan</p>
-                      {compiledTarget.safetyMode && (
-                        <span className="rounded-full bg-muted/55 px-2 py-1 text-[10px] font-bold text-muted-foreground/70 uppercase">
-                          {compiledTarget.safetyMode}
-                        </span>
+              <section className="mt-4 border-y border-border">
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Target
+                          size={17}
+                          weight="bold"
+                          className="shrink-0 text-foreground/65"
+                        />
+                        <h3 className="text-sm font-semibold text-foreground">
+                          Daily targets
+                        </h3>
+                      </div>
+
+                      {compiledTarget.calorieStrategy && (
+                        <p className="mt-1.5 max-w-prose text-[14px] leading-5 text-muted-foreground">
+                          {compiledTarget.calorieStrategy}
+                        </p>
                       )}
                     </div>
-                    {compiledTarget.calorieStrategy && (
-                      <p className="mt-2 text-[12.5px] leading-5 font-semibold text-foreground/78">
-                        {compiledTarget.calorieStrategy}
-                      </p>
-                    )}
-                    {targetGuidance.length > 0 && (
-                      <div className="mt-3 grid gap-1.5">
-                        {targetGuidance.map((item) => (
-                          <p
-                            key={item}
-                            className="text-[12px] leading-5 text-muted-foreground/62"
-                          >
-                            {item}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                    {(compiledTarget.fiber ||
-                      compiledTarget.saturatedFatLimit ||
-                      compiledTarget.sodiumLimit) && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {compiledTarget.fiber && (
-                          <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground/72">
-                            Fiber {fmt(compiledTarget.fiber)}g
-                          </span>
-                        )}
-                        {compiledTarget.saturatedFatLimit && (
-                          <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground/72">
-                            Sat fat &lt; {fmt(compiledTarget.saturatedFatLimit)}
-                            g
-                          </span>
-                        )}
-                        {compiledTarget.sodiumLimit && (
-                          <span className="rounded-full bg-muted/45 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground/72">
-                            Sodium &lt; {fmt(compiledTarget.sodiumLimit)}mg
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {calibration && (
-                      <div className="mt-3 rounded-[0.9rem] bg-muted/30 px-3 py-2.5">
-                        <p className="text-[12px] font-bold text-foreground/78">
-                          {calibration.title}
-                        </p>
-                        <p className="mt-1 text-[11.5px] leading-4 text-muted-foreground/60">
-                          {calibration.detail}
-                        </p>
-                        {calibration.canApply && calibration.targets && (
-                          <button
-                            type="button"
-                            onClick={() => void applyPlanCalibration()}
-                            disabled={applyingCalibration}
-                            className="app-header-icon-action mt-2"
-                            aria-label={
-                              applyingCalibration
-                                ? "Applying nutrition adjustment"
-                                : "Apply nutrition adjustment"
-                            }
-                          >
-                            <Sparkle weight="bold" />
-                          </button>
-                        )}
-                      </div>
+
+                    {compiledTarget.safetyMode && (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+                        <ShieldCheck size={13} weight="fill" />
+                        {compiledTarget.safetyMode}
+                      </span>
                     )}
                   </div>
+
+                  {(compiledTarget.fiber ||
+                    compiledTarget.saturatedFatLimit ||
+                    compiledTarget.sodiumLimit) && (
+                    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/55 pt-4 sm:grid-cols-3">
+                      {compiledTarget.fiber && (
+                        <div>
+                          <dt className="text-[13px] font-medium text-muted-foreground">
+                            Fiber
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
+                            {fmt(compiledTarget.fiber)} g
+                          </dd>
+                        </div>
+                      )}
+
+                      {compiledTarget.saturatedFatLimit && (
+                        <div>
+                          <dt className="text-[13px] font-medium text-muted-foreground">
+                            Saturated fat
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
+                            &lt; {fmt(compiledTarget.saturatedFatLimit)} g
+                          </dd>
+                        </div>
+                      )}
+
+                      {compiledTarget.sodiumLimit && (
+                        <div>
+                          <dt className="text-[13px] font-medium text-muted-foreground">
+                            Sodium
+                          </dt>
+                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
+                            &lt; {fmt(compiledTarget.sodiumLimit)} mg
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  )}
+
+                  {targetGuidance.length > 0 && (
+                    <details className="native-collapsible group mt-4 border-t border-border/55 pt-3">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">
+                        Why these targets?
+                        <CaretDown
+                          size={14}
+                          weight="bold"
+                          className="transition-transform group-open:rotate-180"
+                        />
+                      </summary>
+
+                      <ul className="mt-3 grid gap-2">
+                        {targetGuidance.map((item) => (
+                          <li
+                            key={item}
+                            className="flex gap-2 text-[14px] leading-5 text-muted-foreground"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-foreground/35"
+                            />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </div>
+
+                {calibration && (
+                  <div className="flex flex-col gap-3 border-t border-border/60 bg-muted/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-foreground">
+                        {calibration.title}
+                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-muted-foreground">
+                        {calibration.detail}
+                      </p>
+                    </div>
+
+                    {calibration.canApply && calibration.targets && (
+                      <button
+                        type="button"
+                        onClick={() => void applyPlanCalibration()}
+                        disabled={applyingCalibration}
+                        className="native-toolbar-button shrink-0 border border-border bg-card disabled:pointer-events-none disabled:opacity-50"
+                      >
+                        <SlidersHorizontal size={14} weight="bold" />
+                        {applyingCalibration ? "Applying…" : "Apply adjustment"}
+                      </button>
+                    )}
+                  </div>
+                )}
               </section>
             )}
-            <section className="mt-3 grid gap-3 md:grid-cols-[1fr_0.82fr]">
-              <div className="app-surface p-4">
+            <section className="mt-5 grid gap-6 md:grid-cols-[1fr_0.82fr]">
+              <div className="border-y border-border py-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <p className="app-section-title">Intake</p>
                   <button
                     type="button"
                     onClick={openFoodSearch}
-                    className="app-header-icon-action"
+                    className="native-toolbar-button border border-border bg-card"
                     aria-label="Log food"
                   >
-                    <ForkKnife weight="bold" />
+                    <ForkKnife size={17} weight="bold" />
+                    Log food
                   </button>
                 </div>
                 <div className="space-y-2.5">
@@ -2466,7 +2476,7 @@ export default function Nutrition() {
                       />
                     ))}
                   {!visibleMetrics.macros && !visibleMetrics.protein && (
-                    <p className="text-[12px] leading-5 text-muted-foreground/58">
+                    <p className="text-[14px] leading-5 text-muted-foreground">
                       This mode keeps nutrition feedback non-numeric. Log meals
                       when useful and focus on consistency.
                     </p>
@@ -2481,10 +2491,10 @@ export default function Nutrition() {
                           className="flex items-center justify-between gap-3"
                         >
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-bold">
+                            <p className="native-row-title truncate">
                               {entry.name}
                             </p>
-                            <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                            <p className="native-row-detail mt-0.5">
                               {timeLabel(entry.loggedAt)}
                             </p>
                           </div>
@@ -2492,20 +2502,20 @@ export default function Nutrition() {
                             <button
                               type="button"
                               onClick={() => editRecipeFromLogEntry(entry)}
-                              className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-muted-foreground/70"
+                              className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                               aria-label={`Edit recipe for ${entry.name}`}
                             >
-                              <PencilSimple size={12} weight="bold" />
+                              <PencilSimple size={17} weight="bold" />
                             </button>
                           )}
-                          <span className="shrink-0 text-[12px] font-bold tabular-nums">
+                          <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                             {fmt(entry.calories)} kcal
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[12px] leading-5 text-muted-foreground/58">
+                    <p className="text-[14px] leading-5 text-muted-foreground">
                       No food logged yet. Search, scan, or snap a meal.
                     </p>
                   )}
@@ -2531,17 +2541,18 @@ export default function Nutrition() {
                 )}
               </div>
 
-              <div className="grid gap-3">
-                <div className="app-surface p-4">
+              <div className="grid gap-6">
+                <div className="border-y border-border py-4">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <p className="app-section-title">Water</p>
                     <button
                       type="button"
                       onClick={() => setWaterGoalOpen(true)}
-                      className="app-header-icon-action"
+                      className="native-toolbar-button border border-border bg-card"
                       aria-label="Edit water goal"
                     >
-                      <PencilSimple weight="bold" />
+                      <PencilSimple size={17} weight="bold" />
+                      Edit goal
                     </button>
                   </div>
                   <ProgressLine
@@ -2585,16 +2596,17 @@ export default function Nutrition() {
                   </div>
                 </div>
 
-                <div className="app-surface p-4">
+                <div className="border-y border-border py-4">
                   <div className="mb-1 flex items-center justify-between gap-3">
                     <p className="app-section-title">Supplements</p>
                     <button
                       type="button"
                       onClick={() => navigate("/supplements")}
-                      className="app-header-icon-action"
+                      className="native-toolbar-button border border-border bg-card"
                       aria-label="Manage supplements"
                     >
-                      <Pill weight="bold" />
+                      <Pill size={17} weight="bold" />
+                      Manage
                     </button>
                   </div>
                   {visibleSupplements.length > 0 ? (
@@ -2609,7 +2621,7 @@ export default function Nutrition() {
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-2 text-[12px] leading-5 text-muted-foreground/58">
+                    <p className="mt-2 text-[14px] leading-5 text-muted-foreground">
                       No active supplement plan. Add one when you need it.
                     </p>
                   )}
@@ -2683,20 +2695,34 @@ export default function Nutrition() {
       {addOpen && (
         <MobileSheet
           onClose={() => setAddOpen(false)}
-          overlayClassName="bg-black/45 backdrop-blur-[6px]"
-          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] md:!w-full md:!max-w-sm"
+          overlayClassName="bg-black/55"
+          panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-2xl border-t border-border bg-card md:!w-full md:!max-w-sm"
           panelStyle={{
             paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
           }}
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
-          <div className="px-4 pt-1 pb-4">
+          <div className="px-5 pt-4 pb-4">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="native-supporting">Nutrition</p>
+                <h2 className="mt-0.5 text-[21px] font-semibold">
+                  Add to diary
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAddOpen(false)}
+                className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
+                aria-label="Close add menu"
+              >
+                <X size={17} weight="bold" />
+              </button>
+            </div>
             {quickRepeatFoods.length > 0 && (
-              <section className="mb-3" aria-label="Repeat foods">
-                <p className="mb-2 px-1 text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
-                  Repeat
-                </p>
-                <div className="grid grid-cols-4 gap-2">
+              <section className="mb-5" aria-label="Recent foods">
+                <h3 className="native-section-title mb-2">Log again</h3>
+                <div className="divide-y divide-border border-y border-border">
                   {quickRepeatFoods.map((food) => {
                     const busy = quickRepeatBusyKey === food.key
                     return (
@@ -2713,36 +2739,36 @@ export default function Nutrition() {
                             ? `; logged ${food.count} times recently`
                             : ""
                         }`}
-                        className="relative flex min-h-[5.2rem] min-w-0 flex-col items-center justify-center rounded-2xl bg-muted/45 px-1.5 text-center transition-colors active:bg-muted disabled:opacity-55"
+                        className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted disabled:opacity-55"
                       >
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-background/65 text-muted-foreground/68">
+                        <span className="flex h-6 w-6 items-center justify-center text-muted-foreground">
                           {busy ? (
                             <span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/70" />
                           ) : (
-                            <ForkKnife size={13} weight="bold" />
+                            <ForkKnife size={17} weight="bold" />
                           )}
                         </span>
-                        <span className="mt-1.5 w-full truncate text-[10.5px] font-semibold text-foreground/80">
-                          {food.entry.name}
-                        </span>
-                        <span className="mt-0.5 text-[9px] font-semibold text-muted-foreground/42 tabular-nums">
-                          {fmt(food.entry.calories)} kcal
-                        </span>
-                        {food.count > 1 && (
-                          <span
-                            aria-hidden="true"
-                            className="absolute top-1.5 right-1.5 rounded-full bg-background/80 px-1 py-0.5 text-[8px] font-bold text-muted-foreground/55 tabular-nums"
-                          >
-                            {food.count}×
+                        <span className="min-w-0 flex-1">
+                          <span className="native-row-title block truncate">
+                            {food.entry.name}
                           </span>
-                        )}
+                          <span className="native-row-detail block tabular-nums">
+                            {fmt(food.entry.calories)} kcal
+                            {food.count > 1
+                              ? ` · logged ${food.count} times recently`
+                              : ""}
+                          </span>
+                        </span>
+                        <span className="text-[14px] font-semibold text-[var(--accent-food)]">
+                          Log
+                        </span>
                       </button>
                     )
                   })}
                 </div>
               </section>
             )}
-            <div className="app-surface overflow-hidden">
+            <div className="divide-y divide-border border-y border-border">
               {[
                 {
                   label: "Search food",
@@ -2786,76 +2812,63 @@ export default function Nutrition() {
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)
-                .map(
-                  (
-                    { label, detail, Icon, action, requiresAiAccess },
-                    index
-                  ) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => {
-                        if (requiresAiAccess && !requireAiAccess()) return
-                        setAddOpen(false)
-                        action()
-                      }}
-                      className={cn(
-                        "flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors active:bg-muted/35",
-                        index > 0 && "border-t border-border/40"
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <span className="app-icon-button pointer-events-none h-9 w-9 bg-muted/55 text-muted-foreground/70">
-                          <Icon size={16} weight="bold" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-[13px] font-semibold">
-                            {label}
-                          </span>
-                          <span className="block text-[11.5px] text-muted-foreground/60">
-                            {detail}
-                          </span>
+                .map(({ label, detail, Icon, action, requiresAiAccess }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      if (requiresAiAccess && !requireAiAccess()) return
+                      setAddOpen(false)
+                      action()
+                    }}
+                    className={cn(
+                      "flex min-h-16 w-full items-center justify-between gap-3 px-1 py-3 text-left transition-colors active:bg-muted/35"
+                    )}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="w-6 shrink-0 text-muted-foreground">
+                        <Icon size={19} weight="bold" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="native-row-title block">{label}</span>
+                        <span className="native-row-detail block">
+                          {detail}
                         </span>
                       </span>
-                      <CaretRight
-                        size={12}
-                        className="text-muted-foreground/35"
-                      />
-                    </button>
-                  )
-                )}
+                    </span>
+                    <CaretRight size={18} className="text-muted-foreground" />
+                  </button>
+                ))}
               {recipes.length > 0 && (
                 <>
-                  <div className="border-t border-border/40 px-4 pt-3 pb-1">
-                    <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/38 uppercase">
-                      Saved recipes
-                    </p>
+                  <div className="px-1 pt-5 pb-2">
+                    <p className="native-section-title">Saved recipes</p>
                   </div>
                   {recipes.slice(0, 5).map((recipe) => {
                     const totals = totalsForRecipe(recipe.ingredients)
                     return (
                       <div
                         key={recipe._id ?? recipe.name}
-                        className="flex w-full items-center gap-1 px-2 py-1"
+                        className="flex min-h-14 w-full items-center gap-1 border-t border-border"
                       >
                         <button
                           type="button"
                           onClick={() => logRecipe(recipe)}
-                          className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-2 py-2 text-left transition-colors active:bg-muted/40"
+                          className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 px-1 py-2 text-left transition-colors active:bg-muted/40"
                         >
                           <div className="min-w-0 text-left">
-                            <p className="truncate text-[13px] font-medium">
+                            <p className="native-row-title truncate">
                               {recipe.name}
                             </p>
-                            <p className="mt-0.5 text-[10.5px] text-muted-foreground/45">
+                            <p className="native-row-detail mt-0.5">
                               {totals.calories} kcal ·{" "}
                               {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
                             </p>
                           </div>
                           <CaretRight
-                            size={11}
-                            className="shrink-0 text-muted-foreground/30"
+                            size={18}
+                            className="shrink-0 text-muted-foreground"
                           />
                         </button>
                         {recipe._id && (
@@ -2865,10 +2878,10 @@ export default function Nutrition() {
                               setAddOpen(false)
                               navigate(`/foods/recipe/${recipe._id}`)
                             }}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground/50 transition-colors active:bg-muted/40"
+                            className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
                             aria-label={`Edit ${recipe.name}`}
                           >
-                            <PencilSimple size={13} weight="bold" />
+                            <PencilSimple size={17} weight="bold" />
                           </button>
                         )}
                       </div>

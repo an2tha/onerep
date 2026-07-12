@@ -1,5 +1,7 @@
 import { v } from "convex/values";
-import { action, env } from "../_generated/server";
+import { action } from "../_generated/server";
+import { hasGatewayApiKey, requestGatewayJson } from "../ai/gateway";
+import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
 
@@ -243,47 +245,21 @@ function fallbackDraftFromText(text: string): AgentPresetDraft {
   };
 }
 
-async function draftWithOpenAI(
+async function draftWithGateway(
   text: string,
   fallbackName: string,
   context: PlanContext,
 ) {
-  const apiKey = env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: env.OPENAI_WORKOUT_PRESET_MODEL ?? "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You convert messy workout notes into a structured workout preset draft. Return JSON only. Use exercise names that would likely exist in a general fitness exercise catalog. Do not invent extra exercises. Convert pounds to kg numeric strings for weight. Use empty strings for unknown weights and reps. Allowed set types: working, warmup, failure, myoreps, drop. Treat the supplied safety context as a hard constraint: do not intensify the source plan or introduce maximal/failure work when safetyMode is protected. For beginners, preserve a simple exercise order and conservative set structure.",
-        },
-        {
-          role: "user",
-          content: `User context: ${JSON.stringify(context)}\n\nCreate a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","restSeconds":120}]}],"notes":"optional"}. Limit to ${MAX_EXERCISES} exercises and ${MAX_SETS_PER_EXERCISE} sets each.\n\n${text}`,
-        },
-      ],
+  if (!hasGatewayApiKey()) return null;
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("workout_preset", {
+      max_exercises: MAX_EXERCISES,
+      max_sets_per_exercise: MAX_SETS_PER_EXERCISE,
     }),
+    user: `User context: ${JSON.stringify(context)}\n\nCreate a workout preset from this text. Return this exact JSON shape: {"name":"short preset name <= 40 chars","exercises":[{"name":"exercise search name","sets":[{"type":"working","weight":"kg string or empty","reps":"reps or duration","restSeconds":120}]}],"notes":"optional"}.\n\n${text}`,
+    temperature: 0.2,
+    maxTokens: 1_200,
   });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI request failed: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) return null;
   return normalizeDraft(JSON.parse(content), fallbackName);
 }
 
@@ -307,7 +283,7 @@ export const createFromText = action({
     const fallback = fallbackDraftFromText(text);
 
     try {
-      const aiDraft = await draftWithOpenAI(text, fallback.name, {
+      const aiDraft = await draftWithGateway(text, fallback.name, {
         experienceLevel: clampText(args.experienceLevel, 24) || undefined,
         safetyMode: clampText(args.safetyMode, 24) || undefined,
         safetyFlags: (args.safetyFlags ?? [])

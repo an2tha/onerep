@@ -43,7 +43,7 @@ export function DateSelectorButton({
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-muted-foreground/62 transition-colors active:bg-foreground/[0.06] active:text-foreground"
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors active:bg-foreground/[0.06] active:text-foreground"
         aria-label={`${label}: ${dateLabel}`}
       >
         <CalendarBlank size={18} weight="bold" />
@@ -54,30 +54,27 @@ export function DateSelectorButton({
           onClose={() => onOpenChange(false)}
           overlayClassName="bg-black/35 backdrop-blur-[4px]"
           panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] md:!w-full md:!max-w-sm"
-          panelStyle={{
-            paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 1.25rem))",
-          }}
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
-          <div className="px-4 pt-1 pb-4">
+          <div className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
+                <p className="text-[13px] font-medium text-muted-foreground">
                   {label}
                 </p>
-                <p className="mt-1 text-[18px] font-extrabold">{dateLabel}</p>
+                <p className="mt-1 text-[20px] font-semibold">{dateLabel}</p>
               </div>
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-muted-foreground/55 transition-colors active:bg-foreground/[0.06] active:text-foreground"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors active:bg-foreground/[0.06] active:text-foreground"
                 aria-label="Close date selector"
               >
                 <X size={13} weight="bold" />
               </button>
             </div>
 
-            <div className="rounded-[1rem] bg-muted/35 p-2">
+            <div className="border-y border-border py-3">
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"

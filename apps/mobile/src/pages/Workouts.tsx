@@ -2,11 +2,11 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
+  CaretDown,
   CaretRight,
   Copy,
   Fire,
   Heart,
-  PencilIcon,
   PencilSimple,
   Plus,
   Trash,
@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@/components/swipe-to-start"
-import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { DateSelectorButton } from "@/components/date-selector-button"
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -26,6 +25,8 @@ import {
   compactCardioSummary,
   hasCardioDetails,
   normalizePresetCard,
+  normalizeScheduleRoutines,
+  scheduleRoutinePayload,
   todayIso,
   type CachedWorkoutLog,
   type Routine,
@@ -39,6 +40,7 @@ import {
   type MuscleSets,
 } from "@/lib/muscle-volume"
 import { MuscleRecoveryHeatmapCard } from "@/components/muscle-recovery-heatmap"
+import { PrimaryButton } from "@/components/mobile-ui"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import {
   getLoggedExerciseId,
@@ -168,33 +170,38 @@ function TrainingConsistencyCard({
   const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
 
   return (
-    <div className="app-surface overflow-hidden px-4 pt-3.5 pb-4 short-phone:pt-3 short-phone:pb-3.5">
+    <section
+      className="border-y border-border py-5"
+      aria-labelledby="training-consistency-title"
+    >
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <p className="app-eyebrow">Training</p>
-          <p className="mt-0.5 text-[15px] font-bold">Consistency</p>
+          <h2 id="training-consistency-title" className="app-section-title">
+            Four-week consistency
+          </h2>
+          <p className="app-section-subtitle">Completed workout days</p>
         </div>
         <div className="flex gap-4">
           <div className="text-right">
-            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
+            <p className="text-[13px] font-medium text-muted-foreground">
               Streak
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
+            <p className="mt-1 text-[22px] leading-none font-bold tabular-nums">
               {streak}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
-                days
+              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
+                day{streak === 1 ? "" : "s"}
               </span>
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase">
+            <p className="text-[13px] font-medium text-muted-foreground">
               This week
             </p>
-            <p className="mt-0.5 text-[22px] leading-none font-black tabular-nums">
+            <p className="mt-1 text-[22px] leading-none font-bold tabular-nums">
               {thisWeek}
-              <span className="ml-0.5 text-[11px] font-medium text-muted-foreground/40">
-                / 7
+              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
+                workout{thisWeek === 1 ? "" : "s"}
               </span>
             </p>
           </div>
@@ -202,11 +209,11 @@ function TrainingConsistencyCard({
       </div>
 
       {/* Day-of-week labels */}
-      <div className="mb-1 grid grid-cols-7 gap-1 px-0.5">
+      <div className="mb-2 grid grid-cols-7 gap-1 px-0.5" aria-hidden="true">
         {dayLabels.map((l, i) => (
           <p
             key={i}
-            className="text-center text-[8px] font-semibold text-muted-foreground/30 uppercase"
+            className="text-center text-[13px] font-medium text-muted-foreground"
           >
             {l}
           </p>
@@ -223,6 +230,14 @@ function TrainingConsistencyCard({
             <div
               key={iso}
               className="aspect-square rounded-md transition-colors"
+              role="img"
+              aria-label={`${new Date(`${iso}T12:00:00Z`).toLocaleDateString(
+                [],
+                {
+                  month: "short",
+                  day: "numeric",
+                }
+              )}: ${hasWorkout ? "workout completed" : isFuture ? "upcoming" : "no workout"}${isToday ? ", today" : ""}`}
               style={{
                 background: isFuture
                   ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
@@ -241,65 +256,10 @@ function TrainingConsistencyCard({
       </div>
 
       {/* Footer */}
-      <p className="mt-2.5 text-[10px] text-muted-foreground/35">
-        {last28Count} workouts last 28 days
+      <p className="mt-3 text-[13px] text-muted-foreground">
+        {last28Count} workout{last28Count === 1 ? "" : "s"} in the last 28 days
       </p>
-    </div>
-  )
-}
-
-function TrainingMetricTile({
-  label,
-  value,
-  detail,
-  icon,
-  complete,
-  compact,
-}: {
-  label: string
-  value: string | number
-  detail: string
-  icon: React.ReactNode
-  complete?: boolean
-  compact?: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-[0.8rem] bg-foreground/[0.045]",
-        compact ? "px-2.5 py-2.5" : "px-3 py-3"
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-[10px] font-bold text-muted-foreground/66">
-          {label}
-        </p>
-        <span
-          className={cn(
-            "text-muted-foreground/56",
-            complete && "text-foreground/70"
-          )}
-        >
-          {icon}
-        </span>
-      </div>
-      <p
-        className={cn(
-          "leading-none font-extrabold tabular-nums",
-          compact ? "mt-1 text-[1.15rem]" : "mt-1.5 text-[1.35rem]"
-        )}
-      >
-        {value}
-      </p>
-      <p
-        className={cn(
-          "mt-1 font-semibold text-muted-foreground/52",
-          compact ? "text-[9.5px] leading-3" : "text-[10.5px] leading-4"
-        )}
-      >
-        {detail}
-      </p>
-    </div>
+    </section>
   )
 }
 
@@ -314,26 +274,26 @@ function PresetSteps({
   const hidden = Math.max(0, preset.steps.length - visible.length)
 
   return (
-    <div className="mt-3 space-y-1.5">
+    <ol className="mt-3 divide-y divide-border border-y border-border">
       {visible.map((step, i) => (
-        <div
+        <li
           key={`${preset.id}-${step}-${i}`}
-          className="flex items-center gap-2.5 rounded-[0.7rem] bg-foreground/[0.035] px-2.5 py-2"
+          className="flex min-h-11 items-center gap-3 py-2.5"
         >
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[0.45rem] bg-foreground/[0.07] text-[10px] font-bold text-muted-foreground/66">
+          <span className="w-5 shrink-0 text-center text-[13px] font-medium text-muted-foreground">
             {i + 1}
           </span>
-          <span className="min-w-0 truncate text-[12.5px] font-semibold text-foreground/78">
+          <span className="min-w-0 truncate text-[15px] font-medium text-foreground">
             {step}
           </span>
-        </div>
+        </li>
       ))}
       {hidden > 0 && (
-        <p className="px-1 text-[10.5px] font-semibold text-muted-foreground/48">
+        <li className="py-2 text-[13px] font-medium text-muted-foreground">
           +{hidden} more movement{hidden === 1 ? "" : "s"}
-        </p>
+        </li>
       )}
-    </div>
+    </ol>
   )
 }
 
@@ -417,11 +377,9 @@ function WorkoutLogSummary({
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-muted/55 px-2 py-0.5 text-[10px] font-bold text-muted-foreground/70 uppercase">
-            Done
-          </span>
-          <span className="text-[11px] text-muted-foreground">
-            Workout {slot} · {fmtDuration(log.durationSeconds)}
+          <span className="text-[15px] font-semibold">Workout {slot}</span>
+          <span className="text-[13px] text-muted-foreground">
+            Complete · {fmtDuration(log.durationSeconds)}
           </span>
         </div>
         {onEdit && (
@@ -435,24 +393,21 @@ function WorkoutLogSummary({
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="divide-y divide-border border-y border-border">
         {completedExercises.map((ex) => {
           const isCardio = hasCardioDetails(ex.cardio)
           const done = (ex.sets ?? []).filter((s) => s.completed).length
           const total = ex.sets?.length ?? 0
           const id = getLoggedExerciseId(ex) ?? ex.name
           return (
-            <div
-              key={id}
-              className="flex items-center gap-3 rounded-xl bg-muted/35 px-3.5 py-2.5"
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[9px] font-bold text-foreground/65">
+            <div key={id} className="flex min-h-11 items-center gap-3 py-2.5">
+              <span aria-hidden="true" className="text-[15px] text-primary">
                 ✓
               </span>
-              <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground/78">
+              <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-foreground">
                 {ex.name}
               </span>
-              <span className="max-w-[12rem] shrink truncate text-right text-[11px] text-muted-foreground/58 tabular-nums">
+              <span className="max-w-[12rem] shrink truncate text-right text-[13px] text-muted-foreground tabular-nums">
                 {isCardio
                   ? compactCardioSummary(ex.cardio, ex.cardio?.distanceUnit)
                   : `${done}/${total}`}
@@ -462,7 +417,7 @@ function WorkoutLogSummary({
         })}
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground/50">
+      <div className="flex items-center justify-between text-[13px] text-muted-foreground">
         <span>
           {completedExercises.length} exercises · {totalSets} sets
           {cardioCount > 0 ? ` · ${cardioCount} cardio` : ""}
@@ -608,7 +563,7 @@ function PickSecondWorkoutSheet({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold">{preset.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[13px] text-muted-foreground">
                     {preset.steps.length} exercises · {preset.duration}
                   </p>
                 </div>
@@ -642,8 +597,8 @@ function muscleColor(muscle: string): string {
 function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   if (muscleVolume.length === 0) {
     return (
-      <div className="app-surface p-4 text-center">
-        <p className="text-[12px] text-muted-foreground/40">
+      <div className="border-y border-border py-5 text-center">
+        <p className="text-[15px] text-muted-foreground">
           No workouts logged this week yet
         </p>
       </div>
@@ -653,7 +608,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
   const maxSets = Math.max(...muscleVolume.map((m) => m.effectiveSets))
 
   return (
-    <div className="app-surface p-4">
+    <section className="border-y border-border py-5">
       <div className="mb-3">
         <p className="app-section-title">Volume</p>
         <p className="app-section-subtitle">This week · sets per muscle</p>
@@ -665,13 +620,14 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
           return (
             <div key={item.muscle}>
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[12px] font-bold text-foreground/78 capitalize">
+                <span className="text-[15px] font-semibold text-foreground capitalize">
                   {item.muscle}
                 </span>
-                <span className="text-[10.5px] font-semibold text-muted-foreground/50 tabular-nums">
-                  {item.primarySets}p
-                  {item.secondarySets > 0 ? ` + ${item.secondarySets}s` : ""}{" "}
-                  sets
+                <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
+                  {item.primarySets} primary
+                  {item.secondarySets > 0
+                    ? ` + ${item.secondarySets} supporting`
+                    : ""}
                 </span>
               </div>
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-foreground/[0.06]">
@@ -688,10 +644,10 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
           )
         })}
       </div>
-      <p className="mt-3 text-[10px] text-muted-foreground/35">
-        p = primary sets · s = secondary sets (secondary counts 0.5×)
+      <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
+        Supporting sets count as half a set when estimating muscle volume.
       </p>
-    </div>
+    </section>
   )
 }
 
@@ -726,9 +682,13 @@ export default function Workouts() {
     "logs.workouts.completion"
   )
 
-  function persist(nextPresets: WorkoutPresetCard[], nextRoutine: Routine) {
+  function persist(
+    nextPresets: WorkoutPresetCard[],
+    nextRoutine: Routine,
+    nextRoutine2: Routine = routine2
+  ) {
     void setSchedule({
-      routine: nextRoutine as Record<string, string | null>,
+      routine: scheduleRoutinePayload(nextRoutine, nextRoutine2),
       presetOrder: nextPresets.map((p) => p.id),
     })
   }
@@ -807,15 +767,9 @@ export default function Workouts() {
     if (routineReady.current || schedule === undefined) return
     routineReady.current = true
     if (schedule) {
-      setRoutine({
-        Mon: schedule.routine?.Mon ?? null,
-        Tue: schedule.routine?.Tue ?? null,
-        Wed: schedule.routine?.Wed ?? null,
-        Thu: schedule.routine?.Thu ?? null,
-        Fri: schedule.routine?.Fri ?? null,
-        Sat: schedule.routine?.Sat ?? null,
-        Sun: schedule.routine?.Sun ?? null,
-      } as Routine)
+      const routines = normalizeScheduleRoutines(schedule.routine)
+      setRoutine(routines.primary)
+      setRoutine2(routines.secondary)
     }
   }, [schedule])
 
@@ -930,7 +884,11 @@ export default function Workouts() {
     setTimeout(() => {
       // Remove slot 2 first if it has something; otherwise remove slot 1
       if (routine2[day]) {
-        setRoutine2((r) => ({ ...r, [day]: null }))
+        setRoutine2((r) => {
+          const next = { ...r, [day]: null }
+          void persist(presets, routine, next)
+          return next
+        })
       } else {
         setRoutine((r) => {
           const next = { ...r, [day]: null }
@@ -1049,7 +1007,11 @@ export default function Workouts() {
           void persist(presets, nextRoutine)
         } else {
           // Slot 1 is taken — fill (or replace) slot 2
-          setRoutine2((r) => ({ ...r, [day]: drag.presetId }))
+          setRoutine2((r) => {
+            const next = { ...r, [day]: drag.presetId }
+            void persist(presets, routine, next)
+            return next
+          })
         }
       } else {
         // Reorder within the presets list
@@ -1102,7 +1064,7 @@ export default function Workouts() {
     setRoutine2(nextRoutine2)
     setConfirmDeleteId(null)
 
-    persist(nextPresets, nextRoutine)
+    persist(nextPresets, nextRoutine, nextRoutine2)
     void removePresetMutation({ id: id as Id<"presets"> })
   }
 
@@ -1166,8 +1128,17 @@ export default function Workouts() {
         : todayPreset
           ? `${todayPreset.steps.length} exercises · ${todayPreset.duration}`
           : "No workout scheduled. Log an open session anytime."
-  const isRestDayHero = workoutLogs.length === 0 && !todayPreset
-
+  const nextWorkoutPreset =
+    workoutLogs.length === 1 && todayPreset2 ? todayPreset2 : todayPreset
+  const nextWorkoutHref = nextWorkoutPreset
+    ? `/workout/active/${nextWorkoutPreset.id}${workoutLogs.length === 1 ? "?slot=2" : ""}`
+    : "/workout/active"
+  const nextWorkoutAction =
+    workoutLogs.length === 1 && todayPreset2
+      ? `Start ${todayPreset2.name}`
+      : nextWorkoutPreset
+        ? `Start ${nextWorkoutPreset.name}`
+        : "Start open workout"
   // ── Ghost ─────────────────────────────────────────────────────────────────
 
   const ghostPreset = drag ? presets.find((p) => p.id === drag.presetId) : null
@@ -1178,7 +1149,7 @@ export default function Workouts() {
       <main className="app-page">
         <header className="app-header">
           <div className="min-w-0">
-            <h1 className="app-title">Workouts</h1>
+            <h1 className="app-title">Training</h1>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
@@ -1193,14 +1164,16 @@ export default function Workouts() {
         </header>
 
         {!isToday && (
-          <section className="app-surface p-4">
+          <section className="border-y border-border py-5">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="app-eyebrow">{dateLabel}</p>
-                <p className="mt-1 text-[1.55rem] leading-none font-extrabold">
-                  {selectedWorkoutLog ? "Workout logged" : "No workout"}
+                <p className="text-[13px] font-medium text-muted-foreground">
+                  {dateLabel}
                 </p>
-                <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
+                <h2 className="mt-1 text-[1.55rem] leading-none font-bold">
+                  {selectedWorkoutLog ? "Workout logged" : "No workout"}
+                </h2>
+                <p className="mt-2 text-[15px] text-muted-foreground">
                   {selectedWorkoutLog
                     ? `${selectedWorkoutLog.exercises.length} exercises · ${fmtDuration(selectedWorkoutLog.durationSeconds)}`
                     : "No completed training on this date."}
@@ -1219,7 +1192,7 @@ export default function Workouts() {
             </div>
 
             {selectedWorkoutLog ? (
-              <div className="mt-4 space-y-2 border-t border-border/35 pt-4">
+              <div className="mt-4 divide-y divide-border border-t border-border">
                 {selectedWorkoutLog.exercises.map((exercise) => {
                   const isCardio = hasCardioDetails(exercise.cardio)
                   const done = (exercise.sets ?? []).filter(
@@ -1230,13 +1203,13 @@ export default function Workouts() {
                   return (
                     <div
                       key={key}
-                      className="flex items-center justify-between gap-2 rounded-xl bg-muted/35 px-3 py-2.5"
+                      className="flex min-h-12 items-center justify-between gap-2 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-bold">
+                        <p className="truncate text-[15px] font-semibold">
                           {exercise.name}
                         </p>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground/55">
+                        <p className="mt-1 text-[13px] text-muted-foreground">
                           {isCardio
                             ? compactCardioSummary(
                                 exercise.cardio,
@@ -1248,7 +1221,7 @@ export default function Workouts() {
                       <button
                         type="button"
                         onClick={() => removeLoggedExercise(key)}
-                        className="app-header-icon-action h-8 min-h-8 w-8 min-w-8 text-destructive/70"
+                        className="app-header-icon-action h-11 min-h-11 w-11 min-w-11 text-destructive"
                         aria-label={`Remove ${exercise.name}`}
                       >
                         <Trash size={12} weight="bold" />
@@ -1256,7 +1229,7 @@ export default function Workouts() {
                     </div>
                   )
                 })}
-                <p className="pt-1 text-[10px] text-muted-foreground/45">
+                <p className="pt-3 text-[13px] text-muted-foreground">
                   Completed{" "}
                   {new Date(selectedWorkoutLog.completedAt).toLocaleTimeString(
                     [],
@@ -1265,10 +1238,10 @@ export default function Workouts() {
                 </p>
               </div>
             ) : (
-              <div className="mt-4 rounded-[0.9rem] bg-muted/30 px-4 py-5 text-center">
-                <p className="text-[12px] leading-5 text-muted-foreground/58">
-                  Use today’s workout flow to create new logs; past logs can be
-                  trimmed or deleted here once they exist.
+              <div className="mt-4 border-t border-border pt-4">
+                <p className="text-[15px] leading-6 text-muted-foreground">
+                  There is no completed training on this date. Choose Today to
+                  start a new workout.
                 </p>
               </div>
             )}
@@ -1278,70 +1251,52 @@ export default function Workouts() {
         {!isToday ? null : (
           <>
             <section
-              className={cn("app-surface", isRestDayHero ? "p-3" : "p-4")}
+              className="border-y border-border py-5"
+              aria-labelledby="next-training-title"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="app-eyebrow">Today · {today}</p>
-                  <p
-                    className={cn(
-                      "mt-2 truncate leading-none font-extrabold tracking-tight",
-                      isRestDayHero ? "text-[1.55rem]" : "text-[2.05rem]"
-                    )}
-                  >
-                    {heroTitle}
-                  </p>
-                  <p className="mt-1 text-[11px] font-semibold text-muted-foreground/58">
-                    {heroDetail}
-                  </p>
-                </div>
-              </div>
-
-              <div
-                className={cn(
-                  "grid gap-2.5",
-                  isRestDayHero
-                    ? "mt-3 grid-cols-2"
-                    : "mt-5 grid-cols-1 min-[430px]:grid-cols-2"
-                )}
+              <p className="text-[13px] font-medium text-muted-foreground">
+                Today · {today}
+              </p>
+              <h2
+                id="next-training-title"
+                className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight"
               >
-                <TrainingMetricTile
-                  label="Week"
-                  value={workoutsThisWeek}
-                  detail={`${workoutLogs.length}/2 today`}
-                  icon={<Barbell size={14} weight="bold" />}
-                  complete={workoutsThisWeek > 0}
-                  compact={isRestDayHero}
-                />
-                <TrainingMetricTile
-                  label="Streak"
-                  value={trainingStreak}
-                  detail="days in a row"
-                  icon={<Heart size={14} weight="bold" />}
-                  complete={trainingStreak > 0}
-                  compact={isRestDayHero}
-                />
-              </div>
-
-              <div className={cn(isRestDayHero ? "mt-3" : "mt-4")}>
-                <AppTooltip
-                  id={APP_TOOLTIP_IDS.workoutsStart}
-                  content="Slide here to start an open workout when you do not want to use a preset."
-                  targetClassName="block w-full"
+                {heroTitle}
+              </h2>
+              <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
+                {heroDetail}
+              </p>
+              {workoutLogs.length < 2 && (
+                <PrimaryButton
+                  onClick={() => navigate(nextWorkoutHref)}
+                  className="mt-4 w-full"
                 >
-                  <SwipeToStart
-                    onComplete={() => navigate("/workout/active")}
-                    label="Start open workout"
-                    variant="default"
-                  />
-                </AppTooltip>
-              </div>
+                  {nextWorkoutAction}
+                </PrimaryButton>
+              )}
+              <dl className="mt-4 grid grid-cols-2 divide-x divide-border border-t border-border pt-4">
+                <div className="pr-4">
+                  <dt className="text-[13px] text-muted-foreground">
+                    This week
+                  </dt>
+                  <dd className="mt-1 text-[16px] font-semibold">
+                    {workoutsThisWeek} workout
+                    {workoutsThisWeek === 1 ? "" : "s"}
+                  </dd>
+                </div>
+                <div className="pl-4">
+                  <dt className="text-[13px] text-muted-foreground">Streak</dt>
+                  <dd className="mt-1 text-[16px] font-semibold">
+                    {trainingStreak} day{trainingStreak === 1 ? "" : "s"}
+                  </dd>
+                </div>
+              </dl>
             </section>
 
             <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
               <div className="grid min-w-0 content-start gap-3">
-                {todayPreset !== null && (
-                  <div className="app-surface p-4">
+                {workoutLogs.length > 0 && (
+                  <section className="border-y border-border py-5">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div>
                         <p className="app-section-title">Today's workout</p>
@@ -1356,8 +1311,8 @@ export default function Workouts() {
                         </p>
                       </div>
                       {workoutLogs.length === 1 && (
-                        <span className="rounded-full bg-foreground/[0.055] px-2.5 py-1 text-[10px] font-bold text-muted-foreground/62">
-                          1 of 2 done
+                        <span className="text-[13px] font-medium text-muted-foreground">
+                          1 of 2 complete
                         </span>
                       )}
                     </div>
@@ -1379,7 +1334,7 @@ export default function Workouts() {
                                 <p className="truncate text-[15px] font-bold">
                                   {todayPreset2.name}
                                 </p>
-                                <p className="mt-0.5 text-[11px] text-muted-foreground/56">
+                                <p className="mt-0.5 text-[13px] text-muted-foreground/56">
                                   Workout 2 · {todayPreset2.duration}
                                 </p>
                               </div>
@@ -1408,46 +1363,13 @@ export default function Workouts() {
                           </button>
                         )}
                       </div>
-                    ) : todayPreset ? (
-                      <div>
-                        <div className="flex items-baseline justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-[1.25rem] leading-tight font-extrabold tracking-tight">
-                              {todayPreset.name}
-                            </p>
-                            {todayPreset2 && (
-                              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/56">
-                                + {todayPreset2.name} after
-                              </p>
-                            )}
-                          </div>
-                          <span className="shrink-0 text-[11px] font-semibold text-muted-foreground/56">
-                            {todayPreset.duration}
-                          </span>
-                        </div>
-                        <PresetSteps preset={todayPreset} />
-                        <div className="mt-4">
-                          <SwipeToStart
-                            onComplete={() =>
-                              navigate(`/workout/active/${todayPreset.id}`)
-                            }
-                            label="Start workout"
-                            variant="default"
-                          />
-                        </div>
-                      </div>
                     ) : (
-                      <div className="rounded-[0.9rem] bg-foreground/[0.035] px-4 py-5 text-center">
-                        <p className="text-[14px] font-bold">Rest day</p>
-                        <p className="mt-1 text-[12px] text-muted-foreground/58">
-                          No workout scheduled for today.
-                        </p>
-                      </div>
+                      <></>
                     )}
-                  </div>
+                  </section>
                 )}
 
-                <div className="app-surface p-4">
+                <section className="border-y border-border py-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="app-section-title">Routine</p>
@@ -1467,7 +1389,7 @@ export default function Workouts() {
                           "sm:bg-none"
                         )}
                       >
-                        {routineEditMode ? "Done" : <PencilIcon />}
+                        {routineEditMode ? "Done" : "Edit routine"}
                       </button>
                     </div>
                   </div>
@@ -1499,7 +1421,7 @@ export default function Workouts() {
                               slotRefs.current[day] = el
                             }}
                             className={cn(
-                              "relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center gap-1.5 overflow-hidden rounded-[0.9rem] bg-foreground/[0.035] px-2 py-2.5 transition-all duration-200 min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:gap-2 md:rounded-[0.8rem] md:px-1 md:py-3",
+                              "relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center gap-1.5 overflow-hidden border border-border px-2 py-2.5 transition-colors min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:gap-2 md:px-1 md:py-3",
                               isToday && !isOver && "bg-foreground/[0.07]",
                               isOver && "scale-[1.04] bg-foreground/[0.1]"
                             )}
@@ -1514,7 +1436,7 @@ export default function Workouts() {
                             )}
 
                             {isSlot2Drop && (
-                              <div className="absolute top-1.5 right-1.5 flex h-4 w-4 animate-in items-center justify-center rounded-full bg-foreground text-[8px] font-black text-background duration-150 zoom-in-50">
+                              <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-[13px] font-bold text-background">
                                 +2
                               </div>
                             )}
@@ -1532,7 +1454,7 @@ export default function Workouts() {
 
                             <span
                               className={cn(
-                                "text-[10px] font-bold uppercase md:text-[9.5px]",
+                                "text-[13px] font-bold uppercase md:text-[13px]",
                                 isToday
                                   ? "text-foreground"
                                   : "text-muted-foreground/62"
@@ -1550,7 +1472,7 @@ export default function Workouts() {
                                 onPointerCancel={onSlotPressEnd}
                                 className={cn(
                                   "flex w-full flex-col items-center gap-0 transition-all duration-200",
-                                  isRemoving && "scale-50 opacity-0"
+                                  isRemoving && "opacity-0"
                                 )}
                               >
                                 <div className="flex w-full flex-col items-center gap-1 pb-1">
@@ -1563,8 +1485,8 @@ export default function Workouts() {
                                     className={cn(
                                       "max-w-full truncate px-1 text-center leading-tight font-bold text-foreground/72",
                                       preset2
-                                        ? "text-[9px] md:text-[8.5px]"
-                                        : "text-[10px] md:text-[9.5px]"
+                                        ? "text-[13px] md:text-[13px]"
+                                        : "text-[13px] md:text-[13px]"
                                     )}
                                   >
                                     {preset.name}
@@ -1579,7 +1501,7 @@ export default function Workouts() {
                                       weight="duotone"
                                       className="text-foreground/55"
                                     />
-                                    <span className="max-w-full truncate px-1 text-center text-[9px] leading-tight font-bold text-foreground/72 md:text-[8.5px]">
+                                    <span className="max-w-full truncate px-1 text-center text-[13px] leading-tight font-bold text-foreground/72 md:text-[13px]">
                                       {preset2.name}
                                     </span>
                                   </div>
@@ -1589,13 +1511,13 @@ export default function Workouts() {
                               <button
                                 type="button"
                                 onClick={() => setPickRoutineDay(day)}
-                                className="flex min-h-11 flex-col items-center justify-center gap-1 px-2 text-[10px] font-bold text-muted-foreground/62 transition-colors active:text-foreground md:min-h-10"
+                                className="flex min-h-11 flex-col items-center justify-center gap-1 px-2 text-[13px] font-bold text-muted-foreground/62 transition-colors active:text-foreground md:min-h-10"
                               >
                                 <Plus size={14} weight="bold" />
                                 Add
                               </button>
                             ) : (
-                              <span className="py-1.5 text-[10px] text-muted-foreground/35">
+                              <span className="py-1.5 text-[13px] text-muted-foreground">
                                 Rest
                               </span>
                             )}
@@ -1604,25 +1526,34 @@ export default function Workouts() {
                       })}
                     </div>
                   </div>
-                </div>
+                </section>
 
-                {muscleVolume.length > 0 && (
-                  <MuscleVolumeCard muscleVolume={muscleVolume} />
-                )}
-
-                <div>
-                  <div className="mb-2 px-1">
-                    <p className="app-section-title">Muscle recovery</p>
-                    <p className="app-section-subtitle">
-                      Based on completed sets and days since training
-                    </p>
+                <details className="native-collapsible border-y border-border">
+                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
+                    Training insights
+                    <CaretDown size={18} className="text-muted-foreground" />
+                  </summary>
+                  <div className="grid gap-4 pb-4">
+                    {muscleVolume.length > 0 && (
+                      <MuscleVolumeCard muscleVolume={muscleVolume} />
+                    )}
+                    <div>
+                      <div className="mb-2 px-1">
+                        <p className="app-section-title">Muscle recovery</p>
+                        <p className="app-section-subtitle">
+                          Based on completed sets and days since training
+                        </p>
+                      </div>
+                      <MuscleRecoveryHeatmapCard
+                        muscleRecovery={muscleRecovery}
+                      />
+                    </div>
                   </div>
-                  <MuscleRecoveryHeatmapCard muscleRecovery={muscleRecovery} />
-                </div>
+                </details>
               </div>
 
               <div className="grid min-w-0 content-start gap-3">
-                <div className="app-surface p-4">
+                <section className="border-y border-border py-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="app-section-title">Presets</p>
@@ -1633,9 +1564,9 @@ export default function Workouts() {
                     <button
                       type="button"
                       onClick={() => navigate("/workouts/new")}
-                      className="app-button app-button-quiet h-9"
+                      className="app-button app-button-quiet min-h-11"
                     >
-                      New
+                      New preset
                     </button>
                   </div>
 
@@ -1651,22 +1582,14 @@ export default function Workouts() {
                       </>
                     )}
                     {!syncing && presets.length === 0 && (
-                      <div className="rounded-[0.9rem] bg-foreground/[0.035] px-3.5 py-4">
-                        <p className="text-[13px] font-bold text-foreground">
+                      <div className="border-y border-border py-5">
+                        <p className="text-[16px] font-semibold text-foreground">
                           No presets yet
                         </p>
-                        <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-[12px] leading-relaxed text-muted-foreground/66">
-                          <li>
-                            Tap{" "}
-                            <span className="font-bold text-foreground/80">
-                              New
-                            </span>
-                            .
-                          </li>
-                          <li>Name the workout and choose its focus.</li>
-                          <li>Add exercises, then save it.</li>
-                          <li>Return here and assign it to a routine day.</li>
-                        </ol>
+                        <p className="mt-1 text-[15px] leading-6 text-muted-foreground">
+                          Save a repeatable workout, then assign it to your
+                          weekly routine.
+                        </p>
                         <button
                           type="button"
                           onClick={() => navigate("/workouts/new")}
@@ -1697,10 +1620,9 @@ export default function Workouts() {
                               presetRefs.current[idx] = el
                             }}
                             className={cn(
-                              "relative touch-pan-y overflow-hidden rounded-[0.8rem] bg-foreground/[0.035] transition-all duration-150 select-none",
-                              isDraggingThis && "scale-[0.98] opacity-40",
-                              isDropTarget &&
-                                "scale-[1.01] bg-foreground/[0.07]"
+                              "relative touch-pan-y overflow-hidden border-b border-border transition-colors select-none last:border-b-0",
+                              isDraggingThis && "opacity-40",
+                              isDropTarget && "bg-foreground/[0.07]"
                             )}
                             onPointerDown={
                               !routineEditMode
@@ -1726,19 +1648,17 @@ export default function Workouts() {
                               />
                             )}
 
-                            <div className="flex items-center gap-1.5 px-2.5 py-2.5 md:gap-2 md:px-3">
-                              <span className="app-icon-button pointer-events-none h-8 w-8 shrink-0 bg-foreground/[0.055]">
-                                <FocusIcon
-                                  size={14}
-                                  weight="duotone"
-                                  className="text-foreground/62"
-                                />
-                              </span>
+                            <div className="flex min-h-14 items-center gap-2 py-2.5">
+                              <FocusIcon
+                                size={18}
+                                weight="regular"
+                                className="shrink-0 text-muted-foreground"
+                              />
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-[12.5px] leading-tight font-bold">
+                                <p className="truncate text-[15px] leading-tight font-semibold">
                                   {preset.name}
                                 </p>
-                                <p className="mt-0.5 text-[10.5px] text-muted-foreground/55">
+                                <p className="mt-1 text-[13px] text-muted-foreground">
                                   {preset.steps.length} exercises ·{" "}
                                   {preset.duration}
                                 </p>
@@ -1749,16 +1669,16 @@ export default function Workouts() {
                                 onClick={() =>
                                   navigate(`/workouts/edit/${preset.id}`)
                                 }
-                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                                className="app-button app-button-quiet min-h-11 shrink-0 px-3"
                                 aria-label={`Edit ${preset.name}`}
                               >
-                                <PencilSimple size={12} />
+                                Edit
                               </button>
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={() => duplicatePreset(preset)}
-                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent"
+                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
                                 aria-label={`Duplicate ${preset.name}`}
                               >
                                 <Copy size={12} />
@@ -1767,7 +1687,7 @@ export default function Workouts() {
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={() => setConfirmDeleteId(preset.id)}
-                                className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-destructive/70"
+                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent text-destructive"
                                 aria-label={`Delete ${preset.name}`}
                               >
                                 <Trash size={12} />
@@ -1778,7 +1698,7 @@ export default function Workouts() {
                       )
                     })}
                   </div>
-                </div>
+                </section>
 
                 {workoutHistory !== undefined && workoutDates.size > 0 && (
                   <TrainingConsistencyCard workoutDates={workoutDates} />
@@ -1800,7 +1720,7 @@ export default function Workouts() {
             weight="duotone"
             className="shrink-0 text-foreground/50"
           />
-          <span className="text-[12px] font-semibold">{ghostPreset.name}</span>
+          <span className="text-[13px] font-semibold">{ghostPreset.name}</span>
         </div>
       )}
 
@@ -1869,7 +1789,7 @@ export default function Workouts() {
                   </span>
                   <span className="text-[13px] font-semibold">Log workout</span>
                 </span>
-                <CaretRight size={11} className="text-muted-foreground/30" />
+                <CaretRight size={11} className="text-muted-foreground" />
               </button>
               <div className="mx-4 h-px bg-border/50" />
               <button
@@ -1885,7 +1805,7 @@ export default function Workouts() {
                   </span>
                   <span className="text-[13px] font-semibold">New preset</span>
                 </span>
-                <CaretRight size={11} className="text-muted-foreground/30" />
+                <CaretRight size={11} className="text-muted-foreground" />
               </button>
             </div>
           </div>

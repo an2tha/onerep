@@ -32,6 +32,7 @@ export type ProgressBodyMeasurement = {
   loggedAt: string
   weightKg?: number
   bodyFatPct?: number
+  waistCm?: number
 }
 
 export type ProgressDay = {
@@ -58,21 +59,38 @@ export type ProgressSummary = {
   days: ProgressDay[]
   nutrition: {
     loggedDays: number
+    previousLoggedDays: number
     calorieTargetDays: number
     proteinTargetDays: number
     averageCalories: number
     averageProtein: number
+    averageCarbs: number
+    averageFat: number
+    calorieDeltaFromTarget: number | null
+    previousAverageCalories: number | null
+    averageCalorieChange: number | null
   }
   training: {
     workouts: number
     activeDays: number
     completedSets: number
     durationMinutes: number
+    averageSetsPerWorkout: number
+    previousWorkouts: number
+    previousCompletedSets: number
+    workoutChange: number
+    completedSetChange: number
   }
   body: {
     latestWeightKg: number | null
     latestBodyFatPct: number | null
+    latestWaistCm: number | null
     weightDeltaKg: number | null
+    bodyFatDeltaPct: number | null
+    waistDeltaCm: number | null
+    weeklyWeightDeltaKg: number | null
+    latestCheckInDate: string | null
+    weightTrendDays: number | null
     weightPoints: Array<{ date: string; weightKg: number }>
   }
 }
@@ -146,8 +164,9 @@ export function buildProgressSummary({
   caloriesTarget: number
   proteinTarget: number
 }): ProgressSummary {
-  const dates = buildProgressDateRange(today)
-  const firstDate = dates[0] ?? today
+  const comparisonDates = buildProgressDateRange(today, 14)
+  const previousDates = comparisonDates.slice(0, 7)
+  const firstDate = comparisonDates[0] ?? today
   const safeCaloriesTarget = Math.max(1, safeNumber(caloriesTarget) || 2000)
   const safeProteinTarget = Math.max(1, safeNumber(proteinTarget) || 150)
 
@@ -167,7 +186,7 @@ export function buildProgressSummary({
     workoutsByDate.set(log.date, logs)
   }
 
-  const days = dates.map((date) => {
+  const allDays = comparisonDates.map((date) => {
     const foodEntries = foodByDate.get(date) ?? []
     const food = nutritionTotals(foodEntries)
     const workouts = workoutsByDate.get(date) ?? []
@@ -206,7 +225,13 @@ export function buildProgressSummary({
     }
   })
 
+  const days = allDays.slice(-7)
+  const previousDays = allDays.slice(0, previousDates.length)
+
   const loggedNutritionDays = days.filter((day) => day.nutrition.logged)
+  const previousLoggedNutritionDays = previousDays.filter(
+    (day) => day.nutrition.logged
+  )
   const totalCalories = loggedNutritionDays.reduce(
     (total, day) => total + day.nutrition.calories,
     0
@@ -215,7 +240,35 @@ export function buildProgressSummary({
     (total, day) => total + day.nutrition.protein,
     0
   )
+  const totalCarbs = loggedNutritionDays.reduce(
+    (total, day) => total + day.nutrition.carbs,
+    0
+  )
+  const totalFat = loggedNutritionDays.reduce(
+    (total, day) => total + day.nutrition.fat,
+    0
+  )
+  const previousTotalCalories = previousLoggedNutritionDays.reduce(
+    (total, day) => total + day.nutrition.calories,
+    0
+  )
   const trainingDays = days.filter((day) => day.training.workouts > 0)
+  const currentWorkouts = days.reduce(
+    (total, day) => total + day.training.workouts,
+    0
+  )
+  const currentCompletedSets = days.reduce(
+    (total, day) => total + day.training.completedSets,
+    0
+  )
+  const previousWorkouts = previousDays.reduce(
+    (total, day) => total + day.training.workouts,
+    0
+  )
+  const previousCompletedSets = previousDays.reduce(
+    (total, day) => total + day.training.completedSets,
+    0
+  )
 
   const weights = bodyMeasurements
     .filter(
@@ -236,11 +289,55 @@ export function buildProgressSummary({
     .at(-1)
   const latestWeight = weights.at(-1)?.weightKg ?? null
   const firstWeight = weights[0]?.weightKg ?? null
+  const firstWeightDate = weights[0]?.date ?? null
+  const latestWeightDate = weights.at(-1)?.date ?? null
+  const weightTrendDays =
+    firstWeightDate && latestWeightDate && weights.length > 1
+      ? Math.max(
+          1,
+          Math.round(
+            (new Date(`${latestWeightDate}T12:00:00Z`).getTime() -
+              new Date(`${firstWeightDate}T12:00:00Z`).getTime()) /
+              86_400_000
+          )
+        )
+      : null
+  const bodyFatMeasurements = [...bodyMeasurements]
+    .filter(
+      (measurement) =>
+        typeof measurement.bodyFatPct === "number" &&
+        Number.isFinite(measurement.bodyFatPct)
+    )
+    .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+  const waistMeasurements = [...bodyMeasurements]
+    .filter(
+      (
+        measurement
+      ): measurement is ProgressBodyMeasurement & {
+        waistCm: number
+      } =>
+        typeof measurement.waistCm === "number" &&
+        Number.isFinite(measurement.waistCm)
+    )
+    .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))
+  const firstBodyFat = bodyFatMeasurements[0]?.bodyFatPct
+  const latestBodyFat = bodyFatMeasurements.at(-1)?.bodyFatPct
+  const firstWaist = waistMeasurements[0]?.waistCm
+  const latestWaist = waistMeasurements.at(-1)?.waistCm
+  const averageCalories =
+    loggedNutritionDays.length > 0
+      ? Math.round(totalCalories / loggedNutritionDays.length)
+      : 0
+  const previousAverageCalories =
+    previousLoggedNutritionDays.length > 0
+      ? Math.round(previousTotalCalories / previousLoggedNutritionDays.length)
+      : null
 
   return {
     days,
     nutrition: {
       loggedDays: loggedNutritionDays.length,
+      previousLoggedDays: previousLoggedNutritionDays.length,
       calorieTargetDays: loggedNutritionDays.filter((day) => {
         const ratio = day.nutrition.calories / safeCaloriesTarget
         return ratio >= 0.8 && ratio <= 1.2
@@ -248,38 +345,68 @@ export function buildProgressSummary({
       proteinTargetDays: loggedNutritionDays.filter(
         (day) => day.nutrition.protein >= safeProteinTarget * 0.9
       ).length,
-      averageCalories:
-        loggedNutritionDays.length > 0
-          ? Math.round(totalCalories / loggedNutritionDays.length)
-          : 0,
+      averageCalories,
       averageProtein:
         loggedNutritionDays.length > 0
           ? Math.round(totalProtein / loggedNutritionDays.length)
           : 0,
+      averageCarbs:
+        loggedNutritionDays.length > 0
+          ? Math.round(totalCarbs / loggedNutritionDays.length)
+          : 0,
+      averageFat:
+        loggedNutritionDays.length > 0
+          ? Math.round(totalFat / loggedNutritionDays.length)
+          : 0,
+      calorieDeltaFromTarget:
+        loggedNutritionDays.length > 0
+          ? averageCalories - safeCaloriesTarget
+          : null,
+      previousAverageCalories,
+      averageCalorieChange:
+        previousAverageCalories == null
+          ? null
+          : averageCalories - previousAverageCalories,
     },
     training: {
-      workouts: days.reduce((total, day) => total + day.training.workouts, 0),
+      workouts: currentWorkouts,
       activeDays: trainingDays.length,
-      completedSets: days.reduce(
-        (total, day) => total + day.training.completedSets,
-        0
-      ),
+      completedSets: currentCompletedSets,
       durationMinutes: days.reduce(
         (total, day) => total + day.training.durationMinutes,
         0
       ),
+      averageSetsPerWorkout:
+        currentWorkouts > 0
+          ? Math.round((currentCompletedSets / currentWorkouts) * 10) / 10
+          : 0,
+      previousWorkouts,
+      previousCompletedSets,
+      workoutChange: currentWorkouts - previousWorkouts,
+      completedSetChange: currentCompletedSets - previousCompletedSets,
     },
     body: {
       latestWeightKg: latestWeight,
-      latestBodyFatPct:
-        typeof latestBodyMeasurement?.bodyFatPct === "number" &&
-        Number.isFinite(latestBodyMeasurement.bodyFatPct)
-          ? latestBodyMeasurement.bodyFatPct
-          : null,
+      latestBodyFatPct: latestBodyFat ?? null,
+      latestWaistCm: latestWaist ?? null,
       weightDeltaKg:
         firstWeight != null && latestWeight != null && weights.length > 1
           ? latestWeight - firstWeight
           : null,
+      bodyFatDeltaPct:
+        firstBodyFat != null && latestBodyFat != null
+          ? latestBodyFat - firstBodyFat
+          : null,
+      waistDeltaCm:
+        firstWaist != null && latestWaist != null
+          ? latestWaist - firstWaist
+          : null,
+      weeklyWeightDeltaKg:
+        firstWeight != null && latestWeight != null && weightTrendDays != null
+          ? ((latestWeight - firstWeight) / weightTrendDays) * 7
+          : null,
+      latestCheckInDate: latestBodyMeasurement?.loggedAt.slice(0, 10) ?? null,
+      weightTrendDays,
       weightPoints: weights,
     },
   }

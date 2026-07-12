@@ -25,10 +25,8 @@ import type { DataModel } from "./dataModel.js";
  * Typesafe environment variables declared in `convex.config.ts`.
  */
 type Env = {
-  readonly OPENAI_API_KEY: string | undefined;
-  readonly OPENAI_COACH_MODEL: string | undefined;
-  readonly OPENAI_METRIC_MODEL: string | undefined;
-  readonly OPENAI_WORKOUT_PRESET_MODEL: string | undefined;
+  readonly AI_GATEWAY_API_KEY: string | undefined;
+  readonly AI_GATEWAY_MODEL: string | undefined;
   readonly REVENUECAT_API_V2_SECRET_KEY: string | undefined;
   readonly REVENUECAT_MONTHLY_PRICE_LABEL: string | undefined;
   readonly REVENUECAT_PROJECT_ID: string | undefined;

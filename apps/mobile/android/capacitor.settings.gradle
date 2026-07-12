@@ -14,6 +14,9 @@ project(':capacitor-local-notifications').projectDir = new File('../../../node_m
 include ':capacitor-preferences'
 project(':capacitor-preferences').projectDir = new File('../../../node_modules/.bun/@capacitor+preferences@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/preferences/android')
 
+include ':capgo-capacitor-speech-recognition'
+project(':capgo-capacitor-speech-recognition').projectDir = new File('../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition/android')
+
 include ':revenuecat-purchases-capacitor'
 project(':revenuecat-purchases-capacitor').projectDir = new File('../../../node_modules/.bun/@revenuecat+purchases-capacitor@13.2.1+767ac80cbab8ae50/node_modules/@revenuecat/purchases-capacitor/android')
 

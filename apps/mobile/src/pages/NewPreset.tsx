@@ -493,12 +493,12 @@ function RestTimerSheet({
           ))}
         </div>
         <div className="border-t border-border/50 px-4 pt-3 pb-4">
-          <p className="mb-3 text-[10px] font-bold tracking-[0.18em] text-muted-foreground/45 uppercase">
+          <p className="mb-3 text-[13px] font-bold tracking-[0.18em] text-muted-foreground uppercase">
             Custom rest
           </p>
           <div className="flex items-end gap-2">
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/35 uppercase">
+              <span className="text-[13px] font-bold tracking-widest text-muted-foreground uppercase">
                 Min
               </span>
               <input
@@ -513,7 +513,7 @@ function RestTimerSheet({
               />
             </label>
             <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[9px] font-bold tracking-widest text-muted-foreground/35 uppercase">
+              <span className="text-[13px] font-bold tracking-widest text-muted-foreground uppercase">
                 Sec
               </span>
               <input
@@ -705,11 +705,11 @@ function PresetExerciseCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden transition-[border-color,opacity,transform] duration-150",
+        "relative flex overflow-hidden transition-[border-color,opacity] duration-150",
         inSuperset
           ? "border-t border-border/35 bg-transparent first:border-t-0"
-          : "rounded-lg border border-border/55 bg-card",
-        isDragging && "scale-[0.97] opacity-20",
+          : "border-y border-border bg-transparent",
+        isDragging && "opacity-20",
         showSupersetRing &&
           !inSuperset &&
           "border-foreground/70 bg-foreground/[0.035] shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_22%,transparent)] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background"
@@ -717,8 +717,8 @@ function PresetExerciseCard({
     >
       {showSupersetRing && !inSuperset && (
         <div className="pointer-events-none absolute inset-1 z-20 flex items-center justify-center rounded-md border border-dashed border-foreground/55 bg-background/55 backdrop-blur-[1px]">
-          <span className="rounded-full bg-foreground px-3 py-1.5 text-[11px] font-semibold tracking-tight text-background shadow-lg">
-            drop to superset
+          <span className="bg-foreground px-3 py-2 text-[13px] font-semibold text-background">
+            Drop to create a superset
           </span>
         </div>
       )}
@@ -733,22 +733,22 @@ function PresetExerciseCard({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header row ──────────────────────────── */}
-        <div className={cn("px-3 py-2.5 md:py-3", inSuperset && "pl-4")}>
+        <div className={cn("px-1 py-2.5 md:py-3", inSuperset && "pl-4")}>
           <div className="flex items-center gap-2">
             {/* Drag handle */}
             <div
               {...dragHandlers}
-              className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/28 transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
+              className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
             >
               <DotsSixVertical size={14} weight="bold" />
             </div>
 
             {/* Name & muscle */}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[14px] leading-tight font-semibold tracking-tight">
+              <p className="truncate text-[16px] leading-tight font-semibold tracking-tight">
                 {exercise.name}
               </p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground/50">
+              <p className="mt-1 truncate text-[13px] text-muted-foreground">
                 {collapsed
                   ? isCardio
                     ? "Cardio"
@@ -758,25 +758,26 @@ function PresetExerciseCard({
             </div>
 
             {!isCardio && (
-              <span className="shrink-0 rounded-md bg-muted/35 px-1.5 py-0.5 text-[11px] font-semibold tracking-tight text-muted-foreground/65 tabular-nums">
-                {data.sets.length}
+              <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
+                {data.sets.length} set{data.sets.length === 1 ? "" : "s"}
               </span>
             )}
           </div>
 
-          <div className="mt-2 flex items-center justify-end gap-1">
+          <div className="mt-2 flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
             {/* Remove */}
             <button
               onClick={onRemove}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/40 transition-colors active:bg-muted/35 active:text-foreground"
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-destructive transition-colors active:bg-destructive/10"
               aria-label={`Remove ${exercise.name}`}
             >
               <X size={15} weight="bold" />
+              Remove
             </button>
 
             <button
               onClick={onToggleCollapse}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground/55 transition-colors active:bg-muted/35 active:text-foreground"
+              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
               aria-label={
                 collapsed
                   ? `Expand ${exercise.name}`
@@ -784,9 +785,13 @@ function PresetExerciseCard({
               }
             >
               {collapsed ? (
-                <CaretDown size={15} weight="bold" />
+                <>
+                  <CaretDown size={15} weight="bold" /> Expand
+                </>
               ) : (
-                <CaretUp size={15} weight="bold" />
+                <>
+                  <CaretUp size={15} weight="bold" /> Collapse
+                </>
               )}
             </button>
           </div>
@@ -814,9 +819,9 @@ function PresetExerciseCard({
                   ].map((label) => (
                     <div
                       key={label}
-                      className="min-w-0 rounded-lg border border-border/40 bg-background/70 px-3 py-2"
+                      className="min-w-0 border-b border-border px-1 py-3"
                     >
-                      <span className="block truncate text-[10px] font-bold tracking-[0.14em] text-muted-foreground/45 uppercase">
+                      <span className="block truncate text-[13px] font-medium text-muted-foreground">
                         {label}
                       </span>
                     </div>
@@ -985,7 +990,7 @@ function SearchSheet({
           <div className="relative flex-1">
             <MagnifyingGlass
               size={15}
-              className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground/40"
+              className="absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
             />
             <input
               ref={inputRef}
@@ -995,14 +1000,14 @@ function SearchSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              className="h-11 w-full rounded-xl border border-border/60 bg-muted/40 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground/35 focus:border-foreground/20 focus:bg-background"
+              className="h-11 w-full rounded-xl border border-border/60 bg-muted/40 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/20 focus:bg-background"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
                 aria-label="Clear exercise search"
-                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground/40 active:text-foreground"
+                className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground active:text-foreground"
               >
                 <X size={13} weight="bold" />
               </button>
@@ -1011,7 +1016,7 @@ function SearchSheet({
           <button
             type="button"
             onClick={requestClose}
-            className="min-h-10 shrink-0 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
+            className="min-h-11 shrink-0 px-2 text-[15px] font-semibold text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
             Done
           </button>
@@ -1044,8 +1049,8 @@ function SearchSheet({
                 <p className="text-[13px] font-semibold text-muted-foreground">
                   No exercises found
                 </p>
-                <p className="text-[11px] text-muted-foreground/50">
-                  Try a different search
+                <p className="text-[15px] text-muted-foreground">
+                  Try a broader exercise or muscle name.
                 </p>
               </div>
               <ExerciseSuggestionGroups
@@ -1060,13 +1065,13 @@ function SearchSheet({
                 <p className="text-[13px] font-semibold text-muted-foreground">
                   Search failed
                 </p>
-                <p className="text-[11px] text-muted-foreground/50">
-                  Check your connection and try again
+                <p className="text-[15px] text-muted-foreground">
+                  Check your connection, then retry the search.
                 </p>
                 <button
                   type="button"
                   onClick={retrySearch}
-                  className="mt-1 min-h-9 rounded-[10px] bg-foreground px-4 text-[12px] font-semibold text-background active:opacity-85"
+                  className="app-button app-button-primary mt-1 min-h-11 px-4"
                 >
                   Retry search
                 </button>
@@ -1128,7 +1133,7 @@ function ExerciseSuggestionChips({
 
   return (
     <div className="w-full">
-      <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+      <p className="mb-2 text-[13px] font-medium text-muted-foreground">
         {label}
       </p>
       <div className="flex flex-wrap justify-center gap-2">
@@ -1137,7 +1142,7 @@ function ExerciseSuggestionChips({
             key={exercise.id}
             type="button"
             onClick={() => onChoose(exercise)}
-            className="flex min-h-9 items-center rounded-[10px] border border-border/50 bg-muted/45 px-3 text-[12px] font-semibold text-foreground/75 transition-all active:scale-[0.985] active:bg-muted/70"
+            className="flex min-h-11 items-center border border-border px-3 text-[13px] font-semibold text-foreground transition-colors active:bg-muted"
           >
             {exercise.name}
           </button>
@@ -1166,22 +1171,22 @@ function SearchExerciseCard({
         onClick={onBodyClick}
         className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pr-4 pl-4 text-left active:bg-muted/40"
       >
-        <p className="truncate text-[14px] leading-snug font-semibold">
+        <p className="truncate text-[15px] leading-snug font-semibold">
           {exercise.name}
         </p>
-        <p className="mt-0.5 truncate text-[11px] text-muted-foreground/55">
+        <p className="mt-1 truncate text-[13px] text-muted-foreground">
           {exercise.muscle}
         </p>
         {added && (
-          <p className="mt-1 text-[10.5px] font-semibold text-muted-foreground/45">
-            already in preset
+          <p className="mt-1 text-[13px] font-medium text-muted-foreground">
+            Already in workout
           </p>
         )}
       </button>
 
       <button
         onClick={onAdd}
-        className="flex items-center pr-4 pl-2 text-muted-foreground/40 transition-colors active:text-foreground"
+        className="flex min-h-11 min-w-11 items-center justify-center px-3 text-muted-foreground transition-colors active:text-foreground"
         aria-label={added ? "Remove" : `Add ${exercise.name}`}
       >
         {added ? (
@@ -1224,13 +1229,13 @@ function ExerciseModal({
         </div>
 
         <div className="px-5 pt-4">
-          <span className="inline-flex items-center rounded-full bg-muted/55 px-2.5 py-1 text-[10px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+          <span className="inline-flex items-center rounded-full bg-muted/55 px-2.5 py-1 text-[13px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
             {exercise.category}
           </span>
           <h2 className="mt-2.5 text-[20px] leading-tight font-bold tracking-tight">
             {exercise.name}
           </h2>
-          <p className="mt-1 text-[12px] font-medium text-muted-foreground/70">
+          <p className="mt-1 text-[13px] font-medium text-muted-foreground/70">
             {exercise.muscle}
           </p>
           <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground/75">
@@ -1239,10 +1244,10 @@ function ExerciseModal({
 
           <div className="mt-4 flex items-center gap-2 rounded-xl bg-muted/50 px-3.5 py-3">
             <Timer size={13} className="shrink-0 text-muted-foreground/60" />
-            <span className="text-[12px] font-medium text-muted-foreground/70">
+            <span className="text-[13px] font-medium text-muted-foreground/70">
               Suggested volume
             </span>
-            <span className="ml-auto text-[12px] font-bold tabular-nums">
+            <span className="ml-auto text-[13px] font-bold tabular-nums">
               {exercise.sets}
             </span>
           </div>
@@ -1303,7 +1308,7 @@ function PastePresetSheet({
               <Sparkle size={17} weight="fill" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black tracking-[0.2em] text-muted-foreground/45 uppercase">
+              <p className="text-[13px] font-black tracking-[0.2em] text-muted-foreground uppercase">
                 AI preset builder
               </p>
               <h2 className="mt-1 text-[19px] leading-tight font-black tracking-tight">
@@ -1317,14 +1322,14 @@ function PastePresetSheet({
             <button
               onClick={onClose}
               disabled={loading}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground/50 transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
             >
               <X size={15} weight="bold" />
             </button>
           </div>
 
           {hasExisting && (
-            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[12px] font-bold">
+            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[13px] font-bold">
               {(["replace", "append"] as AgentPresetMode[]).map((value) => (
                 <button
                   key={value}
@@ -1334,7 +1339,7 @@ function PastePresetSheet({
                     "h-10 rounded-xl capitalize transition-all",
                     mode === value
                       ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground/55 active:text-foreground"
+                      : "text-muted-foreground active:text-foreground"
                   )}
                 >
                   {value}
@@ -1352,7 +1357,7 @@ function PastePresetSheet({
             placeholder={
               "Upper Body Strength\nBench press 4x6 @ 185 lb, rest 2 min\nPull-up 4xAMRAP\nSeated cable row 3x10\nLateral raise 3x15"
             }
-            className="mt-5 min-h-52 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/30 focus:border-foreground/20 disabled:opacity-60"
+            className="mt-5 min-h-52 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground/20 disabled:opacity-60"
           />
 
           <div className="mt-4 flex flex-col gap-2">
@@ -1892,7 +1897,7 @@ export default function NewPreset() {
     return (
       <div
         key={item.id}
-        className="relative overflow-hidden rounded-xl border border-foreground/20 bg-card shadow-[inset_4px_0_0_color-mix(in_srgb,var(--foreground)_72%,transparent)]"
+        className="relative overflow-hidden border-y border-foreground/30 bg-transparent"
       >
         {showLineBefore && (
           <div className="pointer-events-none absolute -top-[5px] right-3 left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
@@ -1903,21 +1908,21 @@ export default function NewPreset() {
 
         {/* Superset label bar */}
         <div
-          className="flex items-center justify-between border-b border-border/50 bg-foreground/[0.035] py-2 pr-3.5"
+          className="flex min-h-12 items-center justify-between border-b border-border py-2 pr-3.5"
           style={{
             paddingLeft: "calc(0.875rem + 4px)",
           }}
         >
-          <span className="text-[11px] font-semibold tracking-tight text-foreground/80">
-            superset · {item.exerciseIds.length} exercises
+          <span className="text-[15px] font-semibold text-foreground">
+            Superset · {item.exerciseIds.length} exercises
           </span>
-          <span className="text-[10px] font-semibold tracking-tight text-muted-foreground/45">
-            drag out to split
+          <span className="text-[13px] font-medium text-muted-foreground">
+            Drag out to split
           </span>
         </div>
 
         {/* Exercises — no extra borders, cards have their own left stripes */}
-        <div className="flex flex-col gap-px bg-border/20">
+        <div className="flex flex-col">
           {item.exerciseIds.map((exId) => {
             const ex = exerciseLookup[exId]
             if (!ex || !exData[exId]) return null
@@ -1974,7 +1979,7 @@ export default function NewPreset() {
               if (isDirty) setConfirming(true)
               else navigate(-1)
             }}
-            className="flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
+            className="flex min-h-11 items-center gap-1.5 px-2 text-[15px] font-medium text-muted-foreground transition-colors active:bg-muted/45 active:text-foreground"
           >
             <ArrowLeft size={14} weight="bold" />
             Back
@@ -1984,7 +1989,7 @@ export default function NewPreset() {
             onClick={() => void handleSave()}
             disabled={addedIds.length === 0 || saving || loadingPreset}
             aria-busy={saving}
-            className="ml-auto flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-foreground transition-colors active:bg-muted/45 disabled:text-muted-foreground/30"
+            className="ml-auto flex min-h-11 items-center gap-1.5 px-3 text-[15px] font-semibold text-foreground transition-colors active:bg-muted/45 disabled:text-muted-foreground"
           >
             <FloppyDisk
               size={14}
@@ -1997,7 +2002,14 @@ export default function NewPreset() {
 
         {/* ── Hero: Preset name ────────────────────────── */}
         <div className="px-[var(--app-page-x)] pt-3 pb-6 md:px-8">
+          <label
+            htmlFor="preset-name"
+            className="text-[13px] font-medium text-muted-foreground"
+          >
+            Workout name
+          </label>
           <input
+            id="preset-name"
             name="preset-name"
             aria-label="Preset name"
             value={presetName}
@@ -2007,25 +2019,28 @@ export default function NewPreset() {
             }
             maxLength={40}
             disabled={loadingPreset}
-            className="app-display min-h-12 w-full bg-transparent text-[2rem] outline-none placeholder:text-muted-foreground/20"
+            className="mt-1 min-h-12 w-full border-b border-border bg-transparent text-[1.75rem] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground"
           />
           <div className="mt-2 flex items-center gap-3">
             {addedIds.length > 0 && (
-              <p className="text-[12px] font-medium text-muted-foreground/50">
+              <p className="text-[13px] font-medium text-muted-foreground">
                 {addedIds.length} exercise{addedIds.length !== 1 ? "s" : ""}
               </p>
             )}
             {/* kg / lbs toggle */}
-            <div className="app-segmented ml-auto grid grid-cols-2 text-[11px] font-bold">
+            <div
+              className="ml-auto grid grid-cols-2 border border-border text-[13px] font-semibold"
+              aria-label="Weight unit"
+            >
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
                   key={u}
                   onClick={() => setUnit(u)}
                   className={cn(
-                    "app-segmented-button min-h-10 min-w-10 px-3 transition-all duration-150",
+                    "min-h-11 min-w-11 px-3 transition-colors",
                     unit === u
-                      ? "bg-foreground text-background shadow-sm"
-                      : "text-muted-foreground/60 active:text-foreground"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground active:text-foreground"
                   )}
                   data-active={unit === u}
                 >
@@ -2041,19 +2056,19 @@ export default function NewPreset() {
           {items.length > 0 && (
             <div className="flex flex-col gap-3">
               {showSupersetTip && addedIds.length > 1 && (
-                <div className="flex items-center gap-2 rounded-xl border border-border/55 bg-card px-3 py-2.5 text-muted-foreground/70 shadow-sm">
+                <div className="flex items-center gap-2 border-y border-border py-2.5 text-muted-foreground">
                   <DotsSixVertical
                     size={15}
                     weight="bold"
                     className="shrink-0 text-foreground/65"
                   />
-                  <p className="min-w-0 flex-1 text-[12px] leading-snug font-semibold">
-                    drag one exercise onto another to make a superset.
+                  <p className="min-w-0 flex-1 text-[13px] leading-5 font-medium">
+                    Drag one exercise onto another to make a superset.
                   </p>
                   <button
                     type="button"
                     onClick={dismissSupersetTip}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground/50 transition-colors active:bg-muted active:text-foreground"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
                     aria-label="Hide superset tip"
                   >
                     <X size={12} weight="bold" />
@@ -2069,8 +2084,11 @@ export default function NewPreset() {
           )}
 
           {loadingPreset && (
-            <div className="app-empty px-4 py-4 text-[13px] text-muted-foreground/60">
-              Loading preset...
+            <div
+              className="border-y border-border px-4 py-6 text-[15px] text-muted-foreground"
+              role="status"
+            >
+              Loading workout…
             </div>
           )}
 
@@ -2078,10 +2096,8 @@ export default function NewPreset() {
           <button
             onClick={() => setSearchOpen(true)}
             className={cn(
-              "flex w-full items-center justify-center gap-2.5 rounded-[1rem] px-4 font-black transition-all active:scale-[0.985]",
-              items.length === 0
-                ? "min-h-14 bg-foreground text-background shadow-[0_12px_32px_color-mix(in_srgb,var(--foreground)_12%,transparent)] active:opacity-85"
-                : "min-h-14 bg-muted/70 text-foreground/72 active:bg-muted"
+              "app-button min-h-12 w-full",
+              items.length === 0 ? "app-button-primary" : "app-button-secondary"
             )}
           >
             <Plus size={items.length === 0 ? 17 : 16} weight="bold" />
@@ -2100,17 +2116,14 @@ export default function NewPreset() {
               }}
               disabled={loadingPreset || generatingPreset}
               aria-busy={generatingPreset}
-              className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[1.1rem] bg-muted/55 px-4 text-[13px] font-bold text-muted-foreground/72 transition-all active:scale-[0.985] active:bg-muted disabled:opacity-45"
+              className="app-button app-button-secondary min-h-12 w-full disabled:opacity-45"
             >
               <Sparkle
                 size={14}
                 weight="fill"
                 className={generatingPreset ? "animate-spin" : ""}
               />
-              Paste workout text
-              <span className="rounded-full bg-foreground px-2 py-0.5 text-[9px] font-black tracking-widest text-background uppercase">
-                AI
-              </span>
+              Import workout from text
             </button>
           )}
         </div>

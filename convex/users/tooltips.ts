@@ -1,12 +1,12 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
-import { getAuthUser } from "../lib/auth";
+import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 
 export const isTooltipCompleted = query({
   args: { id: v.number() },
   handler: async (ctx, args) => {
-    const user = await getAuthUser(ctx);
-    if (!user) throw new Error("Not authenticated");
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return false;
 
     const data = await ctx.db
       .query("onboardingProfiles")

@@ -27,7 +27,7 @@ describe("recipes Convex functions", () => {
       t.mutation(api.logs.recipes.save, {
         name: "My Recipe",
         ingredients: [ingredient],
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -36,7 +36,7 @@ describe("recipes Convex functions", () => {
     await expect(
       t.mutation(api.logs.recipes.remove, {
         id: "jd7f4z1y2s3d4t5v6w7x8" as any,
-      })
+      }),
     ).rejects.toThrow();
   });
 
@@ -51,7 +51,7 @@ describe("recipes Convex functions", () => {
         ingredients: [ingredient],
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     const stored = await t.run(async (ctx) => ctx.db.get(id));
@@ -60,6 +60,29 @@ describe("recipes Convex functions", () => {
     expect(stored!.ingredients).toHaveLength(1);
     expect(stored!.ingredients[0].name).toBe("Chicken breast");
     expect(stored!.ingredients[0].grams).toBe(200);
+  });
+
+  test("persists Coach recipe card metadata", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity({ name: "coach-recipe-user" }, async () => {
+      const id = await t.mutation(api.logs.recipes.save, {
+        name: "Fast protein bowl",
+        description: "A bright weeknight bowl",
+        servings: 2,
+        prepMinutes: 20,
+        tags: ["high protein", "quick"],
+        steps: ["Cook", "Assemble"],
+        ingredients: [ingredient],
+      });
+      const recipe = await t.run(async (ctx) => ctx.db.get(id));
+      expect(recipe).toMatchObject({
+        description: "A bright weeknight bowl",
+        servings: 2,
+        prepMinutes: 20,
+        tags: ["high protein", "quick"],
+        steps: ["Cook", "Assemble"],
+      });
+    });
   });
 
   test("lists only recipes belonging to the requesting user", async () => {
@@ -87,7 +110,7 @@ describe("recipes Convex functions", () => {
       ctx.db
         .query("recipes")
         .withIndex("by_userId", (q) => q.eq("userId", "recipe-user-a"))
-        .collect()
+        .collect(),
     );
 
     expect(userARecipes).toHaveLength(1);
@@ -105,16 +128,21 @@ describe("recipes Convex functions", () => {
         ingredients: [ingredient],
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
-    const newIngredient = { ...ingredient, id: "ing-2", name: "Rice", grams: 150 };
+    const newIngredient = {
+      ...ingredient,
+      id: "ing-2",
+      name: "Rice",
+      grams: 150,
+    };
     await t.run(async (ctx) =>
       ctx.db.patch(id, {
         name: "Updated Recipe",
         ingredients: [ingredient, newIngredient],
         updatedAt: Date.now(),
-      })
+      }),
     );
 
     const updated = await t.run(async (ctx) => ctx.db.get(id));
@@ -133,7 +161,7 @@ describe("recipes Convex functions", () => {
         ingredients: [],
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     await t.run(async (ctx) => ctx.db.delete(id));
@@ -153,7 +181,7 @@ describe("recipes Convex functions", () => {
         ingredients: [],
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     const recipe = await t.run(async (ctx) => ctx.db.get(id));
@@ -167,8 +195,24 @@ describe("recipes Convex functions", () => {
 
     const ingredients = [
       ingredient,
-      { id: "ing-2", name: "Brown Rice", grams: 100, caloriesPer100: 112, proteinPer100: 2.6, carbsPer100: 24, fatPer100: 0.9 },
-      { id: "ing-3", name: "Olive Oil", grams: 15, caloriesPer100: 884, proteinPer100: 0, carbsPer100: 0, fatPer100: 100 },
+      {
+        id: "ing-2",
+        name: "Brown Rice",
+        grams: 100,
+        caloriesPer100: 112,
+        proteinPer100: 2.6,
+        carbsPer100: 24,
+        fatPer100: 0.9,
+      },
+      {
+        id: "ing-3",
+        name: "Olive Oil",
+        grams: 15,
+        caloriesPer100: 884,
+        proteinPer100: 0,
+        carbsPer100: 0,
+        fatPer100: 100,
+      },
     ];
 
     const id = await t.run(async (ctx) =>
@@ -178,7 +222,7 @@ describe("recipes Convex functions", () => {
         ingredients,
         createdAt: now,
         updatedAt: now,
-      })
+      }),
     );
 
     const stored = await t.run(async (ctx) => ctx.db.get(id));

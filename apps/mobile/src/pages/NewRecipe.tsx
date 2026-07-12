@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   CaretDown,
   Check,
-  Fire,
   MagnifyingGlass,
   Minus,
   Plus,
@@ -390,108 +389,6 @@ function microsPer100(
   return entries
 }
 
-// ─── Macro ring ───────────────────────────────────────────────────────────────
-
-const RING_R = 46
-const RING_SW = 9
-const RING_CX = 56
-const RING_CIRC = 2 * Math.PI * RING_R
-const RING_GAP = 3.5
-
-const MACRO_ARCS = [
-  { key: "protein" as const, color: MACRO_COLORS.protein, kcalPerG: 4 },
-  { key: "carbs" as const, color: MACRO_COLORS.carbs, kcalPerG: 4 },
-  { key: "fat" as const, color: MACRO_COLORS.fat, kcalPerG: 9 },
-]
-
-function MacroRing({
-  totals,
-}: {
-  totals: { calories: number; protein: number; carbs: number; fat: number }
-}) {
-  const [drawn, setDrawn] = useState(false)
-
-  const cP = totals.protein * 4
-  const cC = totals.carbs * 4
-  const cF = totals.fat * 9
-  const total = cP + cC + cF || 1
-  const fracs = [cP / total, cC / total, cF / total]
-
-  // recalculate arcs whenever totals change
-  let cursor = -RING_CIRC / 4
-  const arcs = fracs.map((f, i) => {
-    const len = Math.max(f * RING_CIRC - RING_GAP, 0)
-    const offset = -cursor
-    cursor += f * RING_CIRC
-    return { color: MACRO_ARCS[i].color, len, offset }
-  })
-
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setDrawn(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
-
-  // re-trigger draw on ingredient change
-  useEffect(() => {
-    setDrawn(false)
-    const id = requestAnimationFrame(() => setDrawn(true))
-    return () => cancelAnimationFrame(id)
-  }, [totals.protein, totals.carbs, totals.fat])
-
-  return (
-    <div
-      className="relative shrink-0"
-      style={{ width: RING_CX * 2, height: RING_CX * 2 }}
-    >
-      <svg
-        width={RING_CX * 2}
-        height={RING_CX * 2}
-        viewBox={`0 0 ${RING_CX * 2} ${RING_CX * 2}`}
-      >
-        {/* Track */}
-        <circle
-          cx={RING_CX}
-          cy={RING_CX}
-          r={RING_R}
-          fill="none"
-          strokeWidth={RING_SW}
-          stroke="currentColor"
-          className="text-foreground/[0.06]"
-        />
-        {/* Arcs */}
-        {arcs.map((a, i) => (
-          <circle
-            key={i}
-            cx={RING_CX}
-            cy={RING_CX}
-            r={RING_R}
-            fill="none"
-            strokeWidth={RING_SW}
-            strokeLinecap="butt"
-            stroke={a.color}
-            strokeDasharray={`${drawn ? a.len : 0} ${RING_CIRC}`}
-            strokeDashoffset={a.offset}
-            style={{
-              transition: drawn
-                ? `stroke-dasharray var(--motion-slow) var(--motion-ease-out) ${i * 55}ms`
-                : "none",
-            }}
-          />
-        ))}
-      </svg>
-      {/* Centre label */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[22px] leading-none font-bold tabular-nums">
-          {totals.calories}
-        </span>
-        <span className="mt-0.5 text-[8px] font-semibold tracking-[0.15em] text-muted-foreground/40 uppercase">
-          kcal
-        </span>
-      </div>
-    </div>
-  )
-}
-
 // ─── Ingredient card ──────────────────────────────────────────────────────────
 
 function IngredientCard({
@@ -559,14 +456,11 @@ function IngredientCard({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border/45 bg-card/90">
-      <div className="flex items-start gap-3 px-3.5 py-3">
-        <div
-          className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold tabular-nums"
-          style={{ backgroundColor: `${accent}20`, color: accent }}
-        >
-          {String(index + 1).padStart(2, "0")}
-        </div>
+    <div className="py-4">
+      <div className="flex items-start gap-3 px-1">
+        <span className="mt-0.5 w-5 shrink-0 text-[13px] font-semibold text-muted-foreground tabular-nums">
+          {index + 1}.
+        </span>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -574,27 +468,23 @@ function IngredientCard({
               <p className="truncate text-[14px] leading-snug font-semibold">
                 {ingredient.name}
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <MacroPill
-                  label="P"
-                  value={protein}
-                  color={MACRO_COLORS.protein}
-                />
-                <MacroPill label="C" value={carbs} color={MACRO_COLORS.carbs} />
-                <MacroPill label="F" value={fat} color={MACRO_COLORS.fat} />
-              </div>
+              <p className="mt-1 text-[13px] leading-5 text-muted-foreground tabular-nums">
+                Protein {protein} g · Carbs {carbs} g · Fat {fat} g
+              </p>
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <span className="text-[13px] font-bold text-foreground/70 tabular-nums">
-                {cals}
+              <span className="text-[14px] font-semibold text-foreground tabular-nums">
+                {cals} kcal
               </span>
               <button
+                type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={onDelete}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground/30 transition-colors active:bg-muted/60 active:text-destructive/70"
+                className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-destructive"
+                aria-label={`Remove ${ingredient.name}`}
               >
-                <X size={11} weight="bold" />
+                <X size={17} weight="bold" />
               </button>
             </div>
           </div>
@@ -613,26 +503,29 @@ function IngredientCard({
                 }}
               />
             </div>
-            <span className="w-9 text-right text-[10px] text-muted-foreground/35 tabular-nums">
-              {calShare}%
+            <span className="w-28 text-right text-[13px] text-muted-foreground tabular-nums">
+              {calShare}% of calories
             </span>
           </div>
 
           <div className="mt-3 flex items-center gap-1.5">
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.preventDefault()
                 step(-1)
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors active:bg-muted/70"
+              aria-label={`Decrease ${ingredient.name} amount`}
             >
-              <Minus size={11} weight="bold" />
+              <Minus size={15} weight="bold" />
             </button>
 
             {editing ? (
               <input
                 ref={inputRef}
                 type="text"
+                name={`ingredient-${ingredient.id}-amount`}
                 inputMode="decimal"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
@@ -644,7 +537,8 @@ function IngredientCard({
                     setEditing(false)
                   }
                 }}
-                className="h-10 w-20 rounded-lg bg-muted/60 px-1.5 text-center text-[12px] font-semibold tabular-nums outline-none"
+                className="h-11 w-20 rounded-lg bg-muted px-1.5 text-center text-[15px] font-semibold tabular-nums outline-none"
+                aria-label={`${ingredient.name} amount`}
               />
             ) : (
               <button
@@ -652,7 +546,8 @@ function IngredientCard({
                   setInputVal(String(amount))
                   setEditing(true)
                 }}
-                className="h-10 min-w-[64px] rounded-lg bg-muted/50 px-2.5 text-center text-[12px] font-semibold text-muted-foreground/75 tabular-nums transition-colors active:bg-muted"
+                className="h-11 min-w-[64px] rounded-lg bg-muted px-2.5 text-center text-[15px] font-semibold tabular-nums transition-colors active:bg-muted/70"
+                aria-label={`Edit ${ingredient.name} amount`}
               >
                 {amount}
               </button>
@@ -667,7 +562,9 @@ function IngredientCard({
                   nextUnit
                 )
               }}
-              className="h-10 rounded-lg bg-muted/50 px-2 text-[11px] font-semibold text-muted-foreground/75 outline-none"
+              className="h-11 rounded-lg bg-muted px-2 text-[14px] font-semibold outline-none"
+              name={`ingredient-${ingredient.id}-unit`}
+              aria-label={`${ingredient.name} unit`}
             >
               {FOOD_PORTION_UNITS.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -677,15 +574,17 @@ function IngredientCard({
             </select>
 
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.preventDefault()
                 step(1)
               }}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted/45 text-muted-foreground/55 transition-all active:scale-[0.985] active:bg-muted"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors active:bg-muted/70"
+              aria-label={`Increase ${ingredient.name} amount`}
             >
-              <Plus size={11} weight="bold" />
+              <Plus size={15} weight="bold" />
             </button>
-            <span className="ml-auto hidden text-[10px] text-muted-foreground/30 tabular-nums sm:inline">
+            <span className="ml-auto hidden text-[13px] text-muted-foreground tabular-nums sm:inline">
               {Math.round(ingredient.grams)} g
             </span>
           </div>
@@ -699,10 +598,16 @@ function IngredientCard({
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="py-10">
+    <div className="border-y border-border py-8 text-center">
+      <h2 className="text-[17px] font-semibold">Add your first ingredient</h2>
+      <p className="mx-auto mt-1 max-w-sm text-[14px] leading-5 text-muted-foreground">
+        Search for each food in the recipe, then adjust its amount or serving
+        unit.
+      </p>
       <button
+        type="button"
         onClick={onAdd}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 bg-card/45 px-5 py-8 text-[14px] font-semibold text-foreground/65 transition-colors active:bg-muted/30"
+        className="native-primary-button mx-auto mt-4"
       >
         <Plus size={16} weight="bold" />
         Add ingredient
@@ -720,69 +625,38 @@ function RecipeSummary({
   ingredientCount: number
   microCount: number
 }) {
-  const maxMacro = Math.max(totals.protein, totals.carbs, totals.fat, 1)
-
   return (
-    <div className="mx-4 mb-4 rounded-xl border border-border/45 bg-card/75 px-4 py-3">
-      <div className="flex items-center gap-3">
-        <div className="relative -m-3 scale-75">
-          <MacroRing totals={totals} />
+    <section className="mx-[var(--app-page-x)] mb-5 border-y border-border py-4 md:mx-8">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="native-section-title">Recipe nutrition</h2>
+          <p className="native-row-detail mt-0.5">
+            {ingredientCount} ingredient{ingredientCount !== 1 ? "s" : ""}
+            {microCount > 0 ? ` · ${microCount} micronutrients available` : ""}
+          </p>
         </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground/45 uppercase">
-                Recipe total
-              </p>
-              <p className="text-[11px] text-muted-foreground/35">
-                {ingredientCount} ingredient{ingredientCount !== 1 ? "s" : ""}
-                {microCount > 0 ? ` · ${microCount} micros` : ""}
-              </p>
-            </div>
-            <span className="text-[24px] leading-none font-black tabular-nums">
-              {totals.calories}
-              <span className="ml-1 text-[10px] font-semibold text-muted-foreground/35">
-                kcal
-              </span>
-            </span>
-          </div>
-
-          {[
-            {
-              key: "protein" as const,
-              label: "P",
-              color: MACRO_COLORS.protein,
-            },
-            { key: "carbs" as const, label: "C", color: MACRO_COLORS.carbs },
-            { key: "fat" as const, label: "F", color: MACRO_COLORS.fat },
-          ].map(({ key, label, color }) => {
-            const value = totals[key]
-            return (
-              <div key={key} className="mb-1.5 last:mb-0">
-                <div className="flex items-center gap-2">
-                  <span className="w-3 text-[10px] font-bold" style={{ color }}>
-                    {label}
-                  </span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-foreground/[0.07]">
-                    <div
-                      className="motion-progress-fill h-full rounded-full"
-                      style={{
-                        width: `${Math.min(100, (value / maxMacro) * 100)}%`,
-                        backgroundColor: color,
-                      }}
-                    />
-                  </div>
-                  <span className="w-10 text-right text-[11px] font-semibold text-muted-foreground/55 tabular-nums">
-                    {value}g
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+        <p className="text-right text-[22px] font-semibold tabular-nums">
+          {totals.calories}
+          <span className="ml-1 text-[13px] font-medium text-muted-foreground">
+            kcal
+          </span>
+        </p>
       </div>
-    </div>
+      <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-y border-border py-3 text-center">
+        {[
+          { key: "protein" as const, label: "Protein" },
+          { key: "carbs" as const, label: "Carbs" },
+          { key: "fat" as const, label: "Fat" },
+        ].map(({ key, label }) => (
+          <div key={key}>
+            <dt className="text-[13px] text-muted-foreground">{label}</dt>
+            <dd className="mt-0.5 text-[15px] font-semibold tabular-nums">
+              {totals[key]} g
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }
 
@@ -800,47 +674,53 @@ function MicrosPanel({
   const shown = open ? micros : micros.slice(0, 4)
 
   return (
-    <div className="mt-3 rounded-xl border border-border/45 bg-card/60">
+    <section className="mt-5 border-y border-border">
       <button
+        type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/30"
+        className="flex min-h-14 w-full items-center justify-between px-1 py-3 text-left transition-colors active:bg-muted/30"
+        aria-expanded={open}
       >
         <div>
-          <p className="text-[12px] font-bold text-foreground/75">Micros</p>
-          <p className="text-[10.5px] text-muted-foreground/35">
+          <p className="text-[15px] font-semibold">Micronutrients</p>
+          <p className="text-[13px] text-muted-foreground">
             {micros.length} tracked nutrient{micros.length !== 1 ? "s" : ""}
           </p>
         </div>
         <CaretDown
           size={14}
           weight="bold"
-          className="text-muted-foreground/40 transition-transform"
+          className="text-muted-foreground transition-transform"
           style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
         />
       </button>
 
-      <div className="grid grid-cols-2 gap-2 px-3.5 pb-3 md:grid-cols-4">
+      <dl className="divide-y divide-border border-t border-border">
         {shown.map((item) => (
-          <div key={item.key} className="rounded-lg bg-muted/35 px-3 py-2">
-            <div className="mb-1 flex items-center gap-1.5">
+          <div
+            key={item.key}
+            className="flex min-h-12 items-center justify-between gap-3 px-1 py-2"
+          >
+            <dt className="flex min-w-0 items-center gap-2">
               <span
-                className="h-1.5 w-1.5 rounded-full"
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: item.color }}
+                aria-hidden
               />
-              <span className="truncate text-[10.5px] font-medium text-muted-foreground/55">
+              <span className="truncate text-[14px] font-medium">
                 {item.label}
               </span>
-            </div>
-            <p className="text-[13px] font-bold tabular-nums">
+            </dt>
+            <dd className="text-[14px] font-semibold tabular-nums">
               {item.value}
-              <span className="ml-0.5 text-[10px] font-medium text-muted-foreground/35">
+              <span className="ml-1 font-medium text-muted-foreground">
                 {item.unit}
               </span>
-            </p>
+            </dd>
           </div>
         ))}
-      </div>
-    </div>
+      </dl>
+    </section>
   )
 }
 
@@ -971,8 +851,10 @@ function SearchOverlay({
               }}
             >
               <button
+                type="button"
                 onClick={onClose}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/60 transition-opacity active:opacity-60"
+                className="native-toolbar-button shrink-0 px-0"
+                aria-label="Close ingredient search"
               >
                 <ArrowLeft size={15} weight="bold" />
               </button>
@@ -983,25 +865,29 @@ function SearchOverlay({
                 ) : (
                   <MagnifyingGlass
                     size={14}
-                    className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground/50"
+                    className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
                   />
                 )}
                 <input
                   ref={inputRef}
                   type="text"
+                  name="ingredient-search-query"
                   placeholder="Search foods…"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="h-10 w-full rounded-xl bg-muted/60 pr-10 pl-8 text-[14px] outline-none placeholder:text-muted-foreground/40"
+                  className="app-input h-11 w-full bg-muted pr-10 pl-8 text-[15px] outline-none placeholder:text-muted-foreground"
+                  aria-label="Search foods"
                 />
                 {query.length > 0 && (
                   <button
+                    type="button"
                     onClick={() => {
                       setQuery("")
                       setDebouncedQuery("")
                       setSearchState("idle")
                     }}
-                    className="absolute top-1/2 right-0 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-muted-foreground/40 transition-opacity active:opacity-60"
+                    className="absolute top-1/2 right-0 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground transition-colors active:bg-muted"
+                    aria-label="Clear search"
                   >
                     <X size={13} weight="bold" />
                   </button>
@@ -1018,93 +904,73 @@ function SearchOverlay({
               }}
             >
               {searchState === "idle" && (
-                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
-                  <MagnifyingGlass
-                    size={28}
-                    className="text-muted-foreground/20"
-                  />
-                  <p className="text-[13px] font-medium text-muted-foreground/40">
-                    Search millions of foods
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/25">
-                    Powered by OneRep Foods
+                <div className="pt-8">
+                  <h2 className="text-[19px] font-semibold">
+                    Find an ingredient
+                  </h2>
+                  <p className="mt-1 max-w-md text-[14px] leading-5 text-muted-foreground">
+                    Search by food or brand. You can adjust the amount after
+                    adding it to the recipe.
                   </p>
                 </div>
               )}
 
               {searchState === "error" && (
-                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
-                  <Warning size={28} className="text-muted-foreground/30" />
-                  <p className="text-[13px] font-medium text-muted-foreground/50">
-                    Search failed
+                <div className="border-y border-border py-6 text-center">
+                  <Warning size={24} className="mx-auto text-destructive" />
+                  <p className="mt-2 text-[15px] font-semibold">
+                    Ingredient search failed
+                  </p>
+                  <p className="mt-1 text-[14px] text-muted-foreground">
+                    Check your connection and change the search to try again.
                   </p>
                 </div>
               )}
 
               {showEmpty && (
-                <div className="flex flex-col items-center justify-center gap-2 pt-20 text-center">
-                  <p className="text-[13px] font-medium text-muted-foreground/50">
-                    No results for "{query}"
+                <div className="border-y border-border py-6 text-center">
+                  <p className="text-[15px] font-semibold">
+                    No ingredients found for “{query}”
+                  </p>
+                  <p className="mt-1 text-[14px] text-muted-foreground">
+                    Try a shorter or more general food name.
                   </p>
                 </div>
               )}
 
               {showResults && (
                 <>
-                  <p className="mt-1 mb-2 px-1 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/35 uppercase">
+                  <p className="native-supporting mt-1 mb-2">
                     {results.length} result{results.length !== 1 ? "s" : ""}
                   </p>
-                  <div className="divide-y divide-border/30 md:grid md:grid-cols-2 md:gap-3 md:divide-y-0">
+                  <div className="divide-y divide-border border-y border-border md:grid md:grid-cols-2 md:divide-y-0">
                     {results.map((item) => {
                       const isAdded = added?.itemId === item.id
                       return (
                         <div
                           key={item.id}
-                          className="flex w-full items-center gap-3 py-3 text-left transition-colors active:bg-muted/30 md:rounded-2xl md:border md:border-border/50 md:bg-card md:px-3 md:shadow-sm"
+                          className="flex min-h-[4.75rem] w-full items-center gap-3 text-left transition-colors active:bg-muted/30 md:border-b md:border-border md:odd:border-r"
                         >
                           <button
                             type="button"
                             onClick={() => setDetailItem(item)}
-                            className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                            className="flex min-h-[4.75rem] min-w-0 flex-1 items-center px-1 text-left"
                           >
-                            <CalorieBadge calories={Number(item.calories)} />
-
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-[13.5px] leading-snug font-medium">
+                              <p className="truncate text-[15px] leading-snug font-semibold">
                                 {item.name}
                               </p>
-                              <div className="mt-0.5 flex items-center gap-1.5">
-                                {item.brand && (
-                                  <span className="truncate text-[10.5px] text-muted-foreground/40">
-                                    {item.brand}
-                                  </span>
-                                )}
-                                {item.brand && (
-                                  <span className="text-[10px] text-muted-foreground/25">
-                                    ·
-                                  </span>
-                                )}
-                                <span className="shrink-0 text-[10.5px] text-muted-foreground/40">
-                                  {item.serving}
-                                </span>
-                              </div>
-                              <div className="mt-1 flex gap-2.5">
-                                <MacroPill
-                                  label="P"
-                                  value={Number(item.protein)}
-                                  color={MACRO_COLORS.protein}
-                                />
-                                <MacroPill
-                                  label="C"
-                                  value={Number(item.carbs)}
-                                  color={MACRO_COLORS.carbs}
-                                />
-                                <MacroPill
-                                  label="F"
-                                  value={Number(item.fat)}
-                                  color={MACRO_COLORS.fat}
-                                />
-                              </div>
+                              <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                                {[item.brand, item.serving]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                              <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
+                                {Math.round(Number(item.calories))} kcal ·
+                                Protein {Math.round(Number(item.protein))} g ·
+                                Carbs {Math.round(Number(item.carbs))} g · Fat{" "}
+                                {Math.round(Number(item.fat))} g
+                              </p>
                             </div>
                           </button>
 
@@ -1115,19 +981,13 @@ function SearchOverlay({
                             }}
                             disabled={isAdded}
                             aria-label={
-                              isAdded ? `${item.name} added` : `Add ${item.name}`
+                              isAdded
+                                ? `${item.name} added`
+                                : `Add ${item.name}`
                             }
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted transition-all active:scale-[0.985] disabled:opacity-60"
+                            className="mr-1 flex min-h-11 shrink-0 items-center justify-center px-3 text-[14px] font-semibold text-[var(--accent-food)] disabled:opacity-60"
                           >
-                            {isAdded ? (
-                              <span className="text-[11px] text-foreground/60">
-                                ✓
-                              </span>
-                            ) : (
-                              <span className="text-[18px] leading-none font-light text-foreground/50">
-                                +
-                              </span>
-                            )}
+                            {isAdded ? <span>Added</span> : <span>Add</span>}
                           </button>
                         </div>
                       )
@@ -1156,47 +1016,6 @@ function SearchOverlay({
         />
       )}
     </>
-  )
-}
-
-function CalorieBadge({ calories }: { calories: number }) {
-  return (
-    <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-muted/60 text-center">
-      <div
-        className="flex items-center gap-0.5"
-        style={{ color: APP_ACCENT_COLORS.food }}
-      >
-        <Fire size={13} weight="fill" />
-        <span className="text-[13px] leading-none font-semibold tabular-nums">
-          {Math.round(calories)}
-        </span>
-      </div>
-      <span className="mt-0.5 text-[8.5px] font-semibold tracking-[0.08em] text-muted-foreground/40 uppercase">
-        kcal
-      </span>
-    </div>
-  )
-}
-
-function MacroPill({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value: number
-  color: string
-}) {
-  return (
-    <span className="flex items-baseline gap-0.5">
-      <span
-        className="text-[9.5px] font-semibold"
-        style={{ color, opacity: 0.7 }}
-      >
-        {label}
-      </span>
-      <span className="text-[10px] text-muted-foreground/50">{value}g</span>
-    </span>
   )
 }
 
@@ -1344,16 +1163,13 @@ export default function NewRecipe() {
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
-            <button
-              onClick={() => navigate(-1)}
-              className="app-icon-button"
-            >
+            <button onClick={() => navigate(-1)} className="app-icon-button">
               <ArrowLeft size={15} weight="bold" />
             </button>
 
-            <p className="app-eyebrow flex-1 text-muted-foreground/55">
-              {initial ? "Edit Recipe" : "New Recipe"}
-            </p>
+            <h1 className="flex-1 text-[17px] font-semibold">
+              {initial ? "Edit recipe" : "New recipe"}
+            </h1>
 
             <button
               onClick={handleSave}
@@ -1373,7 +1189,7 @@ export default function NewRecipe() {
             <button
               onClick={handleSave}
               disabled={!canSave || saved}
-              className="app-button app-button-primary hidden h-10 px-4 text-[12px] disabled:opacity-25 md:inline-flex"
+              className="app-button app-button-primary hidden h-11 px-4 text-[15px] disabled:opacity-40 md:inline-flex"
             >
               {saved ? (
                 <Check
@@ -1392,10 +1208,12 @@ export default function NewRecipe() {
           <div className="px-[var(--app-page-x)] pb-6 md:px-8">
             <input
               type="text"
+              name="recipe-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Untitled Recipe"
-              className="app-display min-h-12 w-full bg-transparent text-[2.1rem] text-foreground outline-none placeholder:text-foreground/18"
+              placeholder="Recipe name"
+              aria-label="Recipe name"
+              className="app-display min-h-12 w-full bg-transparent text-[2rem] text-foreground outline-none placeholder:text-muted-foreground"
             />
             {/* Ruler line — always visible, like a recipe card */}
             <div className="mt-3 h-px bg-border/50" />
@@ -1421,16 +1239,14 @@ export default function NewRecipe() {
             ) : (
               <>
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="app-eyebrow text-muted-foreground/45">
-                    Ingredients
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/30">
+                  <h2 className="native-section-title">Ingredients</h2>
+                  <span className="text-[13px] text-muted-foreground">
                     {ingredients.length} item
                     {ingredients.length !== 1 ? "s" : ""}
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="divide-y divide-border border-y border-border">
                   {ingredients.map((ing, idx) => {
                     const ingCal = Math.round(
                       (ing.caloriesPer100 * ing.grams) / 100
@@ -1468,10 +1284,11 @@ export default function NewRecipe() {
 
                 {/* Add ingredient button */}
                 <button
+                  type="button"
                   onClick={() => setSearchOpen(true)}
-                  className="app-empty mt-3 w-full justify-center py-3.5 text-[13px] font-semibold transition-colors active:bg-muted/25"
+                  className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 text-[15px] font-semibold text-[var(--accent-food)] transition-colors active:bg-muted/25"
                 >
-                  <Plus size={13} className="text-muted-foreground/35" />
+                  <Plus size={16} className="text-muted-foreground" />
                   Add ingredient
                 </button>
 
@@ -1481,29 +1298,12 @@ export default function NewRecipe() {
                   onToggle={() => setShowMicros((value) => !value)}
                 />
 
-                <div className="mt-4 flex items-center justify-between px-1">
-                  <span className="text-[10px] text-muted-foreground/30">
-                    {ingredients.length} ingredient
-                    {ingredients.length !== 1 ? "s" : ""}
-                  </span>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-[10px] text-muted-foreground/30 tabular-nums">
-                      P{totals.protein} C{totals.carbs} F{totals.fat}g
-                    </span>
-                    <span className="text-[13px] font-bold text-foreground/60 tabular-nums">
-                      {totals.calories}
-                      <span className="ml-0.5 text-[9.5px] font-normal text-muted-foreground/35">
-                        kcal
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
                 {/* Save button at bottom */}
                 <button
+                  type="button"
                   onClick={handleSave}
                   disabled={!canSave || saved}
-                  className="mt-4 w-full rounded-xl bg-foreground py-4 text-[14px] font-semibold text-background transition-all active:scale-[0.985] active:opacity-75 disabled:opacity-25"
+                  className="native-primary-button mt-5 w-full"
                 >
                   {saved ? "Saved ✓" : initial ? "Save Changes" : "Save Recipe"}
                 </button>

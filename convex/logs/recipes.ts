@@ -56,6 +56,11 @@ export const save = mutation({
   args: {
     id: v.optional(v.id("recipes")),
     name: v.string(),
+    description: v.optional(v.string()),
+    servings: v.optional(v.number()),
+    prepMinutes: v.optional(v.number()),
+    tags: v.optional(v.array(v.string())),
+    steps: v.optional(v.array(v.string())),
     ingredients: v.array(recipeIngredientValidator),
   },
   handler: async (ctx, args) => {
@@ -70,6 +75,15 @@ export const save = mutation({
       }
       await ctx.db.patch(args.id, {
         name: args.name,
+        ...(args.description !== undefined
+          ? { description: args.description }
+          : {}),
+        ...(args.servings !== undefined ? { servings: args.servings } : {}),
+        ...(args.prepMinutes !== undefined
+          ? { prepMinutes: args.prepMinutes }
+          : {}),
+        ...(args.tags !== undefined ? { tags: args.tags } : {}),
+        ...(args.steps !== undefined ? { steps: args.steps } : {}),
         ingredients: args.ingredients,
         updatedAt: now,
       });
@@ -79,6 +93,15 @@ export const save = mutation({
       return await ctx.db.insert("recipes", {
         userId: user._id,
         name: args.name,
+        ...(args.description !== undefined
+          ? { description: args.description }
+          : {}),
+        ...(args.servings !== undefined ? { servings: args.servings } : {}),
+        ...(args.prepMinutes !== undefined
+          ? { prepMinutes: args.prepMinutes }
+          : {}),
+        ...(args.tags !== undefined ? { tags: args.tags } : {}),
+        ...(args.steps !== undefined ? { steps: args.steps } : {}),
         ingredients: args.ingredients,
         createdAt: now,
         updatedAt: now,

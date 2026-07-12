@@ -26,4 +26,13 @@ describe("app motion CSS", () => {
     expect(css).toContain("animation: none !important;")
     expect(css).toContain("transition: none !important;")
   })
+
+  test("animates native and settings disclosures without scale motion", () => {
+    expect(css).toContain(".native-collapsible::details-content")
+    expect(css).toContain(".native-collapsible[open]::details-content")
+    expect(css).toContain("block-size var(--motion-medium)")
+    expect(css).toContain(
+      "animation: accordion-down var(--motion-medium) var(--motion-ease-standard)"
+    )
+  })
 })

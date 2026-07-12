@@ -520,6 +520,11 @@ export const exportMyData = query({
       supplementIntakeLogs,
       bodyMeasurements,
       dailyCheckIns,
+      coachMemories,
+      coachCheckIns,
+      coachActionEvents,
+      coachWeeklyPlans,
+      coachUploads,
       aiUsage,
       activeWorkouts,
       customExercises,
@@ -585,6 +590,26 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
+        .query("coachMemories")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachCheckIns")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachActionEvents")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachWeeklyPlans")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachUploads")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
         .query("aiUsage")
         .withIndex("by_userId_month", (q) => q.eq("userId", user._id))
         .collect(),
@@ -621,6 +646,11 @@ export const exportMyData = query({
         supplementIntakeLogs,
         bodyMeasurements,
         dailyCheckIns,
+        coachMemories,
+        coachCheckIns,
+        coachActionEvents,
+        coachWeeklyPlans,
+        coachUploads,
         aiUsage,
         activeWorkouts,
         customExercises,

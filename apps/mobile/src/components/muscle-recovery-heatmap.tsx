@@ -1,5 +1,4 @@
 import { useId } from "react"
-import { Card } from "@repo/ui"
 import type { MuscleRecovery, MuscleRecoveryStatus } from "@/lib/muscle-volume"
 import { MuscleBodySvg } from "@/components/muscle-body-svg"
 
@@ -92,13 +91,13 @@ export function MuscleRecoveryHeatmapCard({
 
   if (muscleRecovery.length === 0) {
     return (
-      <Card>
+      <section className="border-y border-border">
         <div className="px-4 py-5 text-center">
-          <p className="text-[12px] text-muted-foreground/40">
+          <p className="text-[13px] text-muted-foreground">
             Finish workouts to see muscle recovery
           </p>
         </div>
-      </Card>
+      </section>
     )
   }
 
@@ -124,25 +123,25 @@ export function MuscleRecoveryHeatmapCard({
     )
 
     return (
-      <Card>
+      <section className="border-y border-border">
         <div className="px-3 py-3">
           <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold text-muted-foreground/62">
+            <p className="text-[13px] font-medium text-muted-foreground">
               {counts.trained} trained · {counts.recovering} recovering ·{" "}
               {counts.overdue} overdue
             </p>
-            <p className="shrink-0 text-[9.5px] font-semibold text-muted-foreground/42">
+            <p className="shrink-0 text-[13px] font-medium text-muted-foreground">
               days
             </p>
           </div>
 
-          <div className="mb-1 grid grid-cols-[4.7rem_minmax(0,1fr)_2.6rem] items-center gap-2 px-0.5">
+          <div className="mb-1 grid grid-cols-[6rem_minmax(0,1fr)_3.5rem] items-center gap-2 px-0.5">
             <span />
             <div className="grid grid-cols-6 gap-1">
               {COLUMNS.map((column) => (
                 <span
                   key={column.label}
-                  className="text-center text-[8px] font-bold text-muted-foreground/38"
+                  className="text-center text-[13px] font-semibold text-muted-foreground"
                 >
                   {column.label}
                 </span>
@@ -166,9 +165,9 @@ export function MuscleRecoveryHeatmapCard({
               return (
                 <div
                   key={item.muscle}
-                  className="grid grid-cols-[4.7rem_minmax(0,1fr)_2.6rem] items-center gap-2"
+                  className="grid grid-cols-[6rem_minmax(0,1fr)_3.5rem] items-center gap-2"
                 >
-                  <span className="truncate text-[10.5px] font-bold text-foreground/72 capitalize">
+                  <span className="truncate text-[13px] font-semibold capitalize">
                     {titleCase(item.muscle)}
                   </span>
                   <div className="grid grid-cols-6 gap-1">
@@ -177,7 +176,7 @@ export function MuscleRecoveryHeatmapCard({
                       return (
                         <span
                           key={column.label}
-                          className="h-3 rounded-[3px] border border-foreground/[0.08] bg-foreground/[0.045]"
+                          className="h-4 rounded-[3px] border border-border bg-muted"
                           style={
                             isActive
                               ? {
@@ -190,7 +189,7 @@ export function MuscleRecoveryHeatmapCard({
                       )
                     })}
                   </div>
-                  <span className="truncate text-right text-[9.5px] font-semibold text-muted-foreground/48">
+                  <span className="truncate text-right text-[13px] font-medium text-muted-foreground">
                     {formatAge(item.daysSinceLastTrained)}
                   </span>
                 </div>
@@ -199,17 +198,17 @@ export function MuscleRecoveryHeatmapCard({
           </div>
 
           {hiddenCount > 0 && (
-            <p className="mt-2 text-[9.5px] font-semibold text-muted-foreground/38">
+            <p className="mt-2 text-[13px] font-medium text-muted-foreground">
               +{hiddenCount} more muscle group{hiddenCount === 1 ? "" : "s"}
             </p>
           )}
         </div>
-      </Card>
+      </section>
     )
   }
 
   return (
-    <Card>
+    <section className="border-y border-border">
       <div className="px-4 py-4">
         <div className="overflow-x-auto overflow-y-hidden pb-1 [-webkit-overflow-scrolling:touch]">
           <svg
@@ -506,6 +505,6 @@ export function MuscleRecoveryHeatmapCard({
           </svg>
         </div>
       </div>
-    </Card>
+    </section>
   )
 }

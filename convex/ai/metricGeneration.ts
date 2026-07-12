@@ -1,13 +1,17 @@
 import { v } from "convex/values";
-import { action, env } from "../_generated/server";
+import { action } from "../_generated/server";
+import { internal } from "../_generated/api";
 import { getAuthUser } from "../lib/auth";
+import { hasGatewayApiKey, requestGatewayJson } from "./gateway";
+import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
 
-const MAX_PROMPT_CHARS = 600;
+const MAX_PROMPT_CHARS = 1_200;
 const MAX_METRICS = 80;
 const MAX_KEYWORDS = 16;
 const DEFAULT_MAX_RESULTS = 4;
 const MAX_RESULTS = 6;
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 const SUBAPPS = ["dashboard", "nutrition", "progress", "workouts"] as const;
 type MetricSubapp = (typeof SUBAPPS)[number];
@@ -23,7 +27,7 @@ type MetricCatalogItem = {
 type MetricGenerationResult = {
   metricIds: string[];
   customMetricTitle?: string;
-  source: "openai" | "fallback";
+  source: "gateway" | "fallback";
 };
 
 type CoachAdvice = {
@@ -34,7 +38,7 @@ type CoachAdvice = {
 
 type CoachAdviceResult = {
   advice: CoachAdvice[];
-  source: "openai" | "fallback";
+  source: "gateway" | "fallback";
 };
 
 type CoachChatMessage = {
@@ -81,10 +85,178 @@ type CoachUiBlock =
       actions: Array<{ label: string; action: CoachUiAction }>;
     };
 
+type CoachRecipeIngredient = {
+  id?: string;
+  name: string;
+  grams: number;
+  caloriesPer100: number;
+  proteinPer100: number;
+  carbsPer100: number;
+  fatPer100: number;
+};
+
+type CoachOperationMeta = {
+  confirmation: "auto" | "confirm";
+  summary: string;
+  assumptions: string[];
+  warnings: string[];
+};
+
+type CoachOperation = CoachOperationMeta &
+  (
+    | {
+        type: "save_recipe";
+        recipeId?: string;
+        name: string;
+        description: string;
+        servings: number;
+        prepMinutes: number;
+        tags: string[];
+        ingredients: CoachRecipeIngredient[];
+        steps: string[];
+        logMeal?: string;
+        servingsToLog?: number;
+      }
+    | {
+        type: "log_nutrition";
+        entryId?: string;
+        date?: string;
+        name: string;
+        meal: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+      }
+    | {
+        type: "delete_nutrition";
+        entryId: string;
+        date: string;
+        name: string;
+      }
+    | {
+        type: "create_workout_preset";
+        presetId?: string;
+        reason?: "user_edit" | "progression" | "recovery" | "substitution";
+        name: string;
+        focus: "strength" | "cardio" | "mobility";
+        exercises: Array<{
+          name: string;
+          sets: Array<{
+            type: "working" | "warmup" | "failure" | "myoreps" | "drop";
+            weight: string;
+            reps: string;
+            restSeconds: number;
+          }>;
+        }>;
+        scheduleDays: string[];
+      }
+    | {
+        type: "update_routine";
+        assignments: Array<{ day: string; presetName: string | null }>;
+      }
+    | {
+        type: "remember";
+        key: string;
+        category: string;
+        value: string;
+      }
+    | {
+        type: "forget_memory";
+        key: string;
+        value: string;
+      }
+    | {
+        type: "save_check_in";
+        date: string;
+        energy: number;
+        soreness: number;
+        sleepQuality: number;
+        mood: number;
+        note?: string;
+      }
+    | {
+        type: "save_weekly_plan";
+        weekStart: string;
+        title: string;
+        days: Array<{
+          day: string;
+          workoutPresetId?: string;
+          workoutLabel?: string;
+          meals: Array<{ label: string; recipeId?: string; note?: string }>;
+          recoveryNote?: string;
+        }>;
+        planAssumptions: string[];
+      }
+    | {
+        type: "undo_action";
+        actionId: string;
+        actionSummary: string;
+      }
+  );
+
+type CoachArtifact = {
+  type:
+    | "today_briefing"
+    | "progress_explanation"
+    | "simulation"
+    | "validation"
+    | "recovery_adaptation";
+  title: string;
+  status?: string;
+  detail: string;
+  evidence: string[];
+  nextSteps: string[];
+};
+
+type CoachWorkspace = {
+  today?: string;
+  presets: Array<{
+    name: string;
+    id: string;
+    updatedAt?: number;
+    snapshot?: unknown;
+  }>;
+  recipes?: Array<{
+    id: string;
+    name: string;
+    updatedAt: number;
+    servings?: number;
+    ingredients: CoachRecipeIngredient[];
+  }>;
+  foodEntries?: Array<{
+    id: string;
+    date: string;
+    name: string;
+    meal: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>;
+  memories?: Array<{ key: string; category: string; value: string }>;
+  checkIns?: Array<{
+    date: string;
+    energy: number;
+    soreness: number;
+    sleepQuality: number;
+    mood: number;
+  }>;
+  recentWorkouts?: unknown[];
+  recentActions?: unknown[];
+  routine: Array<{
+    day: string;
+    presetId?: string | null;
+    presetName: string | null;
+  }>;
+};
+
 type CoachChatResult = {
   reply: string;
   uiBlocks: CoachUiBlock[];
-  source: "openai" | "fallback";
+  operations: CoachOperation[];
+  artifacts: CoachArtifact[];
+  source: "gateway" | "fallback";
 };
 
 type CoachContext = {
@@ -184,7 +356,7 @@ function fallbackMetricIds(
     .map((metric) => metric.id);
 }
 
-function normalizeOpenAiResult(
+function normalizeGatewayResult(
   value: unknown,
   allowedIds: Set<string>,
   maxResults: number,
@@ -344,14 +516,399 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
     .slice(0, 4);
 }
 
-function normalizeCoachChatResponse(value: unknown) {
+function clampNumber(value: unknown, min: number, max: number, fallback = 0) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, parsed));
+}
+
+function normalizeOperationMeta(
+  row: Record<string, unknown>,
+): CoachOperationMeta {
+  return {
+    confirmation: row.confirmation === "auto" ? "auto" : "confirm",
+    summary: clampText(row.summary, 120) || "Apply Coach change",
+    assumptions: (Array.isArray(row.assumptions) ? row.assumptions : [])
+      .map((item) => clampText(item, 140))
+      .filter(Boolean)
+      .slice(0, 5),
+    warnings: (Array.isArray(row.warnings) ? row.warnings : [])
+      .map((item) => clampText(item, 160))
+      .filter(Boolean)
+      .slice(0, 5),
+  };
+}
+
+function normalizeDate(value: unknown) {
+  const date = clampText(value, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+}
+
+function normalizeCoachOperations(value: unknown): CoachOperation[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item): CoachOperation | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const type = clampText(row.type, 32);
+      const meta = normalizeOperationMeta(row);
+
+      if (type === "save_recipe") {
+        const name = clampText(row.name, 64);
+        const rawIngredients = Array.isArray(row.ingredients)
+          ? row.ingredients
+          : [];
+        const ingredients = rawIngredients
+          .map((item): CoachRecipeIngredient | null => {
+            if (!item || typeof item !== "object") return null;
+            const ingredient = item as Record<string, unknown>;
+            const ingredientName = clampText(ingredient.name, 80);
+            if (!ingredientName) return null;
+            return {
+              name: ingredientName,
+              grams: clampNumber(ingredient.grams, 1, 3000, 100),
+              caloriesPer100: clampNumber(ingredient.caloriesPer100, 0, 1000),
+              proteinPer100: clampNumber(ingredient.proteinPer100, 0, 100),
+              carbsPer100: clampNumber(ingredient.carbsPer100, 0, 100),
+              fatPer100: clampNumber(ingredient.fatPer100, 0, 100),
+            };
+          })
+          .filter((item): item is CoachRecipeIngredient => Boolean(item))
+          .slice(0, 20);
+        if (!name || ingredients.length === 0) return null;
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.recipeId, 100)
+            ? { recipeId: clampText(row.recipeId, 100) }
+            : {}),
+          name,
+          description: clampText(row.description, 180),
+          servings: Math.round(clampNumber(row.servings, 1, 20, 1)),
+          prepMinutes: Math.round(clampNumber(row.prepMinutes, 1, 360, 15)),
+          tags: (Array.isArray(row.tags) ? row.tags : [])
+            .map((tag) => clampText(tag, 24))
+            .filter(Boolean)
+            .slice(0, 4),
+          ingredients,
+          steps: (Array.isArray(row.steps) ? row.steps : [])
+            .map((step) => clampText(step, 180))
+            .filter(Boolean)
+            .slice(0, 10),
+          ...(clampText(row.logMeal, 32)
+            ? { logMeal: clampText(row.logMeal, 32) }
+            : {}),
+          ...(row.servingsToLog !== undefined
+            ? {
+                servingsToLog: clampNumber(row.servingsToLog, 0.1, 20, 1),
+              }
+            : {}),
+        };
+      }
+
+      if (type === "log_nutrition") {
+        const name = clampText(row.name, 80);
+        if (!name) return null;
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.entryId, 100)
+            ? { entryId: clampText(row.entryId, 100) }
+            : {}),
+          ...(normalizeDate(row.date) ? { date: normalizeDate(row.date) } : {}),
+          name,
+          meal: clampText(row.meal, 32) || "Meal",
+          calories: Math.round(clampNumber(row.calories, 0, 10000)),
+          protein: clampNumber(row.protein, 0, 1000),
+          carbs: clampNumber(row.carbs, 0, 2000),
+          fat: clampNumber(row.fat, 0, 1000),
+        };
+      }
+
+      if (type === "delete_nutrition") {
+        const entryId = clampText(row.entryId, 100);
+        const date = normalizeDate(row.date);
+        if (!entryId || !date) return null;
+        return {
+          ...meta,
+          type,
+          entryId,
+          date,
+          name: clampText(row.name, 80) || "nutrition entry",
+        };
+      }
+
+      if (type === "create_workout_preset") {
+        const name = clampText(row.name, 40);
+        const allowedSetTypes = new Set([
+          "working",
+          "warmup",
+          "failure",
+          "myoreps",
+          "drop",
+        ]);
+        const exercises = (Array.isArray(row.exercises) ? row.exercises : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const exercise = item as Record<string, unknown>;
+            const exerciseName = clampText(exercise.name, 80);
+            if (!exerciseName) return null;
+            const sets = (Array.isArray(exercise.sets) ? exercise.sets : [])
+              .map((item) => {
+                if (!item || typeof item !== "object") return null;
+                const set = item as Record<string, unknown>;
+                const setType = clampText(set.type, 16);
+                return {
+                  type: (allowedSetTypes.has(setType) ? setType : "working") as
+                    "working" | "warmup" | "failure" | "myoreps" | "drop",
+                  weight: clampText(set.weight, 16),
+                  reps: clampText(set.reps, 24),
+                  restSeconds: Math.round(
+                    clampNumber(set.restSeconds, 0, 900, 120),
+                  ),
+                };
+              })
+              .filter((set): set is NonNullable<typeof set> => Boolean(set))
+              .slice(0, 10);
+            return {
+              name: exerciseName,
+              sets:
+                sets.length > 0
+                  ? sets
+                  : [
+                      {
+                        type: "working" as const,
+                        weight: "",
+                        reps: "8-12",
+                        restSeconds: 120,
+                      },
+                    ],
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 12);
+        if (!name || exercises.length === 0) return null;
+        const focus = clampText(row.focus, 16);
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.presetId, 100)
+            ? { presetId: clampText(row.presetId, 100) }
+            : {}),
+          ...(row.reason === "progression" ||
+          row.reason === "recovery" ||
+          row.reason === "substitution"
+            ? { reason: row.reason }
+            : { reason: "user_edit" as const }),
+          name,
+          focus:
+            focus === "cardio" || focus === "mobility" ? focus : "strength",
+          exercises,
+          scheduleDays: (Array.isArray(row.scheduleDays)
+            ? row.scheduleDays
+            : []
+          )
+            .map((day) => clampText(day, 3))
+            .filter((day) =>
+              ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].includes(day),
+            )
+            .slice(0, 7),
+        };
+      }
+
+      if (type === "update_routine") {
+        const assignments = (
+          Array.isArray(row.assignments) ? row.assignments : []
+        )
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const assignment = item as Record<string, unknown>;
+            const day = clampText(assignment.day, 3);
+            if (
+              !["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].includes(day)
+            ) {
+              return null;
+            }
+            return {
+              day,
+              presetName:
+                assignment.presetName === null
+                  ? null
+                  : clampText(assignment.presetName, 40) || null,
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 7);
+        return assignments.length > 0 ? { ...meta, type, assignments } : null;
+      }
+
+      if (type === "remember") {
+        const key = clampText(row.key, 64).toLowerCase();
+        const value = clampText(row.value, 240);
+        if (!key || !value) return null;
+        return {
+          ...meta,
+          type,
+          key,
+          category: clampText(row.category, 32) || "preference",
+          value,
+        };
+      }
+
+      if (type === "forget_memory") {
+        const key = clampText(row.key, 64).toLowerCase();
+        if (!key) return null;
+        return {
+          ...meta,
+          type,
+          key,
+          value: clampText(row.value, 240) || key,
+        };
+      }
+
+      if (type === "save_check_in") {
+        const date = normalizeDate(row.date);
+        if (!date) return null;
+        return {
+          ...meta,
+          type,
+          date,
+          energy: Math.round(clampNumber(row.energy, 1, 5, 3)),
+          soreness: Math.round(clampNumber(row.soreness, 1, 5, 3)),
+          sleepQuality: Math.round(clampNumber(row.sleepQuality, 1, 5, 3)),
+          mood: Math.round(clampNumber(row.mood, 1, 5, 3)),
+          ...(clampText(row.note, 280)
+            ? { note: clampText(row.note, 280) }
+            : {}),
+        };
+      }
+
+      if (type === "save_weekly_plan") {
+        const weekStart = normalizeDate(row.weekStart);
+        const days = (Array.isArray(row.days) ? row.days : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const day = item as Record<string, unknown>;
+            const dayName = clampText(day.day, 3);
+            if (!DAYS.includes(dayName as (typeof DAYS)[number])) return null;
+            return {
+              day: dayName,
+              ...(clampText(day.workoutPresetId, 100)
+                ? { workoutPresetId: clampText(day.workoutPresetId, 100) }
+                : {}),
+              ...(clampText(day.workoutLabel, 80)
+                ? { workoutLabel: clampText(day.workoutLabel, 80) }
+                : {}),
+              meals: (Array.isArray(day.meals) ? day.meals : [])
+                .map((item) => {
+                  if (!item || typeof item !== "object") return null;
+                  const meal = item as Record<string, unknown>;
+                  const label = clampText(meal.label, 80);
+                  if (!label) return null;
+                  return {
+                    label,
+                    ...(clampText(meal.recipeId, 100)
+                      ? { recipeId: clampText(meal.recipeId, 100) }
+                      : {}),
+                    ...(clampText(meal.note, 180)
+                      ? { note: clampText(meal.note, 180) }
+                      : {}),
+                  };
+                })
+                .filter((item): item is NonNullable<typeof item> =>
+                  Boolean(item),
+                )
+                .slice(0, 6),
+              ...(clampText(day.recoveryNote, 180)
+                ? { recoveryNote: clampText(day.recoveryNote, 180) }
+                : {}),
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 7);
+        if (!weekStart || days.length === 0) return null;
+        return {
+          ...meta,
+          type,
+          weekStart,
+          title: clampText(row.title, 80) || "Weekly plan",
+          days,
+          planAssumptions: (Array.isArray(row.planAssumptions)
+            ? row.planAssumptions
+            : []
+          )
+            .map((item) => clampText(item, 180))
+            .filter(Boolean)
+            .slice(0, 10),
+        };
+      }
+
+      if (type === "undo_action") {
+        const actionId = clampText(row.actionId, 100);
+        if (!actionId) return null;
+        return {
+          ...meta,
+          type,
+          actionId,
+          actionSummary: clampText(row.actionSummary, 160) || "Coach change",
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is CoachOperation => Boolean(item))
+    .slice(0, 12);
+}
+
+function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
+  if (!Array.isArray(value)) return [];
+  const allowedTypes = new Set<CoachArtifact["type"]>([
+    "today_briefing",
+    "progress_explanation",
+    "simulation",
+    "validation",
+    "recovery_adaptation",
+  ]);
+  return value
+    .map((item): CoachArtifact | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const type = clampText(row.type, 32) as CoachArtifact["type"];
+      const title = clampText(row.title, 90);
+      const detail = clampText(row.detail, 500);
+      if (!allowedTypes.has(type) || !title || !detail) return null;
+      return {
+        type,
+        title,
+        ...(clampText(row.status, 24)
+          ? { status: clampText(row.status, 24) }
+          : {}),
+        detail,
+        evidence: (Array.isArray(row.evidence) ? row.evidence : [])
+          .map((value) => clampText(value, 160))
+          .filter(Boolean)
+          .slice(0, 6),
+        nextSteps: (Array.isArray(row.nextSteps) ? row.nextSteps : [])
+          .map((value) => clampText(value, 160))
+          .filter(Boolean)
+          .slice(0, 5),
+      };
+    })
+    .filter((item): item is CoachArtifact => Boolean(item))
+    .slice(0, 4);
+}
+
+function normalizeCoachChatResponse(value: unknown, generateUi: boolean) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   const reply = clampText(input.reply, 900);
   if (!reply) return null;
   return {
     reply,
-    uiBlocks: normalizeCoachUiBlocks(input.uiBlocks),
+    uiBlocks: generateUi ? normalizeCoachUiBlocks(input.uiBlocks) : [],
+    operations: normalizeCoachOperations(input.operations),
+    artifacts: normalizeCoachArtifacts(input.artifacts),
   };
 }
 
@@ -445,29 +1002,34 @@ function fallbackCoachChatResponse({
   message,
   context,
   focusInsight,
+  generateUi,
 }: {
   message: string;
   context: CoachContext;
   focusInsight?: CoachAdvice;
-}): Pick<CoachChatResult, "reply" | "uiBlocks"> {
-  const uiBlocks = fallbackCoachUiBlocks(context);
+  generateUi: boolean;
+}): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
+  const uiBlocks = generateUi ? fallbackCoachUiBlocks(context) : [];
   if (context.safetyMode !== "standard" || context.safetyFlags.length > 0) {
     return {
       reply:
         "I’ll keep your plan conservative and treat the context you shared during setup as a hard constraint. I can help with simple routines and meal structure, but I won’t prescribe aggressive calorie, fasting, or training changes where clinician guidance is more appropriate.",
       uiBlocks,
+      operations: [],
     };
   }
   if (focusInsight) {
     return {
       reply: `${focusInsight.title}: ${focusInsight.detail} Start by making this measurable for the next 7 days, then reassess before changing multiple variables at once.`,
       uiBlocks,
+      operations: [],
     };
   }
   if (context.proteinAdherence < 75) {
     return {
       reply: `The highest-leverage move is protein consistency. You're averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target. Aim for one repeatable protein anchor meal before changing calories or training.`,
       uiBlocks,
+      operations: [],
     };
   }
   if (
@@ -477,18 +1039,21 @@ function fallbackCoachChatResponse({
     return {
       reply: `Your training load changed ${Math.round(context.volumeChange7Pct)}% versus the prior week. Keep the next week boring and repeatable so you can tell whether performance is adapting or just reacting to fatigue.`,
       uiBlocks,
+      operations: [],
     };
   }
   if (message.toLowerCase().includes("calorie")) {
     return {
       reply: `Use the scale trend and food accuracy together. If your average calories stay near ${Math.round(context.calorieTarget)} and weight pace is still off for 10-14 days, then adjust by a small amount instead of making a large cut or bulk change.`,
       uiBlocks,
+      operations: [],
     };
   }
   return {
     reply:
       "Pick one variable to improve this week: logging consistency, protein, or repeatable training exposure. Your next adjustment should be small enough that the trend can prove whether it worked.",
     uiBlocks,
+    operations: [],
   };
 }
 
@@ -551,7 +1116,7 @@ function fallbackCoachAdvice(context: CoachContext): CoachAdvice[] {
   return advice.slice(0, 4);
 }
 
-async function generateWithOpenAI({
+async function generateWithGateway({
   subapp,
   prompt,
   catalog,
@@ -562,216 +1127,295 @@ async function generateWithOpenAI({
   catalog: MetricCatalogItem[];
   maxResults: number;
 }) {
-  const apiKey = env.OPENAI_API_KEY;
-  if (!apiKey) return null;
+  if (!hasGatewayApiKey()) return null;
 
   const allowedIds = new Set(catalog.map((metric) => metric.id));
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: env.OPENAI_METRIC_MODEL ?? "gpt-4o-mini",
-      temperature: 0.15,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You choose useful health/fitness dashboard metrics from a provided catalog. Return JSON only. Do not invent metric IDs. Prefer actionable, non-filler metrics. If the user's request cannot be represented by existing metrics, include a concise customMetricTitle.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            subapp,
-            request: prompt,
-            maxResults,
-            responseShape: {
-              metricIds: ["existing metric ids only"],
-              customMetricTitle: "optional short custom metric name or null",
-            },
-            catalog,
-          }),
-        },
-      ],
-      max_tokens: 500,
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("metric_selection"),
+    user: JSON.stringify({
+      subapp,
+      request: prompt,
+      maxResults,
+      responseShape: {
+        metricIds: ["existing metric ids only"],
+        customMetricTitle: "optional short custom metric name or null",
+      },
+      catalog,
     }),
+    temperature: 0.15,
+    maxTokens: 500,
   });
 
-  if (!response.ok) {
-    throw new Error(`OpenAI metric request failed: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) return null;
-
-  return normalizeOpenAiResult(JSON.parse(content), allowedIds, maxResults);
+  return normalizeGatewayResult(JSON.parse(content), allowedIds, maxResults);
 }
 
-async function generateCoachAdviceWithOpenAI(context: CoachContext) {
-  const apiKey = env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model:
-        (env as unknown as Record<string, string | undefined>)
-          .OPENAI_COACH_MODEL ??
-        env.OPENAI_METRIC_MODEL ??
-        "gpt-4o-mini",
-      temperature: 0.35,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a concise fitness progress coach. Return JSON only with 2-4 advice cards. Be specific, non-medical, and action-oriented. Treat safetyMode, safetyFlags, and nutritionGuidance as hard constraints and match complexity to experienceLevel. Never recommend aggressive deficits, fasting, maximal training, or advice that conflicts with the supplied safety context. Do not repeat the existing heuristic cards verbatim. Avoid generic motivation.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            context,
-            responseShape: {
-              advice: [
-                {
-                  label: "short category",
-                  title: "specific headline",
-                  detail: "one concrete recommendation tied to the metrics",
-                },
-              ],
-            },
-          }),
-        },
-      ],
-      max_tokens: 650,
+async function generateCoachAdviceWithGateway(context: CoachContext) {
+  if (!hasGatewayApiKey()) return null;
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("coach_advice"),
+    user: JSON.stringify({
+      context,
+      responseShape: {
+        advice: [
+          {
+            label: "short category",
+            title: "specific headline",
+            detail: "one concrete recommendation tied to the metrics",
+          },
+        ],
+      },
     }),
+    temperature: 0.35,
+    maxTokens: 650,
   });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI coach request failed: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) return null;
   return normalizeCoachAdvice(JSON.parse(content));
 }
 
-async function generateCoachChatWithOpenAI({
+async function generateCoachChatWithGateway({
   context,
   message,
   history,
   focusInsight,
+  generateUi,
+  workspace,
+  imageUrl,
 }: {
   context: CoachContext;
   message: string;
   history: CoachChatMessage[];
   focusInsight?: CoachAdvice;
+  generateUi: boolean;
+  workspace?: CoachWorkspace;
+  imageUrl?: string;
 }) {
-  const apiKey = env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model:
-        (env as unknown as Record<string, string | undefined>)
-          .OPENAI_COACH_MODEL ??
-        env.OPENAI_METRIC_MODEL ??
-        "gpt-4o-mini",
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a concise fitness progress coach in a mobile app. Answer the user's coaching question with specific, non-medical, actionable guidance tied to their metrics. Treat safetyMode, safetyFlags, and nutritionGuidance as hard constraints across workout and food advice: do not recommend aggressive deficits, fasting, maximal training, or advice that conflicts with them; suggest qualified clinician input when appropriate. Match complexity to experienceLevel, using simple plans and minimal jargon for beginners. Do not re-ask for safety facts already present in context. When a beginner finishes workout or recipe setup, offer open_workout_builder or open_recipe_builder in an action_row. Return JSON only. Keep reply under 120 words. You may include 1-3 safe UI blocks using only these types: card, stat_group, checklist, action_row. Do not output HTML, JSX, markdown tables, CSS, arbitrary component names, or unknown action names. Do not claim certainty when data confidence is low.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            context,
-            focusInsight,
-            recentConversation: history.slice(-8),
-            message,
-            responseShape: {
-              reply: "short tailored answer",
-              uiBlocks: [
-                {
-                  type: "stat_group",
-                  title: "short title",
-                  stats: [
-                    {
-                      label: "metric label",
-                      value: "display value",
-                      detail: "optional short context",
-                      trend: "up | down | flat",
-                    },
-                  ],
-                },
-                {
-                  type: "card",
-                  label: "short category",
-                  title: "specific headline",
-                  detail: "one recommendation tied to the metrics",
-                },
-                {
-                  type: "checklist",
-                  title: "short title",
-                  items: [
-                    {
-                      label: "task",
-                      detail: "optional short context",
-                      done: false,
-                    },
-                  ],
-                },
-                {
-                  type: "action_row",
-                  title: "short title",
-                  actions: [
-                    {
-                      label: "button label",
-                      action:
-                        "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
-                    },
-                  ],
-                },
-              ],
-            },
-          }),
-        },
-      ],
-      max_tokens: 900,
+  if (!hasGatewayApiKey()) return null;
+  const content = await requestGatewayJson({
+    system: renderSystemPrompt("coach_chat"),
+    user: JSON.stringify({
+      context,
+      workspace,
+      focusInsight,
+      recentConversation: history.slice(-8),
+      message,
+      generateUi,
+      responseShape: {
+        reply: "short tailored answer",
+        uiBlocks: generateUi
+          ? [
+              {
+                type: "stat_group",
+                title: "short title",
+                stats: [
+                  {
+                    label: "metric label",
+                    value: "display value",
+                    detail: "optional short context",
+                    trend: "up | down | flat",
+                  },
+                ],
+              },
+              {
+                type: "card",
+                label: "short category",
+                title: "specific headline",
+                detail: "one recommendation tied to the metrics",
+              },
+              {
+                type: "checklist",
+                title: "short title",
+                items: [
+                  {
+                    label: "task",
+                    detail: "optional short context",
+                    done: false,
+                  },
+                ],
+              },
+              {
+                type: "action_row",
+                title: "short title",
+                actions: [
+                  {
+                    label: "button label",
+                    action:
+                      "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
+                  },
+                ],
+              },
+            ]
+          : [],
+        operations: [
+          {
+            type: "save_recipe",
+            confirmation: "auto | confirm",
+            summary: "exact change",
+            assumptions: ["safe assumption"],
+            warnings: [],
+            recipeId: "optional exact existing recipe id",
+            name: "recipe name",
+            description: "short appetizing description",
+            servings: 2,
+            prepMinutes: 20,
+            tags: ["high protein", "quick"],
+            ingredients: [
+              {
+                name: "ingredient",
+                grams: 100,
+                caloriesPer100: 100,
+                proteinPer100: 10,
+                carbsPer100: 10,
+                fatPer100: 2,
+              },
+            ],
+            steps: ["Clear cooking step"],
+            logMeal: "optional meal to log immediately",
+            servingsToLog: 1,
+          },
+          {
+            type: "log_nutrition",
+            confirmation: "auto | confirm",
+            summary: "exact change",
+            assumptions: [],
+            warnings: [],
+            entryId: "optional existing entry id for correction",
+            date: "YYYY-MM-DD",
+            name: "food or meal",
+            meal: "Breakfast | Lunch | Dinner | Snack",
+            calories: 500,
+            protein: 30,
+            carbs: 50,
+            fat: 15,
+          },
+          {
+            type: "create_workout_preset",
+            confirmation: "auto | confirm",
+            summary: "exact change",
+            assumptions: [],
+            warnings: [],
+            presetId: "optional exact existing preset id",
+            reason: "user_edit | progression | recovery | substitution",
+            name: "preset name",
+            focus: "strength | cardio | mobility",
+            exercises: [
+              {
+                name: "catalog exercise name",
+                sets: [
+                  {
+                    type: "working",
+                    weight: "kg string or empty",
+                    reps: "8-12",
+                    restSeconds: 120,
+                  },
+                ],
+              },
+            ],
+            scheduleDays: ["Mon"],
+          },
+          {
+            type: "update_routine",
+            confirmation: "auto | confirm",
+            summary: "exact change",
+            assumptions: [],
+            warnings: [],
+            assignments: [
+              { day: "Mon", presetName: "existing preset name or null" },
+            ],
+          },
+          {
+            type: "remember",
+            confirmation: "auto | confirm",
+            summary: "exact durable preference being remembered",
+            assumptions: [],
+            warnings: [],
+            key: "short-stable-kebab-case-key",
+            category:
+              "preference | food | equipment | schedule | constraint | response_style",
+            value: "only the durable fact explicitly stated by the user",
+          },
+          {
+            type: "forget_memory",
+            confirmation: "auto | confirm",
+            summary: "memory being forgotten",
+            assumptions: [],
+            warnings: [],
+            key: "exact key from workspace memories",
+            value: "memory value from workspace",
+          },
+          {
+            type: "save_check_in",
+            confirmation: "auto | confirm",
+            summary: "check-in being recorded",
+            assumptions: [],
+            warnings: [],
+            date: "YYYY-MM-DD",
+            energy: 3,
+            soreness: 3,
+            sleepQuality: 3,
+            mood: 3,
+            note: "optional user-provided note",
+          },
+          {
+            type: "save_weekly_plan",
+            confirmation: "auto | confirm",
+            summary: "weekly plan being saved",
+            assumptions: [],
+            warnings: [],
+            weekStart: "YYYY-MM-DD for Monday",
+            title: "short plan title",
+            days: [
+              {
+                day: "Mon",
+                workoutPresetId: "optional exact workspace preset id",
+                workoutLabel: "optional workout label",
+                meals: [
+                  {
+                    label: "meal label",
+                    recipeId: "optional exact workspace recipe id",
+                    note: "optional meal note",
+                  },
+                ],
+                recoveryNote: "optional recovery guidance",
+              },
+            ],
+            planAssumptions: ["explicit planning assumption"],
+          },
+          {
+            type: "delete_nutrition",
+            confirmation: "confirm",
+            summary: "nutrition entry being deleted",
+            assumptions: [],
+            warnings: ["This removes an existing log entry."],
+            entryId: "exact workspace food entry id",
+            date: "YYYY-MM-DD",
+            name: "entry name from workspace",
+          },
+          {
+            type: "undo_action",
+            confirmation: "auto | confirm",
+            summary: "Coach action being undone",
+            assumptions: [],
+            warnings: [],
+            actionId: "exact id from workspace recentActions",
+            actionSummary: "exact action summary from workspace",
+          },
+        ],
+        artifacts: [
+          {
+            type: "today_briefing | progress_explanation | simulation | validation | recovery_adaptation",
+            title: "short useful title",
+            status: "optional status",
+            detail: "specific explanation tied to user data",
+            evidence: ["metric or observation"],
+            nextSteps: ["concrete next step"],
+          },
+        ],
+      },
     }),
+    ...(imageUrl ? { image: { url: imageUrl, detail: "high" as const } } : {}),
+    temperature: 0.3,
+    maxTokens: 3200,
   });
-
-  if (!response.ok) {
-    throw new Error(`OpenAI coach chat request failed: ${response.status}`);
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) return null;
-  return normalizeCoachChatResponse(JSON.parse(content));
+  return normalizeCoachChatResponse(JSON.parse(content), generateUi);
 }
 
 export const generateMetricSet = action({
@@ -822,13 +1466,13 @@ export const generateMetricSet = action({
     }
 
     try {
-      const aiResult = await generateWithOpenAI({
+      const aiResult = await generateWithGateway({
         subapp: args.subapp,
         prompt,
         catalog,
         maxResults,
       });
-      if (aiResult) return { ...aiResult, source: "openai" };
+      if (aiResult) return { ...aiResult, source: "gateway" };
     } catch (error) {
       console.warn("Falling back to server metric matcher", error);
     }
@@ -913,8 +1557,8 @@ export const generateCoachAdvice = action({
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     try {
-      const advice = await generateCoachAdviceWithOpenAI(context);
-      if (advice) return { advice, source: "openai" };
+      const advice = await generateCoachAdviceWithGateway(context);
+      if (advice) return { advice, source: "gateway" };
     } catch (error) {
       console.warn("Falling back to server coach advice", error);
     }
@@ -927,6 +1571,34 @@ export const generateCoachChatMessage = action({
   args: {
     context: coachContextValidator,
     message: v.string(),
+    attachmentId: v.optional(v.id("coachUploads")),
+    generateUi: v.optional(v.boolean()),
+    workspace: v.optional(
+      v.object({
+        today: v.optional(v.string()),
+        presets: v.array(
+          v.object({
+            name: v.string(),
+            id: v.string(),
+            updatedAt: v.optional(v.number()),
+            snapshot: v.optional(v.any()),
+          }),
+        ),
+        recipes: v.optional(v.array(v.any())),
+        foodEntries: v.optional(v.array(v.any())),
+        memories: v.optional(v.array(v.any())),
+        checkIns: v.optional(v.array(v.any())),
+        recentWorkouts: v.optional(v.array(v.any())),
+        recentActions: v.optional(v.array(v.any())),
+        routine: v.array(
+          v.object({
+            day: v.string(),
+            presetId: v.optional(v.union(v.string(), v.null())),
+            presetName: v.union(v.string(), v.null()),
+          }),
+        ),
+      }),
+    ),
     history: v.array(
       v.object({
         role: v.union(v.literal("user"), v.literal("assistant")),
@@ -943,7 +1615,22 @@ export const generateCoachChatMessage = action({
   },
   handler: async (ctx, args): Promise<CoachChatResult> => {
     const user = await getAuthUser(ctx);
-    const message = clampText(args.message, MAX_PROMPT_CHARS);
+    const attachment: {
+      url: string;
+      mimeType: string;
+      fileName: string;
+    } | null = args.attachmentId
+      ? await ctx.runQuery(internal.ai.coachState.resolveUploadForModel, {
+          id: args.attachmentId,
+          userId: user._id,
+        })
+      : null;
+    if (args.attachmentId && !attachment) {
+      throw new Error("That image is unavailable or has expired.");
+    }
+    const message =
+      clampText(args.message, MAX_PROMPT_CHARS) ||
+      (attachment ? "Analyze this image in the context of my goals." : "");
     if (message.length < 2) throw new Error("Ask a coaching question.");
 
     const context = sanitizeCoachContext(args.context);
@@ -961,17 +1648,51 @@ export const generateCoachChatMessage = action({
           detail: clampText(args.focusInsight.detail, 240),
         }
       : undefined;
+    const generateUi = args.generateUi ?? false;
+    const workspace = args.workspace
+      ? {
+          presets: args.workspace.presets.slice(0, 40).map((preset) => ({
+            name: clampText(preset.name, 40),
+            id: clampText(preset.id, 80),
+            ...(preset.updatedAt !== undefined
+              ? { updatedAt: preset.updatedAt }
+              : {}),
+            ...(preset.snapshot !== undefined
+              ? { snapshot: preset.snapshot }
+              : {}),
+          })),
+          ...(normalizeDate(args.workspace.today)
+            ? { today: normalizeDate(args.workspace.today) }
+            : {}),
+          recipes: (args.workspace.recipes ?? []).slice(0, 30),
+          foodEntries: (args.workspace.foodEntries ?? []).slice(0, 50),
+          memories: (args.workspace.memories ?? []).slice(0, 50),
+          checkIns: (args.workspace.checkIns ?? []).slice(0, 21),
+          recentWorkouts: (args.workspace.recentWorkouts ?? []).slice(0, 30),
+          recentActions: (args.workspace.recentActions ?? []).slice(0, 30),
+          routine: args.workspace.routine.slice(0, 7).map((entry) => ({
+            day: clampText(entry.day, 3),
+            presetId: entry.presetId ?? null,
+            presetName: entry.presetName
+              ? clampText(entry.presetName, 40)
+              : null,
+          })),
+        }
+      : undefined;
 
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     try {
-      const response = await generateCoachChatWithOpenAI({
+      const response = await generateCoachChatWithGateway({
         context,
         message,
         history,
         focusInsight,
+        generateUi,
+        workspace,
+        imageUrl: attachment?.url,
       });
-      if (response) return { ...response, source: "openai" };
+      if (response) return { ...response, source: "gateway" };
     } catch (error) {
       console.warn("Falling back to server coach chat", error);
     }
@@ -980,9 +1701,11 @@ export const generateCoachChatMessage = action({
       message,
       context,
       focusInsight,
+      generateUi,
     });
     return {
       ...fallback,
+      artifacts: [],
       source: "fallback",
     };
   },

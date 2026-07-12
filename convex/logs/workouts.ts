@@ -48,6 +48,8 @@ const completedSetValidator = v.object({
   reps: v.number(),
   weight: v.number(),
   completed: v.boolean(),
+  rpe: v.optional(v.number()),
+  rir: v.optional(v.number()),
 });
 
 const completedExerciseValidator = v.object({
@@ -172,9 +174,10 @@ export const historyForExercise = query({
     const logs = await ctx.db
       .query("workoutLogs")
       .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
-      .order("asc")
+      .order("desc")
       .take(120);
     return logs
+      .reverse()
       .filter((log) => log.exercises.some((e: any) => e.id === exerciseId))
       .map((log) => {
         const ex = log.exercises.find((e: any) => e.id === exerciseId)!;

@@ -8,7 +8,6 @@ import {
   Check,
   MagnifyingGlass,
   PencilSimple,
-  Pill,
   Plus,
   Trash,
   Warning,
@@ -318,13 +317,11 @@ function StatePill({ state }: { state: string }) {
   return (
     <span
       className={cn(
-        "rounded-[9px] px-2 py-1 text-[10px] font-semibold tabular-nums",
-        state === "taken" &&
-          "bg-[var(--accent-supplement-bg)] text-[var(--accent-supplement)]",
-        state === "missed" && "bg-destructive/10 text-destructive/80",
-        state === "skipped" && "bg-muted/60 text-muted-foreground/60",
-        (state === "due" || state === "unscheduled") &&
-          "bg-muted/45 text-muted-foreground/55"
+        "text-[13px] font-semibold tabular-nums",
+        state === "taken" && "text-[var(--accent-supplement)]",
+        state === "missed" && "text-destructive",
+        state === "skipped" && "text-muted-foreground",
+        (state === "due" || state === "unscheduled") && "text-muted-foreground"
       )}
     >
       {label}
@@ -344,69 +341,49 @@ function SummaryStrip({
   const taken = plan.filter((item) => item.state === "taken").length
   const due = plan.filter((item) => item.state === "due").length
   const missed = plan.filter((item) => item.state === "missed").length
-  const nutrientTotals = supplementNutrientTotals(logs)
-  const highlights = [
-    "protein",
-    "creatine",
-    "caffeine",
-    "sodium",
-  ] as SupplementNutrientKey[]
+  const scheduled = plan.filter((item) => item.isScheduled).length
+  const totalLogs = logs.length + legacyCount
 
   return (
-    <div className="app-surface px-4 py-3.5 short-phone:px-3.5 short-phone:py-3">
-      <div className="flex flex-col gap-4 min-[430px]:flex-row min-[430px]:items-start min-[430px]:justify-between">
-        <div>
-          <p className="app-eyebrow">Today</p>
-          <div className="mt-2 flex items-end gap-1">
-            <span className="text-[2rem] leading-none font-bold tabular-nums">
-              {taken}
-            </span>
-            <span className="pb-0.5 text-[11px] font-semibold text-muted-foreground/40">
-              taken
-            </span>
+    <section
+      className="border-y border-border py-5 md:col-span-2"
+      aria-labelledby="supplement-summary-title"
+    >
+      <p className="text-[13px] font-medium text-muted-foreground">
+        Today’s adherence
+      </p>
+      <h2
+        id="supplement-summary-title"
+        className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight"
+      >
+        {scheduled === 0
+          ? "No supplements scheduled"
+          : `${taken} of ${scheduled} taken`}
+      </h2>
+      <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
+        {scheduled === 0
+          ? "Add a schedule in My supplements to build today’s plan."
+          : due > 0
+            ? `${due} still due${missed > 0 ? ` · ${missed} missed` : ""}`
+            : missed > 0
+              ? `${missed} missed today`
+              : "Everything scheduled is accounted for."}
+      </p>
+      <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-4">
+        {[
+          ["Taken", taken],
+          ["Due", due],
+          ["Logs", totalLogs],
+        ].map(([label, value]) => (
+          <div key={label} className="px-3 first:pl-0 last:pr-0">
+            <dt className="text-[13px] text-muted-foreground">{label}</dt>
+            <dd className="mt-1 text-[18px] font-semibold tabular-nums">
+              {value}
+            </dd>
           </div>
-        </div>
-        <div className="grid w-full grid-cols-3 gap-2 text-center min-[430px]:w-auto min-[430px]:shrink-0">
-          {[
-            ["Due", due],
-            ["Missed", missed],
-            ["Logs", logs.length + legacyCount],
-          ].map(([label, value]) => (
-            <div
-              key={label}
-              className="min-w-12 rounded-[12px] bg-muted/35 px-2 py-2"
-            >
-              <p className="text-[14px] leading-none font-bold tabular-nums">
-                {value}
-              </p>
-              <p className="mt-1 text-[8.5px] font-semibold tracking-[0.12em] text-muted-foreground/35 uppercase">
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
-        {highlights.map((key) => {
-          const value = nutrientTotals[key] ?? 0
-          const detail = SUPPLEMENT_NUTRIENT_DETAILS[key]
-          return (
-            <div key={key} className="min-w-0">
-              <p className="truncate text-[9px] font-semibold text-muted-foreground/35">
-                {detail.label}
-              </p>
-              <p className="mt-0.5 text-[13px] leading-none font-semibold tabular-nums">
-                {formatNutrientValue(value)}
-                <span className="ml-0.5 text-[8.5px] font-normal text-muted-foreground/35">
-                  {detail.unit}
-                </span>
-              </p>
-            </div>
-          )
-        })}
-      </div>
-    </div>
+        ))}
+      </dl>
+    </section>
   )
 }
 
@@ -440,30 +417,22 @@ function TodayRow({
   return (
     <div
       className={cn(
-        "app-surface motion-list-row px-3.5 py-3 short-phone:px-3",
+        "motion-list-row border-b border-border py-4 last:border-b-0",
         recentlyLogged && "motion-success-pop"
       )}
     >
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onClick={onOpen}
-          className="app-icon-button motion-tactile h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
-          aria-label={`Open ${item.name}`}
-        >
-          <Pill size={16} weight="bold" />
-        </button>
-        <div className="min-w-0 flex-1">
+      <div>
+        <div className="min-w-0">
           <div className="flex min-w-0 items-start justify-between gap-2">
             <button
               type="button"
               onClick={onOpen}
               className="motion-tactile-subtle min-w-0 text-left"
             >
-              <p className="truncate text-[14px] leading-tight font-semibold">
+              <p className="truncate text-[16px] leading-tight font-semibold">
                 {item.name}
               </p>
-              <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/42">
+              <p className="mt-1 truncate text-[13px] text-muted-foreground">
                 {item.brand ? `${item.brand} · ` : ""}
                 {item.servingLabel}
                 {item.schedule.preferredTime
@@ -474,52 +443,53 @@ function TodayRow({
             <StatePill state={state} />
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums">
-              {consistency.takenThisWeek}x this week
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+            <span className="font-medium tabular-nums">
+              {consistency.takenThisWeek} taken this week
             </span>
-            <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums">
+            <span className="font-medium tabular-nums">
               {consistency.currentStreak} day streak
             </span>
             {latest && (
-              <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums">
-                {fmtTime(latest.loggedAt)}
+              <span className="font-medium tabular-nums">
+                Last logged {fmtTime(latest.loggedAt)}
               </span>
             )}
           </div>
 
           {shownNutrients.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
               {shownNutrients.map(({ key, value, detail }) => (
-                <span
-                  key={key}
-                  className="rounded-[8px] bg-muted/40 px-2 py-1 text-[9.5px] font-semibold text-muted-foreground/60 tabular-nums"
-                >
+                <span key={key} className="mr-3 inline-block tabular-nums">
                   {detail.label} {formatNutrientValue(value)}
                   {detail.unit}
                 </span>
               ))}
-            </div>
+            </p>
           )}
 
-          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem] gap-2">
+          <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2">
             <button
               type="button"
               onClick={onTake}
               disabled={state === "taken" || taking}
               aria-busy={taking}
-              className="app-button app-button-primary motion-tactile min-h-10 disabled:opacity-45"
+              className="app-button app-button-primary motion-tactile min-h-11 disabled:opacity-45"
             >
               <Check size={12} weight="bold" />
-              {taking ? "Logging..." : state === "taken" ? "Taken" : "Taken now"}
+              {taking
+                ? "Logging..."
+                : state === "taken"
+                  ? "Taken"
+                  : "Taken now"}
             </button>
             <button
               type="button"
               onClick={onCustom}
-              className="app-icon-button motion-tactile h-10 w-10"
+              className="app-button app-button-quiet motion-tactile min-h-11 px-3"
               aria-label={`Custom log ${item.name}`}
             >
-              <Plus size={12} weight="bold" />
+              Custom
             </button>
             <button
               type="button"
@@ -527,10 +497,10 @@ function TodayRow({
               disabled={
                 !plan.isScheduled || state === "taken" || state === "skipped"
               }
-              className="app-icon-button motion-tactile h-10 w-10 disabled:opacity-25"
+              className="app-button app-button-quiet motion-tactile min-h-11 px-3 disabled:opacity-25"
               aria-label={`Mark ${item.name} skipped`}
             >
-              <X size={10} weight="bold" />
+              Skip
             </button>
           </div>
         </div>
@@ -566,41 +536,48 @@ function CatalogRow({
   ).length
 
   return (
-    <div className="motion-list-row flex items-center gap-3 border-b border-border/25 py-2.5 last:border-b-0 md:py-3">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="app-icon-button motion-tactile h-10 w-10 shrink-0 bg-muted/55 text-muted-foreground/70"
-        aria-label={`Open ${item.name}`}
-      >
-        <Pill size={16} weight="bold" />
-      </button>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="motion-tactile-subtle min-w-0 flex-1 text-left"
-      >
-        <p className="truncate text-[13.5px] font-semibold text-foreground/90">
-          {item.name}
-        </p>
-        <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/42">
-          {detail.label} · {scheduleLabel(item)} · {nutrientCount} nutrient
-          {nutrientCount === 1 ? "" : "s"}
-        </p>
-        <p className="mt-1 text-[10px] text-muted-foreground/35 tabular-nums">
-          {consistency.lastTaken
-            ? `Last ${consistency.lastTaken}`
-            : "No history yet"}
-        </p>
-      </button>
-      <div className="flex shrink-0 items-center gap-1">
+    <div className="motion-list-row border-b border-border py-4 last:border-b-0">
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={onOpen}
+          className="motion-tactile-subtle min-w-0 flex-1 text-left"
+        >
+          <p className="truncate text-[16px] font-semibold text-foreground">
+            {item.name}
+          </p>
+          <p className="mt-1 truncate text-[13px] text-muted-foreground">
+            {detail.label} · {scheduleLabel(item)} · {nutrientCount} nutrient
+            {nutrientCount === 1 ? "" : "s"}
+          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
+            {consistency.lastTaken
+              ? `Last ${consistency.lastTaken}`
+              : "No history yet"}
+          </p>
+        </button>
+        <button
+          type="button"
+          onClick={onToggleActive}
+          className={cn(
+            "min-h-11 shrink-0 px-3 text-[13px] font-semibold",
+            item.active
+              ? "text-[var(--accent-supplement)]"
+              : "text-muted-foreground"
+          )}
+          aria-label={`${item.active ? "Pause" : "Track"} ${item.name}`}
+        >
+          {item.active ? "Tracking" : "Paused"}
+        </button>
+      </div>
+      <div className="mt-2 grid grid-cols-3 divide-x divide-border border-t border-border">
         <button
           type="button"
           onClick={onQuickLog}
           disabled={quickLogging}
           aria-busy={quickLogging}
           className={cn(
-            "app-icon-button motion-tactile h-9 w-9 disabled:opacity-45",
+            "motion-tactile flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold disabled:opacity-45",
             recentlyLogged && "motion-success-pop"
           )}
           aria-label={`Log ${item.name}`}
@@ -608,36 +585,27 @@ function CatalogRow({
           {quickLogging ? (
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground/25 border-t-foreground/70" />
           ) : (
-            <Check size={11} weight="bold" />
+            <Check size={14} weight="bold" />
           )}
+          Log
         </button>
         <button
           type="button"
           onClick={onEdit}
-          className="app-icon-button motion-tactile h-9 w-9"
+          className="motion-tactile flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold text-muted-foreground"
           aria-label={`Edit ${item.name}`}
         >
-          <PencilSimple size={12} weight="bold" />
+          <PencilSimple size={14} weight="bold" />
+          Edit
         </button>
         <button
           type="button"
           onClick={onDelete}
-          className="app-icon-button h-9 w-9 text-muted-foreground/45 active:bg-destructive/10 active:text-destructive"
+          className="flex min-h-11 items-center justify-center gap-2 text-[13px] font-semibold text-destructive active:bg-destructive/10"
           aria-label={`Delete ${item.name}`}
         >
-          <Trash size={12} weight="bold" />
-        </button>
-        <button
-          type="button"
-          onClick={onToggleActive}
-          className={cn(
-            "h-9 min-w-12 rounded-[10px] px-2 text-[10px] font-semibold",
-            item.active
-              ? "bg-[var(--accent-supplement-bg)] text-[var(--accent-supplement)]"
-              : "bg-muted/45 text-muted-foreground/45"
-          )}
-        >
-          {item.active ? "On" : "Off"}
+          <Trash size={14} weight="bold" />
+          Delete
         </button>
       </div>
     </div>
@@ -647,7 +615,7 @@ function CatalogRow({
 function ImportNotice({ imported }: { imported: boolean }) {
   if (!imported) return null
   return (
-    <div className="mb-3 flex items-start gap-2 rounded-[12px] bg-muted/45 px-3 py-2 text-[11px] text-muted-foreground/60">
+    <div className="mb-3 flex items-start gap-2 border-y border-border py-3 text-[13px] leading-5 text-muted-foreground">
       <Barcode size={13} weight="bold" className="mt-0.5 shrink-0" />
       <span>
         OpenFoodFacts data imported. Nutrients are read-only and scale from the
@@ -996,7 +964,7 @@ function ItemSheet({
                   <span className="block text-[14px] font-semibold">
                     Custom supplement
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/45">
+                  <span className="mt-1 block truncate text-[13px] text-muted-foreground">
                     Manual serving, schedule, and notes
                   </span>
                 </span>
@@ -1014,7 +982,7 @@ function ItemSheet({
                   <span className="block text-[14px] font-semibold">
                     Search OpenFoodFacts
                   </span>
-                  <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/45">
+                  <span className="mt-1 block truncate text-[13px] text-muted-foreground">
                     Import product data, then edit
                   </span>
                 </span>
@@ -1026,7 +994,7 @@ function ItemSheet({
             <div className="grid gap-4">
               <form onSubmit={runSearch} className="grid gap-2">
                 <label className="grid gap-1.5">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-medium text-muted-foreground">
                     Product search
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
@@ -1051,7 +1019,7 @@ function ItemSheet({
                 </label>
 
                 <label className="grid gap-1.5">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-medium text-muted-foreground">
                     Barcode
                   </span>
                   <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
@@ -1078,7 +1046,7 @@ function ItemSheet({
               </form>
 
               {(searchError || barcodeError) && (
-                <p className="rounded-[10px] bg-destructive/10 px-3 py-2 text-[11px] text-destructive/80">
+                <p className="border-y border-destructive/30 bg-destructive/10 px-3 py-3 text-[13px] text-destructive">
                   {searchError ?? barcodeError}
                 </p>
               )}
@@ -1102,7 +1070,7 @@ function ItemSheet({
                             className="h-10 w-10 shrink-0 rounded-[10px] object-cover"
                           />
                         ) : (
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-muted/45 text-muted-foreground/45">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-muted/45 text-muted-foreground">
                             <Barcode size={14} weight="bold" />
                           </div>
                         )}
@@ -1110,11 +1078,11 @@ function ItemSheet({
                           <p className="truncate text-[13px] font-semibold">
                             {result.name}
                           </p>
-                          <p className="mt-0.5 truncate text-[10.5px] text-muted-foreground/45">
+                          <p className="mt-1 truncate text-[13px] text-muted-foreground">
                             {result.brand ? `${result.brand} · ` : ""}
                             {result.serving}
                           </p>
-                          <p className="mt-1 text-[10px] text-muted-foreground/35 tabular-nums">
+                          <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
                             {result.calories} kcal · P{" "}
                             {formatNutrientValue(result.protein)}g · C{" "}
                             {formatNutrientValue(result.carbs)}g · F{" "}
@@ -1127,7 +1095,7 @@ function ItemSheet({
                         onClick={() => importSearchResult(result)}
                         disabled={importingCode !== null}
                         aria-busy={importingCode === result.code}
-                        className="app-button app-button-secondary min-h-9 shrink-0 px-3 text-[11px] disabled:opacity-45"
+                        className="app-button app-button-secondary min-h-11 shrink-0 px-3 disabled:opacity-45"
                       >
                         <Plus size={11} weight="bold" />
                         {importingCode === result.code ? "Importing" : "Import"}
@@ -1156,7 +1124,7 @@ function ItemSheet({
 
               <div className="grid gap-3">
                 <label className="grid gap-1.5">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-medium text-muted-foreground">
                     Name
                   </span>
                   <input
@@ -1170,7 +1138,7 @@ function ItemSheet({
 
                 <div className="grid grid-cols-2 gap-2">
                   <label className="grid gap-1.5">
-                    <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                       Brand
                     </span>
                     <input
@@ -1182,7 +1150,7 @@ function ItemSheet({
                     />
                   </label>
                   <label className="grid gap-1.5">
-                    <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                       Barcode
                     </span>
                     <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] gap-2">
@@ -1209,14 +1177,14 @@ function ItemSheet({
                 </div>
 
                 {barcodeError && (
-                  <p className="rounded-[10px] bg-destructive/10 px-3 py-2 text-[11px] text-destructive/80">
+                  <p className="border-y border-destructive/30 bg-destructive/10 px-3 py-3 text-[13px] text-destructive">
                     {barcodeError}
                   </p>
                 )}
 
                 <div className="grid grid-cols-2 gap-2">
                   <label className="grid gap-1.5">
-                    <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                       Category
                     </span>
                     <select
@@ -1236,7 +1204,7 @@ function ItemSheet({
                     </select>
                   </label>
                   <label className="grid gap-1.5">
-                    <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                       Form
                     </span>
                     <select
@@ -1258,7 +1226,7 @@ function ItemSheet({
                 </div>
 
                 <label className="grid gap-1.5">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-medium text-muted-foreground">
                     Serving size
                   </span>
                   <input
@@ -1280,10 +1248,10 @@ function ItemSheet({
                     className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
                   >
                     <span className="min-w-0">
-                      <span className="block text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                      <span className="block text-[13px] font-medium text-muted-foreground">
                         Advanced
                       </span>
-                      <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/45">
+                      <span className="mt-1 block truncate text-[13px] text-muted-foreground">
                         {nutrientCount > 0
                           ? `${nutrientCount} ${
                               nutrientCount === 1 ? "nutrient" : "nutrients"
@@ -1295,7 +1263,7 @@ function ItemSheet({
                       size={14}
                       weight="bold"
                       className={cn(
-                        "shrink-0 text-muted-foreground/40 transition-transform",
+                        "shrink-0 text-muted-foreground transition-transform",
                         showAdvanced && "rotate-180"
                       )}
                     />
@@ -1304,15 +1272,15 @@ function ItemSheet({
                   {showAdvanced && (
                     <div className="border-t border-border/25 px-3 py-3">
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                        <p className="text-[13px] font-medium text-muted-foreground">
                           Nutrients per serving
                         </p>
-                        <span className="text-[10px] text-muted-foreground/35">
+                        <span className="text-[13px] text-muted-foreground">
                           Read-only
                         </span>
                       </div>
                       {draft.source === "openfoodfacts" && (
-                        <p className="mb-2 rounded-[10px] bg-muted/35 px-3 py-2 text-[11px] text-muted-foreground/55">
+                        <p className="mb-2 border-y border-border bg-muted/35 px-3 py-3 text-[13px] text-muted-foreground">
                           Imported nutrients stay locked and recalculate from
                           your serving size.
                         </p>
@@ -1324,17 +1292,17 @@ function ItemSheet({
                               key={key}
                               className="grid gap-1 rounded-xl bg-muted/35 px-2.5 py-2"
                             >
-                              <span className="truncate text-[10px] font-medium text-muted-foreground/50">
+                              <span className="truncate text-[13px] font-medium text-muted-foreground">
                                 {detail.label}
                               </span>
-                              <span className="text-[12px] font-semibold tabular-nums">
+                              <span className="text-[15px] font-semibold tabular-nums">
                                 {formatSupplementNutrient(key, value)}
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="rounded-xl bg-muted/30 px-3 py-4 text-center text-[11px] text-muted-foreground/45">
+                        <p className="border-y border-border bg-muted/30 px-3 py-4 text-center text-[15px] text-muted-foreground">
                           No nutrient data for this supplement.
                         </p>
                       )}
@@ -1343,7 +1311,7 @@ function ItemSheet({
                 </div>
 
                 <label className="grid gap-1.5">
-                  <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+                  <span className="text-[13px] font-medium text-muted-foreground">
                     Notes
                   </span>
                   <textarea
@@ -1397,7 +1365,7 @@ function ScheduleEditor({
     <div className="rounded-[14px] bg-muted/30 p-3">
       <div className="grid grid-cols-[minmax(0,1fr)_6.25rem] gap-2">
         <label className="grid gap-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+          <span className="text-[13px] font-medium text-muted-foreground">
             Schedule
           </span>
           <select
@@ -1407,7 +1375,7 @@ function ScheduleEditor({
             onChange={(e) =>
               setSchedule({ type: e.target.value as SupplementScheduleType })
             }
-            className="h-10 rounded-xl bg-background/80 px-3 text-[12px] outline-none"
+            className="h-11 rounded-xl bg-background/80 px-3 text-[15px] outline-none"
           >
             {[
               ["none", "No schedule"],
@@ -1423,7 +1391,7 @@ function ScheduleEditor({
           </select>
         </label>
         <label className="grid gap-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+          <span className="text-[13px] font-medium text-muted-foreground">
             Time
           </span>
           <input
@@ -1432,7 +1400,7 @@ function ScheduleEditor({
             aria-label="Supplement preferred time"
             value={draft.schedule.preferredTime ?? ""}
             onChange={(e) => setSchedule({ preferredTime: e.target.value })}
-            className="h-10 rounded-xl bg-background/80 px-2 text-[12px] outline-none"
+            className="h-11 rounded-xl bg-background/80 px-2 text-[15px] outline-none"
           />
         </label>
       </div>
@@ -1454,10 +1422,10 @@ function ScheduleEditor({
                 aria-pressed={active}
                 aria-label={`${active ? "Remove" : "Add"} ${day.full} schedule day`}
                 className={cn(
-                  "h-8 rounded-[9px] text-[11px] font-bold",
+                  "h-11 text-[13px] font-semibold",
                   active
                     ? "bg-foreground text-background"
-                    : "bg-background/70 text-muted-foreground/45"
+                    : "bg-background/70 text-muted-foreground"
                 )}
               >
                 {day.label}
@@ -1514,7 +1482,7 @@ function LogSheet({
         <div className="mb-4 flex items-center justify-between">
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold">{item.name}</p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">
               {date} · {item.servingLabel}
             </p>
           </div>
@@ -1528,7 +1496,7 @@ function LogSheet({
         </div>
 
         <label className="grid gap-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+          <span className="text-[13px] font-medium text-muted-foreground">
             Serving multiplier
           </span>
           <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] gap-2">
@@ -1563,7 +1531,7 @@ function LogSheet({
 
         {nutrientEntries(scaled).length > 0 && (
           <div className="mt-4 rounded-[14px] bg-muted/30 p-3">
-            <p className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-muted-foreground/40 uppercase">
+            <p className="mb-2 text-[13px] font-medium text-muted-foreground">
               This log adds
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -1571,12 +1539,12 @@ function LogSheet({
                 .slice(0, 8)
                 .map(({ key, value, detail }) => (
                   <div key={key} className="min-w-0">
-                    <p className="truncate text-[10px] text-muted-foreground/45">
+                    <p className="truncate text-[13px] text-muted-foreground">
                       {detail.label}
                     </p>
-                    <p className="text-[12px] font-semibold tabular-nums">
+                    <p className="text-[15px] font-semibold tabular-nums">
                       {formatNutrientValue(value)}
-                      <span className="ml-0.5 text-[9px] font-normal text-muted-foreground/35">
+                      <span className="ml-1 text-[13px] font-normal text-muted-foreground">
                         {detail.unit}
                       </span>
                     </p>
@@ -1637,7 +1605,7 @@ function DetailSheet({
             <p className="truncate text-[17px] leading-tight font-semibold">
               {item.name}
             </p>
-            <p className="mt-0.5 truncate text-[11px] text-muted-foreground/45">
+            <p className="mt-1 truncate text-[13px] text-muted-foreground">
               {detail.label} · {item.servingLabel}
             </p>
           </div>
@@ -1667,7 +1635,7 @@ function DetailSheet({
           ].map(([label, value]) => (
             <div key={label} className="rounded-[12px] bg-muted/35 px-3 py-2">
               <p className="text-[15px] font-bold tabular-nums">{value}</p>
-              <p className="mt-0.5 text-[9px] font-semibold text-muted-foreground/35">
+              <p className="mt-1 text-[13px] font-medium text-muted-foreground">
                 {label}
               </p>
             </div>
@@ -1684,14 +1652,14 @@ function DetailSheet({
                     key={key}
                     className="flex items-center justify-between gap-3 py-2.5"
                   >
-                    <span className="flex min-w-0 items-center gap-2 text-[12px]">
+                    <span className="flex min-w-0 items-center gap-2 text-[15px]">
                       <span
                         className="h-1.5 w-1.5 shrink-0 rounded-full"
                         style={{ backgroundColor: detail.color }}
                       />
                       <span className="truncate">{detail.label}</span>
                     </span>
-                    <span className="shrink-0 text-[12px] font-semibold tabular-nums">
+                    <span className="shrink-0 text-[15px] font-semibold tabular-nums">
                       {formatSupplementNutrient(
                         key as SupplementNutrientKey,
                         value
@@ -1708,10 +1676,8 @@ function DetailSheet({
           <SectionHeader title="History" sub={scheduleLabel(item)} />
           {sortedLogs.length === 0 ? (
             <div className="app-empty py-8">
-              <CalendarBlank size={18} className="text-muted-foreground/20" />
-              <p className="text-[12px] text-muted-foreground/35">
-                No logs yet.
-              </p>
+              <CalendarBlank size={18} className="text-muted-foreground" />
+              <p className="text-[15px] text-muted-foreground">No logs yet.</p>
             </div>
           ) : (
             <div className="divide-y divide-border/25 rounded-[14px] bg-muted/25 px-3">
@@ -1720,8 +1686,8 @@ function DetailSheet({
                   <>
                     <StatePill state={log.status} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[12px] font-semibold">{log.date}</p>
-                      <p className="text-[10px] text-muted-foreground/40">
+                      <p className="text-[15px] font-semibold">{log.date}</p>
+                      <p className="text-[13px] text-muted-foreground">
                         {fmtTime(log.loggedAt)} · {log.servingMultiplier}x
                       </p>
                     </div>
@@ -1830,7 +1796,7 @@ function Warnings({ totals }: { totals: SupplementNutrients }) {
   if (warnings.length === 0) return null
 
   return (
-    <div className="app-surface flex items-start gap-2 px-4 py-3 text-[11px] text-muted-foreground/60">
+    <div className="flex items-start gap-3 border-y border-border py-4 text-[15px] leading-6 text-muted-foreground md:col-span-2">
       <Warning
         size={14}
         weight="bold"
@@ -1878,6 +1844,7 @@ export default function Supplements() {
     nutritionTotals: {},
     isTrainingDay: false,
   }) as Overview
+  const overviewLoading = overviewRaw === undefined
 
   const saveItem = useOfflineMutation(
     api.logs.supplements.saveItem,
@@ -2045,7 +2012,7 @@ export default function Supplements() {
             <button
               type="button"
               onClick={() => navigate("/nutrition")}
-              className="mb-1 flex min-h-9 items-center gap-1 rounded-full pr-3 text-[11px] font-semibold text-muted-foreground/60 transition-colors active:text-foreground"
+              className="mb-1 flex min-h-11 items-center gap-1 pr-3 text-[13px] font-medium text-muted-foreground transition-colors active:text-foreground"
               aria-label="Back to Nutrition"
             >
               <CaretLeft size={12} weight="bold" />
@@ -2059,18 +2026,18 @@ export default function Supplements() {
           <div className="flex items-center gap-1 pb-0.5">
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, -1))}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground"
+              className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground"
               aria-label="Previous day"
             >
               <CaretLeft size={13} weight="bold" />
             </button>
-            <span className="min-w-[56px] text-center text-[11px] font-medium text-muted-foreground/60">
+            <span className="min-w-[72px] text-center text-[13px] font-medium text-muted-foreground">
               {dateLabel}
             </span>
             <button
               onClick={() => setDateKey((d) => offsetDateKey(d, 1))}
               disabled={isToday}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground/50 active:bg-foreground/[0.07] active:text-foreground disabled:opacity-20"
+              className="flex h-11 w-11 items-center justify-center text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-30"
               aria-label="Next day"
             >
               <CaretRight size={13} weight="bold" />
@@ -2079,7 +2046,11 @@ export default function Supplements() {
         </header>
 
         <div className="px-[var(--app-page-x)] md:px-6">
-          <div className="grid grid-cols-2 rounded-[14px] bg-muted/35 p-1">
+          <div
+            className="grid grid-cols-2 border-b border-border"
+            role="tablist"
+            aria-label="Supplement views"
+          >
             {[
               ["today", "Today"],
               ["catalog", "My supplements"],
@@ -2091,11 +2062,13 @@ export default function Supplements() {
                   type="button"
                   onClick={() => setTab(id as typeof tab)}
                   className={cn(
-                    "h-9 rounded-[11px] text-[12px] font-semibold transition-colors",
+                    "min-h-11 border-b-2 text-[15px] font-semibold transition-colors",
                     active
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground/50"
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground"
                   )}
+                  role="tab"
+                  aria-selected={active}
                 >
                   {label}
                 </button>
@@ -2116,7 +2089,7 @@ export default function Supplements() {
 
               <div className="md:col-span-2">
                 <SectionHeader
-                  title="Today Plan"
+                  title="Today’s plan"
                   sub={
                     overview.isTrainingDay
                       ? "Training-day schedules are active."
@@ -2143,7 +2116,9 @@ export default function Supplements() {
                           }`}
                         >
                           <Check size={11} weight="bold" />
-                          {bulkLogging ? "Logging" : `Take ${remainingScheduledCount}`}
+                          {bulkLogging
+                            ? "Logging"
+                            : `Take ${remainingScheduledCount}`}
                         </button>
                       )}
                       <AppTooltip
@@ -2168,15 +2143,34 @@ export default function Supplements() {
                     </div>
                   }
                 />
-                {activeItems.length === 0 ? (
-                  <div className="app-empty py-12">
-                    <Pill size={22} className="text-muted-foreground/20" />
-                    <p className="text-[12px] text-muted-foreground/35">
-                      Add a supplement to start tracking nutrients and timing.
+                {overviewLoading ? (
+                  <div
+                    className="border-y border-border py-8 text-[15px] text-muted-foreground"
+                    role="status"
+                  >
+                    Loading today’s supplements…
+                  </div>
+                ) : activeItems.length === 0 ? (
+                  <div className="border-y border-border py-8">
+                    <h3 className="text-[16px] font-semibold">
+                      No supplements to take
+                    </h3>
+                    <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
+                      Add a supplement and choose its schedule to see it here.
                     </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTab("catalog")
+                        setSheet({ kind: "edit" })
+                      }}
+                      className="app-button app-button-primary mt-4 min-h-11"
+                    >
+                      Add supplement
+                    </button>
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="divide-y divide-border border-y border-border">
                     {dayPlan.map((plan) => (
                       <TodayRow
                         key={plan.item._id ?? plan.item.name}
@@ -2207,7 +2201,7 @@ export default function Supplements() {
               </div>
 
               {(dayLogs.length > 0 || overview.legacyEntries.length > 0) && (
-                <div className="app-surface px-4 py-3.5 md:col-span-2">
+                <section className="border-y border-border py-5 md:col-span-2">
                   <SectionHeader
                     title="Timeline"
                     sub={`${dayLogs.length + overview.legacyEntries.length} supplement log${
@@ -2227,17 +2221,17 @@ export default function Supplements() {
                           rowClassName="flex items-center justify-between gap-3 bg-card py-2.5"
                         >
                           <div className="min-w-0">
-                            <p className="truncate text-[12.5px] font-semibold">
+                            <p className="truncate text-[15px] font-semibold">
                               {entry.name}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted-foreground/40">
+                            <p className="mt-1 text-[13px] text-muted-foreground">
                               {entry.status === "skipped"
                                 ? "Skipped"
                                 : (entry.servingLabel ?? "Logged")}{" "}
                               · {fmtTime(entry.loggedAt)}
                             </p>
                           </div>
-                          <span className="shrink-0 text-[10px] font-semibold text-muted-foreground/45 tabular-nums">
+                          <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
                             {entry.servingMultiplier
                               ? `${formatNutrientValue(entry.servingMultiplier)}x`
                               : ""}
@@ -2245,12 +2239,12 @@ export default function Supplements() {
                         </SlideToDeleteRow>
                       ))}
                   </div>
-                </div>
+                </section>
               )}
             </>
           ) : (
             <>
-              <div className="app-surface px-4 py-3.5 md:col-span-2">
+              <section className="border-y border-border py-5 md:col-span-2">
                 <SectionHeader
                   title="My Supplements"
                   sub={`${overview.items.length} saved · ${activeItems.length} active`}
@@ -2265,11 +2259,21 @@ export default function Supplements() {
                     </button>
                   }
                 />
-                {overview.items.length === 0 ? (
-                  <div className="app-empty py-12">
-                    <Barcode size={22} className="text-muted-foreground/20" />
-                    <p className="text-[12px] text-muted-foreground/35">
-                      Create one manually or import from a barcode.
+                {overviewLoading ? (
+                  <div
+                    className="py-8 text-[15px] text-muted-foreground"
+                    role="status"
+                  >
+                    Loading your supplements…
+                  </div>
+                ) : overview.items.length === 0 ? (
+                  <div className="py-8">
+                    <h3 className="text-[16px] font-semibold">
+                      Your supplement library is empty
+                    </h3>
+                    <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
+                      Add a product manually, search by name, or scan its
+                      barcode.
                     </p>
                   </div>
                 ) : (
@@ -2296,7 +2300,7 @@ export default function Supplements() {
                     ))}
                   </div>
                 )}
-              </div>
+              </section>
             </>
           )}
         </div>

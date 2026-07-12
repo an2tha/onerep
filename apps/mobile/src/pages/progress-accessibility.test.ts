@@ -1,10 +1,30 @@
-import { describe, expect, test } from "bun:test"
+import { describe, test } from "node:test"
+import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
 const PROGRESS_SOURCE = readFileSync(
   new URL("./Progress.tsx", import.meta.url),
   "utf8"
 )
+
+function expect(value: string) {
+  return {
+    toContain(expected: string) {
+      assert.ok(
+        value.includes(expected),
+        `Expected source to contain ${expected}`
+      )
+    },
+    not: {
+      toContain(expected: string) {
+        assert.ok(
+          !value.includes(expected),
+          `Expected source not to contain ${expected}`
+        )
+      },
+    },
+  }
+}
 
 describe("Progress page accessibility contract", () => {
   test("progress page reads the existing body, workout, food, and goal data", () => {
@@ -17,13 +37,21 @@ describe("Progress page accessibility contract", () => {
 
   test("weekly visual summaries have accessible chart and navigation labels", () => {
     expect(PROGRESS_SOURCE).toContain(
-      'aria-label="Seven-day nutrition chart. Filled bars show calorie progress. Purple dots mark protein target days."'
+      'aria-label="Seven-day nutrition chart. Orange bars show calories as a percentage of the daily target. Purple dots mark days reaching at least 90 percent of the protein target."'
     )
     expect(PROGRESS_SOURCE).toContain(
-      'aria-label="Seven-day training chart. Bar height represents completed sets."'
+      'aria-label="Seven-day training chart. Purple bar height represents completed sets for each day."'
     )
-    expect(PROGRESS_SOURCE).toContain('aria-label="Open nutrition week"')
-    expect(PROGRESS_SOURCE).toContain('aria-label="Open training week"')
+    expect(PROGRESS_SOURCE).toContain('aria-label="Progress metric"')
+    expect(PROGRESS_SOURCE).toContain('label="Related history"')
+    expect(PROGRESS_SOURCE).toContain("<MetricTooltip")
+  })
+
+  test("body measurements can be added from a labeled modal form", () => {
+    expect(PROGRESS_SOURCE).toContain("api.bodyProgress.save")
+    expect(PROGRESS_SOURCE).toContain('aria-label="Add body measurement"')
+    expect(PROGRESS_SOURCE).toContain("<FormField")
+    expect(PROGRESS_SOURCE).toContain("<MobileSheet")
   })
 
   test("progress stays compact and does not restore the text-heavy legacy editor", () => {

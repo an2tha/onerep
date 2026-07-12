@@ -75,18 +75,16 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
     if (isUnauthenticatedError(this.state.error)) {
       return (
         <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col justify-center px-5 text-center">
-          <section className="app-rail-surface p-5">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-[14px] bg-muted/55">
-              <Warning
-                size={24}
-                weight="fill"
-                className="text-muted-foreground/70"
-              />
-            </div>
+          <section className="border-y border-border py-6">
+            <Warning
+              size={28}
+              weight="regular"
+              className="mx-auto mb-4 text-muted-foreground"
+            />
             <h1 className="text-[1.25rem] font-semibold tracking-tight">
               Could not sync your account
             </h1>
-            <p className="mt-2 text-[13px] leading-5 text-muted-foreground/70">
+            <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
               Your sign-in is still saved. Check your connection, then try
               again.
             </p>
@@ -104,13 +102,11 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
     const label = this.props.label ?? "this page"
 
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-4 px-8 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
-          <Warning size={26} weight="fill" className="text-destructive/60" />
-        </div>
+      <main className="mx-auto flex min-h-svh w-full max-w-sm flex-col items-center justify-center gap-4 px-5 text-center">
+        <Warning size={30} weight="regular" className="text-destructive" />
         <div className="space-y-1">
           <p className="text-[15px] font-semibold">Something went wrong</p>
-          <p className="text-[12px] text-muted-foreground/60">
+          <p className="text-[14px] leading-6 text-muted-foreground">
             An unexpected error occurred in {label}. Your data is safe.
           </p>
         </div>
@@ -118,7 +114,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
           <button
             type="button"
             onClick={this.reset}
-            className="flex min-h-10 items-center gap-1.5 rounded-full bg-muted/60 px-4 text-[13px] font-medium transition-opacity active:opacity-60"
+            className="flex min-h-11 items-center gap-2 rounded-[10px] bg-foreground px-4 text-[14px] font-semibold text-background transition-opacity active:opacity-75"
           >
             <ArrowCounterClockwise size={13} weight="bold" />
             Try again
@@ -126,7 +122,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
           <button
             type="button"
             onClick={() => void this.copyDiagnostics()}
-            className="flex min-h-10 items-center gap-1.5 rounded-full bg-muted/60 px-4 text-[13px] font-medium transition-opacity active:opacity-60"
+            className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-background px-4 text-[14px] font-semibold transition-colors active:bg-muted"
           >
             <Copy size={13} weight="bold" />
             Copy diagnostics
@@ -135,7 +131,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
         {this.state.diagnosticsStatus && (
           <p
             role="status"
-            className="max-w-xs text-[11.5px] leading-5 text-muted-foreground/60"
+            className="max-w-xs text-[13px] leading-5 text-muted-foreground"
           >
             {this.state.diagnosticsStatus === "copied"
               ? "Diagnostics copied. Send them with your bug report."
@@ -143,11 +139,11 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
           </p>
         )}
         {import.meta.env.DEV && (
-          <pre className="mt-4 max-w-full overflow-auto rounded-xl bg-muted/40 p-3 text-left text-[10px] text-muted-foreground/60">
+          <pre className="mt-4 max-w-full overflow-auto rounded-xl bg-muted/40 p-3 text-left text-[13px] text-muted-foreground">
             {this.state.error.message}
           </pre>
         )}
-      </div>
+      </main>
     )
   }
 }

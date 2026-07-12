@@ -127,11 +127,11 @@ export default function FoodReview() {
     return (
       <main className="desktop-canvas min-h-svh bg-background px-[var(--app-page-x)] text-foreground">
         <section className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center py-[var(--app-safe-bottom-lg)]">
-          <div className="app-surface p-5 text-center">
+          <div className="border-y border-border py-6 text-center">
             {loading ? (
               <>
                 <div className="mx-auto h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
-                <p className="mt-4 text-[14px] font-bold">Loading food…</p>
+                <p className="mt-4 text-[15px] font-semibold">Loading food…</p>
               </>
             ) : (
               <>
@@ -140,8 +140,12 @@ export default function FoodReview() {
                   weight="bold"
                   className="mx-auto text-muted-foreground/60"
                 />
-                <p className="mt-4 text-[14px] font-bold">
+                <p className="mt-4 text-[17px] font-semibold">
                   Couldn’t load this food.
+                </p>
+                <p className="mx-auto mt-1 max-w-xs text-[14px] leading-5 text-muted-foreground">
+                  The item may be unavailable, or your connection may have
+                  dropped.
                 </p>
                 <button
                   type="button"

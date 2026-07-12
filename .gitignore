@@ -12,6 +12,8 @@ package-lock.json
 
 # Testing
 coverage
+test-results/
+playwright-report/
 
 # Turbo
 .turbo

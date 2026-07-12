@@ -18,6 +18,9 @@ async function deleteFromUserIndex(
     if (table === "bodyMeasurements" && doc.photoStorageId) {
       await ctx.storage.delete(doc.photoStorageId);
     }
+    if (table === "coachUploads" && doc.storageId) {
+      await ctx.storage.delete(doc.storageId);
+    }
     await ctx.db.delete(doc._id);
   }
 
@@ -55,6 +58,11 @@ export async function deleteUserDataBatch(
     ["supplementIntakeLogs", "by_userId_and_date"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
+    ["coachMemories", "by_userId"],
+    ["coachCheckIns", "by_userId"],
+    ["coachActionEvents", "by_userId"],
+    ["coachWeeklyPlans", "by_userId"],
+    ["coachUploads", "by_userId"],
     ["aiUsage", "by_userId_month"],
     ["snapUsage", "by_userId_date"],
     ["activeWorkouts", "by_userId"],

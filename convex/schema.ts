@@ -110,6 +110,11 @@ export default defineSchema({
   recipes: defineTable({
     userId: v.string(),
     name: v.string(),
+    description: v.optional(v.string()),
+    servings: v.optional(v.number()),
+    prepMinutes: v.optional(v.number()),
+    tags: v.optional(v.array(v.string())),
+    steps: v.optional(v.array(v.string())),
     ingredients: v.array(
       v.object({
         id: v.string(),
@@ -528,6 +533,74 @@ export default defineSchema({
     userId: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  // ── Coach memory, check-ins, and reversible action history ──────────────
+  // Memories are stored one-per-key so the list stays bounded and individual
+  // preferences can be updated without rewriting an ever-growing document.
+  coachMemories: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    category: v.string(),
+    value: v.string(),
+    source: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_key", ["userId", "key"]),
+
+  coachCheckIns: defineTable({
+    userId: v.string(),
+    date: v.string(),
+    kind: v.optional(v.string()),
+    energy: v.number(),
+    soreness: v.number(),
+    sleepQuality: v.number(),
+    mood: v.number(),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_date", ["userId", "date"])
+    .index("by_userId_and_date_and_kind", ["userId", "date", "kind"]),
+
+  coachActionEvents: defineTable({
+    userId: v.string(),
+    kind: v.string(),
+    summary: v.string(),
+    status: v.union(v.literal("applied"), v.literal("undone")),
+    targetType: v.string(),
+    targetId: v.optional(v.string()),
+    undoPayload: v.any(),
+    createdAt: v.number(),
+    undoneAt: v.optional(v.number()),
+  }).index("by_userId", ["userId"]),
+
+  coachWeeklyPlans: defineTable({
+    userId: v.string(),
+    weekStart: v.string(),
+    status: v.union(v.literal("active"), v.literal("archived")),
+    title: v.string(),
+    days: v.array(v.any()),
+    assumptions: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_weekStart", ["userId", "weekStart"]),
+
+  coachUploads: defineTable({
+    userId: v.string(),
+    storageId: v.id("_storage"),
+    mimeType: v.string(),
+    fileName: v.string(),
+    size: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_storageId", ["userId", "storageId"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   // ── AI usage quotas ──────────────────────────────────────────────────────
   aiUsage: defineTable({
