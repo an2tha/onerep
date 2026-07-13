@@ -1010,24 +1010,35 @@ function fallbackCoachChatResponse({
   generateUi: boolean;
 }): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
   const uiBlocks = generateUi ? fallbackCoachUiBlocks(context) : [];
-  if (context.safetyMode !== "standard" || context.safetyFlags.length > 0) {
+  const normalizedMessage = message.toLowerCase();
+  const conservative =
+    context.safetyMode !== "standard" || context.safetyFlags.length > 0;
+  const safetyNote = conservative
+    ? " I’ll keep that within the health constraints from your setup and avoid aggressive changes."
+    : "";
+
+  if (
+    normalizedMessage.includes("recover") ||
+    normalizedMessage.includes("fatigue") ||
+    normalizedMessage.includes("sore") ||
+    normalizedMessage.includes("sleep")
+  ) {
     return {
-      reply:
-        "I’ll keep your plan conservative and treat the context you shared during setup as a hard constraint. I can help with simple routines and meal structure, but I won’t prescribe aggressive calorie, fasting, or training changes where clinician guidance is more appropriate.",
+      reply: `Your recent training signal is ${Math.round(context.workoutDays7)} workout days and ${Math.round(context.hardSets7)} hard sets in the last 7 days${context.volumeChange7Pct == null ? "." : `, with volume ${context.volumeChange7Pct >= 0 ? "up" : "down"} ${Math.abs(Math.round(context.volumeChange7Pct))}% from the prior week.`} Today, use performance and soreness as the decision: train normally if warm-ups feel good; otherwise cut working sets by about a third and keep the movement easy.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
   }
   if (focusInsight) {
     return {
-      reply: `${focusInsight.title}: ${focusInsight.detail} Start by making this measurable for the next 7 days, then reassess before changing multiple variables at once.`,
+      reply: `${focusInsight.title}: ${focusInsight.detail} Make that the one measurable focus for the next 7 days, then reassess before changing another variable.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
   }
   if (context.proteinAdherence < 75) {
     return {
-      reply: `The highest-leverage move is protein consistency. You're averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target. Aim for one repeatable protein anchor meal before changing calories or training.`,
+      reply: `The highest-impact change is protein consistency: you’re averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target. Add one repeatable protein anchor meal today and log it; that closes the clearest gap without changing the rest of your plan.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
@@ -1037,21 +1048,20 @@ function fallbackCoachChatResponse({
     Math.abs(context.volumeChange7Pct) > 35
   ) {
     return {
-      reply: `Your training load changed ${Math.round(context.volumeChange7Pct)}% versus the prior week. Keep the next week boring and repeatable so you can tell whether performance is adapting or just reacting to fatigue.`,
+      reply: `Your training load changed ${Math.round(context.volumeChange7Pct)}% versus the prior week. Keep the next week repeatable: use the same main lifts, sets, and effort, and only progress when performance is stable.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
   }
-  if (message.toLowerCase().includes("calorie")) {
+  if (normalizedMessage.includes("calorie")) {
     return {
-      reply: `Use the scale trend and food accuracy together. If your average calories stay near ${Math.round(context.calorieTarget)} and weight pace is still off for 10-14 days, then adjust by a small amount instead of making a large cut or bulk change.`,
+      reply: `You’re averaging ${Math.round(context.averageCalories)} kcal against a ${Math.round(context.calorieTarget)} kcal target. First keep logging consistent for 10–14 days; if the weight trend is still off, make a small adjustment instead of a large cut or bulk change.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
   }
   return {
-    reply:
-      "Pick one variable to improve this week: logging consistency, protein, or repeatable training exposure. Your next adjustment should be small enough that the trend can prove whether it worked.",
+    reply: `Based on the recent data, today’s best focus is consistency: hit roughly ${Math.round(context.proteinTarget)}g protein, keep intake near ${Math.round(context.calorieTarget)} kcal, and ${context.workoutDays7 >= 4 ? "protect recovery rather than adding more work" : "complete the next planned session without adding extra volume"}. Change only one variable this week so the trend can show whether it worked.${safetyNote}`,
     uiBlocks,
     operations: [],
   };
