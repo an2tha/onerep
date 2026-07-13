@@ -2202,7 +2202,7 @@ export default function Coach() {
         className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile"
         aria-hidden="true"
       />
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] pt-[var(--app-safe-top)] md:px-8 lg:pt-0">
         <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/45 bg-transparent lg:bg-background/95">
           <h1 className="text-[18px] leading-tight font-bold tracking-tight">
             Coach
