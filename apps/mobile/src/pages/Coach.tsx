@@ -2269,14 +2269,14 @@ export default function Coach() {
                 disabled={busy}
                 onClick={() => switchCoachMode(item.id)}
                 className={cn(
-                  "motion-tactile flex min-h-11 items-center justify-center gap-1.5 border-b-2 text-[11px] font-semibold transition-colors disabled:opacity-45",
+                  "motion-tactile flex min-h-11 min-w-0 items-center justify-center gap-1 border-b-2 px-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 sm:gap-1.5 sm:text-[11px]",
                   active
                     ? cn(item.tabClass, "text-foreground")
                     : "border-transparent text-muted-foreground active:text-foreground"
                 )}
               >
-                <Icon size={14} weight="bold" />
-                <span>{item.label}</span>
+                <Icon className="shrink-0" size={13} weight="bold" />
+                <span className="min-w-0 whitespace-nowrap">{item.label}</span>
               </button>
             )
           })}
@@ -2467,18 +2467,18 @@ export default function Coach() {
             event.preventDefault()
             void submit()
           }}
-          className="z-20 mx-auto w-full max-w-3xl shrink-0 border-t border-border/45 bg-[rgba(2,8,23,0.74)] pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
+          className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/45 bg-[rgba(2,8,23,0.74)] pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
         >
           <AppTooltip
             id={APP_TOOLTIP_IDS.coachMessage}
             content="Ask Coach about today’s workout, food choices, recovery, or what changed in your progress."
-            targetClassName="block w-full"
+            targetClassName="block w-full min-w-0 max-w-full"
             side="top"
             enabled
           >
             <div
               className={cn(
-                "rounded-xl border border-border/60 bg-card p-2",
+                "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
                 mode.composerClass
               )}
             >
@@ -2532,7 +2532,7 @@ export default function Coach() {
                   </button>
                 </div>
               ) : null}
-              <div className="flex items-end gap-2">
+              <div className="flex min-w-0 items-end gap-1 sm:gap-2">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -2560,7 +2560,7 @@ export default function Coach() {
                     loading ? "Connecting your data…" : mode.placeholder
                   }
                   disabled={loading || busy}
-                  className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55"
+                  className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
                 />
                 <button
                   type="button"
