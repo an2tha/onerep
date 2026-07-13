@@ -16,11 +16,8 @@ import {
   Sparkle,
   Trash,
   X,
-  ShieldCheck,
-  SlidersHorizontal,
-  Target,
 } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
@@ -70,6 +67,7 @@ import {
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { hapticSelection } from "@/lib/haptics"
+import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import {
   clampSnapGrams,
   snapDetectionsFromAiResult,
@@ -1299,6 +1297,13 @@ function RecipeManagementBox({
                 key={recipe._id ?? recipe.name}
                 className="flex items-center gap-2 py-2.5 first:pt-0 last:pb-0"
               >
+                {(recipe.photoUrls?.[0] || recipe.placeholderImage) && (
+                  <img
+                    src={recipe.photoUrls?.[0] ?? COACH_RECIPE_PLACEHOLDER}
+                    alt=""
+                    className="size-12 shrink-0 rounded-xl object-cover"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="native-row-title truncate">{recipe.name}</p>
                   <p className="native-row-detail mt-0.5 tabular-nums">
@@ -1442,7 +1447,6 @@ export default function Nutrition() {
     string[]
   >([])
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
-  const [applyingCalibration, setApplyingCalibration] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setAddOpen(true))
 
@@ -1507,10 +1511,6 @@ export default function Nutrition() {
     api.logs.supplements.removeLog,
     "logs.supplements.removeLog"
   )
-  const applyCalibration = useMutation(
-    api.users.users.applyNutritionCalibration
-  )
-
   const entries = useMemo(() => (foodLogs ?? []) as FoodLogEntry[], [foodLogs])
   const recipes = useMemo(
     () => (recipesQuery ?? []) as unknown as Recipe[],
@@ -1544,8 +1544,6 @@ export default function Nutrition() {
 
   const goals = effectiveGoals?.effective
   const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
-  const compiledTarget = effectiveGoals?.health
-  const targetGuidance = compiledTarget?.guidance?.slice(0, 3) ?? []
   const visibleMetrics = nutritionPlan?.visibleMetrics ?? {
     calories: true,
     macros: true,
@@ -1555,7 +1553,6 @@ export default function Nutrition() {
     water: true,
     streaks: true,
   }
-  const calibration = nutritionPlan?.calibration
   const calorieTarget = Math.round(goals?.calories ?? 2000)
   const macroTargets: Record<MacroKey, number> = {
     protein: Math.round(goals?.protein ?? 140),
@@ -1894,21 +1891,14 @@ export default function Nutrition() {
     }
   }
 
-  async function applyPlanCalibration() {
-    if (!calibration?.canApply || !calibration.targets || applyingCalibration) {
-      return
-    }
-    setApplyingCalibration(true)
-    try {
-      await applyCalibration(calibration.targets)
-    } finally {
-      setApplyingCalibration(false)
-    }
-  }
-
   function openSupplements() {
     hapticSelection()
     navigate("/supplements", { motion: "forward" })
+  }
+
+  function openRecipes() {
+    hapticSelection()
+    navigate("/recipes", { motion: "forward" })
   }
 
   function openFoodSearch() {
@@ -1948,14 +1938,6 @@ export default function Nutrition() {
         <header className="app-header">
           <div className={cn("min-w-0")}>
             <h1 className="app-title">Nutrition</h1>
-            <button
-              type="button"
-              onClick={openSupplements}
-              className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
-            >
-              Supplements
-              <CaretRight size={12} weight="bold" className="shrink-0" />
-            </button>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
@@ -2288,6 +2270,69 @@ export default function Nutrition() {
               )}
             </SummaryBlock>
 
+            <nav
+              className="mt-4 grid grid-cols-2 gap-3"
+              aria-label="Nutrition libraries"
+            >
+              <button
+                type="button"
+                onClick={openRecipes}
+                className="group flex min-h-24 flex-col items-stretch justify-between gap-3 rounded-[var(--radius-panel)] border border-border bg-card p-3 text-left shadow-[var(--shadow-surface)] transition-[background-color,transform] active:scale-[0.985] active:bg-muted/45 sm:min-h-32 sm:gap-5 sm:p-4"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <BookBookmark
+                    size={25}
+                    weight="regular"
+                    className="size-[21px] shrink-0 text-[var(--accent-food)] sm:size-[25px]"
+                    aria-hidden
+                  />
+                  <CaretRight
+                    size={15}
+                    weight="bold"
+                    className="shrink-0 text-muted-foreground transition-transform group-active:translate-x-0.5"
+                    aria-hidden
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] leading-tight font-semibold tracking-tight sm:text-[16px]">
+                    Recipes
+                  </span>
+                  <span className="mt-0.5 block text-[12px] leading-4 text-muted-foreground sm:mt-1 sm:text-[13px]">
+                    Browse your library
+                  </span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openSupplements}
+                className="group flex min-h-24 flex-col items-stretch justify-between gap-3 rounded-[var(--radius-panel)] border border-border bg-card p-3 text-left shadow-[var(--shadow-surface)] transition-[background-color,transform] active:scale-[0.985] active:bg-muted/45 sm:min-h-32 sm:gap-5 sm:p-4"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  <Pill
+                    size={25}
+                    weight="regular"
+                    className="size-[21px] shrink-0 text-[var(--accent-supplement)] sm:size-[25px]"
+                    aria-hidden
+                  />
+                  <CaretRight
+                    size={15}
+                    weight="bold"
+                    className="shrink-0 text-muted-foreground transition-transform group-active:translate-x-0.5"
+                    aria-hidden
+                  />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] leading-tight font-semibold tracking-tight sm:text-[16px]">
+                    Supplements
+                  </span>
+                  <span className="mt-0.5 block text-[12px] leading-4 text-muted-foreground sm:mt-1 sm:text-[13px]">
+                    Manage your plan
+                  </span>
+                </span>
+              </button>
+            </nav>
+
             <details className="native-collapsible mt-4 border-y border-border">
               <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
                 Saved recipes
@@ -2319,131 +2364,6 @@ export default function Nutrition() {
               </div>
             )}
 
-            {(compiledTarget?.calorieStrategy || targetGuidance.length > 0) && (
-              <section className="mt-4 border-y border-border">
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Target
-                          size={17}
-                          weight="bold"
-                          className="shrink-0 text-foreground/65"
-                        />
-                        <h3 className="text-sm font-semibold text-foreground">
-                          Daily targets
-                        </h3>
-                      </div>
-
-                      {compiledTarget.calorieStrategy && (
-                        <p className="mt-1.5 max-w-prose text-[14px] leading-5 text-muted-foreground">
-                          {compiledTarget.calorieStrategy}
-                        </p>
-                      )}
-                    </div>
-
-                    {compiledTarget.safetyMode && (
-                      <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
-                        <ShieldCheck size={13} weight="fill" />
-                        {compiledTarget.safetyMode}
-                      </span>
-                    )}
-                  </div>
-
-                  {(compiledTarget.fiber ||
-                    compiledTarget.saturatedFatLimit ||
-                    compiledTarget.sodiumLimit) && (
-                    <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/55 pt-4 sm:grid-cols-3">
-                      {compiledTarget.fiber && (
-                        <div>
-                          <dt className="text-[13px] font-medium text-muted-foreground">
-                            Fiber
-                          </dt>
-                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
-                            {fmt(compiledTarget.fiber)} g
-                          </dd>
-                        </div>
-                      )}
-
-                      {compiledTarget.saturatedFatLimit && (
-                        <div>
-                          <dt className="text-[13px] font-medium text-muted-foreground">
-                            Saturated fat
-                          </dt>
-                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
-                            &lt; {fmt(compiledTarget.saturatedFatLimit)} g
-                          </dd>
-                        </div>
-                      )}
-
-                      {compiledTarget.sodiumLimit && (
-                        <div>
-                          <dt className="text-[13px] font-medium text-muted-foreground">
-                            Sodium
-                          </dt>
-                          <dd className="mt-0.5 text-sm font-semibold text-foreground tabular-nums">
-                            &lt; {fmt(compiledTarget.sodiumLimit)} mg
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                  )}
-
-                  {targetGuidance.length > 0 && (
-                    <details className="native-collapsible group mt-4 border-t border-border/55 pt-3">
-                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-[14px] font-medium text-muted-foreground transition-colors hover:text-foreground">
-                        Why these targets?
-                        <CaretDown
-                          size={14}
-                          weight="bold"
-                          className="transition-transform group-open:rotate-180"
-                        />
-                      </summary>
-
-                      <ul className="mt-3 grid gap-2">
-                        {targetGuidance.map((item) => (
-                          <li
-                            key={item}
-                            className="flex gap-2 text-[14px] leading-5 text-muted-foreground"
-                          >
-                            <span
-                              aria-hidden="true"
-                              className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-foreground/35"
-                            />
-                            <span>{item}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                </div>
-
-                {calibration && (
-                  <div className="flex flex-col gap-3 border-t border-border/60 bg-muted/15 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-foreground">
-                        {calibration.title}
-                      </p>
-                      <p className="mt-0.5 line-clamp-2 text-[13px] leading-5 text-muted-foreground">
-                        {calibration.detail}
-                      </p>
-                    </div>
-
-                    {calibration.canApply && calibration.targets && (
-                      <button
-                        type="button"
-                        onClick={() => void applyPlanCalibration()}
-                        disabled={applyingCalibration}
-                        className="native-toolbar-button shrink-0 border border-border bg-card disabled:pointer-events-none disabled:opacity-50"
-                      >
-                        <SlidersHorizontal size={14} weight="bold" />
-                        {applyingCalibration ? "Applying…" : "Apply adjustment"}
-                      </button>
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
             <section className="mt-5 grid gap-6 md:grid-cols-[1fr_0.82fr]">
               <div className="border-y border-border py-4">
                 <div className="mb-3 flex items-center justify-between gap-3">

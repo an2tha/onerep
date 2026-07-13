@@ -1,12 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import type { ChangeEvent, ReactNode } from "react"
 import { useLocation, useParams } from "react-router"
 import {
   ArrowLeft,
+  Camera,
   CaretDown,
   Check,
+  ChefHat,
+  Clock,
+  ForkKnife,
   MagnifyingGlass,
   Minus,
+  NotePencil,
   Plus,
+  Trash,
   Warning,
   X,
 } from "@phosphor-icons/react"
@@ -27,8 +34,9 @@ import {
   type Recipe,
   type RecipeIngredient,
 } from "@/lib/food-log"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
@@ -50,6 +58,14 @@ type AddedState = { itemId: string }
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoods>>[number]
 type StoredRecipeIngredient = Omit<RecipeIngredient, "displayUnit"> & {
   displayUnit?: string
+}
+type RecipeType = "quick" | "detailed"
+type DraftPhoto = {
+  id: string
+  file?: File
+  url: string
+  storageId?: Id<"_storage">
+  placeholder?: boolean
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -82,6 +98,11 @@ function recipeTotals(ingredients: RecipeIngredient[]) {
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
+}
+
+function positiveNumber(value: string): number | undefined {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
 }
 
 function dominantMacroColor(ing: RecipeIngredient) {
@@ -1021,6 +1042,46 @@ function SearchOverlay({
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
+function MetadataField({
+  icon,
+  label,
+  value,
+  onChange,
+  suffix,
+  placeholder,
+  inputMode,
+}: {
+  icon?: ReactNode
+  label: string
+  value: string
+  onChange: (value: string) => void
+  suffix?: string
+  placeholder?: string
+  inputMode?: "numeric"
+}) {
+  return (
+    <label className="min-w-0 border-b border-border pb-2">
+      <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        {icon}
+        {label}
+      </span>
+      <span className="mt-1 flex items-baseline gap-1">
+        <input
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          inputMode={inputMode}
+          aria-label={label}
+          placeholder={placeholder ?? "—"}
+          className="min-w-0 flex-1 bg-transparent text-[15px] font-medium outline-none placeholder:text-muted-foreground/60"
+        />
+        {suffix && value && (
+          <span className="text-[11px] text-muted-foreground">{suffix}</span>
+        )}
+      </span>
+    </label>
+  )
+}
+
 export default function NewRecipe() {
   const navigate = useSmoothNavigate()
   const { id } = useParams<{ id?: string }>()
@@ -1039,6 +1100,7 @@ export default function NewRecipe() {
     api.logs.recipes.save,
     "logs.recipes.save"
   )
+  const generateUploadUrl = useMutation(api.logs.recipes.generateUploadUrl)
   const setFoodDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
     "logs.foodLogs.setDay"
@@ -1050,14 +1112,56 @@ export default function NewRecipe() {
       : undefined
 
   const [name, setName] = useState("")
+  const [recipeType, setRecipeType] = useState<RecipeType>("quick")
+  const [description, setDescription] = useState("")
+  const [servings, setServings] = useState("")
+  const [prepMinutes, setPrepMinutes] = useState("")
+  const [cookMinutes, setCookMinutes] = useState("")
+  const [category, setCategory] = useState("")
+  const [notes, setNotes] = useState("")
+  const [placeholderImage, setPlaceholderImage] = useState("")
+  const [tags, setTags] = useState("")
+  const [steps, setSteps] = useState<string[]>([""])
+  const [photos, setPhotos] = useState<DraftPhoto[]>([])
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([])
   const [searchOpen, setSearchOpen] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [showMicros, setShowMicros] = useState(false)
+  const savingRef = useRef(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (initial) {
       setName(initial.name)
+      setRecipeType(initial.recipeType ?? "quick")
+      setDescription(initial.description ?? "")
+      setServings(initial.servings ? String(initial.servings) : "")
+      setPrepMinutes(initial.prepMinutes ? String(initial.prepMinutes) : "")
+      setCookMinutes(initial.cookMinutes ? String(initial.cookMinutes) : "")
+      setCategory(initial.category ?? "")
+      setNotes(initial.notes ?? "")
+      setPlaceholderImage(initial.placeholderImage ?? "")
+      setTags(initial.tags?.join(", ") ?? "")
+      setSteps(initial.steps?.length ? initial.steps : [""])
+      const storedPhotos: DraftPhoto[] = (initial.photoStorageIds ?? [])
+        .map((storageId, index) => ({
+          id: String(storageId),
+          storageId,
+          url: initial.photoUrls?.[index] ?? "",
+        }))
+        .filter((photo) => Boolean(photo.url))
+      setPhotos(
+        storedPhotos.length === 0 && initial.placeholderImage
+          ? [
+              {
+                id: "coach-placeholder",
+                url: COACH_RECIPE_PLACEHOLDER,
+                placeholder: true,
+              },
+            ]
+          : storedPhotos
+      )
       setIngredients(normalizeRecipeIngredients(initial.ingredients))
       draftInitialized.current = true
       return
@@ -1076,13 +1180,52 @@ export default function NewRecipe() {
   const targetEntries = (targetFoodLogs ?? []) as FoodLogEntry[]
 
   async function handleSave() {
+    if (savingRef.current || saved || !canSave) return
+    savingRef.current = true
+    setSaving(true)
     setSaved(true)
     try {
       const recipeName = name.trim() || "My Recipe"
       const cleanedIngredients = stripUndefined(ingredients)
+      const photoStorageIds = await Promise.all(
+        photos
+          .filter((photo) => !photo.placeholder)
+          .map(async (photo) => {
+            if (photo.storageId) return photo.storageId
+            if (!photo.file) throw new Error("Photo file is unavailable")
+            const uploadUrl = await generateUploadUrl({})
+            const response = await fetch(uploadUrl, {
+              method: "POST",
+              headers: { "Content-Type": photo.file.type || "image/jpeg" },
+              body: photo.file,
+            })
+            if (!response.ok) throw new Error("Photo upload failed")
+            const result = (await response.json()) as {
+              storageId: Id<"_storage">
+            }
+            return result.storageId
+          })
+      )
       const savedRecipeId = await saveRecipeMutation({
         id: id as Id<"recipes"> | undefined,
         name: recipeName,
+        recipeType,
+        description: description.trim() || undefined,
+        servings: positiveNumber(servings),
+        prepMinutes: positiveNumber(prepMinutes),
+        cookMinutes: positiveNumber(cookMinutes),
+        category: category.trim() || undefined,
+        notes: notes.trim() || undefined,
+        placeholderImage,
+        tags: tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        steps:
+          recipeType === "detailed"
+            ? steps.map((step) => step.trim()).filter(Boolean)
+            : undefined,
+        photoStorageIds,
         ingredients: cleanedIngredients,
       })
       const nextRecipeId =
@@ -1115,7 +1258,28 @@ export default function NewRecipe() {
     } catch (err) {
       console.error("Failed to save recipe:", err)
       setSaved(false)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
+  }
+
+  function handlePhotoSelection(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []).slice(
+      0,
+      6 - photos.length
+    )
+    if (!files.length) return
+    setPlaceholderImage("")
+    setPhotos((current) => [
+      ...current.filter((photo) => !photo.placeholder),
+      ...files.map((file) => ({
+        id: `${file.name}-${file.lastModified}-${Math.random()}`,
+        file,
+        url: URL.createObjectURL(file),
+      })),
+    ])
+    event.target.value = ""
   }
 
   function addIngredient(
@@ -1173,7 +1337,8 @@ export default function NewRecipe() {
 
             <button
               onClick={handleSave}
-              disabled={!canSave || saved}
+              disabled={!canSave || saving || saved}
+              aria-busy={saving}
               className="app-header-icon-action disabled:opacity-25 md:hidden"
               aria-label="Save recipe"
             >
@@ -1188,7 +1353,8 @@ export default function NewRecipe() {
             </button>
             <button
               onClick={handleSave}
-              disabled={!canSave || saved}
+              disabled={!canSave || saving || saved}
+              aria-busy={saving}
               className="app-button app-button-primary hidden h-11 px-4 text-[15px] disabled:opacity-40 md:inline-flex"
             >
               {saved ? (
@@ -1200,9 +1366,137 @@ export default function NewRecipe() {
               ) : (
                 <Check size={11} weight="bold" />
               )}
-              Save
+              {saving ? "Saving..." : "Save"}
             </button>
           </header>
+
+          <div className="px-[var(--app-page-x)] pb-6 md:px-8">
+            <div
+              className="grid grid-cols-2 rounded-2xl bg-muted/55 p-1"
+              role="radiogroup"
+              aria-label="Recipe detail level"
+            >
+              {(["quick", "detailed"] as const).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  role="radio"
+                  aria-checked={recipeType === type}
+                  onClick={() => setRecipeType(type)}
+                  className={`min-h-11 rounded-xl px-3 text-[14px] font-semibold transition-all ${recipeType === type ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}
+                >
+                  {type === "quick" ? "Quick recipe" : "Detailed recipe"}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 px-1 text-[12px] leading-5 text-muted-foreground">
+              {recipeType === "quick"
+                ? "Just the essentials. Add extra details only when they help."
+                : "Build a recipe with photos, method, notes, and serving details."}
+            </p>
+            {!initial && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/coach", {
+                    motion: "forward",
+                    state: {
+                      coachMode: "chef",
+                      recipeRequest:
+                        "Create a detailed recipe from these instructions: ",
+                    },
+                  })
+                }
+                className="mt-3 flex min-h-12 w-full items-center justify-between rounded-2xl border border-border bg-background px-4 text-left transition-colors active:bg-muted/35"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="grid size-8 place-items-center rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    <ChefHat size={17} />
+                  </span>
+                  <span>
+                    <span className="block text-[14px] font-semibold">
+                      Create with Chef Coach
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      Describe what you want; Coach fills in the recipe.
+                    </span>
+                  </span>
+                </span>
+                <ArrowLeft
+                  size={15}
+                  className="rotate-180 text-muted-foreground"
+                />
+              </button>
+            )}
+          </div>
+
+          <div className="px-[var(--app-page-x)] pb-6 md:px-8">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="sr-only"
+              onChange={handlePhotoSelection}
+              aria-label="Add recipe photos"
+            />
+            {photos.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                className="flex min-h-28 w-full items-center justify-center gap-3 rounded-2xl border border-dashed border-border bg-muted/20 text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/45"
+              >
+                <Camera size={21} /> Add a cover photo
+              </button>
+            ) : (
+              <div className="flex snap-x gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+                {photos.map((photo, index) => (
+                  <div
+                    key={photo.id}
+                    className="relative h-32 min-w-[76%] snap-start overflow-hidden rounded-2xl bg-muted sm:min-w-52"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={
+                        index === 0
+                          ? "Recipe cover"
+                          : `Recipe photo ${index + 1}`
+                      }
+                      className="h-full w-full object-cover"
+                    />
+                    {index === 0 && (
+                      <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur">
+                        Cover
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (photo.placeholder) setPlaceholderImage("")
+                        setPhotos((current) =>
+                          current.filter((item) => item.id !== photo.id)
+                        )
+                      }}
+                      className="absolute top-2 right-2 grid size-9 place-items-center rounded-full bg-black/55 text-white backdrop-blur"
+                      aria-label={`Remove recipe photo ${index + 1}`}
+                    >
+                      <Trash size={15} />
+                    </button>
+                  </div>
+                ))}
+                {photos.length < 6 && (
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="grid h-32 min-w-24 place-items-center rounded-2xl border border-dashed border-border text-muted-foreground"
+                    aria-label="Add another recipe photo"
+                  >
+                    <Plus size={20} />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ── Recipe name ─────────────────────────────────────────────── */}
           <div className="px-[var(--app-page-x)] pb-6 md:px-8">
@@ -1217,6 +1511,54 @@ export default function NewRecipe() {
             />
             {/* Ruler line — always visible, like a recipe card */}
             <div className="mt-3 h-px bg-border/50" />
+          </div>
+
+          <div className="space-y-4 px-[var(--app-page-x)] pb-7 md:px-8">
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Short description (optional)"
+              aria-label="Recipe description"
+              rows={2}
+              className="w-full resize-none border-b border-border bg-transparent py-3 text-[15px] leading-6 outline-none placeholder:text-muted-foreground"
+            />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+              <MetadataField
+                icon={<Clock size={16} />}
+                label="Prep time"
+                value={prepMinutes}
+                onChange={setPrepMinutes}
+                suffix="min"
+                inputMode="numeric"
+              />
+              <MetadataField
+                icon={<ForkKnife size={16} />}
+                label="Cook time"
+                value={cookMinutes}
+                onChange={setCookMinutes}
+                suffix="min"
+                inputMode="numeric"
+              />
+              <MetadataField
+                label="Servings"
+                value={servings}
+                onChange={setServings}
+                inputMode="numeric"
+              />
+              <MetadataField
+                label="Category"
+                value={category}
+                onChange={setCategory}
+                placeholder="Dinner"
+              />
+            </div>
+            <input
+              value={tags}
+              onChange={(event) => setTags(event.target.value)}
+              placeholder="Tags, separated by commas (optional)"
+              aria-label="Recipe tags"
+              className="min-h-12 w-full border-b border-border bg-transparent text-[14px] outline-none placeholder:text-muted-foreground"
+            />
           </div>
 
           {ingredients.length > 0 && (
@@ -1298,14 +1640,104 @@ export default function NewRecipe() {
                   onToggle={() => setShowMicros((value) => !value)}
                 />
 
+                {recipeType === "detailed" && (
+                  <section
+                    className="mt-8 border-t border-border pt-6"
+                    aria-labelledby="recipe-method-title"
+                  >
+                    <div className="flex items-center gap-2">
+                      <NotePencil size={19} className="text-muted-foreground" />
+                      <h2
+                        id="recipe-method-title"
+                        className="native-section-title"
+                      >
+                        Cooking instructions
+                      </h2>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {steps.map((step, index) => (
+                        <div key={index} className="flex items-start gap-3">
+                          <span className="mt-3 grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                            {index + 1}
+                          </span>
+                          <textarea
+                            value={step}
+                            onChange={(event) =>
+                              setSteps((current) =>
+                                current.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? event.target.value
+                                    : item
+                                )
+                              )
+                            }
+                            placeholder={
+                              index === 0
+                                ? "Describe the first step…"
+                                : "Next step…"
+                            }
+                            aria-label={`Cooking instruction ${index + 1}`}
+                            rows={2}
+                            className="min-h-14 flex-1 resize-none border-b border-border bg-transparent py-2 text-[14px] leading-5 outline-none placeholder:text-muted-foreground"
+                          />
+                          {steps.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSteps((current) =>
+                                  current.filter(
+                                    (_, itemIndex) => itemIndex !== index
+                                  )
+                                )
+                              }
+                              className="app-icon-button mt-1"
+                              aria-label={`Remove cooking instruction ${index + 1}`}
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSteps((current) => [...current, ""])}
+                      className="mt-3 flex min-h-11 items-center gap-2 px-1 text-[14px] font-semibold text-[var(--accent-food)]"
+                    >
+                      <Plus size={15} /> Add step
+                    </button>
+
+                    <label className="mt-6 block">
+                      <span className="text-[12px] font-semibold text-muted-foreground">
+                        Notes
+                      </span>
+                      <textarea
+                        value={notes}
+                        onChange={(event) => setNotes(event.target.value)}
+                        placeholder="Substitutions, serving ideas, storage notes…"
+                        aria-label="Recipe notes"
+                        rows={3}
+                        className="mt-2 w-full resize-none rounded-2xl border border-border bg-muted/20 p-4 text-[14px] leading-6 outline-none placeholder:text-muted-foreground focus:border-foreground/30"
+                      />
+                    </label>
+                  </section>
+                )}
+
                 {/* Save button at bottom */}
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={!canSave || saved}
+                  disabled={!canSave || saving || saved}
+                  aria-busy={saving}
                   className="native-primary-button mt-5 w-full"
                 >
-                  {saved ? "Saved ✓" : initial ? "Save Changes" : "Save Recipe"}
+                  {saving
+                    ? "Saving..."
+                    : saved
+                      ? "Saved ✓"
+                      : initial
+                        ? "Save Changes"
+                        : "Save Recipe"}
                 </button>
               </>
             )}

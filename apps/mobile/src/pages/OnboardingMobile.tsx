@@ -342,7 +342,7 @@ function NumberQuestion({
   }
 
   return (
-    <div className="flex min-h-16 items-center gap-3 border-b border-border py-3 last:border-b-0">
+    <div className="onboarding-number-row">
       <label className="min-w-0 flex-1" htmlFor={inputId}>
         <span className="native-row-title block font-semibold">{label}</span>
         <span className="native-row-detail mt-0.5 block">
@@ -355,7 +355,7 @@ function NumberQuestion({
           onClick={() => update(value - step)}
           disabled={value <= min}
           aria-label={`Decrease ${label}`}
-          className="native-toolbar-button size-11 shrink-0 bg-muted disabled:opacity-35"
+          className="onboarding-stepper-button"
         >
           <Minus size={16} weight="bold" />
         </button>
@@ -372,14 +372,14 @@ function NumberQuestion({
             if (Number.isFinite(next)) update(next)
           }}
           aria-label={label}
-          className="native-input w-24 text-center font-semibold tabular-nums"
+          className="onboarding-number-input"
         />
         <button
           type="button"
           onClick={() => update(value + step)}
           disabled={value >= max}
           aria-label={`Increase ${label}`}
-          className="native-toolbar-button size-11 shrink-0 bg-muted disabled:opacity-35"
+          className="onboarding-stepper-button"
         >
           <Plus size={16} weight="bold" />
         </button>
@@ -399,7 +399,7 @@ function PillToggle<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div className="onboarding-option-list">
       {options.map((option) => {
         const selected = value === option.value
         const OptionIcon = option.icon
@@ -411,8 +411,9 @@ function PillToggle<T extends string>({
               hapticSelection()
               onChange(option.value)
             }}
+            data-selected={selected}
             className={cn(
-              "flex min-h-14 w-full items-center gap-3 px-1 text-left text-[15px] font-semibold transition-colors",
+              "onboarding-option flex min-h-14 w-full items-center gap-3 text-left text-[15px] font-semibold",
               selected
                 ? "text-foreground"
                 : "text-muted-foreground active:bg-muted/45"
@@ -438,7 +439,7 @@ function OptionList<T extends string>({
   onChange: (value: T) => void
 }) {
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div className="onboarding-option-list">
       {options.map(([id, label, body, icon]) => {
         const selected = value === id
         const OptionIcon = icon
@@ -451,8 +452,9 @@ function OptionList<T extends string>({
               onChange(id)
             }}
             aria-pressed={selected}
+            data-selected={selected}
             className={cn(
-              "min-h-16 w-full px-1 py-3 text-left transition-colors",
+              "onboarding-option min-h-16 w-full text-left",
               selected
                 ? "text-foreground"
                 : "text-muted-foreground active:bg-muted/45"
@@ -508,7 +510,7 @@ function MultiSelectList({
   }
 
   return (
-    <div className="divide-y divide-border border-y border-border">
+    <div className="onboarding-multi-list">
       {options.map(([id, label]) => {
         const selected = values.includes(id)
         return (
@@ -517,8 +519,9 @@ function MultiSelectList({
             type="button"
             onClick={() => toggle(id)}
             aria-pressed={selected}
+            data-selected={selected}
             className={cn(
-              "min-h-13 w-full px-1 py-2.5 text-left text-[14px] font-semibold transition-colors",
+              "onboarding-multi-option min-h-13 w-full text-left text-[14px] font-semibold",
               selected
                 ? "text-foreground"
                 : "text-muted-foreground active:bg-muted/45"
@@ -780,6 +783,11 @@ export function OnboardingMobile() {
     return true
   }, [draft.goal, experienceLevel, profile.sex, step])
 
+  function transitionToStep(nextStep: number, direction: "forward" | "back") {
+    setTransitionDirection(direction)
+    setStep(nextStep)
+  }
+
   async function goNext() {
     setError(null)
     hapticMedium()
@@ -793,8 +801,7 @@ export function OnboardingMobile() {
       return
     }
     if (step < steps.length - 1) {
-      setTransitionDirection("forward")
-      setStep((current) => Math.min(current + 1, steps.length - 1))
+      transitionToStep(Math.min(step + 1, steps.length - 1), "forward")
       return
     }
     if (
@@ -860,8 +867,7 @@ export function OnboardingMobile() {
   function goBack() {
     hapticTap()
     setError(null)
-    setTransitionDirection("back")
-    setStep((current) => Math.max(current - 1, 0))
+    transitionToStep(Math.max(step - 1, 0), "back")
   }
 
   const meta = steps[step]
@@ -872,276 +878,311 @@ export function OnboardingMobile() {
   const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
   return (
-    <main className="min-h-svh bg-background text-foreground">
-      <section className="mx-auto flex min-h-svh w-full max-w-lg flex-col">
-        <header className="shrink-0 border-b border-border px-6 pt-[calc(var(--app-safe-top)+1rem)] pb-4">
+    <main
+      className="onboarding-shell min-h-svh bg-background text-foreground"
+      data-onboarding-step={step}
+    >
+      <div className="onboarding-atmosphere" aria-hidden="true" />
+      <section className="onboarding-frame">
+        <header className="onboarding-header">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <img src="/app-icon.svg" alt="" className="size-7" />
-              <span className="native-row-title font-semibold">OneRep</span>
+              <span className="onboarding-brand-name">OneRep</span>
             </div>
-            <span className="native-supporting tabular-nums">
-              Step {step + 1} of {steps.length}: {meta.label}
+            <span className="onboarding-step-count tabular-nums">
+              {step + 1} / {steps.length} · {meta.label}
             </span>
           </div>
           <div
-            className="mt-4 h-1 overflow-hidden bg-muted"
+            className="onboarding-progress"
             role="progressbar"
             aria-label="Profile setup progress"
             aria-valuemin={1}
             aria-valuemax={steps.length}
             aria-valuenow={step + 1}
           >
-            <div
-              className="h-full bg-foreground transition-[width] duration-200"
-              style={{ width: `${((step + 1) / steps.length) * 100}%` }}
-            />
+            {steps.map((item, index) => (
+              <span
+                key={item.id}
+                className="onboarding-progress-segment"
+                data-complete={index <= step}
+              />
+            ))}
           </div>
         </header>
 
-        <div
-          key={step}
-          className={cn(
-            "min-h-0 flex-1 overflow-y-auto px-6 py-7",
-            transitionDirection === "back"
-              ? "[animation:onboarding-step-back_180ms_var(--motion-ease-standard)_both]"
-              : "[animation:onboarding-step-forward_180ms_var(--motion-ease-standard)_both]"
-          )}
-        >
-          <div className="mb-7">
-            <h1 className="native-large-title">{meta.title}</h1>
-            <p className="native-body mt-2 text-muted-foreground">
-              {meta.body}
-            </p>
-          </div>
-
-          {meta.id === "goals" && (
-            <div className="space-y-7">
-              <section aria-labelledby="goal-heading">
-                <h2 id="goal-heading" className="native-section-title mb-2">
-                  Primary goal
-                </h2>
-                <OptionList
-                  value={nutritionGoal}
-                  options={nutritionGoals}
-                  onChange={(goal) => {
-                    setNutritionGoal(goal)
-                    setDraft((current) => ({
-                      ...current,
-                      goal: nutritionGoalToOnboardingGoal(goal),
-                    }))
-                  }}
-                />
-              </section>
-              <section aria-labelledby="experience-heading">
-                <h2
-                  id="experience-heading"
-                  className="native-section-title mb-2"
-                >
-                  Training experience
-                </h2>
-                <OptionList<ExperienceLevel>
-                  value={experienceLevel}
-                  options={experienceLevels}
-                  onChange={setExperienceLevel}
-                />
-              </section>
+        <div className="onboarding-stage">
+          <div
+            key={step}
+            className="onboarding-step"
+            data-transition-direction={transitionDirection}
+          >
+            <div className="onboarding-step-intro">
+              <h1 className="onboarding-step-title">{meta.title}</h1>
+              <p className="onboarding-step-copy">{meta.body}</p>
             </div>
-          )}
 
-          {meta.id === "baseline" && (
-            <div className="space-y-7">
-              <section aria-labelledby="body-profile-heading">
-                <h2
-                  id="body-profile-heading"
-                  className="native-section-title mb-2"
-                >
-                  Body profile used for the estimate
-                </h2>
-                <PillToggle
-                  value={profile.sex}
-                  options={[
-                    { value: "female", label: "Female", icon: GenderFemale },
-                    { value: "male", label: "Male", icon: GenderMale },
-                  ]}
-                  onChange={(sex: Sex) =>
-                    setProfile((current) => ({ ...current, sex }))
+            <div className="onboarding-step-form">
+              {meta.id === "goals" && (
+                <div className="onboarding-form-stack">
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="goal-heading"
+                  >
+                    <h2 id="goal-heading" className="onboarding-question-title">
+                      Primary goal
+                    </h2>
+                    <OptionList
+                      value={nutritionGoal}
+                      options={nutritionGoals}
+                      onChange={(goal) => {
+                        setNutritionGoal(goal)
+                        setDraft((current) => ({
+                          ...current,
+                          goal: nutritionGoalToOnboardingGoal(goal),
+                        }))
+                      }}
+                    />
+                  </section>
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="experience-heading"
+                  >
+                    <h2
+                      id="experience-heading"
+                      className="onboarding-question-title"
+                    >
+                      Training experience
+                    </h2>
+                    <OptionList<ExperienceLevel>
+                      value={experienceLevel}
+                      options={experienceLevels}
+                      onChange={setExperienceLevel}
+                    />
+                  </section>
+                </div>
+              )}
+
+              {meta.id === "baseline" && (
+                <div className="onboarding-form-stack">
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="body-profile-heading"
+                  >
+                    <h2
+                      id="body-profile-heading"
+                      className="onboarding-question-title"
+                    >
+                      Body profile used for the estimate
+                    </h2>
+                    <PillToggle
+                      value={profile.sex}
+                      options={[
+                        {
+                          value: "female",
+                          label: "Female",
+                          icon: GenderFemale,
+                        },
+                        { value: "male", label: "Male", icon: GenderMale },
+                      ]}
+                      onChange={(sex: Sex) =>
+                        setProfile((current) => ({ ...current, sex }))
+                      }
+                    />
+                  </section>
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="measurements-heading"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h2
+                        id="measurements-heading"
+                        className="onboarding-question-title mb-0"
+                      >
+                        Measurements
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setWeightUnit((current) =>
+                            current === "kg" ? "lbs" : "kg"
+                          )
+                        }
+                        className="onboarding-unit-button"
+                        aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+                      >
+                        {weightUnit === "kg" ? "kg" : "lb"}
+                      </button>
+                    </div>
+                    <div className="onboarding-number-list">
+                      <NumberQuestion
+                        label="Age"
+                        value={profile.age}
+                        display={`${profile.age} years`}
+                        min={AGE_MIN}
+                        max={AGE_MAX}
+                        onChange={(age) =>
+                          setProfile((current) => ({ ...current, age }))
+                        }
+                      />
+                      <NumberQuestion
+                        label="Height (cm)"
+                        value={profile.heightCm}
+                        display={`${profile.heightCm} cm`}
+                        min={HEIGHT_MIN}
+                        max={HEIGHT_MAX}
+                        onChange={(heightCm) =>
+                          setProfile((current) => ({ ...current, heightCm }))
+                        }
+                      />
+                      <NumberQuestion
+                        label={`Weight (${weightUnit})`}
+                        value={weightValue}
+                        display={`${weightValue} ${weightUnit}`}
+                        min={weightMin}
+                        max={weightMax}
+                        onChange={(value) =>
+                          setProfile((current) => ({
+                            ...current,
+                            weightKg:
+                              weightUnit === "kg" ? value : lbsToKg(value),
+                          }))
+                        }
+                      />
+                    </div>
+                  </section>
+                </div>
+              )}
+
+              {meta.id === "safety" && (
+                <MultiSelectList
+                  values={safetyFlags}
+                  options={[["none", "None"], ...safetyOptions]}
+                  onChange={setSafetyFlags}
+                  icon={ShieldCheck}
+                />
+              )}
+
+              {meta.id === "activity" && (
+                <OptionList
+                  value={profile.activityLevel}
+                  options={activities}
+                  onChange={(activityLevel) =>
+                    setProfile((current) => ({ ...current, activityLevel }))
                   }
                 />
-              </section>
-              <section aria-labelledby="measurements-heading">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <h2
-                    id="measurements-heading"
-                    className="native-section-title"
+              )}
+
+              {meta.id === "review" && (
+                <div className="onboarding-form-stack">
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="starting-targets-heading"
                   >
-                    Measurements
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setWeightUnit((current) =>
-                        current === "kg" ? "lbs" : "kg"
-                      )
-                    }
-                    className="native-toolbar-button border border-border"
-                    aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+                    <h2
+                      id="starting-targets-heading"
+                      className="onboarding-question-title"
+                    >
+                      Starting daily targets
+                    </h2>
+                    <div className="onboarding-review-card">
+                      <div className="onboarding-review-hero">
+                        <p className="native-supporting">Calories</p>
+                        <p className="native-summary-value mt-1 tabular-nums">
+                          {preview?.targetCalories?.toLocaleString() ??
+                            "Calculating…"}
+                          {preview ? " kcal" : ""}
+                        </p>
+                        <p className="native-row-detail mt-2">
+                          {preview?.calorieStrategy ??
+                            "Calculating your starting budget from the information above."}
+                        </p>
+                      </div>
+                      {[
+                        [
+                          "Maintenance estimate",
+                          preview
+                            ? `${preview.tdee.toLocaleString()} kcal`
+                            : "—",
+                        ],
+                        ["Protein", preview ? `${preview.protein} g` : "—"],
+                        ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
+                        ["Fat", preview ? `${preview.fat} g` : "—"],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="flex min-h-12 items-center justify-between gap-4 border-t border-border py-2"
+                        >
+                          <span className="native-row-title">{label}</span>
+                          <span className="native-row-value text-right">
+                            {value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="estimate-inputs-heading"
                   >
-                    {weightUnit === "kg" ? "kg" : "lb"}
-                  </button>
-                </div>
-                <div className="border-y border-border">
-                  <NumberQuestion
-                    label="Age"
-                    value={profile.age}
-                    display={`${profile.age} years`}
-                    min={AGE_MIN}
-                    max={AGE_MAX}
-                    onChange={(age) =>
-                      setProfile((current) => ({ ...current, age }))
-                    }
-                  />
-                  <NumberQuestion
-                    label="Height (cm)"
-                    value={profile.heightCm}
-                    display={`${profile.heightCm} cm`}
-                    min={HEIGHT_MIN}
-                    max={HEIGHT_MAX}
-                    onChange={(heightCm) =>
-                      setProfile((current) => ({ ...current, heightCm }))
-                    }
-                  />
-                  <NumberQuestion
-                    label={`Weight (${weightUnit})`}
-                    value={weightValue}
-                    display={`${weightValue} ${weightUnit}`}
-                    min={weightMin}
-                    max={weightMax}
-                    onChange={(value) =>
-                      setProfile((current) => ({
-                        ...current,
-                        weightKg: weightUnit === "kg" ? value : lbsToKg(value),
-                      }))
-                    }
-                  />
-                </div>
-              </section>
-            </div>
-          )}
-
-          {meta.id === "safety" && (
-            <MultiSelectList
-              values={safetyFlags}
-              options={[["none", "None"], ...safetyOptions]}
-              onChange={setSafetyFlags}
-              icon={ShieldCheck}
-            />
-          )}
-
-          {meta.id === "activity" && (
-            <OptionList
-              value={profile.activityLevel}
-              options={activities}
-              onChange={(activityLevel) =>
-                setProfile((current) => ({ ...current, activityLevel }))
-              }
-            />
-          )}
-
-          {meta.id === "review" && (
-            <div className="space-y-7">
-              <section aria-labelledby="starting-targets-heading">
-                <h2
-                  id="starting-targets-heading"
-                  className="native-section-title"
-                >
-                  Starting daily targets
-                </h2>
-                <div className="mt-2 border-y border-border">
-                  <div className="py-4">
-                    <p className="native-supporting">Calories</p>
-                    <p className="native-summary-value mt-1 tabular-nums">
-                      {preview?.targetCalories?.toLocaleString() ??
-                        "Calculating…"}
-                      {preview ? " kcal" : ""}
-                    </p>
-                    <p className="native-row-detail mt-2">
-                      {preview?.calorieStrategy ??
-                        "Calculating your starting budget from the information above."}
-                    </p>
-                  </div>
-                  {[
-                    [
-                      "Maintenance estimate",
-                      preview ? `${preview.tdee.toLocaleString()} kcal` : "—",
-                    ],
-                    ["Protein", preview ? `${preview.protein} g` : "—"],
-                    ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
-                    ["Fat", preview ? `${preview.fat} g` : "—"],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex min-h-12 items-center justify-between gap-4 border-t border-border py-2"
+                    <h2
+                      id="estimate-inputs-heading"
+                      className="onboarding-question-title"
                     >
-                      <span className="native-row-title">{label}</span>
-                      <span className="native-row-value text-right">
-                        {value}
-                      </span>
-                    </div>
-                  ))}
+                      Estimate inputs
+                    </h2>
+                    <dl className="onboarding-review-card divide-y divide-border">
+                      {[
+                        ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
+                        [
+                          "Experience",
+                          experienceLevel
+                            ? selectedLabel(experienceLevels, experienceLevel)
+                            : "Not selected",
+                        ],
+                        [
+                          "Activity",
+                          selectedActivityLabel(profile.activityLevel),
+                        ],
+                        [
+                          "Body",
+                          `${profile.age} years, ${Math.round(profile.weightKg)} kg`,
+                        ],
+                      ].map(([label, value]) => (
+                        <div
+                          key={label}
+                          className="flex min-h-12 items-center justify-between gap-4 py-2"
+                        >
+                          <dt className="native-row-title">{label}</dt>
+                          <dd className="native-row-value text-right">
+                            {value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </section>
                 </div>
-              </section>
-              <section aria-labelledby="estimate-inputs-heading">
-                <h2
-                  id="estimate-inputs-heading"
-                  className="native-section-title"
-                >
-                  Estimate inputs
-                </h2>
-                <dl className="mt-2 divide-y divide-border border-y border-border">
-                  {[
-                    ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
-                    [
-                      "Experience",
-                      experienceLevel
-                        ? selectedLabel(experienceLevels, experienceLevel)
-                        : "Not selected",
-                    ],
-                    ["Activity", selectedActivityLabel(profile.activityLevel)],
-                    [
-                      "Body",
-                      `${profile.age} years, ${Math.round(profile.weightKg)} kg`,
-                    ],
-                  ].map(([label, value]) => (
-                    <div
-                      key={label}
-                      className="flex min-h-12 items-center justify-between gap-4 py-2"
-                    >
-                      <dt className="native-row-title">{label}</dt>
-                      <dd className="native-row-value text-right">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
-            </div>
-          )}
+              )}
 
-          {error && (
-            <p
-              role="alert"
-              className="mt-5 border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
-            >
-              {error}
-            </p>
-          )}
+              {error && (
+                <p
+                  role="alert"
+                  className="mt-5 border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
+                >
+                  {error}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
-        <footer className="grid shrink-0 grid-cols-[auto_1fr] gap-3 border-t border-border bg-background px-6 pt-3 pb-[calc(var(--app-safe-bottom)+0.75rem)]">
+        <footer className="onboarding-footer">
           <button
             type="button"
             onClick={goBack}
             disabled={step === 0 || saving}
-            className="native-toolbar-button min-h-12 border border-border px-4 disabled:opacity-35"
+            className="onboarding-back-button"
           >
             <ArrowLeft size={15} weight="bold" />
             Back
@@ -1151,7 +1192,7 @@ export function OnboardingMobile() {
             onClick={goNext}
             disabled={saving}
             aria-busy={saving}
-            className="native-primary-button min-h-12 w-full disabled:opacity-50"
+            className="onboarding-primary-button"
           >
             {saving ? (
               "Saving..."

@@ -95,7 +95,11 @@ export const save = mutation({
     const startDate = normalizeDate(args.startDate);
     if (!startDate) throw new Error("Goal start date must use YYYY-MM-DD");
     const durationDays = Math.round(args.durationDays);
-    if (!Number.isFinite(durationDays) || durationDays < 1 || durationDays > 365) {
+    if (
+      !Number.isFinite(durationDays) ||
+      durationDays < 1 ||
+      durationDays > 365
+    ) {
       throw new Error("Goal duration must be between 1 and 365 days");
     }
     const existing = args.id ? await ctx.db.get(args.id) : null;
@@ -176,7 +180,10 @@ export const setPinned = mutation({
     if (!goal || goal.userId !== user._id) {
       throw new Error("Goal not found or access denied");
     }
-    await ctx.db.patch(goal._id, { pinned: args.pinned, updatedAt: Date.now() });
+    await ctx.db.patch(goal._id, {
+      pinned: args.pinned,
+      updatedAt: Date.now(),
+    });
     return null;
   },
 });
@@ -192,7 +199,7 @@ export const setTaskCompleted = mutation({
     const now = Date.now();
     await ctx.db.patch(task._id, {
       completed: args.completed,
-      ...(args.completed ? { completedAt: now } : { completedAt: undefined }),
+      ...(args.completed ? { completedAt: now } : {}),
       updatedAt: now,
     });
     const tasks = await ctx.db

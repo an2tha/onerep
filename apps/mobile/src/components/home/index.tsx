@@ -252,7 +252,7 @@ export function CoachGoalCards({
           aria-hidden
         />
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className={cn("grid gap-3", goals.length > 1 && "md:grid-cols-2")}>
         {goals.map((goal) => {
           const completed = goal.tasks.filter((task) => task.completed).length
           const progress =
@@ -271,51 +271,54 @@ export function CoachGoalCards({
                 : `${remaining} day${remaining === 1 ? "" : "s"} left`
 
           return (
-            <article key={goal._id} className="coach-goal-card">
-              <div className="relative z-10">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-1.5 text-[10px] font-semibold text-white/58">
-                      <Sparkle size={12} weight="fill" /> Coach goal
-                    </p>
-                    <h3 className="mt-1.5 text-[18px] leading-tight font-bold tracking-tight text-white">
-                      {goal.title}
-                    </h3>
+            <article
+              key={goal._id}
+              className="coach-goal-card"
+              data-layout={goals.length === 1 ? "wide" : "compact"}
+            >
+              <div className="coach-goal-card-content relative z-10">
+                <div className="coach-goal-summary">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-[18px] leading-tight font-bold tracking-tight text-white">
+                        {goal.title}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRequestUnpin(goal._id)}
+                      aria-label={`Unpin ${goal.title} from Today`}
+                      className="motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/65 active:bg-white/12"
+                    >
+                      <PushPin size={15} weight="fill" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => onRequestUnpin(goal._id)}
-                    aria-label={`Unpin ${goal.title} from Today`}
-                    className="motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/65 active:bg-white/12"
-                  >
-                    <PushPin size={15} weight="fill" />
-                  </button>
-                </div>
-                {goal.description ? (
-                  <p className="mt-2 text-[11px] leading-relaxed text-white/60">
-                    {goal.description}
-                  </p>
-                ) : null}
-                <div className="mt-4 flex items-end justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold text-white/88">
-                      {completed} of {goal.tasks.length} done
+                  {goal.description ? (
+                    <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                      {goal.description}
                     </p>
-                    <p className="mt-0.5 text-[9px] text-white/45">
-                      {timing} · {goal.durationDays}-day plan
-                    </p>
+                  ) : null}
+                  <div className="mt-4 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold text-white/88">
+                        {completed} of {goal.tasks.length} done
+                      </p>
+                      <p className="mt-0.5 text-[9px] text-white/45">
+                        {timing} · {goal.durationDays}-day plan
+                      </p>
+                    </div>
+                    <span className="text-[16px] font-bold text-white tabular-nums">
+                      {progress}%
+                    </span>
                   </div>
-                  <span className="text-[16px] font-bold text-white tabular-nums">
-                    {progress}%
-                  </span>
+                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-white/75 transition-[width] duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-white/75 transition-[width] duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-                <div className="mt-4 divide-y divide-white/10 border-y border-white/10">
+                <div className="coach-goal-task-list mt-4 divide-y divide-white/10 border-y border-white/10">
                   {goal.tasks.map((task) => (
                     <button
                       key={task._id}
@@ -562,7 +565,7 @@ export function TodayTimeline({
   onDeleteEvent?: (event: TimelineEvent) => void
 }) {
   return (
-    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
+    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 md:max-w-5xl short-phone:mt-4">
       <SectionHeader title="Recent" className="px-0 pt-0 pb-2" />
 
       <GroupedList className="mt-3">

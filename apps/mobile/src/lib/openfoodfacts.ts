@@ -10,33 +10,6 @@ import type {
   OpenFoodFactsProduct,
 } from "@repo/models"
 
-// Search results are rendered as compact cards. Keep that response focused on
-// the data needed to rank, display, and quick-log a food. Product detail still
-// requests the fuller image payload below when a user opens a result.
-const SEARCH_PRODUCT_FIELDS = [
-  "code",
-  "product_name",
-  "product_name_en",
-  "generic_name",
-  "brands",
-  "quantity",
-  "serving_size",
-  "serving_quantity",
-  "image_front_small_url",
-  "image_front_thumb_url",
-  "nutriments",
-  "nutriments_estimated",
-  "nutriscore_grade",
-  "nova_group",
-].join(",")
-
-const DETAIL_PRODUCT_FIELDS = [
-  SEARCH_PRODUCT_FIELDS,
-  "image_url",
-  "image_front_url",
-  "selected_images",
-].join(",")
-
 const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000
 const DETAIL_CACHE_TTL_MS = 30 * 60 * 1000
 
@@ -74,20 +47,24 @@ export function __clearOpenFoodFactsCacheForTests() {
   detailCache.clear()
 }
 
-async function openFoodFactsFetch<T>(
-  path: string,
-  params?: URLSearchParams,
+async function fatSecretFetch<T>(args: {
+  operation: "search" | "detail" | "barcode"
+  value: string
+  limit?: number
   language?: string
-): Promise<T> {
-  const result = (await convexClient.action(api.food.openFoodFacts.proxy, {
-    path,
-    params: params
-      ? Array.from(params.entries()).map(([key, value]) => ({ key, value }))
-      : [],
-    language,
+}): Promise<T> {
+  const result = (await convexClient.action(api.food.fatSecret.proxy, {
+    ...args,
   })) as T
 
-  logDevDebug("Open Food Facts raw client", { path, response: result })
+  if (asRecord(result).unavailable === true) {
+    throw new Error("Food database temporarily unavailable. Try again shortly.")
+  }
+
+  logDevDebug("FatSecret food API response", {
+    operation: args.operation,
+    response: result,
+  })
 
   return result
 }
@@ -600,29 +577,20 @@ export async function searchFoods(
 ): Promise<FoodDetail[]> {
   const trimmed = query.trim()
   if (trimmed.length < 2) return []
-  const pageSize = Math.min(limit ?? 25, 100)
+  const pageSize = Math.min(limit ?? 25, 50)
   const cacheKey = JSON.stringify({
     query: normalizeFoodSearchText(trimmed),
     pageSize,
     language: language?.trim().toLowerCase() ?? "",
   })
 
-  const params = new URLSearchParams({
-    search_terms: trimmed,
-    search_simple: "1",
-    action: "process",
-    json: "1",
-    sort_by: "unique_scans_n",
-    page_size: String(pageSize),
-    fields: SEARCH_PRODUCT_FIELDS,
-  })
-
   return cached(searchCache, cacheKey, SEARCH_CACHE_TTL_MS, async () => {
-    const data = await openFoodFactsFetch<OpenFoodFactsSearchResponse>(
-      "/cgi/search.pl",
-      params,
-      language
-    )
+    const data = await fatSecretFetch<OpenFoodFactsSearchResponse>({
+      operation: "search",
+      value: trimmed,
+      limit: pageSize,
+      language,
+    })
 
     return (data.products ?? [])
       .map(normalizeProduct)
@@ -633,14 +601,12 @@ export async function searchFoods(
 }
 
 async function loadFoodDetail(id: string): Promise<FoodDetail | null> {
-  const encoded = encodeURIComponent(id)
-  const params = new URLSearchParams({ fields: DETAIL_PRODUCT_FIELDS })
   let data: OpenFoodFactsProductResponse
   try {
-    data = await openFoodFactsFetch<OpenFoodFactsProductResponse>(
-      `/api/v2/product/${encoded}.json`,
-      params
-    )
+    data = await fatSecretFetch<OpenFoodFactsProductResponse>({
+      operation: "detail",
+      value: id,
+    })
   } catch (error) {
     if (error instanceof Error && /\b404\b/.test(error.message)) return null
     throw error
@@ -669,6 +635,11 @@ export async function searchFoodsAccurate(
 export async function getFoodByBarcode(
   code: string
 ): Promise<FoodResult | null> {
-  const detail = await getFoodDetail(code)
+  const data = await fatSecretFetch<OpenFoodFactsProductResponse>({
+    operation: "barcode",
+    value: code.trim(),
+  })
+  const product = normalizeProduct(data.product)
+  const detail = product ? productToDetail(product) : null
   return detail ? productToResult(detail.openFoodFacts) : null
 }

@@ -21,7 +21,9 @@ type MobileSheetProps = {
   ariaLabel?: string
 }
 
-const CLOSE_MS = 180
+// Keep the component mounted for the full CSS exit animation. This must match
+// `panel-out` in index.css or the sheet disappears part-way through closing.
+const CLOSE_MS = 320
 
 export function MobileSheet({
   children,
@@ -54,7 +56,9 @@ export function MobileSheet({
   const panelRef = React.useRef<HTMLDivElement>(null)
   const startY = React.useRef(0)
   const startHeight = React.useRef(0)
+  const offsetYRef = React.useRef(0)
   const closingRef = React.useRef(false)
+  const closeTimerRef = React.useRef<number | null>(null)
 
   const normalizedMinHeight = React.useMemo(() => {
     if (typeof minHeight === "string" && minHeight.endsWith("vh")) {
@@ -74,8 +78,17 @@ export function MobileSheet({
     if (closingRef.current) return
     closingRef.current = true
     setIsClosing(true)
-    setTimeout(onClose, CLOSE_MS)
+    closeTimerRef.current = window.setTimeout(onClose, CLOSE_MS)
   }, [onClose])
+
+  React.useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current)
+      }
+    },
+    []
+  )
 
   React.useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
@@ -134,6 +147,7 @@ export function MobileSheet({
     function handlePointerMove(e: PointerEvent) {
       const delta = e.clientY - startY.current
       const newOffset = delta < 0 ? delta * 0.3 : delta
+      offsetYRef.current = newOffset
       setOffsetY(newOffset)
 
       const newHeight = Math.max(
@@ -144,14 +158,16 @@ export function MobileSheet({
     }
 
     function handlePointerEnd() {
+      const finalOffsetY = offsetYRef.current
       setDragging(false)
       setSettling(true)
       setOffsetY(0)
+      offsetYRef.current = 0
 
       if (panel) {
         const newHeight = Math.max(
           normalizedMinHeight,
-          Math.min(normalizedMaxHeight, startHeight.current - offsetY)
+          Math.min(normalizedMaxHeight, startHeight.current - finalOffsetY)
         )
         setCurrentHeight(newHeight)
 
@@ -165,7 +181,7 @@ export function MobileSheet({
         }
       }
 
-      if (offsetY > dragThreshold) {
+      if (finalOffsetY > dragThreshold) {
         void hapticSelection()
         dismiss()
         return
@@ -187,7 +203,6 @@ export function MobileSheet({
     dragging,
     dragThreshold,
     dismiss,
-    offsetY,
     normalizedMaxHeight,
     normalizedMinHeight,
     snapPoints,
@@ -205,6 +220,7 @@ export function MobileSheet({
       startHeight.current = panelRef.current.offsetHeight
     }
     startY.current = e.clientY
+    offsetYRef.current = 0
     setSettling(false)
     setDragging(true)
     void hapticTap()

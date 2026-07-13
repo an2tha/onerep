@@ -33,6 +33,12 @@ describe("MobileSheet – accessible dialog contract", () => {
     assert.match(SHEET_SOURCE, /event\.key !== "Tab"/)
     assert.match(SHEET_SOURCE, /previousFocus\?\.focus/)
   })
+
+  test("keeps the sheet mounted through exit and uses the live drag offset", () => {
+    assert.match(SHEET_SOURCE, /const CLOSE_MS = 320/)
+    assert.match(SHEET_SOURCE, /const finalOffsetY = offsetYRef\.current/)
+    assert.match(SHEET_SOURCE, /finalOffsetY > dragThreshold/)
+  })
 })
 
 // ─── Snap point algorithm ─────────────────────────────────────────────────────

@@ -559,7 +559,9 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
       .take(13);
     for (const task of currentTasks) await ctx.db.delete(task._id);
     const now = Date.now();
-    for (const [sortOrder, rawTask] of payload.body.tasks.slice(0, 12).entries()) {
+    for (const [sortOrder, rawTask] of payload.body.tasks
+      .slice(0, 12)
+      .entries()) {
       if (!isRecord(rawTask) || typeof rawTask.title !== "string") continue;
       const completed = rawTask.completed === true;
       await ctx.db.insert("coachGoalTasks", {
@@ -605,6 +607,22 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
         : {}),
       ...(typeof payload.body.prepMinutes === "number"
         ? { prepMinutes: payload.body.prepMinutes }
+        : {}),
+      ...(typeof payload.body.cookMinutes === "number"
+        ? { cookMinutes: payload.body.cookMinutes }
+        : {}),
+      ...(typeof payload.body.category === "string"
+        ? { category: payload.body.category }
+        : {}),
+      ...(typeof payload.body.notes === "string"
+        ? { notes: payload.body.notes }
+        : {}),
+      ...(payload.body.recipeType === "quick" ||
+      payload.body.recipeType === "detailed"
+        ? { recipeType: payload.body.recipeType }
+        : {}),
+      ...(typeof payload.body.placeholderImage === "string"
+        ? { placeholderImage: payload.body.placeholderImage }
         : {}),
       ...(Array.isArray(payload.body.tags)
         ? { tags: payload.body.tags.map(String) }

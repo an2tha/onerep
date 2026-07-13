@@ -141,6 +141,9 @@ type CoachOperation = CoachOperationMeta &
         description: string;
         servings: number;
         prepMinutes: number;
+        cookMinutes: number;
+        category: string;
+        notes: string;
         tags: string[];
         ingredients: CoachRecipeIngredient[];
         steps: string[];
@@ -659,6 +662,9 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
           description: clampText(row.description, 180),
           servings: Math.round(clampNumber(row.servings, 1, 20, 1)),
           prepMinutes: Math.round(clampNumber(row.prepMinutes, 1, 360, 15)),
+          cookMinutes: Math.round(clampNumber(row.cookMinutes, 0, 480, 15)),
+          category: clampText(row.category, 40),
+          notes: clampText(row.notes, 300),
           tags: (Array.isArray(row.tags) ? row.tags : [])
             .map((tag) => clampText(tag, 24))
             .filter(Boolean)
@@ -1462,6 +1468,9 @@ async function generateCoachChatWithOpenAi({
             description: "short appetizing description",
             servings: 2,
             prepMinutes: 20,
+            cookMinutes: 15,
+            category: "Dinner",
+            notes: "Storage, substitution, or serving notes",
             tags: ["high protein", "quick"],
             ingredients: [
               {

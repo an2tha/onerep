@@ -54,8 +54,10 @@ import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import FoodReview from "./pages/FoodReview.tsx"
 import Nutrition from "./pages/Nutrition.tsx"
+import RecipesHub from "./pages/RecipesHub.tsx"
 import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
+import RoutinesHub from "./pages/RoutinesHub.tsx"
 import Progress from "./pages/Progress.tsx"
 import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
@@ -76,6 +78,7 @@ function shouldShowBottomBar(pathname: string) {
   return (
     pathname === "/" ||
     pathname === "/nutrition" ||
+    pathname === "/recipes" ||
     pathname === "/workouts" ||
     pathname === "/progress" ||
     pathname === "/supplements" ||
@@ -516,6 +519,16 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/routines",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Routines">
+              <RoutinesHub />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/workouts/new",
         element: (
           <AuthGuard>
@@ -583,6 +596,16 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Nutrition">
               <Nutrition />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/recipes",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Recipes">
+              <RecipesHub />
             </ErrorBoundary>
           </AuthGuard>
         ),

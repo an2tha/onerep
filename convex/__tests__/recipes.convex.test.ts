@@ -67,9 +67,14 @@ describe("recipes Convex functions", () => {
     await t.withIdentity({ name: "coach-recipe-user" }, async () => {
       const id = await t.mutation(api.logs.recipes.save, {
         name: "Fast protein bowl",
+        recipeType: "detailed",
         description: "A bright weeknight bowl",
         servings: 2,
         prepMinutes: 20,
+        cookMinutes: 15,
+        category: "Dinner",
+        notes: "Keeps for two days",
+        placeholderImage: "coach-kitchen",
         tags: ["high protein", "quick"],
         steps: ["Cook", "Assemble"],
         ingredients: [ingredient],
@@ -77,12 +82,134 @@ describe("recipes Convex functions", () => {
       const recipe = await t.run(async (ctx) => ctx.db.get(id));
       expect(recipe).toMatchObject({
         description: "A bright weeknight bowl",
+        recipeType: "detailed",
         servings: 2,
         prepMinutes: 20,
+        cookMinutes: 15,
+        category: "Dinner",
+        notes: "Keeps for two days",
+        placeholderImage: "coach-kitchen",
         tags: ["high protein", "quick"],
         steps: ["Cook", "Assemble"],
       });
     });
+  });
+
+  test("shares and unshares a recipe with the signed-in community", async () => {
+    const t = convexTest(schema, modules);
+    let recipeId: any;
+    await t.withIdentity({ name: "Ada Cook", subject: "ada" }, async () => {
+      recipeId = await t.mutation(api.logs.recipes.save, {
+        name: "Ada's bowl",
+        ingredients: [ingredient],
+      });
+      await t.mutation(api.logs.recipes.setCommunitySharing, {
+        id: recipeId,
+        shared: true,
+        originCountry: "Italy",
+      });
+    });
+
+    await t.withIdentity(
+      { name: "Community reader", subject: "reader" },
+      async () => {
+        const community = await t.query(api.logs.recipes.listCommunity, {});
+        expect(community).toHaveLength(1);
+        expect(community[0]).toMatchObject({
+          name: "Ada's bowl",
+          communityAuthorName: "Ada Cook",
+          originCountry: "Italy",
+          isCommunityShared: true,
+          isOwnedByViewer: false,
+        });
+        expect(community[0]).not.toHaveProperty("userId");
+      },
+    );
+
+    await t.withIdentity({ name: "Ada Cook", subject: "ada" }, async () => {
+      await t.mutation(api.logs.recipes.setCommunitySharing, {
+        id: recipeId,
+        shared: false,
+      });
+      await expect(
+        t.query(api.logs.recipes.listCommunity, {}),
+      ).resolves.toEqual([]);
+    });
+  });
+
+  test("supports anonymous sharing and stores one pending report per reporter", async () => {
+    const t = convexTest(schema, modules);
+    let recipeId: any;
+    await t.withIdentity(
+      { name: "Private Chef", subject: "private-chef" },
+      async () => {
+        recipeId = await t.mutation(api.logs.recipes.save, {
+          name: "Anonymous soup",
+          ingredients: [ingredient],
+        });
+        await t.mutation(api.logs.recipes.setCommunitySharing, {
+          id: recipeId,
+          shared: true,
+          anonymous: true,
+          originCountry: "France",
+        });
+      },
+    );
+    await t.withIdentity(
+      { name: "Reporter", subject: "reporter" },
+      async () => {
+        const community = await t.query(api.logs.recipes.listCommunity, {});
+        expect(community[0].communityAuthorName).toBe("Anonymous");
+        const first = await t.mutation(api.logs.recipes.reportCommunityRecipe, {
+          recipeId,
+          reason: "Needs review",
+        });
+        const duplicate = await t.mutation(
+          api.logs.recipes.reportCommunityRecipe,
+          { recipeId },
+        );
+        expect(duplicate).toBe(first);
+        const reports = await t.run(async (ctx) =>
+          ctx.db.query("recipeReports").collect(),
+        );
+        expect(reports).toHaveLength(1);
+        expect(reports[0]).toMatchObject({
+          status: "pending",
+          reason: "Needs review",
+        });
+      },
+    );
+  });
+
+  test("limits new community publications to ten per UTC day", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity(
+      { name: "Busy Chef", subject: "busy-chef" },
+      async () => {
+        for (let index = 0; index < 10; index += 1) {
+          const id = await t.mutation(api.logs.recipes.save, {
+            name: `Recipe ${index}`,
+            ingredients: [ingredient],
+          });
+          await t.mutation(api.logs.recipes.setCommunitySharing, {
+            id,
+            shared: true,
+            originCountry: "Germany",
+          });
+        }
+        const eleventh = await t.mutation(api.logs.recipes.save, {
+          name: "Recipe 11",
+          ingredients: [ingredient],
+        });
+        await expect(
+          t.mutation(api.logs.recipes.setCommunitySharing, {
+            id: eleventh,
+            shared: true,
+            originCountry: "Germany",
+          }),
+        ).rejects.toThrow("Daily community sharing limit reached");
+      },
+    );
   });
 
   test("lists only recipes belonging to the requesting user", async () => {

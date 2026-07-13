@@ -60,11 +60,6 @@ cd apps/mobile && bun run dev
 # Run Convex backend
 npx convex dev
 
-# Start local dev requirements: Open Food Facts mirror
-bun run docker:dev:reqs
-
-# Seed the local Open Food Facts mirror once with bundled sample products
-bun run docker:dev:reqs:seed
 ```
 
 ### Building
@@ -111,13 +106,13 @@ Required for mobile food search in Convex env:
 
 ```env
 BETTER_AUTH_SECRET=
-OPENFOODFACTS_URL=https://world.openfoodfacts.org
-OPENFOODFACTS_AUTH_TOKEN=
+FATSECRET_CLIENT_ID=
+FATSECRET_CLIENT_SECRET=
 ```
 
-Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. Set these with `bunx convex env set BETTER_AUTH_SECRET <secret>`, `bunx convex env set OPENFOODFACTS_URL <url>`, and, for the auth-protected mirror, `bunx convex env set OPENFOODFACTS_AUTH_TOKEN <token>`. The mobile app talks only to Convex.
+Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. Set each value with `bunx convex env set <name> <value>`. The mobile app talks only to Convex; FatSecret credentials must never be exposed as Vite variables.
 
-Food search and barcode lookups use Open Food Facts Product Opener-compatible endpoints (`/cgi/search.pl` and `/api/v2/product/:code.json`) through a Convex proxy. `docker-compose.dev-requirements.yml` starts a local Product Opener mirror from published GHCR images, no Open Food Facts repo clone required. The upstream Product Opener images are currently amd64-only, so the compose file defaults `OFF_PLATFORM=linux/amd64` for Apple Silicon Docker emulation; first startup can take a minute while Apache warms up. `bun run docker:dev:reqs:seed` imports a small sample set only, so arbitrary public barcodes may return 404 until you import fuller OFF data.
+Food search, nutrition details, and barcode lookups use FatSecret through an authenticated Convex action. API responses are cached server-side for less than 24 hours, and expired entries are removed in accordance with FatSecret's storable-data policy.
 
 Required for AI features in Convex env:
 
@@ -140,41 +135,6 @@ bun run exercises:prepare
 bun run exercises:import
 ```
 
-### Importing the full Open Food Facts data
-
-Use the official Product Opener MongoDB dump. It is the native Product Opener format and populates the local MongoDB service used by the mirror. Expect a large download and a much larger Docker MongoDB volume after restore.
-
-```bash
-# Start the local mirror first
-bun run docker:dev:reqs
-
-# Download the nightly OFF MongoDB dump
-mkdir -p .cache/off
-curl -L --continue-at - --fail --retry 5 \
-  -o .cache/off/openfoodfacts-mongodbdump.gz \
-  https://static.openfoodfacts.org/data/openfoodfacts-mongodbdump.gz
-
-# Restore it into the compose MongoDB service
-docker compose -f docker-compose.dev-requirements.yml exec -T mongodb \
-  mongorestore \
-  --gzip \
-  --archive=/dev/stdin \
-  --nsInclude='off.products' \
-  --drop \
-  < .cache/off/openfoodfacts-mongodbdump.gz
-
-# Rebuild Product Opener indexes
-docker compose -f docker-compose.dev-requirements.yml exec backend \
-  perl /opt/product-opener/scripts/create_mongodb_indexes.pl
-
-# Optional: refresh Product Opener's Postgres cache; this can take a while
-docker compose -f docker-compose.dev-requirements.yml exec backend \
-  perl /opt/product-opener/scripts/refresh_postgres.pl
-
-# Restart after import
-docker compose -f docker-compose.dev-requirements.yml restart backend frontend
-```
-
 Optional integrations are listed in `.env.example`.
 
 ## Available Scripts
@@ -182,10 +142,6 @@ Optional integrations are listed in `.env.example`.
 | Command                        | Description                           |
 | ------------------------------ | ------------------------------------- |
 | `bun run dev`                  | Run all apps in dev mode              |
-| `bun run docker:dev:reqs`      | Start local OFF mirror                |
-| `bun run docker:dev:reqs:seed` | Seed local OFF mirror sample products |
-| `bun run docker:dev:reqs:logs` | Tail dev requirement service logs     |
-| `bun run docker:dev:reqs:down` | Stop dev requirement services         |
 | `bun run exercises:prepare`    | Build compact free-exercise-db import |
 | `bun run exercises:import`     | Import exercise catalog into Convex   |
 | `bun run build`                | Build all apps                        |

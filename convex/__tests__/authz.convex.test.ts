@@ -370,10 +370,10 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: { date: "2026-06-25", slot: 1 },
   },
   {
-    name: "food.openFoodFacts.proxy",
+    name: "food.fatSecret.proxy",
     kind: "action",
-    fn: api.food.openFoodFacts.proxy,
-    args: { path: "/cgi/search.pl", params: [] },
+    fn: api.food.fatSecret.proxy,
+    args: { operation: "search", value: "toast" },
   },
   {
     name: "ai.metricGeneration.generateMetricSet",

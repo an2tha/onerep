@@ -29,8 +29,12 @@ const goal = {
 describe("Coach goals", () => {
   test("requires authentication", async () => {
     const t = convexTest(schema, modules);
-    await expect(t.query(api.ai.coachGoals.listPinned, {})).resolves.toEqual([]);
-    await expect(t.query(api.ai.coachGoals.listActive, {})).resolves.toEqual([]);
+    await expect(t.query(api.ai.coachGoals.listPinned, {})).resolves.toEqual(
+      [],
+    );
+    await expect(t.query(api.ai.coachGoals.listActive, {})).resolves.toEqual(
+      [],
+    );
     await expect(t.mutation(api.ai.coachGoals.save, goal)).rejects.toThrow(
       "Unauthenticated",
     );
@@ -52,8 +56,14 @@ describe("Coach goals", () => {
       status: "active",
       pinned: true,
       tasks: [
-        expect.objectContaining({ title: "Training minimum", completed: false }),
-        expect.objectContaining({ title: "Nutrition anchor", completed: false }),
+        expect.objectContaining({
+          title: "Training minimum",
+          completed: false,
+        }),
+        expect.objectContaining({
+          title: "Nutrition anchor",
+          completed: false,
+        }),
       ],
     });
 
@@ -103,9 +113,9 @@ describe("Coach goals", () => {
       id: goalId,
       pinned: false,
     });
-    await expect(
-      user.query(api.ai.coachGoals.listPinned, {}),
-    ).resolves.toEqual([]);
+    await expect(user.query(api.ai.coachGoals.listPinned, {})).resolves.toEqual(
+      [],
+    );
     expect(await user.query(api.ai.coachGoals.listActive, {})).toHaveLength(1);
   });
 

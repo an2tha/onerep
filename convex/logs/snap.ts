@@ -1,6 +1,6 @@
 import { v } from "convex/values";
-import { internal } from "../_generated/api";
-import { action, internalMutation } from "../_generated/server";
+import { api, internal } from "../_generated/api";
+import { action, internalMutation, type ActionCtx } from "../_generated/server";
 import { hasOpenAiApiKey, requestOpenAiJson } from "../ai/provider";
 import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
@@ -11,26 +11,6 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const MAX_CANDIDATES_PER_DETECTION = 10;
 const MAX_ALTERNATIVES_PER_DETECTION = 8;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const DEFAULT_OPENFOODFACTS_URL = "https://world.openfoodfacts.org";
-const PRODUCT_FIELDS = [
-  "code",
-  "product_name",
-  "product_name_en",
-  "generic_name",
-  "brands",
-  "quantity",
-  "serving_size",
-  "serving_quantity",
-  "image_url",
-  "image_front_url",
-  "image_front_small_url",
-  "image_front_thumb_url",
-  "selected_images",
-  "nutriments",
-  "nutriments_estimated",
-  "nutriscore_grade",
-  "nova_group",
-].join(",");
 
 interface Ingredient {
   name: string;
@@ -333,39 +313,16 @@ function detectionsFromAnalysis(
 }
 
 async function searchOpenFoodFacts(
+  ctx: ActionCtx,
   query: string,
   language?: string,
 ): Promise<FoodResult[]> {
-  const baseUrl = (
-    process.env.OPENFOODFACTS_URL ?? DEFAULT_OPENFOODFACTS_URL
-  ).replace(/\/+$/, "");
-  const url = new URL(`${baseUrl}/cgi/search.pl`);
-  url.searchParams.set("search_terms", query);
-  url.searchParams.set("search_simple", "1");
-  url.searchParams.set("action", "process");
-  url.searchParams.set("json", "1");
-  url.searchParams.set("sort_by", "unique_scans_n");
-  url.searchParams.set("page_size", String(MAX_CANDIDATES_PER_DETECTION));
-  url.searchParams.set("fields", PRODUCT_FIELDS);
-
-  const normalizedLanguage = language?.trim().toLowerCase();
-  if (normalizedLanguage) {
-    url.searchParams.set("tagtype_0", "languages");
-    url.searchParams.set("tag_contains_0", "contains");
-    url.searchParams.set("tag_0", normalizedLanguage);
-    url.searchParams.set("lc", normalizedLanguage);
-  }
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "User-Agent": "OneRep/1.0 Convex snap matcher",
-  };
-  const token = process.env.OPENFOODFACTS_AUTH_TOKEN;
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  const response = await fetch(url, { headers });
-  if (!response.ok) return [];
-  const data = (await response.json()) as { products?: unknown[] };
+  const data = (await ctx.runAction(api.food.fatSecret.proxy, {
+    operation: "search",
+    value: query,
+    limit: MAX_CANDIDATES_PER_DETECTION,
+    language,
+  })) as { products?: unknown[] };
   return (data.products ?? [])
     .map(productToFoodResult)
     .filter((item): item is FoodResult => item !== null)
@@ -476,6 +433,7 @@ async function chooseBestFoodsWithOpenAi(
 }
 
 async function buildFoodMatches(
+  ctx: ActionCtx,
   aiResult: AnalyzeResult,
   language?: string,
 ): Promise<FoodMatchResult[]> {
@@ -486,7 +444,7 @@ async function buildFoodMatches(
     detections.map(async (detection) => {
       const settled = await Promise.allSettled(
         searchQueriesForDetection(detection).map((query) =>
-          searchOpenFoodFacts(query, language),
+          searchOpenFoodFacts(ctx, query, language),
         ),
       );
       const results = settled.flatMap((result) =>
@@ -579,13 +537,15 @@ function utcDateKey() {
 // ── snap ──────────────────────────────────────────────────────────────────────
 
 async function runAiMealAnalysis({
+  ctx,
   aiResult,
   language,
 }: {
+  ctx: ActionCtx;
   aiResult: AnalyzeResult;
   language?: string;
 }) {
-  const matches = await buildFoodMatches(aiResult, language);
+  const matches = await buildFoodMatches(ctx, aiResult, language);
   return {
     aiResult,
     matches,
@@ -630,6 +590,7 @@ export const snap = action({
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
     const aiResult = await analyzeImageWithOpenAi(imageData);
     return await runAiMealAnalysis({
+      ctx,
       aiResult,
       language: args.language,
     });
@@ -658,6 +619,7 @@ export const describeText = action({
 
     const aiResult = await analyzeFoodDescriptionWithOpenAi(text);
     return await runAiMealAnalysis({
+      ctx,
       aiResult,
       language: args.language,
     });

@@ -14,6 +14,7 @@ const MOBILE_UI = source("../components/mobile-ui.tsx")
 const MOBILE_SHEET = source("../components/mobile-sheet.tsx")
 const BOTTOM_BAR = source("../components/bottom-bar.tsx")
 const MAIN = source("../main.tsx")
+const CSS = source("../index.css")
 
 describe("authentication interface cleanup", () => {
   test("uses a direct labeled form without marketing slides or dead provider controls", () => {
@@ -35,7 +36,7 @@ describe("onboarding interface cleanup", () => {
     for (const id of ["goals", "baseline", "activity", "safety", "review"]) {
       assert.match(ONBOARDING, new RegExp(`id: "${id}"`))
     }
-    assert.match(ONBOARDING, /Step \{step \+ 1\} of \{steps\.length\}/)
+    assert.match(ONBOARDING, /\{step \+ 1\} \/ \{steps\.length\}/)
     assert.match(ONBOARDING, /role="progressbar"/)
   })
 
@@ -43,6 +44,24 @@ describe("onboarding interface cleanup", () => {
     assert.doesNotMatch(ONBOARDING, /\/onboarding\/|OnboardingIllustration/)
     assert.doesNotMatch(ONBOARDING, /#[0-9a-fA-F]{3,8}|font-black|uppercase/)
     assert.doesNotMatch(ONBOARDING, /text-\[(?:9|10|11|12)(?:px|\.5px)/)
+  })
+
+  test("uses an open flow instead of floating frames or card stacks", () => {
+    assert.doesNotMatch(ONBOARDING, /onboarding-brand-mark/)
+    assert.match(CSS, /\.onboarding-frame \{[\s\S]*background: transparent/)
+    assert.match(
+      CSS,
+      /\.onboarding-option,[\s\S]*border-radius: 0;[\s\S]*background: transparent/
+    )
+  })
+
+  test("uses immediate directional step choreography", () => {
+    assert.doesNotMatch(ONBOARDING, /framer-motion|AnimatePresence/)
+    assert.doesNotMatch(ONBOARDING, /startViewTransition/)
+    assert.match(ONBOARDING, /key=\{step\}/)
+    assert.match(ONBOARDING, /data-transition-direction=\{transitionDirection\}/)
+    assert.match(CSS, /\.onboarding-step\[data-transition-direction="back"\]/)
+    assert.match(CSS, /animation: onboarding-step-in-forward/)
   })
 
   test("the unused duplicate onboarding implementation is no longer imported", () => {

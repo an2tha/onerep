@@ -53,7 +53,7 @@ import {
   MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
 } from "@/lib/design-tokens"
 import { offsetDateKey } from "@/lib/food-log"
-import { hapticMedium } from "@/lib/haptics"
+import { hapticMedium, hapticSelection } from "@/lib/haptics"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1152,6 +1152,17 @@ export default function Workouts() {
         <header className="app-header">
           <div className="min-w-0">
             <h1 className="app-title">Training</h1>
+            <button
+              type="button"
+              onClick={() => {
+                hapticSelection()
+                navigate("/routines", { motion: "forward" })
+              }}
+              className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
+            >
+              Routines
+              <CaretRight size={12} weight="bold" className="shrink-0" />
+            </button>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
@@ -1565,7 +1576,10 @@ export default function Workouts() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => navigate("/workouts/new")}
+                      onClick={() => {
+                        hapticSelection()
+                        navigate("/workouts/new")
+                      }}
                       className="app-button app-button-quiet min-h-11"
                     >
                       New preset
@@ -1622,7 +1636,7 @@ export default function Workouts() {
                               presetRefs.current[idx] = el
                             }}
                             className={cn(
-                              "relative touch-pan-y overflow-hidden border-b border-border transition-colors select-none last:border-b-0",
+                              "relative touch-pan-y overflow-hidden border-b border-border transition-colors select-none last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-3 md:py-2.5",
                               isDraggingThis && "opacity-40",
                               isDropTarget && "bg-foreground/[0.07]"
                             )}
@@ -1650,7 +1664,7 @@ export default function Workouts() {
                               />
                             )}
 
-                            <div className="flex min-h-14 items-center gap-2 pt-2.5">
+                            <div className="flex min-h-14 items-center gap-2 pt-2.5 md:pt-0">
                               <FocusIcon
                                 size={18}
                                 weight="regular"
@@ -1666,7 +1680,7 @@ export default function Workouts() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 pb-2.5">
+                            <div className="flex items-center gap-1.5 pb-2.5 md:pb-0">
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
@@ -1674,7 +1688,7 @@ export default function Workouts() {
                                   hapticMedium()
                                   navigate(`/workout/active/${preset.id}`)
                                 }}
-                                className="app-button app-button-primary motion-tactile min-h-11 flex-1"
+                                className="app-button app-button-primary motion-tactile min-h-11 flex-1 md:w-36 md:flex-none"
                                 aria-label={`Start ${preset.name} now`}
                               >
                                 <Play size={13} weight="fill" />
@@ -1683,9 +1697,10 @@ export default function Workouts() {
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() =>
+                                onClick={() => {
+                                  hapticSelection()
                                   navigate(`/workouts/edit/${preset.id}`)
-                                }
+                                }}
                                 className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
                                 aria-label={`Edit ${preset.name}`}
                               >
@@ -1694,7 +1709,10 @@ export default function Workouts() {
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => duplicatePreset(preset)}
+                                onClick={() => {
+                                  hapticSelection()
+                                  duplicatePreset(preset)
+                                }}
                                 className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
                                 aria-label={`Duplicate ${preset.name}`}
                               >
@@ -1703,7 +1721,10 @@ export default function Workouts() {
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => setConfirmDeleteId(preset.id)}
+                                onClick={() => {
+                                  hapticSelection()
+                                  setConfirmDeleteId(preset.id)
+                                }}
                                 className="app-icon-button h-11 w-11 shrink-0 bg-transparent text-destructive"
                                 aria-label={`Delete ${preset.name}`}
                               >

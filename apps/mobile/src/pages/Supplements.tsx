@@ -618,7 +618,7 @@ function ImportNotice({ imported }: { imported: boolean }) {
     <div className="mb-3 flex items-start gap-2 border-y border-border py-3 text-[13px] leading-5 text-muted-foreground">
       <Barcode size={13} weight="bold" className="mt-0.5 shrink-0" />
       <span>
-        OpenFoodFacts data imported. Nutrients are read-only and scale from the
+        Powered by FatSecret. Nutrients are read-only and scale from the
         serving size you enter.
       </span>
     </div>
@@ -805,7 +805,7 @@ function ItemSheet({
       const results = await searchFoods(query, 30)
       setSearchResults(results)
       if (results.length === 0)
-        setSearchError("No OpenFoodFacts results found.")
+        setSearchError("No FatSecret results found.")
     } catch {
       setSearchResults([])
       setSearchError("Search failed. You can still add it manually.")
@@ -847,7 +847,7 @@ function ItemSheet({
     try {
       const detail = await getFoodDetail(code)
       if (!detail) {
-        setBarcodeError("No OpenFoodFacts product found.")
+        setBarcodeError("No FatSecret product found.")
         return
       }
       applyFoodDetail(detail)
@@ -889,7 +889,7 @@ function ItemSheet({
   const title = item
     ? "Edit supplement"
     : entryMode === "search"
-      ? "Search OpenFoodFacts"
+      ? "Search FatSecret"
       : entryMode === "manual"
         ? "Custom supplement"
         : "Add supplement"
@@ -980,7 +980,7 @@ function ItemSheet({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14px] font-semibold">
-                    Search OpenFoodFacts
+                    Search FatSecret
                   </span>
                   <span className="mt-1 block truncate text-[13px] text-muted-foreground">
                     Import product data, then edit
@@ -1011,7 +1011,7 @@ function ItemSheet({
                       disabled={searchBusy}
                       aria-busy={searchBusy}
                       className="app-icon-button h-11 w-11 disabled:opacity-40"
-                      aria-label="Search OpenFoodFacts"
+                      aria-label="Search FatSecret"
                     >
                       <MagnifyingGlass size={14} weight="bold" />
                     </button>
@@ -1118,7 +1118,7 @@ function ItemSheet({
                   className="app-button app-button-secondary mb-3 min-h-10 w-full"
                 >
                   <MagnifyingGlass size={13} weight="bold" />
-                  Search OpenFoodFacts
+                  Search FatSecret
                 </button>
               )}
 

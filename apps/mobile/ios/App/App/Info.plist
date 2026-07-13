@@ -2,6 +2,25 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+			<key>UIApplicationSupportsMultipleScenes</key>
+			<false/>
+			<key>UISceneConfigurations</key>
+			<dict>
+					<key>UIWindowSceneSessionRoleApplication</key>
+					<array>
+							<dict>
+									<key>UISceneConfigurationName</key>
+									<string>Default Configuration</string>
+									<key>UISceneDelegateClassName</key>
+									<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+									<key>UISceneStoryboardFile</key>
+									<string>Main</string>
+							</dict>
+					</array>
+			</dict>
+	</dict>
 	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
 	<key>CFBundleDevelopmentRegion</key>
@@ -16,6 +35,10 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>OneRep</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -27,14 +50,22 @@
 			</array>
 		</dict>
 	</array>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>OneRep uses the camera to snap and log meals.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>OneRep reads Apple Health workouts, distance, heart rate, routes, and source data to import cardio workout details.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>OneRep may save captured meal photos when you choose to keep them.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OneRep can read captured photos to analyse meals and scan barcodes.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>OneRep uses speech recognition to turn your Coach dictation into text.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -58,17 +89,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>OneRep uses the camera to snap and log meals.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>OneRep reads Apple Health workouts, distance, heart rate, routes, and source data to import cardio workout details.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>OneRep may save captured meal photos when you choose to keep them.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>OneRep can read captured photos to analyse meals and scan barcodes.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>OneRep uses speech recognition to turn your Coach dictation into text.</string>
 </dict>
 </plist>

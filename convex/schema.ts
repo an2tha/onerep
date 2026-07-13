@@ -110,9 +110,20 @@ export default defineSchema({
   recipes: defineTable({
     userId: v.string(),
     name: v.string(),
+    recipeType: v.optional(v.union(v.literal("quick"), v.literal("detailed"))),
     description: v.optional(v.string()),
     servings: v.optional(v.number()),
     prepMinutes: v.optional(v.number()),
+    cookMinutes: v.optional(v.number()),
+    category: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    placeholderImage: v.optional(v.string()),
+    photoStorageIds: v.optional(v.array(v.id("_storage"))),
+    originCountry: v.optional(v.string()),
+    isCommunityShared: v.optional(v.boolean()),
+    communityAuthorName: v.optional(v.string()),
+    sharedAt: v.optional(v.number()),
+    communityAnonymous: v.optional(v.boolean()),
     tags: v.optional(v.array(v.string())),
     steps: v.optional(v.array(v.string())),
     ingredients: v.array(
@@ -149,7 +160,25 @@ export default defineSchema({
     ),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_communityShared", ["isCommunityShared"]),
+
+  recipeCommunityShareEvents: defineTable({
+    userId: v.string(),
+    recipeId: v.id("recipes"),
+    sharedAt: v.number(),
+  }).index("by_userId_sharedAt", ["userId", "sharedAt"]),
+
+  recipeReports: defineTable({
+    reporterId: v.string(),
+    recipeId: v.id("recipes"),
+    reason: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("reviewed")),
+    createdAt: v.number(),
+  })
+    .index("by_recipeId", ["recipeId"])
+    .index("by_reporterId_recipeId", ["reporterId", "recipeId"]),
 
   // ── Meal presets (quick-log templates from repeated food logs) ────────────
   mealPresets: defineTable({
@@ -438,7 +467,7 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_clientId", ["userId", "clientId"]),
 
-  // ── Food facts (OpenFoodFacts catalog) ────────────────────────────────────
+  // ── Legacy imported food catalog ──────────────────────────────────────────
   foodfacts: defineTable({
     code: v.string(), // barcode / product id
     name: v.string(), // English name (denormalized for search)
@@ -474,6 +503,16 @@ export default defineSchema({
       searchField: "name",
       filterFields: ["popularityKey"],
     }),
+
+  // FatSecret permits non-ID API content to be retained for less than 24h.
+  // Entries are hard-expired and replaced; this is an API response cache only.
+  fatSecretCache: defineTable({
+    key: v.string(),
+    value: v.any(),
+    expiresAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   // ── Exercise catalog ───────────────────────────────────────────────────────
   exercises: defineTable({
