@@ -25,6 +25,11 @@ describe("Today dashboard discoverability", () => {
     expect(app).toContain("settings.simpleMode")
   })
 
+  test("animates the energy breakdown disclosure", () => {
+    expect(home).toContain("<AnimatedAccordion")
+    expect(home).toContain('open ? "Hide breakdown" : "Show breakdown"')
+  })
+
   test("links quick add inspiration to the recipes hub", () => {
     expect(app).toContain("Inspire me")
     expect(app).toContain('navigate("/recipes")')

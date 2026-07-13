@@ -1549,7 +1549,28 @@ function CoachLoadingState() {
   )
 }
 
+const COACH_THINKING_MESSAGES = [
+  "Reviewing recent signals…",
+  "Checking your recent patterns…",
+  "Comparing the options against your goals…",
+  "Connecting the useful details…",
+  "Looking for the clearest next step…",
+  "Pressure-testing the recommendation…",
+  "Preparing a practical response…",
+] as const
+
 function ThinkingIndicator() {
+  const [messageIndex, setMessageIndex] = useState(0)
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setMessageIndex((index) => (index + 1) % COACH_THINKING_MESSAGES.length)
+      if (document.visibilityState === "visible") hapticSelection()
+    }, 2400)
+
+    return () => window.clearInterval(interval)
+  }, [])
+
   return (
     <div className="pl-1" role="status" aria-label="Coach is thinking">
       <div className="inline-flex items-center gap-3 py-2 text-muted-foreground/55">
@@ -1562,7 +1583,9 @@ function ThinkingIndicator() {
             />
           ))}
         </div>
-        <p className="text-[11px] font-medium">Reviewing recent signals…</p>
+        <p className="text-[11px] font-medium" aria-hidden="true">
+          {COACH_THINKING_MESSAGES[messageIndex]}
+        </p>
       </div>
     </div>
   )

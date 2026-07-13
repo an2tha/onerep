@@ -23,6 +23,7 @@ import {
   SummaryBlock,
 } from "@/components/mobile-ui"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { AnimatedAccordion } from "@/components/animated-accordion"
 import type { DashboardBriefing } from "@/lib/dashboard-briefing"
 
 export type MacroProgress = {
@@ -516,7 +517,6 @@ export function DailyLedgerHero({
   macros?: MacroProgress[]
   className?: string
 }) {
-  const [breakdownOpen, setBreakdownOpen] = useState(false)
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const waterPct = pct(waterMl, waterGoalMl)
@@ -547,52 +547,39 @@ export function DailyLedgerHero({
           }}
         />
       </div>
-      <button
-        type="button"
-        onClick={() => setBreakdownOpen((open) => !open)}
-        aria-expanded={breakdownOpen}
-        className="mt-3 flex min-h-11 w-full items-center justify-between border-y border-border text-left text-[13px] font-semibold"
+      <AnimatedAccordion
+        summary={(open) => (open ? "Hide breakdown" : "Show breakdown")}
+        className="mt-3 border-y border-border"
+        triggerClassName="min-h-11 text-[13px] font-semibold"
       >
-        {breakdownOpen ? "Hide breakdown" : "Show breakdown"}
-        <ArrowRight
-          size={17}
-          className={cn(
-            "text-muted-foreground transition-transform",
-            breakdownOpen && "rotate-90"
-          )}
-        />
-      </button>
-      {breakdownOpen && (
-        <div className="animate-in duration-200 fade-in slide-in-from-top-1">
-          <div className="mt-3">
-            {macros.map((macro) => (
-              <StatRow
-                key={macro.label}
-                label={macro.label}
-                value={`${fmt(macro.value)} / ${fmt(macro.target)} ${macro.unit ?? "g"}`}
-                color={macro.color}
-              />
-            ))}
+        <div className="mt-3">
+          {macros.map((macro) => (
             <StatRow
-              label="Water"
-              value={`${fmt(waterMl)} / ${fmt(waterGoalMl)} ml`}
-              detail={`${waterPct}%`}
-              color="var(--accent-water)"
+              key={macro.label}
+              label={macro.label}
+              value={`${fmt(macro.value)} / ${fmt(macro.target)} ${macro.unit ?? "g"}`}
+              color={macro.color}
             />
-            <StatRow
-              label="Protein remaining"
-              value={proteinLeft > 0 ? `${fmt(proteinLeft)} g` : "Target met"}
-              color="var(--accent-food)"
-            />
-            <StatRow
-              label="Training"
-              value={workoutValue}
-              detail={`${workoutsThisWeek} this week · ${streak} day streak`}
-              color="var(--accent-workout)"
-            />
-          </div>
+          ))}
+          <StatRow
+            label="Water"
+            value={`${fmt(waterMl)} / ${fmt(waterGoalMl)} ml`}
+            detail={`${waterPct}%`}
+            color="var(--accent-water)"
+          />
+          <StatRow
+            label="Protein remaining"
+            value={proteinLeft > 0 ? `${fmt(proteinLeft)} g` : "Target met"}
+            color="var(--accent-food)"
+          />
+          <StatRow
+            label="Training"
+            value={workoutValue}
+            detail={`${workoutsThisWeek} this week · ${streak} day streak`}
+            color="var(--accent-workout)"
+          />
         </div>
-      )}
+      </AnimatedAccordion>
       {showBriefingAction && (
         <PrimaryButton
           onClick={onBriefingAction}

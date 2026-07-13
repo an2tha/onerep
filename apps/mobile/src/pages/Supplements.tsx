@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react"
 import {
   Barcode,
   CalendarBlank,
-  CaretDown,
   CaretLeft,
   CaretRight,
   Check,
@@ -21,6 +20,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
+import { AnimatedAccordion } from "@/components/animated-accordion"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {
@@ -618,8 +618,8 @@ function ImportNotice({ imported }: { imported: boolean }) {
     <div className="mb-3 flex items-start gap-2 border-y border-border py-3 text-[13px] leading-5 text-muted-foreground">
       <Barcode size={13} weight="bold" className="mt-0.5 shrink-0" />
       <span>
-        Powered by FatSecret. Nutrients are read-only and scale from the
-        serving size you enter.
+        Powered by FatSecret. Nutrients are read-only and scale from the serving
+        size you enter.
       </span>
     </div>
   )
@@ -665,7 +665,6 @@ function ItemSheet({
   const [previewItem, setPreviewItem] = useState<FoodResult | null>(null)
   const [importingCode, setImportingCode] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
   const [nutrientScaleBase, setNutrientScaleBase] =
     useState<NutrientScaleBase | null>(() =>
       item?.source === "openfoodfacts"
@@ -686,7 +685,6 @@ function ItemSheet({
       schedule: prev.schedule,
       active: prev.active,
     }))
-    setShowAdvanced(false)
     setBarcodeError(null)
     setSearchError(null)
     setEntryMode("manual")
@@ -804,8 +802,7 @@ function ItemSheet({
     try {
       const results = await searchFoods(query, 30)
       setSearchResults(results)
-      if (results.length === 0)
-        setSearchError("No FatSecret results found.")
+      if (results.length === 0) setSearchError("No FatSecret results found.")
     } catch {
       setSearchResults([])
       setSearchError("Search failed. You can still add it manually.")
@@ -1241,12 +1238,10 @@ function ItemSheet({
 
                 <ScheduleEditor draft={draft} update={update} />
 
-                <div className="rounded-[16px] border border-border/35 bg-muted/15">
-                  <button
-                    type="button"
-                    onClick={() => setShowAdvanced((value) => !value)}
-                    className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left"
-                  >
+                <AnimatedAccordion
+                  className="rounded-[16px] border border-border/35 bg-muted/15"
+                  triggerClassName="px-3 py-3"
+                  summary={
                     <span className="min-w-0">
                       <span className="block text-[13px] font-medium text-muted-foreground">
                         Advanced
@@ -1259,56 +1254,46 @@ function ItemSheet({
                           : "Optional nutrients per serving"}
                       </span>
                     </span>
-                    <CaretDown
-                      size={14}
-                      weight="bold"
-                      className={cn(
-                        "shrink-0 text-muted-foreground transition-transform",
-                        showAdvanced && "rotate-180"
-                      )}
-                    />
-                  </button>
-
-                  {showAdvanced && (
-                    <div className="border-t border-border/25 px-3 py-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-[13px] font-medium text-muted-foreground">
-                          Nutrients per serving
-                        </p>
-                        <span className="text-[13px] text-muted-foreground">
-                          Read-only
-                        </span>
-                      </div>
-                      {draft.source === "openfoodfacts" && (
-                        <p className="mb-2 border-y border-border bg-muted/35 px-3 py-3 text-[13px] text-muted-foreground">
-                          Imported nutrients stay locked and recalculate from
-                          your serving size.
-                        </p>
-                      )}
-                      {advancedNutrients.length > 0 ? (
-                        <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                          {advancedNutrients.map(({ key, value, detail }) => (
-                            <div
-                              key={key}
-                              className="grid gap-1 rounded-xl bg-muted/35 px-2.5 py-2"
-                            >
-                              <span className="truncate text-[13px] font-medium text-muted-foreground">
-                                {detail.label}
-                              </span>
-                              <span className="text-[15px] font-semibold tabular-nums">
-                                {formatSupplementNutrient(key, value)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="border-y border-border bg-muted/30 px-3 py-4 text-center text-[15px] text-muted-foreground">
-                          No nutrient data for this supplement.
-                        </p>
-                      )}
+                  }
+                >
+                  <div className="border-t border-border/25 px-3 py-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[13px] font-medium text-muted-foreground">
+                        Nutrients per serving
+                      </p>
+                      <span className="text-[13px] text-muted-foreground">
+                        Read-only
+                      </span>
                     </div>
-                  )}
-                </div>
+                    {draft.source === "openfoodfacts" && (
+                      <p className="mb-2 border-y border-border bg-muted/35 px-3 py-3 text-[13px] text-muted-foreground">
+                        Imported nutrients stay locked and recalculate from your
+                        serving size.
+                      </p>
+                    )}
+                    {advancedNutrients.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                        {advancedNutrients.map(({ key, value, detail }) => (
+                          <div
+                            key={key}
+                            className="grid gap-1 rounded-xl bg-muted/35 px-2.5 py-2"
+                          >
+                            <span className="truncate text-[13px] font-medium text-muted-foreground">
+                              {detail.label}
+                            </span>
+                            <span className="text-[15px] font-semibold tabular-nums">
+                              {formatSupplementNutrient(key, value)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="border-y border-border bg-muted/30 px-3 py-4 text-center text-[15px] text-muted-foreground">
+                        No nutrient data for this supplement.
+                      </p>
+                    )}
+                  </div>
+                </AnimatedAccordion>
 
                 <label className="grid gap-1.5">
                   <span className="text-[13px] font-medium text-muted-foreground">
