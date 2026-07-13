@@ -242,11 +242,9 @@ export function useCoachContext() {
     limit: 14,
   }) as FoodLogSnapshot[] | undefined
   const workouts = useQuery(api.logs.workouts.getHistory) as
-    | CachedWorkoutLog[]
-    | undefined
+    CachedWorkoutLog[] | undefined
   const body = useQuery(api.bodyProgress.list) as
-    | BodyMeasurementEntry[]
-    | undefined
+    BodyMeasurementEntry[] | undefined
   const goals = useQuery(api.users.users.getEffectiveGoals, {
     date: todayKey,
   })

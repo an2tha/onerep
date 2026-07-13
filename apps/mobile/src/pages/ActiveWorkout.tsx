@@ -3609,132 +3609,247 @@ function ExerciseSuggestionChips({
 
 function AiWorkoutSheet({
   target,
-  hasExisting,
   loading,
-  onGenerate,
+  contextReady,
+  contextSummary,
+  onAsk,
+  onApply,
   onClose,
 }: {
   target: AiWorkoutSheetTarget
-  hasExisting: boolean
   loading: boolean
-  onGenerate: (text: string, mode: AiWorkoutMode) => void | Promise<void>
+  contextReady: boolean
+  contextSummary: string
+  onAsk: (text: string) => Promise<CoachWorkoutProposal>
+  onApply: (proposal: CoachWorkoutProposal) => void | Promise<void>
   onClose: () => void
 }) {
   const [text, setText] = useState("")
-  const [mode, setMode] = useState<Exclude<AiWorkoutMode, "swap">>("append")
-  const activeMode: AiWorkoutMode = target?.exerciseId ? "swap" : mode
-  const canGenerate = text.trim().length >= 4 && !loading
-  const title = target?.exerciseName
-    ? `Change ${target.exerciseName}`
-    : "Change this workout"
-  const description = target?.exerciseName
-    ? "Describe the swap you want. We'll match the best exercise and update this card without finishing your workout."
-    : "Ask for exercises to add, or replace the remaining workout with a pasted plan. Everything stays editable."
+  const [proposal, setProposal] = useState<CoachWorkoutProposal | null>(null)
+  const [error, setError] = useState("")
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const canAsk = text.trim().length >= 4 && !loading && contextReady
+  const quickPrompts = target?.exerciseName
+    ? [
+        `Replace ${target.exerciseName} around my recovery today`,
+        "Keep the same movement pattern, but make it joint-friendly",
+        "Rebuild the session with a better substitute",
+      ]
+    : [
+        "Build the best workout for me today",
+        "Make this a focused 45-minute session",
+        "Adapt this workout to my recovery",
+      ]
+
+  async function askCoach(prompt = text) {
+    const request = prompt.trim()
+    if (request.length < 4 || loading || !contextReady) return
+    setText(request)
+    setError("")
+    setProposal(null)
+    try {
+      setProposal(await onAsk(request))
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Coach couldn't build that plan right now."
+      )
+    }
+  }
+
+  function askAgain() {
+    setProposal(null)
+    setError("")
+    window.setTimeout(() => textareaRef.current?.focus(), 0)
+  }
 
   return (
     <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[6px]"
+      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-2 backdrop-blur-[8px] sm:items-center sm:p-5"
       onClick={loading ? undefined : onClose}
     >
       <div
-        className="sheet-panel w-full max-w-lg overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+        className="sheet-panel max-h-[min(760px,calc(100svh-1rem))] w-full max-w-[560px] overflow-y-auto rounded-[26px] border border-border/55 bg-background shadow-2xl"
         style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+          paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
         }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Ask Coach for workout help"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-border/60" />
-        <div className="px-5 pt-5">
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
-              <Sparkle size={17} weight="fill" />
+        <div className="px-4 pt-4 sm:px-6 sm:pt-6">
+          <div className="flex items-start gap-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm">
+              <Brain size={18} weight="bold" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                Workout AI
+              <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+                Ask Coach
               </p>
-              <h2 className="mt-1 text-[19px] leading-tight font-semibold tracking-tight">
-                {title}
+              <h2 className="mt-1 text-[20px] leading-tight font-bold tracking-[-0.02em]">
+                {target?.exerciseName
+                  ? `Rethink ${target.exerciseName}`
+                  : "Plan this workout with me"}
               </h2>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                {description}
-              </p>
             </div>
             <button
+              type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
-              aria-label="Close workout AI"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-40"
+              aria-label="Close Ask Coach"
             >
-              <X size={15} weight="bold" />
+              <X size={16} weight="bold" />
             </button>
           </div>
 
-          {!target?.exerciseId && hasExisting && (
-            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-muted/45 p-1 text-[13px] font-bold">
-              {(
-                [
-                  { value: "append", label: "Add" },
-                  { value: "replace", label: "Replace" },
-                ] as const
-              ).map((option) => (
+          <div className="mt-5 rounded-[18px] border border-border/55 bg-card/45 px-3.5 py-3">
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground">
+                <Check size={13} weight="bold" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[12px] font-bold text-foreground/80">
+                  Coach has your context
+                </p>
+                <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+                  {contextReady
+                    ? contextSummary
+                    : "Loading your training, recovery, goals, and preferences…"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {proposal ? (
+            <div className="mt-4">
+              <div className="rounded-[20px] border border-border/60 bg-card/55 p-4">
+                <p className="text-[11px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+                  Coach's recommendation
+                </p>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-foreground/85">
+                  {proposal.reply}
+                </p>
+                <div className="mt-4 border-t border-border/50 pt-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="truncate text-[14px] font-bold">
+                      {proposal.draft.name || "Today's plan"}
+                    </p>
+                    <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
+                      {proposal.draft.exercises?.length ?? 0} exercises
+                    </span>
+                  </div>
+                  <div className="mt-2.5 divide-y divide-border/40">
+                    {(proposal.draft.exercises ?? []).map((exercise, index) => (
+                      <div
+                        key={`${exercise.name}-${index}`}
+                        className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                      >
+                        <span className="w-5 shrink-0 text-center text-[11px] font-bold text-muted-foreground/70 tabular-nums">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
+                          {exercise.name}
+                        </span>
+                        <span className="shrink-0 text-[12px] text-muted-foreground">
+                          {exercise.sets?.length || 3} sets
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-[0.72fr_1.28fr] gap-2.5">
                 <button
-                  key={option.value}
-                  onClick={() => setMode(option.value)}
+                  type="button"
+                  onClick={askAgain}
                   disabled={loading}
-                  className={cn(
-                    "h-10 rounded-xl transition-all",
-                    mode === option.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground active:text-foreground"
-                  )}
+                  className="h-11 rounded-xl border border-border/65 bg-card/35 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground disabled:opacity-40"
                 >
-                  {option.label}
+                  Ask again
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => void onApply(proposal)}
+                  disabled={loading}
+                  className="flex h-11 items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-40"
+                >
+                  {loading ? "Applying plan…" : "Use this plan"}
+                  {!loading && <Check size={14} weight="bold" />}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <div className="rounded-[20px] border border-border/65 bg-card/30 p-2.5 transition-colors focus-within:border-foreground/25 focus-within:bg-card/50">
+                <textarea
+                  ref={textareaRef}
+                  value={text}
+                  onChange={(event) => {
+                    setText(event.target.value)
+                    if (error) setError("")
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault()
+                      void askCoach()
+                    }
+                  }}
+                  disabled={loading}
+                  maxLength={900}
+                  placeholder={
+                    target?.exerciseName
+                      ? `What should I do instead of ${target.exerciseName}?`
+                      : "Tell Coach what you want from today's session…"
+                  }
+                  className="min-h-28 w-full resize-none bg-transparent px-2 py-1.5 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/55 disabled:opacity-60"
+                />
+                <div className="flex items-center justify-between gap-3 px-1 pb-0.5">
+                  <span className="text-[11px] text-muted-foreground/60">
+                    Shift + Enter for a new line
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void askCoach()}
+                    disabled={!canAsk}
+                    aria-busy={loading}
+                    aria-label="Ask Coach"
+                    className="flex h-9 items-center justify-center gap-2 rounded-lg bg-foreground px-3.5 text-[12px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-30"
+                  >
+                    <PaperPlaneRight
+                      size={14}
+                      weight="fill"
+                      className={loading ? "animate-pulse" : ""}
+                    />
+                    {loading ? "Thinking…" : "Ask Coach"}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <p className="mt-2.5 px-1 text-[12px] leading-relaxed text-destructive">
+                  {error}
+                </p>
+              )}
+
+              <div className="mt-3 flex [scrollbar-width:none] gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+                {quickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => void askCoach(prompt)}
+                    disabled={loading || !contextReady}
+                    className="shrink-0 rounded-full border border-border/60 bg-card/30 px-3 py-2 text-[11.5px] font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground disabled:opacity-35"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={loading}
-            placeholder={
-              target?.exerciseId
-                ? "Swap for incline dumbbell press 3x10, keep rest around 90s"
-                : "Add cable row 3x12 and face pulls 3x15\nOr paste a full lower-body day to replace this workout"
-            }
-            className="mt-5 min-h-48 w-full resize-none rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground/20 disabled:opacity-60"
-          />
-
-          <div className="mt-4 flex flex-col gap-2">
-            <button
-              onClick={() => void onGenerate(text.trim(), activeMode)}
-              disabled={!canGenerate}
-              aria-busy={loading}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
-            >
-              <Sparkle
-                size={15}
-                weight="fill"
-                className={loading ? "animate-spin" : ""}
-              />
-              {loading
-                ? "Updating workout…"
-                : activeMode === "swap"
-                  ? "Change exercise"
-                  : activeMode === "replace"
-                    ? "Replace workout"
-                    : "Add exercises"}
-            </button>
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="h-11 w-full rounded-xl bg-muted/55 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted active:text-foreground disabled:opacity-40"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -4166,6 +4281,8 @@ export default function ActiveWorkout() {
   const [searchParams] = useSearchParams()
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
+  const { context: coachContext, loading: coachContextLoading } =
+    useCoachContext()
 
   const presets = useQuery(api.logs.presets.list, {})
   const logCompletion = useOfflineMutation(
@@ -4173,6 +4290,9 @@ export default function ActiveWorkout() {
     "logs.workouts.completion"
   )
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
+  const schedule = useQuery(api.users.schedules.get, {})
+  const coachMemories = useQuery(api.ai.coachState.listMemories, { limit: 40 })
+  const coachCheckIns = useQuery(api.ai.coachState.listCheckIns, { limit: 14 })
 
   // Active workout Convex sync
   const activeWorkout = useQuery(api.logs.activeWorkout.getActive, { slot })
@@ -4180,7 +4300,9 @@ export default function ActiveWorkout() {
   const updateActive = useMutation(api.logs.activeWorkout.updateActive)
   const abortActive = useMutation(api.logs.activeWorkout.abortActive)
   const finishActive = useMutation(api.logs.activeWorkout.finishActive)
-  const createWorkoutDraft = useAction(api.logs.presetAgent.createFromText)
+  const generateCoachPlan = useAction(
+    api.ai.metricGeneration.generateCoachChatMessage
+  )
 
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
@@ -4567,15 +4689,182 @@ export default function ActiveWorkout() {
     )
   }
 
-  async function handleAiWorkoutChange(text: string, mode: AiWorkoutMode) {
+  async function handleAskCoachForWorkout(
+    text: string
+  ): Promise<CoachWorkoutProposal> {
+    if (!requireAiAccess()) throw new Error("Coach access is required.")
+    if (!text.trim()) throw new Error("Tell Coach what you need first.")
+    if (aiUpdatingRef.current || aiUpdating) {
+      throw new Error("Coach is already working on your plan.")
+    }
+
+    aiUpdatingRef.current = true
+    setAiUpdating(true)
+    try {
+      const routines = normalizeScheduleRoutines(schedule?.routine)
+      const activeExercises = uniqueExerciseIds.map((exerciseId) => {
+        const exercise = exerciseLookup[exerciseId]
+        const state = exData[exerciseId]
+        return {
+          id: exerciseId,
+          name: exercise?.name ?? exerciseId,
+          completedSets: state?.sets.filter((set) => set.completed).length ?? 0,
+          sets: state?.sets ?? [],
+        }
+      })
+      const result = await generateCoachPlan({
+        context: coachContext,
+        message: [
+          "You are helping from the active-workout Ask Coach sheet.",
+          `The user's request is: ${text.trim()}`,
+          aiSheetTarget?.exerciseName
+            ? `They opened Coach from ${aiSheetTarget.exerciseName}, so adapt that exercise while preserving a coherent session.`
+            : "Build or adapt the full active session based on this request.",
+          "Treat completed sets in the active workout as fixed work that must be preserved; only plan the remaining work around them.",
+          "Use the same judgment, safety rules, memories, recovery check-ins, training history, goals, and routine context available in the main Coach.",
+          "Return exactly one create_workout_preset operation containing the COMPLETE session that should replace the active workout after your recommendation. Do not schedule or save it as a preset. Keep the spoken reply concise and explain the main coaching decision.",
+        ].join("\n"),
+        history: [],
+        workspace: {
+          today: todayIso(),
+          presets: [
+            {
+              id: "active-workout",
+              name: "Current active workout",
+              updatedAt: Date.now(),
+              snapshot: {
+                status: "in_progress",
+                elapsedMinutes: Math.round(elapsed / 60),
+                exercises: activeExercises,
+              },
+            },
+            ...(presets ?? []).map((preset) => ({
+              id: String(preset._id),
+              name: preset.name,
+              updatedAt: preset.updatedAt,
+              snapshot: {
+                items: preset.items,
+                exerciseData: preset.exerciseData,
+                ...(preset.focus ? { focus: preset.focus } : {}),
+                ...(preset.duration ? { duration: preset.duration } : {}),
+                ...(preset.steps ? { steps: preset.steps } : {}),
+              },
+            })),
+          ],
+          memories: (coachMemories ?? []).map((memory) => ({
+            key: memory.key,
+            category: memory.category,
+            value: memory.value,
+          })),
+          checkIns: (coachCheckIns ?? []).map((checkIn) => ({
+            date: checkIn.date,
+            energy: checkIn.energy,
+            soreness: checkIn.soreness,
+            sleepQuality: checkIn.sleepQuality,
+            mood: checkIn.mood,
+          })),
+          recentWorkouts: (workoutHistory ?? [])
+            .slice(0, 30)
+            .map((workout) => ({
+              id: String(workout._id),
+              date: workout.date,
+              durationMinutes: Math.round(workout.durationSeconds / 60),
+              exercises: workout.exercises.map((exercise) => ({
+                id: exercise.id,
+                name: exercise.name,
+                completedSets: exercise.sets.filter((set) => set.completed)
+                  .length,
+                sets: exercise.sets,
+              })),
+            })),
+          routine: (
+            ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
+          ).map((day) => {
+            const assignedId = routines.primary[day]
+            return {
+              day,
+              presetId: assignedId ?? null,
+              presetName: assignedId
+                ? (presets?.find((preset) => String(preset._id) === assignedId)
+                    ?.name ?? null)
+                : null,
+            }
+          }),
+        },
+      })
+      const response = result as { reply?: unknown; operations?: unknown }
+      const operation = Array.isArray(response.operations)
+        ? response.operations.find(
+            (candidate) =>
+              candidate &&
+              typeof candidate === "object" &&
+              "type" in candidate &&
+              candidate.type === "create_workout_preset"
+          )
+        : undefined
+      if (!operation || typeof operation !== "object") {
+        throw new Error(
+          "Coach needs a little more detail to turn that into a workout plan."
+        )
+      }
+
+      const raw = operation as {
+        name?: unknown
+        exercises?: unknown
+      }
+      const draft: AgentWorkoutDraft = {
+        name:
+          typeof raw.name === "string" && raw.name.trim()
+            ? raw.name.trim()
+            : "Coach's workout",
+        exercises: Array.isArray(raw.exercises)
+          ? raw.exercises.filter(
+              (exercise): exercise is AgentWorkoutExerciseDraft =>
+                Boolean(
+                  exercise &&
+                  typeof exercise === "object" &&
+                  "name" in exercise &&
+                  typeof exercise.name === "string" &&
+                  exercise.name.trim()
+                )
+            )
+          : [],
+      }
+
+      if (!draft.exercises?.length) {
+        throw new Error("Coach couldn't turn that into a usable exercise plan.")
+      }
+
+      posthog.capture("active_workout_coach_asked", {
+        exercise_count: draft.exercises.length,
+        has_active_workout: uniqueExerciseIds.length > 0,
+        source_exercise: aiSheetTarget?.exerciseName ?? null,
+      })
+
+      return {
+        reply:
+          typeof response.reply === "string" && response.reply.trim()
+            ? response.reply.trim()
+            : "I built this around your recent training and recovery. Review it before replacing the active session.",
+        draft,
+        mode: "replace",
+      }
+    } finally {
+      aiUpdatingRef.current = false
+      setAiUpdating(false)
+    }
+  }
+
+  async function handleAiWorkoutChange(
+    proposal: CoachWorkoutProposal
+  ): Promise<void> {
     if (!requireAiAccess()) return
-    if (!text.trim()) return
     if (aiUpdatingRef.current || aiUpdating) return
 
     aiUpdatingRef.current = true
     setAiUpdating(true)
     try {
-      const draft = (await createWorkoutDraft({ text })) as AgentWorkoutDraft
+      const { draft, mode } = proposal
       const draftExercises = (draft.exercises ?? []).filter((exercise) =>
         exercise.name?.trim()
       )
@@ -4650,11 +4939,49 @@ export default function ActiveWorkout() {
 
         seenIds.add(exercise.id)
         nextItems.push({ kind: "solo", exerciseId: exercise.id })
-        nextExerciseData[exercise.id] = makeExerciseStateFromAgentDraft(
+        const generatedState = makeExerciseStateFromAgentDraft(
           exercise,
           match.draftExercise
         )
+        const currentState =
+          mode === "replace" ? exData[exercise.id] : undefined
+        const completedSets = currentState?.sets.filter((set) => set.completed)
+        nextExerciseData[exercise.id] =
+          completedSets && completedSets.length > 0
+            ? {
+                ...generatedState,
+                sets: [
+                  ...completedSets,
+                  ...generatedState.sets.slice(completedSets.length),
+                ],
+              }
+            : generatedState
         nextExerciseLookup[exercise.id] = exercise
+      }
+
+      if (mode === "replace") {
+        const completedExerciseIds = uniqueExerciseIds.filter((exerciseId) => {
+          const exercise = exerciseLookup[exerciseId]
+          const state = exData[exerciseId]
+          return exercise?.category === "cardio"
+            ? Boolean(state && hasCardioStateDetails(state.cardio))
+            : Boolean(state?.sets.some((set) => set.completed))
+        })
+        const missingCompletedIds = completedExerciseIds.filter(
+          (exerciseId) => !seenIds.has(exerciseId)
+        )
+        if (missingCompletedIds.length > 0) {
+          nextItems.unshift(
+            ...missingCompletedIds.map((exerciseId): WorkoutItem => ({
+              kind: "solo",
+              exerciseId,
+            }))
+          )
+          for (const exerciseId of missingCompletedIds) {
+            nextExerciseData[exerciseId] = exData[exerciseId]
+            nextExerciseLookup[exerciseId] = exerciseLookup[exerciseId]
+          }
+        }
       }
 
       if (nextItems.length === 0) {
@@ -5236,14 +5563,14 @@ export default function ActiveWorkout() {
             onClick={() => openAiWorkoutSheet({})}
             disabled={aiUpdating}
             aria-busy={aiUpdating}
-            className="app-empty h-14 w-full justify-center border-dashed border-border/60 bg-transparent text-[13px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/25 active:text-foreground disabled:opacity-45"
+            className="app-empty h-14 w-full justify-center border-border/60 bg-card/25 text-[13px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground disabled:opacity-45"
           >
-            <Sparkle
+            <Brain
               size={14}
-              weight="fill"
-              className={aiUpdating ? "animate-spin" : ""}
+              weight="bold"
+              className={aiUpdating ? "animate-pulse" : ""}
             />
-            AI change workout
+            Ask Coach about this workout
           </button>
         </div>
       </div>
@@ -5271,9 +5598,18 @@ export default function ActiveWorkout() {
       {aiSheetTarget !== null && (
         <AiWorkoutSheet
           target={aiSheetTarget}
-          hasExisting={uniqueExerciseIds.length > 0}
           loading={aiUpdating}
-          onGenerate={handleAiWorkoutChange}
+          contextReady={
+            !coachContextLoading &&
+            presets !== undefined &&
+            workoutHistory !== undefined &&
+            schedule !== undefined &&
+            coachMemories !== undefined &&
+            coachCheckIns !== undefined
+          }
+          contextSummary={`${coachContext.workoutDays7} recent session${coachContext.workoutDays7 === 1 ? "" : "s"}, ${coachContext.hardSets7} completed sets, recovery check-ins, goals, routine, and saved preferences.`}
+          onAsk={handleAskCoachForWorkout}
+          onApply={handleAiWorkoutChange}
           onClose={() => setAiSheetTarget(null)}
         />
       )}
