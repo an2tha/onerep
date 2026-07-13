@@ -71,7 +71,6 @@ describe("AI Gateway REST client", () => {
       model: DEFAULT_AI_GATEWAY_MODEL,
       stream: false,
       max_completion_tokens: 500,
-      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "System prompt" },
         { role: "user", content: "User prompt" },
@@ -157,6 +156,29 @@ describe("AI Gateway REST client", () => {
     await expect(
       requestGatewayJson({ system: "s", user: "u", maxTokens: 1 }),
     ).rejects.toThrow("invalid JSON");
+  });
+
+  test("includes safe Gateway error details for rejected requests", async () => {
+    process.env.AI_GATEWAY_API_KEY = "gateway-secret";
+    globalThis.fetch = async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "Invalid input",
+            param: "response_format",
+          },
+        }),
+        {
+          status: 400,
+          headers: { "x-request-id": "safe-request-id" },
+        },
+      );
+
+    await expect(
+      requestGatewayJson({ system: "s", user: "u", maxTokens: 1 }),
+    ).rejects.toThrow(
+      "AI Gateway request failed (400): Invalid input (parameter: response_format) · request safe-request-id",
+    );
   });
 });
 

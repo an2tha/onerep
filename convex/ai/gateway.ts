@@ -58,7 +58,6 @@ export async function requestGatewayJson({
       // completion-token field through the OpenAI-compatible Gateway API.
       ...(temperature === undefined || isGpt5 ? {} : { temperature }),
       max_completion_tokens: maxTokens,
-      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
         {
@@ -84,8 +83,27 @@ export async function requestGatewayJson({
     const requestId =
       response.headers.get("x-vercel-id") ??
       response.headers.get("x-request-id");
+    let gatewayMessage = "";
+    try {
+      const errorBody = (await response.json()) as {
+        error?: { message?: unknown; param?: unknown };
+      };
+      const message =
+        typeof errorBody.error?.message === "string"
+          ? errorBody.error.message.trim().slice(0, 300)
+          : "";
+      const param =
+        typeof errorBody.error?.param === "string"
+          ? errorBody.error.param.trim().slice(0, 80)
+          : "";
+      gatewayMessage = message
+        ? `: ${message}${param ? ` (parameter: ${param})` : ""}`
+        : "";
+    } catch {
+      // Some providers return an empty or non-JSON error response.
+    }
     throw new Error(
-      `AI Gateway request failed (${response.status})${requestId ? ` · request ${requestId.slice(0, 100)}` : ""}`,
+      `AI Gateway request failed (${response.status})${gatewayMessage}${requestId ? ` · request ${requestId.slice(0, 100)}` : ""}`,
     );
   }
   let rawData: unknown;

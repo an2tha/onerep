@@ -1,10 +1,18 @@
-import { useMemo, useState, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import {
   Barbell,
   CheckCircle,
   ForkKnife,
   Plus,
   Scales,
+  X,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { useSearchParams } from "react-router"
@@ -25,8 +33,11 @@ import {
   FormField,
   GroupedList,
   PrimaryButton,
+  ToolbarButton,
 } from "@/components/mobile-ui"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { hapticMedium } from "@/lib/haptics"
+import { toast } from "sonner"
 import {
   AppTooltip,
   APP_TOOLTIP_IDS,
@@ -647,6 +658,8 @@ export default function Progress() {
   )
   const [weight, setWeight] = useState("")
   const [bodyFat, setBodyFat] = useState("")
+  const [entryClientId, setEntryClientId] = useState<string | null>(null)
+  const [entryPrepared, setEntryPrepared] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
   const [entryError, setEntryError] = useState("")
   const saveMeasurement = useMutation(api.bodyProgress.save)
@@ -685,12 +698,125 @@ export default function Progress() {
     ]
   )
   const unit: WeightUnit = preferences?.weightUnit === "lbs" ? "lbs" : "kg"
+  const orderedMeasurements = useMemo(
+    () =>
+      [...(bodyMeasurements ?? [])].sort((a, b) =>
+        a.loggedAt.localeCompare(b.loggedAt)
+      ),
+    [bodyMeasurements]
+  )
+  const todayMeasurement = useMemo(
+    () =>
+      [...orderedMeasurements]
+        .reverse()
+        .find((measurement) => measurement.loggedAt.slice(0, 10) === today),
+    [orderedMeasurements, today]
+  )
+  const previousMeasurement = useMemo(
+    () =>
+      [...orderedMeasurements]
+        .reverse()
+        .find((measurement) => measurement.loggedAt.slice(0, 10) < today),
+    [orderedMeasurements, today]
+  )
   const loading =
     bodyMeasurements === undefined ||
     workoutHistory === undefined ||
     foodHistory === undefined ||
     effectiveGoals === undefined ||
     preferences === undefined
+
+  const prepareEntry = useCallback(() => {
+    if (todayMeasurement) {
+      const displayWeight =
+        todayMeasurement.weightKg == null
+          ? ""
+          : unit === "lbs"
+            ? todayMeasurement.weightKg * 2.20462
+            : todayMeasurement.weightKg
+      setWeight(
+        displayWeight === "" ? "" : displayWeight.toFixed(1).replace(/\.0$/, "")
+      )
+      setBodyFat(
+        todayMeasurement.bodyFatPct == null
+          ? ""
+          : String(todayMeasurement.bodyFatPct)
+      )
+      setEntryClientId(todayMeasurement.clientId)
+    } else {
+      setWeight("")
+      setBodyFat("")
+      setEntryClientId(null)
+    }
+    setEntryError("")
+    setEntryPrepared(true)
+  }, [todayMeasurement, unit])
+
+  function openEntry() {
+    if (bodyMeasurements === undefined) {
+      setWeight("")
+      setBodyFat("")
+      setEntryClientId(null)
+      setEntryError("")
+      setEntryPrepared(false)
+    } else {
+      prepareEntry()
+    }
+    setEntryOpen(true)
+  }
+
+  function closeEntry() {
+    setEntryOpen(false)
+    setEntryPrepared(false)
+    setEntryError("")
+  }
+
+  useEffect(() => {
+    if (!entryOpen || entryPrepared || bodyMeasurements === undefined) return
+    prepareEntry()
+  }, [bodyMeasurements, entryOpen, entryPrepared, prepareEntry])
+
+  async function handleEntrySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const enteredWeight = Number(weight)
+    const enteredBodyFat = bodyFat ? Number(bodyFat) : undefined
+    if (!Number.isFinite(enteredWeight) || enteredWeight <= 0) {
+      setEntryError("Enter a valid weight.")
+      return
+    }
+    if (
+      enteredBodyFat !== undefined &&
+      (!Number.isFinite(enteredBodyFat) ||
+        enteredBodyFat <= 0 ||
+        enteredBodyFat > 100)
+    ) {
+      setEntryError("Body fat must be between 0 and 100%.")
+      return
+    }
+    setSavingEntry(true)
+    setEntryError("")
+    try {
+      await saveMeasurement({
+        clientId: entryClientId ?? crypto.randomUUID(),
+        loggedAt: new Date().toISOString(),
+        weightKg: unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
+        ...(enteredBodyFat !== undefined ? { bodyFatPct: enteredBodyFat } : {}),
+      })
+      hapticMedium()
+      toast.success(
+        entryClientId ? "Today’s check-in updated" : "Check-in saved"
+      )
+      setWeight("")
+      setBodyFat("")
+      setEntryClientId(null)
+      setEntryPrepared(false)
+      setEntryOpen(false)
+    } catch {
+      setEntryError("Could not save this measurement. Try again.")
+    } finally {
+      setSavingEntry(false)
+    }
+  }
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
@@ -708,7 +834,7 @@ export default function Progress() {
           >
             <button
               type="button"
-              onClick={() => setEntryOpen(true)}
+              onClick={openEntry}
               className="native-toolbar-button"
               aria-label="Add body measurement"
             >
@@ -744,7 +870,7 @@ export default function Progress() {
                 summary={summary}
                 measurements={bodyMeasurements}
                 unit={unit}
-                onAdd={() => setEntryOpen(true)}
+                onAdd={openEntry}
               />
             )}
             {metric === "nutrition" && (
@@ -783,85 +909,150 @@ export default function Progress() {
       </main>
 
       {entryOpen && (
-        <MobileSheet onClose={() => setEntryOpen(false)} maxHeight="70vh">
-          <form
-            className="grid gap-4 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
-            onSubmit={async (event) => {
-              event.preventDefault()
-              const enteredWeight = Number(weight)
-              const enteredBodyFat = bodyFat ? Number(bodyFat) : undefined
-              if (!Number.isFinite(enteredWeight) || enteredWeight <= 0) {
-                setEntryError("Enter a valid weight.")
-                return
-              }
-              if (
-                enteredBodyFat !== undefined &&
-                (!Number.isFinite(enteredBodyFat) ||
-                  enteredBodyFat <= 0 ||
-                  enteredBodyFat > 100)
-              ) {
-                setEntryError("Body fat must be between 0 and 100%.")
-                return
-              }
-              setSavingEntry(true)
-              setEntryError("")
-              try {
-                await saveMeasurement({
-                  clientId: crypto.randomUUID(),
-                  loggedAt: new Date().toISOString(),
-                  weightKg:
-                    unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
-                  ...(enteredBodyFat !== undefined
-                    ? { bodyFatPct: enteredBodyFat }
-                    : {}),
-                })
-                setWeight("")
-                setBodyFat("")
-                setEntryOpen(false)
-              } catch {
-                setEntryError("Could not save this measurement. Try again.")
-              } finally {
-                setSavingEntry(false)
-              }
-            }}
-          >
-            <div>
-              <p className="native-title">Add measurement</p>
-              <p className="native-row-detail mt-1">
-                Use the same scale and similar conditions when possible.
+        <MobileSheet
+          onClose={closeEntry}
+          minHeight="60vh"
+          maxHeight="82vh"
+          ariaLabel="Today’s check-in"
+          bottom={
+            <div className="border-t border-border bg-background px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <PrimaryButton
+                type="submit"
+                form="today-check-in-form"
+                disabled={savingEntry || weight.trim().length === 0}
+                aria-busy={savingEntry}
+                className="w-full"
+              >
+                {savingEntry
+                  ? "Saving…"
+                  : entryClientId
+                    ? "Update check-in"
+                    : "Complete check-in"}
+              </PrimaryButton>
+              <p className="native-row-detail mt-2 text-center">
+                Weight is required. Body fat is optional.
               </p>
             </div>
-            <FormField
-              label={`Weight (${unit})`}
-              name="progress-weight"
-              type="number"
-              inputMode="decimal"
-              min="1"
-              step="0.1"
-              value={weight}
-              onChange={(event) => setWeight(event.target.value)}
-              required
-            />
-            <FormField
-              label="Body fat (%)"
-              name="progress-body-fat"
-              type="number"
-              inputMode="decimal"
-              min="1"
-              max="100"
-              step="0.1"
-              value={bodyFat}
-              onChange={(event) => setBodyFat(event.target.value)}
-              hint="Optional; use the same estimation method each time"
-            />
+          }
+        >
+          <form
+            id="today-check-in-form"
+            className="grid gap-5 px-5 pt-1 pb-5"
+            onSubmit={handleEntrySubmit}
+          >
+            <header className="flex items-start gap-3">
+              <span className="native-row-leading mt-0.5 text-[var(--accent-progress)]">
+                <Scales size={23} weight="regular" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="native-supporting">{formatDate(today)}</p>
+                <h2 className="native-title">Today’s check-in</h2>
+                <p className="native-row-detail mt-1">
+                  A quick, consistent measurement is more useful than a perfect
+                  one.
+                </p>
+              </div>
+              <ToolbarButton
+                type="button"
+                onClick={closeEntry}
+                aria-label="Close check-in"
+              >
+                <X size={20} weight="bold" />
+              </ToolbarButton>
+            </header>
+
+            {(todayMeasurement || previousMeasurement) && (
+              <section
+                className="border-y border-border py-3"
+                aria-label="Check-in context"
+              >
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="native-row-title">
+                      {todayMeasurement ? "Editing today" : "Previous check-in"}
+                    </p>
+                    <p className="native-row-detail mt-0.5">
+                      {todayMeasurement
+                        ? "Saving will update today’s existing entry."
+                        : formatDate(
+                            previousMeasurement?.loggedAt.slice(0, 10) ?? null
+                          )}
+                    </p>
+                  </div>
+                  <p className="native-row-value">
+                    {formatWeight(
+                      (todayMeasurement ?? previousMeasurement)?.weightKg ??
+                        null,
+                      unit
+                    )}
+                  </p>
+                </div>
+              </section>
+            )}
+
+            <fieldset className="grid gap-4">
+              <legend className="native-section-title mb-3">
+                Measurements
+              </legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  label={`Weight (${unit})`}
+                  name="progress-weight"
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  step="0.1"
+                  value={weight}
+                  onChange={(event) => {
+                    setWeight(event.target.value)
+                    if (entryError) setEntryError("")
+                  }}
+                  hint="Required"
+                  className="text-[20px] font-semibold tabular-nums"
+                  autoFocus
+                  required
+                />
+                <FormField
+                  label="Body fat (%)"
+                  name="progress-body-fat"
+                  type="number"
+                  inputMode="decimal"
+                  min="1"
+                  max="100"
+                  step="0.1"
+                  value={bodyFat}
+                  onChange={(event) => {
+                    setBodyFat(event.target.value)
+                    if (entryError) setEntryError("")
+                  }}
+                  hint="Optional · use the same method each time"
+                />
+              </div>
+            </fieldset>
+
             {entryError && (
-              <p role="alert" className="native-field-error">
+              <p
+                role="alert"
+                className="native-field-error border-l-2 border-destructive py-1 pl-3"
+              >
                 {entryError}
               </p>
             )}
-            <PrimaryButton type="submit" disabled={savingEntry}>
-              {savingEntry ? "Saving…" : "Save measurement"}
-            </PrimaryButton>
+
+            <section className="flex gap-3 border-t border-border pt-4">
+              <CheckCircle
+                size={19}
+                weight="regular"
+                className="mt-0.5 shrink-0 text-[var(--status-success)]"
+              />
+              <div>
+                <h3 className="native-row-title">For a clearer trend</h3>
+                <p className="native-row-detail mt-1">
+                  Use the same scale at a similar time of day. Normal daily
+                  fluctuations are expected.
+                </p>
+              </div>
+            </section>
           </form>
         </MobileSheet>
       )}
