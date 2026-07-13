@@ -69,11 +69,24 @@ describe("Progress page accessibility contract", () => {
       "clientId: entryClientId ?? crypto.randomUUID()"
     )
     expect(PROGRESS_SOURCE).toContain(
-      "Saving will update today’s existing entry."
+      "Already logged · changes update this entry"
     )
-    expect(PROGRESS_SOURCE).toContain("For a clearer trend")
+    expect(PROGRESS_SOURCE).toContain("waistCm: enteredWaist")
+    expect(PROGRESS_SOURCE).toContain("hipsCm: enteredHips")
+    expect(PROGRESS_SOURCE).toContain("chestCm: enteredChest")
+    expect(PROGRESS_SOURCE).toContain("notes: notes.trim()")
+    expect(PROGRESS_SOURCE).toContain("Journal note")
     expect(PROGRESS_SOURCE).toContain("Complete check-in")
     expect(PROGRESS_SOURCE).toContain("Update check-in")
+  })
+
+  test("check-in modal uses compact journal geometry", () => {
+    expect(PROGRESS_SOURCE).toContain('minHeight="0"')
+    expect(PROGRESS_SOURCE).toContain('maxHeight="88vh"')
+    expect(PROGRESS_SOURCE).toContain(
+      'panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[42rem]"'
+    )
+    expect(PROGRESS_SOURCE).toContain("sm:px-6")
   })
 
   test("Coach today's check-in opens the Progress check-in form", () => {

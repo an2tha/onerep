@@ -6,8 +6,8 @@ import revenuecat from "convex-revenuecat/convex.config";
 
 const app = defineApp({
   env: {
-    AI_GATEWAY_API_KEY: v.optional(v.string()),
-    AI_GATEWAY_MODEL: v.optional(v.string()),
+    OPENAI_API_KEY: v.optional(v.string()),
+    OPENAI_MODEL: v.optional(v.string()),
     REVENUECAT_SECRET_KEY: v.optional(v.string()),
     REVENUECAT_API_V2_SECRET_KEY: v.optional(v.string()),
     REVENUECAT_PROJECT_ID: v.optional(v.string()),
