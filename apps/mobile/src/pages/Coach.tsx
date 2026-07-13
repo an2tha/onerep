@@ -1432,89 +1432,6 @@ function ThinkingIndicator() {
   )
 }
 
-function CheckInCard({
-  saving,
-  afterWorkout,
-  onSave,
-}: {
-  saving: boolean
-  afterWorkout: boolean
-  onSave: (value: {
-    energy: number
-    soreness: number
-    sleepQuality: number
-    mood: number
-  }) => void
-}) {
-  const [scores, setScores] = useState({
-    energy: 3,
-    soreness: 3,
-    sleepQuality: 3,
-    mood: 3,
-  })
-  return (
-    <details className="native-collapsible mt-5 rounded-2xl border border-border/60 bg-card/55 p-4">
-      <summary className="flex cursor-pointer list-none items-center gap-3">
-        <span className="flex size-9 items-center justify-center rounded-full bg-foreground text-background">
-          <Heartbeat size={17} weight="fill" />
-        </span>
-        <span>
-          <span className="block text-[12px] font-black">
-            Quick recovery check-in
-          </span>
-          <span className="text-[10px] text-muted-foreground">
-            {afterWorkout
-              ? "How did today’s workout land?"
-              : "Four taps make today’s advice more useful"}
-          </span>
-        </span>
-      </summary>
-      <div className="mt-4 space-y-3">
-        {(
-          [
-            ["energy", "Energy"],
-            ["soreness", "Soreness"],
-            ["sleepQuality", "Sleep"],
-            ["mood", "Mood"],
-          ] as const
-        ).map(([key, label]) => (
-          <div key={key} className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-bold">{label}</p>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((score) => (
-                <button
-                  key={score}
-                  type="button"
-                  onClick={() =>
-                    setScores((current) => ({ ...current, [key]: score }))
-                  }
-                  aria-pressed={scores[key] === score}
-                  className={cn(
-                    "flex size-8 items-center justify-center rounded-full text-[10px] font-black",
-                    scores[key] === score
-                      ? "bg-foreground text-background"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {score}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onSave(scores)}
-          className="mt-2 min-h-10 w-full rounded-full bg-foreground text-[11px] font-black text-background disabled:opacity-40"
-        >
-          {saving ? "Saving…" : "Save check-in"}
-        </button>
-      </div>
-    </details>
-  )
-}
-
 function CoachSheet({
   title,
   open,
@@ -1584,7 +1501,6 @@ export default function Coach() {
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference")
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
-  const [savingCheckIn, setSavingCheckIn] = useState(false)
   const [generateUi, setGenerateUi] = useState(
     () => safeLocalStorageGet(COACH_VISUALS_KEY) === "1"
   )
@@ -2276,31 +2192,6 @@ export default function Coach() {
     }
   }
 
-  async function saveQuickCheckIn(scores: {
-    energy: number
-    soreness: number
-    sleepQuality: number
-    mood: number
-  }) {
-    if (savingCheckIn) return
-    setSavingCheckIn(true)
-    try {
-      await saveCheckIn({
-        date: todayKey,
-        kind: (todayWorkouts ?? []).length > 0 ? "post_workout" : "daily",
-        ...scores,
-      })
-      hapticTap()
-      toast.success("Recovery check-in saved")
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save check-in"
-      )
-    } finally {
-      setSavingCheckIn(false)
-    }
-  }
-
   async function addManualMemory() {
     const value = newMemoryValue.trim()
     if (!value || savingMemory) return
@@ -2637,11 +2528,26 @@ export default function Coach() {
                   </p>
                 </div>
               </div>
-              <CheckInCard
-                saving={savingCheckIn}
-                afterWorkout={(todayWorkouts ?? []).length > 0}
-                onSave={(scores) => void saveQuickCheckIn(scores)}
-              />
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/progress?checkIn=1", { motion: "switch" })
+                }
+                className="mt-5 flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/55 p-4 text-left active:opacity-60"
+              >
+                <span className="flex size-9 items-center justify-center rounded-full bg-foreground text-background">
+                  <Heartbeat size={17} weight="fill" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-black">
+                    Today’s check-in
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Add your body measurement in Progress
+                  </span>
+                </span>
+                <ArrowRight size={16} weight="bold" />
+              </button>
               <div className="mt-6">
                 <CoachContextPanel context={context} />
               </div>

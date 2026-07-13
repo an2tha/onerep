@@ -7,6 +7,7 @@ import {
   Scales,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
+import { useSearchParams } from "react-router"
 import { api } from "../../../../convex/_generated/api"
 import { currentDateKey, type FoodLogDaySnapshot } from "@/lib/food-log"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
@@ -637,10 +638,13 @@ function ProgressLoading() {
 
 export default function Progress() {
   const navigate = useSmoothNavigate()
+  const [searchParams] = useSearchParams()
   const [metric, setMetric] = useState<"body" | "nutrition" | "training">(
     "body"
   )
-  const [entryOpen, setEntryOpen] = useState(false)
+  const [entryOpen, setEntryOpen] = useState(
+    () => searchParams.get("checkIn") === "1"
+  )
   const [weight, setWeight] = useState("")
   const [bodyFat, setBodyFat] = useState("")
   const [savingEntry, setSavingEntry] = useState(false)
