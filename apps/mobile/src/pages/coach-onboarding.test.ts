@@ -82,6 +82,11 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("snap-x")
     expect(COACH_SOURCE).toContain("w-[9.25rem]")
     expect(COACH_SOURCE).toContain("mode.cardClass")
+    expect(COACH_SOURCE).toContain('whitespace-nowrap">{item.label}')
+    expect(COACH_SOURCE).toContain(
+      'className="flex min-w-0 items-end gap-1 sm:gap-2"'
+    )
+    expect(COACH_SOURCE).toContain("min-h-11 min-w-0 flex-1")
     expect(COACH_SOURCE).not.toContain("/onboarding/")
     expect(COACH_SOURCE).not.toContain("bg-orange-500/10")
     expect(COACH_SOURCE).not.toContain("bg-sky-500/10")
