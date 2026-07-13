@@ -566,3 +566,27 @@ describe("exercise picker search surface", () => {
     expect(addHandlerSource).not.toContain("requestClose()")
   })
 })
+
+describe("active workout Ask Coach", () => {
+  test("uses the main Coach with workout, recovery, goals, and memory context", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "api.ai.metricGeneration.generateCoachChatMessage"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("context: coachContext")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("memories: (coachMemories ?? [])")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("checkIns: (coachCheckIns ?? [])")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      "recentWorkouts: (workoutHistory ?? [])"
+    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('id: "active-workout"')
+  })
+
+  test("previews a complete plan before replacing the active session", () => {
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("Coach's recommendation")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("Use this plan")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('mode: "replace"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("completedExerciseIds")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("Workout AI")
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("AI change workout")
+  })
+})

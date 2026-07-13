@@ -899,17 +899,33 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
     .slice(0, 4);
 }
 
-function normalizeCoachChatResponse(value: unknown, generateUi: boolean) {
+function normalizeCoachChatResponse(value: unknown, message: string) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
   const reply = clampText(input.reply, 900);
   if (!reply) return null;
   return {
     reply,
-    uiBlocks: generateUi ? normalizeCoachUiBlocks(input.uiBlocks) : [],
+    uiBlocks: isCasualCoachMessage(message)
+      ? []
+      : normalizeCoachUiBlocks(input.uiBlocks),
     operations: normalizeCoachOperations(input.operations),
-    artifacts: normalizeCoachArtifacts(input.artifacts),
+    artifacts: isCasualCoachMessage(message)
+      ? []
+      : normalizeCoachArtifacts(input.artifacts),
   };
+}
+
+function isCasualCoachMessage(message: string) {
+  return /^(?:hi|hey|hello|how are you|how's it going|thanks|thank you|good morning|good afternoon|good evening)[?!.\s]*$/i.test(
+    message.trim(),
+  );
+}
+
+function shouldUseFallbackUi(message: string) {
+  return /\b(?:analy[sz]e|compare|progress|trend|summary|summarize|recovery|data|breakdown|plan|routine|recipe|workout)\b/i.test(
+    message,
+  );
 }
 
 function fallbackCoachUiBlocks(context: CoachContext): CoachUiBlock[] {
@@ -1002,14 +1018,14 @@ function fallbackCoachChatResponse({
   message,
   context,
   focusInsight,
-  generateUi,
 }: {
   message: string;
   context: CoachContext;
   focusInsight?: CoachAdvice;
-  generateUi: boolean;
 }): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
-  const uiBlocks = generateUi ? fallbackCoachUiBlocks(context) : [];
+  const uiBlocks = shouldUseFallbackUi(message)
+    ? fallbackCoachUiBlocks(context)
+    : [];
   const normalizedMessage = message.toLowerCase();
   const conservative =
     context.safetyMode !== "standard" || context.safetyFlags.length > 0;
@@ -1186,7 +1202,6 @@ async function generateCoachChatWithOpenAi({
   message,
   history,
   focusInsight,
-  generateUi,
   workspace,
   imageUrl,
 }: {
@@ -1194,7 +1209,6 @@ async function generateCoachChatWithOpenAi({
   message: string;
   history: CoachChatMessage[];
   focusInsight?: CoachAdvice;
-  generateUi: boolean;
   workspace?: CoachWorkspace;
   imageUrl?: string;
 }) {
@@ -1207,53 +1221,50 @@ async function generateCoachChatWithOpenAi({
       focusInsight,
       recentConversation: history.slice(-8),
       message,
-      generateUi,
       responseShape: {
         reply: "short tailored answer",
-        uiBlocks: generateUi
-          ? [
+        uiBlocks: [
+          {
+            type: "stat_group",
+            title: "short title",
+            stats: [
               {
-                type: "stat_group",
-                title: "short title",
-                stats: [
-                  {
-                    label: "metric label",
-                    value: "display value",
-                    detail: "optional short context",
-                    trend: "up | down | flat",
-                  },
-                ],
+                label: "metric label",
+                value: "display value",
+                detail: "optional short context",
+                trend: "up | down | flat",
               },
+            ],
+          },
+          {
+            type: "card",
+            label: "short category",
+            title: "specific headline",
+            detail: "one recommendation tied to the metrics",
+          },
+          {
+            type: "checklist",
+            title: "short title",
+            items: [
               {
-                type: "card",
-                label: "short category",
-                title: "specific headline",
-                detail: "one recommendation tied to the metrics",
+                label: "task",
+                detail: "optional short context",
+                done: false,
               },
+            ],
+          },
+          {
+            type: "action_row",
+            title: "short title",
+            actions: [
               {
-                type: "checklist",
-                title: "short title",
-                items: [
-                  {
-                    label: "task",
-                    detail: "optional short context",
-                    done: false,
-                  },
-                ],
+                label: "button label",
+                action:
+                  "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
               },
-              {
-                type: "action_row",
-                title: "short title",
-                actions: [
-                  {
-                    label: "button label",
-                    action:
-                      "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
-                  },
-                ],
-              },
-            ]
-          : [],
+            ],
+          },
+        ],
         operations: [
           {
             type: "save_recipe",
@@ -1425,7 +1436,7 @@ async function generateCoachChatWithOpenAi({
     temperature: 0.3,
     maxTokens: 3200,
   });
-  return normalizeCoachChatResponse(JSON.parse(content), generateUi);
+  return normalizeCoachChatResponse(JSON.parse(content), message);
 }
 
 export const generateMetricSet = action({
@@ -1582,7 +1593,6 @@ export const generateCoachChatMessage = action({
     context: coachContextValidator,
     message: v.string(),
     attachmentId: v.optional(v.id("coachUploads")),
-    generateUi: v.optional(v.boolean()),
     workspace: v.optional(
       v.object({
         today: v.optional(v.string()),
@@ -1658,7 +1668,6 @@ export const generateCoachChatMessage = action({
           detail: clampText(args.focusInsight.detail, 240),
         }
       : undefined;
-    const generateUi = args.generateUi ?? false;
     const workspace = args.workspace
       ? {
           presets: args.workspace.presets.slice(0, 40).map((preset) => ({
@@ -1698,7 +1707,6 @@ export const generateCoachChatMessage = action({
         message,
         history,
         focusInsight,
-        generateUi,
         workspace,
         imageUrl: attachment?.url,
       });
@@ -1711,7 +1719,6 @@ export const generateCoachChatMessage = action({
       message,
       context,
       focusInsight,
-      generateUi,
     });
     return {
       ...fallback,

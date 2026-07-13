@@ -86,9 +86,17 @@ describe("Coach first-open experience", () => {
     expect(PRESET_AGENT_SOURCE).toContain('renderSystemPrompt("workout_preset"')
   })
 
-  test("natural-language Coach commands can write app data without generated UI", () => {
-    expect(COACH_SOURCE).toContain("Visual summaries")
-    expect(COACH_SOURCE).toContain("generateUi")
+  test("natural-language Coach commands can write app data with automatic UI", () => {
+    expect(COACH_SOURCE).not.toContain("Visual summaries")
+    expect(COACH_SOURCE).not.toContain("COACH_VISUALS_KEY")
+    expect(COACH_SOURCE).toContain("h-svh overflow-hidden")
+    expect(COACH_SOURCE).toContain("min-h-0 flex-1 flex-col overflow-y-auto")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "Return uiBlocks=[] for greetings"
+    )
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "create exactly three reusable presets"
+    )
     expect(COACH_SOURCE).toContain("api.logs.recipes.save")
     expect(COACH_SOURCE).toContain("api.logs.foodLogs.addEntry")
     expect(COACH_SOURCE).toContain("api.logs.presets.create")
@@ -108,7 +116,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("Review changes")
     expect(COACH_SOURCE).toContain("Coach activity")
     expect(COACH_SOURCE).toContain("Coach memory")
-    expect(COACH_SOURCE).toContain("Quick recovery check-in")
+    expect(COACH_SOURCE).toContain("Today’s check-in")
     expect(COACH_SOURCE).toContain("saveWeeklyPlan")
     expect(COACH_SOURCE).toContain("undoCoachAction")
     expect(COACH_SOURCE).toContain("updateFoodEntry")

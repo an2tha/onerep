@@ -43,10 +43,7 @@ import {
 } from "@/lib/food-log"
 import { normalizeScheduleRoutines, type Day } from "@/lib/workout-sync"
 import { searchExercises, type Exercise } from "@/lib/exercise-catalog"
-import {
-  useCoachContext,
-  type CoachContext,
-} from "@/lib/coach-context"
+import { useCoachContext, type CoachContext } from "@/lib/coach-context"
 import {
   hapticHeavy,
   hapticMedium,
@@ -281,7 +278,6 @@ type CoachUiBlock =
     }
 
 const COACH_CONVERSATION_KEY = "onerep:coach-conversation:v1"
-const COACH_VISUALS_KEY = "onerep:coach-visuals:v1"
 const DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function weekStartKey(dateKey: string) {
@@ -1243,9 +1239,6 @@ export default function Coach() {
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference")
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
-  const [generateUi, setGenerateUi] = useState(
-    () => safeLocalStorageGet(COACH_VISUALS_KEY) === "1"
-  )
   const [messages, setMessages] = useState<CoachMessage[]>(
     loadCoachConversation
   )
@@ -1290,10 +1283,6 @@ export default function Coach() {
   useEffect(() => {
     safeLocalStorageSet(COACH_CONVERSATION_KEY, JSON.stringify(messages))
   }, [messages])
-
-  useEffect(() => {
-    safeLocalStorageSet(COACH_VISUALS_KEY, generateUi ? "1" : "0")
-  }, [generateUi])
 
   useEffect(() => {
     attachmentRef.current = attachment
@@ -1415,7 +1404,17 @@ export default function Coach() {
     let routineChanged = false
     const presetOrder = (schedule?.presetOrder ?? []).map(String)
 
-    for (const operation of operations) {
+    const orderedOperations = [...operations].sort((left, right) => {
+      const priority = (operation: CoachOperation) =>
+        operation.type === "create_workout_preset"
+          ? 0
+          : operation.type === "update_routine"
+            ? 2
+            : 1
+      return priority(left) - priority(right)
+    })
+
+    for (const operation of orderedOperations) {
       if (operation.type === "save_recipe") {
         const existing = operation.recipeId
           ? (recipes ?? []).find(
@@ -2083,7 +2082,6 @@ export default function Coach() {
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
           : {}),
-        generateUi,
         workspace: coachWorkspace,
         history: messages
           .slice(-8)
@@ -2186,9 +2184,9 @@ export default function Coach() {
     : "Add a quick check-in to make recovery advice more specific."
 
   return (
-    <main className="desktop-canvas min-h-svh bg-background pb-[calc(var(--app-safe-bottom-lg)+5rem)] lg:pl-64">
-      <div className="mx-auto flex min-h-svh w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8">
-        <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between gap-4 border-b border-border/45 bg-background/95 backdrop-blur-xl">
+    <main className="desktop-canvas h-svh overflow-hidden bg-background lg:pl-64">
+      <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8">
+        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/45 bg-background/95 backdrop-blur-xl">
           <h1 className="text-[18px] leading-tight font-bold tracking-tight">
             Coach
           </h1>
@@ -2230,7 +2228,7 @@ export default function Coach() {
           </div>
         </header>
 
-        <section className="flex flex-1 flex-col py-5">
+        <section className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5">
           {loading ? (
             <CoachLoadingState />
           ) : messages.length === 0 ? (
@@ -2433,7 +2431,7 @@ export default function Coach() {
             event.preventDefault()
             void submit()
           }}
-          className="sticky bottom-0 z-20 mx-auto w-full max-w-3xl border-t border-border/45 bg-background/95 pt-3 pb-[max(0.9rem,var(--app-safe-bottom))] backdrop-blur-xl"
+          className="z-20 mx-auto w-full max-w-3xl shrink-0 border-t border-border/45 bg-background/95 pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] backdrop-blur-xl lg:pb-4"
         >
           <AppTooltip
             id={APP_TOOLTIP_IDS.coachMessage}
@@ -2585,24 +2583,7 @@ export default function Coach() {
                   {dictation.error}
                 </p>
               ) : null}
-              <div className="flex items-center justify-between px-2.5 pb-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    hapticSelection()
-                    setGenerateUi((value) => !value)
-                  }}
-                  aria-pressed={generateUi}
-                  className={cn(
-                    "inline-flex min-h-7 items-center gap-1.5 rounded-full px-2 text-[9px] font-bold transition-colors",
-                    generateUi
-                      ? "bg-foreground text-background"
-                      : "text-muted-foreground/55"
-                  )}
-                >
-                  <Sparkle size={11} weight={generateUi ? "fill" : "regular"} />
-                  Visual summaries {generateUi ? "on" : "off"}
-                </button>
+              <div className="flex items-center justify-end px-2.5 pb-1">
                 {input.length > 900 && (
                   <p className="text-[9px] font-bold text-muted-foreground/45 tabular-nums">
                     {input.length}/1200
