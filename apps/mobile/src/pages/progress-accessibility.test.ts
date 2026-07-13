@@ -6,6 +6,10 @@ const PROGRESS_SOURCE = readFileSync(
   new URL("./Progress.tsx", import.meta.url),
   "utf8"
 )
+const COACH_SOURCE = readFileSync(
+  new URL("./Coach.tsx", import.meta.url),
+  "utf8"
+)
 
 function expect(value: string) {
   return {
@@ -52,6 +56,12 @@ describe("Progress page accessibility contract", () => {
     expect(PROGRESS_SOURCE).toContain('aria-label="Add body measurement"')
     expect(PROGRESS_SOURCE).toContain("<FormField")
     expect(PROGRESS_SOURCE).toContain("<MobileSheet")
+  })
+
+  test("Coach today's check-in opens the Progress check-in form", () => {
+    expect(COACH_SOURCE).toContain('navigate("/progress?checkIn=1"')
+    expect(COACH_SOURCE).toContain("Today’s check-in")
+    expect(PROGRESS_SOURCE).toContain('searchParams.get("checkIn") === "1"')
   })
 
   test("progress stays compact and does not restore the text-heavy legacy editor", () => {
