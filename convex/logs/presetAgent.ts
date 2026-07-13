@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "../_generated/server";
-import { hasGatewayApiKey, requestGatewayJson } from "../ai/gateway";
+import { hasOpenAiApiKey, requestOpenAiJson } from "../ai/provider";
 import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
@@ -245,13 +245,13 @@ function fallbackDraftFromText(text: string): AgentPresetDraft {
   };
 }
 
-async function draftWithGateway(
+async function draftWithOpenAi(
   text: string,
   fallbackName: string,
   context: PlanContext,
 ) {
-  if (!hasGatewayApiKey()) return null;
-  const content = await requestGatewayJson({
+  if (!hasOpenAiApiKey()) return null;
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("workout_preset", {
       max_exercises: MAX_EXERCISES,
       max_sets_per_exercise: MAX_SETS_PER_EXERCISE,
@@ -283,7 +283,7 @@ export const createFromText = action({
     const fallback = fallbackDraftFromText(text);
 
     try {
-      const aiDraft = await draftWithGateway(text, fallback.name, {
+      const aiDraft = await draftWithOpenAi(text, fallback.name, {
         experienceLevel: clampText(args.experienceLevel, 24) || undefined,
         safetyMode: clampText(args.safetyMode, 24) || undefined,
         safetyFlags: (args.safetyFlags ?? [])

@@ -41,9 +41,11 @@
     "packages/*"
   ],
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.11",
     "@convex-dev/better-auth": "^0.12.5",
     "@convex-dev/crons": "^0.2.0",
     "@types/pg": "^8.20.0",
+    "ai": "^7.0.22",
     "better-auth": "1.6.23",
     "cli-progress": "^3.12.0",
     "convex": "^1.39.1",

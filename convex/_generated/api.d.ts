@@ -9,8 +9,8 @@
  */
 
 import type * as ai_coachState from "../ai/coachState.js";
-import type * as ai_gateway from "../ai/gateway.js";
 import type * as ai_metricGeneration from "../ai/metricGeneration.js";
+import type * as ai_provider from "../ai/provider.js";
 import type * as ai_usage from "../ai/usage.js";
 import type * as bodyProgress from "../bodyProgress.js";
 import type * as crons from "../crons.js";
@@ -51,8 +51,8 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "ai/coachState": typeof ai_coachState;
-  "ai/gateway": typeof ai_gateway;
   "ai/metricGeneration": typeof ai_metricGeneration;
+  "ai/provider": typeof ai_provider;
   "ai/usage": typeof ai_usage;
   bodyProgress: typeof bodyProgress;
   crons: typeof crons;

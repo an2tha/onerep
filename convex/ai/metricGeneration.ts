@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUser } from "../lib/auth";
-import { hasGatewayApiKey, requestGatewayJson } from "./gateway";
+import { hasOpenAiApiKey, requestOpenAiJson } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
 
@@ -27,7 +27,7 @@ type MetricCatalogItem = {
 type MetricGenerationResult = {
   metricIds: string[];
   customMetricTitle?: string;
-  source: "gateway" | "fallback";
+  source: "openai" | "fallback";
 };
 
 type CoachAdvice = {
@@ -38,7 +38,7 @@ type CoachAdvice = {
 
 type CoachAdviceResult = {
   advice: CoachAdvice[];
-  source: "gateway" | "fallback";
+  source: "openai" | "fallback";
 };
 
 type CoachChatMessage = {
@@ -256,7 +256,7 @@ type CoachChatResult = {
   uiBlocks: CoachUiBlock[];
   operations: CoachOperation[];
   artifacts: CoachArtifact[];
-  source: "gateway" | "fallback";
+  source: "openai" | "fallback";
 };
 
 type CoachContext = {
@@ -356,7 +356,7 @@ function fallbackMetricIds(
     .map((metric) => metric.id);
 }
 
-function normalizeGatewayResult(
+function normalizeOpenAiResult(
   value: unknown,
   allowedIds: Set<string>,
   maxResults: number,
@@ -1126,7 +1126,7 @@ function fallbackCoachAdvice(context: CoachContext): CoachAdvice[] {
   return advice.slice(0, 4);
 }
 
-async function generateWithGateway({
+async function generateWithOpenAi({
   subapp,
   prompt,
   catalog,
@@ -1137,10 +1137,10 @@ async function generateWithGateway({
   catalog: MetricCatalogItem[];
   maxResults: number;
 }) {
-  if (!hasGatewayApiKey()) return null;
+  if (!hasOpenAiApiKey()) return null;
 
   const allowedIds = new Set(catalog.map((metric) => metric.id));
-  const content = await requestGatewayJson({
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("metric_selection"),
     user: JSON.stringify({
       subapp,
@@ -1156,12 +1156,12 @@ async function generateWithGateway({
     maxTokens: 500,
   });
 
-  return normalizeGatewayResult(JSON.parse(content), allowedIds, maxResults);
+  return normalizeOpenAiResult(JSON.parse(content), allowedIds, maxResults);
 }
 
-async function generateCoachAdviceWithGateway(context: CoachContext) {
-  if (!hasGatewayApiKey()) return null;
-  const content = await requestGatewayJson({
+async function generateCoachAdviceWithOpenAi(context: CoachContext) {
+  if (!hasOpenAiApiKey()) return null;
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("coach_advice"),
     user: JSON.stringify({
       context,
@@ -1181,7 +1181,7 @@ async function generateCoachAdviceWithGateway(context: CoachContext) {
   return normalizeCoachAdvice(JSON.parse(content));
 }
 
-async function generateCoachChatWithGateway({
+async function generateCoachChatWithOpenAi({
   context,
   message,
   history,
@@ -1198,8 +1198,8 @@ async function generateCoachChatWithGateway({
   workspace?: CoachWorkspace;
   imageUrl?: string;
 }) {
-  if (!hasGatewayApiKey()) return null;
-  const content = await requestGatewayJson({
+  if (!hasOpenAiApiKey()) return null;
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("coach_chat"),
     user: JSON.stringify({
       context,
@@ -1476,13 +1476,13 @@ export const generateMetricSet = action({
     }
 
     try {
-      const aiResult = await generateWithGateway({
+      const aiResult = await generateWithOpenAi({
         subapp: args.subapp,
         prompt,
         catalog,
         maxResults,
       });
-      if (aiResult) return { ...aiResult, source: "gateway" };
+      if (aiResult) return { ...aiResult, source: "openai" };
     } catch (error) {
       console.warn("Falling back to server metric matcher", error);
     }
@@ -1567,8 +1567,8 @@ export const generateCoachAdvice = action({
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     try {
-      const advice = await generateCoachAdviceWithGateway(context);
-      if (advice) return { advice, source: "gateway" };
+      const advice = await generateCoachAdviceWithOpenAi(context);
+      if (advice) return { advice, source: "openai" };
     } catch (error) {
       console.warn("Falling back to server coach advice", error);
     }
@@ -1693,7 +1693,7 @@ export const generateCoachChatMessage = action({
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
     try {
-      const response = await generateCoachChatWithGateway({
+      const response = await generateCoachChatWithOpenAi({
         context,
         message,
         history,
@@ -1702,7 +1702,7 @@ export const generateCoachChatMessage = action({
         workspace,
         imageUrl: attachment?.url,
       });
-      if (response) return { ...response, source: "gateway" };
+      if (response) return { ...response, source: "openai" };
     } catch (error) {
       console.warn("Falling back to server coach chat", error);
     }

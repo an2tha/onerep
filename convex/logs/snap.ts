@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalMutation } from "../_generated/server";
-import { hasGatewayApiKey, requestGatewayJson } from "../ai/gateway";
+import { hasOpenAiApiKey, requestOpenAiJson } from "../ai/provider";
 import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
@@ -372,10 +372,10 @@ async function searchOpenFoodFacts(
     .filter((item) => normalizeSearchKey(item.name).length > 0);
 }
 
-async function analyzeFoodDescriptionWithGateway(
+async function analyzeFoodDescriptionWithOpenAi(
   text: string,
 ): Promise<AnalyzeResult> {
-  const content = await requestGatewayJson({
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("meal_description"),
     user: JSON.stringify({
       description: text,
@@ -408,10 +408,10 @@ function normalizeAnalyzeResult(value: unknown): AnalyzeResult {
   };
 }
 
-async function analyzeImageWithGateway(
+async function analyzeImageWithOpenAi(
   imageData: string,
 ): Promise<AnalyzeResult> {
-  const content = await requestGatewayJson({
+  const content = await requestOpenAiJson({
     system: renderSystemPrompt("meal_image"),
     user: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients or search queries.`,
     image: { url: imageData, detail: "high" },
@@ -420,7 +420,7 @@ async function analyzeImageWithGateway(
   return normalizeAnalyzeResult(JSON.parse(content));
 }
 
-async function chooseBestFoodsWithGateway(
+async function chooseBestFoodsWithOpenAi(
   groups: Array<{
     detection: SnapSearchDetection;
     candidates: FoodResult[];
@@ -442,7 +442,7 @@ async function chooseBestFoodsWithGateway(
     })),
   }));
 
-  const rawContent = await requestGatewayJson({
+  const rawContent = await requestOpenAiJson({
     system: renderSystemPrompt("food_match"),
     user: JSON.stringify({
       responseShape: {
@@ -502,7 +502,7 @@ async function buildFoodMatches(
   let selectedByDetection = new Map<number, string | null>();
   if (groups.some((group) => group.candidates.length > 0)) {
     try {
-      selectedByDetection = await chooseBestFoodsWithGateway(groups);
+      selectedByDetection = await chooseBestFoodsWithOpenAi(groups);
     } catch (error) {
       console.warn("Falling back to first snap search result", error);
     }
@@ -605,8 +605,7 @@ export const snap = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    if (!hasGatewayApiKey())
-      throw new Error("Photo analysis is not configured");
+    if (!hasOpenAiApiKey()) throw new Error("Photo analysis is not configured");
 
     const mimeType = args.mimeType ?? "image/jpeg";
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -624,12 +623,12 @@ export const snap = action({
       });
     if (!quota.allowed) throw new Error("Daily photo analysis limit reached");
 
-    // One app-level AI usage count covers both Gateway calls in this action:
+    // One app-level AI usage count covers both provider calls in this action:
     // photo parsing first, then candidate selection from search results.
     await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
-    const aiResult = await analyzeImageWithGateway(imageData);
+    const aiResult = await analyzeImageWithOpenAi(imageData);
     return await runAiMealAnalysis({
       aiResult,
       language: args.language,
@@ -646,7 +645,7 @@ export const describeText = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    if (!hasGatewayApiKey()) {
+    if (!hasOpenAiApiKey()) {
       throw new Error("Meal description AI is not configured");
     }
 
@@ -657,7 +656,7 @@ export const describeText = action({
     // selection from search results.
     await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
-    const aiResult = await analyzeFoodDescriptionWithGateway(text);
+    const aiResult = await analyzeFoodDescriptionWithOpenAi(text);
     return await runAiMealAnalysis({
       aiResult,
       language: args.language,
