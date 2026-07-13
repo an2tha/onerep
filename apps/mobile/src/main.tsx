@@ -409,6 +409,7 @@ function NavSync() {
             <div
               key={`from-${routeTransition.fromKey}`}
               className="app-route-frame app-route-frame-previous"
+              data-route-path={routeTransition.fromPathname}
               data-route-ready={routeTransition.ready ? "true" : undefined}
               aria-hidden="true"
             >
@@ -419,6 +420,7 @@ function NavSync() {
             key={location.key}
             ref={activeRouteFrameRef}
             className="app-route-frame app-route-frame-current"
+            data-route-path={location.pathname}
             data-route-loading={
               routeTransition && !routeTransition.ready ? "true" : undefined
             }

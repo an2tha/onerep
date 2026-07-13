@@ -10,6 +10,7 @@ const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
 )
+const APP_CSS = readFileSync(new URL("../index.css", import.meta.url), "utf8")
 
 function expect(value: string) {
   return {
@@ -47,9 +48,52 @@ const PRESET_PROMPT_SOURCE = readFileSync(
 ).replace(/\s+/g, " ")
 
 describe("Coach first-open experience", () => {
+  test("separates general, food, and training coaching into focused tabs", () => {
+    expect(COACH_SOURCE).toContain('label: "Chat"')
+    expect(COACH_SOURCE).toContain('label: "Chef Coach"')
+    expect(COACH_SOURCE).toContain('label: "Personal Trainer"')
+    expect(COACH_SOURCE).toContain('role="tablist"')
+    expect(COACH_SOURCE).toContain('aria-label="Coach modes"')
+    expect(COACH_SOURCE).toContain("switchCoachMode")
+    expect(COACH_SOURCE).toContain("hapticSelection()")
+    expect(COACH_SOURCE).toContain("coachConversationKey(activeMode)")
+    expect(COACH_SOURCE).toContain("coachMode: activeMode")
+    expect(COACH_SOURCE).toContain("centerArt: ChatCircleDots")
+    expect(COACH_SOURCE).toContain("centerArt: ChefHat")
+    expect(COACH_SOURCE).toContain("leftArt: SneakerMove")
+    expect(COACH_SOURCE).toContain("rightArt: Timer")
+    expect(COACH_SOURCE).toContain("coach-swoosh-backdrop")
+    expect(COACH_SOURCE).toContain("coach-swoosh-surface")
+    expect(COACH_SOURCE).toContain("coach-mobile-immersive")
+    expect(COACH_SOURCE).toContain("coach-swoosh-backdrop--mobile")
+    expect(COACH_SOURCE).toContain("coach-swoosh-backdrop--panel")
+    expect(COACH_SOURCE).toContain("data-coach-mode={activeMode}")
+    expect(APP_CSS).toContain("@keyframes coach-swoosh-drift")
+    expect(APP_CSS).toContain("@keyframes coach-swoosh-glow")
+    expect(APP_CSS).toContain("--coach-flow-top: #7b3218")
+    expect(APP_CSS).toContain("--coach-flow-angle: 137deg")
+    expect(APP_CSS).toContain("--coach-flow-duration: 10s")
+    expect(APP_CSS).toContain("@keyframes coach-mode-stage-enter")
+    expect(APP_CSS).toContain("@keyframes coach-route-enter")
+    expect(APP_CSS).toContain("@keyframes coach-route-exit")
+    expect(APP_CSS).toContain("repeating-linear-gradient")
+    expect(APP_CSS).toContain("prefers-reduced-motion: reduce")
+    expect(COACH_SOURCE).toContain("timeGreeting()")
+    expect(COACH_SOURCE).toContain("snap-x")
+    expect(COACH_SOURCE).toContain("w-[9.25rem]")
+    expect(COACH_SOURCE).toContain("mode.cardClass")
+    expect(COACH_SOURCE).not.toContain("/onboarding/")
+    expect(COACH_SOURCE).not.toContain("bg-orange-500/10")
+    expect(COACH_SOURCE).not.toContain("bg-sky-500/10")
+    expect(COACH_ACTION_SOURCE).toContain("coachMode: v.optional")
+    expect(COACH_PROMPT_SOURCE).toContain("Respect the requested coachMode")
+  })
+
   test("opens directly to useful conversation content without a promotional tour", () => {
     expect(COACH_SOURCE).toContain("What do you want to work on?")
-    expect(COACH_SOURCE).toContain("coachBrief(context)")
+    expect(COACH_SOURCE).not.toContain("coachBrief(context)")
+    expect(COACH_SOURCE).not.toContain("CoachContextPanel")
+    expect(COACH_SOURCE).not.toContain("FOLLOW_UP_PROMPTS")
     expect(COACH_SOURCE).not.toContain("CoachOnboarding")
     expect(COACH_SOURCE).not.toContain("Screenshot placeholder")
     expect(COACH_SOURCE).not.toContain("bg-gradient-to-br")
@@ -61,6 +105,8 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain('title: "Review nutrition"')
     expect(COACH_SOURCE).toContain('title: "Analyze training"')
     expect(COACH_SOURCE).toContain('title: "Check progress"')
+    expect(COACH_SOURCE).not.toContain('title: "Make something"')
+    expect(COACH_SOURCE).not.toContain('title: "Plan my week"')
     expect(COACH_SOURCE).toContain("New chat")
     expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachStarters")
     expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachNewChat")
@@ -91,9 +137,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).not.toContain("COACH_VISUALS_KEY")
     expect(COACH_SOURCE).toContain("h-svh overflow-hidden")
     expect(COACH_SOURCE).toContain("min-h-0 flex-1 flex-col overflow-y-auto")
-    expect(COACH_PROMPT_SOURCE).toContain(
-      "Return uiBlocks=[] for greetings"
-    )
+    expect(COACH_PROMPT_SOURCE).toContain("Return uiBlocks=[] for greetings")
     expect(COACH_PROMPT_SOURCE).toContain(
       "create exactly three reusable presets"
     )
@@ -116,7 +160,7 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("Review changes")
     expect(COACH_SOURCE).toContain("Coach activity")
     expect(COACH_SOURCE).toContain("Coach memory")
-    expect(COACH_SOURCE).toContain("Today’s check-in")
+    expect(COACH_SOURCE).toContain("saveCheckIn")
     expect(COACH_SOURCE).toContain("saveWeeklyPlan")
     expect(COACH_SOURCE).toContain("undoCoachAction")
     expect(COACH_SOURCE).toContain("updateFoodEntry")

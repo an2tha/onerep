@@ -1018,10 +1018,12 @@ function fallbackCoachChatResponse({
   message,
   context,
   focusInsight,
+  coachMode = "chat",
 }: {
   message: string;
   context: CoachContext;
   focusInsight?: CoachAdvice;
+  coachMode?: "chat" | "chef" | "personal_trainer";
 }): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
   const uiBlocks = shouldUseFallbackUi(message)
     ? fallbackCoachUiBlocks(context)
@@ -1048,6 +1050,20 @@ function fallbackCoachChatResponse({
   if (focusInsight) {
     return {
       reply: `${focusInsight.title}: ${focusInsight.detail} Make that the one measurable focus for the next 7 days, then reassess before changing another variable.${safetyNote}`,
+      uiBlocks,
+      operations: [],
+    };
+  }
+  if (coachMode === "chef") {
+    return {
+      reply: `Chef Coach would start with one repeatable meal built around 30–40g of protein. You’re averaging ${Math.round(context.averageProtein)}g against a ${Math.round(context.proteinTarget)}g target, with intake near ${Math.round(context.averageCalories)} kcal. Pick a recipe you will actually repeat, then adjust portions instead of rebuilding the whole day.${safetyNote}`,
+      uiBlocks,
+      operations: [],
+    };
+  }
+  if (coachMode === "personal_trainer") {
+    return {
+      reply: `Personal Trainer would keep the next session focused and measurable. You logged ${Math.round(context.workoutDays7)} workout days and ${Math.round(context.hardSets7)} hard sets this week; repeat your main movements, leave a little effort in reserve, and progress only if performance and recovery are stable.${safetyNote}`,
       uiBlocks,
       operations: [],
     };
@@ -1200,6 +1216,7 @@ async function generateCoachAdviceWithOpenAi(context: CoachContext) {
 async function generateCoachChatWithOpenAi({
   context,
   message,
+  coachMode,
   history,
   focusInsight,
   workspace,
@@ -1207,6 +1224,7 @@ async function generateCoachChatWithOpenAi({
 }: {
   context: CoachContext;
   message: string;
+  coachMode: "chat" | "chef" | "personal_trainer";
   history: CoachChatMessage[];
   focusInsight?: CoachAdvice;
   workspace?: CoachWorkspace;
@@ -1220,6 +1238,7 @@ async function generateCoachChatWithOpenAi({
       workspace,
       focusInsight,
       recentConversation: history.slice(-8),
+      coachMode,
       message,
       responseShape: {
         reply: "short tailored answer",
@@ -1592,6 +1611,13 @@ export const generateCoachChatMessage = action({
   args: {
     context: coachContextValidator,
     message: v.string(),
+    coachMode: v.optional(
+      v.union(
+        v.literal("chat"),
+        v.literal("chef"),
+        v.literal("personal_trainer"),
+      ),
+    ),
     attachmentId: v.optional(v.id("coachUploads")),
     workspace: v.optional(
       v.object({
@@ -1654,6 +1680,7 @@ export const generateCoachChatMessage = action({
     if (message.length < 2) throw new Error("Ask a coaching question.");
 
     const context = sanitizeCoachContext(args.context);
+    const coachMode = args.coachMode ?? "chat";
     const history = args.history
       .slice(-10)
       .map((item) => ({
@@ -1705,6 +1732,7 @@ export const generateCoachChatMessage = action({
       const response = await generateCoachChatWithOpenAi({
         context,
         message,
+        coachMode,
         history,
         focusInsight,
         workspace,
@@ -1719,6 +1747,7 @@ export const generateCoachChatMessage = action({
       message,
       context,
       focusInsight,
+      coachMode,
     });
     return {
       ...fallback,

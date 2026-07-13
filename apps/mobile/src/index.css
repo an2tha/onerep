@@ -2598,6 +2598,330 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: none;
 }
 
+/* Coach is intentionally immersive: a moving, high-contrast field behind the
+   otherwise compact chat UI. */
+.coach-swoosh-surface {
+  --surface-app: #020817;
+  --surface-panel: rgba(7, 16, 36, 0.9);
+  --surface-raised: #0a1833;
+  --surface-elevated: #0d1d3d;
+  --background: #020817;
+  --foreground: #f7f9ff;
+  --card: rgba(7, 16, 36, 0.88);
+  --card-foreground: #f7f9ff;
+  --popover: #071024;
+  --popover-foreground: #f7f9ff;
+  --primary: #f7f9ff;
+  --primary-foreground: #06112a;
+  --secondary: rgba(255, 255, 255, 0.1);
+  --secondary-foreground: #f7f9ff;
+  --muted: rgba(255, 255, 255, 0.1);
+  --muted-foreground: rgba(225, 232, 250, 0.68);
+  --accent: rgba(255, 255, 255, 0.12);
+  --accent-foreground: #f7f9ff;
+  --border: rgba(255, 255, 255, 0.14);
+  --input: rgba(255, 255, 255, 0.18);
+  --coach-mode-glow: rgba(124, 92, 255, 0.28);
+  color: var(--foreground);
+  background: #020817;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.coach-swoosh-surface,
+.coach-mobile-immersive {
+  --coach-flow-top: #263d9b;
+  --coach-flow-mid: #101a5c;
+  --coach-flow-bottom: #05071b;
+  --coach-core-start: rgba(169, 190, 255, 0.98);
+  --coach-core-mid: rgba(78, 111, 238, 0.88);
+  --coach-core-end: rgba(48, 36, 135, 0.64);
+  --coach-core-soft: rgba(145, 170, 255, 0.68);
+  --coach-core-fade: rgba(83, 105, 235, 0.34);
+  --coach-mode-glow: rgba(139, 92, 246, 0.42);
+  --coach-band-dark-one: rgba(2, 4, 24, 0.9);
+  --coach-band-dark-two: rgba(5, 5, 31, 0.95);
+  --coach-band-one: rgba(83, 110, 255, 0.34);
+  --coach-band-two: rgba(156, 107, 255, 0.5);
+  --coach-flow-angle: 125deg;
+  --coach-band-blur: 12px;
+  --coach-flow-duration: 15s;
+  --coach-glow-duration: 8s;
+}
+
+:is(.coach-swoosh-surface, .coach-mobile-immersive)[data-coach-mode="chef"] {
+  --coach-flow-top: #7b3218;
+  --coach-flow-mid: #3b120d;
+  --coach-flow-bottom: #120605;
+  --coach-core-start: rgba(255, 213, 145, 0.98);
+  --coach-core-mid: rgba(241, 122, 43, 0.9);
+  --coach-core-end: rgba(151, 46, 19, 0.7);
+  --coach-core-soft: rgba(255, 187, 104, 0.7);
+  --coach-core-fade: rgba(229, 86, 35, 0.34);
+  --coach-mode-glow: rgba(245, 158, 11, 0.48);
+  --coach-band-dark-one: rgba(25, 5, 2, 0.9);
+  --coach-band-dark-two: rgba(33, 7, 4, 0.95);
+  --coach-band-one: rgba(249, 115, 22, 0.4);
+  --coach-band-two: rgba(239, 68, 68, 0.5);
+  --coach-flow-angle: 112deg;
+  --coach-band-blur: 22px;
+  --coach-flow-duration: 18s;
+  --coach-glow-duration: 10s;
+}
+
+:is(
+  .coach-swoosh-surface,
+  .coach-mobile-immersive
+)[data-coach-mode="personal_trainer"] {
+  --coach-flow-top: #075d77;
+  --coach-flow-mid: #07304d;
+  --coach-flow-bottom: #020817;
+  --coach-core-start: rgba(166, 243, 255, 0.98);
+  --coach-core-mid: rgba(28, 184, 218, 0.9);
+  --coach-core-end: rgba(41, 82, 181, 0.68);
+  --coach-core-soft: rgba(103, 232, 249, 0.7);
+  --coach-core-fade: rgba(37, 99, 235, 0.36);
+  --coach-mode-glow: rgba(34, 211, 238, 0.42);
+  --coach-band-dark-one: rgba(1, 12, 27, 0.9);
+  --coach-band-dark-two: rgba(2, 16, 36, 0.95);
+  --coach-band-one: rgba(6, 182, 212, 0.42);
+  --coach-band-two: rgba(59, 130, 246, 0.54);
+  --coach-flow-angle: 137deg;
+  --coach-band-blur: 5px;
+  --coach-flow-duration: 10s;
+  --coach-glow-duration: 6s;
+}
+
+.coach-swoosh-surface > :not(.coach-swoosh-backdrop) {
+  position: relative;
+  z-index: 1;
+}
+
+.coach-swoosh-backdrop--mobile {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .coach-mobile-immersive {
+    --surface-app: #020817;
+    --surface-panel: rgba(7, 16, 36, 0.9);
+    --surface-raised: #0a1833;
+    --surface-elevated: #0d1d3d;
+    --background: #020817;
+    --foreground: #f7f9ff;
+    --card: rgba(7, 16, 36, 0.88);
+    --card-foreground: #f7f9ff;
+    --popover: #071024;
+    --popover-foreground: #f7f9ff;
+    --primary: #f7f9ff;
+    --primary-foreground: #06112a;
+    --secondary: rgba(255, 255, 255, 0.1);
+    --secondary-foreground: #f7f9ff;
+    --muted: rgba(255, 255, 255, 0.1);
+    --muted-foreground: rgba(225, 232, 250, 0.68);
+    --accent: rgba(255, 255, 255, 0.12);
+    --accent-foreground: #f7f9ff;
+    --border: rgba(255, 255, 255, 0.14);
+    --input: rgba(255, 255, 255, 0.18);
+    color: var(--foreground);
+    background: #020817 !important;
+  }
+
+  .coach-swoosh-backdrop--mobile {
+    display: block;
+  }
+
+  .coach-swoosh-backdrop--panel {
+    display: none;
+  }
+
+  .coach-swoosh-surface {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+.coach-swoosh-backdrop {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 50% 15%,
+      var(--coach-core-start) 0%,
+      var(--coach-core-mid) 12%,
+      var(--coach-core-end) 27%,
+      var(--coach-core-fade) 47%,
+      transparent 66%
+    ),
+    radial-gradient(
+      circle at 52% 42%,
+      var(--coach-mode-glow) 0%,
+      transparent 36%
+    ),
+    linear-gradient(
+      180deg,
+      var(--coach-flow-top) 0%,
+      var(--coach-flow-mid) 42%,
+      var(--coach-flow-bottom) 78%
+    );
+  animation: coach-flow-reveal 640ms var(--motion-ease-out) both;
+}
+
+.coach-swoosh-backdrop::before,
+.coach-swoosh-backdrop::after {
+  content: "";
+  position: absolute;
+  will-change: transform, opacity;
+}
+
+.coach-swoosh-backdrop::before {
+  inset: -48% -35%;
+  background: repeating-linear-gradient(
+    var(--coach-flow-angle),
+    transparent 0% 8%,
+    var(--coach-band-dark-one) 9% 18%,
+    var(--coach-band-one) 19% 23%,
+    var(--coach-band-dark-two) 25% 37%,
+    var(--coach-band-two) 38% 43%,
+    transparent 46% 57%
+  );
+  filter: blur(var(--coach-band-blur));
+  opacity: 0.96;
+  animation: coach-swoosh-drift var(--coach-flow-duration)
+    cubic-bezier(0.45, 0, 0.2, 1) infinite alternate;
+}
+
+.coach-swoosh-backdrop::after {
+  width: 78%;
+  height: 62%;
+  top: -8%;
+  left: 11%;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      ellipse at center,
+      var(--coach-core-soft) 0%,
+      var(--coach-core-fade) 30%,
+      transparent 70%
+    ),
+    radial-gradient(circle at 70% 60%, var(--coach-mode-glow), transparent 42%);
+  filter: blur(28px);
+  mix-blend-mode: screen;
+  animation: coach-swoosh-glow var(--coach-glow-duration) ease-in-out infinite
+    alternate;
+}
+
+:is(.coach-swoosh-surface, .coach-mobile-immersive)[data-coach-mode="chef"]
+  .coach-swoosh-backdrop::before {
+  opacity: 0.86;
+}
+
+:is(
+    .coach-swoosh-surface,
+    .coach-mobile-immersive
+  )[data-coach-mode="personal_trainer"]
+  .coach-swoosh-backdrop::before {
+  background-size: 84% 84%;
+}
+
+@keyframes coach-flow-reveal {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes coach-swoosh-drift {
+  0% {
+    transform: translate3d(-7%, -2%, 0) scale(1.06);
+  }
+  48% {
+    transform: translate3d(2%, 3%, 0) scale(1.14);
+  }
+  100% {
+    transform: translate3d(8%, -1%, 0) scale(1.09);
+  }
+}
+
+@keyframes coach-swoosh-glow {
+  0% {
+    opacity: 0.68;
+    transform: translate3d(-8%, -3%, 0) scale(0.92);
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(3%, 7%, 0) scale(1.12);
+  }
+  100% {
+    opacity: 0.78;
+    transform: translate3d(10%, 0, 0) scale(1.02);
+  }
+}
+
+.coach-mode-stage {
+  animation: coach-mode-stage-enter 520ms var(--motion-ease-out) both;
+}
+
+@keyframes coach-mode-stage-enter {
+  from {
+    opacity: 0.28;
+    transform: translate3d(0, 10px, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.app-route-frame-current[data-route-path="/coach"][data-route-ready="true"] {
+  animation: coach-route-enter 560ms var(--motion-ease-out) both;
+}
+
+.app-route-frame-previous[data-route-path="/coach"][data-route-ready="true"] {
+  animation: coach-route-exit 440ms var(--motion-ease-standard) both;
+}
+
+@keyframes coach-route-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.982);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes coach-route-exit {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(1.016);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-swoosh-backdrop,
+  .coach-swoosh-backdrop::before,
+  .coach-swoosh-backdrop::after,
+  .coach-mode-stage,
+  .app-route-frame-current[data-route-path="/coach"][data-route-ready="true"],
+  .app-route-frame-previous[data-route-path="/coach"][data-route-ready="true"] {
+    animation: none !important;
+  }
+}
+
 /* Decorative glass, icon bubbles, and boxed empty states were recurring
    generated-UI tells. Keep depth only where it communicates an overlay. */
 [class*="backdrop-blur"] {

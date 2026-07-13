@@ -5,20 +5,24 @@ import {
   Barbell,
   ArrowClockwise,
   Brain,
+  Carrot,
   ChartLineUp,
+  ChatCircleDots,
   CheckCircle,
   Circle,
   ClockCounterClockwise,
-  Database,
+  CookingPot,
+  ChefHat,
   Heartbeat,
   ImageSquare,
-  Lightning,
   ForkKnife,
+  LightbulbFilament,
   Microphone,
   PaperPlaneTilt,
   Plus,
-  Sparkle,
+  SneakerMove,
   StopCircle,
+  Timer,
   TrendDown,
   TrendUp,
   WarningCircle,
@@ -279,92 +283,155 @@ type CoachUiBlock =
 
 const COACH_CONVERSATION_KEY = "onerep:coach-conversation:v1"
 const DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+type CoachMode = "chat" | "chef" | "personal_trainer"
 
-function weekStartKey(dateKey: string) {
-  const date = new Date(`${dateKey}T12:00:00Z`)
-  const day = date.getUTCDay()
-  date.setUTCDate(date.getUTCDate() - (day === 0 ? 6 : day - 1))
-  return date.toISOString().slice(0, 10)
-}
+const COACH_MODES = [
+  {
+    id: "chat",
+    label: "Chat",
+    heading: "What do you want to work on?",
+    placeholder: "Ask Coach anything…",
+    icon: PaperPlaneTilt,
+    centerArt: ChatCircleDots,
+    leftArt: LightbulbFilament,
+    rightArt: ChartLineUp,
+    tabClass: "border-violet-400/35",
+    artClass: "text-violet-500/[0.10]",
+    centerArtClass: "bg-violet-500/[0.05] text-violet-600/55",
+    messageClass: "border-violet-500/16",
+    composerClass: "focus-within:border-violet-500/25",
+    cardClass: "border-violet-200/15 bg-indigo-950/55",
+    cardIconClass: "border-violet-200/20 text-violet-100/65",
+  },
+  {
+    id: "chef",
+    label: "Chef Coach",
+    heading: "What are we cooking?",
+    placeholder: "Ask about meals, recipes, or nutrition…",
+    icon: ForkKnife,
+    centerArt: ChefHat,
+    leftArt: Carrot,
+    rightArt: CookingPot,
+    tabClass: "border-amber-400/35",
+    artClass: "text-amber-600/[0.10]",
+    centerArtClass: "bg-amber-500/[0.05] text-amber-700/55",
+    messageClass: "border-amber-500/16",
+    composerClass: "focus-within:border-amber-500/25",
+    cardClass: "border-amber-200/20 bg-[#1d0d08]/60",
+    cardIconClass: "border-amber-200/20 text-amber-100/65",
+  },
+  {
+    id: "personal_trainer",
+    label: "Personal Trainer",
+    heading: "What are we training?",
+    placeholder: "Ask about workouts, form, or recovery…",
+    icon: Barbell,
+    centerArt: Barbell,
+    leftArt: SneakerMove,
+    rightArt: Timer,
+    tabClass: "border-sky-400/35",
+    artClass: "text-sky-600/[0.10]",
+    centerArtClass: "bg-sky-500/[0.05] text-sky-700/55",
+    messageClass: "border-sky-500/16",
+    composerClass: "focus-within:border-sky-500/25",
+    cardClass: "border-cyan-200/20 bg-[#03141f]/62",
+    cardIconClass: "border-cyan-200/20 text-cyan-100/65",
+  },
+] as const
 
 const COACH_STARTERS = [
   {
-    title: "Make something",
-    detail: "Create a recipe, workout, or change your routine",
+    title: "Plan my day",
+    prompt: "What should I focus on today based on my recent activity?",
+    icon: Heartbeat,
+  },
+  {
+    title: "Check progress",
+    prompt: "How is my progress trending, and what should I watch next?",
+    icon: ChartLineUp,
+  },
+  {
+    title: "Explore a scenario",
     prompt:
-      "Create a high-protein dinner recipe for me and save it. Make reasonable assumptions from my goals.",
+      "Help me explore a change to my goals or routine without saving anything.",
+    icon: LightbulbFilament,
+  },
+  {
+    title: "Today’s check-in",
+    prompt: null,
+    icon: CheckCircle,
+  },
+] as const
+
+const CHEF_STARTERS = [
+  {
+    title: "Review nutrition",
+    prompt: "Review my recent nutrition and give me one thing to improve.",
+    icon: ChartLineUp,
+  },
+  {
+    title: "Create a recipe",
+    prompt:
+      "Create a practical recipe that fits my nutrition goals and saved preferences.",
+    icon: CookingPot,
+  },
+  {
+    title: "Plan my meals",
+    prompt: "Help me plan simple meals for the next few days.",
     icon: ForkKnife,
   },
   {
-    title: "Plan my week",
-    detail: "Coordinate training, meals, schedule, and recovery",
-    prompt:
-      "Build a practical seven-day workout and meal plan from my saved presets, recipes, goals, schedule, and recovery. Validate it before proposing changes.",
-    icon: Database,
+    title: "Use what I have",
+    prompt: "Help me make a meal from ingredients I already have.",
+    icon: Carrot,
+  },
+] as const
+
+const TRAINER_STARTERS = [
+  {
+    title: "Analyze training",
+    prompt: "Analyze my training this week and suggest my next workout.",
+    icon: ChartLineUp,
   },
   {
-    title: "Adapt my training",
-    detail: "Progress, deload, or substitute using recent evidence",
-    prompt:
-      "Review my recent completion, load, frequency, and recovery. Explain whether a progression, lighter session, or exercise substitution is justified.",
+    title: "Plan a workout",
+    prompt: "Build a workout for me based on my routine and recent training.",
     icon: Barbell,
   },
   {
     title: "Validate my routine",
-    detail: "Check recovery gaps, volume, balance, and duration",
     prompt:
-      "Validate my current weekly routine for recovery spacing, repeated muscle load, session length, excessive volume, and missing movement patterns.",
+      "Validate my current weekly routine for recovery, balance, duration, and volume.",
     icon: CheckCircle,
   },
   {
-    title: "Explore a scenario",
-    detail: "Compare a goal or schedule change without saving it",
-    prompt:
-      "Simulate what might change if I trained three days per week instead of my current schedule. Do not change anything.",
-    icon: ChartLineUp,
-  },
-  {
-    title: "Plan my day",
-    detail: "Balance training, food, and recovery",
-    prompt: "What should I focus on today based on my recent activity?",
-    icon: Sparkle,
-  },
-  {
-    title: "Review nutrition",
-    detail: "Spot gaps in calories and macros",
-    prompt: "Review my recent nutrition and give me one thing to improve.",
-    icon: Database,
-  },
-  {
-    title: "Analyze training",
-    detail: "Check volume, frequency, and momentum",
-    prompt: "Analyze my training this week and suggest my next workout.",
-    icon: Lightning,
-  },
-  {
-    title: "Check progress",
-    detail: "Make sense of trends across your data",
-    prompt: "How is my progress trending, and what should I watch next?",
-    icon: ChartLineUp,
+    title: "Adjust for recovery",
+    prompt: "Adapt my next workout to my latest recovery and training data.",
+    icon: Heartbeat,
   },
 ] as const
 
 const BEGINNER_SETUP_STARTERS = [
   {
     title: "Build my workout plan",
-    detail: "Schedule, equipment, and a simple first week",
     prompt:
       "Help me set up my first workout plan. Ask only the essential questions about my schedule, equipment, and limitations, then give me a simple plan I can save.",
     icon: Barbell,
   },
   {
     title: "Set up easy recipes",
-    detail: "Simple meals matched to my goals and needs",
     prompt:
       "Help me set up a few beginner-friendly recipes. Use what you already know about my safety needs, then ask only about food preferences, budget, and cooking access.",
     icon: ForkKnife,
   },
 ] as const
+
+function timeGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return "Good morning."
+  if (hour < 18) return "Good afternoon."
+  return "Good evening."
+}
 
 function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
   if (!Array.isArray(value)) return []
@@ -1038,14 +1105,14 @@ function CoachUiBlocks({
   )
 }
 
-const FOLLOW_UP_PROMPTS = [
-  "What is the highest-impact change I can make today?",
-  "Turn that into a simple plan for this week.",
-  "What does my recent data say about recovery?",
-] as const
+function coachConversationKey(mode: CoachMode) {
+  return mode === "chat"
+    ? COACH_CONVERSATION_KEY
+    : `${COACH_CONVERSATION_KEY}:${mode}`
+}
 
-function loadCoachConversation(): CoachMessage[] {
-  const stored = safeLocalStorageGet(COACH_CONVERSATION_KEY)
+function loadCoachConversation(mode: CoachMode): CoachMessage[] {
+  const stored = safeLocalStorageGet(coachConversationKey(mode))
   if (!stored) return []
   try {
     const value = JSON.parse(stored) as unknown
@@ -1066,87 +1133,15 @@ function loadCoachConversation(): CoachMessage[] {
   }
 }
 
-function coachBrief(context: CoachContext) {
-  const calorieGap = Math.round(context.calorieTarget - context.averageCalories)
-  const proteinGap = Math.round(context.proteinTarget - context.averageProtein)
-
-  if (context.dataConfidence < 25) {
-    return "There is not enough recent data for a strong recommendation yet. A few food logs, one workout, or a body check-in will make Coach more specific."
-  }
-  if (proteinGap > 25) {
-    return `Protein is the clearest opportunity right now. Your recent average is ${Math.round(context.averageProtein)}g, about ${proteinGap}g below target.`
-  }
-  if (context.workoutDays7 < 2) {
-    return `Training frequency is the main signal this week. You have ${context.workoutDays7} completed workout${context.workoutDays7 === 1 ? "" : "s"} in the last 7 days.`
-  }
-  if (calorieGap > 350) {
-    return `Your logged intake is averaging about ${calorieGap} kcal below the current budget. Coach can help check whether that matches your goal and recovery.`
-  }
-  return "Your recent nutrition and training are reasonably aligned. The next useful step is to review progress or plan the coming week."
-}
-
-function CoachContextPanel({ context }: { context: CoachContext }) {
-  return (
-    <details className="native-collapsible group border-y border-border/45 text-[11px]">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 py-2.5 font-semibold text-muted-foreground/65 marker:hidden">
-        <span>Using your last 14 days of data</span>
-        <span className="text-[10px] font-medium text-muted-foreground/45 group-open:hidden">
-          Show
-        </span>
-        <span className="hidden text-[10px] font-medium text-muted-foreground/45 group-open:inline">
-          Hide
-        </span>
-      </summary>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 pb-4 sm:grid-cols-4">
-        <div>
-          <dt className="text-muted-foreground/48">Calories</dt>
-          <dd className="mt-0.5 font-bold text-foreground tabular-nums">
-            {Math.round(context.averageCalories)} /{" "}
-            {Math.round(context.calorieTarget)} kcal
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground/48">Protein</dt>
-          <dd className="mt-0.5 font-bold text-foreground tabular-nums">
-            {Math.round(context.averageProtein)} /{" "}
-            {Math.round(context.proteinTarget)}g
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground/48">Training</dt>
-          <dd className="mt-0.5 font-bold text-foreground">
-            {context.workoutDays7} sessions · {context.hardSets7} sets
-          </dd>
-        </div>
-        <div>
-          <dt className="text-muted-foreground/48">Data confidence</dt>
-          <dd className="mt-0.5 font-bold text-foreground tabular-nums">
-            {Math.round(context.dataConfidence)}%
-          </dd>
-        </div>
-      </dl>
-    </details>
-  )
-}
-
 function CoachLoadingState() {
   return (
     <div
-      className="mx-auto w-full max-w-2xl py-16"
+      className="m-auto flex items-center gap-3 text-muted-foreground"
       role="status"
       aria-label="Loading Coach"
     >
-      <div className="h-7 w-52 animate-pulse rounded bg-foreground/[0.08]" />
-      <div className="mt-4 h-3 w-full animate-pulse rounded bg-foreground/[0.05]" />
-      <div className="mt-2 h-3 w-3/4 animate-pulse rounded bg-foreground/[0.05]" />
-      <div className="mt-10 divide-y divide-border/40 border-y border-border/40">
-        {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="py-5">
-            <div className="h-3 w-32 animate-pulse rounded bg-foreground/[0.07]" />
-            <div className="mt-2 h-2.5 w-2/3 animate-pulse rounded bg-foreground/[0.04]" />
-          </div>
-        ))}
-      </div>
+      <span className="size-2 animate-pulse rounded-full bg-current" />
+      <span className="text-[12px] font-medium">Connecting your data…</span>
     </div>
   )
 }
@@ -1225,9 +1220,6 @@ export default function Coach() {
   const actionHistory = useQuery(api.ai.coachState.listActionHistory, {
     limit: 30,
   })
-  const weeklyPlan = useQuery(api.ai.coachState.getWeeklyPlan, {
-    weekStart: weekStartKey(todayKey),
-  })
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [applyingMessageIndex, setApplyingMessageIndex] = useState<
@@ -1239,8 +1231,9 @@ export default function Coach() {
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference")
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
-  const [messages, setMessages] = useState<CoachMessage[]>(
-    loadCoachConversation
+  const [activeMode, setActiveMode] = useState<CoachMode>("chat")
+  const [messages, setMessages] = useState<CoachMessage[]>(() =>
+    loadCoachConversation("chat")
   )
   const [lastFailedPrompt, setLastFailedPrompt] = useState<string | null>(null)
   const [attachment, setAttachment] = useState<CoachAttachment | null>(null)
@@ -1281,8 +1274,11 @@ export default function Coach() {
   }, [busy, messages.length])
 
   useEffect(() => {
-    safeLocalStorageSet(COACH_CONVERSATION_KEY, JSON.stringify(messages))
-  }, [messages])
+    safeLocalStorageSet(
+      coachConversationKey(activeMode),
+      JSON.stringify(messages)
+    )
+  }, [activeMode, messages])
 
   useEffect(() => {
     attachmentRef.current = attachment
@@ -2079,6 +2075,7 @@ export default function Coach() {
       const result = await generateChat({
         context,
         message: prompt,
+        coachMode: activeMode,
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
           : {}),
@@ -2169,31 +2166,54 @@ export default function Coach() {
     requestAnimationFrame(() => composerRef.current?.focus())
   }
 
-  const todayDay = DAYS[(new Date(`${todayKey}T12:00:00Z`).getUTCDay() + 6) % 7]
-  const todayRoutine = normalizeScheduleRoutines(schedule?.routine).primary
-  const scheduledPreset = (presets ?? []).find(
-    (preset) => String(preset._id) === todayRoutine[todayDay]
-  )
-  const latestCheckIn = checkIns?.[0]
-  const recoveryStatus = latestCheckIn
-    ? latestCheckIn.energy <= 2 ||
-      latestCheckIn.sleepQuality <= 2 ||
-      latestCheckIn.soreness >= 5
-      ? "Recovery deserves a lighter approach today."
-      : "Your latest check-in supports the planned workload."
-    : "Add a quick check-in to make recovery advice more specific."
+  function switchCoachMode(nextMode: CoachMode) {
+    if (busy || nextMode === activeMode) return
+    hapticSelection()
+    dictation.cancel()
+    clearAttachment()
+    setActiveMode(nextMode)
+    setMessages(loadCoachConversation(nextMode))
+    updateComposer("")
+    setLastFailedPrompt(null)
+  }
+
+  const mode = COACH_MODES.find((item) => item.id === activeMode)!
+  const CenterArt = mode.centerArt
+  const LeftArt = mode.leftArt
+  const RightArt = mode.rightArt
+  const starters =
+    activeMode === "chef"
+      ? context.experienceLevel === "beginner"
+        ? [BEGINNER_SETUP_STARTERS[1], ...CHEF_STARTERS]
+        : CHEF_STARTERS
+      : activeMode === "personal_trainer"
+        ? context.experienceLevel === "beginner"
+          ? [BEGINNER_SETUP_STARTERS[0], ...TRAINER_STARTERS]
+          : TRAINER_STARTERS
+        : COACH_STARTERS
 
   return (
-    <main className="desktop-canvas h-svh overflow-hidden bg-background lg:pl-64">
-      <div className="mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8">
-        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/45 bg-background/95 backdrop-blur-xl">
+    <main
+      className="coach-mobile-immersive desktop-canvas relative isolate h-svh overflow-hidden bg-background lg:pl-64"
+      data-coach-mode={activeMode}
+    >
+      <div
+        key={`mobile-flow-${activeMode}`}
+        className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile"
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8">
+        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/45 bg-transparent lg:bg-background/95">
           <h1 className="text-[18px] leading-tight font-bold tracking-tight">
             Coach
           </h1>
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setShowMemory(true)}
+              onClick={() => {
+                hapticSelection()
+                setShowMemory(true)
+              }}
               aria-label="Coach memory"
               className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
             >
@@ -2201,7 +2221,10 @@ export default function Coach() {
             </button>
             <button
               type="button"
-              onClick={() => setShowHistory(true)}
+              onClick={() => {
+                hapticSelection()
+                setShowHistory(true)
+              }}
               aria-label="Coach action history"
               className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
             >
@@ -2228,113 +2251,142 @@ export default function Coach() {
           </div>
         </header>
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-y-auto py-5">
+        <nav
+          className="grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
+          role="tablist"
+          aria-label="Coach modes"
+        >
+          {COACH_MODES.map((item) => {
+            const active = item.id === activeMode
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                aria-controls="coach-workspace"
+                disabled={busy}
+                onClick={() => switchCoachMode(item.id)}
+                className={cn(
+                  "motion-tactile flex min-h-11 items-center justify-center gap-1.5 border-b-2 text-[11px] font-semibold transition-colors disabled:opacity-45",
+                  active
+                    ? cn(item.tabClass, "text-foreground")
+                    : "border-transparent text-muted-foreground active:text-foreground"
+                )}
+              >
+                <Icon size={14} weight="bold" />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <section
+          key={activeMode}
+          id="coach-workspace"
+          role="tabpanel"
+          aria-label={mode.label}
+          className="coach-mode-stage coach-swoosh-surface relative isolate flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5 lg:my-3 lg:rounded-2xl lg:border lg:border-white/10"
+          data-coach-mode={activeMode}
+        >
+          <div
+            key={`panel-flow-${activeMode}`}
+            className="coach-swoosh-backdrop coach-swoosh-backdrop--panel"
+            aria-hidden="true"
+          />
           {loading ? (
             <CoachLoadingState />
           ) : messages.length === 0 ? (
-            <div className="mx-auto my-auto w-full max-w-2xl py-10">
-              <p className="text-[12px] font-semibold text-muted-foreground/55">
-                Today
-              </p>
-              <h2 className="mt-2 text-[29px] leading-tight font-bold tracking-[-0.025em]">
-                What do you want to work on?
-              </h2>
-              <p className="mt-5 max-w-xl text-[14px] leading-6 text-foreground/78">
-                {coachBrief(context)}
-              </p>
-              <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border/55 bg-card/60 p-3">
-                  <p className="text-[8px] font-black tracking-wider text-muted-foreground uppercase">
-                    Workout
-                  </p>
-                  <p className="mt-1 text-[12px] font-black">
-                    {scheduledPreset?.name ?? "Recovery / open day"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/55 bg-card/60 p-3">
-                  <p className="text-[8px] font-black tracking-wider text-muted-foreground uppercase">
-                    Recovery
-                  </p>
-                  <p className="mt-1 text-[10px] leading-snug font-bold">
-                    {recoveryStatus}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/55 bg-card/60 p-3">
-                  <p className="text-[8px] font-black tracking-wider text-muted-foreground uppercase">
-                    Week plan
-                  </p>
-                  <p className="mt-1 text-[12px] font-black">
-                    {weeklyPlan?.title ?? "Not planned yet"}
-                  </p>
-                </div>
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-4 sm:py-6">
+              <div className="px-1 text-left">
+                <p className="text-[12px] font-medium text-muted-foreground">
+                  {timeGreeting()}
+                </p>
+                <h2 className="mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em] text-foreground sm:text-[27px]">
+                  {mode.heading}
+                </h2>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/progress?checkIn=1", { motion: "switch" })
-                }
-                className="mt-5 flex min-h-16 w-full items-center gap-3 rounded-2xl border border-border/60 bg-card/55 p-4 text-left active:opacity-60"
+
+              <div
+                className="relative flex min-h-32 flex-1 items-center justify-center"
+                aria-hidden="true"
               >
-                <span className="flex size-9 items-center justify-center rounded-full bg-foreground text-background">
-                  <Heartbeat size={17} weight="fill" />
+                <LeftArt
+                  size={68}
+                  weight="thin"
+                  className={cn(
+                    "absolute left-[5%] -rotate-6 sm:left-[13%]",
+                    mode.artClass
+                  )}
+                />
+                <span
+                  className={cn(
+                    "flex size-11 items-center justify-center rounded-full border border-border/35 bg-background/45 backdrop-blur-sm",
+                    mode.centerArtClass
+                  )}
+                >
+                  <CenterArt size={21} weight="regular" />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[12px] font-black">
-                    Today’s check-in
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    Add your body measurement in Progress
-                  </span>
-                </span>
-                <ArrowRight size={16} weight="bold" />
-              </button>
-              <div className="mt-6">
-                <CoachContextPanel context={context} />
+                <RightArt
+                  size={68}
+                  weight="thin"
+                  className={cn(
+                    "absolute right-[5%] rotate-6 sm:right-[13%]",
+                    mode.artClass
+                  )}
+                />
               </div>
 
               <AppTooltip
                 id={APP_TOOLTIP_IDS.coachStarters}
                 content="Choose a focused coaching task."
-                targetClassName="mt-8 block w-full"
+                targetClassName="block w-full"
                 side="top"
                 enabled
               >
-                <div className="divide-y divide-border/45 border-y border-border/45">
-                  {(context.experienceLevel === "beginner"
-                    ? [...BEGINNER_SETUP_STARTERS, ...COACH_STARTERS]
-                    : COACH_STARTERS
-                  ).map((starter) => (
-                    <button
-                      key={starter.title}
-                      type="button"
-                      onClick={() => void submit(starter.prompt)}
-                      className="group flex min-h-[4.5rem] w-full items-center gap-4 py-3 text-left active:opacity-60"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[13px] font-semibold text-foreground">
+                <div className="-mx-3 flex snap-x [scrollbar-width:none] gap-2 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden">
+                  {starters.map((starter) => {
+                    const StarterIcon = starter.icon
+                    return (
+                      <button
+                        key={starter.title}
+                        type="button"
+                        onClick={() => {
+                          if (starter.prompt === null) {
+                            hapticTap()
+                            navigate("/progress?checkIn=1", {
+                              motion: "switch",
+                            })
+                            return
+                          }
+                          void submit(starter.prompt)
+                        }}
+                        className={cn(
+                          "motion-tactile flex min-h-24 w-[9.25rem] min-w-[9.25rem] snap-start flex-col items-start justify-between rounded-2xl border p-3 text-left shadow-[0_18px_42px_-24px_rgba(0,0,0,0.85)] active:bg-muted",
+                          mode.cardClass
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-7 items-center justify-center rounded-full border bg-black/15",
+                            mode.cardIconClass
+                          )}
+                        >
+                          <StarterIcon size={13} weight="bold" />
+                        </span>
+                        <span className="text-[11px] leading-[1.3] font-semibold text-foreground/85">
                           {starter.title}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-muted-foreground/58">
-                          {starter.detail}
-                        </span>
-                      </span>
-                      <ArrowRight
-                        size={15}
-                        weight="bold"
-                        className="shrink-0 text-muted-foreground/35 transition-transform group-active:translate-x-1"
-                      />
-                    </button>
-                  ))}
+                      </button>
+                    )
+                  })}
                 </div>
               </AppTooltip>
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-              <CoachContextPanel context={context} />
-              <div
-                className="mt-6 flex flex-1 flex-col gap-5"
-                aria-live="polite"
-              >
+              <div className="flex flex-1 flex-col gap-5" aria-live="polite">
                 {messages.map((message, index) =>
                   message.role === "user" ? (
                     <div
@@ -2346,14 +2398,14 @@ export default function Coach() {
                   ) : (
                     <div key={index} className="max-w-2xl">
                       <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
-                        Coach
+                        {mode.label}
                       </p>
                       <div
                         className={cn(
                           "min-w-0 border-l-2 pl-4 text-[14px] leading-6",
                           message.error
                             ? "border-destructive/35 text-foreground"
-                            : "border-border text-foreground"
+                            : cn(mode.messageClass, "text-foreground")
                         )}
                       >
                         <p>{message.content}</p>
@@ -2404,22 +2456,6 @@ export default function Coach() {
                   )
                 )}
                 {busy && <ThinkingIndicator />}
-                {!busy &&
-                  messages.at(-1)?.role === "assistant" &&
-                  !messages.at(-1)?.error && (
-                    <div className="max-w-2xl border-t border-border/35 pt-2">
-                      {FOLLOW_UP_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt}
-                          type="button"
-                          onClick={() => void submit(prompt)}
-                          className="motion-tactile block min-h-9 w-full py-2 text-left text-[11px] font-medium text-muted-foreground/62 active:text-foreground"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 <div ref={messagesEndRef} />
               </div>
             </div>
@@ -2431,7 +2467,7 @@ export default function Coach() {
             event.preventDefault()
             void submit()
           }}
-          className="z-20 mx-auto w-full max-w-3xl shrink-0 border-t border-border/45 bg-background/95 pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] backdrop-blur-xl lg:pb-4"
+          className="z-20 mx-auto w-full max-w-3xl shrink-0 border-t border-border/45 bg-[rgba(2,8,23,0.74)] pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
         >
           <AppTooltip
             id={APP_TOOLTIP_IDS.coachMessage}
@@ -2440,7 +2476,12 @@ export default function Coach() {
             side="top"
             enabled
           >
-            <div className="rounded-xl border border-border/60 bg-card p-2 focus-within:border-foreground/25">
+            <div
+              className={cn(
+                "rounded-xl border border-border/60 bg-card p-2",
+                mode.composerClass
+              )}
+            >
               <input
                 ref={fileInputRef}
                 type="file"
@@ -2516,7 +2557,7 @@ export default function Coach() {
                     }
                   }}
                   placeholder={
-                    loading ? "Connecting your data…" : "Ask Coach anything…"
+                    loading ? "Connecting your data…" : mode.placeholder
                   }
                   disabled={loading || busy}
                   className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-2.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55"
