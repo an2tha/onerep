@@ -8,6 +8,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
+import { AnimatedAccordion } from "./animated-accordion"
 import {
   FOOD_PORTION_UNITS,
   amountFromFoodPortionGrams,
@@ -839,17 +840,11 @@ export function FoodDetailSheet({
 
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (
-            <details className="native-collapsible mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[13px] font-semibold">
-                <span>Full nutrition details</span>
-                <CaretDown
-                  size={15}
-                  weight="bold"
-                  className="shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              </summary>
-
+            <AnimatedAccordion
+              summary="Full nutrition details"
+              className="mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card"
+              triggerClassName="px-4 py-3 text-[13px] font-semibold"
+            >
               <div className="border-t border-border px-4">
                 {/* Calories hero row */}
                 <div className="flex items-baseline justify-between border-b border-border/40 py-2.5">
@@ -885,7 +880,7 @@ export function FoodDetailSheet({
                     </div>
                   ))}
               </div>
-            </details>
+            </AnimatedAccordion>
           )}
 
           {/* ── More nutrients ────────────────────────────────────────── */}

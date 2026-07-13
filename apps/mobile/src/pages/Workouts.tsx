@@ -2,7 +2,6 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
-  CaretDown,
   CaretRight,
   Copy,
   Fire,
@@ -42,6 +41,7 @@ import {
 } from "@/lib/muscle-volume"
 import { MuscleRecoveryHeatmapCard } from "@/components/muscle-recovery-heatmap"
 import { PrimaryButton } from "@/components/mobile-ui"
+import { AnimatedAccordion } from "@/components/animated-accordion"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import {
   getLoggedExerciseId,
@@ -1541,28 +1541,27 @@ export default function Workouts() {
                   </div>
                 </section>
 
-                <details className="native-collapsible border-y border-border">
-                  <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
-                    Training insights
-                    <CaretDown size={18} className="text-muted-foreground" />
-                  </summary>
-                  <div className="grid gap-4 pb-4">
-                    {muscleVolume.length > 0 && (
-                      <MuscleVolumeCard muscleVolume={muscleVolume} />
-                    )}
-                    <div>
-                      <div className="mb-2 px-1">
-                        <p className="app-section-title">Muscle recovery</p>
-                        <p className="app-section-subtitle">
-                          Based on completed sets and days since training
-                        </p>
-                      </div>
-                      <MuscleRecoveryHeatmapCard
-                        muscleRecovery={muscleRecovery}
-                      />
+                <AnimatedAccordion
+                  summary="Training insights"
+                  className="border-y border-border"
+                  triggerClassName="min-h-14 text-[15px] font-semibold"
+                  contentClassName="grid gap-4 pb-4"
+                >
+                  {muscleVolume.length > 0 && (
+                    <MuscleVolumeCard muscleVolume={muscleVolume} />
+                  )}
+                  <div>
+                    <div className="mb-2 px-1">
+                      <p className="app-section-title">Muscle recovery</p>
+                      <p className="app-section-subtitle">
+                        Based on completed sets and days since training
+                      </p>
                     </div>
+                    <MuscleRecoveryHeatmapCard
+                      muscleRecovery={muscleRecovery}
+                    />
                   </div>
-                </details>
+                </AnimatedAccordion>
               </div>
 
               <div className="grid min-w-0 content-start gap-3">
