@@ -42,6 +42,8 @@ export async function requestGatewayJson({
   }
 
   const configuredModel = env.AI_GATEWAY_MODEL?.trim();
+  const model = configuredModel || DEFAULT_AI_GATEWAY_MODEL;
+  const isGpt5 = /(?:^|\/)gpt-5(?:[.-]|$)/i.test(model);
 
   const response = await fetch(AI_GATEWAY_CHAT_URL, {
     method: "POST",
@@ -50,10 +52,12 @@ export async function requestGatewayJson({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: configuredModel || DEFAULT_AI_GATEWAY_MODEL,
+      model,
       stream: false,
-      ...(temperature === undefined ? {} : { temperature }),
-      max_tokens: maxTokens,
+      // GPT-5 models reject custom temperature values and use the newer
+      // completion-token field through the OpenAI-compatible Gateway API.
+      ...(temperature === undefined || isGpt5 ? {} : { temperature }),
+      max_completion_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },

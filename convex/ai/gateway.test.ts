@@ -70,8 +70,7 @@ describe("AI Gateway REST client", () => {
     expect(body).toEqual({
       model: DEFAULT_AI_GATEWAY_MODEL,
       stream: false,
-      temperature: 0.2,
-      max_tokens: 500,
+      max_completion_tokens: 500,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "System prompt" },
