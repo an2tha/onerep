@@ -20,6 +20,7 @@ import {
   Microphone,
   PaperPlaneTilt,
   Plus,
+  PushPin,
   SneakerMove,
   StopCircle,
   Timer,
@@ -90,6 +91,12 @@ type CoachOperationMeta = {
   summary: string
   assumptions: string[]
   warnings: string[]
+}
+
+type CoachGoalTaskDraft = {
+  title: string
+  detail?: string
+  completed?: boolean
 }
 
 type CoachWorkoutPresetDraft = {
@@ -185,6 +192,16 @@ type CoachOperation = CoachOperationMeta &
         planAssumptions: string[]
       }
     | {
+        type: "save_goal"
+        goalId?: string
+        title: string
+        detail: string
+        startDate: string
+        durationDays: number
+        pinned: boolean
+        tasks: CoachGoalTaskDraft[]
+      }
+    | {
         type: "undo_action"
         actionId: string
         actionSummary: string
@@ -239,6 +256,10 @@ type CoachOperationResult =
       actionId?: string
       assignments: Array<{ day: Day; presetName: string | null }>
     }
+  | ({ type: "save_goal"; goalId: string; actionId?: string } & Extract<
+      CoachOperation,
+      { type: "save_goal" }
+    >)
   | {
       type:
         | "remember"
@@ -280,6 +301,13 @@ type CoachUiBlock =
       type: "checklist"
       title: string
       items: Array<{ label: string; detail?: string; done?: boolean }>
+    }
+  | {
+      type: "goal"
+      title: string
+      detail: string
+      durationDays: number
+      tasks: CoachGoalTaskDraft[]
     }
   | {
       type: "action_row"
@@ -456,6 +484,14 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
         row.title && Array.isArray(row.items) && row.items.length > 0
       )
     }
+    if (row.type === "goal") {
+      return Boolean(
+        row.title &&
+          row.detail &&
+          Array.isArray(row.tasks) &&
+          row.tasks.length > 0
+      )
+    }
     if (row.type === "action_row") {
       return Boolean(
         row.title && Array.isArray(row.actions) && row.actions.length > 0
@@ -489,6 +525,10 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
     if (row.type === "save_check_in") return Boolean(row.date)
     if (row.type === "save_weekly_plan")
       return Boolean(row.weekStart && Array.isArray(row.days))
+    if (row.type === "save_goal")
+      return Boolean(
+        row.title && row.startDate && Array.isArray(row.tasks) && row.tasks.length
+      )
     if (row.type === "undo_action") return Boolean(row.actionId)
     return false
   })
@@ -526,6 +566,12 @@ function validateCoachOperations(operations: CoachOperation[]) {
         )
       )
         errors.push(`${operation.name} has invalid nutrition estimates.`)
+    }
+    if (operation.type === "save_goal") {
+      if (operation.durationDays < 1 || operation.durationDays > 365)
+        errors.push(`${operation.title} has an invalid duration.`)
+      if (operation.tasks.length === 0)
+        errors.push(`${operation.title} needs at least one task.`)
     }
     if (operation.type === "create_workout_preset") {
       const names = operation.exercises.map((exercise) =>
@@ -714,6 +760,7 @@ function CoachOperationResults({
   onOpenNutrition,
   onUndo,
   onLogRecipe,
+  onPinGoal,
 }: {
   results?: CoachOperationResult[]
   onOpenRecipe: (id: string) => void
@@ -723,12 +770,87 @@ function CoachOperationResults({
   onLogRecipe: (
     result: Extract<CoachOperationResult, { type: "save_recipe" }>
   ) => void
+  onPinGoal: (goalId: string) => Promise<void>
 }) {
+  const [pinnedGoalIds, setPinnedGoalIds] = useState<Set<string>>(new Set())
   if (!results?.length) return null
 
   return (
     <div className="mt-4 space-y-3">
       {results.map((result, index) => {
+        if (result.type === "save_goal") {
+          const pinned = result.pinned || pinnedGoalIds.has(result.goalId)
+          return (
+            <article
+              key={`${result.type}-${result.goalId}`}
+              className="border-y border-border/55 py-5"
+            >
+              <p className="text-[10px] font-medium text-muted-foreground">
+                Coach goal · {result.durationDays} days
+              </p>
+              <h3 className="mt-1 text-[18px] font-bold">{result.title}</h3>
+              <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
+                {result.detail}
+              </p>
+              <div className="mt-3 divide-y divide-border/35 border-y border-border/35">
+                {result.tasks.map((task, taskIndex) => (
+                  <div
+                    key={`${task.title}-${taskIndex}`}
+                    className="flex gap-2.5 py-2.5"
+                  >
+                    {task.completed ? (
+                      <CheckCircle
+                        size={15}
+                        weight="fill"
+                        className="mt-0.5 shrink-0 text-[var(--status-success)]"
+                      />
+                    ) : (
+                      <Circle
+                        size={15}
+                        className="mt-0.5 shrink-0 text-muted-foreground"
+                      />
+                    )}
+                    <div>
+                      <p className="text-[11px] font-semibold">{task.title}</p>
+                      {task.detail ? (
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          {task.detail}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={pinned}
+                  onClick={() => {
+                    void onPinGoal(result.goalId).then(() =>
+                      setPinnedGoalIds((current) =>
+                        new Set(current).add(result.goalId)
+                      )
+                    )
+                  }}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-55"
+                >
+                  <PushPin size={13} weight={pinned ? "fill" : "bold"} />
+                  {pinned ? "Pinned to Today" : "Pin to Today"}
+                </button>
+                {result.actionId ? (
+                  <button
+                    type="button"
+                    onClick={() => onUndo(result.actionId!)}
+                    className="inline-flex min-h-10 items-center gap-1 px-2 text-[10px] font-medium text-muted-foreground"
+                  >
+                    <ClockCounterClockwise size={13} /> Undo goal
+                  </button>
+                ) : null}
+              </div>
+            </article>
+          )
+        }
+
         if (result.type === "save_recipe") {
           return (
             <article
@@ -1080,12 +1202,40 @@ function CoachProposal({
 function CoachUiBlocks({
   blocks,
   onAction,
+  onPinGoal,
 }: {
   blocks?: CoachUiBlock[]
   onAction: (action: CoachUiAction) => void
+  onPinGoal: (goal: {
+    title: string
+    detail: string
+    durationDays: number
+    tasks: CoachGoalTaskDraft[]
+  }) => Promise<void>
 }) {
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set())
+  const [pinningGoalKey, setPinningGoalKey] = useState<string | null>(null)
+  const [pinnedGoalKeys, setPinnedGoalKeys] = useState<Set<string>>(new Set())
   if (!blocks?.length) return null
+
+  async function pinGoal(
+    key: string,
+    goal: {
+      title: string
+      detail: string
+      durationDays: number
+      tasks: CoachGoalTaskDraft[]
+    }
+  ) {
+    if (pinningGoalKey || pinnedGoalKeys.has(key)) return
+    setPinningGoalKey(key)
+    try {
+      await onPinGoal(goal)
+      setPinnedGoalKeys((current) => new Set(current).add(key))
+    } finally {
+      setPinningGoalKey(null)
+    }
+  }
 
   return (
     <div className="mt-5 divide-y divide-border/45 border-y border-border/45">
@@ -1151,6 +1301,8 @@ function CoachUiBlocks({
         }
 
         if (block.type === "checklist") {
+          const goalKey = `${index}-${block.title}`
+          const pinned = pinnedGoalKeys.has(goalKey)
           return (
             <div key={`${block.type}-${index}`} className="py-4">
               <p className="text-[12px] font-bold text-foreground">
@@ -1206,6 +1358,82 @@ function CoachUiBlocks({
                   )
                 })}
               </div>
+              <button
+                type="button"
+                disabled={pinned || pinningGoalKey !== null}
+                onClick={() =>
+                  void pinGoal(goalKey, {
+                    title: block.title,
+                    detail: `Complete this Coach plan consistently for the next 7 days.`,
+                    durationDays: 7,
+                    tasks: block.items.map((item) => ({
+                      title: item.label,
+                      ...(item.detail ? { detail: item.detail } : {}),
+                      completed: Boolean(
+                        item.done || completedItems.has(`${index}-${item.label}`)
+                      ),
+                    })),
+                  })
+                }
+                className="motion-tactile mt-3 inline-flex min-h-10 items-center gap-1.5 border-b border-foreground/30 text-[11px] font-semibold disabled:opacity-50"
+              >
+                <PushPin size={13} weight={pinned ? "fill" : "bold"} />
+                {pinned
+                  ? "Pinned to Today"
+                  : pinningGoalKey === goalKey
+                    ? "Pinning…"
+                    : "Pin as a 7-day goal"}
+              </button>
+            </div>
+          )
+        }
+
+        if (block.type === "goal") {
+          const goalKey = `${index}-${block.title}`
+          const pinned = pinnedGoalKeys.has(goalKey)
+          return (
+            <div key={`${block.type}-${index}`} className="py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-medium text-muted-foreground">
+                    Coach goal · {block.durationDays} days
+                  </p>
+                  <h3 className="mt-1 text-[15px] font-bold">{block.title}</h3>
+                </div>
+                <PushPin
+                  size={16}
+                  weight="bold"
+                  className="mt-1 shrink-0 text-muted-foreground"
+                />
+              </div>
+              <p className="mt-2 text-[12px] leading-relaxed text-foreground/68">
+                {block.detail}
+              </p>
+              <div className="mt-3 divide-y divide-border/35 border-y border-border/35">
+                {block.tasks.map((task, taskIndex) => (
+                  <div key={`${task.title}-${taskIndex}`} className="py-2.5">
+                    <p className="text-[12px] font-semibold">{task.title}</p>
+                    {task.detail ? (
+                      <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">
+                        {task.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                disabled={pinned || pinningGoalKey !== null}
+                onClick={() => void pinGoal(goalKey, block)}
+                className="motion-tactile mt-4 inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-50"
+              >
+                <PushPin size={13} weight={pinned ? "fill" : "bold"} />
+                {pinned
+                  ? "Pinned to Today"
+                  : pinningGoalKey === goalKey
+                    ? "Pinning…"
+                    : "Pin to Today"}
+              </button>
             </div>
           )
         }
@@ -1350,6 +1578,7 @@ export default function Coach() {
   const recentWorkouts = useQuery(api.logs.workouts.getHistory)
   const memories = useQuery(api.ai.coachState.listMemories, { limit: 40 })
   const checkIns = useQuery(api.ai.coachState.listCheckIns, { limit: 14 })
+  const goals = useQuery(api.ai.coachGoals.listActive, { limit: 20 })
   const actionHistory = useQuery(api.ai.coachState.listActionHistory, {
     limit: 30,
   })
@@ -1396,6 +1625,8 @@ export default function Coach() {
   const removeCoachUpload = useMutation(api.ai.coachState.removeUpload)
   const saveCheckIn = useMutation(api.ai.coachState.saveCheckIn)
   const saveWeeklyPlan = useMutation(api.ai.coachState.saveWeeklyPlan)
+  const saveCoachGoal = useMutation(api.ai.coachGoals.save)
+  const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   const dictation = useCoachDictation({
     value: input,
@@ -1482,6 +1713,21 @@ export default function Coach() {
         sleepQuality: checkIn.sleepQuality,
         mood: checkIn.mood,
       })),
+      goals: (goals ?? []).map((goal) => ({
+        id: String(goal._id),
+        title: goal.title,
+        ...(goal.description ? { detail: goal.description } : {}),
+        startDate: goal.startDate,
+        endDate: goal.endDate,
+        durationDays: goal.durationDays,
+        pinned: goal.pinned,
+        status: goal.status,
+        tasks: goal.tasks.map((task) => ({
+          title: task.title,
+          ...(task.detail ? { detail: task.detail } : {}),
+          completed: task.completed,
+        })),
+      })),
       recentWorkouts: (recentWorkouts ?? []).slice(0, 30).map((workout) => ({
         id: String(workout._id),
         date: workout.date,
@@ -1509,6 +1755,7 @@ export default function Coach() {
   }, [
     checkIns,
     actionHistory,
+    goals,
     memories,
     presets,
     recentFoodDays,
@@ -1545,6 +1792,65 @@ export default function Coach() {
     })
 
     for (const operation of orderedOperations) {
+      if (operation.type === "save_goal") {
+        const existing = operation.goalId
+          ? (goals ?? []).find(
+              (goal) => String(goal._id) === operation.goalId
+            )
+          : null
+        if (operation.goalId && !existing) {
+          throw new Error("That Coach goal no longer exists.")
+        }
+        const saved = await saveCoachGoal({
+          ...(existing ? { id: existing._id } : {}),
+          title: operation.title,
+          description: operation.detail,
+          startDate: operation.startDate,
+          durationDays: operation.durationDays,
+          pinned: operation.pinned,
+          sourceMode: activeMode,
+          tasks: operation.tasks,
+        })
+        const goalId = String(saved.goalId)
+        const actionId = await recordAction({
+          kind: existing ? "edit_goal" : "create_goal",
+          summary: operation.summary,
+          targetType: "coach_goal",
+          targetId: goalId,
+          undoPayload: existing
+            ? {
+                kind: "restore_goal",
+                id: goalId,
+                body: {
+                  title: existing.title,
+                  ...(existing.description
+                    ? { description: existing.description }
+                    : {}),
+                  startDate: existing.startDate,
+                  endDate: existing.endDate,
+                  durationDays: existing.durationDays,
+                  status: existing.status,
+                  pinned: existing.pinned,
+                  ...(existing.sourceMode
+                    ? { sourceMode: existing.sourceMode }
+                    : {}),
+                  tasks: existing.tasks.map((task) => ({
+                    title: task.title,
+                    ...(task.detail ? { detail: task.detail } : {}),
+                    completed: task.completed,
+                  })),
+                },
+              }
+            : { kind: "delete_goal", id: goalId },
+        })
+        results.push({
+          ...operation,
+          goalId,
+          actionId: String(actionId),
+        })
+        continue
+      }
+
       if (operation.type === "save_recipe") {
         const existing = operation.recipeId
           ? (recipes ?? []).find(
@@ -1926,6 +2232,10 @@ export default function Coach() {
         throw new Error("Workout plan was not expanded before execution.")
       }
 
+      if (operation.type !== "update_routine") {
+        throw new Error("Unsupported Coach operation")
+      }
+
       const previousSchedule = {
         routine: schedule?.routine ?? {
           primary: originalRoutines.primary,
@@ -1947,7 +2257,7 @@ export default function Coach() {
         routineChanged = true
         applied.push(assignment)
       }
-      results.push({ type: operation.type, assignments: applied })
+      results.push({ type: "update_routine", assignments: applied })
       if (applied.length > 0) {
         ;(
           results.at(-1) as Extract<
@@ -1975,6 +2285,57 @@ export default function Coach() {
       })
     }
     return results
+  }
+
+  async function pinGoalFromCoachBlock(goal: {
+    title: string
+    detail: string
+    durationDays: number
+    tasks: CoachGoalTaskDraft[]
+  }) {
+    try {
+      const saved = await saveCoachGoal({
+        title: goal.title,
+        description: goal.detail,
+        startDate: todayKey,
+        durationDays: goal.durationDays,
+        pinned: true,
+        sourceMode: activeMode,
+        tasks: goal.tasks,
+      })
+      await recordAction({
+        kind: "create_goal",
+        summary: `Pinned ${goal.title} to Today`,
+        targetType: "coach_goal",
+        targetId: String(saved.goalId),
+        undoPayload: { kind: "delete_goal", id: String(saved.goalId) },
+      })
+      hapticTap()
+      toast.success("Goal pinned to Today")
+    } catch (error) {
+      hapticHeavy()
+      toast.error(
+        error instanceof Error ? error.message : "Could not pin this goal"
+      )
+      throw error
+    }
+  }
+
+  async function pinSavedGoal(goalId: string) {
+    try {
+      await setCoachGoalPinned({
+        id: goalId as Id<"coachGoals">,
+        pinned: true,
+      })
+      hapticTap()
+      toast.success("Goal pinned to Today")
+    } catch (error) {
+      hapticHeavy()
+      toast.error(
+        error instanceof Error ? error.message : "Could not pin this goal"
+      )
+      throw error
+    }
   }
 
   async function applyPendingOperations(messageIndex: number) {
@@ -2562,9 +2923,10 @@ export default function Coach() {
                             </button>
                           ) : (
                             <>
-                              <CoachUiBlocks
-                                blocks={message.uiBlocks}
-                                onAction={handleUiAction}
+                            <CoachUiBlocks
+                              blocks={message.uiBlocks}
+                              onAction={handleUiAction}
+                              onPinGoal={pinGoalFromCoachBlock}
                               />
                               <CoachArtifacts artifacts={message.artifacts} />
                               <CoachProposal
@@ -2591,9 +2953,10 @@ export default function Coach() {
                                   navigate("/nutrition", { motion: "switch" })
                                 }
                                 onUndo={(id) => void undoAction(id)}
-                                onLogRecipe={(result) =>
-                                  void logRecipeResult(result)
-                                }
+                              onLogRecipe={(result) =>
+                                void logRecipeResult(result)
+                              }
+                              onPinGoal={pinSavedGoal}
                               />
                             </>
                           )}

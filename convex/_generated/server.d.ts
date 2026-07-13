@@ -34,6 +34,7 @@ type Env = {
   readonly REVENUECAT_SECRET_KEY: string | undefined;
   readonly REVENUECAT_WEBHOOK_AUTH: string | undefined;
   readonly REVENUECAT_WEB_CHECKOUT_URL: string | undefined;
+  readonly STRIPE_SECRET_KEY: string | undefined;
 };
 
 /**

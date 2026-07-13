@@ -62,6 +62,8 @@ export async function deleteUserDataBatch(
     ["coachCheckIns", "by_userId"],
     ["coachActionEvents", "by_userId"],
     ["coachWeeklyPlans", "by_userId"],
+    ["coachGoalTasks", "by_userId"],
+    ["coachGoals", "by_userId"],
     ["coachUploads", "by_userId"],
     ["aiUsage", "by_userId_month"],
     ["snapUsage", "by_userId_date"],
