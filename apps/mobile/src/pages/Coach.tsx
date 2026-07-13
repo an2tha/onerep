@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useLocation } from "react-router"
 import { useAction, useMutation, useQuery } from "convex/react"
 import {
   ArrowRight,
@@ -125,6 +126,9 @@ type CoachOperation = CoachOperationMeta &
         description: string
         servings: number
         prepMinutes: number
+        cookMinutes: number
+        category: string
+        notes: string
         tags: string[]
         ingredients: CoachRecipeIngredient[]
         steps: string[]
@@ -487,9 +491,9 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
     if (row.type === "goal") {
       return Boolean(
         row.title &&
-          row.detail &&
-          Array.isArray(row.tasks) &&
-          row.tasks.length > 0
+        row.detail &&
+        Array.isArray(row.tasks) &&
+        row.tasks.length > 0
       )
     }
     if (row.type === "action_row") {
@@ -527,7 +531,10 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
       return Boolean(row.weekStart && Array.isArray(row.days))
     if (row.type === "save_goal")
       return Boolean(
-        row.title && row.startDate && Array.isArray(row.tasks) && row.tasks.length
+        row.title &&
+        row.startDate &&
+        Array.isArray(row.tasks) &&
+        row.tasks.length
       )
     if (row.type === "undo_action") return Boolean(row.actionId)
     return false
@@ -680,17 +687,46 @@ function RecipeBreakdown({
   recipe: Extract<CoachOperation, { type: "save_recipe" }>
 }) {
   const totals = recipeTotals(recipe.ingredients, recipe.servings)
-  const details = [
-    `${recipe.prepMinutes} min`,
-    `${recipe.servings} serving${recipe.servings === 1 ? "" : "s"}`,
-    ...recipe.tags,
-  ]
+  const totalMinutes = recipe.prepMinutes + recipe.cookMinutes
+  const ingredientNames = recipe.ingredients
+    .slice(0, 3)
+    .map((ingredient) => ingredient.name)
+    .join(" · ")
+  const extraIngredientCount = Math.max(0, recipe.ingredients.length - 3)
+  const usefulTags = recipe.tags.slice(0, 3)
 
   return (
     <>
-      <p className="mt-3 text-[11px] text-foreground/55">
-        {details.join(" · ")}
-      </p>
+      <div className="mt-4 border-y border-border/45 py-4">
+        <div className="flex items-start justify-between gap-5">
+          <div className="min-w-0">
+            <p className="text-[9px] font-semibold tracking-[0.08em] text-foreground/50 uppercase">
+              {recipe.category || "Recipe"}
+            </p>
+            <p className="mt-1.5 text-[13px] leading-5 font-medium text-foreground/80">
+              {ingredientNames}
+              {extraIngredientCount > 0
+                ? ` + ${extraIngredientCount} more`
+                : ""}
+            </p>
+          </div>
+          <ForkKnife
+            size={22}
+            weight="regular"
+            className="mt-0.5 shrink-0 text-foreground/45"
+            aria-hidden
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-foreground/55">
+          <span>{totalMinutes} min total</span>
+          <span>
+            {recipe.servings} serving{recipe.servings === 1 ? "" : "s"}
+          </span>
+          {usefulTags.map((tag) => (
+            <span key={tag}>{tag}</span>
+          ))}
+        </div>
+      </div>
       <div className="mt-4 grid grid-cols-4 divide-x divide-border/45 border-y border-border/45 py-3">
         {[
           ["Calories", `${totals.calories}`],
@@ -749,6 +785,11 @@ function RecipeBreakdown({
           )}
         </div>
       </div>
+      {recipe.notes && (
+        <p className="mt-4 border-t border-border/35 pt-3 text-[10px] leading-relaxed text-foreground/60">
+          {recipe.notes}
+        </p>
+      )}
     </>
   )
 }
@@ -1370,7 +1411,8 @@ function CoachUiBlocks({
                       title: item.label,
                       ...(item.detail ? { detail: item.detail } : {}),
                       completed: Boolean(
-                        item.done || completedItems.has(`${index}-${item.label}`)
+                        item.done ||
+                        completedItems.has(`${index}-${item.label}`)
                       ),
                     })),
                   })
@@ -1566,6 +1608,7 @@ function CoachSheet({
 export default function Coach() {
   const { context, loading } = useCoachContext()
   const navigate = useSmoothNavigate()
+  const location = useLocation()
   const todayKey = currentDateKey(detectTimeZone())
   const presets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
@@ -1604,6 +1647,7 @@ export default function Coach() {
   const uploadRequestRef = useRef(0)
   const attachmentRef = useRef<CoachAttachment | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const recipeHandoffHandled = useRef(false)
   const generateChat = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
@@ -1621,6 +1665,20 @@ export default function Coach() {
   const generateCoachUploadUrl = useMutation(
     api.ai.coachState.generateUploadUrl
   )
+
+  useEffect(() => {
+    if (recipeHandoffHandled.current) return
+    const state = location.state as {
+      coachMode?: CoachMode
+      recipeRequest?: string
+    } | null
+    if (state?.coachMode !== "chef" || !state.recipeRequest) return
+    recipeHandoffHandled.current = true
+    setActiveMode("chef")
+    setMessages(loadCoachConversation("chef"))
+    setInput(state.recipeRequest)
+    requestAnimationFrame(() => composerRef.current?.focus())
+  }, [location.state])
   const registerCoachUpload = useMutation(api.ai.coachState.registerUpload)
   const removeCoachUpload = useMutation(api.ai.coachState.removeUpload)
   const saveCheckIn = useMutation(api.ai.coachState.saveCheckIn)
@@ -1794,9 +1852,7 @@ export default function Coach() {
     for (const operation of orderedOperations) {
       if (operation.type === "save_goal") {
         const existing = operation.goalId
-          ? (goals ?? []).find(
-              (goal) => String(goal._id) === operation.goalId
-            )
+          ? (goals ?? []).find((goal) => String(goal._id) === operation.goalId)
           : null
         if (operation.goalId && !existing) {
           throw new Error("That Coach goal no longer exists.")
@@ -1879,6 +1935,11 @@ export default function Coach() {
           description: operation.description,
           servings: operation.servings,
           prepMinutes: operation.prepMinutes,
+          cookMinutes: operation.cookMinutes,
+          category: operation.category,
+          notes: operation.notes,
+          recipeType: "detailed",
+          placeholderImage: "coach-kitchen",
           tags: operation.tags,
           steps: operation.steps,
           ingredients,
@@ -1900,6 +1961,17 @@ export default function Coach() {
                   ...(existing.servings ? { servings: existing.servings } : {}),
                   ...(existing.prepMinutes
                     ? { prepMinutes: existing.prepMinutes }
+                    : {}),
+                  ...(existing.cookMinutes
+                    ? { cookMinutes: existing.cookMinutes }
+                    : {}),
+                  ...(existing.category ? { category: existing.category } : {}),
+                  ...(existing.notes ? { notes: existing.notes } : {}),
+                  ...(existing.recipeType
+                    ? { recipeType: existing.recipeType }
+                    : {}),
+                  ...(existing.placeholderImage
+                    ? { placeholderImage: existing.placeholderImage }
                     : {}),
                   ...(existing.tags ? { tags: existing.tags } : {}),
                   ...(existing.steps ? { steps: existing.steps } : {}),
@@ -2923,10 +2995,10 @@ export default function Coach() {
                             </button>
                           ) : (
                             <>
-                            <CoachUiBlocks
-                              blocks={message.uiBlocks}
-                              onAction={handleUiAction}
-                              onPinGoal={pinGoalFromCoachBlock}
+                              <CoachUiBlocks
+                                blocks={message.uiBlocks}
+                                onAction={handleUiAction}
+                                onPinGoal={pinGoalFromCoachBlock}
                               />
                               <CoachArtifacts artifacts={message.artifacts} />
                               <CoachProposal
@@ -2953,10 +3025,10 @@ export default function Coach() {
                                   navigate("/nutrition", { motion: "switch" })
                                 }
                                 onUndo={(id) => void undoAction(id)}
-                              onLogRecipe={(result) =>
-                                void logRecipeResult(result)
-                              }
-                              onPinGoal={pinSavedGoal}
+                                onLogRecipe={(result) =>
+                                  void logRecipeResult(result)
+                                }
+                                onPinGoal={pinSavedGoal}
                               />
                             </>
                           )}

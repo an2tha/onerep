@@ -26,9 +26,11 @@ describe("non-Coach UI cleanup contract", () => {
   test("food review uses readable rows instead of ornamental dashboards", () => {
     assert.doesNotMatch(foodDetail, /function DonutRing/)
     assert.doesNotMatch(foodDetail, /budgetWidth/)
-    assert.match(foodDetail, /Nutrient highlights/)
-    assert.match(foodDetail, /NOVA processing group/)
-    assert.match(foodDetail, /Product code/)
+    assert.match(foodDetail, /How much\?/)
+    assert.match(foodDetail, /Full nutrition details/)
+    assert.doesNotMatch(foodDetail, /Product code/)
+    assert.doesNotMatch(foodDetail, /Selected amount/)
+    assert.doesNotMatch(foodDetail, /Package serving/)
   })
 
   test("transient and failure states keep readable copy and touch targets", () => {

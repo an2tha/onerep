@@ -205,6 +205,22 @@ describe("Coach first-open experience", () => {
     )
   })
 
+  test("Coach can schedule durable goals and pin read-only plans", () => {
+    expect(COACH_SOURCE).toContain('type: "save_goal"')
+    expect(COACH_SOURCE).toContain('type: "goal"')
+    expect(COACH_SOURCE).toContain("Pin to Today")
+    expect(COACH_SOURCE).toContain("Pin as a 7-day goal")
+    expect(COACH_SOURCE).toContain("api.ai.coachGoals.save")
+    expect(COACH_SOURCE).toContain("api.ai.coachGoals.setPinned")
+    expect(COACH_SOURCE).toContain("durationDays: operation.durationDays")
+    expect(COACH_SOURCE).toContain("goals: (goals ?? []).map")
+    expect(COACH_ACTION_SOURCE).toContain('type: "save_goal"')
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "Use one goal uiBlock when the answer is a coherent time-boxed challenge"
+    )
+    expect(COACH_PROMPT_SOURCE).toContain("use workspace.today as startDate")
+  })
+
   test("Coach supports user-managed memory, pictures, and streaming voice input", () => {
     expect(COACH_SOURCE).toContain("Add memory")
     expect(COACH_SOURCE).toContain("generateCoachUploadUrl")

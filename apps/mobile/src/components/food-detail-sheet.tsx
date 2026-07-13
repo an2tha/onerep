@@ -15,7 +15,6 @@ import {
   defaultMeal,
   defaultFoodPortion,
   foodPortionLabel,
-  foodPortionUnitLabel,
   gramsFromFoodPortion,
   logMicrosFromFoodDetail,
   readAllMealCategories,
@@ -80,11 +79,6 @@ function formatNutrientValue(value: number) {
   return formatNumber(value, 2)
 }
 
-function codeLabel(code?: string) {
-  if (!code) return null
-  return code.length > 8 ? code.slice(-8) : code
-}
-
 function initialFoodDetail(item: FoodResult): FoodDetail | null {
   const maybeDetail = item as Partial<FoodDetail>
   return Array.isArray(maybeDetail.nutrients) ? (item as FoodDetail) : null
@@ -128,28 +122,25 @@ function MacroStack({
   const macroKcalTotal = cals.reduce((a, b) => a + b, 0)
   const total = macroKcalTotal || 1
   return (
-    <div className="border-y border-border">
+    <div className="grid grid-cols-3 gap-2">
       {MACRO_CFG.map((m, i) => {
         const pct = Math.round((cals[i] / total) * 100)
         return (
-          <div
-            key={m.key}
-            className="grid min-h-14 grid-cols-[1fr_auto_auto] items-center gap-4 border-b border-border py-3 last:border-b-0"
-          >
-            <span className="flex items-center gap-2 text-[15px] font-medium">
+          <div key={m.key} className="rounded-2xl bg-muted/45 px-3 py-3">
+            <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
               <span
-                className="h-2.5 w-2.5 rounded-full"
+                className="h-2 w-2 rounded-full"
                 style={{ backgroundColor: m.color }}
                 aria-hidden="true"
               />
               {m.label}
             </span>
-            <span className="text-[13px] text-muted-foreground tabular-nums">
-              {Math.round(cals[i])} kcal · {pct}%
-            </span>
-            <strong className="text-[15px] tabular-nums">
+            <strong className="mt-2 block text-[18px] leading-none tabular-nums">
               {formatNutrientValue(vals[i])} g
             </strong>
+            <span className="mt-1 block text-[10px] text-muted-foreground tabular-nums">
+              {pct}% of energy
+            </span>
           </div>
         )
       })}
@@ -187,7 +178,6 @@ function PortionPicker({
   showVolumeUnits: boolean
 }) {
   const amount = amountFromFoodPortionGrams(grams, unit)
-  const unitLabel = foodPortionUnitLabel(unit)
   const [inputVal, setInputVal] = useState(formatInputAmount(amount))
   const [focused, setFocused] = useState(false)
 
@@ -223,29 +213,19 @@ function PortionPicker({
     onChange(gramsFromFoodPortion(nextAmount, unit))
   }
 
-  const secondaryHint =
-    unit === "g"
-      ? `${amountFromFoodPortionGrams(grams, "oz")} oz`
-      : `${Math.round(grams)} g`
   const visibleUnits = showVolumeUnits
     ? FOOD_PORTION_UNITS
     : FOOD_PORTION_UNITS.filter((option) => !VOLUME_UNITS.has(option.id))
 
   return (
-    <section className="mx-4 mt-4 border-y border-border py-4">
+    <section className="mx-4 mt-2 rounded-3xl border border-border bg-card p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="text-[16px] font-semibold">Serving</h3>
-          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-            {formatNumber(grams, 1)} g equivalent
-          </p>
+          <h3 className="text-[14px] font-semibold">How much?</h3>
         </div>
-        <span className="shrink-0 text-[13px] font-medium text-muted-foreground">
-          {secondaryHint}
-        </span>
       </div>
 
-      <div className="mb-3 flex [scrollbar-width:none] gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:!hidden">
+      <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
         {presets.map((p) => {
           const active = Math.abs(grams - p.grams) < 0.1 && p.unit === unit
           return (
@@ -254,7 +234,7 @@ function PortionPicker({
               type="button"
               onClick={() => onChange(p.grams, p.unit)}
               aria-pressed={active}
-              className="flex min-h-11 max-w-36 shrink-0 flex-col items-start justify-center rounded-[10px] border px-3 py-2 text-left transition-colors active:bg-muted"
+              className="flex min-h-10 max-w-36 shrink-0 items-center rounded-full border px-3 text-left text-[12px] font-semibold transition-colors active:bg-muted"
               style={
                 active
                   ? {
@@ -271,52 +251,15 @@ function PortionPicker({
                     }
               }
             >
-              <span className="max-w-full truncate text-[13px] leading-none font-bold">
+              <span className="max-w-full truncate leading-none">
                 {p.label}
               </span>
-              {p.sub && (
-                <span
-                  className="mt-1 max-w-full truncate text-[13px] leading-none"
-                  style={{ opacity: active ? 0.65 : 0.42 }}
-                >
-                  {p.sub}
-                </span>
-              )}
             </button>
           )
         })}
       </div>
 
-      <div className="mb-3 flex [scrollbar-width:none] gap-1.5 overflow-x-auto [-ms-overflow-style:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:!hidden">
-        {visibleUnits.map((option) => {
-          const active = option.id === unit
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onChange(grams, option.id)}
-              aria-pressed={active}
-              className="h-11 min-w-[4rem] shrink-0 rounded-[10px] px-3 text-[13px] font-semibold transition-colors active:bg-muted"
-              style={
-                active
-                  ? {
-                      backgroundColor: "var(--foreground)",
-                      color: "var(--background)",
-                    }
-                  : {
-                      backgroundColor: "var(--background)",
-                      color: "var(--muted-foreground)",
-                      opacity: 0.72,
-                    }
-              }
-            >
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-[3rem_minmax(0,1fr)_3rem] items-stretch gap-2">
+      <div className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto_2.75rem] items-stretch gap-2">
         <button
           type="button"
           onPointerDown={(e) => {
@@ -329,15 +272,13 @@ function PortionPicker({
           <Minus size={14} weight="bold" />
         </button>
 
-        <div className="flex min-w-0 flex-col items-center justify-center border-x border-border bg-background px-3 py-1.5">
+        <div className="flex min-w-0 items-center rounded-xl bg-muted/35 px-3">
           <input
             type="text"
             name="food-portion-amount"
             aria-label="Food portion amount"
             inputMode="decimal"
-            value={
-              focused ? inputVal : `${formatInputAmount(amount)} ${unitLabel}`
-            }
+            value={focused ? inputVal : formatInputAmount(amount)}
             onChange={(e) => setInputVal(e.target.value)}
             onFocus={() => {
               setFocused(true)
@@ -345,12 +286,24 @@ function PortionPicker({
             }}
             onBlur={(e) => commit(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-            className="h-6 w-full min-w-0 bg-transparent text-center text-[18px] leading-none font-bold tabular-nums outline-none"
+            className="h-10 w-full min-w-0 bg-transparent text-right text-[18px] font-bold tabular-nums outline-none"
           />
-          <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">
-            {formatNumber(grams, 1)} g
-          </span>
         </div>
+
+        <select
+          value={unit}
+          onChange={(event) =>
+            onChange(grams, event.target.value as FoodPortionUnit)
+          }
+          aria-label="Serving unit"
+          className="rounded-xl bg-muted/35 px-2 text-[13px] font-semibold outline-none"
+        >
+          {visibleUnits.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
 
         <button
           type="button"
@@ -464,67 +417,39 @@ function NutrRow({
 
 function ProductHeader({
   item,
-  detail,
   calories,
-  grams,
   portion,
   presentation,
 }: {
   item: FoodResult
-  detail: Detail
   calories: number
-  grams: number
   portion: FoodPortion
   presentation: "sheet" | "page"
 }) {
-  const productCode = codeLabel(item.code)
-  const servingLabel = detail?.servingLabel ?? item.serving
-
   return (
     <header
       className={
         presentation === "page"
-          ? "px-4 pt-3 pb-3 md:px-8 md:pt-8 md:pb-6"
-          : "px-4 pb-3 md:px-8 md:pt-8 md:pb-5"
+          ? "px-4 pt-5 pb-4 md:px-8 md:pt-8"
+          : "px-4 pb-4 md:px-8 md:pt-8"
       }
     >
       {presentation !== "page" && (
-        <div className="mb-4">
-          <h2 className="mt-2 text-[30px] leading-[0.98] font-extrabold tracking-[-0.055em]">
+        <div>
+          <h2 className="text-[26px] leading-tight font-bold tracking-[-0.035em]">
             {item.name}
           </h2>
         </div>
       )}
-      {productCode && (
-        <p className="mt-2 text-[13px] text-muted-foreground">
-          Product code {productCode}
-        </p>
-      )}
-
-      <dl className="mt-4 border-y border-border">
-        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-border py-3">
-          <dt className="text-[15px] text-muted-foreground">Energy</dt>
-          <dd className="text-[17px] font-semibold tabular-nums">
-            {formatNumber(calories, 0)} kcal
-          </dd>
-        </div>
-        <div className="flex min-h-14 items-center justify-between gap-4 border-b border-border py-3">
-          <dt className="text-[15px] text-muted-foreground">Selected amount</dt>
-          <dd className="text-right text-[15px] font-semibold">
-            {foodPortionLabel(portion)} · {formatNumber(grams, 1)} g
-          </dd>
-        </div>
-        {servingLabel && (
-          <div className="flex min-h-14 items-center justify-between gap-4 py-3">
-            <dt className="text-[15px] text-muted-foreground">
-              Package serving
-            </dt>
-            <dd className="max-w-[60%] truncate text-right text-[15px] font-semibold">
-              {servingLabel}
-            </dd>
-          </div>
-        )}
-      </dl>
+      <div className="mt-2 flex items-baseline gap-2 text-[13px] text-muted-foreground">
+        {item.brand && <span className="truncate">{item.brand}</span>}
+        {item.brand && <span aria-hidden>·</span>}
+        <span>{foodPortionLabel(portion)}</span>
+        <span aria-hidden>·</span>
+        <strong className="font-semibold text-foreground tabular-nums">
+          {formatNumber(calories, 0)} kcal
+        </strong>
+      </div>
     </header>
   )
 }
@@ -916,7 +841,6 @@ export function FoodDetailSheet({
       ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
       : (actionLabel?.(grams, mealCfg.label, portion) ??
         `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
-  const servingMismatch = Math.abs(grams - servingPortion.grams) > 1
   const isPage = presentation === "page"
 
   return (
@@ -989,9 +913,7 @@ export function FoodDetailSheet({
     >
       <ProductHeader
         item={item}
-        detail={detail}
         calories={calories}
-        grams={grams}
         portion={portion}
         presentation={presentation}
       />
@@ -1014,24 +936,6 @@ export function FoodDetailSheet({
         </div>
       ) : (
         <>
-          {servingMismatch && (
-            <aside
-              className="mx-4 mt-3 mb-3 grid grid-cols-[auto_1fr] gap-3 rounded-[16px] border border-[color-mix(in_srgb,var(--status-warning)_24%,transparent)] bg-[color-mix(in_srgb,var(--status-warning)_8%,transparent)] p-3"
-              role="note"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-[9px] bg-[color-mix(in_srgb,var(--status-warning)_16%,transparent)] text-[color:var(--status-warning)]">
-                <Warning size={15} weight="bold" />
-              </span>
-              <span className="min-w-0">
-                <b className="block text-[13px]">Serving changed</b>
-                <span className="mt-1 block text-[13px] leading-5 text-muted-foreground">
-                  Package lists {foodPortionLabel(servingPortion)}. You’re
-                  saving {foodPortionLabel(portion)}.
-                </span>
-              </span>
-            </aside>
-          )}
-
           {/* ── Portion picker ────────────────────────────────────────── */}
           <PortionPicker
             grams={grams}
@@ -1045,40 +949,24 @@ export function FoodDetailSheet({
           />
 
           {/* ── Nutrition summary ─────────────────────────────────────── */}
-          <section className="mx-4 mt-5">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-[16px] font-semibold">Macros</h3>
-                <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-                  {foodPortionLabel(portion)} · {formatNumber(grams, 1)} g
-                </p>
-              </div>
-              <p className="shrink-0 text-[16px] font-semibold tabular-nums">
-                {formatNumber(calories, 0)} kcal
+          <section className="mx-4 mt-4">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h3 className="text-[14px] font-semibold">Nutrition</h3>
+              <p className="text-[12px] text-muted-foreground">
+                {foodPortionLabel(portion)}
               </p>
             </div>
             <MacroStack protein={protein} carbs={carbs} fat={fat} />
           </section>
 
-          <NutrientHighlights detail={detail} grams={grams} />
-
-          {/* ── Scores ───────────────────────────────────────────────── */}
-          <ScoresBadges
-            nutriscoreGrade={detail?.nutriscoreGrade}
-            novaGroup={detail?.novaGroup}
-          />
-
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (
-            <div className="mx-4 mt-5 overflow-hidden border-y border-border">
-              <div className="border-b-[3px] border-foreground/80 px-4 py-3.5">
-                <p className="text-[16px] font-semibold">Nutrition Facts</p>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">
-                  Per {foodPortionLabel(portion)}
-                </p>
-              </div>
+            <details className="mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+              <summary className="cursor-pointer px-4 py-3 text-[13px] font-semibold">
+                Full nutrition details
+              </summary>
 
-              <div className="px-4">
+              <div className="border-t border-border px-4">
                 {/* Calories hero row */}
                 <div className="flex items-baseline justify-between border-b border-border/40 py-2.5">
                   <span className="text-[13px] font-semibold text-muted-foreground">
@@ -1113,7 +1001,7 @@ export function FoodDetailSheet({
                     </div>
                   ))}
               </div>
-            </div>
+            </details>
           )}
 
           {/* ── More nutrients ────────────────────────────────────────── */}
@@ -1182,6 +1070,17 @@ export function FoodDetailSheet({
               <MealPicker value={meal} onChange={setMeal} />
             </div>
           )}
+          <p className="mx-4 mt-4 text-center text-[11px] text-muted-foreground">
+            Food data powered by{" "}
+            <a
+              href="https://www.fatsecret.com"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
+              FatSecret
+            </a>
+          </p>
         </>
       )}
     </MobileSheet>

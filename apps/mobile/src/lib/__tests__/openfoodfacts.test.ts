@@ -21,15 +21,16 @@ function lastActionArgs() {
     [
       unknown,
       {
-        path: string
-        params: Array<{ key: string; value: string }>
+        operation: "search" | "detail" | "barcode"
+        value: string
+        limit?: number
       },
     ]
   >
   return calls.at(-1)![1]
 }
 
-describe("Open Food Facts client", () => {
+describe("FatSecret food client", () => {
   beforeEach(() => {
     actionMock.mockReset()
     __clearOpenFoodFactsCacheForTests()
@@ -46,17 +47,11 @@ describe("Open Food Facts client", () => {
     await searchFoods("  greek yogurt  ", 250)
 
     const args = lastActionArgs()
-    expect(args.path).toBe("/cgi/search.pl")
-    expect(args.params).toContainEqual({
-      key: "search_terms",
+    expect(args).toMatchObject({
+      operation: "search",
       value: "greek yogurt",
+      limit: 50,
     })
-    expect(args.params).toContainEqual({ key: "page_size", value: "100" })
-    const requestedFields = args.params.find(({ key }) => key === "fields")
-      ?.value
-    expect(requestedFields).toContain("image_front_small_url")
-    expect(requestedFields).toContain("nutriments")
-    expect(requestedFields).not.toContain("selected_images")
   })
 
   test("searchFoods filters invalid products and normalizes names, brands, serving, and macros", async () => {
@@ -183,10 +178,7 @@ describe("Open Food Facts client", () => {
     const detail = await getFoodDetail("abc/123")
     const args = lastActionArgs()
 
-    expect(args.path).toBe("/api/v2/product/abc%2F123.json")
-    expect(args.params.find(({ key }) => key === "fields")?.value).toContain(
-      "selected_images"
-    )
+    expect(args).toMatchObject({ operation: "detail", value: "abc/123" })
     expect(detail).toMatchObject({
       id: "abc/123",
       name: "Sparkling Water",

@@ -20,10 +20,12 @@ describe("Today and nutrition UX contract", () => {
     assert.match(HOME_SOURCE, /Add 250 ml/)
   })
 
-  test("Nutrition uses a labeled diary menu and plain-language targets", () => {
+  test("Nutrition keeps logging direct and avoids duplicating target guidance", () => {
     assert.match(NUTRITION_SOURCE, /Add to diary/)
     assert.match(NUTRITION_SOURCE, /Log again/)
-    assert.match(NUTRITION_SOURCE, /Daily targets/)
+    assert.match(NUTRITION_SOURCE, /GoalsCardWrapper/)
+    assert.doesNotMatch(NUTRITION_SOURCE, /Daily targets/)
+    assert.doesNotMatch(NUTRITION_SOURCE, /Why these targets\?/)
     assert.doesNotMatch(NUTRITION_SOURCE, /Your optimized targets/)
   })
 

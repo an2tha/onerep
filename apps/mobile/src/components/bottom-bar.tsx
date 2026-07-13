@@ -75,6 +75,8 @@ function isNutritionPath(pathname: string) {
   return (
     pathname === "/nutrition" ||
     pathname.startsWith("/nutrition/") ||
+    pathname === "/recipes" ||
+    pathname.startsWith("/recipes/") ||
     pathname === "/foods" ||
     pathname.startsWith("/foods/") ||
     pathname === "/supplements" ||

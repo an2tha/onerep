@@ -20,6 +20,10 @@ const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
 )
+const APP_STYLES_SOURCE = readFileSync(
+  new URL("../index.css", import.meta.url),
+  "utf8"
+)
 
 // ─── NumberInput logic ────────────────────────────────────────────────────────
 // Mirror of the NumberInput commit / step logic from Settings.tsx
@@ -193,6 +197,38 @@ describe("Settings destructive actions", () => {
     assert.match(
       SETTINGS_SOURCE,
       /disabled=\{canceling\}\s+aria-busy=\{canceling\}/
+    )
+  })
+})
+
+describe("OneRep Pro membership surface", () => {
+  test("uses the Coach-derived premium surface without changing billing actions", () => {
+    assert.match(SETTINGS_SOURCE, /className="profile-pro-card"/)
+    assert.match(SETTINGS_SOURCE, /"profile-pro-primary-action"/)
+    assert.doesNotMatch(SETTINGS_SOURCE, /OneRep membership/)
+    assert.match(SETTINGS_SOURCE, /revenueCat\.purchaseMonthly/)
+    assert.match(SETTINGS_SOURCE, /revenueCat\.restorePurchases/)
+    assert.match(SETTINGS_SOURCE, /revenueCat\.refresh/)
+    assert.match(SETTINGS_SOURCE, /revenueCat\.cancelSubscription/)
+  })
+
+  test("keeps cancellation confirmed and adds tactile feedback at entry", () => {
+    assert.match(
+      SETTINGS_SOURCE,
+      /if \(active\) \{\s+hapticTap\(\)\s+setConfirmCancel\(true\)/
+    )
+    assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
+    assert.match(SETTINGS_SOURCE, /Keep OneRep Pro/)
+  })
+
+  test("shares Coach wave motion and respects reduced-motion preferences", () => {
+    assert.match(
+      APP_STYLES_SOURCE,
+      /\.profile-pro-card::before[\s\S]*animation: coach-dashboard-wave/
+    )
+    assert.match(
+      APP_STYLES_SOURCE,
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.profile-pro-card::before,[\s\S]*animation: none !important/
     )
   })
 })

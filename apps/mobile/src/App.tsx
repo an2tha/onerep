@@ -26,15 +26,18 @@ import { useAppAuth } from "@/lib/auth-client"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../convex/_generated/api"
+import type { Id } from "../../../convex/_generated/dataModel"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
+  CoachGoalCards,
   TodayHeader,
   TodayTimeline,
   WorkoutWeekStrip,
   type MacroProgress,
+  type PinnedCoachGoal,
   type TimelineEvent,
   type WorkoutWeekDay,
 } from "@/components/home"
@@ -95,7 +98,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
-import { hapticMedium } from "@/lib/haptics"
+import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 import {
   DashboardProgressPanels,
@@ -103,6 +106,7 @@ import {
 } from "@/components/dashboard-progress-panels"
 import { useMuscleRecovery } from "@/lib/use-muscle-recovery"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
+import { toast } from "sonner"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -2273,6 +2277,7 @@ export default function App() {
   const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
+  const pinnedCoachGoals = useQuery(api.ai.coachGoals.listPinned, { limit: 4 })
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
   const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
@@ -2316,6 +2321,10 @@ export default function App() {
   )
   const setDashboardTrendMetric = useMutation(
     api.users.users.setDashboardTrendMetric
+  )
+  const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
+  const setCoachGoalTaskCompleted = useMutation(
+    api.ai.coachGoals.setTaskCompleted
   )
 
   // ── Dashboard settings ───────────────────────────────────────────────────
@@ -2454,10 +2463,50 @@ export default function App() {
 
   const [todayWorkoutCollapsed, setTodayWorkoutCollapsed] = useState(false)
   const [confirmDeleteSlot, setConfirmDeleteSlot] = useState<1 | 2 | null>(null)
+  const [confirmUnpinGoalId, setConfirmUnpinGoalId] = useState<string | null>(
+    null
+  )
+  const [unpinningCoachGoal, setUnpinningCoachGoal] = useState(false)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setHomeAddOpen(true))
+
+  async function toggleCoachGoalTask(taskId: string, completed: boolean) {
+    hapticSelection()
+    try {
+      await setCoachGoalTaskCompleted({
+        id: taskId as Id<"coachGoalTasks">,
+        completed,
+      })
+    } catch (error) {
+      hapticHeavy()
+      toast.error(
+        error instanceof Error ? error.message : "Could not update this task"
+      )
+    }
+  }
+
+  async function confirmCoachGoalUnpin() {
+    if (!confirmUnpinGoalId || unpinningCoachGoal) return
+    setUnpinningCoachGoal(true)
+    try {
+      await setCoachGoalPinned({
+        id: confirmUnpinGoalId as Id<"coachGoals">,
+        pinned: false,
+      })
+      hapticSelection()
+      toast.success("Goal unpinned from Today")
+      setConfirmUnpinGoalId(null)
+    } catch (error) {
+      hapticHeavy()
+      toast.error(
+        error instanceof Error ? error.message : "Could not unpin this goal"
+      )
+    } finally {
+      setUnpinningCoachGoal(false)
+    }
+  }
 
   function openSnapCamera() {
     if (!requireAiAccess()) return
@@ -2770,6 +2819,7 @@ export default function App() {
     supplementLogs !== undefined &&
     workoutLogsQuery !== undefined &&
     activeWorkouts !== undefined &&
+    pinnedCoachGoals !== undefined &&
     serverPresets !== undefined &&
     schedule !== undefined &&
     bodyMeasurements !== undefined
@@ -2866,6 +2916,20 @@ export default function App() {
                   }),
               }}
             />
+
+            {isTodaySelected ? (
+              <CoachGoalCards
+                goals={(pinnedCoachGoals ?? []) as PinnedCoachGoal[]}
+                today={todayKey}
+                onToggleTask={(taskId, completed) =>
+                  void toggleCoachGoalTask(taskId, completed)
+                }
+                onRequestUnpin={(goalId) => {
+                  hapticSelection()
+                  setConfirmUnpinGoalId(goalId)
+                }}
+              />
+            ) : null}
 
             <WorkoutWeekStrip
               days={workoutWeekDays}
@@ -3098,6 +3162,56 @@ export default function App() {
             </div>
           )}
         </MobileSheet>
+      )}
+
+      {confirmUnpinGoalId && (
+        <div
+          className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Unpin Coach goal"
+          onClick={() => {
+            if (!unpinningCoachGoal) setConfirmUnpinGoalId(null)
+          }}
+        >
+          <div
+            className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
+            style={{
+              paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mt-3 mb-5 h-1 w-10 rounded-full bg-border/60" />
+            <div className="px-6">
+              <h2 className="text-[17px] font-bold tracking-tight">
+                Unpin this Coach goal?
+              </h2>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
+                It will disappear from Today, but the goal and its task progress
+                will stay available to Coach.
+              </p>
+              <div className="mt-6 flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={unpinningCoachGoal}
+                  onClick={() => void confirmCoachGoalUnpin()}
+                  className="h-12 w-full rounded-xl bg-foreground text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-50"
+                >
+                  {unpinningCoachGoal ? "Unpinning…" : "Unpin from Today"}
+                </button>
+                <button
+                  type="button"
+                  disabled={unpinningCoachGoal}
+                  onClick={() => setConfirmUnpinGoalId(null)}
+                  className="h-12 w-full rounded-xl bg-muted text-[14px] font-bold text-foreground transition-opacity active:opacity-80 disabled:opacity-50"
+                >
+                  Keep pinned
+                </button>
+              </div>
+            </div>
+            <div className="h-4" />
+          </div>
+        </div>
       )}
 
       {confirmDeleteSlot && (

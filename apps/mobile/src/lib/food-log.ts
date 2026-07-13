@@ -1197,6 +1197,24 @@ export type RecipeIngredient = {
 export type Recipe = {
   _id?: string // Convex ID
   name: string
-  createdAt: string
+  createdAt: string | number
+  recipeType?: "quick" | "detailed"
+  description?: string
+  servings?: number
+  prepMinutes?: number
+  cookMinutes?: number
+  category?: string
+  notes?: string
+  placeholderImage?: string
+  originCountry?: string
+  isCommunityShared?: boolean
+  communityAuthorName?: string
+  sharedAt?: number
+  communityAnonymous?: boolean
+  isOwnedByViewer?: boolean
+  tags?: string[]
+  steps?: string[]
+  photoStorageIds?: string[]
+  photoUrls?: Array<string | null>
   ingredients: RecipeIngredient[]
 }

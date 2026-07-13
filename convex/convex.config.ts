@@ -16,6 +16,8 @@ const app = defineApp({
     REVENUECAT_MONTHLY_PRICE_LABEL: v.optional(v.string()),
     REVENUECAT_WEBHOOK_AUTH: v.optional(v.string()),
     STRIPE_SECRET_KEY: v.optional(v.string()),
+    FATSECRET_CLIENT_ID: v.optional(v.string()),
+    FATSECRET_CLIENT_SECRET: v.optional(v.string()),
   },
 });
 app.use(crons);

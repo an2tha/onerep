@@ -867,7 +867,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   <AiUsageProgress usage={aiUsage} />
                 </GroupedList>
                 <SettingsSectionLabel title="Subscription" />
-                <GroupedList label="OneRep Pro subscription">
+                <GroupedList
+                  label="OneRep Pro subscription"
+                  className="profile-pro-group"
+                >
                   <RevenueCatSubscriptionPanel revenueCat={revenueCat} />
                 </GroupedList>
                 <SettingsSectionLabel title="Session" />
@@ -1750,127 +1753,151 @@ function RevenueCatSubscriptionPanel({
   }
 
   return (
-    <div>
-      <div className="px-[var(--app-page-x)] py-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="native-section-title">OneRep Pro</p>
-            <p className="native-row-detail mt-1 max-w-xl">
-              {active
-                ? "AI meal analysis, workout generation, and progress insights are unlocked."
-                : "Unlock AI meal analysis, workout generation, and progress insights. Core tracking stays free."}
-            </p>
-          </div>
-          <StatusPill label={active ? "Active" : "Free"} strong={active} />
-        </div>
-
-        <div className="native-stat-row mt-3">
-          <span className="native-row-title">Monthly plan</span>
-          <span className="native-row-value">{monthlyPrice}</span>
-        </div>
-
-        <div
-          role="status"
-          aria-live={
-            subscriptionDiagnostic.tone === "attention" ? "assertive" : "polite"
-          }
-          className={cn(
-            "mt-3 flex items-start gap-2 border-l-2 py-1 pl-3",
-            subscriptionDiagnostic.tone === "attention"
-              ? "border-destructive text-destructive"
-              : "border-border text-muted-foreground"
-          )}
-        >
-          {subscriptionDiagnostic.tone === "attention" ? (
-            <Warning size={16} weight="bold" className="mt-0.5 shrink-0" />
-          ) : subscriptionDiagnostic.tone === "success" ? (
-            <CheckCircle size={16} weight="bold" className="mt-0.5 shrink-0" />
-          ) : subscriptionDiagnostic.tone === "pending" ? (
-            <ArrowsClockwise
-              size={16}
-              weight="bold"
-              className="mt-0.5 shrink-0 animate-spin"
-            />
-          ) : (
-            <CloudArrowUp size={16} weight="bold" className="mt-0.5 shrink-0" />
-          )}
-          <span className="native-row-detail">
-            <span className="font-semibold text-current">
-              {subscriptionDiagnostic.title}
+    <>
+      <div
+        className="profile-pro-card"
+        data-subscription-state={active ? "active" : "free"}
+      >
+        <div className="profile-pro-content">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="profile-pro-title">OneRep Pro</p>
+              <p className="profile-pro-description">
+                {active
+                  ? "AI meal analysis, workout generation, and progress insights are unlocked."
+                  : "Unlock AI meal analysis, workout generation, and progress insights. Core tracking stays free."}
+              </p>
+            </div>
+            <span className="profile-pro-status">
+              {active && <CheckCircle size={15} weight="fill" aria-hidden />}
+              {active ? "Active" : "Free"}
             </span>
-            {" · "}
-            {subscriptionDiagnostic.detail}
-          </span>
-        </div>
+          </div>
 
-        <div className="mt-4 grid gap-2">
-          <button
-            type="button"
-            disabled={active ? disabled : purchaseDisabled}
-            aria-busy={active ? action === "cancel" : action === "purchase"}
-            onClick={() =>
-              active
-                ? setConfirmCancel(true)
-                : void runRevenueCatAction(
-                    "purchase",
-                    revenueCat.purchaseMonthly
-                  )
-            }
-            className="native-primary-button w-full disabled:opacity-50"
-          >
-            {action === "purchase"
-              ? "Starting checkout..."
-              : active
-                ? action === "cancel"
-                  ? "Canceling..."
-                  : opensSubscriptionManagement
-                    ? "Manage subscription"
-                    : "Cancel renewal"
-                : revenueCat.canPurchase
-                  ? "Upgrade to Pro"
-                  : "Products unavailable"}
-          </button>
+          <div className="profile-pro-plan">
+            <span>
+              <span className="profile-pro-plan-label">Plan</span>
+              <span className="profile-pro-plan-name">Monthly</span>
+            </span>
+            <span className="profile-pro-price">{monthlyPrice}</span>
+          </div>
 
           <div
-            className={cn("grid gap-2", active ? "grid-cols-1" : "grid-cols-2")}
+            role="status"
+            aria-live={
+              subscriptionDiagnostic.tone === "attention"
+                ? "assertive"
+                : "polite"
+            }
+            className="profile-pro-diagnostic"
+            data-tone={subscriptionDiagnostic.tone}
           >
-            {!active && (
+            {subscriptionDiagnostic.tone === "attention" ? (
+              <Warning size={16} weight="bold" className="mt-0.5 shrink-0" />
+            ) : subscriptionDiagnostic.tone === "success" ? (
+              <CheckCircle
+                size={16}
+                weight="bold"
+                className="mt-0.5 shrink-0"
+              />
+            ) : subscriptionDiagnostic.tone === "pending" ? (
+              <ArrowsClockwise
+                size={16}
+                weight="bold"
+                className="mt-0.5 shrink-0 animate-spin"
+              />
+            ) : (
+              <CloudArrowUp
+                size={16}
+                weight="bold"
+                className="mt-0.5 shrink-0"
+              />
+            )}
+            <span>
+              <span className="font-semibold">
+                {subscriptionDiagnostic.title}
+              </span>
+              {" · "}
+              {subscriptionDiagnostic.detail}
+            </span>
+          </div>
+
+          <div className="profile-pro-actions">
+            <button
+              type="button"
+              disabled={active ? disabled : purchaseDisabled}
+              aria-busy={active ? action === "cancel" : action === "purchase"}
+              onClick={() => {
+                if (active) {
+                  hapticTap()
+                  setConfirmCancel(true)
+                  return
+                }
+                void runRevenueCatAction("purchase", revenueCat.purchaseMonthly)
+              }}
+              className={cn(
+                "profile-pro-primary-action",
+                active && "profile-pro-management-action"
+              )}
+            >
+              {action === "purchase"
+                ? "Starting checkout..."
+                : active
+                  ? action === "cancel"
+                    ? "Canceling..."
+                    : opensSubscriptionManagement
+                      ? "Manage subscription"
+                      : "Cancel renewal"
+                  : revenueCat.canPurchase
+                    ? "Upgrade to Pro"
+                    : "Products unavailable"}
+            </button>
+
+            <div className="profile-pro-secondary-actions">
+              {!active && (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-busy={action === "restore"}
+                  onClick={() =>
+                    void runRevenueCatAction(
+                      "restore",
+                      revenueCat.restorePurchases,
+                      "Purchases restored"
+                    )
+                  }
+                  className="profile-pro-secondary-action"
+                >
+                  {action === "restore" ? "..." : "Restore"}
+                </button>
+              )}
               <button
                 type="button"
                 disabled={disabled}
-                aria-busy={action === "restore"}
+                aria-busy={action === "refresh"}
+                aria-label={
+                  subscriptionDiagnostic.canRetry
+                    ? "Retry subscription status"
+                    : "Refresh subscription status"
+                }
                 onClick={() =>
                   void runRevenueCatAction(
-                    "restore",
-                    revenueCat.restorePurchases,
-                    "Purchases restored"
+                    "refresh",
+                    revenueCat.refresh,
+                    "Subscription refreshed"
                   )
                 }
-                className="min-h-11 rounded-[0.65rem] border border-border px-3 text-[15px] font-semibold disabled:opacity-45"
+                className="profile-pro-secondary-action"
               >
-                {action === "restore" ? "..." : "Restore"}
+                <ArrowsClockwise
+                  size={15}
+                  weight="bold"
+                  aria-hidden
+                  className={action === "refresh" ? "animate-spin" : undefined}
+                />
+                {refreshLabel}
               </button>
-            )}
-            <button
-              type="button"
-              disabled={disabled}
-              aria-busy={action === "refresh"}
-              aria-label={
-                subscriptionDiagnostic.canRetry
-                  ? "Retry subscription status"
-                  : "Refresh subscription status"
-              }
-              onClick={() =>
-                void runRevenueCatAction(
-                  "refresh",
-                  revenueCat.refresh,
-                  "Subscription refreshed"
-                )
-              }
-              className="min-h-11 rounded-[0.65rem] border border-border px-3 text-[15px] font-semibold disabled:opacity-45"
-            >
-              {refreshLabel}
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1940,7 +1967,7 @@ function RevenueCatSubscriptionPanel({
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

@@ -16,7 +16,7 @@ import type * as ai_usage from "../ai/usage.js";
 import type * as bodyProgress from "../bodyProgress.js";
 import type * as crons from "../crons.js";
 import type * as exercises from "../exercises.js";
-import type * as food_openFoodFacts from "../food/openFoodFacts.js";
+import type * as food_fatSecret from "../food/fatSecret.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
@@ -59,7 +59,7 @@ declare const fullApi: ApiFromModules<{
   bodyProgress: typeof bodyProgress;
   crons: typeof crons;
   exercises: typeof exercises;
-  "food/openFoodFacts": typeof food_openFoodFacts;
+  "food/fatSecret": typeof food_fatSecret;
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/calculateCalories": typeof lib_calculateCalories;
