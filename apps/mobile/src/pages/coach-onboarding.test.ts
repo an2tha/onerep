@@ -156,7 +156,12 @@ describe("Coach first-open experience", () => {
     expect(COACH_ACTION_SOURCE).toContain('type: "save_recipe"')
     expect(COACH_ACTION_SOURCE).toContain('type: "log_nutrition"')
     expect(COACH_ACTION_SOURCE).toContain('type: "create_workout_preset"')
+    expect(COACH_ACTION_SOURCE).toContain('type: "create_workout_plan"')
     expect(COACH_ACTION_SOURCE).toContain('type: "update_routine"')
+    expect(COACH_SOURCE).toContain("expandWorkoutPlanOperations")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "prefer one create_workout_plan operation"
+    )
     expect(COACH_PROMPT_SOURCE).toContain(
       "Operations are real writes. Emit them only when the LATEST message directly asks"
     )

@@ -92,6 +92,23 @@ type CoachOperationMeta = {
   warnings: string[]
 }
 
+type CoachWorkoutPresetDraft = {
+  presetId?: string
+  reason?: "user_edit" | "progression" | "recovery" | "substitution"
+  name: string
+  focus: "strength" | "cardio" | "mobility"
+  exercises: Array<{
+    name: string
+    sets: Array<{
+      type: "working" | "warmup" | "failure" | "myoreps" | "drop"
+      weight: string
+      reps: string
+      restSeconds: number
+    }>
+  }>
+  scheduleDays: Day[]
+}
+
 type CoachOperation = CoachOperationMeta &
   (
     | {
@@ -124,22 +141,11 @@ type CoachOperation = CoachOperationMeta &
         date: string
         name: string
       }
+    | ({ type: "create_workout_preset" } & CoachWorkoutPresetDraft)
     | {
-        type: "create_workout_preset"
-        presetId?: string
-        reason?: "user_edit" | "progression" | "recovery" | "substitution"
-        name: string
-        focus: "strength" | "cardio" | "mobility"
-        exercises: Array<{
-          name: string
-          sets: Array<{
-            type: "working" | "warmup" | "failure" | "myoreps" | "drop"
-            weight: string
-            reps: string
-            restSeconds: number
-          }>
-        }>
-        scheduleDays: Day[]
+        type: "create_workout_plan"
+        presets: CoachWorkoutPresetDraft[]
+        assignments: Array<{ day: Day; presetName: string | null }>
       }
     | {
         type: "update_routine"
@@ -471,6 +477,12 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
     if (row.type === "delete_nutrition") return Boolean(row.entryId && row.date)
     if (row.type === "create_workout_preset")
       return Boolean(row.name && Array.isArray(row.exercises))
+    if (row.type === "create_workout_plan")
+      return Boolean(
+        Array.isArray(row.presets) &&
+        row.presets.length > 0 &&
+        Array.isArray(row.assignments)
+      )
     if (row.type === "update_routine") return Array.isArray(row.assignments)
     if (row.type === "remember") return Boolean(row.key && row.value)
     if (row.type === "forget_memory") return Boolean(row.key)
@@ -540,6 +552,32 @@ function validateCoachOperations(operations: CoachOperation[]) {
     }
   }
   return errors
+}
+
+function expandWorkoutPlanOperations(
+  operations: CoachOperation[]
+): CoachOperation[] {
+  return operations.flatMap((operation) => {
+    if (operation.type !== "create_workout_plan") return [operation]
+    const meta: CoachOperationMeta = {
+      confirmation: operation.confirmation,
+      summary: operation.summary,
+      assumptions: operation.assumptions,
+      warnings: operation.warnings,
+    }
+    return [
+      ...operation.presets.map((preset): CoachOperation => ({
+        ...meta,
+        type: "create_workout_preset",
+        ...preset,
+      })),
+      {
+        ...meta,
+        type: "update_routine",
+        assignments: operation.assignments,
+      },
+    ]
+  })
 }
 
 function normalizedExerciseName(value: string) {
@@ -1386,7 +1424,8 @@ export default function Coach() {
   ])
 
   async function executeOperations(operations: CoachOperation[]) {
-    const validationErrors = validateCoachOperations(operations)
+    const expandedOperations = expandWorkoutPlanOperations(operations)
+    const validationErrors = validateCoachOperations(expandedOperations)
     if (validationErrors.length > 0) throw new Error(validationErrors[0])
     const results: CoachOperationResult[] = []
     const knownPresets = new Map(
@@ -1400,7 +1439,7 @@ export default function Coach() {
     let routineChanged = false
     const presetOrder = (schedule?.presetOrder ?? []).map(String)
 
-    const orderedOperations = [...operations].sort((left, right) => {
+    const orderedOperations = [...expandedOperations].sort((left, right) => {
       const priority = (operation: CoachOperation) =>
         operation.type === "create_workout_preset"
           ? 0
