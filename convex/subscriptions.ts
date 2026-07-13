@@ -407,17 +407,30 @@ async function fetchRevenueCatStatus(appUserId: string) {
     throw new Error("RevenueCat secret key is not configured in Convex");
   }
 
-  const response = await fetch(
-    `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(
-      appUserId,
-    )}`,
-    {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(
+        appUserId,
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+        },
+        signal: controller.signal,
       },
-    },
-  );
+    );
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("RevenueCat status request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (response.status === 404) {
     return null;

@@ -585,6 +585,7 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
         if (!name || ingredients.length === 0) return null;
         return {
           ...meta,
+          confirmation: "confirm",
           type,
           ...(clampText(row.recipeId, 100)
             ? { recipeId: clampText(row.recipeId, 100) }
@@ -1353,7 +1354,7 @@ async function generateCoachChatWithOpenAi({
         operations: [
           {
             type: "save_recipe",
-            confirmation: "auto | confirm",
+            confirmation: "confirm",
             summary: "exact change",
             assumptions: ["safe assumption"],
             warnings: [],

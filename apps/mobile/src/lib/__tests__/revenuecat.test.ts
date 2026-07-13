@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import {
   hasActiveSubscription,
+  hasHydratedWebSubscription,
   hasOneRepPro,
   ONEREP_PRO_ENTITLEMENT,
   revenueCatErrorMessage,
@@ -12,6 +13,12 @@ function customerInfo(overrides: Record<string, unknown>) {
 }
 
 describe("RevenueCat subscription helpers", () => {
+  test("keeps hydrated web subscriptions out of the loading state", () => {
+    expect(hasHydratedWebSubscription(false, { isActive: true })).toBe(true)
+    expect(hasHydratedWebSubscription(false, null)).toBe(false)
+    expect(hasHydratedWebSubscription(true, { isActive: true })).toBe(false)
+  })
+
   test("unlocks OneRep Pro from active entitlement map", () => {
     const info = customerInfo({
       entitlements: {

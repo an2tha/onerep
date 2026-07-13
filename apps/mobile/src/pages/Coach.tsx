@@ -628,6 +628,85 @@ function recipeTotals(ingredients: CoachRecipeIngredient[], servings: number) {
   ) as typeof total
 }
 
+function RecipeBreakdown({
+  recipe,
+}: {
+  recipe: Extract<CoachOperation, { type: "save_recipe" }>
+}) {
+  const totals = recipeTotals(recipe.ingredients, recipe.servings)
+  const details = [
+    `${recipe.prepMinutes} min`,
+    `${recipe.servings} serving${recipe.servings === 1 ? "" : "s"}`,
+    ...recipe.tags,
+  ]
+
+  return (
+    <>
+      <p className="mt-3 text-[11px] text-foreground/55">
+        {details.join(" · ")}
+      </p>
+      <div className="mt-4 grid grid-cols-4 divide-x divide-border/45 border-y border-border/45 py-3">
+        {[
+          ["Calories", `${totals.calories}`],
+          ["Protein", `${totals.protein}g`],
+          ["Carbs", `${totals.carbs}g`],
+          ["Fat", `${totals.fat}g`],
+        ].map(([label, value]) => (
+          <div
+            key={label}
+            className="min-w-0 px-1 text-center first:pl-0 last:pr-0"
+          >
+            <p className="text-[14px] font-bold tabular-nums">{value}</p>
+            <p className="mt-0.5 truncate text-[8px] text-muted-foreground">
+              {label}
+            </p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-1 text-right text-[8px] text-muted-foreground/70">
+        Estimated per serving
+      </p>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2">
+        <div>
+          <h4 className="text-[11px] font-bold">Ingredients</h4>
+          <ul className="mt-2 divide-y divide-border/35 text-[11px] text-foreground/70">
+            {recipe.ingredients.map((ingredient, index) => (
+              <li
+                key={`${ingredient.name}-${index}`}
+                className="flex items-baseline justify-between gap-3 py-1.5"
+              >
+                <span>{ingredient.name}</span>
+                <span className="shrink-0 text-muted-foreground tabular-nums">
+                  {Math.round(ingredient.grams)}g
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4 className="text-[11px] font-bold">Method</h4>
+          {recipe.steps.length > 0 ? (
+            <ol className="mt-2 space-y-2 text-[11px] leading-relaxed text-foreground/70">
+              {recipe.steps.map((step, index) => (
+                <li key={`${step}-${index}`} className="flex gap-2.5">
+                  <span className="shrink-0 text-muted-foreground tabular-nums">
+                    {index + 1}.
+                  </span>
+                  <span>{step}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              No method supplied.
+            </p>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 function CoachOperationResults({
   results,
   onOpenRecipe,
@@ -651,111 +730,47 @@ function CoachOperationResults({
     <div className="mt-4 space-y-3">
       {results.map((result, index) => {
         if (result.type === "save_recipe") {
-          const totals = recipeTotals(result.ingredients, result.servings)
           return (
             <article
               key={`${result.type}-${result.recipeId}`}
-              className="relative overflow-hidden rounded-[22px] border border-amber-500/20 bg-[linear-gradient(145deg,rgba(251,191,36,0.14),rgba(249,115,22,0.05)_48%,transparent)] p-4 shadow-[0_18px_50px_rgba(120,53,15,0.08)]"
+              className="border-y border-border/55 py-5"
             >
-              <div className="absolute -top-12 -right-10 size-28 rounded-full bg-amber-400/10 blur-2xl" />
-              <div className="relative">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black tracking-[0.16em] text-amber-700/70 uppercase dark:text-amber-300/65">
-                      Saved recipe
-                    </p>
-                    <h3 className="mt-1 text-[20px] leading-tight font-black tracking-tight">
-                      {result.name}
-                    </h3>
-                  </div>
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg shadow-amber-500/20">
-                    <ForkKnife size={18} weight="fill" />
-                  </span>
-                </div>
-                {result.description ? (
-                  <p className="mt-2 text-[12px] leading-relaxed text-foreground/68">
-                    {result.description}
-                  </p>
+              <p className="text-[10px] font-medium text-muted-foreground">
+                Saved to Recipes
+              </p>
+              <h3 className="mt-1 text-[20px] leading-tight font-bold tracking-tight">
+                {result.name}
+              </h3>
+              {result.description ? (
+                <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
+                  {result.description}
+                </p>
+              ) : null}
+              <RecipeBreakdown recipe={result} />
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpenRecipe(result.recipeId)}
+                  className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background"
+                >
+                  Edit recipe <ArrowRight size={12} weight="bold" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onLogRecipe(result)}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-border/70 px-4 text-[11px] font-bold"
+                >
+                  Log one serving
+                </button>
+                {result.actionId ? (
+                  <button
+                    type="button"
+                    onClick={() => onUndo(result.actionId!)}
+                    className="inline-flex min-h-10 items-center gap-1 px-2 text-[10px] font-medium text-muted-foreground"
+                  >
+                    <ClockCounterClockwise size={13} /> Undo save
+                  </button>
                 ) : null}
-                <div className="mt-4 grid grid-cols-4 gap-2 rounded-2xl border border-white/30 bg-background/60 p-3 backdrop-blur">
-                  {[
-                    ["Energy", `${totals.calories}`],
-                    ["Protein", `${totals.protein}g`],
-                    ["Carbs", `${totals.carbs}g`],
-                    ["Fat", `${totals.fat}g`],
-                  ].map(([label, value]) => (
-                    <div key={label} className="min-w-0 text-center">
-                      <p className="text-[14px] font-black tabular-nums">
-                        {value}
-                      </p>
-                      <p className="mt-0.5 truncate text-[8px] font-bold tracking-wide text-muted-foreground uppercase">
-                        {label}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-bold text-foreground/60">
-                  <span className="rounded-full bg-background/65 px-2.5 py-1">
-                    {result.prepMinutes} min
-                  </span>
-                  <span className="rounded-full bg-background/65 px-2.5 py-1">
-                    {result.servings} serving{result.servings === 1 ? "" : "s"}
-                  </span>
-                  {result.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-background/65 px-2.5 py-1"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <details className="native-collapsible mt-3 border-t border-amber-800/10 pt-3 text-[11px]">
-                  <summary className="cursor-pointer font-bold">
-                    Ingredients & method
-                  </summary>
-                  <ul className="mt-2 space-y-1 text-foreground/68">
-                    {result.ingredients.map((ingredient) => (
-                      <li key={ingredient.name}>
-                        {Math.round(ingredient.grams)}g {ingredient.name}
-                      </li>
-                    ))}
-                  </ul>
-                  {result.steps.length > 0 ? (
-                    <ol className="mt-3 space-y-1.5 text-foreground/68">
-                      {result.steps.map((step, stepIndex) => (
-                        <li key={step}>
-                          {stepIndex + 1}. {step}
-                        </li>
-                      ))}
-                    </ol>
-                  ) : null}
-                </details>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onOpenRecipe(result.recipeId)}
-                    className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-foreground px-4 text-[11px] font-black text-background"
-                  >
-                    Edit recipe <ArrowRight size={12} weight="bold" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onLogRecipe(result)}
-                    className="inline-flex min-h-10 items-center rounded-full border border-border/70 px-4 text-[11px] font-black"
-                  >
-                    Log serving
-                  </button>
-                  {result.actionId ? (
-                    <button
-                      type="button"
-                      onClick={() => onUndo(result.actionId!)}
-                      className="inline-flex min-h-10 items-center gap-1 rounded-full px-3 text-[10px] font-bold text-muted-foreground"
-                    >
-                      <ClockCounterClockwise size={13} /> Undo
-                    </button>
-                  ) : null}
-                </div>
               </div>
             </article>
           )
@@ -765,13 +780,15 @@ function CoachOperationResults({
           return (
             <div
               key={`${result.type}-${result.presetId}`}
-              className="flex w-full items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left"
+              className="flex w-full items-center gap-3 border-y border-border/50 py-3.5 text-left"
             >
-              <span className="flex size-10 items-center justify-center rounded-full bg-foreground text-background">
-                <Barbell size={18} weight="fill" />
-              </span>
+              <Barbell
+                size={18}
+                weight="bold"
+                className="shrink-0 text-muted-foreground"
+              />
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-black">
+                <span className="block text-[13px] font-bold">
                   {result.name}
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
@@ -784,7 +801,7 @@ function CoachOperationResults({
               <button
                 type="button"
                 onClick={onOpenWorkouts}
-                className="text-[10px] font-black"
+                className="min-h-9 px-2 text-[10px] font-bold"
               >
                 Open
               </button>
@@ -818,7 +835,7 @@ function CoachOperationResults({
         return (
           <div
             key={`${result.type}-${index}`}
-            className="flex items-center gap-2 rounded-xl border border-[var(--status-success)]/20 bg-[var(--status-success)]/5 px-3 py-2.5 text-[11px] font-bold"
+            className="flex items-center gap-2 border-y border-border/50 py-2.5 text-[11px] font-semibold"
           >
             <CheckCircle
               size={16}
@@ -862,12 +879,9 @@ function CoachArtifacts({ artifacts }: { artifacts?: CoachArtifact[] }) {
     recovery_adaptation: "Recovery",
   }
   return (
-    <div className="mt-4 space-y-3">
+    <div className="mt-5 divide-y divide-border/45 border-y border-border/45">
       {artifacts.map((artifact, index) => (
-        <article
-          key={`${artifact.type}-${index}`}
-          className="rounded-2xl border border-border/60 bg-card/70 p-4"
-        >
+        <article key={`${artifact.type}-${index}`} className="py-4">
           <div className="flex items-center gap-2">
             {artifact.type === "recovery_adaptation" ? (
               <Heartbeat size={16} weight="fill" />
@@ -876,16 +890,16 @@ function CoachArtifacts({ artifacts }: { artifacts?: CoachArtifact[] }) {
             ) : (
               <ChartLineUp size={16} weight="bold" />
             )}
-            <p className="text-[9px] font-black tracking-[0.14em] text-muted-foreground uppercase">
+            <p className="text-[10px] font-medium text-muted-foreground">
               {labels[artifact.type]}
             </p>
             {artifact.status ? (
-              <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[8px] font-bold">
+              <span className="ml-auto text-[9px] text-muted-foreground">
                 {artifact.status}
               </span>
             ) : null}
           </div>
-          <h3 className="mt-2 text-[14px] font-black">{artifact.title}</h3>
+          <h3 className="mt-2 text-[14px] font-bold">{artifact.title}</h3>
           <p className="mt-1 text-[12px] leading-relaxed text-foreground/68">
             {artifact.detail}
           </p>
@@ -919,20 +933,101 @@ function CoachProposal({
   onDismiss: () => void
 }) {
   if (!operations?.length) return null
+  const recipe =
+    operations.length === 1 && operations[0]?.type === "save_recipe"
+      ? operations[0]
+      : null
+
+  if (recipe) {
+    const isEdit = Boolean(recipe.recipeId)
+    return (
+      <section className="mt-5 border-y border-border/55 py-5">
+        <p className="text-[10px] font-medium text-muted-foreground">
+          Recipe preview · nothing saved yet
+        </p>
+        <h3 className="mt-1 text-[18px] leading-tight font-bold tracking-tight">
+          {recipe.name}
+        </h3>
+        {recipe.description ? (
+          <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
+            {recipe.description}
+          </p>
+        ) : null}
+        <RecipeBreakdown recipe={recipe} />
+        {recipe.assumptions.length > 0 ? (
+          <div className="mt-5 border-l border-border/70 pl-3">
+            <p className="text-[10px] font-medium">Based on</p>
+            {recipe.assumptions.map((item) => (
+              <p key={item} className="mt-1 text-[10px] text-muted-foreground">
+                {item}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {recipe.warnings.map((warning) => (
+          <p
+            key={warning}
+            className="mt-3 flex gap-1.5 text-[10px] text-amber-700 dark:text-amber-300"
+          >
+            <WarningCircle size={13} className="shrink-0" /> {warning}
+          </p>
+        ))}
+        {recipe.logMeal ? (
+          <p className="mt-3 text-[10px] text-muted-foreground">
+            Saving will also log {recipe.servingsToLog ?? 1} serving
+            {(recipe.servingsToLog ?? 1) === 1 ? "" : "s"} to {recipe.logMeal}.
+          </p>
+        ) : null}
+        <div className="mt-5 border-t border-border/45 pt-4">
+          <p className="text-[13px] font-semibold">
+            {isEdit ? "Does this update look right?" : "Like this recipe?"}
+          </p>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {isEdit
+              ? "Your existing recipe changes only after you confirm."
+              : "Add it to Recipes only if it fits what you wanted."}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onApply}
+              disabled={applying}
+              className="min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-40"
+            >
+              {applying
+                ? "Saving…"
+                : isEdit
+                  ? "Update recipe"
+                  : "Save to Recipes"}
+            </button>
+            <button
+              type="button"
+              onClick={onDismiss}
+              disabled={applying}
+              className="min-h-10 px-3 text-[11px] font-medium text-muted-foreground"
+            >
+              Not for me
+            </button>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   const assumptions = [
     ...new Set(operations.flatMap((item) => item.assumptions)),
   ]
   const warnings = [...new Set(operations.flatMap((item) => item.warnings))]
   return (
-    <section className="mt-4 rounded-2xl border border-foreground/15 bg-card p-4">
-      <p className="text-[9px] font-black tracking-[0.14em] text-muted-foreground uppercase">
+    <section className="mt-5 border-y border-border/55 py-4">
+      <p className="text-[10px] font-medium text-muted-foreground">
         Review changes
       </p>
       <div className="mt-3 space-y-2">
         {operations.map((operation, index) => (
           <div
             key={`${operation.type}-${index}`}
-            className="flex gap-2 text-[12px] font-bold"
+            className="flex gap-2 text-[12px] font-semibold"
           >
             <CheckCircle
               size={15}
@@ -943,8 +1038,8 @@ function CoachProposal({
         ))}
       </div>
       {assumptions.length > 0 ? (
-        <div className="mt-3 rounded-xl bg-muted/45 p-3">
-          <p className="text-[9px] font-black uppercase">Assumptions</p>
+        <div className="mt-3 border-l border-border/70 pl-3">
+          <p className="text-[10px] font-medium">Assumptions</p>
           {assumptions.map((item) => (
             <p key={item} className="mt-1 text-[10px] text-muted-foreground">
               {item}
@@ -965,7 +1060,7 @@ function CoachProposal({
           type="button"
           onClick={onApply}
           disabled={applying}
-          className="min-h-10 rounded-full bg-foreground px-4 text-[11px] font-black text-background disabled:opacity-40"
+          className="min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-40"
         >
           {applying ? "Applying…" : "Apply changes"}
         </button>
@@ -1827,6 +1922,10 @@ export default function Coach() {
         continue
       }
 
+      if (operation.type === "create_workout_plan") {
+        throw new Error("Workout plan was not expanded before execution.")
+      }
+
       const previousSchedule = {
         routine: schedule?.routine ?? {
           primary: originalRoutines.primary,
@@ -1915,6 +2014,7 @@ export default function Coach() {
           : message
       )
     )
+    hapticSelection()
   }
 
   async function undoAction(id: string) {
@@ -2133,7 +2233,9 @@ export default function Coach() {
       if (selectedAttachment) clearAttachment()
       const needsConfirmation = operations.some(
         (operation) =>
-          operation.confirmation === "confirm" || operation.warnings.length > 0
+          operation.type === "save_recipe" ||
+          operation.confirmation === "confirm" ||
+          operation.warnings.length > 0
       )
       const operationResults =
         operations.length > 0 && !needsConfirmation
@@ -2326,7 +2428,7 @@ export default function Coach() {
           id="coach-workspace"
           role="tabpanel"
           aria-label={mode.label}
-          className="coach-mode-stage coach-swoosh-surface relative isolate flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5 lg:my-3 lg:rounded-2xl lg:border lg:border-white/10"
+          className="coach-mode-stage coach-swoosh-surface relative isolate flex min-h-0 flex-1 flex-col overflow-hidden lg:my-3 lg:rounded-2xl lg:border lg:border-white/10"
           data-coach-mode={activeMode}
         >
           <div
@@ -2334,171 +2436,177 @@ export default function Coach() {
             className="coach-swoosh-backdrop coach-swoosh-backdrop--panel"
             aria-hidden="true"
           />
-          {loading ? (
-            <CoachLoadingState />
-          ) : messages.length === 0 ? (
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-4 sm:py-6">
-              <div className="px-1 text-left">
-                <p className="text-[12px] font-medium text-muted-foreground">
-                  {timeGreeting()}
-                </p>
-                <h2 className="mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em] text-foreground sm:text-[27px]">
-                  {mode.heading}
-                </h2>
-              </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5">
+            {loading ? (
+              <CoachLoadingState />
+            ) : messages.length === 0 ? (
+              <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-4 sm:py-6">
+                <div className="px-1 text-left">
+                  <p className="text-[12px] font-medium text-muted-foreground">
+                    {timeGreeting()}
+                  </p>
+                  <h2 className="mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em] text-foreground sm:text-[27px]">
+                    {mode.heading}
+                  </h2>
+                </div>
 
-              <div
-                className="relative flex min-h-32 flex-1 items-center justify-center"
-                aria-hidden="true"
-              >
-                <LeftArt
-                  size={68}
-                  weight="thin"
-                  className={cn(
-                    "absolute left-[5%] -rotate-6 sm:left-[13%]",
-                    mode.artClass
-                  )}
-                />
-                <span
-                  className={cn(
-                    "flex size-11 items-center justify-center rounded-full border border-border/35 bg-background/45 backdrop-blur-sm",
-                    mode.centerArtClass
-                  )}
+                <div
+                  className="relative flex min-h-32 flex-1 items-center justify-center"
+                  aria-hidden="true"
                 >
-                  <CenterArt size={21} weight="regular" />
-                </span>
-                <RightArt
-                  size={68}
-                  weight="thin"
-                  className={cn(
-                    "absolute right-[5%] rotate-6 sm:right-[13%]",
-                    mode.artClass
-                  )}
-                />
-              </div>
+                  <LeftArt
+                    size={68}
+                    weight="thin"
+                    className={cn(
+                      "absolute left-[5%] -rotate-6 sm:left-[13%]",
+                      mode.artClass
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "flex size-11 items-center justify-center rounded-full border border-border/35 bg-background/45 backdrop-blur-sm",
+                      mode.centerArtClass
+                    )}
+                  >
+                    <CenterArt size={21} weight="regular" />
+                  </span>
+                  <RightArt
+                    size={68}
+                    weight="thin"
+                    className={cn(
+                      "absolute right-[5%] rotate-6 sm:right-[13%]",
+                      mode.artClass
+                    )}
+                  />
+                </div>
 
-              <AppTooltip
-                id={APP_TOOLTIP_IDS.coachStarters}
-                content="Choose a focused coaching task."
-                targetClassName="block w-full"
-                side="top"
-                enabled
-              >
-                <div className="-mx-3 flex snap-x [scrollbar-width:none] gap-2 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden">
-                  {starters.map((starter) => {
-                    const StarterIcon = starter.icon
-                    return (
-                      <button
-                        key={starter.title}
-                        type="button"
-                        onClick={() => {
-                          if (starter.prompt === null) {
-                            hapticTap()
-                            navigate("/progress?checkIn=1", {
-                              motion: "switch",
-                            })
-                            return
-                          }
-                          void submit(starter.prompt)
-                        }}
-                        className={cn(
-                          "motion-tactile flex min-h-24 w-[9.25rem] min-w-[9.25rem] snap-start flex-col items-start justify-between rounded-2xl border p-3 text-left shadow-[0_18px_42px_-24px_rgba(0,0,0,0.85)] active:bg-muted",
-                          mode.cardClass
-                        )}
-                      >
-                        <span
+                <AppTooltip
+                  id={APP_TOOLTIP_IDS.coachStarters}
+                  content="Choose a focused coaching task."
+                  targetClassName="block w-full"
+                  side="top"
+                  enabled
+                >
+                  <div className="-mx-3 flex snap-x [scrollbar-width:none] gap-2 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden">
+                    {starters.map((starter) => {
+                      const StarterIcon = starter.icon
+                      return (
+                        <button
+                          key={starter.title}
+                          type="button"
+                          onClick={() => {
+                            if (starter.prompt === null) {
+                              hapticTap()
+                              navigate("/progress?checkIn=1", {
+                                motion: "switch",
+                              })
+                              return
+                            }
+                            void submit(starter.prompt)
+                          }}
                           className={cn(
-                            "flex size-7 items-center justify-center rounded-full border bg-black/15",
-                            mode.cardIconClass
+                            "motion-tactile flex min-h-24 w-[9.25rem] min-w-[9.25rem] snap-start flex-col items-start justify-between rounded-2xl border p-3 text-left shadow-[0_18px_42px_-24px_rgba(0,0,0,0.85)] active:bg-muted",
+                            mode.cardClass
                           )}
                         >
-                          <StarterIcon size={13} weight="bold" />
-                        </span>
-                        <span className="text-[11px] leading-[1.3] font-semibold text-foreground/85">
-                          {starter.title}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </AppTooltip>
-            </div>
-          ) : (
-            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-              <div className="flex flex-1 flex-col gap-5" aria-live="polite">
-                {messages.map((message, index) =>
-                  message.role === "user" ? (
-                    <div
-                      key={index}
-                      className="ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
-                    >
-                      {message.content}
-                    </div>
-                  ) : (
-                    <div key={index} className="max-w-2xl">
-                      <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
-                        {mode.label}
-                      </p>
-                      <div
-                        className={cn(
-                          "min-w-0 border-l-2 pl-4 text-[14px] leading-6",
-                          message.error
-                            ? "border-destructive/35 text-foreground"
-                            : cn(mode.messageClass, "text-foreground")
-                        )}
-                      >
-                        <p>{message.content}</p>
-                        {message.error && lastFailedPrompt ? (
-                          <button
-                            type="button"
-                            onClick={() => void submit(lastFailedPrompt)}
-                            className="motion-tactile mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[11px] font-bold text-background"
+                          <span
+                            className={cn(
+                              "flex size-7 items-center justify-center rounded-full border bg-black/15",
+                              mode.cardIconClass
+                            )}
                           >
-                            <ArrowClockwise size={13} weight="bold" />
-                            Try again
-                          </button>
-                        ) : (
-                          <>
-                            <CoachUiBlocks
-                              blocks={message.uiBlocks}
-                              onAction={handleUiAction}
-                            />
-                            <CoachArtifacts artifacts={message.artifacts} />
-                            <CoachProposal
-                              operations={message.pendingOperations}
-                              applying={applyingMessageIndex === index}
-                              onApply={() => void applyPendingOperations(index)}
-                              onDismiss={() => dismissPendingOperations(index)}
-                            />
-                            <CoachOperationResults
-                              results={message.operationResults}
-                              onOpenRecipe={(id) =>
-                                navigate(`/foods/recipe/${id}`, {
-                                  motion: "forward",
-                                })
-                              }
-                              onOpenWorkouts={() =>
-                                navigate("/workouts", { motion: "switch" })
-                              }
-                              onOpenNutrition={() =>
-                                navigate("/nutrition", { motion: "switch" })
-                              }
-                              onUndo={(id) => void undoAction(id)}
-                              onLogRecipe={(result) =>
-                                void logRecipeResult(result)
-                              }
-                            />
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )
-                )}
-                {busy && <ThinkingIndicator />}
-                <div ref={messagesEndRef} />
+                            <StarterIcon size={13} weight="bold" />
+                          </span>
+                          <span className="text-[11px] leading-[1.3] font-semibold text-foreground/85">
+                            {starter.title}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </AppTooltip>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
+                <div className="flex flex-1 flex-col gap-5" aria-live="polite">
+                  {messages.map((message, index) =>
+                    message.role === "user" ? (
+                      <div
+                        key={index}
+                        className="ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
+                      >
+                        {message.content}
+                      </div>
+                    ) : (
+                      <div key={index} className="max-w-2xl">
+                        <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
+                          {mode.label}
+                        </p>
+                        <div
+                          className={cn(
+                            "min-w-0 border-l-2 pl-4 text-[14px] leading-6",
+                            message.error
+                              ? "border-destructive/35 text-foreground"
+                              : cn(mode.messageClass, "text-foreground")
+                          )}
+                        >
+                          <p>{message.content}</p>
+                          {message.error && lastFailedPrompt ? (
+                            <button
+                              type="button"
+                              onClick={() => void submit(lastFailedPrompt)}
+                              className="motion-tactile mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[11px] font-bold text-background"
+                            >
+                              <ArrowClockwise size={13} weight="bold" />
+                              Try again
+                            </button>
+                          ) : (
+                            <>
+                              <CoachUiBlocks
+                                blocks={message.uiBlocks}
+                                onAction={handleUiAction}
+                              />
+                              <CoachArtifacts artifacts={message.artifacts} />
+                              <CoachProposal
+                                operations={message.pendingOperations}
+                                applying={applyingMessageIndex === index}
+                                onApply={() =>
+                                  void applyPendingOperations(index)
+                                }
+                                onDismiss={() =>
+                                  dismissPendingOperations(index)
+                                }
+                              />
+                              <CoachOperationResults
+                                results={message.operationResults}
+                                onOpenRecipe={(id) =>
+                                  navigate(`/foods/recipe/${id}`, {
+                                    motion: "forward",
+                                  })
+                                }
+                                onOpenWorkouts={() =>
+                                  navigate("/workouts", { motion: "switch" })
+                                }
+                                onOpenNutrition={() =>
+                                  navigate("/nutrition", { motion: "switch" })
+                                }
+                                onUndo={(id) => void undoAction(id)}
+                                onLogRecipe={(result) =>
+                                  void logRecipeResult(result)
+                                }
+                              />
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  )}
+                  {busy && <ThinkingIndicator />}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         <form
@@ -2506,7 +2614,7 @@ export default function Coach() {
             event.preventDefault()
             void submit()
           }}
-          className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/45 bg-[rgba(2,8,23,0.74)] pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
+          className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/45 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
         >
           <AppTooltip
             id={APP_TOOLTIP_IDS.coachMessage}
