@@ -396,7 +396,7 @@ export function TodayTimeline({
 }) {
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 short-phone:mt-4">
-      <SectionHeader title="Recent" />
+      <SectionHeader title="Recent" className="px-0 pt-0 pb-2" />
 
       <GroupedList className="mt-3">
         {events.length > 0 ? (

@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   AppleLogo,
   Barbell,
+  Brain,
   CaretDown,
   CaretUp,
   ChartLine,
@@ -16,6 +17,7 @@ import {
   DotsSixVertical,
   MagnifyingGlass,
   Minus,
+  PaperPlaneRight,
   Plus,
   Sparkle,
   Timer,
@@ -68,6 +70,7 @@ import {
   type CardioDistanceUnit,
   type CardioSourceProvider,
   type CardioWorkoutDetails,
+  normalizeScheduleRoutines,
 } from "@/lib/workout-sync"
 import {
   getRecentAppleHealthWorkouts,
@@ -78,6 +81,7 @@ import {
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@/components/workout/apple-fitness-set-row"
 import { suggestDoubleProgression } from "@/lib/workout-progression"
+import { useCoachContext } from "@/lib/coach-context"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -215,6 +219,12 @@ type AgentWorkoutDraft = {
   name?: string
   exercises?: AgentWorkoutExerciseDraft[]
   notes?: string
+}
+
+type CoachWorkoutProposal = {
+  reply: string
+  draft: AgentWorkoutDraft
+  mode: AiWorkoutMode
 }
 
 type AiWorkoutSheetTarget = {
@@ -3268,7 +3278,7 @@ function AddExerciseSheet({
     >
       <div
         className={cn(
-          "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-[28px] md:border md:border-border/45 md:shadow-2xl",
+          "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-xl md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         role="dialog"
@@ -3304,7 +3314,7 @@ function AddExerciseSheet({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search exercises…"
-              className="h-11 w-full rounded-[20px] border border-border/45 bg-muted/35 pr-4 pl-10 text-[14px] transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:bg-background"
+              className="h-11 w-full rounded-lg border border-border/60 bg-background pr-4 pl-10 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
             />
             {query && (
               <button
@@ -3341,7 +3351,7 @@ function AddExerciseSheet({
               <p className="mt-4 mb-2 px-1 text-[13px] font-semibold text-muted-foreground">
                 {filtered.length} result{filtered.length === 1 ? "" : "s"}
               </p>
-              <div className="divide-y divide-border/35 overflow-hidden rounded-[20px] border border-border/40 bg-card/45">
+              <div className="divide-y divide-border/60 border-y border-border/60">
                 {filtered.map((ex) => {
                   const already = addedIds.includes(ex.id)
                   return (
@@ -3357,12 +3367,8 @@ function AddExerciseSheet({
             </>
           ) : searchState === "idle" ? (
             <div className="grid gap-5 pt-8">
-              <div className="app-empty justify-center text-center">
-                <MagnifyingGlass
-                  size={18}
-                  className="shrink-0 text-muted-foreground"
-                />
-                <p className="text-[13px] font-medium text-muted-foreground/70">
+              <div className="border-y border-border/60 py-5 text-center">
+                <p className="text-[14px] text-muted-foreground">
                   {query.trim()
                     ? "Type one more letter to search."
                     : "Search a movement or browse below."}
@@ -3431,19 +3437,6 @@ const EXERCISE_CATEGORY_FILTERS: Array<{
   { category: "core", label: "Core" },
 ]
 
-function ExerciseCategoryGlyph({
-  category,
-  size = 14,
-}: {
-  category: ExerciseCategory
-  size?: number
-}) {
-  if (category === "strength") return <Barbell size={size} weight="bold" />
-  if (category === "cardio") return <TrendUp size={size} weight="bold" />
-  if (category === "mobility") return <Sparkle size={size} weight="bold" />
-  return <ChartLine size={size} weight="bold" />
-}
-
 function ExerciseCategoryFilters({
   activeCategory,
   onChange,
@@ -3453,23 +3446,22 @@ function ExerciseCategoryFilters({
 }) {
   return (
     <div
-      className="flex gap-2 overflow-x-auto border-b border-border/30 px-4 py-2.5 [&::-webkit-scrollbar]:hidden"
+      className="flex gap-1 overflow-x-auto border-b border-border/60 px-4 py-3 [&::-webkit-scrollbar]:hidden"
       aria-label="Filter exercises by type"
       role="group"
     >
       <button
         type="button"
         onClick={() => onChange(null)}
-        aria-label="Show all exercise types"
         aria-pressed={activeCategory === null}
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+          "min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-medium transition-colors",
           activeCategory === null
-            ? "border-foreground bg-foreground text-background"
-            : "border-border/50 bg-muted/35 text-muted-foreground active:bg-muted/65"
+            ? "bg-muted text-foreground"
+            : "text-muted-foreground active:bg-muted/60 active:text-foreground"
         )}
       >
-        <MagnifyingGlass size={14} weight="bold" />
+        All
       </button>
       {EXERCISE_CATEGORY_FILTERS.map(({ category, label }) => {
         const active = activeCategory === category
@@ -3478,17 +3470,15 @@ function ExerciseCategoryFilters({
             key={category}
             type="button"
             onClick={() => onChange(active ? null : category)}
-            aria-label={`${active ? "Clear" : "Show"} ${label} exercises`}
             aria-pressed={active}
-            title={label}
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
+              "min-h-11 shrink-0 rounded-lg px-3 text-[14px] font-medium transition-colors",
               active
-                ? "border-foreground bg-foreground text-background"
-                : "border-border/50 bg-muted/35 text-muted-foreground active:bg-muted/65"
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground active:bg-muted/60 active:text-foreground"
             )}
           >
-            <ExerciseCategoryGlyph category={category} />
+            {label}
           </button>
         )
       })}
@@ -3518,17 +3508,8 @@ function ExerciseSearchResult({
         added && "opacity-45"
       )}
     >
-      <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-        style={{
-          backgroundColor: `${exercise.color}1F`,
-          color: exercise.color,
-        }}
-      >
-        <ExerciseCategoryGlyph category={exercise.category} size={15} />
-      </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] leading-snug font-semibold">
+        <p className="truncate text-[15px] leading-snug font-medium">
           {exercise.name}
         </p>
         <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
@@ -3541,7 +3522,7 @@ function ExerciseSearchResult({
           </span>
         </div>
       </div>
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/55 text-muted-foreground/65">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground">
         {added ? (
           <Check size={14} weight="bold" className="text-foreground/70" />
         ) : (
@@ -3566,7 +3547,7 @@ function ExerciseSuggestionGroups({
   }
 
   return (
-    <div className="flex w-full flex-col gap-5">
+    <div className="flex w-full flex-col gap-6">
       <ExerciseSuggestionChips
         label="Recent"
         suggestions={recentSuggestions}
@@ -3594,28 +3575,30 @@ function ExerciseSuggestionChips({
 
   return (
     <div className="w-full">
-      <p className="mb-2 px-1 text-[13px] font-semibold text-muted-foreground">
+      <p className="border-b border-border/60 px-1 pb-2 text-[14px] font-semibold text-foreground">
         {label}
       </p>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="divide-y divide-border/50">
         {suggestions.map((exercise) => (
           <button
             key={exercise.id}
             type="button"
             onClick={() => onChoose(exercise)}
-            className="flex min-h-11 min-w-0 items-center gap-2 rounded-[14px] border border-border/45 bg-card/45 px-3 text-left transition-all active:bg-muted/60"
+            className="flex min-h-[56px] w-full min-w-0 items-center gap-3 px-1 text-left transition-colors active:bg-muted/60"
           >
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-              style={{
-                backgroundColor: `${exercise.color}1F`,
-                color: exercise.color,
-              }}
-            >
-              <ExerciseCategoryGlyph category={exercise.category} size={13} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-medium text-foreground">
+                {exercise.name}
+              </span>
+              <span className="mt-0.5 block text-[13px] text-muted-foreground capitalize">
+                {exercise.category}
+                {"muscle" in exercise && exercise.muscle
+                  ? ` · ${exercise.muscle}`
+                  : ""}
+              </span>
             </span>
-            <span className="truncate text-[13px] font-semibold text-foreground/75">
-              {exercise.name}
+            <span className="shrink-0 text-[13px] font-medium text-muted-foreground">
+              Search
             </span>
           </button>
         ))}
