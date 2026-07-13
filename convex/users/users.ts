@@ -524,6 +524,8 @@ export const exportMyData = query({
       coachCheckIns,
       coachActionEvents,
       coachWeeklyPlans,
+      coachGoals,
+      coachGoalTasks,
       coachUploads,
       aiUsage,
       activeWorkouts,
@@ -606,6 +608,14 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
+        .query("coachGoals")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachGoalTasks")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
         .query("coachUploads")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
@@ -650,6 +660,8 @@ export const exportMyData = query({
         coachCheckIns,
         coachActionEvents,
         coachWeeklyPlans,
+        coachGoals,
+        coachGoalTasks,
         coachUploads,
         aiUsage,
         activeWorkouts,

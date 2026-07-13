@@ -503,6 +503,82 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
+  if (payload.kind === "delete_goal" && typeof payload.id === "string") {
+    const id = ctx.db.normalizeId("coachGoals", payload.id);
+    const goal = id ? await ctx.db.get(id) : null;
+    if (goal && goal.userId === userId) {
+      const tasks = await ctx.db
+        .query("coachGoalTasks")
+        .withIndex("by_goalId_and_sortOrder", (q) => q.eq("goalId", goal._id))
+        .take(13);
+      for (const task of tasks) await ctx.db.delete(task._id);
+      await ctx.db.delete(goal._id);
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "restore_goal" &&
+    typeof payload.id === "string" &&
+    isRecord(payload.body)
+  ) {
+    const id = ctx.db.normalizeId("coachGoals", payload.id);
+    const goal = id ? await ctx.db.get(id) : null;
+    if (!goal || goal.userId !== userId) throw new Error("Goal not found");
+    if (
+      typeof payload.body.title !== "string" ||
+      typeof payload.body.startDate !== "string" ||
+      typeof payload.body.endDate !== "string" ||
+      typeof payload.body.durationDays !== "number" ||
+      typeof payload.body.pinned !== "boolean" ||
+      !Array.isArray(payload.body.tasks)
+    ) {
+      throw new Error("Invalid goal undo data");
+    }
+    await ctx.db.patch(goal._id, {
+      title: payload.body.title,
+      ...(typeof payload.body.description === "string"
+        ? { description: payload.body.description }
+        : {}),
+      startDate: payload.body.startDate,
+      endDate: payload.body.endDate,
+      durationDays: payload.body.durationDays,
+      status:
+        payload.body.status === "completed"
+          ? ("completed" as const)
+          : ("active" as const),
+      pinned: payload.body.pinned,
+      ...(typeof payload.body.sourceMode === "string"
+        ? { sourceMode: payload.body.sourceMode }
+        : {}),
+      updatedAt: Date.now(),
+    });
+    const currentTasks = await ctx.db
+      .query("coachGoalTasks")
+      .withIndex("by_goalId_and_sortOrder", (q) => q.eq("goalId", goal._id))
+      .take(13);
+    for (const task of currentTasks) await ctx.db.delete(task._id);
+    const now = Date.now();
+    for (const [sortOrder, rawTask] of payload.body.tasks.slice(0, 12).entries()) {
+      if (!isRecord(rawTask) || typeof rawTask.title !== "string") continue;
+      const completed = rawTask.completed === true;
+      await ctx.db.insert("coachGoalTasks", {
+        userId,
+        goalId: goal._id,
+        title: rawTask.title,
+        ...(typeof rawTask.detail === "string"
+          ? { detail: rawTask.detail }
+          : {}),
+        completed,
+        sortOrder,
+        ...(completed ? { completedAt: now } : {}),
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+    return;
+  }
+
   if (
     payload.kind === "restore_recipe" &&
     typeof payload.id === "string" &&

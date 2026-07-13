@@ -49,6 +49,7 @@ type RevenueCatSubscriberResponse = {
         expires_date?: unknown;
         store?: unknown;
         product_identifier?: unknown;
+        store_transaction_id?: unknown;
       }
     >;
     entitlements?: Record<
@@ -192,16 +193,15 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function isCancelableWebSubscription(subscription: RevenueCatV2Subscription) {
+function isActiveWebSubscription(subscription: RevenueCatV2Subscription) {
   const id = nonEmptyString(subscription.id);
   const store = nonEmptyString(subscription.store)?.toLowerCase();
   const status = nonEmptyString(subscription.status)?.toLowerCase();
-  const autoRenewalStatus = nonEmptyString(
-    subscription.auto_renewal_status,
-  )?.toLowerCase();
 
-  if (!id || store !== "rc_billing") return false;
-  if (autoRenewalStatus === "will_not_renew") return false;
+  // RevenueCat's v2 cancellation action supports subscriptions imported from
+  // its legacy Stripe web integration as well as current Web Billing. Native
+  // stores continue to be managed through their store-specific URLs.
+  if (!id || (store !== "rc_billing" && store !== "stripe")) return false;
   return (
     subscription.gives_access === true ||
     status === "active" ||
@@ -234,11 +234,11 @@ async function listRevenueCatV2Subscriptions(appUserId: string) {
   return subscriptions;
 }
 
-function pickCancelableRevenueCatSubscription(
+function pickActiveRevenueCatWebSubscription(
   subscriptions: RevenueCatV2Subscription[],
 ) {
   return subscriptions
-    .filter(isCancelableWebSubscription)
+    .filter(isActiveWebSubscription)
     .sort(
       (a, b) =>
         numberValue(b.current_period_ends_at ?? b.ends_at) -
@@ -257,6 +257,42 @@ async function cancelRevenueCatV2Subscription(subscriptionId: string) {
   if (!response.ok) {
     await revenueCatApiError(response, "RevenueCat cancel request");
   }
+}
+
+async function stripeApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const apiKey = nonEmptyString(env.STRIPE_SECRET_KEY);
+  if (!apiKey) {
+    throw new Error(
+      "This is a legacy Stripe subscription. Configure STRIPE_SECRET_KEY in Convex to let OneRep cancel it.",
+    );
+  }
+  const response = await fetch(`https://api.stripe.com/v1${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      ...init?.headers,
+    },
+  });
+  if (!response.ok) await revenueCatApiError(response, "Stripe request");
+  return (await response.json()) as T;
+}
+
+async function cancelLegacyStripeSubscription(transactionId: string) {
+  let subscriptionId = transactionId;
+  if (transactionId.startsWith("si_")) {
+    const item = await stripeApi<{ subscription?: unknown }>(
+      `/subscription_items/${encodeURIComponent(transactionId)}`,
+    );
+    subscriptionId = nonEmptyString(item.subscription) ?? "";
+  }
+  if (!subscriptionId.startsWith("sub_")) {
+    throw new Error("Stripe subscription identifier is unavailable");
+  }
+  await stripeApi(`/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "cancel_at_period_end=true",
+  });
 }
 
 function isFutureDate(value: unknown, now: number) {
@@ -525,15 +561,38 @@ export const cancelFromRevenueCat = action({
   handler: async (ctx) => {
     const user = await getAuthUser(ctx);
     const appUserId = revenueCatAppUserId(user);
-    const subscription = pickCancelableRevenueCatSubscription(
-      await listRevenueCatV2Subscriptions(appUserId),
-    );
+    const subscriptions = await listRevenueCatV2Subscriptions(appUserId);
+    const subscription = pickActiveRevenueCatWebSubscription(subscriptions);
     const subscriptionId = nonEmptyString(subscription?.id);
     if (!subscriptionId) {
       throw new Error("No active RevenueCat web subscription found to cancel");
     }
 
-    await cancelRevenueCatV2Subscription(subscriptionId);
+    const autoRenewalStatus = nonEmptyString(
+      subscription?.auto_renewal_status,
+    )?.toLowerCase();
+    if (autoRenewalStatus !== "will_not_renew") {
+      const store = nonEmptyString(subscription?.store)?.toLowerCase();
+      if (store === "stripe") {
+        const current = await fetchRevenueCatStatus(appUserId);
+        const activeStripeSubscription = Object.values(
+          current?.subscriber?.subscriptions ?? {},
+        ).find(
+          (candidate) =>
+            nonEmptyString(candidate.store)?.toLowerCase() === "stripe" &&
+            isFutureDate(candidate.expires_date, Date.now()),
+        );
+        const transactionId = nonEmptyString(
+          activeStripeSubscription?.store_transaction_id,
+        );
+        if (!transactionId) {
+          throw new Error("Stripe subscription identifier is unavailable");
+        }
+        await cancelLegacyStripeSubscription(transactionId);
+      } else {
+        await cancelRevenueCatV2Subscription(subscriptionId);
+      }
+    }
 
     const fetchedAt = Date.now();
     const payload = await fetchRevenueCatStatus(appUserId);

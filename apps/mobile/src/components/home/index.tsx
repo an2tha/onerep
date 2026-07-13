@@ -2,11 +2,15 @@ import type { ReactNode } from "react"
 import {
   ArrowRight,
   Barbell,
+  CheckCircle,
+  Circle,
   Fire,
   ForkKnife,
   Lightning,
   Pill,
   PintGlass,
+  PushPin,
+  Sparkle,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import {
@@ -61,6 +65,22 @@ export type RecoveryProgress = {
   score: number
   proteinPercent: number
   waterPercent: number
+}
+
+export type PinnedCoachGoal = {
+  _id: string
+  title: string
+  description?: string
+  startDate: string
+  endDate: string
+  durationDays: number
+  status: "active" | "completed"
+  tasks: Array<{
+    _id: string
+    title: string
+    detail?: string
+    completed: boolean
+  }>
 }
 
 function pct(current: number, target: number) {
@@ -193,6 +213,153 @@ export function WorkoutWeekStrip({
         ))}
       </span>
     </button>
+  )
+}
+
+function calendarDayDistance(from: string, to: string) {
+  const start = Date.parse(`${from}T00:00:00.000Z`)
+  const end = Date.parse(`${to}T00:00:00.000Z`)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0
+  return Math.round((end - start) / 86_400_000)
+}
+
+export function CoachGoalCards({
+  goals,
+  today,
+  onToggleTask,
+  onRequestUnpin,
+}: {
+  goals: PinnedCoachGoal[]
+  today: string
+  onToggleTask: (taskId: string, completed: boolean) => void
+  onRequestUnpin: (goalId: string) => void
+}) {
+  if (goals.length === 0) return null
+
+  return (
+    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div>
+          <p className="native-section-title">Coach goals</p>
+          <p className="native-row-detail mt-0.5">
+            Pinned from your Coach conversations
+          </p>
+        </div>
+        <Sparkle
+          size={17}
+          weight="fill"
+          className="text-violet-500/70"
+          aria-hidden
+        />
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {goals.map((goal) => {
+          const completed = goal.tasks.filter((task) => task.completed).length
+          const progress =
+            goal.tasks.length > 0
+              ? Math.round((completed / goal.tasks.length) * 100)
+              : 0
+          const remaining = Math.max(
+            0,
+            calendarDayDistance(today, goal.endDate) + 1
+          )
+          const timing =
+            goal.status === "completed"
+              ? "Complete"
+              : remaining === 0
+                ? "Ends today"
+                : `${remaining} day${remaining === 1 ? "" : "s"} left`
+
+          return (
+            <article key={goal._id} className="coach-goal-card">
+              <div className="relative z-10">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold text-white/58">
+                      <Sparkle size={12} weight="fill" /> Coach goal
+                    </p>
+                    <h3 className="mt-1.5 text-[18px] leading-tight font-bold tracking-tight text-white">
+                      {goal.title}
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRequestUnpin(goal._id)}
+                    aria-label={`Unpin ${goal.title} from Today`}
+                    className="motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full border border-white/12 bg-white/[0.06] text-white/65 active:bg-white/12"
+                  >
+                    <PushPin size={15} weight="fill" />
+                  </button>
+                </div>
+                {goal.description ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                    {goal.description}
+                  </p>
+                ) : null}
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-white/88">
+                      {completed} of {goal.tasks.length} done
+                    </p>
+                    <p className="mt-0.5 text-[9px] text-white/45">
+                      {timing} · {goal.durationDays}-day plan
+                    </p>
+                  </div>
+                  <span className="text-[16px] font-bold text-white tabular-nums">
+                    {progress}%
+                  </span>
+                </div>
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-white/75 transition-[width] duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <div className="mt-4 divide-y divide-white/10 border-y border-white/10">
+                  {goal.tasks.map((task) => (
+                    <button
+                      key={task._id}
+                      type="button"
+                      aria-pressed={task.completed}
+                      onClick={() => onToggleTask(task._id, !task.completed)}
+                      className="motion-tactile flex min-h-12 w-full items-start gap-2.5 py-2.5 text-left active:bg-white/[0.04]"
+                    >
+                      {task.completed ? (
+                        <CheckCircle
+                          size={17}
+                          weight="fill"
+                          className="mt-0.5 shrink-0 text-white/88"
+                        />
+                      ) : (
+                        <Circle
+                          size={17}
+                          className="mt-0.5 shrink-0 text-white/35"
+                        />
+                      )}
+                      <span className="min-w-0">
+                        <span
+                          className={cn(
+                            "block text-[11px] leading-snug font-semibold text-white/88",
+                            task.completed && "text-white/45 line-through"
+                          )}
+                        >
+                          {task.title}
+                        </span>
+                        {task.detail ? (
+                          <span className="mt-0.5 block text-[9.5px] leading-snug text-white/44">
+                            {task.detail}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

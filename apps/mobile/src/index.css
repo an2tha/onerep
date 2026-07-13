@@ -2598,6 +2598,74 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: none;
 }
 
+.coach-goal-card {
+  position: relative;
+  isolation: isolate;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(144, 133, 255, 0.22);
+  border-radius: 1.25rem;
+  padding: 1rem;
+  background:
+    radial-gradient(
+      ellipse at 58% -18%,
+      rgba(167, 180, 255, 0.55),
+      rgba(91, 70, 210, 0.18) 42%,
+      transparent 67%
+    ),
+    linear-gradient(145deg, #11194c 0%, #171443 52%, #080d25 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 38px -28px rgba(20, 14, 83, 0.75);
+}
+
+.coach-goal-card::before,
+.coach-goal-card::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.coach-goal-card::before {
+  inset: -60% -30%;
+  background: repeating-linear-gradient(
+    128deg,
+    transparent 0% 13%,
+    rgba(76, 63, 184, 0.2) 15% 25%,
+    rgba(151, 111, 255, 0.22) 28% 32%,
+    rgba(4, 8, 31, 0.32) 35% 48%,
+    transparent 51% 64%
+  );
+  filter: blur(12px);
+  opacity: 0.62;
+  animation: coach-dashboard-wave 18s ease-in-out infinite alternate;
+}
+
+.coach-goal-card::after {
+  width: 55%;
+  height: 78%;
+  top: -34%;
+  left: 24%;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(198, 204, 255, 0.38),
+    transparent 70%
+  );
+  filter: blur(22px);
+  opacity: 0.7;
+}
+
+@keyframes coach-dashboard-wave {
+  from {
+    transform: translate3d(-2%, -1%, 0) rotate(-1deg) scale(1.02);
+  }
+  to {
+    transform: translate3d(4%, 3%, 0) rotate(1deg) scale(1.07);
+  }
+}
+
 /* Coach is intentionally immersive: a moving, high-contrast field behind the
    otherwise compact chat UI. */
 .coach-swoosh-surface {

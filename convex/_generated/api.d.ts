@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ai_coachGoals from "../ai/coachGoals.js";
 import type * as ai_coachState from "../ai/coachState.js";
 import type * as ai_metricGeneration from "../ai/metricGeneration.js";
 import type * as ai_provider from "../ai/provider.js";
@@ -50,6 +51,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "ai/coachGoals": typeof ai_coachGoals;
   "ai/coachState": typeof ai_coachState;
   "ai/metricGeneration": typeof ai_metricGeneration;
   "ai/provider": typeof ai_provider;

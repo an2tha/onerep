@@ -62,6 +62,12 @@ type CoachUiAction =
   | "open_recipe_builder"
   | "log_food";
 
+type CoachGoalTaskDraft = {
+  title: string;
+  detail?: string;
+  completed?: boolean;
+};
+
 type CoachUiBlock =
   | {
       type: "card";
@@ -78,6 +84,13 @@ type CoachUiBlock =
       type: "checklist";
       title: string;
       items: Array<{ label: string; detail?: string; done?: boolean }>;
+    }
+  | {
+      type: "goal";
+      title: string;
+      detail: string;
+      durationDays: number;
+      tasks: CoachGoalTaskDraft[];
     }
   | {
       type: "action_row";
@@ -195,6 +208,16 @@ type CoachOperation = CoachOperationMeta &
         planAssumptions: string[];
       }
     | {
+        type: "save_goal";
+        goalId?: string;
+        title: string;
+        detail: string;
+        startDate: string;
+        durationDays: number;
+        pinned: boolean;
+        tasks: CoachGoalTaskDraft[];
+      }
+    | {
         type: "undo_action";
         actionId: string;
         actionSummary: string;
@@ -247,6 +270,17 @@ type CoachWorkspace = {
     soreness: number;
     sleepQuality: number;
     mood: number;
+  }>;
+  goals?: Array<{
+    id: string;
+    title: string;
+    detail?: string;
+    startDate: string;
+    endDate: string;
+    durationDays: number;
+    pinned: boolean;
+    status: string;
+    tasks: CoachGoalTaskDraft[];
   }>;
   recentWorkouts?: unknown[];
   recentActions?: unknown[];
@@ -430,6 +464,28 @@ function normalizeCoachUiStats(value: unknown): CoachUiStat[] {
     .slice(0, 4);
 }
 
+function normalizeCoachGoalTasks(value: unknown): CoachGoalTaskDraft[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item): CoachGoalTaskDraft | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const title = clampText(row.title ?? row.label, 90);
+      if (!title) return null;
+      return {
+        title,
+        ...(clampText(row.detail, 180)
+          ? { detail: clampText(row.detail, 180) }
+          : {}),
+        ...(typeof (row.completed ?? row.done) === "boolean"
+          ? { completed: Boolean(row.completed ?? row.done) }
+          : {}),
+      };
+    })
+    .filter((item): item is CoachGoalTaskDraft => Boolean(item))
+    .slice(0, 12);
+}
+
 function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -484,6 +540,15 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
           .slice(0, 5);
         if (!title || items.length === 0) return null;
         return { type, title, items };
+      }
+
+      if (type === "goal") {
+        const title = clampText(row.title, 80);
+        const detail = clampText(row.detail, 280);
+        const durationDays = clampInteger(row.durationDays, 1, 365, 7);
+        const tasks = normalizeCoachGoalTasks(row.tasks);
+        if (!title || !detail || tasks.length === 0) return null;
+        return { type, title, detail, durationDays, tasks };
       }
 
       if (type === "action_row") {
@@ -908,6 +973,27 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
             .map((item) => clampText(item, 180))
             .filter(Boolean)
             .slice(0, 10),
+        };
+      }
+
+      if (type === "save_goal") {
+        const title = clampText(row.title, 80);
+        const detail = clampText(row.detail, 280);
+        const startDate = normalizeDate(row.startDate);
+        const tasks = normalizeCoachGoalTasks(row.tasks);
+        if (!title || !detail || !startDate || tasks.length === 0) return null;
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.goalId, 100)
+            ? { goalId: clampText(row.goalId, 100) }
+            : {}),
+          title,
+          detail,
+          startDate,
+          durationDays: clampInteger(row.durationDays, 1, 365, 7),
+          pinned: row.pinned === true,
+          tasks,
         };
       }
 
@@ -1340,6 +1426,19 @@ async function generateCoachChatWithOpenAi({
             ],
           },
           {
+            type: "goal",
+            title: "time-boxed goal title",
+            detail: "what success looks like and why this scope fits",
+            durationDays: 7,
+            tasks: [
+              {
+                title: "specific repeatable task",
+                detail: "frequency, duration, or measurable minimum",
+                completed: false,
+              },
+            ],
+          },
+          {
             type: "action_row",
             title: "short title",
             actions: [
@@ -1516,6 +1615,26 @@ async function generateCoachChatWithOpenAi({
               },
             ],
             planAssumptions: ["explicit planning assumption"],
+          },
+          {
+            type: "save_goal",
+            confirmation: "auto | confirm",
+            summary: "create or update the time-boxed Coach goal",
+            assumptions: [],
+            warnings: [],
+            goalId: "optional exact existing goal id",
+            title: "short goal title",
+            detail: "clear success condition",
+            startDate: "YYYY-MM-DD",
+            durationDays: 7,
+            pinned: true,
+            tasks: [
+              {
+                title: "specific task",
+                detail: "measurable frequency, duration, or target",
+                completed: false,
+              },
+            ],
           },
           {
             type: "delete_nutrition",
@@ -1732,6 +1851,7 @@ export const generateCoachChatMessage = action({
         foodEntries: v.optional(v.array(v.any())),
         memories: v.optional(v.array(v.any())),
         checkIns: v.optional(v.array(v.any())),
+        goals: v.optional(v.array(v.any())),
         recentWorkouts: v.optional(v.array(v.any())),
         recentActions: v.optional(v.array(v.any())),
         routine: v.array(
@@ -1812,6 +1932,7 @@ export const generateCoachChatMessage = action({
           foodEntries: (args.workspace.foodEntries ?? []).slice(0, 50),
           memories: (args.workspace.memories ?? []).slice(0, 50),
           checkIns: (args.workspace.checkIns ?? []).slice(0, 21),
+          goals: (args.workspace.goals ?? []).slice(0, 20),
           recentWorkouts: (args.workspace.recentWorkouts ?? []).slice(0, 30),
           recentActions: (args.workspace.recentActions ?? []).slice(0, 30),
           routine: args.workspace.routine.slice(0, 7).map((entry) => ({
