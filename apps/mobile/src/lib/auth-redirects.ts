@@ -48,6 +48,10 @@ export function getAuthCallbackUrl(path: string) {
   return `${getAppOrigin()}${normalizedPath}`
 }
 
+export function getEmailVerificationCallbackUrl() {
+  return getAuthCallbackUrl("/email-verified?source=email")
+}
+
 export function rememberPendingVerification(email: string, next?: string) {
   if (typeof window === "undefined") return
 

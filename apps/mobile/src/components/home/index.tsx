@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import {
   ArrowRight,
   Barbell,
@@ -11,6 +11,8 @@ import {
   PintGlass,
   PushPin,
   Sparkle,
+  Question,
+  X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import {
@@ -22,13 +24,6 @@ import {
 } from "@/components/mobile-ui"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import type { DashboardBriefing } from "@/lib/dashboard-briefing"
-
-type PrimaryAction = {
-  label: string
-  detail: string
-  onClick: () => void
-  tooltip?: (children: ReactNode) => ReactNode
-}
 
 export type MacroProgress = {
   label: string
@@ -151,6 +146,118 @@ export function DashboardQuickActions({
         </button>
       ))}
     </nav>
+  )
+}
+
+export function NextStepCard({
+  title,
+  detail,
+  actionLabel,
+  onAction,
+}: {
+  title: string
+  detail: string
+  actionLabel: string
+  onAction: () => void
+}) {
+  return (
+    <section className="mx-[var(--app-page-x)] mt-4 rounded-2xl bg-foreground p-4 text-background md:mx-8">
+      <p className="text-[11px] font-bold tracking-[0.12em] uppercase opacity-60">
+        Next step
+      </p>
+      <h2 className="mt-1 text-[20px] font-bold tracking-tight">{title}</h2>
+      <p className="mt-1 text-[13px] leading-relaxed opacity-70">{detail}</p>
+      <button
+        type="button"
+        onClick={onAction}
+        className="mt-4 flex min-h-12 w-full items-center justify-between rounded-xl bg-background px-4 text-[15px] font-bold text-foreground active:opacity-85"
+      >
+        {actionLabel}
+        <ArrowRight size={18} weight="bold" />
+      </button>
+    </section>
+  )
+}
+
+export type TodayChecklistItem = {
+  id: string
+  label: string
+  detail: string
+  completed: boolean
+  onClick: () => void
+}
+
+export function TodayChecklist({ items }: { items: TodayChecklistItem[] }) {
+  const remaining = items.filter((item) => !item.completed)
+  return (
+    <section className="mx-[var(--app-page-x)] mt-5 md:mx-8">
+      <SectionHeader title="Still to do today" className="px-0 pt-0 pb-2" />
+      <GroupedList className="mt-2">
+        {(remaining.length > 0 ? remaining : items.slice(0, 1)).map(
+          (item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className={cn(
+                "flex min-h-14 w-full items-center gap-3 bg-card px-3.5 text-left",
+                index > 0 && "border-t border-border/40"
+              )}
+            >
+              <CheckCircle
+                size={20}
+                weight={item.completed ? "fill" : "regular"}
+                className={
+                  item.completed
+                    ? "text-[var(--status-success)]"
+                    : "text-muted-foreground"
+                }
+              />
+              <span className="min-w-0 flex-1">
+                <span className="native-row-title block">
+                  {item.completed ? "You're all caught up" : item.label}
+                </span>
+                <span className="native-row-detail block">
+                  {item.completed
+                    ? "Nothing important is waiting"
+                    : item.detail}
+                </span>
+              </span>
+              {!item.completed && (
+                <ArrowRight size={17} className="text-muted-foreground" />
+              )}
+            </button>
+          )
+        )}
+      </GroupedList>
+    </section>
+  )
+}
+
+export function FirstWeekGuide({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <aside className="mx-[var(--app-page-x)] mt-4 rounded-2xl border border-border bg-card p-4 md:mx-8">
+      <div className="flex items-start gap-3">
+        <span className="native-row-leading shrink-0">
+          <Question size={18} weight="bold" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="native-row-title">Your first-week guide</p>
+          <p className="native-row-detail mt-1">
+            Start with Next step, use Quick log during the day, and correct
+            entries from Recent.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss first-week guide"
+          className="native-toolbar-button -mt-2 -mr-2 px-0"
+        >
+          <X size={15} weight="bold" />
+        </button>
+      </div>
+    </aside>
   )
 }
 
@@ -372,15 +479,14 @@ export function DailyLedgerHero({
   waterMl,
   waterGoalMl,
   workoutState,
-  workout,
   workoutProgress,
   mealSlots: _mealSlots = [],
   onMealSlotClick: _onMealSlotClick,
   recovery: _recovery,
   onRecoveryClick: _onRecoveryClick,
-  water,
   briefing,
   onBriefingAction,
+  showBriefingAction = true,
   proteinLeft,
   streak,
   workoutsThisWeek,
@@ -392,7 +498,6 @@ export function DailyLedgerHero({
   waterMl: number
   waterGoalMl: number
   workoutState: string
-  workout: PrimaryAction
   workoutProgress?: {
     completedSets: number
     totalSets: number
@@ -402,15 +507,16 @@ export function DailyLedgerHero({
   onMealSlotClick?: (slot: MealCadenceSlot) => void
   recovery?: RecoveryProgress | null
   onRecoveryClick?: () => void
-  water: PrimaryAction
   briefing: DashboardBriefing
   onBriefingAction: () => void
+  showBriefingAction?: boolean
   proteinLeft: number
   streak: number
   workoutsThisWeek: number
   macros?: MacroProgress[]
   className?: string
 }) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false)
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const waterPct = pct(waterMl, waterGoalMl)
@@ -421,33 +527,6 @@ export function DailyLedgerHero({
       : workoutProgress && workoutProgress.elapsedMinutes > 0
         ? `${workoutProgress.elapsedMinutes} min`
         : workoutState
-
-  const renderAction = (
-    action: PrimaryAction,
-    icon: ReactNode,
-    className?: string
-  ) => {
-    const button = (
-      <button
-        type="button"
-        onClick={action.onClick}
-        className={cn(
-          "flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted/40",
-          className
-        )}
-      >
-        <span className="text-muted-foreground" aria-hidden>
-          {icon}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="native-row-title block">{action.label}</span>
-          <span className="native-row-detail block">{action.detail}</span>
-        </span>
-        <ArrowRight size={18} className="shrink-0 text-muted-foreground" />
-      </button>
-    )
-    return action.tooltip ? action.tooltip(button) : button
-  }
 
   return (
     <SummaryBlock
@@ -468,50 +547,67 @@ export function DailyLedgerHero({
           }}
         />
       </div>
-      <div className="mt-3">
-        {macros.map((macro) => (
-          <StatRow
-            key={macro.label}
-            label={macro.label}
-            value={`${fmt(macro.value)} / ${fmt(macro.target)} ${macro.unit ?? "g"}`}
-            color={macro.color}
-          />
-        ))}
-        <StatRow
-          label="Water"
-          value={`${fmt(waterMl)} / ${fmt(waterGoalMl)} ml`}
-          detail={`${waterPct}%`}
-          color="var(--accent-water)"
-        />
-        <StatRow
-          label="Protein remaining"
-          value={proteinLeft > 0 ? `${fmt(proteinLeft)} g` : "Target met"}
-          color="var(--accent-food)"
-        />
-        <StatRow
-          label="Training"
-          value={workoutValue}
-          detail={`${workoutsThisWeek} this week · ${streak} day streak`}
-          color="var(--accent-workout)"
-        />
-      </div>
-      <div className="mt-3 divide-y divide-border border-y border-border">
-        {renderAction(water, <PintGlass size={19} weight="bold" />)}
-        {renderAction(workout, <Barbell size={19} weight="bold" />)}
-      </div>
-      <PrimaryButton
-        onClick={onBriefingAction}
-        className="mt-4 w-full justify-between"
+      <button
+        type="button"
+        onClick={() => setBreakdownOpen((open) => !open)}
+        aria-expanded={breakdownOpen}
+        className="mt-3 flex min-h-11 w-full items-center justify-between border-y border-border text-left text-[13px] font-semibold"
       >
-        <span className="flex min-w-0 items-center gap-2 truncate">
-          <Lightning size={18} weight="fill" />
-          {briefing.title}
-        </span>
-        <span className="flex shrink-0 items-center gap-1">
-          {briefing.actionLabel}
-          <ArrowRight size={16} />
-        </span>
-      </PrimaryButton>
+        {breakdownOpen ? "Hide breakdown" : "Show breakdown"}
+        <ArrowRight
+          size={17}
+          className={cn(
+            "text-muted-foreground transition-transform",
+            breakdownOpen && "rotate-90"
+          )}
+        />
+      </button>
+      {breakdownOpen && (
+        <div className="animate-in duration-200 fade-in slide-in-from-top-1">
+          <div className="mt-3">
+            {macros.map((macro) => (
+              <StatRow
+                key={macro.label}
+                label={macro.label}
+                value={`${fmt(macro.value)} / ${fmt(macro.target)} ${macro.unit ?? "g"}`}
+                color={macro.color}
+              />
+            ))}
+            <StatRow
+              label="Water"
+              value={`${fmt(waterMl)} / ${fmt(waterGoalMl)} ml`}
+              detail={`${waterPct}%`}
+              color="var(--accent-water)"
+            />
+            <StatRow
+              label="Protein remaining"
+              value={proteinLeft > 0 ? `${fmt(proteinLeft)} g` : "Target met"}
+              color="var(--accent-food)"
+            />
+            <StatRow
+              label="Training"
+              value={workoutValue}
+              detail={`${workoutsThisWeek} this week · ${streak} day streak`}
+              color="var(--accent-workout)"
+            />
+          </div>
+        </div>
+      )}
+      {showBriefingAction && (
+        <PrimaryButton
+          onClick={onBriefingAction}
+          className="mt-4 w-full justify-between"
+        >
+          <span className="flex min-w-0 items-center gap-2 truncate">
+            <Lightning size={18} weight="fill" />
+            {briefing.title}
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            {briefing.actionLabel}
+            <ArrowRight size={16} />
+          </span>
+        </PrimaryButton>
+      )}
     </SummaryBlock>
   )
 }
@@ -557,20 +653,24 @@ export function TodayTimeline({
   onLogFood,
   onLogWater,
   onDeleteEvent,
+  onEditEvent,
 }: {
   events: TimelineEvent[]
   onLogFood: () => void
   onLogWater?: () => void
   onStartWorkout?: () => void
   onDeleteEvent?: (event: TimelineEvent) => void
+  onEditEvent?: (event: TimelineEvent) => void
 }) {
+  const [showAll, setShowAll] = useState(false)
+  const visibleEvents = showAll ? events : events.slice(0, 4)
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 md:max-w-5xl short-phone:mt-4">
       <SectionHeader title="Recent" className="px-0 pt-0 pb-2" />
 
       <GroupedList className="mt-3">
         {events.length > 0 ? (
-          events.slice(0, 4).map((event, index) => {
+          visibleEvents.map((event, index) => {
             const rowClassName = cn(
               "flex min-h-14 items-center justify-between gap-3 bg-card px-3.5 py-2 md:px-4",
               index > 0 && "border-t border-border/40"
@@ -621,8 +721,20 @@ export function TodayTimeline({
                     </span>
                   </span>
                 </span>
-                <span className="native-row-detail shrink-0 tabular-nums">
-                  {ledgerTime(event.loggedAt)}
+                <span className="flex shrink-0 items-center gap-1">
+                  <span className="native-row-detail tabular-nums">
+                    {ledgerTime(event.loggedAt)}
+                  </span>
+                  {onEditEvent && (
+                    <button
+                      type="button"
+                      onClick={() => onEditEvent(event)}
+                      className="native-toolbar-button h-10 px-2 text-[12px]"
+                      aria-label={`Edit ${event.title}`}
+                    >
+                      Edit
+                    </button>
+                  )}
                 </span>
               </>
             )
@@ -685,6 +797,15 @@ export function TodayTimeline({
           </div>
         )}
       </GroupedList>
+      {events.length > 4 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((value) => !value)}
+          className="mt-2 min-h-11 w-full text-center text-[13px] font-semibold text-muted-foreground"
+        >
+          {showAll ? "Show recent only" : "View all activity"}
+        </button>
+      )}
     </section>
   )
 }

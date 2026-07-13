@@ -89,14 +89,13 @@ export async function syncPushReminders(
     return "unsupported"
   }
 
-  const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
-  await LocalNotifications.cancel({ notifications: ids })
-
   const enabledEntries = (
     Object.entries(settings) as [keyof ReminderSettings, ReminderConfig][]
   ).filter(([, reminder]) => reminder.enabled)
 
   if (enabledEntries.length === 0) {
+    const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
+    await LocalNotifications.cancel({ notifications: ids })
     return "disabled"
   }
 
@@ -105,6 +104,9 @@ export async function syncPushReminders(
     return "denied"
   }
 
+  const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
+  await LocalNotifications.cancel({ notifications: ids })
+
   await LocalNotifications.schedule({
     notifications: enabledEntries.map(([kind, reminder]) => ({
       id: REMINDER_COPY[kind].id,
@@ -112,6 +114,7 @@ export async function syncPushReminders(
       body: REMINDER_COPY[kind].body,
       schedule: {
         on: { hour: reminder.hour, minute: reminder.minute },
+        repeats: true,
         allowWhileIdle: true,
       },
     })),

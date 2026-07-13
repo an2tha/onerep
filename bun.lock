@@ -31,6 +31,19 @@
         "vitest": "^4.1.4",
       },
     },
+    "apps/dashboard": {
+      "name": "dashboard",
+      "version": "0.0.1",
+      "dependencies": {
+        "svelte": "^5.46.1",
+      },
+      "devDependencies": {
+        "@sveltejs/vite-plugin-svelte": "^6.2.1",
+        "svelte-check": "^4.3.4",
+        "typescript": "~5.9.3",
+        "vite": "^7.3.5",
+      },
+    },
     "apps/mobile": {
       "name": "mobile",
       "version": "0.0.1",
@@ -38,10 +51,12 @@
         "@capacitor/android": "^8.3.4",
         "@capacitor/camera": "^8.2.0",
         "@capacitor/core": "^8.3.4",
+        "@capacitor/filesystem": "^8.1.2",
         "@capacitor/haptics": "^8.0.2",
         "@capacitor/ios": "^8.3.4",
         "@capacitor/local-notifications": "^8.2.0",
         "@capacitor/preferences": "^8.0.1",
+        "@capacitor/share": "^8.0.1",
         "@capgo/capacitor-speech-recognition": "^8.1.7",
         "@dnd-kit/core": "^6.3.1",
         "@dnd-kit/sortable": "^10.0.0",
@@ -283,6 +298,8 @@
 
     "@capacitor/core": ["@capacitor/core@8.4.1", "", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-xqhOGLbTAYeOWK+IDUNSjQJAPapQjRHrIcgk9PYp52or9zFTaaMko31uNi16N6W+CRJ8VrRram6fOYILkBG2Hg=="],
 
+    "@capacitor/filesystem": ["@capacitor/filesystem@8.1.2", "", { "dependencies": { "@capacitor/synapse": "^1.0.4" }, "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-doaaMfGoFR2hWU6aV6u83I+5ZsGyJVq+Gz4r9lMpJzUKMm1eMu0hLnFdV1aXZlU9FlK/RndFrVD8oRZfNOqWgQ=="],
+
     "@capacitor/haptics": ["@capacitor/haptics@8.0.2", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-c2hZzRR5Fk1tbTvhG1jhh2XBAf3EhnIerMIb2sl7Mt41Gxx1fhBJFDa0/BI1IbY4loVepyyuqNC9820/GZuoWQ=="],
 
     "@capacitor/ios": ["@capacitor/ios@8.4.1", "", { "peerDependencies": { "@capacitor/core": "^8.4.0" } }, "sha512-EgcAk7NYheHMTyP3CUrA65qKs4D2UEAKgw44HI6Uk3dTw6KjLQkdLOQWvbeRncHaZ2gklfOojUoc5DlSw2lhYg=="],
@@ -290,6 +307,10 @@
     "@capacitor/local-notifications": ["@capacitor/local-notifications@8.2.0", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-fvLY0w2w4MiX+DD4+Wv4DOwOLdzKZsMDwAcRv/Juudd+QbKbn69s6cM3xVqPwAiDqfnqsY4/S8xtQD6M73wY2A=="],
 
     "@capacitor/preferences": ["@capacitor/preferences@8.0.1", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-T6no3ebi79XJCk91U3Jp/liJUwgBdvHR+s6vhvPkPxSuch7z3zx5Rv1bdWM6sWruNx+pViuEGqZvbfCdyBvcHQ=="],
+
+    "@capacitor/share": ["@capacitor/share@8.0.1", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-3cSBKBCJVon54rKDROP2rqGyeGks4pBh9TbaEk9S375Kbek/ZHe72N50zIa0Vn9Eac/SuhwgehO/mmA4CsUOiw=="],
+
+    "@capacitor/synapse": ["@capacitor/synapse@1.0.4", "", {}, "sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw=="],
 
     "@capgo/capacitor-speech-recognition": ["@capgo/capacitor-speech-recognition@8.1.10", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-nght4q8qxsfb51Au2KzwtDnMpDiN7P0bElISxeUxRKTTHWwVb3HLRRxf5l0TpdpvK2KUUYU1MuBhj+/odC9wGw=="],
 
@@ -1014,6 +1035,8 @@
     "d3-time-format": ["d3-time-format@4.1.0", "", { "dependencies": { "d3-time": "1 - 3" } }, "sha512-dJxPBlzC7NugB2PDLwo9Q8JiTR3M3e4/XANkreKSUxF8vvXKqm1Yfq4Q5dl8budlunRVlUUaDUgFt7eA8D6NLg=="],
 
     "d3-timer": ["d3-timer@3.0.1", "", {}, "sha512-ndfJ/JxxMd3nw31uyKoY2naivF+r29V+Lc0svZxe1JvvIRmi8hUsrMvdOwgS1o6uBHmiz91geQ0ylPP0aj1VUA=="],
+
+    "dashboard": ["dashboard@workspace:apps/dashboard"],
 
     "date-fns": ["date-fns@4.4.0", "", {}, "sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w=="],
 
@@ -1976,6 +1999,8 @@
     "conf/ajv-formats": ["ajv-formats@2.1.1", "", { "dependencies": { "ajv": "^8.0.0" } }, "sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA=="],
 
     "conf/json-schema-typed": ["json-schema-typed@7.0.3", "", {}, "sha512-7DE8mpG+/fVw+dTpjbxnx47TaMnDfOI1jwft9g1VybltZCduyRQPJPvc+zzKY9WPHxhPWczyFuYa6I8Mw4iU5A=="],
+
+    "dashboard/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "dot-prop/is-obj": ["is-obj@2.0.0", "", {}, "sha512-drqDG3cbczxxEJRoOXcOjtdp1J/lyp1mNn0xaznRs8+muBhgQcrnbspox5X5fOw0HnMnbfDzvnEMEtqDEJEo8w=="],
 

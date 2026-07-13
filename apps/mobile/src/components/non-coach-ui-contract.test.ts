@@ -28,6 +28,7 @@ describe("non-Coach UI cleanup contract", () => {
     assert.doesNotMatch(foodDetail, /budgetWidth/)
     assert.match(foodDetail, /How much\?/)
     assert.match(foodDetail, /Full nutrition details/)
+    assert.match(foodDetail, /native-collapsible/)
     assert.doesNotMatch(foodDetail, /Product code/)
     assert.doesNotMatch(foodDetail, /Selected amount/)
     assert.doesNotMatch(foodDetail, /Package serving/)

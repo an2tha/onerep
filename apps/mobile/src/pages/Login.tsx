@@ -5,11 +5,17 @@ import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
   authClient,
   betterAuthErrorMessage,
+  isEmailNotVerifiedError,
   useAppAuth,
 } from "@/lib/auth-client"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
+import {
+  getAuthCallbackUrl,
+  getEmailVerificationCallbackUrl,
+  rememberPendingVerification,
+} from "@/lib/auth-redirects"
 
 type LoginMode = "signin" | "signup"
 
@@ -131,9 +137,15 @@ export default function Login() {
             email: trimmedEmail,
             password,
             rememberMe: true,
+            callbackURL: getAuthCallbackUrl(nextPath),
           })
         )
         if (error) {
+          if (isEmailNotVerifiedError(error)) {
+            rememberPendingVerification(trimmedEmail, nextPath)
+            navigate("/verify-email-required", { replace: true })
+            return
+          }
           setError(betterAuthErrorMessage(error, "Sign in failed"))
           return
         }
@@ -150,6 +162,7 @@ export default function Login() {
             name: displayName,
             email: trimmedEmail,
             password,
+            callbackURL: getEmailVerificationCallbackUrl(),
           })
         )
         if (error) {
@@ -162,7 +175,8 @@ export default function Login() {
           name: displayName,
         })
         posthog.capture("user_signed_up", { method: "email" })
-        navigate("/onboarding", { replace: true })
+        rememberPendingVerification(trimmedEmail, "/onboarding")
+        navigate("/verify-email-required", { replace: true })
         return
       }
     } catch (error) {
@@ -178,25 +192,51 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-md flex-col px-6 pt-[calc(var(--app-safe-top)+2.5rem)] pb-[var(--app-safe-bottom-lg)]">
-        <header className="mb-8">
-          <div className="flex items-center gap-2.5">
-            <img src="/app-icon.svg" alt="" className="size-8" />
-            <span className="native-row-title font-semibold">OneRep</span>
-          </div>
-          <h1 className="native-large-title mt-8">
-            {mode === "signin" ? "Sign in" : "Create your account"}
-          </h1>
-          <p className="native-body mt-2 text-muted-foreground">
-            {mode === "signin"
-              ? "Continue to your training and nutrition log."
-              : "Set up your profile, then choose your starting targets."}
+    <div className="min-h-svh bg-background text-foreground lg:grid lg:grid-cols-[minmax(20rem,0.78fr)_minmax(32rem,1.22fr)]">
+      <aside className="relative hidden min-h-svh flex-col justify-between overflow-hidden border-r border-border bg-[var(--surface-panel)] px-12 py-10 lg:flex xl:px-16 xl:py-14">
+        <div className="flex items-center gap-3">
+          <img src="/app-icon.svg" alt="" className="size-9" />
+          <span className="text-[17px] font-semibold tracking-[-0.02em]">
+            OneRep
+          </span>
+        </div>
+
+        <div className="max-w-md pb-[8vh]">
+          <span className="mb-6 block h-px w-12 bg-foreground" />
+          <p className="text-[clamp(2rem,3.25vw,3.75rem)] leading-[1.02] font-semibold tracking-[-0.055em] text-balance">
+            Training.
+            <br />
+            Nutrition.
+            <br />
+            Progress.
           </p>
+        </div>
+
+        <span className="h-px w-full bg-border" />
+      </aside>
+
+      <main className="mx-auto flex min-h-svh w-full max-w-[31rem] flex-col px-6 pt-[calc(var(--app-safe-top)+1.5rem)] pb-[var(--app-safe-bottom-lg)] sm:px-10 lg:justify-center lg:py-16">
+        <header className="mb-10">
+          <div className="flex items-center gap-2.5 lg:hidden">
+            <img src="/app-icon.svg" alt="" className="size-8" />
+            <span className="text-[16px] font-semibold tracking-[-0.02em]">
+              OneRep
+            </span>
+          </div>
+          <div className="mt-[clamp(3.5rem,13vh,7.5rem)] lg:mt-0">
+            <h1 className="text-[2.25rem] leading-[1.05] font-semibold tracking-[-0.045em] sm:text-[2.6rem]">
+              {mode === "signin" ? "Sign in to OneRep" : "Create your account"}
+            </h1>
+            <p className="mt-3 text-[15px] leading-6 text-muted-foreground">
+              {mode === "signin"
+                ? "Pick up where you left off."
+                : "It only takes a minute to get set up."}
+            </p>
+          </div>
         </header>
 
-        <section>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <section aria-label={mode === "signin" ? "Sign in" : "Create account"}>
+          <form onSubmit={handleSubmit} className="space-y-5">
             {mode === "signup" ? (
               <label className={FIELD_CLASS}>
                 <span className={LABEL_CLASS}>Name</span>
@@ -231,7 +271,7 @@ export default function Login() {
 
             <label className={FIELD_CLASS}>
               <span className={LABEL_CLASS}>Password</span>
-              <span className="flex items-center gap-2">
+              <span className="relative block">
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
@@ -244,13 +284,13 @@ export default function Login() {
                     mode === "signin" ? "current-password" : "new-password"
                   }
                   disabled={submitting}
-                  className={INPUT_CLASS}
+                  className={`${INPUT_CLASS} pr-12`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((visible) => !visible)}
                   disabled={submitting}
-                  className="native-toolbar-button h-11 w-11 shrink-0 border border-border text-muted-foreground disabled:opacity-40"
+                  className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   aria-pressed={showPassword}
                 >
@@ -267,12 +307,12 @@ export default function Login() {
             </label>
 
             {mode === "signin" && (
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1">
+              <div className="flex justify-end">
                 <button
                   type="button"
                   onClick={handlePasswordReset}
                   disabled={submitting}
-                  className="flex min-h-11 items-center text-left text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground disabled:opacity-50"
+                  className="-my-2 flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
                 >
                   Forgot password?
                 </button>
@@ -282,7 +322,7 @@ export default function Login() {
             {error && (
               <p
                 role="alert"
-                className="border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
+                className="border-l-2 border-destructive py-1.5 pl-3 text-[14px] leading-5 font-medium text-destructive"
               >
                 {error}
               </p>
@@ -291,7 +331,7 @@ export default function Login() {
             {message && (
               <p
                 role="status"
-                className="border-l-2 border-border py-2 pl-3 text-[14px] font-medium text-muted-foreground"
+                className="border-l-2 border-border py-1.5 pl-3 text-[14px] leading-5 font-medium text-muted-foreground"
               >
                 {message}
               </p>
@@ -301,7 +341,7 @@ export default function Login() {
               type="submit"
               disabled={submitting}
               aria-busy={loading}
-              className="native-primary-button min-h-12 w-full"
+              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
             >
               {loading
                 ? mode === "signin"
@@ -313,7 +353,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="mt-6 border-t border-border pt-5 text-[14px] text-muted-foreground">
+          <p className="mt-8 text-center text-[14px] text-muted-foreground">
             {mode === "signin" ? "New here?" : "Have an account?"}{" "}
             <button
               type="button"
@@ -321,7 +361,7 @@ export default function Login() {
                 switchMode(mode === "signin" ? "signup" : "signin")
               }
               disabled={submitting}
-              className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground/85 transition-opacity active:opacity-60 disabled:opacity-50"
+              className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground active:opacity-60 disabled:opacity-50"
             >
               {mode === "signin" ? "Sign up" : "Sign in"}
             </button>

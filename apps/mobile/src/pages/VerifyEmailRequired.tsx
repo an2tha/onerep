@@ -1,16 +1,47 @@
 import { useEffect, useState } from "react"
-import { getPendingVerification } from "@/lib/auth-redirects"
+import {
+  getEmailVerificationCallbackUrl,
+  getPendingVerification,
+} from "@/lib/auth-redirects"
+import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
 export default function VerifyEmailRequired() {
   const navigate = useSmoothNavigate()
   const [email, setEmail] = useState("")
+  const [sending, setSending] = useState(false)
+  const [message, setMessage] = useState<string>()
+  const [error, setError] = useState<string>()
   const hasPendingEmail = email.trim().length > 0
 
   useEffect(() => {
     const pending = getPendingVerification()
     setEmail(pending.email)
   }, [])
+
+  async function resendVerification() {
+    if (!hasPendingEmail || sending) return
+    setSending(true)
+    setError(undefined)
+    setMessage(undefined)
+    try {
+      const result = await authClient.sendVerificationEmail({
+        email: email.trim(),
+        callbackURL: getEmailVerificationCallbackUrl(),
+      })
+      if (result.error) {
+        setError(
+          betterAuthErrorMessage(result.error, "Could not resend the email")
+        )
+        return
+      }
+      setMessage("A fresh confirmation link is on its way.")
+    } catch (cause) {
+      setError(betterAuthErrorMessage(cause, "Could not resend the email"))
+    } finally {
+      setSending(false)
+    }
+  }
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -21,7 +52,7 @@ export default function VerifyEmailRequired() {
         </header>
 
         <section aria-labelledby="verify-email-title">
-          <p className="native-supporting">Account security</p>
+          <p className="native-supporting">Verify your email first.</p>
           <h1 id="verify-email-title" className="native-large-title mt-2">
             Check your email
           </h1>
@@ -31,7 +62,29 @@ export default function VerifyEmailRequired() {
               : "Open the verification message we sent you, then return here to sign in."}
           </p>
 
-          <div className="mt-7">
+          {message && (
+            <p role="status" className="native-body mt-5">
+              {message}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="native-body mt-5 text-destructive">
+              {error}
+            </p>
+          )}
+
+          <div className="mt-7 space-y-3">
+            {hasPendingEmail && (
+              <button
+                type="button"
+                onClick={resendVerification}
+                disabled={sending}
+                aria-busy={sending}
+                className="native-primary-button min-h-12 w-full disabled:opacity-50"
+              >
+                {sending ? "Sending…" : "Resend confirmation email"}
+              </button>
+            )}
             <button
               type="button"
               onClick={() =>
@@ -39,7 +92,7 @@ export default function VerifyEmailRequired() {
                   replace: true,
                 })
               }
-              className="native-primary-button min-h-12 w-full"
+              className="native-secondary-button min-h-12 w-full"
             >
               {hasPendingEmail ? "Back to sign up" : "Back to sign in"}
             </button>

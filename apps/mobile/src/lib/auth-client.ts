@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react"
-import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/plugins"
+import {
+  convexClient,
+  crossDomainClient,
+} from "@convex-dev/better-auth/client/plugins"
 import type { AuthClient } from "@convex-dev/better-auth/react"
 import { createAuthClient } from "better-auth/react"
 
@@ -36,6 +39,29 @@ export function betterAuthErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
+export function isEmailNotVerifiedError(error: unknown) {
+  if (typeof error !== "object" || error === null) return false
+
+  const candidate = error as {
+    code?: unknown
+    message?: unknown
+    status?: unknown
+    statusCode?: unknown
+    error?: { code?: unknown; message?: unknown; status?: unknown }
+  }
+  const code = candidate.error?.code ?? candidate.code
+  const message = candidate.error?.message ?? candidate.message
+  const status =
+    candidate.error?.status ?? candidate.statusCode ?? candidate.status
+
+  return (
+    code === "EMAIL_NOT_VERIFIED" ||
+    (status === 403 &&
+      typeof message === "string" &&
+      message.toLowerCase().includes("email not verified"))
+  )
+}
+
 export function useAppAuth() {
   const session = authClient.useSession()
   const [loadTimedOut, setLoadTimedOut] = useState(false)
@@ -56,12 +82,11 @@ export function useAppAuth() {
   return {
     authLoadTimedOut: loadTimedOut,
     authServiceConfigured,
-    authServiceError:
-      !authServiceConfigured
-        ? "Authentication is not configured for this build."
-        : loadTimedOut
-          ? "Authentication is taking too long to respond. Check your connection and try again."
-          : null,
+    authServiceError: !authServiceConfigured
+      ? "Authentication is not configured for this build."
+      : loadTimedOut
+        ? "Authentication is taking too long to respond. Check your connection and try again."
+        : null,
     isLoaded: !session.isPending || loadTimedOut || !authServiceConfigured,
     isSignedIn: Boolean(session.data?.session),
     userId: session.data?.user?.id ?? null,

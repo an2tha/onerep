@@ -45,7 +45,12 @@ import { toast } from "sonner"
 import { useTheme } from "@repo/ui"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
-import { signOutApp, useAppAuth } from "@/lib/auth-client"
+import {
+  authClient,
+  betterAuthErrorMessage,
+  signOutApp,
+  useAppAuth,
+} from "@/lib/auth-client"
 import { celebrateSubscription } from "@/lib/subscription-celebration"
 import {
   clearOfflineQueue,
@@ -183,6 +188,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(
     (preferences?.dashboardSettings?.workoutFocus as WorkoutFocus) || "strength"
   )
+  const [simpleDashboard, setSimpleDashboard] = useState(
+    preferences?.dashboardSettings?.simpleMode ?? false
+  )
   const [weightUnit, setWeightUnitState] = useState<WeightUnit>(
     (preferences?.weightUnit as WeightUnit) || "kg"
   )
@@ -305,6 +313,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         preferences.dashboardSettings.workoutFocus as WorkoutFocus
       )
     }
+    if (preferences?.dashboardSettings?.simpleMode !== undefined) {
+      setSimpleDashboard(preferences.dashboardSettings.simpleMode)
+    }
     if (preferences?.macroCyclingEnabled !== undefined) {
       setMacroCyclingEnabled(preferences.macroCyclingEnabled)
     }
@@ -406,7 +417,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   async function handleSaveWorkout() {
     await runSectionSave(async () => {
-      await setDashboardSettings({ workoutFocus })
+      await setDashboardSettings({ workoutFocus, simpleMode: simpleDashboard })
       await setWeightUnit({ unit: weightUnit })
       await setFoodSearchLanguage({ language: foodSearchLanguage })
     }, "Workout settings saved")
@@ -644,8 +655,18 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       if (remaining)
         throw new Error("Account has too much data to delete in one session")
 
+      const deletedAccount = await authClient.deleteUser({})
+      if (deletedAccount.error) {
+        throw new Error(
+          betterAuthErrorMessage(
+            deletedAccount.error,
+            "Could not delete the account login"
+          )
+        )
+      }
+
       clearOfflineQueue()
-      await signOutApp()
+      await signOutApp().catch(() => undefined)
 
       posthog.reset()
       navigate("/login", { replace: true })
@@ -1002,6 +1023,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 </GroupedList>
                 <SettingsSectionLabel title="App behavior" />
                 <GroupedList label="App behavior">
+                  <SettingsRow
+                    label="Simple dashboard"
+                    detail="Keep Today focused on actions and hide advanced panels"
+                  >
+                    <CompactSwitch
+                      checked={simpleDashboard}
+                      onChange={setSimpleDashboard}
+                      label="Simple dashboard"
+                    />
+                  </SettingsRow>
                   <SettingsRow label="Food search language">
                     <SegmentedControl
                       label="Food search language"

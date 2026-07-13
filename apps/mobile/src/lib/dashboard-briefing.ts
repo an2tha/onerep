@@ -9,6 +9,7 @@ export type DashboardActionKey =
 export type DashboardBriefing = {
   action: DashboardActionKey
   title: string
+  detail: string
   actionLabel: string
 }
 
@@ -35,6 +36,7 @@ export function buildDashboardBriefing({
     return {
       action: "review_day",
       title: "Review this day",
+      detail: "See what you logged and make any corrections.",
       actionLabel: "Review",
     }
   }
@@ -43,6 +45,7 @@ export function buildDashboardBriefing({
     return {
       action: "resume_workout",
       title: "Workout in progress",
+      detail: "Your active session is ready to continue.",
       actionLabel: "Resume",
     }
   }
@@ -51,6 +54,7 @@ export function buildDashboardBriefing({
     return {
       action: "log_recovery_food",
       title: `${Math.round(proteinLeft)}g protein still to go`,
+      detail: "A recovery meal will help close today's gap.",
       actionLabel:
         burnedCalories > 0
           ? `Fuel +${Math.round(burnedCalories)} kcal`
@@ -62,6 +66,7 @@ export function buildDashboardBriefing({
     return {
       action: "start_workout",
       title: "Today’s workout is ready",
+      detail: "Your planned session is ready to start.",
       actionLabel: "Start",
     }
   }
@@ -70,6 +75,7 @@ export function buildDashboardBriefing({
     return {
       action: "log_meal",
       title: "Log your first meal",
+      detail: "Start today's record with what you ate.",
       actionLabel: "Log food",
     }
   }
@@ -78,6 +84,7 @@ export function buildDashboardBriefing({
     return {
       action: "add_water",
       title: `${Math.max(0, Math.round(100 - waterProgress))}% hydration left`,
+      detail: "A glass of water is the simplest next win.",
       actionLabel: "Add 250 ml",
     }
   }
@@ -88,6 +95,10 @@ export function buildDashboardBriefing({
       proteinLeft > 0
         ? `${Math.round(proteinLeft)}g protein left`
         : "On track today",
+    detail:
+      proteinLeft > 0
+        ? "Review today's food and choose a protein-rich option."
+        : "Everything important is moving in the right direction.",
     actionLabel: "Review",
   }
 }

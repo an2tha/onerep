@@ -19,6 +19,7 @@ import type * as exercises from "../exercises.js";
 import type * as food_fatSecret from "../food/fatSecret.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_authEmail from "../lib/authEmail.js";
 import type * as lib_calculateCalories from "../lib/calculateCalories.js";
 import type * as lib_deleteUserData from "../lib/deleteUserData.js";
 import type * as lib_estimateOnboardingCalories from "../lib/estimateOnboardingCalories.js";
@@ -62,6 +63,7 @@ declare const fullApi: ApiFromModules<{
   "food/fatSecret": typeof food_fatSecret;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/authEmail": typeof lib_authEmail;
   "lib/calculateCalories": typeof lib_calculateCalories;
   "lib/deleteUserData": typeof lib_deleteUserData;
   "lib/estimateOnboardingCalories": typeof lib_estimateOnboardingCalories;

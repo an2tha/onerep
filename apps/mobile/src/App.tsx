@@ -36,6 +36,10 @@ import {
   TodayHeader,
   TodayTimeline,
   WorkoutWeekStrip,
+  DashboardQuickActions,
+  NextStepCard,
+  TodayChecklist,
+  FirstWeekGuide,
   type MacroProgress,
   type PinnedCoachGoal,
   type TimelineEvent,
@@ -86,6 +90,9 @@ import {
   formatSupplementAmount,
   supplementEntryLabel,
   supplementTotals,
+  buildSupplementDayPlan,
+  type SupplementIntakeLog,
+  type SupplementItem,
   type SupplementKind,
   type SupplementLogEntry,
 } from "@/lib/supplements"
@@ -93,12 +100,11 @@ import {
   Calendar,
   Card,
   CardTitle,
-  GuidedTooltip,
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
-import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
+import { hapticHeavy, hapticSelection } from "@/lib/haptics"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 import {
   DashboardProgressPanels,
@@ -114,6 +120,7 @@ type WorkoutFocus = "strength" | "cardio" | "mobility"
 type DashboardSettings = {
   workoutFocus: WorkoutFocus
   trendMetric?: TrendMetric
+  simpleMode?: boolean
 }
 
 type CalorieInfo = {
@@ -154,8 +161,6 @@ const FOOD_COLOR = APP_ACCENT_COLORS.food
 const FOOD_BG = tint(FOOD_COLOR, 10)
 const WATER_COLOR = APP_ACCENT_COLORS.water
 const WATER_BG = tint(WATER_COLOR, 13)
-const DASHBOARD_WATER_TOOLTIP_ID = 2
-const DASHBOARD_WORKOUT_TOOLTIP_ID = 3
 
 const EMPTY_WORKOUT_ROUTINE: Routine = {
   Mon: null,
@@ -2284,17 +2289,12 @@ export default function App() {
   const supplementLogs = useQuery(api.logs.supplements.getDay, {
     date: selectedDate,
   })
+  const supplementOverview = useQuery(api.logs.supplements.getOverview, {
+    date: selectedDate,
+  })
   const workoutLogsQuery = useQuery(api.logs.workouts.getLog, {
     date: selectedDate,
   })
-  const dashboardWaterTooltipCompleted = useQuery(
-    api.users.tooltips.isTooltipCompleted,
-    { id: DASHBOARD_WATER_TOOLTIP_ID }
-  )
-  const dashboardWorkoutTooltipCompleted = useQuery(
-    api.users.tooltips.isTooltipCompleted,
-    { id: DASHBOARD_WORKOUT_TOOLTIP_ID }
-  )
   const syncTimezone = useOfflineMutation(
     api.users.users.syncTimezone,
     "users.users.syncTimezone"
@@ -2316,9 +2316,6 @@ export default function App() {
     "logs.supplements.removeEntry"
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
-  const markTooltipCompleted = useMutation(
-    api.users.tooltips.markTooltipCompleted
-  )
   const setDashboardTrendMetric = useMutation(
     api.users.users.setDashboardTrendMetric
   )
@@ -2469,6 +2466,11 @@ export default function App() {
   const [unpinningCoachGoal, setUnpinningCoachGoal] = useState(false)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
+  const [showFirstWeekGuide, setShowFirstWeekGuide] = useState(() =>
+    typeof window === "undefined"
+      ? false
+      : window.localStorage.getItem("onerep:first-week-guide-dismissed") !== "1"
+  )
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setHomeAddOpen(true))
 
@@ -2526,7 +2528,7 @@ export default function App() {
       entries: [
         ...foodEntries,
         stripUndefined({
-          id: Math.random().toString(36).slice(2),
+          id: crypto.randomUUID(),
           name: recipe.name,
           ...totals,
           loggedAt: new Date().toISOString(),
@@ -2672,40 +2674,96 @@ export default function App() {
     }
     navigate(`/nutrition?date=${selectedDate}`, { motion: "switch" })
   }
-  function renderDashboardTooltip({
-    id,
-    completed,
-    content,
-    children,
-    targetClassName = "w-full",
-    side = "bottom",
-    align = "center",
-  }: {
-    id: number
-    completed: boolean
-    content: React.ReactNode
-    children: React.ReactNode
-    targetClassName?: string
-    side?: React.ComponentProps<typeof GuidedTooltip>["side"]
-    align?: React.ComponentProps<typeof GuidedTooltip>["align"]
-  }) {
-    return (
-      <GuidedTooltip
-        id={id}
-        order={id}
-        completed={completed}
-        content={content}
-        targetClassName={targetClassName}
-        side={side}
-        align={align}
-        onOpenHaptic={hapticMedium}
-        onComplete={() => markTooltipCompleted({ tooltipId: id })}
-      >
-        {children}
-      </GuidedTooltip>
-    )
+
+  function dismissFirstWeekGuide() {
+    window.localStorage.setItem("onerep:first-week-guide-dismissed", "1")
+    setShowFirstWeekGuide(false)
   }
 
+  const dashboardQuickActions = [
+    {
+      id: "food",
+      label: `Log ${currentMealLabel.toLowerCase()}`,
+      icon: <ForkKnife size={17} weight="bold" />,
+      tone: "food" as const,
+      onClick: () => setHomeAddOpen(true),
+    },
+    {
+      id: "water",
+      label: "Add water",
+      icon: <PintGlass size={17} weight="bold" />,
+      tone: "water" as const,
+      onClick: addQuickWater,
+    },
+    {
+      id: "workout",
+      label: activeWorkout ? "Continue workout" : "Start workout",
+      icon: <Barbell size={17} weight="bold" />,
+      tone: "workout" as const,
+      onClick: openWorkoutAction,
+    },
+    {
+      id: "supplements",
+      label: "Supplements",
+      icon: <Pill size={17} weight="bold" />,
+      onClick: () => navigate("/supplements", { motion: "switch" }),
+    },
+  ]
+
+  const dueSupplementCount = supplementOverview
+    ? buildSupplementDayPlan({
+        items: supplementOverview.items as SupplementItem[],
+        logs: supplementOverview.logs as SupplementIntakeLog[],
+        date: selectedDate,
+        today: todayKey,
+        isTrainingDay: supplementOverview.isTrainingDay,
+      }).filter(
+        (item) =>
+          item.isScheduled && item.state !== "taken" && item.state !== "skipped"
+      ).length
+    : 0
+
+  const checklistItems = [
+    {
+      id: "meal",
+      label: `Log ${currentMealLabel.toLowerCase()}`,
+      detail:
+        foodEntries.length > 0
+          ? "Keep today's food record complete"
+          : "No food recorded yet",
+      completed: foodEntries.length > 0,
+      onClick: () => setHomeAddOpen(true),
+    },
+    {
+      id: "water",
+      label: "Drink more water",
+      detail: `${fmtWater(Math.max(0, waterGoalMl - waterTotalMl))} remaining`,
+      completed: waterTotalMl >= waterGoalMl,
+      onClick: addQuickWater,
+    },
+    {
+      id: "training",
+      label: activeWorkout
+        ? "Finish your workout"
+        : "Complete today's training",
+      detail: activeWorkout
+        ? "Your active session is waiting"
+        : workoutActionDetail,
+      completed: hasCompletedWorkout || (!scheduledWorkout && !activeWorkout),
+      onClick: openWorkoutAction,
+    },
+    {
+      id: "supplements",
+      label:
+        dueSupplementCount > 0
+          ? `Take ${dueSupplementCount} supplement${dueSupplementCount === 1 ? "" : "s"}`
+          : "Supplements checked",
+      detail:
+        dueSupplementCount > 0 ? "Scheduled for today" : "Nothing else is due",
+      completed: dueSupplementCount === 0,
+      onClick: () => navigate("/supplements", { motion: "switch" }),
+    },
+  ]
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const foodEvents = foodEntries.map((entry) => ({
       id: `food-${entry.id}`,
@@ -2754,12 +2812,19 @@ export default function App() {
   }, [foodEntries, selectedDate, supplementEntries, waterEntries, workoutLogs])
 
   function addQuickWater() {
+    const id = crypto.randomUUID()
     void addWaterEntry({
       date: selectedDate,
       entry: {
-        id: crypto.randomUUID(),
+        id,
         amountMl: 250,
         loggedAt: new Date().toISOString(),
+      },
+    })
+    toast.success("Added 250 ml water", {
+      action: {
+        label: "Undo",
+        onClick: () => void removeWaterEntry({ date: selectedDate, id }),
       },
     })
   }
@@ -2771,6 +2836,13 @@ export default function App() {
         date: selectedDate,
         entries: foodEntries.filter((entry) => entry.id !== id),
       })
+      toast.success("Food entry removed", {
+        action: {
+          label: "Undo",
+          onClick: () =>
+            void setDay({ date: selectedDate, entries: foodEntries }),
+        },
+      })
       return
     }
 
@@ -2778,6 +2850,17 @@ export default function App() {
       void removeWaterEntry({
         date: selectedDate,
         id: event.id.replace(/^water-/, ""),
+      })
+      toast.success("Water entry removed", {
+        action: {
+          label: "Undo",
+          onClick: () => {
+            const entry = waterEntries.find(
+              (item) => `water-${item.id}` === event.id
+            )
+            if (entry) void addWaterEntry({ date: selectedDate, entry })
+          },
+        },
       })
       return
     }
@@ -2817,6 +2900,7 @@ export default function App() {
     foodLogs !== undefined &&
     waterLogs !== undefined &&
     supplementLogs !== undefined &&
+    supplementOverview !== undefined &&
     workoutLogsQuery !== undefined &&
     activeWorkouts !== undefined &&
     pinnedCoachGoals !== undefined &&
@@ -2877,47 +2961,38 @@ export default function App() {
               }
               briefing={dashboardBriefing}
               onBriefingAction={runDashboardBriefingAction}
+              showBriefingAction={false}
               proteinLeft={proteinLeft}
               streak={streak}
               workoutsThisWeek={workoutsThisWeek}
               macros={macroProgress}
-              workout={{
-                label: activeWorkout
-                  ? "Continue"
-                  : hasCompletedWorkout
-                    ? "Done"
-                    : "Workout",
-                detail: workoutActionDetail,
-                onClick: openWorkoutAction,
-                tooltip: (button) =>
-                  renderDashboardTooltip({
-                    id: DASHBOARD_WORKOUT_TOOLTIP_ID,
-                    completed: dashboardWorkoutTooltipCompleted !== false,
-                    content: "Start, resume, or review today’s workout here.",
-                    targetClassName: "flex w-full",
-                    side: "bottom",
-                    align: "center",
-                    children: button,
-                  }),
-              }}
-              water={{
-                label: "Water",
-                detail: "+250 ml",
-                onClick: addQuickWater,
-                tooltip: (button) =>
-                  renderDashboardTooltip({
-                    id: DASHBOARD_WATER_TOOLTIP_ID,
-                    completed: dashboardWaterTooltipCompleted !== false,
-                    content: "Tap to add 250 ml.",
-                    targetClassName: "flex w-full",
-                    side: "bottom",
-                    align: "center",
-                    children: button,
-                  }),
-              }}
             />
 
-            {isTodaySelected ? (
+            <DashboardQuickActions actions={dashboardQuickActions} />
+
+            <NextStepCard
+              title={dashboardBriefing.title}
+              detail={dashboardBriefing.detail}
+              actionLabel={dashboardBriefing.actionLabel}
+              onAction={runDashboardBriefingAction}
+            />
+
+            <button
+              type="button"
+              onClick={() => navigate("/coach", { motion: "switch" })}
+              className="mx-[var(--app-page-x)] mt-2 flex min-h-11 w-[calc(100%-2*var(--app-page-x))] items-center justify-center gap-2 text-[13px] font-semibold text-muted-foreground md:mx-8 md:w-[calc(100%-4rem)]"
+            >
+              <Sparkle size={16} weight="fill" />
+              Help me decide what to do next
+            </button>
+
+            {isTodaySelected && showFirstWeekGuide && (
+              <FirstWeekGuide onDismiss={dismissFirstWeekGuide} />
+            )}
+
+            {isTodaySelected && <TodayChecklist items={checklistItems} />}
+
+            {isTodaySelected && !settings.simpleMode ? (
               <CoachGoalCards
                 goals={(pinnedCoachGoals ?? []) as PinnedCoachGoal[]}
                 today={todayKey}
@@ -2931,38 +3006,63 @@ export default function App() {
               />
             ) : null}
 
-            <WorkoutWeekStrip
-              days={workoutWeekDays}
-              onClick={() => navigate("/workouts", { motion: "switch" })}
-            />
+            {!settings.simpleMode && (
+              <WorkoutWeekStrip
+                days={workoutWeekDays}
+                onClick={() => navigate("/workouts", { motion: "switch" })}
+              />
+            )}
 
-            <details className="native-collapsible mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
-                Insights
-                <CaretDown size={18} className="text-muted-foreground" />
-              </summary>
-              <div className="pb-4">
-                <DashboardProgressPanels
-                  measurements={
-                    (bodyMeasurements ?? []) as BodyMeasurementEntry[]
-                  }
-                  metric={settings.trendMetric ?? "bodyFatPct"}
-                  onMetricChange={(metric) =>
-                    void setDashboardTrendMetric({ metric })
-                  }
-                  tdee={calorieInfo?.tdee ?? caloriesTarget}
-                  calorieTarget={caloriesTarget}
-                  muscleRecovery={muscleRecovery}
-                  weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
-                />
-              </div>
-            </details>
+            {!settings.simpleMode && (
+              <details className="native-collapsible mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
+                  <span>
+                    <span className="block">Your progress</span>
+                    <span className="native-row-detail block font-normal">
+                      {workoutsThisWeek} workouts this week ·{" "}
+                      {Math.round(proteinProgress)}% protein
+                    </span>
+                  </span>
+                  <CaretDown
+                    size={18}
+                    className="shrink-0 text-muted-foreground"
+                  />
+                </summary>
+                <div className="pb-4">
+                  <DashboardProgressPanels
+                    measurements={
+                      (bodyMeasurements ?? []) as BodyMeasurementEntry[]
+                    }
+                    metric={settings.trendMetric ?? "bodyFatPct"}
+                    onMetricChange={(metric) =>
+                      void setDashboardTrendMetric({ metric })
+                    }
+                    tdee={calorieInfo?.tdee ?? caloriesTarget}
+                    calorieTarget={caloriesTarget}
+                    muscleRecovery={muscleRecovery}
+                    weightUnit={
+                      preferences?.weightUnit === "lbs" ? "lbs" : "kg"
+                    }
+                  />
+                </div>
+              </details>
+            )}
 
             <TodayTimeline
               events={timelineEvents}
               onLogFood={() => setHomeAddOpen(true)}
               onLogWater={addQuickWater}
               onDeleteEvent={deleteTimelineEvent}
+              onEditEvent={(event) => {
+                if (event.kind === "workout")
+                  navigate("/workouts", { motion: "switch" })
+                else if (event.kind === "supplement")
+                  navigate("/supplements", { motion: "switch" })
+                else
+                  navigate(`/nutrition?date=${selectedDate}`, {
+                    motion: "switch",
+                  })
+              }}
             />
           </>
         ) : (
@@ -3113,6 +3213,24 @@ export default function App() {
             <div className="mt-5">
               <p className="native-section-title mb-2">More</p>
               <div className="divide-y divide-border border-y border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHomeAddOpen(false)
+                    navigate("/recipes")
+                  }}
+                  className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted/40"
+                >
+                  <Lightning
+                    size={19}
+                    weight="bold"
+                    className="text-muted-foreground"
+                  />
+                  <span className="native-row-title min-w-0 flex-1">
+                    Inspire me
+                  </span>
+                  <CaretRight size={18} className="text-muted-foreground" />
+                </button>
                 <button
                   type="button"
                   onClick={() => {
