@@ -658,6 +658,10 @@ export default function Progress() {
   )
   const [weight, setWeight] = useState("")
   const [bodyFat, setBodyFat] = useState("")
+  const [waist, setWaist] = useState("")
+  const [hips, setHips] = useState("")
+  const [chest, setChest] = useState("")
+  const [notes, setNotes] = useState("")
   const [entryClientId, setEntryClientId] = useState<string | null>(null)
   const [entryPrepared, setEntryPrepared] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
@@ -742,10 +746,30 @@ export default function Progress() {
           ? ""
           : String(todayMeasurement.bodyFatPct)
       )
+      setWaist(
+        todayMeasurement.waistCm == null
+          ? ""
+          : String(todayMeasurement.waistCm)
+      )
+      setHips(
+        todayMeasurement.hipsCm == null
+          ? ""
+          : String(todayMeasurement.hipsCm)
+      )
+      setChest(
+        todayMeasurement.chestCm == null
+          ? ""
+          : String(todayMeasurement.chestCm)
+      )
+      setNotes(todayMeasurement.notes ?? "")
       setEntryClientId(todayMeasurement.clientId)
     } else {
       setWeight("")
       setBodyFat("")
+      setWaist("")
+      setHips("")
+      setChest("")
+      setNotes("")
       setEntryClientId(null)
     }
     setEntryError("")
@@ -756,6 +780,10 @@ export default function Progress() {
     if (bodyMeasurements === undefined) {
       setWeight("")
       setBodyFat("")
+      setWaist("")
+      setHips("")
+      setChest("")
+      setNotes("")
       setEntryClientId(null)
       setEntryError("")
       setEntryPrepared(false)

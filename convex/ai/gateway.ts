@@ -1,7 +1,7 @@
 import { env } from "../_generated/server";
 
-export const AI_GATEWAY_CHAT_URL =
-  "https://ai-gateway.vercel.sh/v1/chat/completions";
+export const AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
+export const AI_GATEWAY_CHAT_URL = `${AI_GATEWAY_BASE_URL}/chat/completions`;
 export const DEFAULT_AI_GATEWAY_MODEL = "openai/gpt-5.4-mini";
 
 type GatewayImage = {

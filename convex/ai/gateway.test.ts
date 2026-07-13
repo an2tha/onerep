@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   AI_GATEWAY_CHAT_URL,
+  AI_GATEWAY_BASE_URL,
   DEFAULT_AI_GATEWAY_MODEL,
   hasGatewayApiKey,
   requestGatewayJson,
@@ -61,6 +62,7 @@ describe("AI Gateway REST client", () => {
     ).resolves.toBe('{"ok":true}');
 
     expect(capturedUrl).toBe(AI_GATEWAY_CHAT_URL);
+    expect(AI_GATEWAY_BASE_URL).toBe("https://ai-gateway.vercel.sh/v1");
     expect(capturedInit?.method).toBe("POST");
     expect(capturedInit?.headers).toEqual({
       Authorization: "Bearer gateway-secret",
