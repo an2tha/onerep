@@ -48,6 +48,7 @@ import {
 import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { AnimatedAccordion } from "@/components/animated-accordion"
 import { SwipeToStart } from "@/components/swipe-to-start"
 import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
 import { useAiFeatureGate } from "@/lib/ai-access"
@@ -3014,8 +3015,11 @@ export default function App() {
             )}
 
             {!settings.simpleMode && (
-              <details className="native-collapsible mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8">
-                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
+              <AnimatedAccordion
+                className="mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8"
+                triggerClassName="min-h-14 text-[15px] font-semibold"
+                contentClassName="pb-4"
+                summary={
                   <span>
                     <span className="block">Your progress</span>
                     <span className="native-row-detail block font-normal">
@@ -3023,29 +3027,22 @@ export default function App() {
                       {Math.round(proteinProgress)}% protein
                     </span>
                   </span>
-                  <CaretDown
-                    size={18}
-                    className="shrink-0 text-muted-foreground"
-                  />
-                </summary>
-                <div className="pb-4">
-                  <DashboardProgressPanels
-                    measurements={
-                      (bodyMeasurements ?? []) as BodyMeasurementEntry[]
-                    }
-                    metric={settings.trendMetric ?? "bodyFatPct"}
-                    onMetricChange={(metric) =>
-                      void setDashboardTrendMetric({ metric })
-                    }
-                    tdee={calorieInfo?.tdee ?? caloriesTarget}
-                    calorieTarget={caloriesTarget}
-                    muscleRecovery={muscleRecovery}
-                    weightUnit={
-                      preferences?.weightUnit === "lbs" ? "lbs" : "kg"
-                    }
-                  />
-                </div>
-              </details>
+                }
+              >
+                <DashboardProgressPanels
+                  measurements={
+                    (bodyMeasurements ?? []) as BodyMeasurementEntry[]
+                  }
+                  metric={settings.trendMetric ?? "bodyFatPct"}
+                  onMetricChange={(metric) =>
+                    void setDashboardTrendMetric({ metric })
+                  }
+                  tdee={calorieInfo?.tdee ?? caloriesTarget}
+                  calorieTarget={caloriesTarget}
+                  muscleRecovery={muscleRecovery}
+                  weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+                />
+              </AnimatedAccordion>
             )}
 
             <TodayTimeline

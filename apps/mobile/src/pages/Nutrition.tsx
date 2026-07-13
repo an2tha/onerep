@@ -26,6 +26,7 @@ import { useBottomBarAction } from "@/components/bottom-bar"
 import { StatRow, SummaryBlock } from "@/components/mobile-ui"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { DateSelectorButton } from "@/components/date-selector-button"
+import { AnimatedAccordion } from "@/components/animated-accordion"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
@@ -2333,22 +2334,21 @@ export default function Nutrition() {
               </button>
             </nav>
 
-            <details className="native-collapsible mt-4 border-y border-border">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between text-[15px] font-semibold">
-                Saved recipes
-                <CaretDown size={18} className="text-muted-foreground" />
-              </summary>
-              <div className="pb-4">
-                <RecipeManagementBox
-                  recipes={recipes}
-                  deletingRecipeId={deletingRecipeId}
-                  onCreate={createRecipe}
-                  onEdit={editRecipe}
-                  onDelete={(recipe) => void deleteRecipe(recipe)}
-                  embedded
-                />
-              </div>
-            </details>
+            <AnimatedAccordion
+              summary="Saved recipes"
+              className="mt-4 border-y border-border"
+              triggerClassName="min-h-14 text-[15px] font-semibold"
+              contentClassName="pb-4"
+            >
+              <RecipeManagementBox
+                recipes={recipes}
+                deletingRecipeId={deletingRecipeId}
+                onCreate={createRecipe}
+                onEdit={editRecipe}
+                onDelete={(recipe) => void deleteRecipe(recipe)}
+                embedded
+              />
+            </AnimatedAccordion>
 
             {smartMealSuggestion && (
               <div className="mt-3">

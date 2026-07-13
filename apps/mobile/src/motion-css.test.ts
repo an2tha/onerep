@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 
 const css = await Bun.file(new URL("./index.css", import.meta.url)).text()
+const animatedAccordion = await Bun.file(
+  new URL("./components/animated-accordion.tsx", import.meta.url)
+).text()
 
 describe("app motion CSS", () => {
   test("enables the shared motion primitives", () => {
@@ -27,10 +30,11 @@ describe("app motion CSS", () => {
     expect(css).toContain("transition: none !important;")
   })
 
-  test("animates native and settings disclosures without scale motion", () => {
-    expect(css).toContain(".native-collapsible::details-content")
-    expect(css).toContain(".native-collapsible[open]::details-content")
-    expect(css).toContain("block-size var(--motion-medium)")
+  test("animates all accordion disclosures without scale motion", () => {
+    expect(animatedAccordion).toContain("grid-rows-[1fr] opacity-100")
+    expect(animatedAccordion).toContain("grid-rows-[0fr] opacity-0")
+    expect(animatedAccordion).toContain("motion-reduce:transition-none")
+    expect(animatedAccordion).toContain('open && "rotate-180"')
     expect(css).toContain(
       "animation: accordion-down var(--motion-medium) var(--motion-ease-standard)"
     )

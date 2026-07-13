@@ -298,9 +298,15 @@
   opacity: var(--onboarding-atmosphere-opacity);
   filter: saturate(var(--onboarding-atmosphere-saturation));
   background:
-    radial-gradient(circle at 70% 22%, rgba(113, 105, 238, 0.3), transparent 34%),
+    radial-gradient(
+      circle at 70% 22%,
+      rgba(113, 105, 238, 0.3),
+      transparent 34%
+    ),
     linear-gradient(145deg, #121c56 0%, #11123d 48%, #050719 100%);
-  background-size: 135% 135%, 100% 100%;
+  background-size:
+    135% 135%,
+    100% 100%;
   animation: onboarding-field-breathe 12s ease-in-out infinite alternate;
   transition:
     opacity 750ms var(--motion-ease-standard),
@@ -347,10 +353,14 @@
 
 @keyframes onboarding-field-breathe {
   from {
-    background-position: 42% 38%, center;
+    background-position:
+      42% 38%,
+      center;
   }
   to {
-    background-position: 62% 58%, center;
+    background-position:
+      62% 58%,
+      center;
   }
 }
 
@@ -461,8 +471,8 @@
   overflow-y: auto;
   padding: 2rem 1.25rem 2.5rem;
   will-change: transform, opacity;
-  animation: onboarding-step-in-forward 360ms
-    cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: onboarding-step-in-forward 360ms cubic-bezier(0.22, 1, 0.36, 1)
+    both;
 }
 
 .onboarding-step[data-transition-direction="back"] {
@@ -1017,8 +1027,6 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-countdown-fill,
   .motion-set-complete,
   .motion-success-pop,
-  .native-collapsible::details-content,
-  .native-collapsible > summary > svg:last-child,
   [data-slot="accordion-content"],
   [data-slot="accordion-trigger-icon"],
   [data-slot="card"],
@@ -2959,40 +2967,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 [data-state="closed"].animate-accordion-up,
 [data-slot="accordion-content"][data-state="closed"] {
   animation: accordion-up var(--motion-medium) var(--motion-ease-standard);
-}
-
-.native-collapsible {
-  interpolate-size: allow-keywords;
-}
-
-.native-collapsible::details-content {
-  block-size: 0;
-  overflow: clip;
-  opacity: 0;
-  transition:
-    block-size var(--motion-medium) var(--motion-ease-standard),
-    opacity var(--motion-fast) var(--motion-ease-standard),
-    content-visibility var(--motion-medium) allow-discrete;
-}
-
-.native-collapsible[open]::details-content {
-  block-size: auto;
-  opacity: 1;
-}
-
-.native-collapsible > summary > svg:last-child {
-  transition: transform var(--motion-medium) var(--motion-ease-standard);
-}
-
-.native-collapsible[open] > summary > svg:last-child {
-  transform: rotate(180deg);
-}
-
-@starting-style {
-  .native-collapsible[open]::details-content {
-    block-size: 0;
-    opacity: 0;
-  }
 }
 
 /* Grounded mobile previews — targeted polish for Today, food review, and active workout. */
