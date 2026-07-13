@@ -5,7 +5,6 @@ import {
   Check,
   Minus,
   Plus,
-  Warning,
   X,
 } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
@@ -28,16 +27,9 @@ import {
 import type { FoodResult, FoodDetail } from "@repo/models"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
-import {
-  APP_ACCENT_COLORS,
-  MACRO_COLORS,
-  NOVA_COLORS as ONE_REP_NOVA_COLORS,
-  NUTRITION_SCORE_COLORS,
-  tint,
-} from "@/lib/design-tokens"
+import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
 
 type Detail = FoodDetail | null | undefined
-type Nutrient = FoodDetail["nutrients"][number]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -321,63 +313,6 @@ function PortionPicker({
   )
 }
 
-// ─── Badge helpers ────────────────────────────────────────────────────────────
-
-const NS_COLORS: Record<string, string> = { ...NUTRITION_SCORE_COLORS }
-const NOVA_COLORS = ONE_REP_NOVA_COLORS
-const NOVA_LABELS = ["Unprocessed", "Culinary", "Processed", "Ultra-proc."]
-
-function ScoresBadges({
-  nutriscoreGrade,
-  novaGroup,
-}: {
-  nutriscoreGrade?: string
-  novaGroup?: number
-}) {
-  if (!nutriscoreGrade && !novaGroup) return null
-  return (
-    <section
-      className="mx-4 mt-4 border-y border-border"
-      aria-label="Product ratings"
-    >
-      {nutriscoreGrade && (
-        <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
-          <div className="min-w-0">
-            <p className="text-[15px] font-semibold">Nutri-Score</p>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Overall packaged-food rating from A to E
-            </p>
-          </div>
-          <strong
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[16px] text-white"
-            style={{
-              backgroundColor: NS_COLORS[nutriscoreGrade.toLowerCase()],
-            }}
-          >
-            {nutriscoreGrade.toUpperCase()}
-          </strong>
-        </div>
-      )}
-      {novaGroup && (
-        <div className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0">
-          <div className="min-w-0">
-            <p className="text-[15px] font-semibold">NOVA processing group</p>
-            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-              {NOVA_LABELS[novaGroup - 1] ?? `Group ${novaGroup}`}
-            </p>
-          </div>
-          <strong
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[16px] text-white"
-            style={{ backgroundColor: NOVA_COLORS[novaGroup - 1] }}
-          >
-            {novaGroup}
-          </strong>
-        </div>
-      )}
-    </section>
-  )
-}
-
 // ─── Nutrition row ────────────────────────────────────────────────────────────
 
 function NutrRow({
@@ -451,63 +386,6 @@ function ProductHeader({
         </strong>
       </div>
     </header>
-  )
-}
-
-const HIGHLIGHT_NUTRIENTS = [
-  "fiber",
-  "sugar",
-  "sodium",
-  "potassium",
-  "calcium",
-  "iron",
-]
-
-function NutrientHighlights({
-  detail,
-  grams,
-}: {
-  detail: Detail
-  grams: number
-}) {
-  if (!detail) return null
-
-  const all = [...(detail.nutrients ?? []), ...(detail.extraNutrients ?? [])]
-  const rows = HIGHLIGHT_NUTRIENTS.map((key) =>
-    all.find((n) => n.key === key && n.per100g > 0)
-  )
-    .filter((n): n is Nutrient => Boolean(n))
-    .slice(0, 4)
-
-  if (rows.length === 0) return null
-
-  return (
-    <section className="mx-4 mt-4">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <h3 className="text-[16px] font-semibold">Nutrient highlights</h3>
-        <p className="truncate text-[13px] text-muted-foreground">
-          per selected amount
-        </p>
-      </div>
-      <div className="border-y border-border">
-        {rows.map((n) => (
-          <div
-            key={n.key}
-            className="flex min-h-14 min-w-0 items-center justify-between gap-4 border-b border-border py-3 last:border-b-0"
-          >
-            <p className="truncate text-[15px] text-muted-foreground">
-              {n.name}
-            </p>
-            <p className="truncate text-[15px] font-semibold tabular-nums">
-              {formatNutrientValue(scale(n.per100g, grams))}
-              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                {n.unit}
-              </span>
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
   )
 }
 
@@ -961,9 +839,15 @@ export function FoodDetailSheet({
 
           {/* ── Nutrition table ───────────────────────────────────────── */}
           {detail?.nutrients && detail.nutrients.length > 0 && (
-            <details className="mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
-              <summary className="cursor-pointer px-4 py-3 text-[13px] font-semibold">
-                Full nutrition details
+            <details className="native-collapsible mx-4 mt-4 overflow-hidden rounded-2xl border border-border bg-card">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[13px] font-semibold">
+                <span>Full nutrition details</span>
+                <CaretDown
+                  size={15}
+                  weight="bold"
+                  className="shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
               </summary>
 
               <div className="border-t border-border px-4">

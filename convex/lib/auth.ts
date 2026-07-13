@@ -5,6 +5,7 @@ import { components } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import authConfig from "../auth.config";
+import { sendAuthEmail } from "./authEmail";
 
 type AuthCtx = QueryCtx | MutationCtx | ActionCtx;
 export const authComponent = createClient<DataModel>(components.betterAuth);
@@ -17,6 +18,7 @@ export const trustedOrigins = [
   "http://localhost:5177",
   "http://127.0.0.1:5177",
   "capacitor://localhost",
+  "onerep://auth",
   "http://localhost",
   "https://localhost",
 ];
@@ -45,8 +47,36 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      requireEmailVerification: true,
+      minPasswordLength: 8,
+      resetPasswordTokenExpiresIn: 60 * 60,
+      sendResetPassword: async ({ user, url }) => {
+        await sendAuthEmail({
+          kind: "password-reset",
+          to: user.email,
+          name: user.name,
+          url,
+        });
+      },
       revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      sendOnSignIn: true,
+      expiresIn: 60 * 60,
+      sendVerificationEmail: async ({ user, url }) => {
+        await sendAuthEmail({
+          kind: "verification",
+          to: user.email,
+          name: user.name,
+          url,
+        });
+      },
+    },
+    user: {
+      deleteUser: {
+        enabled: true,
+      },
     },
     plugins: [crossDomain({ siteUrl }), convex({ authConfig })],
   } satisfies BetterAuthOptions;

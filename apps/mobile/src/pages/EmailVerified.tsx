@@ -1,5 +1,9 @@
-import { useSearchParams } from "react-router"
-import { clearPendingVerification } from "@/lib/auth-redirects"
+import { Navigate, useSearchParams } from "react-router"
+import {
+  clearPendingVerification,
+  getPendingVerification,
+} from "@/lib/auth-redirects"
+import { safeAuthRedirectPath } from "@/lib/auth-session"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 
@@ -21,6 +25,7 @@ export default function EmailVerified() {
   const [searchParams] = useSearchParams()
   const { isLoaded, isSignedIn } = useAppAuth()
   const hasError = Boolean(searchParams.get("error"))
+  const isVerificationLinkReturn = searchParams.get("source") === "email"
   const next = searchParams.get("next")
   const checkingAuth = !hasError && !isLoaded
   const copy = hasError ? STATUS_COPY.error : STATUS_COPY.success
@@ -41,13 +46,23 @@ export default function EmailVerified() {
       return
     }
 
+    const pendingNext = safeAuthRedirectPath(getPendingVerification().next)
     clearPendingVerification()
     if (!isSignedIn) {
       navigate("/login", { replace: true })
       return
     }
 
-    navigate(next === "onboarding" ? "/onboarding" : "/", { replace: true })
+    navigate(next === "onboarding" ? "/onboarding" : pendingNext, {
+      replace: true,
+    })
+  }
+
+  if (!isVerificationLinkReturn) {
+    const pendingNext = safeAuthRedirectPath(getPendingVerification().next)
+    return (
+      <Navigate to={isLoaded && isSignedIn ? pendingNext : "/login"} replace />
+    )
   }
 
   return (

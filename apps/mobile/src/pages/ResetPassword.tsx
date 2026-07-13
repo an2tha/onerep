@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router"
 import { Eye, EyeSlash } from "@phosphor-icons/react"
 import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { getAuthCallbackUrl } from "@/lib/auth-redirects"
 
 const FIELD_CLASS = "native-field"
 const LABEL_CLASS = "native-field-label"
@@ -93,7 +94,7 @@ export default function ResetPassword() {
     try {
       const sent = await authClient.requestPasswordReset({
         email: trimmedEmail,
-        redirectTo: "/reset-password",
+        redirectTo: getAuthCallbackUrl("/reset-password"),
       })
       if (sent.error) {
         setError(

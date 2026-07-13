@@ -74,6 +74,7 @@ describe("reminder settings", () => {
     expect(cancelMock).not.toHaveBeenCalled()
     expect(requestPermissionsMock).not.toHaveBeenCalled()
     expect(scheduleMock).not.toHaveBeenCalled()
+    expect(cancelMock).not.toHaveBeenCalled()
   })
 
   test("syncPushReminders cancels existing notifications and returns disabled when none are enabled", async () => {
@@ -124,6 +125,7 @@ describe("reminder settings", () => {
             id: number
             schedule: {
               on: { hour: number; minute: number }
+              repeats: boolean
               allowWhileIdle: boolean
             }
           }>
@@ -137,10 +139,12 @@ describe("reminder settings", () => {
     ])
     expect(payload.notifications[0].schedule).toEqual({
       on: { hour: 8, minute: 0 },
+      repeats: true,
       allowWhileIdle: true,
     })
     expect(payload.notifications[1].schedule).toEqual({
       on: { hour: 18, minute: 45 },
+      repeats: true,
       allowWhileIdle: true,
     })
   })

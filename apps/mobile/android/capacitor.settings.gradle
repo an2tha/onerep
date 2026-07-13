@@ -5,6 +5,9 @@ project(':capacitor-android').projectDir = new File('../../../node_modules/.bun/
 include ':capacitor-camera'
 project(':capacitor-camera').projectDir = new File('../../../node_modules/.bun/@capacitor+camera@8.2.0+767ac80cbab8ae50/node_modules/@capacitor/camera/android')
 
+include ':capacitor-filesystem'
+project(':capacitor-filesystem').projectDir = new File('../../../node_modules/.bun/@capacitor+filesystem@8.1.2+767ac80cbab8ae50/node_modules/@capacitor/filesystem/android')
+
 include ':capacitor-haptics'
 project(':capacitor-haptics').projectDir = new File('../../../node_modules/.bun/@capacitor+haptics@8.0.2+767ac80cbab8ae50/node_modules/@capacitor/haptics/android')
 
@@ -13,6 +16,9 @@ project(':capacitor-local-notifications').projectDir = new File('../../../node_m
 
 include ':capacitor-preferences'
 project(':capacitor-preferences').projectDir = new File('../../../node_modules/.bun/@capacitor+preferences@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/preferences/android')
+
+include ':capacitor-share'
+project(':capacitor-share').projectDir = new File('../../../node_modules/.bun/@capacitor+share@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/share/android')
 
 include ':capgo-capacitor-speech-recognition'
 project(':capgo-capacitor-speech-recognition').projectDir = new File('../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition/android')

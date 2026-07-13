@@ -35,7 +35,7 @@ async function deleteFromUserIndex(
  *
  * The auth component owns its own tables; this helper only removes OneRep app
  * data keyed by `userId`. Call repeatedly until `remaining` is false before
- * invoking Clerk account deletion.
+ * invoking Better Auth account deletion.
  */
 export async function deleteUserDataBatch(
   ctx: DeleteCtx,

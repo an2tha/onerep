@@ -27,6 +27,7 @@ export default defineSchema({
       v.object({
         workoutFocus: v.string(), // "strength" | "cardio" | "mobility"
         trendMetric: v.optional(v.string()), // bodyFatPct | waistCm | chestCm | armsCm | thighsCm
+        simpleMode: v.optional(v.boolean()),
       }),
     ),
     widgetLayout: v.optional(

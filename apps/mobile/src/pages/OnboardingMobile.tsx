@@ -547,6 +547,9 @@ export function OnboardingMobile() {
   const saveHealthProfile = useMutation(api.logs.calories.setProfile)
   const saveWeightUnit = useMutation(api.users.users.setWeightUnit)
   const saveWaterGoal = useMutation(api.users.users.setWaterGoal)
+  const saveDashboardSettings = useMutation(
+    api.users.users.setDashboardSettings
+  )
   const onboardingProfile = useQuery(api.users.onboarding.get, {})
   const healthProfile = useQuery(api.logs.calories.getProfile, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
@@ -848,6 +851,10 @@ export function OnboardingMobile() {
         }),
         saveWeightUnit({ unit: weightUnit }),
         saveWaterGoal({ goalMl: waterGoalMl }),
+        saveDashboardSettings({
+          workoutFocus: "strength",
+          simpleMode: experienceLevel === "beginner",
+        }),
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       navigate(experienceLevel === "beginner" ? "/coach?setup=beginner" : "/", {

@@ -1,4 +1,7 @@
 import { localDateKey } from "./utils"
+import { Capacitor } from "@capacitor/core"
+import { Directory, Filesystem } from "@capacitor/filesystem"
+import { Share } from "@capacitor/share"
 
 export type ExportDelivery = "shared" | "downloaded" | "cancelled"
 
@@ -37,8 +40,9 @@ function bytesToHex(bytes: ArrayBuffer) {
 
 export async function sha256Hex(
   value: string,
-  cryptoApi: ExportCrypto | undefined =
-    typeof crypto === "undefined" ? undefined : crypto
+  cryptoApi: ExportCrypto | undefined = typeof crypto === "undefined"
+    ? undefined
+    : crypto
 ) {
   if (!cryptoApi?.subtle?.digest) {
     throw new Error("SHA-256 digest is unavailable")
@@ -94,14 +98,15 @@ export function jsonExportFile(data: unknown, filename: string) {
 
 export function canShareExportFile(
   file: File,
-  nav: ExportNavigator | undefined =
-    typeof navigator === "undefined" ? undefined : navigator
+  nav: ExportNavigator | undefined = typeof navigator === "undefined"
+    ? undefined
+    : navigator
 ) {
   return Boolean(
     nav &&
-      typeof nav.share === "function" &&
-      typeof nav.canShare === "function" &&
-      nav.canShare({ files: [file] })
+    typeof nav.share === "function" &&
+    typeof nav.canShare === "function" &&
+    nav.canShare({ files: [file] })
   )
 }
 
@@ -138,6 +143,33 @@ export async function shareOrDownloadJsonExport(
   filename = oneRepExportFilename(),
   options: ExportOptions = {}
 ): Promise<ExportDelivery> {
+  if (Capacitor.isNativePlatform()) {
+    const path = `exports/${filename}`
+    await Filesystem.writeFile({
+      path,
+      directory: Directory.Cache,
+      data: JSON.stringify(data, null, 2),
+      recursive: true,
+    })
+    const { uri } = await Filesystem.getUri({
+      path,
+      directory: Directory.Cache,
+    })
+    try {
+      await Share.share({
+        title: "OneRep data export",
+        text: "Your OneRep data export",
+        files: [uri],
+        dialogTitle: "Save or share your OneRep export",
+      })
+      return "shared"
+    } finally {
+      await Filesystem.deleteFile({ path, directory: Directory.Cache }).catch(
+        () => undefined
+      )
+    }
+  }
+
   const file = jsonExportFile(data, filename)
   const nav =
     options.navigator ??

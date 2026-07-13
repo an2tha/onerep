@@ -3,7 +3,10 @@ import { useSearchParams } from "react-router"
 import {
   ArrowLeft,
   CaretRight,
+  Check,
+  ForkKnife,
   MagnifyingGlass,
+  Plus,
   Warning,
   X,
 } from "@phosphor-icons/react"
@@ -351,37 +354,61 @@ export default function SearchFoods() {
 
             {showResults && (
               <>
-                <p className="native-supporting mt-1 mb-2">
-                  {results.length} result{results.length !== 1 ? "s" : ""}
-                </p>
-                <div className="divide-y divide-border border-y border-border md:grid md:grid-cols-2 md:divide-y-0">
+                <div className="mt-1 mb-4 flex items-end justify-between gap-3">
+                  <div>
+                    <h1 className="text-[18px] font-semibold tracking-[-0.02em]">
+                      Foods
+                    </h1>
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">
+                      {results.length} results for “{completedQuery}”
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">
+                    Tap a food for serving details
+                  </span>
+                </div>
+                <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
                   {results.map((item) => {
                     const isAdded = added?.itemId === item.id
                     const isAdding = addingFoodId === item.id
                     return (
                       <div
                         key={item.id}
-                        className="flex min-h-[4.75rem] w-full items-center text-left md:border-b md:border-border md:odd:border-r"
+                        className="flex min-h-[5.5rem] w-full items-center gap-2 overflow-hidden rounded-2xl border border-border bg-card p-2 text-left transition-colors hover:bg-muted/20"
                       >
                         <button
                           type="button"
                           onClick={() => openFoodReview(item)}
-                          className="motion-list-row flex min-h-[4.75rem] min-w-0 flex-1 items-center gap-3 px-1 text-left active:bg-muted/30"
+                          className="motion-list-row flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 text-left"
                         >
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt=""
+                              loading="lazy"
+                              className="size-14 shrink-0 rounded-xl bg-muted object-cover"
+                            />
+                          ) : (
+                            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-muted/60 text-muted-foreground">
+                              <ForkKnife size={19} />
+                            </span>
+                          )}
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-[15px] leading-snug font-semibold">
+                            <p className="truncate text-[14px] leading-snug font-semibold">
                               {item.name}
                             </p>
-                            <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                            <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
                               {[item.brand, item.serving]
                                 .filter(Boolean)
                                 .join(" · ")}
                             </p>
-                            <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                              {Math.round(Number(item.calories))} kcal · Protein{" "}
-                              {Math.round(Number(item.protein))} g · Carbs{" "}
-                              {Math.round(Number(item.carbs))} g · Fat{" "}
-                              {Math.round(Number(item.fat))} g
+                            <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground tabular-nums">
+                              <strong className="font-semibold text-foreground">
+                                {Math.round(Number(item.calories))} kcal
+                              </strong>
+                              <span>P {Math.round(Number(item.protein))}g</span>
+                              <span>C {Math.round(Number(item.carbs))}g</span>
+                              <span>F {Math.round(Number(item.fat))}g</span>
                             </p>
                           </div>
                         </button>
@@ -398,16 +425,20 @@ export default function SearchFoods() {
                             isAdded ? `${item.name} added` : `Add ${item.name}`
                           }
                           className={cn(
-                            "motion-tactile mr-1 flex min-h-11 shrink-0 items-center justify-center px-3 text-[14px] font-semibold text-[var(--accent-food)] disabled:opacity-60",
+                            "motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground disabled:opacity-60",
                             isAdded && "motion-success-pop"
                           )}
                         >
                           {isAdded ? (
-                            <span>Added</span>
+                            <Check
+                              size={16}
+                              weight="bold"
+                              className="text-[var(--status-success)]"
+                            />
                           ) : isAdding ? (
                             <span className="h-3.5 w-3.5 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/60" />
                           ) : (
-                            <span>Add</span>
+                            <Plus size={16} weight="bold" />
                           )}
                         </button>
                       </div>

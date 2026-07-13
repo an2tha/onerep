@@ -124,13 +124,14 @@ describe("users Convex functions", () => {
       return ctx.db.insert("userPreferences", {
         userId: "user-dashboard-test",
         lastActiveTimezone: "UTC",
-        dashboardSettings: { workoutFocus: "strength" },
+        dashboardSettings: { workoutFocus: "strength", simpleMode: true },
         updatedAt: Date.now(),
       });
     });
 
     const prefs = await t.run(async (ctx) => ctx.db.get(id));
     expect(prefs!.dashboardSettings!.workoutFocus).toBe("strength");
+    expect(prefs!.dashboardSettings!.simpleMode).toBe(true);
   });
 
   test("stores health profile for calorie calculation", async () => {

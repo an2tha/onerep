@@ -130,6 +130,7 @@ export const setCustomMealCategories = mutation({
 export const setDashboardSettings = mutation({
   args: {
     workoutFocus: v.string(),
+    simpleMode: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -143,6 +144,7 @@ export const setDashboardSettings = mutation({
         dashboardSettings: {
           ...args,
           trendMetric: existing.dashboardSettings?.trendMetric,
+          simpleMode: args.simpleMode ?? existing.dashboardSettings?.simpleMode,
         },
         updatedAt: Date.now(),
       });
@@ -177,6 +179,7 @@ export const setDashboardTrendMetric = mutation({
     const dashboardSettings = {
       workoutFocus: existing?.dashboardSettings?.workoutFocus ?? "strength",
       trendMetric: args.metric,
+      simpleMode: existing?.dashboardSettings?.simpleMode,
     };
 
     if (existing) {
@@ -528,6 +531,7 @@ export const exportMyData = query({
       coachGoalTasks,
       coachUploads,
       aiUsage,
+      snapUsage,
       activeWorkouts,
       customExercises,
     ] = await Promise.all([
@@ -624,6 +628,10 @@ export const exportMyData = query({
         .withIndex("by_userId_month", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
+        .query("snapUsage")
+        .withIndex("by_userId_date", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
         .query("activeWorkouts")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
@@ -664,6 +672,7 @@ export const exportMyData = query({
         coachGoalTasks,
         coachUploads,
         aiUsage,
+        snapUsage,
         activeWorkouts,
         customExercises,
       },

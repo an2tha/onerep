@@ -53,6 +53,16 @@ describe("auth form mobile accessibility and autofill", () => {
     )
   })
 
+  test("unverified sign-ins are sent to the verification recovery page", () => {
+    expect(LOGIN_SOURCE).toContain("isEmailNotVerifiedError(error)")
+    expect(LOGIN_SOURCE).toContain(
+      "rememberPendingVerification(trimmedEmail, nextPath)"
+    )
+    expect(LOGIN_SOURCE).toContain(
+      'navigate("/verify-email-required", { replace: true })'
+    )
+  })
+
   test("reset password actions use a synchronous single-flight guard", () => {
     expect(RESET_SOURCE).toContain("const resetActionRef = useRef(false)")
     expect(RESET_SOURCE).toContain(
