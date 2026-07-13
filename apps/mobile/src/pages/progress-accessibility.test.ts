@@ -56,6 +56,24 @@ describe("Progress page accessibility contract", () => {
     expect(PROGRESS_SOURCE).toContain('aria-label="Add body measurement"')
     expect(PROGRESS_SOURCE).toContain("<FormField")
     expect(PROGRESS_SOURCE).toContain("<MobileSheet")
+    expect(PROGRESS_SOURCE).toContain('ariaLabel="Today’s check-in"')
+    expect(PROGRESS_SOURCE).toContain('form="today-check-in-form"')
+    expect(PROGRESS_SOURCE).toContain("aria-busy={savingEntry}")
+    expect(PROGRESS_SOURCE).toContain('role="alert"')
+  })
+
+  test("today's check-in provides context and updates an existing daily entry", () => {
+    expect(PROGRESS_SOURCE).toContain("todayMeasurement")
+    expect(PROGRESS_SOURCE).toContain("previousMeasurement")
+    expect(PROGRESS_SOURCE).toContain(
+      "clientId: entryClientId ?? crypto.randomUUID()"
+    )
+    expect(PROGRESS_SOURCE).toContain(
+      "Saving will update today’s existing entry."
+    )
+    expect(PROGRESS_SOURCE).toContain("For a clearer trend")
+    expect(PROGRESS_SOURCE).toContain("Complete check-in")
+    expect(PROGRESS_SOURCE).toContain("Update check-in")
   })
 
   test("Coach today's check-in opens the Progress check-in form", () => {
