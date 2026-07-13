@@ -102,6 +102,23 @@ type CoachOperationMeta = {
   warnings: string[];
 };
 
+type CoachWorkoutPresetDraft = {
+  presetId?: string;
+  reason?: "user_edit" | "progression" | "recovery" | "substitution";
+  name: string;
+  focus: "strength" | "cardio" | "mobility";
+  exercises: Array<{
+    name: string;
+    sets: Array<{
+      type: "working" | "warmup" | "failure" | "myoreps" | "drop";
+      weight: string;
+      reps: string;
+      restSeconds: number;
+    }>;
+  }>;
+  scheduleDays: string[];
+};
+
 type CoachOperation = CoachOperationMeta &
   (
     | {
@@ -134,22 +151,11 @@ type CoachOperation = CoachOperationMeta &
         date: string;
         name: string;
       }
+    | ({ type: "create_workout_preset" } & CoachWorkoutPresetDraft)
     | {
-        type: "create_workout_preset";
-        presetId?: string;
-        reason?: "user_edit" | "progression" | "recovery" | "substitution";
-        name: string;
-        focus: "strength" | "cardio" | "mobility";
-        exercises: Array<{
-          name: string;
-          sets: Array<{
-            type: "working" | "warmup" | "failure" | "myoreps" | "drop";
-            weight: string;
-            reps: string;
-            restSeconds: number;
-          }>;
-        }>;
-        scheduleDays: string[];
+        type: "create_workout_plan";
+        presets: CoachWorkoutPresetDraft[];
+        assignments: Array<{ day: string; presetName: string | null }>;
       }
     | {
         type: "update_routine";
@@ -714,6 +720,66 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
               ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].includes(day),
             )
             .slice(0, 7),
+        };
+      }
+
+      if (type === "create_workout_plan") {
+        const presets = (Array.isArray(row.presets) ? row.presets : [])
+          .map((item): CoachWorkoutPresetDraft | null => {
+            if (!item || typeof item !== "object") return null;
+            const normalized = normalizeCoachOperations([
+              {
+                ...meta,
+                ...(item as Record<string, unknown>),
+                type: "create_workout_preset",
+              },
+            ])[0];
+            if (!normalized || normalized.type !== "create_workout_preset") {
+              return null;
+            }
+            const {
+              type: _type,
+              confirmation: _confirmation,
+              summary: _summary,
+              assumptions: _assumptions,
+              warnings: _warnings,
+              ...preset
+            } = normalized;
+            return preset;
+          })
+          .filter((item): item is CoachWorkoutPresetDraft => Boolean(item))
+          .slice(0, 7);
+        const normalizedRoutine = normalizeCoachOperations([
+          {
+            ...meta,
+            type: "update_routine",
+            assignments: row.assignments,
+          },
+        ])[0];
+        if (
+          presets.length === 0 ||
+          !normalizedRoutine ||
+          normalizedRoutine.type !== "update_routine"
+        ) {
+          return null;
+        }
+        const presetNames = new Set(
+          presets.map((preset) => preset.name.toLowerCase()),
+        );
+        if (
+          normalizedRoutine.assignments.some(
+            (assignment) =>
+              assignment.presetName !== null &&
+              !presetNames.has(assignment.presetName.toLowerCase()),
+          )
+        ) {
+          return null;
+        }
+        return {
+          ...meta,
+          type,
+          presets,
+          assignments: normalizedRoutine.assignments,
         };
       }
 
@@ -1350,6 +1416,37 @@ async function generateCoachChatWithOpenAi({
               },
             ],
             scheduleDays: ["Mon"],
+          },
+          {
+            type: "create_workout_plan",
+            confirmation: "auto | confirm",
+            summary: "create and organize the complete workout plan",
+            assumptions: ["explicit reasonable defaults"],
+            warnings: [],
+            presets: [
+              {
+                name: "distinct training-day preset name",
+                focus: "strength | cardio | mobility",
+                exercises: [
+                  {
+                    name: "catalog exercise name",
+                    sets: [
+                      {
+                        type: "working",
+                        weight: "",
+                        reps: "8-12",
+                        restSeconds: 120,
+                      },
+                    ],
+                  },
+                ],
+                scheduleDays: ["Mon", "Thu"],
+              },
+            ],
+            assignments: [
+              { day: "Mon", presetName: "exact included preset name" },
+              { day: "Sun", presetName: null },
+            ],
           },
           {
             type: "update_routine",
