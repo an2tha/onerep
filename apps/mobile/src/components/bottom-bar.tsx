@@ -113,11 +113,17 @@ export function BottomBar({
   const renderDesktopSidebar =
     chromeState !== "previous" && chromeState !== "previous-ready"
   const settingsActive = isActive(pathname, "/settings")
+  const coachActive = isActive(pathname, "/coach")
 
   return (
     <>
       <div
-        className="app-route-chrome fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/96 pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
+        className={cn(
+          "app-route-chrome fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom,0px)] lg:hidden",
+          coachActive
+            ? "border-white/10 bg-[#020817]/96"
+            : "border-border bg-background/96"
+        )}
         data-route-chrome={chromeState}
       >
         <nav
@@ -137,9 +143,13 @@ export function BottomBar({
                 }}
                 className={cn(
                   "flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-[0.75rem] leading-none font-medium transition-colors",
-                  active
-                    ? "text-foreground"
-                    : "text-muted-foreground active:text-foreground"
+                  coachActive
+                    ? active
+                      ? "text-white"
+                      : "text-white/55 active:text-white"
+                    : active
+                      ? "text-foreground"
+                      : "text-muted-foreground active:text-foreground"
                 )}
               >
                 <Icon size={22} weight={active ? "fill" : "regular"} />

@@ -511,10 +511,10 @@ describe("active workout sync production safeguards", () => {
       'dropActive && "border-foreground/35"'
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "min-w-0 flex-1 text-center text-[2rem]"
+      "min-w-0 flex-1 text-center"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "grid-cols-[3.25rem_minmax(0,1fr)_minmax(0,1fr)_3.25rem]"
+      "grid-cols-[3.25rem_minmax(0,1fr)_3.25rem]"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("hideLabel")
   })

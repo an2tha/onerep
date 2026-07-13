@@ -7,6 +7,10 @@ describe("mobile route fallback contract", () => {
   test("route transitions expose a loading state without replacing the app shell", () => {
     expect(MAIN_SOURCE).toContain("app-route-frame-current")
     expect(MAIN_SOURCE).toContain("data-route-loading")
+    expect(MAIN_SOURCE).toContain("data-route-path={location.pathname}")
+    expect(MAIN_SOURCE).toContain(
+      "data-route-path={routeTransition.fromPathname}"
+    )
     expect(MAIN_SOURCE).toContain("waitForRouteContent")
   })
 
