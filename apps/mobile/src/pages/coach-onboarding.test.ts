@@ -167,6 +167,22 @@ describe("Coach first-open experience", () => {
     )
   })
 
+  test("recipes stay as detailed previews until the user approves them", () => {
+    expect(COACH_SOURCE).toContain('operation.type === "save_recipe"')
+    expect(COACH_SOURCE).toContain("Recipe preview · nothing saved yet")
+    expect(COACH_SOURCE).toContain("Like this recipe?")
+    expect(COACH_SOURCE).toContain("Save to Recipes")
+    expect(COACH_SOURCE).toContain("Estimated per serving")
+    expect(COACH_SOURCE).toContain("Ingredients")
+    expect(COACH_SOURCE).toContain("Method")
+    expect(COACH_SOURCE).toContain("overflow-y-auto px-3 py-5 sm:px-5")
+    expect(COACH_SOURCE).not.toContain("bg-[rgba(2,8,23,0.74)]")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "A save_recipe operation must always use confirmation=confirm"
+    )
+    expect(COACH_ACTION_SOURCE).toContain('confirmation: "confirm"')
+  })
+
   test("Coach supports previews, undo, memory, check-ins, plans, and read-only analysis", () => {
     expect(COACH_SOURCE).toContain("CoachProposal")
     expect(COACH_SOURCE).toContain("Review changes")

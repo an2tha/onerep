@@ -8,6 +8,7 @@ import {
   Fire,
   Heart,
   PencilSimple,
+  Play,
   Plus,
   Trash,
   X,
@@ -52,6 +53,7 @@ import {
   MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
 } from "@/lib/design-tokens"
 import { offsetDateKey } from "@/lib/food-log"
+import { hapticMedium } from "@/lib/haptics"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1648,7 +1650,7 @@ export default function Workouts() {
                               />
                             )}
 
-                            <div className="flex min-h-14 items-center gap-2 py-2.5">
+                            <div className="flex min-h-14 items-center gap-2 pt-2.5">
                               <FocusIcon
                                 size={18}
                                 weight="regular"
@@ -1663,16 +1665,31 @@ export default function Workouts() {
                                   {preset.duration}
                                 </p>
                               </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 pb-2.5">
+                              <button
+                                type="button"
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={() => {
+                                  hapticMedium()
+                                  navigate(`/workout/active/${preset.id}`)
+                                }}
+                                className="app-button app-button-primary motion-tactile min-h-11 flex-1"
+                                aria-label={`Start ${preset.name} now`}
+                              >
+                                <Play size={13} weight="fill" />
+                                Start now
+                              </button>
                               <button
                                 type="button"
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={() =>
                                   navigate(`/workouts/edit/${preset.id}`)
                                 }
-                                className="app-button app-button-quiet min-h-11 shrink-0 px-3"
+                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
                                 aria-label={`Edit ${preset.name}`}
                               >
-                                Edit
+                                <PencilSimple size={13} />
                               </button>
                               <button
                                 type="button"

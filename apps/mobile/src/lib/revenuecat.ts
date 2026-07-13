@@ -115,6 +115,10 @@ function isWebPurchasesAvailable() {
   return typeof window !== "undefined" && !Capacitor.isNativePlatform()
 }
 
+export function hasHydratedWebSubscription(isNative: boolean, status: unknown) {
+  return !isNative && Boolean(status)
+}
+
 function getMonthlyPackage(offering: AnyOffering | null): AnyPackage | null {
   if (!offering) return null
   return (
@@ -424,8 +428,9 @@ export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
     setState((current) => ({ ...current, error: null, status: "loading" }))
     try {
       if (!isNative) {
-        const status = await refreshServerStatus(userId, () =>
-          refreshFromRevenueCat({})
+        const status = await withRevenueCatTimeout(
+          refreshServerStatus(userId, () => refreshFromRevenueCat({})),
+          "Subscription status"
         )
         setState((current) => ({
           ...current,
@@ -515,6 +520,11 @@ export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
         })
         return
       }
+
+      // Web state is already hydrated by the subscription query effect.
+      // Do not replace a ready cached status with an idle loading state.
+      if (hasHydratedWebSubscription(isNative, subscriptionQuery?.status))
+        return
 
       setState((current) => ({ ...current, error: null, status: "loading" }))
       try {

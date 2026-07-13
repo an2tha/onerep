@@ -589,6 +589,39 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_and_weekStart", ["userId", "weekStart"]),
 
+  // Time-boxed goals created with Coach. Tasks live in their own table so
+  // completion updates do not rewrite the entire goal document.
+  coachGoals: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    description: v.optional(v.string()),
+    startDate: v.string(),
+    endDate: v.string(),
+    durationDays: v.number(),
+    status: v.union(v.literal("active"), v.literal("completed")),
+    pinned: v.boolean(),
+    sourceMode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_pinned", ["userId", "pinned"])
+    .index("by_userId_and_status", ["userId", "status"]),
+
+  coachGoalTasks: defineTable({
+    userId: v.string(),
+    goalId: v.id("coachGoals"),
+    title: v.string(),
+    detail: v.optional(v.string()),
+    completed: v.boolean(),
+    sortOrder: v.number(),
+    completedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_goalId_and_sortOrder", ["goalId", "sortOrder"]),
+
   coachUploads: defineTable({
     userId: v.string(),
     storageId: v.id("_storage"),
