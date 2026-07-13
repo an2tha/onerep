@@ -3,7 +3,7 @@ import { CaretDown } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 
 type AnimatedAccordionProps = {
-  summary: ReactNode
+  summary: ReactNode | ((open: boolean) => ReactNode)
   children: ReactNode
   className?: string
   triggerClassName?: string
@@ -21,6 +21,7 @@ export function AnimatedAccordion({
 }: AnimatedAccordionProps) {
   const [open, setOpen] = useState(defaultOpen)
   const contentId = useId()
+  const summaryContent = typeof summary === "function" ? summary(open) : summary
 
   return (
     <section
@@ -37,7 +38,7 @@ export function AnimatedAccordion({
           triggerClassName
         )}
       >
-        <span className="min-w-0 flex-1">{summary}</span>
+        <span className="min-w-0 flex-1">{summaryContent}</span>
         <CaretDown
           size={18}
           className={cn(

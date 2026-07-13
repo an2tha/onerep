@@ -5,34 +5,42 @@ on:
     branches: ["main"]
 
 jobs:
-  build-and-push-dockerfile-image:
+  build-and-push-dev-images:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+      - name: Build and push mobile development image
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/mobile/Dockerfile
           push: true
-          tags: |
-            heckerrr/onerep:mobile-latest
-          platforms: linux/amd64     
-      - name: Build and push web Docker image
-        uses: docker/build-push-action@v4
+          tags: heckerrr/onerep:mobile-dev
+          platforms: linux/amd64
+          build-args: |
+            VITE_BUILD_MODE=development
+            CONVEX_DEPLOYMENT=${{ secrets.DEV_CONVEX_DEPLOYMENT }}
+            VITE_CONVEX_URL=${{ secrets.DEV_VITE_CONVEX_URL }}
+            VITE_CONVEX_SITE_URL=${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
+
+      - name: Build and push web development image
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./apps/web/Dockerfile
           push: true
-          tags: |
-            heckerrr/onerep:web-latest
+          tags: heckerrr/onerep:web-dev
           platforms: linux/amd64
+          build-args: |
+            VITE_BUILD_MODE=development
+            VITE_CONVEX_URL=${{ secrets.DEV_VITE_CONVEX_URL }}
+            VITE_CONVEX_SITE_URL=${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
