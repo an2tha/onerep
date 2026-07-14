@@ -181,6 +181,50 @@ describe("recipes Convex functions", () => {
     );
   });
 
+  test("prompts once and maintains community rating aggregates", async () => {
+    const t = convexTest(schema, modules);
+    let recipeId: any;
+    await t.withIdentity(
+      { name: "Recipe owner", subject: "rating-owner" },
+      async () => {
+        recipeId = await t.mutation(api.logs.recipes.save, {
+          name: "Rated bowl",
+          ingredients: [ingredient],
+        });
+        await t.mutation(api.logs.recipes.setCommunitySharing, {
+          id: recipeId,
+          shared: true,
+          originCountry: "Italy",
+        });
+      },
+    );
+
+    await t.withIdentity(
+      { name: "Taster", subject: "rating-taster" },
+      async () => {
+        await expect(
+          t.mutation(api.logs.recipes.claimRatingPrompt, { recipeId }),
+        ).resolves.toBe(true);
+        await expect(
+          t.mutation(api.logs.recipes.claimRatingPrompt, { recipeId }),
+        ).resolves.toBe(false);
+        await t.mutation(api.logs.recipes.rateCommunityRecipe, {
+          recipeId,
+          rating: 4,
+        });
+        let community = await t.query(api.logs.recipes.listCommunity, {});
+        expect(community[0]).toMatchObject({ ratingCount: 1, ratingTotal: 4 });
+
+        await t.mutation(api.logs.recipes.rateCommunityRecipe, {
+          recipeId,
+          rating: 5,
+        });
+        community = await t.query(api.logs.recipes.listCommunity, {});
+        expect(community[0]).toMatchObject({ ratingCount: 1, ratingTotal: 5 });
+      },
+    );
+  });
+
   test("limits new community publications to ten per UTC day", async () => {
     const t = convexTest(schema, modules);
     await t.withIdentity(

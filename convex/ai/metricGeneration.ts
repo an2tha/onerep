@@ -122,6 +122,7 @@ type CoachWorkoutPresetDraft = {
   focus: "strength" | "cardio" | "mobility";
   exercises: Array<{
     name: string;
+    supersetGroup?: string;
     sets: Array<{
       type: "working" | "warmup" | "failure" | "myoreps" | "drop";
       weight: string;
@@ -751,6 +752,9 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
               .slice(0, 10);
             return {
               name: exerciseName,
+              ...(clampText(exercise.supersetGroup, 24)
+                ? { supersetGroup: clampText(exercise.supersetGroup, 24) }
+                : {}),
               sets:
                 sets.length > 0
                   ? sets
@@ -1514,6 +1518,8 @@ async function generateCoachChatWithOpenAi({
             exercises: [
               {
                 name: "catalog exercise name",
+                supersetGroup:
+                  "optional shared label such as A; use the same label on 2-3 consecutive exercises",
                 sets: [
                   {
                     type: "working",
@@ -1539,6 +1545,7 @@ async function generateCoachChatWithOpenAi({
                 exercises: [
                   {
                     name: "catalog exercise name",
+                    supersetGroup: "optional shared superset label",
                     sets: [
                       {
                         type: "working",

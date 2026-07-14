@@ -176,6 +176,73 @@ export const reportCommunityRecipe = mutation({
   },
 });
 
+export const claimRatingPrompt = mutation({
+  args: { recipeId: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const recipe = await ctx.db.get(args.recipeId);
+    if (!recipe?.isCommunityShared || recipe.userId === user._id) return false;
+    const existing = await ctx.db
+      .query("recipeRatings")
+      .withIndex("by_userId_recipeId", (q) =>
+        q.eq("userId", user._id).eq("recipeId", args.recipeId),
+      )
+      .unique();
+    if (existing) return false;
+    await ctx.db.insert("recipeRatings", {
+      userId: user._id,
+      recipeId: args.recipeId,
+      promptedAt: Date.now(),
+    });
+    return true;
+  },
+});
+
+export const rateCommunityRecipe = mutation({
+  args: { recipeId: v.id("recipes"), rating: v.number() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    if (!Number.isInteger(args.rating) || args.rating < 1 || args.rating > 5) {
+      throw new Error("Rating must be between 1 and 5");
+    }
+    const recipe = await ctx.db.get(args.recipeId);
+    if (!recipe?.isCommunityShared || recipe.userId === user._id) {
+      throw new Error("Community recipe not found");
+    }
+    const existing = await ctx.db
+      .query("recipeRatings")
+      .withIndex("by_userId_recipeId", (q) =>
+        q.eq("userId", user._id).eq("recipeId", args.recipeId),
+      )
+      .unique();
+    const previousRating = existing?.rating;
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        rating: args.rating,
+        ratedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("recipeRatings", {
+        userId: user._id,
+        recipeId: args.recipeId,
+        rating: args.rating,
+        promptedAt: Date.now(),
+        ratedAt: Date.now(),
+      });
+    }
+    await ctx.db.patch(recipe._id, {
+      ratingCount: Math.max(
+        0,
+        (recipe.ratingCount ?? 0) + (previousRating ? 0 : 1),
+      ),
+      ratingTotal:
+        (recipe.ratingTotal ?? 0) - (previousRating ?? 0) + args.rating,
+      updatedAt: Date.now(),
+    });
+    return { ok: true };
+  },
+});
+
 export const save = mutation({
   args: {
     id: v.optional(v.id("recipes")),

@@ -8,6 +8,20 @@ const appRoot = path.resolve(__dirname, "./src")
 const envRoot = path.resolve(__dirname, "../../")
 const mobileNodeModules = path.resolve(__dirname, "node_modules")
 
+function isPlaceholderServiceUrl(value: string | undefined) {
+  if (!value) return true
+  try {
+    const hostname = new URL(value).hostname.toLowerCase()
+    return (
+      hostname === "example.convex.cloud" ||
+      hostname === "example.convex.site" ||
+      hostname.endsWith(".invalid")
+    )
+  } catch {
+    return true
+  }
+}
+
 // Redirect `@/...` imports that originate from inside packages/ui/src
 // to that package's own src root, not the app's src root.
 function uiAliasPlugin(): Plugin {
@@ -27,13 +41,21 @@ function uiAliasPlugin(): Plugin {
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, envRoot, ""), ...process.env }
-  if (command === "build" && mode === "production") {
-    if (!env.VITE_CONVEX_SITE_URL) {
+  if (command === "build") {
+    if (isPlaceholderServiceUrl(env.VITE_CONVEX_URL)) {
       throw new Error(
-        "Production mobile builds require VITE_CONVEX_SITE_URL for Better Auth."
+        "Production mobile builds require a real VITE_CONVEX_URL."
       )
     }
-    if (env.CONVEX_DEPLOYMENT?.startsWith("dev:")) {
+    const effectiveConvexSiteUrl =
+      env.VITE_CONVEX_SITE_URL?.trim() ||
+      env.VITE_CONVEX_URL?.replace(/\.convex\.cloud\/?$/, ".convex.site")
+    if (isPlaceholderServiceUrl(effectiveConvexSiteUrl)) {
+      throw new Error(
+        "Mobile builds require VITE_CONVEX_SITE_URL or a derivable Convex deployment URL for Better Auth."
+      )
+    }
+    if (mode === "production" && env.CONVEX_DEPLOYMENT?.startsWith("dev:")) {
       throw new Error(
         "Production mobile builds require a production Convex deployment. CONVEX_DEPLOYMENT must not start with dev:."
       )
@@ -55,7 +77,11 @@ export default defineConfig(({ command, mode }) => {
             ) {
               return "react-vendor"
             }
-            if (id.includes("@convex-dev/better-auth") || id.includes("better-auth") || id.includes("convex")) {
+            if (
+              id.includes("@convex-dev/better-auth") ||
+              id.includes("better-auth") ||
+              id.includes("convex")
+            ) {
               return "auth-data"
             }
             if (id.includes("@capacitor") || id.includes("@ionic")) {
