@@ -5,16 +5,18 @@ import {
 } from "@convex-dev/better-auth/client/plugins"
 import type { AuthClient } from "@convex-dev/better-auth/react"
 import { createAuthClient } from "better-auth/react"
+import { resolveConvexSiteUrl } from "@/lib/service-urls"
 
-const convexSiteUrl = import.meta.env.VITE_CONVEX_SITE_URL as string | undefined
+const convexSiteUrl = resolveConvexSiteUrl(
+  import.meta.env.VITE_CONVEX_SITE_URL,
+  import.meta.env.VITE_CONVEX_URL
+)
 const AUTH_LOAD_TIMEOUT_MS = 6500
 
 export const authServiceConfigured = Boolean(convexSiteUrl)
 
 export const authClient = createAuthClient({
-  baseURL:
-    convexSiteUrl ??
-    (typeof window !== "undefined" ? window.location.origin : undefined),
+  baseURL: convexSiteUrl ?? "https://onerep-auth-unconfigured.invalid",
   plugins: [
     convexClient(),
     crossDomainClient({

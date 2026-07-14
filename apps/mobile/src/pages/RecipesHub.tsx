@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useLocation } from "react-router"
 import { useMutation, useQuery } from "convex/react"
 import {
   ArrowLeft,
@@ -15,6 +16,7 @@ import {
   SealCheck,
   ShareNetwork,
   SlidersHorizontal,
+  Star,
   X,
 } from "@phosphor-icons/react"
 import type { Id } from "../../../../convex/_generated/dataModel"
@@ -24,10 +26,10 @@ import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
-import type { Recipe } from "@/lib/food-log"
+import { currentDateKey, type Recipe } from "@/lib/food-log"
 import { toast } from "sonner"
 
-type StarterRecipe = {
+export type StarterRecipe = {
   id: string
   name: string
   description: string
@@ -610,14 +612,18 @@ function detailedMethod(recipe: Omit<StarterRecipe, "steps" | "notes">) {
   ]
 }
 
-const STARTER_RECIPES: StarterRecipe[] = STARTER_RECIPE_BASE.map((recipe) => ({
-  ...recipe,
-  ingredients: recipe.ingredients.map((name) => `${quantityFor(name)} ${name}`),
-  steps: detailedMethod(recipe),
-  notes:
-    "Makes one generous serving. Cool leftovers promptly and refrigerate in a sealed container for up to two days.",
-  origin: ORIGIN_BY_RECIPE[recipe.id] ?? "International",
-}))
+export const STARTER_RECIPES: StarterRecipe[] = STARTER_RECIPE_BASE.map(
+  (recipe) => ({
+    ...recipe,
+    ingredients: recipe.ingredients.map(
+      (name) => `${quantityFor(name)} ${name}`
+    ),
+    steps: detailedMethod(recipe),
+    notes:
+      "Makes one generous serving. Cool leftovers promptly and refrigerate in a sealed container for up to two days.",
+    origin: ORIGIN_BY_RECIPE[recipe.id] ?? "International",
+  })
+)
 
 const CATEGORIES = [
   "All",
@@ -644,11 +650,20 @@ function totals(recipe: Recipe) {
 
 export default function RecipesHub() {
   const navigate = useSmoothNavigate()
+  const location = useLocation()
+  const routeState = location.state as {
+    openStarterRecipeId?: string
+    openCommunityRecipeId?: string
+  } | null
+  const openedRouteRecipeRef = useRef(false)
   const saveRecipe = useMutation(api.logs.recipes.save)
   const setCommunitySharing = useMutation(api.logs.recipes.setCommunitySharing)
   const reportCommunityRecipe = useMutation(
     api.logs.recipes.reportCommunityRecipe
   )
+  const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
+  const claimRatingPrompt = useMutation(api.logs.recipes.claimRatingPrompt)
+  const rateCommunityRecipe = useMutation(api.logs.recipes.rateCommunityRecipe)
   const savedRecipes = (useQuery(api.logs.recipes.list, {}) ?? []) as Recipe[]
   const communityQuery = useQuery(api.logs.recipes.listCommunity, {
     limit: 60,
@@ -672,6 +687,10 @@ export default function RecipesHub() {
   const [shareAnonymously, setShareAnonymously] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [loggingCommunity, setLoggingCommunity] = useState<Recipe | null>(null)
+  const [loggingMeal, setLoggingMeal] = useState<string | null>(null)
+  const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null)
+  const [submittingRating, setSubmittingRating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
@@ -680,6 +699,27 @@ export default function RecipesHub() {
       return new Set()
     }
   })
+
+  useEffect(() => {
+    if (openedRouteRecipeRef.current) return
+    if (routeState?.openStarterRecipeId) {
+      const recipe = STARTER_RECIPES.find(
+        (item) => item.id === routeState.openStarterRecipeId
+      )
+      if (recipe) {
+        openedRouteRecipeRef.current = true
+        setSelected(recipe)
+      }
+      return
+    }
+    if (routeState?.openCommunityRecipeId && communityQuery !== undefined) {
+      openedRouteRecipeRef.current = true
+      const recipe = communityRecipes.find(
+        (item) => String(item._id) === routeState.openCommunityRecipeId
+      )
+      if (recipe) setSelectedCommunity(recipe)
+    }
+  }, [communityQuery, communityRecipes, routeState])
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -892,6 +932,70 @@ export default function RecipesHub() {
       )
     } finally {
       setReporting(false)
+    }
+  }
+
+  async function logCommunityRecipe(recipe: Recipe, meal: string) {
+    if (!recipe._id || loggingMeal) return
+    setLoggingMeal(meal)
+    try {
+      const nutrition = recipe.ingredients.reduce(
+        (sum, item) => ({
+          calories: sum.calories + (item.caloriesPer100 * item.grams) / 100,
+          protein: sum.protein + (item.proteinPer100 * item.grams) / 100,
+          carbs: sum.carbs + (item.carbsPer100 * item.grams) / 100,
+          fat: sum.fat + (item.fatPer100 * item.grams) / 100,
+        }),
+        { calories: 0, protein: 0, carbs: 0, fat: 0 }
+      )
+      await addFoodEntry({
+        date: currentDateKey(),
+        entry: {
+          id: crypto.randomUUID(),
+          name: recipe.name,
+          calories: Math.round(nutrition.calories),
+          protein: Math.round(nutrition.protein),
+          carbs: Math.round(nutrition.carbs),
+          fat: Math.round(nutrition.fat),
+          meal,
+          loggedAt: new Date().toISOString(),
+          recipeId: recipe._id,
+        },
+      })
+      const shouldPrompt = await claimRatingPrompt({
+        recipeId: recipe._id as Id<"recipes">,
+      }).catch(() => false)
+      hapticTap()
+      toast.success(`${recipe.name} logged to ${meal}`)
+      setLoggingCommunity(null)
+      setSelectedCommunity(null)
+      if (shouldPrompt) setRatingRecipe(recipe)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not log recipe"
+      )
+    } finally {
+      setLoggingMeal(null)
+    }
+  }
+
+  async function submitRating(rating: number) {
+    if (!ratingRecipe?._id || submittingRating) return
+    setSubmittingRating(true)
+    try {
+      await rateCommunityRecipe({
+        recipeId: ratingRecipe._id as Id<"recipes">,
+        rating,
+      })
+      hapticTap()
+      toast.success("Thanks for rating this recipe")
+      setRatingRecipe(null)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save rating"
+      )
+    } finally {
+      setSubmittingRating(false)
     }
   }
 
@@ -1326,6 +1430,20 @@ export default function RecipesHub() {
                               {nutrition.calories} kcal · {nutrition.protein}g
                               protein · {recipe.ingredients.length} ingredients
                             </p>
+                            <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                              <Star
+                                size={14}
+                                weight={recipe.ratingCount ? "fill" : "regular"}
+                                className={
+                                  recipe.ratingCount
+                                    ? "text-amber-500"
+                                    : undefined
+                                }
+                              />
+                              {recipe.ratingCount
+                                ? `${((recipe.ratingTotal ?? 0) / recipe.ratingCount).toFixed(1)} (${recipe.ratingCount})`
+                                : "Not rated yet"}
+                            </div>
                             <p className="mt-4 border-t border-border pt-3 text-[12px] font-semibold">
                               View recipe
                             </p>
@@ -1549,6 +1667,16 @@ export default function RecipesHub() {
                       </p>
                     </div>
                   )}
+                  {!recipe.isOwnedByViewer && (
+                    <button
+                      type="button"
+                      onClick={() => setLoggingCommunity(recipe)}
+                      className="mt-7 flex min-h-13 w-full items-center justify-center gap-2 rounded-2xl bg-foreground text-[14px] font-semibold text-background"
+                    >
+                      <ForkKnife size={17} />
+                      Log recipe
+                    </button>
+                  )}
                   {recipe.isOwnedByViewer ? (
                     <button
                       type="button"
@@ -1579,6 +1707,105 @@ export default function RecipesHub() {
             </div>
           )
         })()}
+
+      {loggingCommunity && (
+        <div
+          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="log-community-recipe-title"
+        >
+          <div className="w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                  Add to today
+                </p>
+                <h2
+                  id="log-community-recipe-title"
+                  className="mt-1 text-[22px] font-semibold"
+                >
+                  Log {loggingCommunity.name}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLoggingCommunity(null)}
+                disabled={Boolean(loggingMeal)}
+                aria-label="Close meal selection"
+                className="grid size-10 place-items-center rounded-full bg-muted disabled:opacity-40"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {["Breakfast", "Lunch", "Dinner", "Snack"].map((meal) => (
+                <button
+                  key={meal}
+                  type="button"
+                  disabled={Boolean(loggingMeal)}
+                  aria-busy={loggingMeal === meal}
+                  onClick={() =>
+                    void logCommunityRecipe(loggingCommunity, meal)
+                  }
+                  className="min-h-12 rounded-2xl border border-border bg-card px-3 text-[13px] font-semibold disabled:opacity-45"
+                >
+                  {loggingMeal === meal ? "Logging…" : meal}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ratingRecipe && (
+        <div
+          className="fixed inset-0 z-[130] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rate-recipe-title"
+        >
+          <div className="w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]">
+            <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-500/12 text-amber-500">
+              <Star size={24} weight="fill" />
+            </div>
+            <h2
+              id="rate-recipe-title"
+              className="mt-4 text-[22px] font-semibold"
+            >
+              How was {ratingRecipe.name}?
+            </h2>
+            <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
+              Your rating helps everyone find recipes worth making.
+            </p>
+            <div
+              className="mt-5 flex justify-center gap-1"
+              aria-label="Rate from 1 to 5 stars"
+            >
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <button
+                  key={rating}
+                  type="button"
+                  disabled={submittingRating}
+                  onClick={() => void submitRating(rating)}
+                  aria-label={`${rating} star${rating === 1 ? "" : "s"}`}
+                  className="grid size-12 place-items-center rounded-full text-amber-500 transition-transform active:scale-90 disabled:opacity-40"
+                >
+                  <Star size={29} weight="regular" />
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={submittingRating}
+              onClick={() => setRatingRecipe(null)}
+              className="mt-3 min-h-11 px-5 text-[13px] font-semibold text-muted-foreground disabled:opacity-40"
+            >
+              Not now
+            </button>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <div

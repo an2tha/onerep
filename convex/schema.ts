@@ -125,6 +125,8 @@ export default defineSchema({
     communityAuthorName: v.optional(v.string()),
     sharedAt: v.optional(v.number()),
     communityAnonymous: v.optional(v.boolean()),
+    ratingCount: v.optional(v.number()),
+    ratingTotal: v.optional(v.number()),
     tags: v.optional(v.array(v.string())),
     steps: v.optional(v.array(v.string())),
     ingredients: v.array(
@@ -180,6 +182,16 @@ export default defineSchema({
   })
     .index("by_recipeId", ["recipeId"])
     .index("by_reporterId_recipeId", ["reporterId", "recipeId"]),
+
+  recipeRatings: defineTable({
+    userId: v.string(),
+    recipeId: v.id("recipes"),
+    rating: v.optional(v.number()),
+    promptedAt: v.number(),
+    ratedAt: v.optional(v.number()),
+  })
+    .index("by_recipeId", ["recipeId"])
+    .index("by_userId_recipeId", ["userId", "recipeId"]),
 
   // ── Meal presets (quick-log templates from repeated food logs) ────────────
   mealPresets: defineTable({

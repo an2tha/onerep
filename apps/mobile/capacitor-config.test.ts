@@ -14,4 +14,9 @@ describe("Capacitor production config", () => {
     expect(config.webDir).toBe("dist")
     expect(config.server).not.toHaveProperty("url")
   })
+
+  test("uses native Android networking for cross-origin auth requests", () => {
+    expect(config.plugins?.CapacitorHttp).toEqual({ enabled: true })
+    expect(config.plugins?.CapacitorCookies).toEqual({ enabled: true })
+  })
 })

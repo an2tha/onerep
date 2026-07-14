@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   CaretRight,
   Check,
+  ChefHat,
+  Clock,
   ForkKnife,
   MagnifyingGlass,
   Plus,
@@ -40,11 +42,20 @@ import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { normalizeFoodSearchQuery } from "@/lib/food-search-url"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
+import type { Recipe } from "@/lib/food-log"
+import { STARTER_RECIPES, type StarterRecipe } from "@/pages/RecipesHub"
+import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type AddedState = { itemId: string }
 
 type FoodSearchItem = Awaited<ReturnType<typeof searchFoodsAccurate>>[number]
+type RecipeSearchItem =
+  | { kind: "official"; recipe: StarterRecipe }
+  | { kind: "saved" | "community"; recipe: Recipe }
+type MixedSearchItem =
+  | { kind: "food"; item: FoodSearchItem }
+  | { kind: "recipe"; item: RecipeSearchItem }
 
 function shouldOpenReviewAsPage() {
   return !(
@@ -57,6 +68,50 @@ const MEAL_CATEGORIES = DEFAULT_MEAL_CATEGORIES
 const FOOD_SEARCH_DEBOUNCE_MS = 320
 const FOOD_SEARCH_FETCH_LIMIT = 32
 const FOOD_SEARCH_RESULT_LIMIT = 24
+
+function recipeMatches(recipe: StarterRecipe | Recipe, query: string) {
+  const needle = query.trim().toLocaleLowerCase()
+  if (needle.length < 2) return false
+  const ingredients = recipe.ingredients.map((ingredient) =>
+    typeof ingredient === "string" ? ingredient : ingredient.name
+  )
+  return [
+    recipe.name,
+    recipe.description,
+    recipe.category,
+    ...(recipe.tags ?? []),
+    ...ingredients,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLocaleLowerCase()
+    .includes(needle)
+}
+
+function interleaveSearchResults(
+  foods: FoodSearchItem[],
+  recipes: RecipeSearchItem[]
+): MixedSearchItem[] {
+  if (foods.length === 0) {
+    return recipes.map((item) => ({ kind: "recipe", item }))
+  }
+  const mixed: MixedSearchItem[] = []
+  let recipeIndex = 0
+  foods.forEach((item, index) => {
+    mixed.push({ kind: "food", item })
+    if (
+      (index === 3 || (index > 3 && (index - 3) % 8 === 0)) &&
+      recipes[recipeIndex]
+    ) {
+      mixed.push({ kind: "recipe", item: recipes[recipeIndex] })
+      recipeIndex += 1
+    }
+  })
+  if (recipeIndex === 0 && recipes[0]) {
+    mixed.push({ kind: "recipe", item: recipes[0] })
+  }
+  return mixed
+}
 
 export default function SearchFoods() {
   const navigate = useSmoothNavigate()
@@ -80,6 +135,10 @@ export default function SearchFoods() {
   )
 
   const preferences = useQuery(api.users.users.getPreferences)
+  const savedRecipes = (useQuery(api.logs.recipes.list, {}) ?? []) as Recipe[]
+  const communityRecipes = (useQuery(api.logs.recipes.listCommunity, {
+    limit: 60,
+  }) ?? []) as Recipe[]
   const selectedDate = searchParams.get("date")
   const date =
     selectedDate ||
@@ -140,6 +199,28 @@ export default function SearchFoods() {
   }, [query, preferences?.foodSearchLanguage, retryNonce])
 
   const results = searchResults
+  const recipeResults = useMemo(() => {
+    if (!completedQuery) return []
+    const savedIds = new Set(savedRecipes.map((recipe) => String(recipe._id)))
+    const official: RecipeSearchItem[] = STARTER_RECIPES.filter((recipe) =>
+      recipeMatches(recipe, completedQuery)
+    ).map((recipe) => ({ kind: "official", recipe }))
+    const saved: RecipeSearchItem[] = savedRecipes
+      .filter((recipe) => recipeMatches(recipe, completedQuery))
+      .map((recipe) => ({ kind: "saved", recipe }))
+    const community: RecipeSearchItem[] = communityRecipes
+      .filter(
+        (recipe) =>
+          !savedIds.has(String(recipe._id)) &&
+          recipeMatches(recipe, completedQuery)
+      )
+      .map((recipe) => ({ kind: "community", recipe }))
+    return [...saved, ...official, ...community].slice(0, 3)
+  }, [communityRecipes, completedQuery, savedRecipes])
+  const mixedResults = useMemo(
+    () => interleaveSearchResults(results, recipeResults),
+    [recipeResults, results]
+  )
   const popularSearches = useMemo(
     () => visiblePopularFoodSearches(recentSearches),
     [recentSearches]
@@ -203,8 +284,11 @@ export default function SearchFoods() {
   }
 
   const showEmpty =
-    searchState === "done" && results.length === 0 && completedQuery !== ""
-  const showResults = results.length > 0
+    searchState === "done" &&
+    results.length === 0 &&
+    recipeResults.length === 0 &&
+    completedQuery !== ""
+  const showResults = results.length > 0 || recipeResults.length > 0
 
   function openFoodReview(item: FoodSearchItem) {
     if (shouldOpenReviewAsPage()) {
@@ -215,6 +299,21 @@ export default function SearchFoods() {
     }
 
     setDetailItem(item)
+  }
+
+  function openRecipe(item: RecipeSearchItem) {
+    hapticSelection()
+    if (item.kind === "saved") {
+      navigate(`/foods/recipe/${item.recipe._id}`, { motion: "forward" })
+      return
+    }
+    navigate("/recipes", {
+      motion: "forward",
+      state:
+        item.kind === "official"
+          ? { openStarterRecipeId: item.recipe.id }
+          : { openCommunityRecipeId: String(item.recipe._id) },
+    })
   }
 
   function runSuggestedSearch(nextQuery: string) {
@@ -357,18 +456,32 @@ export default function SearchFoods() {
                 <div className="mt-1 mb-4 flex items-end justify-between gap-3">
                   <div>
                     <h1 className="text-[18px] font-semibold tracking-[-0.02em]">
-                      Foods
+                      Results
                     </h1>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
-                      {results.length} results for “{completedQuery}”
+                      {results.length} foods
+                      {recipeResults.length > 0
+                        ? ` · ${recipeResults.length} recipes`
+                        : ""}{" "}
+                      for “{completedQuery}”
                     </p>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
-                    Tap a food for serving details
+                    Tap a result for details
                   </span>
                 </div>
-                <div className="grid gap-2.5 md:grid-cols-2 md:gap-3">
-                  {results.map((item) => {
+                <div className="grid gap-2.5 md:auto-rows-[5.5rem] md:grid-cols-2 md:gap-3">
+                  {mixedResults.map((result) => {
+                    if (result.kind === "recipe") {
+                      return (
+                        <RecipeSearchCard
+                          key={`recipe-${result.item.kind}-${"id" in result.item.recipe ? result.item.recipe.id : result.item.recipe._id}`}
+                          item={result.item}
+                          onOpen={() => openRecipe(result.item)}
+                        />
+                      )
+                    }
+                    const item = result.item
                     const isAdded = added?.itemId === item.id
                     const isAdding = addingFoodId === item.id
                     return (
@@ -501,6 +614,89 @@ export default function SearchFoods() {
         />
       )}
     </>
+  )
+}
+
+function RecipeSearchCard({
+  item,
+  onOpen,
+}: {
+  item: RecipeSearchItem
+  onOpen: () => void
+}) {
+  const recipe = item.recipe
+  const official = item.kind === "official"
+  const image = official
+    ? item.recipe.image
+    : (item.recipe.photoUrls?.[0] ??
+      (item.recipe.placeholderImage ? COACH_RECIPE_PLACEHOLDER : undefined))
+  const nutrition = official
+    ? { calories: item.recipe.calories, protein: item.recipe.protein }
+    : item.recipe.ingredients.reduce(
+        (total, ingredient) => ({
+          calories:
+            total.calories +
+            (ingredient.caloriesPer100 * ingredient.grams) / 100,
+          protein:
+            total.protein + (ingredient.proteinPer100 * ingredient.grams) / 100,
+        }),
+        { calories: 0, protein: 0 }
+      )
+  const servings = official ? 1 : Math.max(1, item.recipe.servings ?? 1)
+  const totalMinutes = official
+    ? item.recipe.time
+    : (item.recipe.prepMinutes ?? 0) + (item.recipe.cookMinutes ?? 0)
+  const source =
+    item.kind === "official"
+      ? "OneRep recipe"
+      : item.kind === "saved"
+        ? "Your recipe"
+        : `By ${item.recipe.communityAuthorName ?? "OneRep community"}`
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group relative flex h-[11.625rem] w-full overflow-hidden rounded-2xl border border-border bg-card text-left transition-colors hover:bg-muted/20 md:row-span-2 md:h-auto md:min-h-0"
+      aria-label={`Open recipe ${recipe.name}`}
+    >
+      <span className="relative w-[42%] shrink-0 overflow-hidden bg-muted/55">
+        {image ? (
+          <img
+            src={image}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.025]"
+          />
+        ) : (
+          <span className="grid h-full place-items-center text-muted-foreground">
+            <ChefHat size={28} />
+          </span>
+        )}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col self-stretch p-4">
+        <span className="text-[11px] font-medium text-muted-foreground">
+          {source}
+        </span>
+        <strong className="mt-2 line-clamp-2 text-[17px] leading-5 font-semibold tracking-[-0.02em]">
+          {recipe.name}
+        </strong>
+        {recipe.description ? (
+          <span className="mt-1.5 line-clamp-2 text-[11px] leading-4 text-muted-foreground">
+            {recipe.description}
+          </span>
+        ) : null}
+        <span className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground tabular-nums">
+          {totalMinutes > 0 ? (
+            <span className="inline-flex items-center gap-1">
+              <Clock size={12} /> {totalMinutes} min
+            </span>
+          ) : null}
+          <span>{Math.round(nutrition.calories / servings)} kcal</span>
+          <span>{Math.round(nutrition.protein / servings)}g Protein</span>
+        </span>
+      </span>
+    </button>
   )
 }
 

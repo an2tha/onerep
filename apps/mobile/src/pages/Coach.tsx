@@ -107,6 +107,7 @@ type CoachWorkoutPresetDraft = {
   focus: "strength" | "cardio" | "mobility"
   exercises: Array<{
     name: string
+    supersetGroup?: string
     sets: Array<{
       type: "working" | "warmup" | "failure" | "myoreps" | "drop"
       weight: string
@@ -592,6 +593,21 @@ function validateCoachOperations(operations: CoachOperation[]) {
       )
       if (totalSets > 40)
         errors.push(`${operation.name} exceeds a practical 40-set session.`)
+      const supersetCounts = new Map<string, number>()
+      for (const exercise of operation.exercises) {
+        if (!exercise.supersetGroup) continue
+        supersetCounts.set(
+          exercise.supersetGroup,
+          (supersetCounts.get(exercise.supersetGroup) ?? 0) + 1
+        )
+      }
+      for (const [group, count] of supersetCounts) {
+        if (count < 2 || count > 3) {
+          errors.push(
+            `${operation.name} superset ${group} must contain 2 or 3 exercises.`
+          )
+        }
+      }
     }
     if (operation.type === "update_routine") {
       const days = operation.assignments.map((assignment) => assignment.day)
@@ -2155,10 +2171,47 @@ export default function Coach() {
           seen.add(exercise.id)
           return true
         })
-        const items = unique.map(({ exercise }) => ({
-          kind: "solo" as const,
-          exerciseId: exercise.id,
-        }))
+        const groupCounts = new Map<string, number>()
+        for (const { draft } of unique) {
+          if (!draft.supersetGroup) continue
+          groupCounts.set(
+            draft.supersetGroup,
+            (groupCounts.get(draft.supersetGroup) ?? 0) + 1
+          )
+        }
+        const emittedGroups = new Set<string>()
+        const supersetColors = ["#8b5cf6", "#0ea5e9", "#f97316", "#10b981"]
+        let colorIndex = 0
+        const items: Array<
+          | { kind: "solo"; exerciseId: string }
+          | {
+              kind: "superset"
+              id: string
+              color: string
+              exerciseIds: string[]
+            }
+        > = []
+        for (const { draft, exercise } of unique) {
+          const group = draft.supersetGroup
+          const groupSize = group ? (groupCounts.get(group) ?? 0) : 0
+          if (!group || groupSize < 2 || groupSize > 3) {
+            items.push({ kind: "solo", exerciseId: exercise.id })
+            continue
+          }
+          if (emittedGroups.has(group)) continue
+          emittedGroups.add(group)
+          const exerciseIds = unique
+            .filter((item) => item.draft.supersetGroup === group)
+            .map((item) => item.exercise.id)
+          const color = supersetColors[colorIndex % supersetColors.length]
+          colorIndex += 1
+          items.push({
+            kind: "superset",
+            id: createClientId(),
+            color,
+            exerciseIds,
+          })
+        }
         const exerciseData = Object.fromEntries(
           unique.map(({ draft, exercise }) => [
             exercise.id,

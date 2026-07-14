@@ -1212,6 +1212,8 @@ export type Recipe = {
   sharedAt?: number
   communityAnonymous?: boolean
   isOwnedByViewer?: boolean
+  ratingCount?: number
+  ratingTotal?: number
   tags?: string[]
   steps?: string[]
   photoStorageIds?: string[]

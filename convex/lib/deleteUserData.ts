@@ -45,6 +45,7 @@ export async function deleteUserDataBatch(
   const tableSpecs = [
     ["userPreferences", "by_userId"],
     ["recipes", "by_userId"],
+    ["recipeRatings", "by_userId_recipeId"],
     ["mealPresets", "by_userId"],
     ["onboardingProfiles", "by_userId"],
     ["healthProfiles", "by_userId"],
