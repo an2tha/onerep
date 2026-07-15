@@ -628,6 +628,18 @@ export default defineSchema({
     undoneAt: v.optional(v.number()),
   }).index("by_userId", ["userId"]),
 
+  coachOperationRuns: defineTable({
+    userId: v.string(),
+    requestId: v.string(),
+    status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+    result: v.optional(v.any()),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_requestId", ["userId", "requestId"]),
+
   coachWeeklyPlans: defineTable({
     userId: v.string(),
     weekStart: v.string(),

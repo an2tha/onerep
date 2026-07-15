@@ -40,7 +40,24 @@ function uiAliasPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
-  const env = { ...loadEnv(mode, envRoot, ""), ...process.env }
+  for (const key of ["VITE_CONVEX_URL", "VITE_CONVEX_SITE_URL"] as const) {
+    if (process.env[key] !== undefined && !process.env[key]?.trim()) {
+      delete process.env[key]
+    }
+  }
+  const processEnv = Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([, value]) => typeof value === "string" && value.trim().length > 0
+    )
+  )
+  // Docker declares optional build arguments as empty environment variables.
+  // Do not let those erase valid values loaded from .env.production.
+  const env = { ...loadEnv(mode, envRoot, ""), ...processEnv }
+  for (const key of ["VITE_CONVEX_URL", "VITE_CONVEX_SITE_URL"] as const) {
+    if (!process.env[key]?.trim() && env[key]?.trim()) {
+      process.env[key] = env[key].trim()
+    }
+  }
   if (command === "build") {
     if (isPlaceholderServiceUrl(env.VITE_CONVEX_URL)) {
       throw new Error(

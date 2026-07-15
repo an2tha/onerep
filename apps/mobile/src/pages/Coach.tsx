@@ -58,6 +58,10 @@ import {
 } from "@/lib/haptics"
 import { prepareCoachImage } from "@/lib/coach-media"
 import { useCoachDictation } from "@/lib/use-coach-dictation"
+import {
+  normalizeCoachOperations as normalizeSharedCoachOperations,
+  validateCoachOperations as validateSharedCoachOperations,
+} from "@repo/models"
 
 type CoachMessage = {
   role: "user" | "assistant"
@@ -507,6 +511,8 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
 }
 
 function normalizeCoachOperations(value: unknown): CoachOperation[] {
+  return normalizeSharedCoachOperations(value) as CoachOperation[]
+  /* Legacy guards retained temporarily for persisted pre-refactor messages.
   if (!Array.isArray(value)) return []
   return value.filter((operation): operation is CoachOperation => {
     if (!operation || typeof operation !== "object" || !("type" in operation))
@@ -539,7 +545,7 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
       )
     if (row.type === "undo_action") return Boolean(row.actionId)
     return false
-  })
+  }) */
 }
 
 function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
@@ -558,6 +564,8 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
 }
 
 function validateCoachOperations(operations: CoachOperation[]) {
+  return validateSharedCoachOperations(operations as Parameters<typeof validateSharedCoachOperations>[0])
+  /* Legacy validation retained temporarily for persisted pre-refactor messages.
   const errors: string[] = []
   for (const operation of operations) {
     if (operation.type === "save_recipe") {
@@ -620,7 +628,7 @@ function validateCoachOperations(operations: CoachOperation[]) {
         errors.push("The weekly plan contains duplicate days.")
     }
   }
-  return errors
+  return errors */
 }
 
 function expandWorkoutPlanOperations(
@@ -1690,6 +1698,7 @@ export default function Coach() {
   const generateChat = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
+  const applyCoachOperations = useAction(api.ai.coachOperations.applyApproved)
   const saveRecipe = useMutation(api.logs.recipes.save)
   const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
   const updateFoodEntry = useMutation(api.logs.foodLogs.updateEntry)
@@ -1863,6 +1872,18 @@ export default function Coach() {
   ])
 
   async function executeOperations(operations: CoachOperation[]) {
+    const signature = JSON.stringify(operations)
+    let hash = 2166136261
+    for (let index = 0; index < signature.length; index += 1) {
+      hash ^= signature.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
+    }
+    return (await applyCoachOperations({
+      requestId: `coach-${(hash >>> 0).toString(36)}`,
+      operations,
+    })) as CoachOperationResult[]
+    /* The old client executor remains below for one release as rollback-only
+       code, but is unreachable. All authoritative writes now run in Convex.
     const expandedOperations = expandWorkoutPlanOperations(operations)
     const validationErrors = validateCoachOperations(expandedOperations)
     if (validationErrors.length > 0) throw new Error(validationErrors[0])
@@ -2432,7 +2453,7 @@ export default function Coach() {
         presetOrder,
       })
     }
-    return results
+    return results */
   }
 
   async function pinGoalFromCoachBlock(goal: {
@@ -2724,10 +2745,10 @@ export default function Coach() {
         context,
         message: prompt,
         coachMode: activeMode,
+        today: todayKey,
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
           : {}),
-        workspace: coachWorkspace,
         history: messages
           .slice(-8)
           .map((message) => ({ role: message.role, content: message.content })),

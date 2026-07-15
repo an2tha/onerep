@@ -1,4 +1,4 @@
-const CACHE_NAME = "onerep-app-v1"
+const CACHE_NAME = "onerep-app-v2"
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -65,13 +65,29 @@ self.addEventListener("fetch", (event) => {
   )
   if (!cacheableDestination) return
 
+  const hasExpectedMimeType = (response) => {
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? ""
+    if (request.destination === "script") {
+      return (
+        contentType.includes("javascript") ||
+        contentType.includes("ecmascript") ||
+        contentType.includes("application/wasm")
+      )
+    }
+    if (request.destination === "style") return contentType.includes("text/css")
+    if (request.destination === "image") return contentType.startsWith("image/")
+    return true
+  }
+
   event.respondWith(
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          if (response.ok) {
+          if (response.ok && hasExpectedMimeType(response)) {
             const copy = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+            event.waitUntil(
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
+            )
           }
           return response
         })

@@ -1394,8 +1394,22 @@ async function generateCoachChatWithOpenAi({
   imageUrl?: string;
 }) {
   if (!hasOpenAiApiKey()) return null;
+  const normalizedMessage = message.toLowerCase();
+  const domain = coachMode === "chef" || /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(normalizedMessage)
+    ? "nutrition"
+    : coachMode === "personal_trainer" || /\b(workout|exercise|training|routine|preset|set|reps?|superset|strength|cardio)\b/.test(normalizedMessage)
+      ? "training"
+      : /\b(progress|trend|goal|check[ -]?in|recovery|sleep|sore|energy)\b/.test(normalizedMessage)
+        ? "progress"
+        : "general";
+  const domainInstructions = {
+    nutrition: "Act as the nutrition specialist. Prefer recipes, food logs, nutrition analysis, and meal-planning operations. Do not modify training unless explicitly requested.",
+    training: "Act as the training specialist. Prefer catalog-backed workouts, presets, supersets, routines, and recovery-aware training operations. Do not invent exercise IDs.",
+    progress: "Act as the progress specialist. Explain trends conservatively and prefer goals, check-ins, weekly plans, and evidence-backed recommendations.",
+    general: "Act as the coordinating coach. Answer directly and only propose a write operation when the user clearly asks to save or change something.",
+  } as const;
   const content = await requestOpenAiJson({
-    system: renderSystemPrompt("coach_chat"),
+    system: `${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
     user: JSON.stringify({
       context,
       workspace,
@@ -1852,6 +1866,7 @@ export const generateCoachChatMessage = action({
       ),
     ),
     attachmentId: v.optional(v.id("coachUploads")),
+    today: v.optional(v.string()),
     workspace: v.optional(
       v.object({
         today: v.optional(v.string()),
@@ -1929,7 +1944,7 @@ export const generateCoachChatMessage = action({
           detail: clampText(args.focusInsight.detail, 240),
         }
       : undefined;
-    const workspace = args.workspace
+    const legacyWorkspace = args.workspace
       ? {
           presets: args.workspace.presets.slice(0, 40).map((preset) => ({
             name: clampText(preset.name, 40),
@@ -1960,6 +1975,18 @@ export const generateCoachChatMessage = action({
           })),
         }
       : undefined;
+    const today = normalizeDate(args.today ?? args.workspace?.today ?? "") ??
+      new Date().toISOString().slice(0, 10);
+    const workspace = (await ctx.runQuery(
+      internal.ai.coachWorkspace.loadForModel,
+      { userId: user._id, today },
+    )) as unknown as CoachWorkspace;
+    if (legacyWorkspace && legacyWorkspace.today !== today) {
+      console.warn("Ignoring stale client Coach workspace", {
+        clientToday: legacyWorkspace.today,
+        serverToday: today,
+      });
+    }
 
     await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
 
