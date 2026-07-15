@@ -32,6 +32,7 @@
     "@ionic/react": "^8.8.3",
     "@phosphor-icons/react": "^2.1.10",
     "@posthog/react": "^1.9.1",
+    "@repo/models": "*",
     "@repo/ui": "*",
     "@revenuecat/purchases-capacitor": "13.2.1",
     "@revenuecat/purchases-capacitor-ui": "13.2.1",
