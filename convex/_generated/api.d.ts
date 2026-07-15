@@ -9,7 +9,9 @@
  */
 
 import type * as ai_coachGoals from "../ai/coachGoals.js";
+import type * as ai_coachOperations from "../ai/coachOperations.js";
 import type * as ai_coachState from "../ai/coachState.js";
+import type * as ai_coachWorkspace from "../ai/coachWorkspace.js";
 import type * as ai_metricGeneration from "../ai/metricGeneration.js";
 import type * as ai_provider from "../ai/provider.js";
 import type * as ai_usage from "../ai/usage.js";
@@ -53,7 +55,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "ai/coachGoals": typeof ai_coachGoals;
+  "ai/coachOperations": typeof ai_coachOperations;
   "ai/coachState": typeof ai_coachState;
+  "ai/coachWorkspace": typeof ai_coachWorkspace;
   "ai/metricGeneration": typeof ai_metricGeneration;
   "ai/provider": typeof ai_provider;
   "ai/usage": typeof ai_usage;

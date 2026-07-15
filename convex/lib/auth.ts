@@ -13,6 +13,7 @@ const siteUrl = process.env.SITE_URL!;
 const convexSiteUrl = process.env.CONVEX_SITE_URL!;
 export const trustedOrigins = [
   siteUrl,
+  "https://onerep-mobile-latest.onrender.com",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:5177",
