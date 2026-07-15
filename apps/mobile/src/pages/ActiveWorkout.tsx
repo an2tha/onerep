@@ -5,6 +5,12 @@ import { useAction, useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ExerciseSuggestionGroups,
+  ActiveWorkoutSetBanner,
+  ExerciseDropIndicator,
+  ExerciseMoveControls,
+  ExerciseReorderToolbar,
+  moveArrayItemByStep,
+  useFlipReorderAnimation,
   RestTimerSheet,
   formatRestDuration as formatRest,
   toast,
@@ -42,6 +48,7 @@ import {
 } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { sparklinePoints } from "@/lib/progress-metrics"
+import { findNextWorkoutSequenceTarget } from "@/lib/workout-sequencing"
 import olympicBarPng from "@/assets/bars/bar-olympic.png"
 import ezBarPng from "@/assets/bars/bar-ez.png"
 import trapBarPng from "@/assets/bars/bar-trap.png"
@@ -166,6 +173,7 @@ type LoggedWorkoutExercise = {
 
 type ExerciseCardDropProps = {
   dropActive: boolean
+  dropPosition?: "before" | "after"
   supersetDropActive?: boolean
 }
 
@@ -797,7 +805,10 @@ function SetNumberField({
 }
 
 /**
- * Locate the first incomplete set across the workout items, scanning items in order.
+ * Locate the next incomplete set across the workout items.
+ *
+ * Solo exercises advance set-by-set. Supersets advance round-by-round so set
+ * one of each member is completed before set two of the first member.
  *
  * @param items - Ordered list of workout items (solo exercises or supersets) to scan
  * @param exData - Mapping from exercise ID to its corresponding ExerciseState
@@ -808,25 +819,13 @@ function findNextTarget(
   exData: Record<string, ExerciseState>,
   exerciseLookup: Record<string, Exercise>
 ): NextTarget {
-  for (const item of items) {
-    const exerciseIds =
-      item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
-    for (const exerciseId of exerciseIds) {
-      const data = exData[exerciseId]
-      if (!data) continue
-      if (exerciseLookup[exerciseId]?.category === "cardio") {
-        if (!hasCardioStateDetails(data.cardio)) {
-          return { kind: "cardio", exerciseId }
-        }
-        continue
-      }
-      const firstIncomplete = data.sets.findIndex((s) => !s.completed)
-      if (firstIncomplete !== -1) {
-        return { kind: "set", exerciseId, setIndex: firstIncomplete }
-      }
-    }
-  }
-  return null
+  return findNextWorkoutSequenceTarget(items, (exerciseId) => {
+    const data = exData[exerciseId]
+    if (!data) return undefined
+    return exerciseLookup[exerciseId]?.category === "cardio"
+      ? { kind: "cardio", complete: hasCardioStateDetails(data.cardio) }
+      : { kind: "sets", completed: data.sets.map((set) => set.completed) }
+  })
 }
 
 /**
@@ -2379,6 +2378,7 @@ function ActiveExerciseCard({
   onRemove,
   isDragging,
   dropActive,
+  dropPosition,
   supersetDropActive,
   inSuperset,
   collapsed,
@@ -2391,6 +2391,7 @@ function ActiveExerciseCard({
   onAiChange,
   nextSetIndex,
   isNextCardio,
+  reorderControls,
 }: {
   exercise: Exercise
   data: ExerciseState
@@ -2399,6 +2400,7 @@ function ActiveExerciseCard({
   onRemove: () => void
   isDragging: boolean
   dropActive: boolean
+  dropPosition?: "before" | "after"
   supersetDropActive?: boolean
   inSuperset?: boolean
   collapsed: boolean
@@ -2419,6 +2421,7 @@ function ActiveExerciseCard({
   onAiChange?: () => void
   nextSetIndex?: number | null
   isNextCardio?: boolean
+  reorderControls?: React.ReactNode
 }) {
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
@@ -2476,8 +2479,9 @@ function ActiveExerciseCard({
   return (
     <div
       ref={cardRef}
+      tabIndex={-1}
       className={cn(
-        "relative flex overflow-hidden transition-[border-color,opacity] duration-150",
+        "relative flex scroll-mt-56 overflow-hidden transition-[border-color,opacity] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         inSuperset
           ? "border-t border-border/18 bg-transparent first:border-t-0"
           : "border-y border-border bg-transparent",
@@ -2495,6 +2499,9 @@ function ActiveExerciseCard({
             drop to superset
           </span>
         </div>
+      )}
+      {dropPosition && !inSuperset && (
+        <ExerciseDropIndicator position={dropPosition} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
         <div className={cn("px-1 py-2 md:py-2.5", inSuperset && "pl-4")}>
@@ -2548,6 +2555,9 @@ function ActiveExerciseCard({
               )}
             </button>
           </div>
+          {reorderControls && (
+            <div className="mt-2 flex justify-end">{reorderControls}</div>
+          )}
         </div>
         <div className="flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
           {!isCardio && (
@@ -3938,7 +3948,11 @@ function renderSupersetItem(
   lastSessionMap: Record<string, LastSession>,
   onShowHistory: (exId: string, name: string) => void,
   onAiChange: (exId: string, name: string) => void,
-  nextTarget: NextTarget
+  nextTarget: NextTarget,
+  reorderMode: boolean,
+  itemIndex: number,
+  itemCount: number,
+  onMoveItem: (itemKey: string, direction: -1 | 1) => void
 ) {
   const key = workoutItemKey(item)
   const dt = dropTarget
@@ -3976,12 +3990,13 @@ function renderSupersetItem(
   return (
     <div
       key={item.id}
+      tabIndex={-1}
       ref={(el) => {
         if (el) itemRefs.current.set(key, el)
         else itemRefs.current.delete(key)
       }}
       className={cn(
-        "relative overflow-hidden rounded-lg border bg-card transition-[border-color,opacity,transform] duration-150",
+        "relative scroll-mt-56 overflow-hidden rounded-lg border bg-card transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         allDone ? "border-border/70 bg-muted/[0.08]" : "border-border/55",
         dropActive && "border-foreground/35",
         supersetDropActive &&
@@ -3995,6 +4010,9 @@ function renderSupersetItem(
             drop to superset
           </span>
         </div>
+      )}
+      {dt?.type !== "superset" && isTarget && (
+        <ExerciseDropIndicator position={dt.type} />
       )}
       <div className="flex items-center justify-between gap-3 border-b border-border/45 bg-foreground/[0.035] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
@@ -4026,6 +4044,17 @@ function renderSupersetItem(
           {groupSets.done}/{groupSets.total}
         </span>
       </div>
+      {reorderMode && (
+        <div className="flex justify-end border-b border-border/45 px-3 py-2">
+          <ExerciseMoveControls
+            label="superset"
+            canMoveUp={itemIndex > 0}
+            canMoveDown={itemIndex < itemCount - 1}
+            onMoveUp={() => onMoveItem(key, -1)}
+            onMoveDown={() => onMoveItem(key, 1)}
+          />
+        </div>
+      )}
       <div className="flex flex-col">
         {item.exerciseIds.map((exId) => {
           const ex = exerciseLookup[exId]
@@ -4121,6 +4150,7 @@ export default function ActiveWorkout() {
   const [workoutSyncError, setWorkoutSyncError] = useState("")
   const [drag, setDrag] = useState<DragInfo | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget>(null)
+  const [reorderMode, setReorderMode] = useState(false)
   const [showSupersetTip, setShowSupersetTip] = useState(() => {
     if (typeof window === "undefined") return true
     return (
@@ -4137,6 +4167,10 @@ export default function ActiveWorkout() {
     null
   )
   const itemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const captureReorderPositions = useFlipReorderAnimation(
+    items.map(workoutItemKey),
+    itemRefs
+  )
   const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? localStartedAt)
   const rest = useRestCountdown(restTimerKey(slot))
 
@@ -4249,6 +4283,21 @@ export default function ActiveWorkout() {
     nextExercise?.name ?? (totalSets > 0 ? "Workout" : "No exercise yet")
   const activeSetNumber =
     nextTarget?.kind === "set" ? nextTarget.setIndex + 1 : doneSets + 1
+  const activeWorkoutItem = nextTarget
+    ? items.find((item) =>
+        item.kind === "solo"
+          ? item.exerciseId === nextTarget.exerciseId
+          : item.exerciseIds.includes(nextTarget.exerciseId)
+      )
+    : undefined
+  const activeSupersetPosition =
+    activeWorkoutItem?.kind === "superset" && nextTarget
+      ? activeWorkoutItem.exerciseIds.indexOf(nextTarget.exerciseId) + 1
+      : 0
+  const activeSetContext =
+    activeWorkoutItem?.kind === "superset"
+      ? `Superset · exercise ${activeSupersetPosition} of ${activeWorkoutItem.exerciseIds.length}${nextTarget?.kind === "set" ? ` · round ${activeSetNumber}` : ""}`
+      : `Exercise ${activeExerciseIndex} of ${uniqueExerciseIds.length}`
 
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
   const syncToConvex = useCallback(
@@ -4847,6 +4896,16 @@ export default function ActiveWorkout() {
   function toggleCollapsed(id: string) {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   }
+  function moveItemByStep(itemKey: string, direction: -1 | 1) {
+    captureReorderPositions()
+    setItems((previous) => {
+      const from = previous.findIndex(
+        (item) => workoutItemKey(item) === itemKey
+      )
+      return moveArrayItemByStep(previous, from, direction)
+    })
+    hapticSelection()
+  }
   function calcDropTarget(
     x: number,
     y: number,
@@ -4905,7 +4964,9 @@ export default function ActiveWorkout() {
       window.removeEventListener("pointercancel", handlePointerEnd)
       document.body.style.userSelect = ""
     }
-  }, [drag, dropTarget])
+    // executeDrop is intentionally refreshed as drag/drop state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captureReorderPositions, drag, dropTarget])
 
   function makeDragHandlers(
     itemKey: string
@@ -4929,6 +4990,7 @@ export default function ActiveWorkout() {
   function executeDrop(draggedKey: string, zone: DropTarget) {
     if (!zone) return
 
+    captureReorderPositions()
     setItems((prev) => {
       const fromIdx = prev.findIndex(
         (item) => workoutItemKey(item) === draggedKey
@@ -5065,6 +5127,10 @@ export default function ActiveWorkout() {
       dropActive: Boolean(
         isTarget && (dt?.type === "before" || dt?.type === "after")
       ),
+      dropPosition:
+        isTarget && (dt?.type === "before" || dt?.type === "after")
+          ? dt.type
+          : undefined,
       supersetDropActive: Boolean(isTarget && dt?.type === "superset"),
     }
   }
@@ -5096,6 +5162,20 @@ export default function ActiveWorkout() {
     if (!currentSet.completed && currentSet.restSeconds > 0) {
       rest.start(currentSet.restSeconds)
     }
+  }
+
+  function goToActiveSet() {
+    if (!nextTarget || !activeWorkoutItem) return
+    setCollapsed((previous) => ({
+      ...previous,
+      [nextTarget.exerciseId]: false,
+    }))
+    const itemKey = workoutItemKey(activeWorkoutItem)
+    const element = itemRefs.current.get(itemKey)
+    if (!element) return
+    hapticSelection()
+    element.scrollIntoView({ behavior: "smooth", block: "center" })
+    window.requestAnimationFrame(() => element.focus({ preventScroll: true }))
   }
 
   function dismissSupersetTip() {
@@ -5177,6 +5257,23 @@ export default function ActiveWorkout() {
               ))}
             </div>
           </div>
+          {uniqueExerciseIds.length > 0 && (
+            <ActiveWorkoutSetBanner
+              exerciseName={
+                nextTarget ? activeExerciseName : "All exercises complete"
+              }
+              setLabel={
+                nextTarget?.kind === "set"
+                  ? `Set ${activeSetNumber}`
+                  : nextTarget?.kind === "cardio"
+                    ? "Log"
+                    : "Done"
+              }
+              contextLabel={nextTarget ? activeSetContext : "Ready to finish"}
+              complete={!nextTarget}
+              onActivate={nextTarget ? goToActiveSet : undefined}
+            />
+          )}
           <section
             className={cn("pb-3", completedPulseKey && "motion-success-pop")}
           >
@@ -5241,6 +5338,13 @@ export default function ActiveWorkout() {
         </div>
         <div className="flex flex-col gap-3 px-[var(--app-page-x)] pt-2 md:px-8 md:pt-4">
           <div className="flex flex-col gap-2 md:gap-2">
+            {items.length > 0 && (
+              <ExerciseReorderToolbar
+                active={reorderMode}
+                count={uniqueExerciseIds.length}
+                onToggle={() => setReorderMode((value) => !value)}
+              />
+            )}
             {showSupersetTip && uniqueExerciseIds.length > 1 && (
               <div className="flex items-center gap-2 rounded-xl border border-border/55 bg-card px-3 py-2.5 text-muted-foreground/70 shadow-sm">
                 <DotsSixVertical
@@ -5261,7 +5365,7 @@ export default function ActiveWorkout() {
                 </button>
               </div>
             )}
-            {items.map((item) => {
+            {items.map((item, itemIndex) => {
               if (item.kind === "solo") {
                 const ex = exerciseLookup[item.exerciseId]
                 if (!ex) return null
@@ -5307,6 +5411,17 @@ export default function ActiveWorkout() {
                       nextTarget?.kind === "cardio" &&
                       nextTarget.exerciseId === item.exerciseId
                     }
+                    reorderControls={
+                      reorderMode ? (
+                        <ExerciseMoveControls
+                          label={ex.name}
+                          canMoveUp={itemIndex > 0}
+                          canMoveDown={itemIndex < items.length - 1}
+                          onMoveUp={() => moveItemByStep(key, -1)}
+                          onMoveDown={() => moveItemByStep(key, 1)}
+                        />
+                      ) : undefined
+                    }
                   />
                 )
               }
@@ -5328,7 +5443,11 @@ export default function ActiveWorkout() {
                 (exId, name) => setHistorySheet({ exerciseId: exId, name }),
                 (exId, name) =>
                   openAiWorkoutSheet({ exerciseId: exId, exerciseName: name }),
-                nextTarget
+                nextTarget,
+                reorderMode,
+                itemIndex,
+                items.length,
+                moveItemByStep
               )
             })}
           </div>

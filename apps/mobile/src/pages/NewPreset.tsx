@@ -4,6 +4,11 @@ import { usePostHog } from "@posthog/react"
 import { useAction, useQuery } from "convex/react"
 import {
   ExerciseSuggestionGroups,
+  ExerciseDropIndicator,
+  ExerciseMoveControls,
+  ExerciseReorderToolbar,
+  moveArrayItemByStep,
+  useFlipReorderAnimation,
   RestTimerSheet,
   formatRestDuration as formatRest,
   toast,
@@ -23,6 +28,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn, createClientId, logDevWarn } from "@/lib/utils"
+import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import {
   resolveExerciseIds,
@@ -515,6 +521,7 @@ function PresetExerciseCard({
   onToggleCollapse,
   dragHandlers,
   cardRef,
+  reorderControls,
 }: {
   exercise: Exercise
   data: ExerciseState
@@ -530,6 +537,7 @@ function PresetExerciseCard({
   onToggleCollapse: () => void
   dragHandlers: React.HTMLAttributes<HTMLDivElement>
   cardRef: (el: HTMLDivElement | null) => void
+  reorderControls?: React.ReactNode
 }) {
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
@@ -594,12 +602,8 @@ function PresetExerciseCard({
       )}
 
       {/* Drop indicators */}
-      {showLineBefore && (
-        <div className="pointer-events-none absolute -top-[5px] right-3 left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
-      )}
-      {showLineAfter && (
-        <div className="pointer-events-none absolute right-3 -bottom-[5px] left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
-      )}
+      {showLineBefore && <ExerciseDropIndicator position="before" />}
+      {showLineAfter && <ExerciseDropIndicator position="after" />}
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header row ──────────────────────────── */}
@@ -633,6 +637,10 @@ function PresetExerciseCard({
               </span>
             )}
           </div>
+
+          {reorderControls && (
+            <div className="mt-2 flex justify-end">{reorderControls}</div>
+          )}
 
           <div className="mt-2 flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
             {/* Remove */}
@@ -1244,7 +1252,13 @@ export default function NewPreset() {
     )
   })
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [reorderMode, setReorderMode] = useState(false)
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const topLevelItemRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const captureReorderPositions = useFlipReorderAnimation(
+    items.map(presetItemKey),
+    topLevelItemRefs
+  )
   const dragRef = useRef<DragInfo | null>(null)
   const dropTargetRef = useRef<DropTarget>(null)
   const savingRef = useRef(false)
@@ -1501,6 +1515,19 @@ export default function NewPreset() {
     setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  function presetItemKey(item: PresetItem) {
+    return item.kind === "solo" ? item.exerciseId : item.id
+  }
+
+  function moveItemByStep(itemKey: string, direction: -1 | 1) {
+    captureReorderPositions()
+    setItems((previous) => {
+      const from = previous.findIndex((item) => presetItemKey(item) === itemKey)
+      return moveArrayItemByStep(previous, from, direction)
+    })
+    hapticSelection()
+  }
+
   // ── Drag & drop ───────────────────────────────────────────
 
   function calcDropTarget(x: number, y: number, draggedId: string): DropTarget {
@@ -1565,7 +1592,9 @@ export default function NewPreset() {
       window.removeEventListener("pointercancel", handlePointerEnd)
       document.body.style.userSelect = ""
     }
-  }, [drag])
+    // executeDrop is intentionally refreshed as drag state changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [captureReorderPositions, drag])
 
   function makeDragHandlers(
     exerciseId: string
@@ -1591,6 +1620,15 @@ export default function NewPreset() {
   }
 
   function executeDrop(draggedId: string, zone: DropTarget) {
+    if (
+      zone ||
+      items.some(
+        (item) =>
+          item.kind === "superset" && item.exerciseIds.includes(draggedId)
+      )
+    ) {
+      captureReorderPositions()
+    }
     // Null drop: if the exercise was in a superset, eject it to the end as solo
     if (!zone) {
       setItems((prev) => {
@@ -1677,7 +1715,7 @@ export default function NewPreset() {
     }
   }
 
-  function renderSoloItem(exerciseId: string) {
+  function renderSoloItem(exerciseId: string, itemIndex: number) {
     const ex = exerciseLookup[exerciseId]
     if (!ex || !exData[exerciseId]) return null
     return (
@@ -1694,14 +1732,33 @@ export default function NewPreset() {
         onToggleCollapse={() => toggleCollapsed(exerciseId)}
         dragHandlers={makeDragHandlers(exerciseId)}
         cardRef={(el) => {
-          if (el) cardRefs.current.set(exerciseId, el)
-          else cardRefs.current.delete(exerciseId)
+          if (el) {
+            cardRefs.current.set(exerciseId, el)
+            topLevelItemRefs.current.set(exerciseId, el)
+          } else {
+            cardRefs.current.delete(exerciseId)
+            topLevelItemRefs.current.delete(exerciseId)
+          }
         }}
+        reorderControls={
+          reorderMode ? (
+            <ExerciseMoveControls
+              label={ex.name}
+              canMoveUp={itemIndex > 0}
+              canMoveDown={itemIndex < items.length - 1}
+              onMoveUp={() => moveItemByStep(exerciseId, -1)}
+              onMoveDown={() => moveItemByStep(exerciseId, 1)}
+            />
+          ) : undefined
+        }
       />
     )
   }
 
-  function renderSupersetItem(item: Extract<PresetItem, { kind: "superset" }>) {
+  function renderSupersetItem(
+    item: Extract<PresetItem, { kind: "superset" }>,
+    itemIndex: number
+  ) {
     const dt = dropTarget
     const containerIsTarget = dt && item.exerciseIds.includes(dt.targetExId)
     const showLineBefore = !!(containerIsTarget && dt?.type === "before")
@@ -1710,14 +1767,14 @@ export default function NewPreset() {
     return (
       <div
         key={item.id}
+        ref={(element) => {
+          if (element) topLevelItemRefs.current.set(item.id, element)
+          else topLevelItemRefs.current.delete(item.id)
+        }}
         className="relative overflow-hidden border-y border-foreground/30 bg-transparent"
       >
-        {showLineBefore && (
-          <div className="pointer-events-none absolute -top-[5px] right-3 left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
-        )}
-        {showLineAfter && (
-          <div className="pointer-events-none absolute right-3 -bottom-[5px] left-3 z-10 h-[2px] rounded-full bg-foreground/60" />
-        )}
+        {showLineBefore && <ExerciseDropIndicator position="before" />}
+        {showLineAfter && <ExerciseDropIndicator position="after" />}
 
         {/* Superset label bar */}
         <div
@@ -1733,6 +1790,18 @@ export default function NewPreset() {
             Drag out to split
           </span>
         </div>
+
+        {reorderMode && (
+          <div className="flex justify-end border-b border-border px-3 py-2">
+            <ExerciseMoveControls
+              label="superset"
+              canMoveUp={itemIndex > 0}
+              canMoveDown={itemIndex < items.length - 1}
+              onMoveUp={() => moveItemByStep(item.id, -1)}
+              onMoveDown={() => moveItemByStep(item.id, 1)}
+            />
+          </div>
+        )}
 
         {/* Exercises — no extra borders, cards have their own left stripes */}
         <div className="flex flex-col">
@@ -1868,6 +1937,11 @@ export default function NewPreset() {
           {/* ── Exercise list ──────────────────────────── */}
           {items.length > 0 && (
             <div className="flex flex-col gap-3">
+              <ExerciseReorderToolbar
+                active={reorderMode}
+                count={addedIds.length}
+                onToggle={() => setReorderMode((value) => !value)}
+              />
               {showSupersetTip && addedIds.length > 1 && (
                 <div className="flex items-center gap-2 border-y border-border py-2.5 text-muted-foreground">
                   <DotsSixVertical
@@ -1888,10 +1962,10 @@ export default function NewPreset() {
                   </button>
                 </div>
               )}
-              {items.map((item) =>
+              {items.map((item, itemIndex) =>
                 item.kind === "solo"
-                  ? renderSoloItem(item.exerciseId)
-                  : renderSupersetItem(item)
+                  ? renderSoloItem(item.exerciseId, itemIndex)
+                  : renderSupersetItem(item, itemIndex)
               )}
             </div>
           )}
