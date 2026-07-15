@@ -4,7 +4,7 @@ import * as React from "react"
 import { createPortal } from "react-dom"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 
 type GuidedTooltipId = string | number
 

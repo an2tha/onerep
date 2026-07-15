@@ -5,7 +5,8 @@ import type {
   InputHTMLAttributes,
   ReactNode,
 } from "react"
-import { cn } from "@/lib/utils"
+
+import { cn } from "../lib/utils"
 
 type IconComponent = ComponentType<{
   size?: number
@@ -13,9 +14,10 @@ type IconComponent = ComponentType<{
   className?: string
 }>
 
-type Tone = "neutral" | "food" | "water" | "supplement" | "workout" | "progress"
+export type MobileTone =
+  "neutral" | "food" | "water" | "supplement" | "workout" | "progress"
 
-const toneVars: Record<Tone, string> = {
+const toneVars: Record<MobileTone, string> = {
   neutral:
     "[--tone:var(--foreground)] [--tone-bg:color-mix(in_srgb,var(--foreground)_7%,transparent)]",
   food: "[--tone:var(--accent-food)] [--tone-bg:var(--accent-food-bg)]",
@@ -106,6 +108,18 @@ export function GroupedList({
   )
 }
 
+export type ListRowProps = {
+  title: ReactNode
+  detail?: ReactNode
+  value?: ReactNode
+  leading?: ReactNode
+  trailing?: ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  busy?: boolean
+  className?: string
+}
+
 export function ListRow({
   title,
   detail,
@@ -116,17 +130,7 @@ export function ListRow({
   disabled,
   busy,
   className,
-}: {
-  title: ReactNode
-  detail?: ReactNode
-  value?: ReactNode
-  leading?: ReactNode
-  trailing?: ReactNode
-  onClick?: () => void
-  disabled?: boolean
-  busy?: boolean
-  className?: string
-}) {
+}: ListRowProps) {
   const content = (
     <>
       {leading && <span className="native-row-leading">{leading}</span>}
@@ -141,26 +145,22 @@ export function ListRow({
     </>
   )
 
-  if (onClick) {
-    return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={disabled}
-        aria-busy={busy}
-        className={cn("native-list-row w-full", className)}
-      >
-        {content}
-      </button>
-    )
-  }
-
-  return <div className={cn("native-list-row", className)}>{content}</div>
+  return onClick ? (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-busy={busy}
+      className={cn("native-list-row w-full", className)}
+    >
+      {content}
+    </button>
+  ) : (
+    <div className={cn("native-list-row", className)}>{content}</div>
+  )
 }
 
-export function DisclosureRow(
-  props: Omit<React.ComponentProps<typeof ListRow>, "trailing">
-) {
+export function DisclosureRow(props: Omit<ListRowProps, "trailing">) {
   return (
     <ListRow
       {...props}
@@ -184,7 +184,7 @@ export function SummaryBlock({
   value?: ReactNode
   detail?: ReactNode
   action?: ReactNode
-  tone?: Tone
+  tone?: MobileTone
   children?: ReactNode
   className?: string
 }) {
@@ -301,27 +301,12 @@ export function MobilePage({
 }
 
 export function PageHeader({
-  title,
-  subtitle,
-  leading,
-  trailing,
   compact = false,
-}: {
-  title: string
-  subtitle?: string
-  leading?: ReactNode
-  trailing?: ReactNode
+  ...props
+}: Omit<React.ComponentProps<typeof NavigationBar>, "large"> & {
   compact?: boolean
 }) {
-  return (
-    <NavigationBar
-      title={title}
-      subtitle={subtitle}
-      leading={leading}
-      trailing={trailing}
-      large={!compact}
-    />
-  )
+  return <NavigationBar {...props} large={!compact} />
 }
 
 export function SectionHeader({
@@ -363,7 +348,7 @@ export function EmptyState({
   title: string
   detail?: string
   action?: ReactNode
-  tone?: Tone
+  tone?: MobileTone
   className?: string
 }) {
   return (

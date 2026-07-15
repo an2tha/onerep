@@ -1,6 +1,7 @@
 import { useId } from "react"
-import type { MuscleRecovery, MuscleRecoveryStatus } from "@/lib/muscle-volume"
-import { MuscleBodySvg } from "@/components/muscle-body-svg"
+import { MuscleBodySvg, type MuscleRecoveryItem } from "./muscle-body-svg"
+
+type MuscleRecoveryStatus = MuscleRecoveryItem["status"]
 
 const COLUMNS = [
   { label: "0", caption: "today" },
@@ -81,7 +82,7 @@ export function MuscleRecoveryHeatmapCard({
   muscleRecovery,
   compact = false,
 }: {
-  muscleRecovery: MuscleRecovery[]
+  muscleRecovery: MuscleRecoveryItem[]
   compact?: boolean
 }) {
   const svgId = useId().replace(/:/g, "")

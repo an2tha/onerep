@@ -2,6 +2,10 @@
   "name": "@repo/models",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

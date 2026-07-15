@@ -6,7 +6,7 @@ import {
   Sparkle,
   X,
 } from "@phosphor-icons/react"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hasOneRepPro, useRevenueCat } from "@/lib/revenuecat"

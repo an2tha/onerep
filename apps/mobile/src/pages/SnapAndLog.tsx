@@ -37,7 +37,7 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import type { FoodResult } from "@repo/models"
 import {
@@ -57,7 +57,7 @@ import {
   type SnapFoodMatch,
   type SnapReviewItem,
 } from "@/lib/food-snap-review"
-import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
+import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 
 // ─── Types ────────────────────────────────────────────────────────────────────

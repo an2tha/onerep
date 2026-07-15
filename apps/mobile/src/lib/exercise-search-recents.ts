@@ -1,4 +1,4 @@
-import { EXERCISE_CATEGORY_COLORS } from "./design-tokens"
+import { EXERCISE_CATEGORY_COLORS } from "@repo/ui"
 import type { Exercise, ExerciseCategory } from "./exercise-catalog"
 import { browserLocalStorage } from "./utils"
 

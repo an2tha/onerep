@@ -1,8 +1,9 @@
-import { useId, useState, type ReactNode } from "react"
 import { CaretDown } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { useId, useState, type ReactNode } from "react"
 
-type AnimatedAccordionProps = {
+import { cn } from "../lib/utils"
+
+export type AnimatedAccordionProps = {
   summary: ReactNode | ((open: boolean) => ReactNode)
   children: ReactNode
   className?: string

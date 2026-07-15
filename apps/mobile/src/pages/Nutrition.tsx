@@ -23,10 +23,10 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { StatRow, SummaryBlock } from "@/components/mobile-ui"
+import { StatRow, SummaryBlock } from "@repo/ui"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
-import { DateSelectorButton } from "@/components/date-selector-button"
-import { AnimatedAccordion } from "@/components/animated-accordion"
+import { DateSelectorButton } from "@repo/ui"
+import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
@@ -60,11 +60,7 @@ import {
   WATER_GLASS_COUNT,
   waterGlassTargetMl,
 } from "@/lib/water-glasses"
-import {
-  APP_ACCENT_COLORS,
-  MACRO_COLORS,
-  MICRO_COLORS,
-} from "@/lib/design-tokens"
+import { APP_ACCENT_COLORS, MACRO_COLORS, MICRO_COLORS } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import { hapticSelection } from "@/lib/haptics"
@@ -76,7 +72,7 @@ import {
   type SnapFoodMatch,
 } from "@/lib/food-snap-review"
 import type { FoodResult } from "@repo/models"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 
 type WaterLogEntry = {
   id: string
@@ -1942,6 +1938,7 @@ export default function Nutrition() {
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
+              onInteract={hapticSelection}
               value={dateKey}
               todayKey={todayKey}
               onChange={setDateKey}

@@ -14,17 +14,23 @@ import {
   Question,
   X,
 } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 import {
   GroupedList,
   PrimaryButton,
   SectionHeader,
   StatRow,
   SummaryBlock,
-} from "@/components/mobile-ui"
-import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
-import { AnimatedAccordion } from "@/components/animated-accordion"
-import type { DashboardBriefing } from "@/lib/dashboard-briefing"
+} from "../mobile-ui"
+import { SlideToDeleteRow } from "../slide-to-delete-row"
+import { AnimatedAccordion } from "../animated-accordion"
+
+export type DashboardBriefingView = {
+  action: string
+  title: string
+  detail: string
+  actionLabel: string
+}
 
 export type MacroProgress = {
   label: string
@@ -481,10 +487,6 @@ export function DailyLedgerHero({
   waterGoalMl,
   workoutState,
   workoutProgress,
-  mealSlots: _mealSlots = [],
-  onMealSlotClick: _onMealSlotClick,
-  recovery: _recovery,
-  onRecoveryClick: _onRecoveryClick,
   briefing,
   onBriefingAction,
   showBriefingAction = true,
@@ -508,7 +510,7 @@ export function DailyLedgerHero({
   onMealSlotClick?: (slot: MealCadenceSlot) => void
   recovery?: RecoveryProgress | null
   onRecoveryClick?: () => void
-  briefing: DashboardBriefing
+  briefing: DashboardBriefingView
   onBriefingAction: () => void
   showBriefingAction?: boolean
   proteinLeft: number

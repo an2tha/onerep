@@ -8,10 +8,18 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
     "preview": "vite preview"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./home": "./src/home.ts",
+    "./mobile": "./src/mobile.ts",
+    "./nutrition": "./src/nutrition.ts",
+    "./progress": "./src/progress.ts",
+    "./settings": "./src/settings.ts",
+    "./workout": "./src/workout.ts",
+    "./styles.css": "./src/index.css"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",

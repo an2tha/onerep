@@ -4,7 +4,7 @@ import type {
   NutrientRow,
   OpenFoodFactsProduct,
 } from "@repo/models"
-import { CUSTOM_CATEGORY_TONES, DEFAULT_MEAL_TONES } from "@/lib/design-tokens"
+import { CUSTOM_CATEGORY_TONES, DEFAULT_MEAL_TONES } from "@repo/ui"
 import {
   createClientId,
   safeLocalStorageGet,

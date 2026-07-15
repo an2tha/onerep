@@ -1,4 +1,4 @@
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 
 const DEFAULT_MUTATION_ERROR_MESSAGE = "Could not save change"
 

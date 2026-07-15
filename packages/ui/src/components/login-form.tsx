@@ -1,5 +1,5 @@
 import * as React from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "../lib/utils"
 
 export type LoginMode = "signin" | "signup"
 
@@ -34,7 +34,7 @@ export function LoginForm({
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         {mode === "signup" && (
           <div className="relative">
-            <label className="absolute left-4 top-2.5 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
+            <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
               Name
             </label>
             <input
@@ -44,13 +44,13 @@ export function LoginForm({
               placeholder="What should we call you?"
               required
               autoComplete="name"
-              className="w-full rounded-2xl border border-border/50 bg-muted/40 pb-3.5 pt-7 pl-4 pr-4 text-[15px] font-medium outline-none transition-colors placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
+              className="w-full rounded-2xl border border-border/50 bg-muted/40 pt-7 pr-4 pb-3.5 pl-4 text-[15px] font-medium transition-colors outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
             />
           </div>
         )}
 
         <div className="relative">
-          <label className="absolute left-4 top-2.5 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
+          <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
             Email
           </label>
           <input
@@ -60,12 +60,12 @@ export function LoginForm({
             placeholder="you@example.com"
             required
             autoComplete="email"
-            className="w-full rounded-2xl border border-border/50 bg-muted/40 pb-3.5 pt-7 pl-4 pr-4 text-[15px] font-medium outline-none transition-colors placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
+            className="w-full rounded-2xl border border-border/50 bg-muted/40 pt-7 pr-4 pb-3.5 pl-4 text-[15px] font-medium transition-colors outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
           />
         </div>
 
         <div className="relative">
-          <label className="absolute left-4 top-2.5 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
+          <label className="absolute top-2.5 left-4 text-[9.5px] font-semibold tracking-[0.14em] text-foreground/35 uppercase select-none">
             Password
           </label>
           <input
@@ -74,8 +74,10 @@ export function LoginForm({
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             required
-            autoComplete={mode === "signin" ? "current-password" : "new-password"}
-            className="w-full rounded-2xl border border-border/50 bg-muted/40 pb-3.5 pt-7 pl-4 pr-4 text-[15px] font-medium outline-none transition-colors placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
+            autoComplete={
+              mode === "signin" ? "current-password" : "new-password"
+            }
+            className="w-full rounded-2xl border border-border/50 bg-muted/40 pt-7 pr-4 pb-3.5 pl-4 text-[15px] font-medium transition-colors outline-none placeholder:text-muted-foreground/30 focus:border-foreground/30 focus:bg-muted/60"
           />
         </div>
 
@@ -91,8 +93,12 @@ export function LoginForm({
           className="mt-1 h-[54px] w-full rounded-2xl bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-75 disabled:opacity-50"
         >
           {loading
-            ? mode === "signin" ? "Signing in…" : "Creating account…"
-            : mode === "signin" ? "Sign in" : "Create account"}
+            ? mode === "signin"
+              ? "Signing in…"
+              : "Creating account…"
+            : mode === "signin"
+              ? "Sign in"
+              : "Create account"}
         </button>
       </form>
 

@@ -13,14 +13,14 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { SlideToDeleteRow } from "@repo/ui"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
-import { AnimatedAccordion } from "@/components/animated-accordion"
+import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import {

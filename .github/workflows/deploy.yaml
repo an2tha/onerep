@@ -12,6 +12,9 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
     permissions:
       contents: read
 
@@ -27,20 +30,13 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build mobile app
+      - name: Build static sites
         env:
           CONVEX_DEPLOYMENT: ${{ secrets.DEV_CONVEX_DEPLOYMENT }}
           VITE_CONVEX_URL: ${{ secrets.DEV_VITE_CONVEX_URL }}
           VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
           VITE_APP_URL: https://app.onerep.life
-        run: bun run turbo run build --filter=mobile -- --mode development
-
-      - name: Build marketing site
-        env:
-          VITE_CONVEX_URL: ${{ secrets.DEV_VITE_CONVEX_URL }}
-          VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
-          VITE_APP_URL: https://app.onerep.life
-        run: bun run turbo run build --filter=web -- --mode development
+        run: bun run turbo run build --filter=mobile --filter=web -- --mode development
 
       - name: Deploy mobile app to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

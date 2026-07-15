@@ -8,9 +8,7 @@ import {
   GenderMale,
   Heart,
   Lightning,
-  Minus,
   PersonSimpleRun,
-  Plus,
   ShieldCheck,
   Trophy,
   TrendDown,
@@ -31,7 +29,7 @@ import {
   mapOnboardingGoalToCalorieGoal,
 } from "@/lib/health-goals"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { cn, safeLocalStorageRemove } from "@/lib/utils"
+import { safeLocalStorageRemove } from "@/lib/utils"
 import {
   hapticHeavy,
   hapticMedium,
@@ -317,229 +315,12 @@ function deriveSafetyMode(
   return "standard"
 }
 
-function NumberQuestion({
-  label,
-  value,
-  display,
-  min,
-  max,
-  step = 1,
-  onChange,
-}: {
-  label: string
-  value: number
-  display: string
-  min: number
-  max: number
-  step?: number
-  onChange: (value: number) => void
-}) {
-  const inputId = `onboarding-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
-
-  function update(next: number) {
-    hapticSelection()
-    onChange(clamp(next, min, max))
-  }
-
-  return (
-    <div className="onboarding-number-row">
-      <label className="min-w-0 flex-1" htmlFor={inputId}>
-        <span className="native-row-title block font-semibold">{label}</span>
-        <span className="native-row-detail mt-0.5 block">
-          {min.toLocaleString()}–{max.toLocaleString()}
-        </span>
-      </label>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => update(value - step)}
-          disabled={value <= min}
-          aria-label={`Decrease ${label}`}
-          className="onboarding-stepper-button"
-        >
-          <Minus size={16} weight="bold" />
-        </button>
-        <input
-          id={inputId}
-          type="number"
-          inputMode="numeric"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(event) => {
-            const next = Number(event.target.value)
-            if (Number.isFinite(next)) update(next)
-          }}
-          aria-label={label}
-          className="onboarding-number-input"
-        />
-        <button
-          type="button"
-          onClick={() => update(value + step)}
-          disabled={value >= max}
-          aria-label={`Increase ${label}`}
-          className="onboarding-stepper-button"
-        >
-          <Plus size={16} weight="bold" />
-        </button>
-      </div>
-      <span className="sr-only">Current value: {display}</span>
-    </div>
-  )
-}
-
-function PillToggle<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T | null
-  options: { value: T; label: string; icon?: Icon }[]
-  onChange: (value: T) => void
-}) {
-  return (
-    <div className="onboarding-option-list">
-      {options.map((option) => {
-        const selected = value === option.value
-        const OptionIcon = option.icon
-        return (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => {
-              hapticSelection()
-              onChange(option.value)
-            }}
-            data-selected={selected}
-            className={cn(
-              "onboarding-option flex min-h-14 w-full items-center gap-3 text-left text-[15px] font-semibold",
-              selected
-                ? "text-foreground"
-                : "text-muted-foreground active:bg-muted/45"
-            )}
-          >
-            {OptionIcon && <OptionIcon size={20} weight="regular" />}
-            <span className="flex-1">{option.label}</span>
-            {selected && <Check size={18} weight="bold" aria-hidden="true" />}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function OptionList<T extends string>({
-  value,
-  options,
-  onChange,
-}: {
-  value: T | null
-  options: readonly (readonly [T, string, string?, Icon?])[]
-  onChange: (value: T) => void
-}) {
-  return (
-    <div className="onboarding-option-list">
-      {options.map(([id, label, body, icon]) => {
-        const selected = value === id
-        const OptionIcon = icon
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => {
-              hapticSelection()
-              onChange(id)
-            }}
-            aria-pressed={selected}
-            data-selected={selected}
-            className={cn(
-              "onboarding-option min-h-16 w-full text-left",
-              selected
-                ? "text-foreground"
-                : "text-muted-foreground active:bg-muted/45"
-            )}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-3 text-[15px] font-semibold">
-                {OptionIcon && <OptionIcon size={20} weight="regular" />}
-                {label}
-              </span>
-              {selected && <Check size={18} weight="bold" />}
-            </div>
-            {body && (
-              <p
-                className={cn(
-                  "native-row-detail mt-1 pl-8",
-                  selected ? "text-foreground/70" : "text-muted-foreground"
-                )}
-              >
-                {body}
-              </p>
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-function MultiSelectList({
-  values,
-  options,
-  onChange,
-  icon: SharedIcon,
-}: {
-  values: string[]
-  options: readonly (readonly [string, string])[]
-  onChange: (values: string[]) => void
-  icon?: Icon
-}) {
-  function toggle(id: string) {
-    hapticSelection()
-    if (id === "none") {
-      onChange(values.includes("none") ? [] : ["none"])
-      return
-    }
-    const withoutNone = values.filter((item) => item !== "none")
-    onChange(
-      withoutNone.includes(id)
-        ? withoutNone.filter((item) => item !== id)
-        : [...withoutNone, id]
-    )
-  }
-
-  return (
-    <div className="onboarding-multi-list">
-      {options.map(([id, label]) => {
-        const selected = values.includes(id)
-        return (
-          <button
-            key={id}
-            type="button"
-            onClick={() => toggle(id)}
-            aria-pressed={selected}
-            data-selected={selected}
-            className={cn(
-              "onboarding-multi-option min-h-13 w-full text-left text-[14px] font-semibold",
-              selected
-                ? "text-foreground"
-                : "text-muted-foreground active:bg-muted/45"
-            )}
-          >
-            <span className="flex items-center justify-between gap-2">
-              <span className="flex items-center gap-2">
-                {SharedIcon && <SharedIcon size={15} weight="bold" />}
-                {label}
-              </span>
-              {selected && <Check size={14} weight="bold" />}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}
+import {
+  MultiSelectList,
+  NumberQuestion,
+  OptionList,
+  PillToggle,
+} from "@repo/ui"
 
 export function OnboardingMobile() {
   const navigate = useSmoothNavigate()
@@ -941,6 +722,7 @@ export function OnboardingMobile() {
                       Primary goal
                     </h2>
                     <OptionList
+                      onInteract={hapticSelection}
                       value={nutritionGoal}
                       options={nutritionGoals}
                       onChange={(goal) => {
@@ -963,6 +745,7 @@ export function OnboardingMobile() {
                       Training experience
                     </h2>
                     <OptionList<ExperienceLevel>
+                      onInteract={hapticSelection}
                       value={experienceLevel}
                       options={experienceLevels}
                       onChange={setExperienceLevel}
@@ -984,6 +767,7 @@ export function OnboardingMobile() {
                       Body profile used for the estimate
                     </h2>
                     <PillToggle
+                      onInteract={hapticSelection}
                       value={profile.sex}
                       options={[
                         {
@@ -1024,6 +808,7 @@ export function OnboardingMobile() {
                     </div>
                     <div className="onboarding-number-list">
                       <NumberQuestion
+                        onInteract={hapticSelection}
                         label="Age"
                         value={profile.age}
                         display={`${profile.age} years`}
@@ -1034,6 +819,7 @@ export function OnboardingMobile() {
                         }
                       />
                       <NumberQuestion
+                        onInteract={hapticSelection}
                         label="Height (cm)"
                         value={profile.heightCm}
                         display={`${profile.heightCm} cm`}
@@ -1044,6 +830,7 @@ export function OnboardingMobile() {
                         }
                       />
                       <NumberQuestion
+                        onInteract={hapticSelection}
                         label={`Weight (${weightUnit})`}
                         value={weightValue}
                         display={`${weightValue} ${weightUnit}`}
@@ -1064,6 +851,7 @@ export function OnboardingMobile() {
 
               {meta.id === "safety" && (
                 <MultiSelectList
+                  onInteract={hapticSelection}
                   values={safetyFlags}
                   options={[["none", "None"], ...safetyOptions]}
                   onChange={setSafetyFlags}
@@ -1073,6 +861,7 @@ export function OnboardingMobile() {
 
               {meta.id === "activity" && (
                 <OptionList
+                  onInteract={hapticSelection}
                   value={profile.activityLevel}
                   options={activities}
                   onChange={(activityLevel) =>

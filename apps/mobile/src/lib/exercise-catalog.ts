@@ -1,4 +1,4 @@
-import { EXERCISE_CATEGORY_COLORS } from "@/lib/design-tokens"
+import { EXERCISE_CATEGORY_COLORS } from "@repo/ui"
 
 export type ExerciseCategory = "strength" | "cardio" | "mobility" | "core"
 

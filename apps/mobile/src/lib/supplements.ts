@@ -18,7 +18,7 @@ import {
   ONE_REP_PALETTE,
   SUPPLEMENT_TONES,
   tint,
-} from "@/lib/design-tokens"
+} from "@repo/ui"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   parseFoodPortionLabel,
