@@ -10,15 +10,12 @@ import {
   Database,
   ForkKnife,
   GearFine,
-  Minus,
   Moon,
-  Plus,
   ShieldCheck,
   SlidersHorizontal,
   Sun,
   UserCircle,
   Warning,
-  WifiSlash,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
@@ -41,7 +38,7 @@ import {
   oneRepExportFilename,
   shareOrDownloadJsonExport,
 } from "@/lib/data-export"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 import { useTheme } from "@repo/ui"
 import posthog from "posthog-js"
 import { convexClient } from "@/lib/convex"
@@ -82,12 +79,23 @@ import {
   useRevenueCat,
 } from "@/lib/revenuecat"
 import {
+  CompactSwitch,
+  AiUsageProgress,
   DisclosureRow,
   GroupedList,
   ListRow,
   NavigationBar,
+  NumberStepper,
+  SectionSaveButton,
+  SegmentedControl,
+  SettingsRow,
+  SettingsLoadingState,
+  SettingsSectionIntro,
+  SettingsSectionLabel,
+  SettingsStatusPill as StatusPill,
+  SyncStatusIcon,
   ToolbarButton,
-} from "@/components/mobile-ui"
+} from "@repo/ui"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
 
@@ -852,6 +860,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="Appearance options">
                   <SettingsRow label="Theme">
                     <SegmentedControl
+                      onInteract={hapticSelection}
                       label="Theme"
                       value={theme}
                       onChange={(value) => handleThemeChange(value as AppTheme)}
@@ -916,6 +925,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="Daily nutrition targets">
                   <SettingsRow label="Calories" detail="Daily energy budget">
                     <NumberStepper
+                      onInteract={hapticTap}
                       value={calories}
                       onChange={setCalories}
                       suffix="kcal"
@@ -927,6 +937,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Protein">
                     <NumberStepper
+                      onInteract={hapticTap}
                       value={protein}
                       onChange={setProtein}
                       suffix="g"
@@ -938,6 +949,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Carbohydrates">
                     <NumberStepper
+                      onInteract={hapticTap}
                       value={carbs}
                       onChange={setCarbs}
                       suffix="g"
@@ -949,6 +961,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Fat">
                     <NumberStepper
+                      onInteract={hapticTap}
                       value={fat}
                       onChange={setFat}
                       suffix="g"
@@ -960,6 +973,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Water" detail="Daily hydration target">
                     <NumberStepper
+                      onInteract={hapticTap}
                       value={waterGoal}
                       onChange={setWaterGoalState}
                       suffix="ml"
@@ -995,6 +1009,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="Training preferences">
                   <SettingsRow label="Primary focus">
                     <SegmentedControl
+                      onInteract={hapticSelection}
                       label="Primary focus"
                       value={workoutFocus}
                       onChange={(value) =>
@@ -1009,6 +1024,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Weight unit">
                     <SegmentedControl
+                      onInteract={hapticSelection}
                       label="Weight unit"
                       value={weightUnit}
                       onChange={(value) =>
@@ -1028,6 +1044,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Keep Today focused on actions and hide advanced panels"
                   >
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={simpleDashboard}
                       onChange={setSimpleDashboard}
                       label="Simple dashboard"
@@ -1035,6 +1052,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Food search language">
                     <SegmentedControl
+                      onInteract={hapticSelection}
                       label="Food search language"
                       value={foodSearchLanguage}
                       onChange={(value) =>
@@ -1052,6 +1070,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </SettingsRow>
                   <SettingsRow label="Haptic feedback">
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={hapticsOn}
                       onChange={handleHapticsChange}
                       label="Haptic feedback"
@@ -1078,6 +1097,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Use separate training and rest-day targets"
                   >
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={macroCyclingEnabled}
                       onChange={setMacroCyclingEnabled}
                       label="Macro cycling"
@@ -1088,6 +1108,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Add estimated exercise calories to your budget"
                   >
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={workoutAdjustmentEnabled}
                       onChange={setWorkoutAdjustmentEnabled}
                       label="Workout adjustment"
@@ -1104,6 +1125,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     <GroupedList label="Training day targets">
                       <SettingsRow label="Calories">
                         <NumberStepper
+                          onInteract={hapticTap}
                           value={trainingDayTargets.calories}
                           onChange={(value) =>
                             setTrainingDayTargets((current) => ({
@@ -1120,6 +1142,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       </SettingsRow>
                       <SettingsRow label="Protein">
                         <NumberStepper
+                          onInteract={hapticTap}
                           value={trainingDayTargets.protein}
                           onChange={(value) =>
                             setTrainingDayTargets((current) => ({
@@ -1142,6 +1165,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     <GroupedList label="Rest day targets">
                       <SettingsRow label="Calories">
                         <NumberStepper
+                          onInteract={hapticTap}
                           value={restDayTargets.calories}
                           onChange={(value) =>
                             setRestDayTargets((current) => ({
@@ -1158,6 +1182,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       </SettingsRow>
                       <SettingsRow label="Protein">
                         <NumberStepper
+                          onInteract={hapticTap}
                           value={restDayTargets.protein}
                           onChange={(value) =>
                             setRestDayTargets((current) => ({
@@ -1237,6 +1262,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Share anonymous product usage"
                   >
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={analyticsEnabled}
                       onChange={setAnalyticsEnabled}
                       label="Analytics"
@@ -1247,6 +1273,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Use your logs for tailored coaching"
                   >
                     <CompactSwitch
+                      onInteract={hapticSelection}
                       checked={personalizedInsightsEnabled}
                       onChange={setPersonalizedInsightsEnabled}
                       label="Personalized insights"
@@ -1406,173 +1433,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   )
 }
 
-function SettingsSectionIntro({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="native-supporting px-[var(--app-page-x)] pb-2 md:max-w-xl">
-      {children}
-    </p>
-  )
-}
-
-function SettingsSectionLabel({
-  title,
-  detail,
-  danger = false,
-}: {
-  title: string
-  detail?: string
-  danger?: boolean
-}) {
-  return (
-    <div className="px-[var(--app-page-x)] pt-7 pb-2">
-      <h2
-        className={cn(
-          "text-[15px] font-semibold tracking-tight",
-          danger ? "text-destructive" : "text-foreground"
-        )}
-      >
-        {title}
-      </h2>
-      {detail && <p className="native-row-detail mt-0.5">{detail}</p>}
-    </div>
-  )
-}
-
-function SettingsLoadingState() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading settings"
-      className="flex min-h-[45svh] flex-col items-center justify-center px-6 text-center"
-    >
-      <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/70" />
-      <p className="native-section-title mt-4">Loading settings</p>
-      <p className="native-row-detail mt-1 max-w-[18rem]">
-        Syncing your preferences, goals, and account controls.
-      </p>
-    </div>
-  )
-}
-
-function StatusPill({
-  label,
-  strong = false,
-}: {
-  label: string
-  strong?: boolean
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex min-h-7 items-center rounded-full px-2.5 text-[13px] font-semibold",
-        strong
-          ? "bg-foreground text-background"
-          : "bg-muted text-muted-foreground"
-      )}
-    >
-      {label}
-    </span>
-  )
-}
-
-function CompactSwitch({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean
-  onChange?: (checked: boolean) => void
-  label?: string
-}) {
-  const track = (
-    <span
-      className={cn(
-        "pointer-events-none relative block h-8 w-[3.25rem] rounded-full transition-colors",
-        checked ? "bg-foreground" : "bg-muted"
-      )}
-    >
-      <span
-        className={cn(
-          "absolute top-1 block size-6 rounded-full bg-background shadow-sm transition-transform",
-          checked ? "translate-x-6" : "translate-x-1"
-        )}
-      />
-    </span>
-  )
-
-  if (!onChange) {
-    return (
-      <span
-        className="inline-flex h-11 w-14 shrink-0 items-center justify-center"
-        aria-hidden="true"
-      >
-        {track}
-      </span>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-[0.65rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
-      onClick={() => {
-        hapticSelection()
-        onChange(!checked)
-      }}
-    >
-      {track}
-    </button>
-  )
-}
-
-function SyncStatusIcon({
-  status,
-  online,
-  syncing,
-}: {
-  status: ReturnType<typeof offlineSyncStatusCopy>["tone"]
-  online: boolean
-  syncing: boolean
-}) {
-  if (syncing) {
-    return (
-      <ArrowsClockwise
-        size={18}
-        aria-hidden="true"
-        className="animate-spin text-muted-foreground"
-      />
-    )
-  }
-  if (status === "error") {
-    return <Warning size={18} aria-hidden="true" className="text-destructive" />
-  }
-  if (!online) {
-    return (
-      <WifiSlash
-        size={18}
-        aria-hidden="true"
-        className="text-muted-foreground"
-      />
-    )
-  }
-  return status === "synced" ? (
-    <CheckCircle
-      size={18}
-      aria-hidden="true"
-      className="text-muted-foreground"
-    />
-  ) : (
-    <CloudArrowUp
-      size={18}
-      aria-hidden="true"
-      className="text-muted-foreground"
-    />
-  )
-}
-
 function ReminderRow({
   label,
   reminder,
@@ -1606,97 +1466,12 @@ function ReminderRow({
           />
         </label>
         <CompactSwitch
+          onInteract={hapticSelection}
           checked={reminder.enabled}
           onChange={(enabled) => onChange({ enabled })}
           label={`${label} reminder`}
         />
       </div>
-    </div>
-  )
-}
-
-function SettingsRow({
-  label,
-  detail,
-  children,
-}: {
-  label: string
-  detail?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="native-list-row flex-wrap">
-      <span className="min-w-[8rem] flex-1">
-        <span className="native-row-title block">{label}</span>
-        {detail && (
-          <span className="native-row-detail mt-0.5 block">{detail}</span>
-        )}
-      </span>
-      <div className="ml-auto max-w-full overflow-x-auto">{children}</div>
-    </div>
-  )
-}
-
-type AiUsageSummary = {
-  count: number
-  remaining: number
-  limit: number
-  month: string
-}
-
-function formatAiUsageMonth(month: string) {
-  const date = new Date(`${month}-01T12:00:00Z`)
-  if (Number.isNaN(date.getTime())) return "This month"
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  })
-}
-
-function AiUsageProgress({ usage }: { usage?: AiUsageSummary | null }) {
-  const limit = usage?.limit ?? 150
-  const count = usage?.count ?? 0
-  const remaining = usage?.remaining ?? limit
-  const percent =
-    limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : 0
-  const isNearLimit = remaining <= 15
-
-  return (
-    <div className="px-[var(--app-page-x)] py-4">
-      <div className="mb-2 flex items-start justify-between gap-3">
-        <div>
-          <p className="native-row-title">Monthly requests</p>
-          <p className="native-row-detail mt-0.5">
-            {formatAiUsageMonth(usage?.month ?? "")} · {remaining} request
-            {remaining === 1 ? "" : "s"} left
-          </p>
-        </div>
-        <p className="native-row-value shrink-0">
-          {count}/{limit}
-        </p>
-      </div>
-      <div
-        className="h-2 overflow-hidden rounded-full bg-muted"
-        role="progressbar"
-        aria-label="Monthly AI usage"
-        aria-valuemin={0}
-        aria-valuemax={limit}
-        aria-valuenow={count}
-      >
-        <div
-          className="h-full rounded-full transition-[width,background-color]"
-          style={{
-            width: `${percent}%`,
-            backgroundColor: isNearLimit
-              ? "var(--status-danger)"
-              : "var(--foreground)",
-          }}
-        />
-      </div>
-      <p className="native-row-detail mt-2">
-        Shared across AI metrics, workout generation, and food photo analysis.
-      </p>
     </div>
   )
 }
@@ -1999,212 +1774,5 @@ function RevenueCatSubscriptionPanel({
         </div>
       )}
     </>
-  )
-}
-
-function SectionSaveButton({
-  label,
-  saving,
-  onClick,
-}: {
-  label: string
-  saving: boolean
-  onClick: () => void
-}) {
-  return (
-    <div className="px-[var(--app-page-x)] pt-5">
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={saving}
-        className="native-primary-button w-full disabled:opacity-50"
-      >
-        {saving ? "Saving..." : label}
-      </button>
-    </div>
-  )
-}
-
-function NumberStepper({
-  value,
-  onChange,
-  suffix,
-  min,
-  max,
-  step,
-  label,
-}: {
-  value: number
-  onChange: (v: number) => void
-  suffix?: string
-  min: number
-  max: number
-  step: number
-  label?: string
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(String(value))
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!editing) setDraft(String(value))
-  }, [value, editing])
-
-  function decrement() {
-    const n = Math.max(min, value - step)
-    hapticTap()
-    onChange(n)
-  }
-
-  function increment() {
-    const n = Math.min(max, value + step)
-    hapticTap()
-    onChange(n)
-  }
-
-  function commit() {
-    // Validate the entire string is a plain integer (no partial matches, no scientific notation)
-    const isValidInteger = /^[+-]?\d+$/.test(draft.trim())
-    if (isValidInteger) {
-      const parsed = Number(draft.trim())
-      onChange(Math.max(min, Math.min(max, parsed)))
-    } else {
-      setDraft(String(value))
-    }
-    setEditing(false)
-  }
-
-  return (
-    <div className="flex items-center gap-1">
-      {/* Decrement */}
-      <button
-        type="button"
-        onClick={decrement}
-        disabled={value <= min}
-        aria-label={label ? `Decrease ${label}` : "Decrease"}
-        className={cn(
-          "flex size-11 items-center justify-center rounded-[0.65rem]",
-          "bg-muted text-foreground transition-colors",
-          "active:bg-[var(--surface-pressed)]",
-          "disabled:pointer-events-none disabled:opacity-25"
-        )}
-      >
-        <Minus size={13} weight="bold" />
-      </button>
-
-      {/* Value display / inline edit */}
-      <button
-        type="button"
-        onClick={() => {
-          setEditing(true)
-          setDraft(String(value))
-          setTimeout(() => {
-            inputRef.current?.focus()
-            inputRef.current?.select()
-          }, 0)
-        }}
-        aria-label={
-          label
-            ? `Edit ${label}, current value ${value}`
-            : `Edit value ${value}`
-        }
-        className={cn(
-          "relative flex min-h-11 min-w-[68px] flex-col items-center justify-center rounded-[0.65rem] px-2",
-          "bg-muted transition-colors",
-          editing && "hidden"
-        )}
-      >
-        <span className="text-[14px] leading-none font-semibold tabular-nums">
-          {value}
-        </span>
-        {suffix && (
-          <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">
-            {suffix}
-          </span>
-        )}
-      </button>
-
-      {editing && (
-        <div className="flex min-h-11 min-w-[68px] flex-col items-center justify-center rounded-[0.65rem] bg-muted px-2 ring-1 ring-foreground/35">
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commit()
-            }}
-            aria-label={label || "Value"}
-            className="w-12 bg-transparent text-center text-[14px] leading-none font-semibold tabular-nums focus:outline-none"
-            style={
-              {
-                WebkitAppearance: "none",
-                MozAppearance: "textfield",
-              } as React.CSSProperties
-            }
-          />
-          {suffix && (
-            <span className="mt-0.5 text-[13px] font-medium text-muted-foreground">
-              {suffix}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Increment */}
-      <button
-        type="button"
-        onClick={increment}
-        disabled={value >= max}
-        aria-label={label ? `Increase ${label}` : "Increase"}
-        className={cn(
-          "flex size-11 items-center justify-center rounded-[0.65rem]",
-          "bg-muted text-foreground transition-colors",
-          "active:bg-[var(--surface-pressed)]",
-          "disabled:pointer-events-none disabled:opacity-25"
-        )}
-      >
-        <Plus size={13} weight="bold" />
-      </button>
-    </div>
-  )
-}
-
-function SegmentedControl({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  options: { value: string; label: string }[]
-}) {
-  return (
-    <div
-      className="app-segmented auto-cols-fr grid-flow-col"
-      role="group"
-      aria-label={label}
-    >
-      {options.map((opt) => (
-        <button
-          type="button"
-          key={opt.value}
-          aria-pressed={value === opt.value}
-          data-active={value === opt.value}
-          onClick={() => {
-            hapticSelection()
-            onChange(opt.value)
-          }}
-          className="app-segmented-button whitespace-nowrap"
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
   )
 }

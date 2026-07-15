@@ -1,5 +1,5 @@
 import { ArrowLeft, Barbell, Clock } from "@phosphor-icons/react"
-import { NavigationBar, ToolbarButton } from "@/components/mobile-ui"
+import { NavigationBar, ToolbarButton } from "@repo/ui"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 

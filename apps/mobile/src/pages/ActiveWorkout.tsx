@@ -3,7 +3,12 @@ import { useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { useAction, useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { toast } from "sonner"
+import {
+  ExerciseSuggestionGroups,
+  RestTimerSheet,
+  formatRestDuration as formatRest,
+  toast,
+} from "@repo/ui"
 import {
   ArrowLeft,
   AppleLogo,
@@ -20,7 +25,6 @@ import {
   PaperPlaneRight,
   Plus,
   Sparkle,
-  Timer,
   TrendUp,
   Warning,
   X,
@@ -79,7 +83,7 @@ import {
   type AppleHealthWorkout,
 } from "@/lib/apple-health"
 import { useAiFeatureGate } from "@/lib/ai-access"
-import { AppleFitnessSetRow } from "@/components/workout/apple-fitness-set-row"
+import { AppleFitnessSetRow } from "@repo/ui"
 import { suggestDoubleProgression } from "@/lib/workout-progression"
 import { useCoachContext } from "@/lib/coach-context"
 
@@ -268,7 +272,6 @@ const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
   },
 }
 
-const REST_OPTS = [0, 30, 60, 90, 120, 150, 180, 240, 300]
 const KG_TO_LBS = 2.20462
 
 const BAR_TYPES = ["olympic", "womens", "ez", "trap", "custom"] as const
@@ -343,27 +346,6 @@ const HEART_RATE_ZONES: Array<{
 
 function uid() {
   return createClientId()
-}
-
-function formatRest(s: number) {
-  if (s <= 0) return "Off"
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
-}
-
-function splitRest(seconds: number) {
-  return {
-    minutes: String(Math.floor(seconds / 60)),
-    secs: String(seconds % 60).padStart(2, "0"),
-  }
-}
-
-function clampRestInput(minutes: string, secs: string) {
-  const safeMinutes = Math.max(0, Number.parseInt(minutes || "0", 10) || 0)
-  const safeSeconds = Math.min(
-    59,
-    Math.max(0, Number.parseInt(secs || "0", 10) || 0)
-  )
-  return safeMinutes * 60 + safeSeconds
 }
 
 function formatElapsed(s: number) {
@@ -1191,118 +1173,6 @@ function useElapsedTimer(startedAt: number | null) {
 }
 
 // ─── Rest timer picker sheet ──────────────────────────────────────────────────
-
-function RestTimerSheet({
-  current,
-  onSelect,
-  onClose,
-}: {
-  current: number
-  onSelect: (s: number) => void
-  onClose: () => void
-}) {
-  const [minutes, setMinutes] = useState(() => splitRest(current).minutes)
-  const [secs, setSecs] = useState(() => splitRest(current).secs)
-
-  useEffect(() => {
-    const next = splitRest(current)
-    setMinutes(next.minutes)
-    setSecs(next.secs)
-  }, [current])
-
-  return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-[6px]"
-      onClick={onClose}
-    >
-      <div
-        className="sheet-panel app-sheet-panel w-full max-w-sm overflow-hidden"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="app-sheet-handle" />
-        </div>
-        <div className="flex items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-2">
-            <Timer size={14} className="text-muted-foreground/60" />
-            <span className="text-[14px] font-bold">Rest timer</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close rest timer"
-            className="app-icon-button"
-          >
-            <X size={13} weight="bold" />
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-2 px-4 pb-3">
-          {REST_OPTS.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => onSelect(s)}
-              className={cn(
-                "h-[52px] rounded-[10px] text-[14px] font-semibold tabular-nums transition-all",
-                s === current
-                  ? "bg-foreground text-background"
-                  : "bg-muted/50 text-muted-foreground/80 active:bg-muted"
-              )}
-            >
-              {formatRest(s)}
-            </button>
-          ))}
-        </div>
-        <div className="border-t border-border/40 px-4 pt-3 pb-2">
-          <p className="mb-2.5 text-[13px] font-medium text-muted-foreground">
-            Custom
-          </p>
-          <div className="flex items-end gap-2">
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[13px] font-bold text-muted-foreground">
-                Min
-              </span>
-              <input
-                type="number"
-                min="0"
-                inputMode="numeric"
-                value={minutes}
-                onChange={(event) => setMinutes(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-semibold tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </label>
-            <span className="mb-3 text-[18px] font-light text-muted-foreground">
-              :
-            </span>
-            <label className="flex flex-1 flex-col gap-1">
-              <span className="text-[13px] font-bold text-muted-foreground">
-                Sec
-              </span>
-              <input
-                type="number"
-                min="0"
-                max="59"
-                inputMode="numeric"
-                value={secs}
-                onChange={(event) => setSecs(event.target.value)}
-                className="h-12 [appearance:textfield] rounded-[10px] border border-border/45 bg-muted/25 px-3 text-center text-[18px] font-semibold tabular-nums outline-none focus:border-foreground/35 focus:bg-background/70 [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </label>
-            <button
-              onClick={() => onSelect(clampRestInput(minutes, secs))}
-              className="h-12 shrink-0 rounded-[10px] bg-foreground px-5 text-[13px] font-bold text-background transition-opacity active:opacity-80"
-            >
-              Set
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function WeightSelectorSheet({
   currentWeight,
@@ -3530,80 +3400,6 @@ function ExerciseSearchResult({
         )}
       </span>
     </button>
-  )
-}
-
-function ExerciseSuggestionGroups({
-  recentSuggestions,
-  popularSuggestions,
-  onChoose,
-}: {
-  recentSuggestions: RecentExerciseSearch[]
-  popularSuggestions: Exercise[]
-  onChoose: (exercise: ExerciseSearchSuggestion) => void
-}) {
-  if (recentSuggestions.length === 0 && popularSuggestions.length === 0) {
-    return null
-  }
-
-  return (
-    <div className="flex w-full flex-col gap-6">
-      <ExerciseSuggestionChips
-        label="Recent"
-        suggestions={recentSuggestions}
-        onChoose={onChoose}
-      />
-      <ExerciseSuggestionChips
-        label="Popular"
-        suggestions={popularSuggestions}
-        onChoose={onChoose}
-      />
-    </div>
-  )
-}
-
-function ExerciseSuggestionChips({
-  label,
-  suggestions,
-  onChoose,
-}: {
-  label: string
-  suggestions: ExerciseSearchSuggestion[]
-  onChoose: (exercise: ExerciseSearchSuggestion) => void
-}) {
-  if (suggestions.length === 0) return null
-
-  return (
-    <div className="w-full">
-      <p className="border-b border-border/60 px-1 pb-2 text-[14px] font-semibold text-foreground">
-        {label}
-      </p>
-      <div className="divide-y divide-border/50">
-        {suggestions.map((exercise) => (
-          <button
-            key={exercise.id}
-            type="button"
-            onClick={() => onChoose(exercise)}
-            className="flex min-h-[56px] w-full min-w-0 items-center gap-3 px-1 text-left transition-colors active:bg-muted/60"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-medium text-foreground">
-                {exercise.name}
-              </span>
-              <span className="mt-0.5 block text-[13px] text-muted-foreground capitalize">
-                {exercise.category}
-                {"muscle" in exercise && exercise.muscle
-                  ? ` · ${exercise.muscle}`
-                  : ""}
-              </span>
-            </span>
-            <span className="shrink-0 text-[13px] font-medium text-muted-foreground">
-              Search
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
   )
 }
 

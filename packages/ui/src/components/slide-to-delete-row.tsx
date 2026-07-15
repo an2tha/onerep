@@ -1,6 +1,6 @@
 import React, { type ReactNode } from "react"
 import { Trash } from "@phosphor-icons/react"
-import { cn } from "@/lib/utils"
+import { cn } from "../lib/utils"
 
 const DEFAULT_ACTION_WIDTH = 72
 

@@ -1,13 +1,35 @@
 {
-  "$schema": "https://turborepo.dev/schema.json",
+  "$schema": "https://v2-10-5.turborepo.dev/schema.json",
   "ui": "tui",
+  "globalDependencies": [".env*", "convex/_generated/**"],
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["typecheck", "^build"],
+      "outputs": ["dist/**", ".svelte-kit/**", "*.tsbuildinfo"],
       "env": [
         "CONVEX_DEPLOYMENT",
         "VITE_CLERK_PUBLISHABLE_KEY",
-        "VITE_CONVEX_URL"
+        "VITE_CONVEX_URL",
+        "VITE_CONVEX_SITE_URL",
+        "VITE_APP_URL",
+        "VITE_SITE_URL",
+        "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
+        "VITE_PUBLIC_POSTHOG_HOST"
+      ],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"]
+    },
+    "mobile#build": {
+      "dependsOn": ["typecheck", "^typecheck"],
+      "outputs": ["dist/**", "*.tsbuildinfo"],
+      "env": [
+        "CONVEX_DEPLOYMENT",
+        "VITE_CLERK_PUBLISHABLE_KEY",
+        "VITE_CONVEX_URL",
+        "VITE_CONVEX_SITE_URL",
+        "VITE_APP_URL",
+        "VITE_SITE_URL",
+        "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
+        "VITE_PUBLIC_POSTHOG_HOST"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
@@ -18,7 +40,14 @@
       "dependsOn": ["^typecheck"]
     },
     "format": {
-      "dependsOn": ["^format"]
+      "dependsOn": ["^format"],
+      "cache": false
+    },
+    "test": {
+      "dependsOn": ["typecheck", "^typecheck"]
+    },
+    "//#test:convex-unit": {
+      "dependsOn": []
     },
     "dev": {
       "cache": false,

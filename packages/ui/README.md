@@ -1,21 +1,38 @@
-# React + TypeScript + Vite + shadcn/ui
+# `@repo/ui`
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
+`@repo/ui` is the repository's presentation boundary. It owns shared
+primitives, semantic mobile components, and feature presenters. Applications
+own routing, data fetching, mutations, authentication, platform APIs, haptics,
+storage, and feature state.
 
-## Adding components
+## Imports
 
-To add components to your app, run the following command:
+The root entry point remains available for compatibility. Prefer the focused
+entry points for feature code:
 
-```bash
-npx shadcn@latest add button
+- `@repo/ui/mobile`
+- `@repo/ui/workout`
+- `@repo/ui/nutrition`
+- `@repo/ui/progress`
+- `@repo/ui/settings`
+- `@repo/ui/home`
+
+Import the canonical stylesheet once from `@repo/ui/styles.css`.
+
+## Adding UI
+
+Components in this package receive serializable view data, controlled values,
+content slots, and callbacks. They must not import Convex, application routes,
+application stores, Capacitor, native services, or generated backend types.
+
+`packages/ui/components.json` is the only shadcn configuration in the
+repository. Run shadcn from this directory, for example:
+
+```sh
+cd packages/ui
+bunx shadcn@latest add button
 ```
 
-This will place the ui components in the `src/components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
-```
+Export supported components from the appropriate focused entry point and from
+the compatibility root when existing callers need it. The package-boundary
+tests enforce the dependency direction and mobile's primitive-import rules.

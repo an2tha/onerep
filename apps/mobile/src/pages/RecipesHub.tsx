@@ -21,13 +21,13 @@ import {
 } from "@phosphor-icons/react"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { api } from "../../../../convex/_generated/api"
-import { NavigationBar, ToolbarButton } from "@/components/mobile-ui"
+import { NavigationBar, ToolbarButton } from "@repo/ui"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { currentDateKey, type Recipe } from "@/lib/food-log"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 
 export type StarterRecipe = {
   id: string

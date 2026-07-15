@@ -1,13 +1,6 @@
-import { useState, type ReactNode } from "react"
+import type { ReactNode } from "react"
 import { useMutation, useQuery } from "convex/react"
-import {
-  GuidedTooltip,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@repo/ui"
-import { Info } from "@phosphor-icons/react"
+import { GuidedTooltip } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { hapticMedium } from "@/lib/haptics"
 
@@ -75,45 +68,4 @@ export function AppTooltip({
   )
 }
 
-type MetricTooltipProps = {
-  label: string
-  children: ReactNode
-  side?: React.ComponentProps<typeof TooltipContent>["side"]
-  align?: React.ComponentProps<typeof TooltipContent>["align"]
-}
-
-/** Persistent, user-invoked help for metric definitions and chart legends. */
-export function MetricTooltip({
-  label,
-  children,
-  side = "top",
-  align = "center",
-}: MetricTooltipProps) {
-  const [open, setOpen] = useState(false)
-
-  return (
-    <TooltipProvider delayDuration={250}>
-      <Tooltip open={open} onOpenChange={setOpen}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            aria-label={`About ${label}`}
-            aria-expanded={open}
-            onClick={() => setOpen((current) => !current)}
-            className="-m-2 inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:text-foreground"
-          >
-            <Info size={17} weight="regular" aria-hidden="true" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side={side}
-          align={align}
-          sideOffset={6}
-          className="max-w-[min(20rem,calc(100vw-2rem))] leading-5"
-        >
-          {children}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
+export { MetricTooltip } from "@repo/ui"

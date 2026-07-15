@@ -15,8 +15,8 @@ import {
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { SwipeToStart } from "@/components/swipe-to-start"
-import { DateSelectorButton } from "@/components/date-selector-button"
+import { SwipeToStart } from "@repo/ui"
+import { DateSelectorButton } from "@repo/ui"
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
@@ -39,9 +39,9 @@ import {
   buildCatalogMap,
   type MuscleSets,
 } from "@/lib/muscle-volume"
-import { MuscleRecoveryHeatmapCard } from "@/components/muscle-recovery-heatmap"
-import { PrimaryButton } from "@/components/mobile-ui"
-import { AnimatedAccordion } from "@/components/animated-accordion"
+import { MuscleRecoveryHeatmapCard } from "@repo/ui"
+import { PrimaryButton } from "@repo/ui"
+import { AnimatedAccordion } from "@repo/ui"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import {
   getLoggedExerciseId,
@@ -51,7 +51,7 @@ import {
 import {
   APP_ACCENT_COLORS,
   MUSCLE_COLORS as ONE_REP_MUSCLE_COLORS,
-} from "@/lib/design-tokens"
+} from "@repo/ui"
 import { offsetDateKey } from "@/lib/food-log"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 
@@ -1166,6 +1166,7 @@ export default function Workouts() {
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
+              onInteract={hapticSelection}
               value={dateKey}
               todayKey={todayKey}
               onChange={setDateKey}

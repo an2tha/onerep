@@ -1,6 +1,6 @@
 import { useRef, useState } from "react"
 import { CaretRight, PencilSimple } from "@phosphor-icons/react"
-import { APP_ACCENT_COLORS, tint } from "@/lib/design-tokens"
+import { APP_ACCENT_COLORS, tint } from "@repo/ui"
 
 export function SwipeToStart({
   onComplete,

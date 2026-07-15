@@ -8,7 +8,12 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { MobileSheet } from "./mobile-sheet"
-import { AnimatedAccordion } from "./animated-accordion"
+import { AnimatedAccordion } from "@repo/ui"
+import {
+  FoodMacroStack as MacroStack,
+  FoodNutrientRow as NutrRow,
+  FoodProductHeader as ProductHeader,
+} from "@repo/ui"
 import {
   FOOD_PORTION_UNITS,
   amountFromFoodPortionGrams,
@@ -28,7 +33,7 @@ import {
 import type { FoodResult, FoodDetail } from "@repo/models"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
-import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
+import { APP_ACCENT_COLORS, tint } from "@repo/ui"
 
 type Detail = FoodDetail | null | undefined
 
@@ -42,34 +47,12 @@ function scale(per100g: number, grams: number): number {
   return Math.round(v * 100) / 100
 }
 
-const MACRO_CFG = [
-  {
-    key: "proteins",
-    label: "Protein",
-    color: MACRO_COLORS.protein,
-    kcalPerG: 4,
-  },
-  {
-    key: "carbohydrates",
-    label: "Carbs",
-    color: MACRO_COLORS.carbs,
-    kcalPerG: 4,
-  },
-  { key: "fat", label: "Fat", color: MACRO_COLORS.fat, kcalPerG: 9 },
-]
-
 function formatNumber(value: number, maximumFractionDigits = 1) {
   const safeValue = Number.isFinite(value) ? value : 0
   return new Intl.NumberFormat("en-US", {
     maximumFractionDigits:
       Math.abs(safeValue) >= 100 ? 0 : maximumFractionDigits,
   }).format(safeValue)
-}
-
-function formatNutrientValue(value: number) {
-  if (Math.abs(value) >= 100) return formatNumber(value, 0)
-  if (Math.abs(value) >= 10) return formatNumber(value, 1)
-  return formatNumber(value, 2)
 }
 
 function initialFoodDetail(item: FoodResult): FoodDetail | null {
@@ -100,46 +83,6 @@ function foodLooksLiquid(
 }
 
 // ─── Macro summary ───────────────────────────────────────────────────────────
-
-function MacroStack({
-  protein,
-  carbs,
-  fat,
-}: {
-  protein: number
-  carbs: number
-  fat: number
-}) {
-  const vals = [protein, carbs, fat]
-  const cals = vals.map((v, i) => v * MACRO_CFG[i].kcalPerG)
-  const macroKcalTotal = cals.reduce((a, b) => a + b, 0)
-  const total = macroKcalTotal || 1
-  return (
-    <div className="grid grid-cols-3 gap-2">
-      {MACRO_CFG.map((m, i) => {
-        const pct = Math.round((cals[i] / total) * 100)
-        return (
-          <div key={m.key} className="rounded-2xl bg-muted/45 px-3 py-3">
-            <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: m.color }}
-                aria-hidden="true"
-              />
-              {m.label}
-            </span>
-            <strong className="mt-2 block text-[18px] leading-none tabular-nums">
-              {formatNutrientValue(vals[i])} g
-            </strong>
-            <span className="mt-1 block text-[10px] text-muted-foreground tabular-nums">
-              {pct}% of energy
-            </span>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
 
 // ─── Portion picker ───────────────────────────────────────────────────────────
 
@@ -316,79 +259,8 @@ function PortionPicker({
 
 // ─── Nutrition row ────────────────────────────────────────────────────────────
 
-function NutrRow({
-  label,
-  value,
-  unit,
-  indent,
-  bold,
-}: {
-  label: string
-  value: number
-  unit: string
-  indent?: boolean
-  bold?: boolean
-}) {
-  return (
-    <div
-      className="flex items-baseline justify-between gap-3 py-[9px]"
-      style={{ paddingLeft: indent ? 16 : 0 }}
-    >
-      <span
-        className={`min-w-0 truncate text-[13px] leading-none ${bold ? "font-semibold" : indent ? "text-muted-foreground/60" : ""}`}
-      >
-        {label}
-      </span>
-      <span
-        className={`shrink-0 text-[13px] leading-none tabular-nums ${indent ? "text-muted-foreground/60" : bold ? "font-semibold" : ""}`}
-      >
-        {formatNutrientValue(value)}
-        <span className="ml-1 text-[13px] text-muted-foreground">{unit}</span>
-      </span>
-    </div>
-  )
-}
-
+// ─── Header
 // ─── Header + highlights ─────────────────────────────────────────────────────
-
-function ProductHeader({
-  item,
-  calories,
-  portion,
-  presentation,
-}: {
-  item: FoodResult
-  calories: number
-  portion: FoodPortion
-  presentation: "sheet" | "page"
-}) {
-  return (
-    <header
-      className={
-        presentation === "page"
-          ? "px-4 pt-5 pb-4 md:px-8 md:pt-8"
-          : "px-4 pb-4 md:px-8 md:pt-8"
-      }
-    >
-      {presentation !== "page" && (
-        <div>
-          <h2 className="text-[26px] leading-tight font-bold tracking-[-0.035em]">
-            {item.name}
-          </h2>
-        </div>
-      )}
-      <div className="mt-2 flex items-baseline gap-2 text-[13px] text-muted-foreground">
-        {item.brand && <span className="truncate">{item.brand}</span>}
-        {item.brand && <span aria-hidden>·</span>}
-        <span>{foodPortionLabel(portion)}</span>
-        <span aria-hidden>·</span>
-        <strong className="font-semibold text-foreground tabular-nums">
-          {formatNumber(calories, 0)} kcal
-        </strong>
-      </div>
-    </header>
-  )
-}
 
 // ─── Meal picker ─────────────────────────────────────────────────────────────
 
@@ -791,9 +663,10 @@ export function FoodDetailSheet({
       }
     >
       <ProductHeader
-        item={item}
+        name={item.name}
+        brand={item.brand}
         calories={calories}
-        portion={portion}
+        portionLabel={foodPortionLabel(portion)}
         presentation={presentation}
       />
 

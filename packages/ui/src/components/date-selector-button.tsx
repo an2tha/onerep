@@ -1,7 +1,11 @@
 import { CalendarBlank, CaretLeft, CaretRight, X } from "@phosphor-icons/react"
-import { MobileSheet } from "@/components/mobile-sheet"
-import { hapticSelection } from "@/lib/haptics"
-import { offsetDateKey } from "@/lib/food-log"
+import { MobileSheet } from "./mobile-sheet"
+
+function offsetDateKey(dateKey: string, days: number) {
+  const date = new Date(`${dateKey}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
 
 function formatDateLabel(dateKey: string, todayKey: string) {
   if (dateKey === todayKey) return "Today"
@@ -22,6 +26,7 @@ export function DateSelectorButton({
   open,
   onOpenChange,
   label = "Select date",
+  onInteract,
 }: {
   value: string
   todayKey: string
@@ -29,13 +34,14 @@ export function DateSelectorButton({
   open: boolean
   onOpenChange: (open: boolean) => void
   label?: string
+  onInteract?: () => void
 }) {
   const isToday = value === todayKey
   const dateLabel = formatDateLabel(value, todayKey)
 
   function setDate(next: string) {
     onChange(next)
-    void hapticSelection()
+    onInteract?.()
   }
 
   return (

@@ -32,7 +32,7 @@ import {
 } from "@phosphor-icons/react"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 import {
   cn,
   createClientId,
@@ -564,7 +564,9 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
 }
 
 function validateCoachOperations(operations: CoachOperation[]) {
-  return validateSharedCoachOperations(operations as Parameters<typeof validateSharedCoachOperations>[0])
+  return validateSharedCoachOperations(
+    operations as Parameters<typeof validateSharedCoachOperations>[0]
+  )
   /* Legacy validation retained temporarily for persisted pre-refactor messages.
   const errors: string[] = []
   for (const operation of operations) {

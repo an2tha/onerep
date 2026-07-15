@@ -1,4 +1,12 @@
-import type { MuscleRecovery } from "@/lib/muscle-volume"
+export type MuscleRecoveryItem = {
+  muscle: string
+  status: "trained" | "recovering" | "overdue"
+  daysSinceLastTrained: number
+  effectiveSets: number
+  lastTrainedDate?: string
+  primarySets?: number
+  secondarySets?: number
+}
 
 type Region = "chest" | "arms" | "core" | "back" | "glutes" | "legs"
 
@@ -11,7 +19,7 @@ const REGION_ALIASES: Record<Region, string[]> = {
   legs: ["quads", "quadriceps", "hamstrings", "calves", "adductors"],
 }
 
-function statusForRegion(items: MuscleRecovery[], region: Region) {
+function statusForRegion(items: MuscleRecoveryItem[], region: Region) {
   const matches = items.filter((item) =>
     REGION_ALIASES[region].some((alias) => item.muscle.includes(alias))
   )
@@ -36,7 +44,7 @@ export function MuscleBodySvg({
   width,
   height,
 }: {
-  recovery: MuscleRecovery[]
+  recovery: MuscleRecoveryItem[]
   className?: string
   x?: number | string
   y?: number | string

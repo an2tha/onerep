@@ -1,7 +1,7 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig, loadEnv, type Plugin } from "vite"
+import { defineConfig, loadEnv } from "vite"
 
 const uiRoot = path.resolve(__dirname, "../../packages/ui/src")
 const appRoot = path.resolve(__dirname, "./src")
@@ -19,22 +19,6 @@ function isPlaceholderServiceUrl(value: string | undefined) {
     )
   } catch {
     return true
-  }
-}
-
-// Redirect `@/...` imports that originate from inside packages/ui/src
-// to that package's own src root, not the app's src root.
-function uiAliasPlugin(): Plugin {
-  return {
-    name: "ui-alias",
-    enforce: "pre",
-    async resolveId(source, importer) {
-      if (!source.startsWith("@/")) return null
-      if (!importer?.includes("/packages/ui/src/")) return null
-      return this.resolve(path.resolve(uiRoot, source.slice(2)), importer, {
-        skipSelf: true,
-      })
-    },
   }
 }
 
@@ -81,7 +65,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     envDir: envRoot,
-    plugins: [uiAliasPlugin(), react(), tailwindcss()],
+    plugins: [react(), tailwindcss()],
     build: {
       rollupOptions: {
         output: {
@@ -116,6 +100,7 @@ export default defineConfig(({ command, mode }) => {
       dedupe: ["convex", "react", "react-dom"],
       alias: {
         "@": appRoot,
+        "@repo/ui/styles.css": path.resolve(uiRoot, "index.css"),
         "@repo/ui": uiRoot,
         convex: path.resolve(mobileNodeModules, "convex"),
       },

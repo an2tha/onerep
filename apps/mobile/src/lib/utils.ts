@@ -1,9 +1,4 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+export { cn } from "@repo/ui"
 
 export function localDateKey(date = new Date()) {
   const year = date.getFullYear()
@@ -18,10 +13,7 @@ export function createClientId() {
   return `${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
-export type StorageLike = Pick<
-  Storage,
-  "getItem" | "setItem" | "removeItem"
-> &
+export type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem"> &
   Partial<Pick<Storage, "key" | "length">>
 
 function browserStorage(kind: "localStorage" | "sessionStorage") {

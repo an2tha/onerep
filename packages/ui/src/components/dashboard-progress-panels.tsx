@@ -1,8 +1,29 @@
-import { Card } from "@repo/ui"
-import { sparklinePoints } from "@/lib/progress-metrics"
-import type { BodyMeasurementEntry } from "@/lib/body-progress"
-import type { MuscleRecovery } from "@/lib/muscle-volume"
-import { MuscleBodySvg } from "@/components/muscle-body-svg"
+import { Card } from "./ui/card"
+import { MuscleBodySvg, type MuscleRecoveryItem } from "./muscle-body-svg"
+
+export type DashboardBodyMeasurementView = {
+  weightKg?: number
+  bodyFatPct?: number
+  waistCm?: number
+  chestCm?: number
+  armsCm?: number
+  thighsCm?: number
+}
+
+function sparklinePoints(values: number[], width: number, height: number) {
+  if (values.length === 0) return ""
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const range = max - min || 1
+  return values
+    .map((value, index) => {
+      const x =
+        values.length === 1 ? width / 2 : (index / (values.length - 1)) * width
+      const y = height - ((value - min) / range) * (height * 0.85)
+      return `${x},${y}`
+    })
+    .join(" ")
+}
 
 export type TrendMetric =
   "bodyFatPct" | "waistCm" | "chestCm" | "armsCm" | "thighsCm"
@@ -192,12 +213,12 @@ export function DashboardProgressPanels({
   muscleRecovery,
   weightUnit,
 }: {
-  measurements: BodyMeasurementEntry[]
+  measurements: DashboardBodyMeasurementView[]
   metric: TrendMetric
   onMetricChange: (metric: TrendMetric) => void
   tdee: number
   calorieTarget: number
-  muscleRecovery: MuscleRecovery[]
+  muscleRecovery: MuscleRecoveryItem[]
   weightUnit: "kg" | "lbs"
 }) {
   const selected = METRICS.find((item) => item.id === metric) ?? METRICS[0]

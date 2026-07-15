@@ -44,13 +44,13 @@ import {
   type PinnedCoachGoal,
   type TimelineEvent,
   type WorkoutWeekDay,
-} from "@/components/home"
+} from "@repo/ui"
 import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { AnimatedAccordion } from "@/components/animated-accordion"
-import { SwipeToStart } from "@/components/swipe-to-start"
-import { SlideToDeleteRow } from "@/components/slide-to-delete-row"
+import { AnimatedAccordion } from "@repo/ui"
+import { SwipeToStart } from "@repo/ui"
+import { SlideToDeleteRow } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import {
   buildCalendarDays,
@@ -106,14 +106,11 @@ import {
   PopoverTrigger,
 } from "@repo/ui"
 import { hapticHeavy, hapticSelection } from "@/lib/haptics"
-import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@/lib/design-tokens"
-import {
-  DashboardProgressPanels,
-  type TrendMetric,
-} from "@/components/dashboard-progress-panels"
+import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
+import { DashboardProgressPanels, type TrendMetric } from "@repo/ui"
 import { useMuscleRecovery } from "@/lib/use-muscle-recovery"
 import type { BodyMeasurementEntry } from "@/lib/body-progress"
-import { toast } from "sonner"
+import { toast } from "@repo/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

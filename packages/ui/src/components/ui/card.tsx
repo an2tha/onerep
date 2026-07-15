@@ -1,6 +1,6 @@
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 
 function Card({
   className,
@@ -12,7 +12,7 @@ function Card({
       data-slot="card"
       data-size={size}
       className={cn(
-        "group/card flex min-w-0 max-w-full flex-col gap-6 overflow-hidden break-words rounded-xl bg-card py-6 text-sm text-card-foreground shadow-xs ring-1 ring-foreground/10 has-[>img:first-child]:pt-0 data-[size=sm]:gap-4 data-[size=sm]:py-4 *:min-w-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl [&_img]:max-w-full [&_svg]:max-w-full [&_svg]:shrink-0",
+        "group/card flex max-w-full min-w-0 flex-col gap-6 overflow-hidden rounded-xl bg-card py-6 text-sm break-words text-card-foreground shadow-xs ring-1 ring-foreground/10 *:min-w-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-4 data-[size=sm]:py-4 [&_img]:max-w-full [&_svg]:max-w-full [&_svg]:shrink-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
         className
       )}
       {...props}
@@ -38,7 +38,7 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card-title"
       className={cn(
-        "min-w-0 break-words font-heading text-base leading-normal font-medium group-data-[size=sm]/card:text-sm",
+        "min-w-0 font-heading text-base leading-normal font-medium break-words group-data-[size=sm]/card:text-sm",
         className
       )}
       {...props}
@@ -50,7 +50,10 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("min-w-0 break-words text-sm text-muted-foreground", className)}
+      className={cn(
+        "min-w-0 text-sm break-words text-muted-foreground",
+        className
+      )}
       {...props}
     />
   )
