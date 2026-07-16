@@ -32,11 +32,32 @@ GET /v1/products/search?q=hazelnut&limit=20
 OFF product-name search only contains data when `withSearch` is enabled during
 the import. Exact barcode lookup is always available.
 
+## Download source datasets
+
+Use the standalone downloader before starting an import. It downloads the USDA
+archives concurrently and splits large files into parallel HTTP byte ranges
+(default: 8). Completed files are published atomically and completed range
+parts can be reused after an interrupted run.
+
+```bash
+bun run download all --concurrency 12
+# or individually:
+bun run download usda
+bun run download off
+```
+
+Files are written to `data/cache` by default. Use `--output DIR`, `--legacy`,
+or `--off-url URL` to override this. Open Food Facts defaults to the official
+Hugging Face `food.parquet` export. Set `DOWNLOAD_CONCURRENCY` to configure
+server-triggered downloads too. `USDA_API_KEY` is not needed by FoodData
+Central's public bulk archives and is deliberately not stored in this app.
+
 ## Build/update USDA
 
 The server discovers the newest official USDA JSON downloads. Foundation and
 Survey/FNDDS are imported by default; SR Legacy is optional because it is much
-larger in memory while unpacking.
+larger in memory while unpacking. The source archives are downloaded in
+parallel when they are not already available.
 
 ```bash
 curl -X POST http://localhost:3100/admin/sync/usda \
@@ -62,8 +83,10 @@ curl -X POST http://localhost:3100/admin/sync/openfoodfacts \
   }'
 ```
 
-Alternatively pass a downloadable Parquet `url`. The response is a job object;
-poll `GET /admin/jobs/:id` until it completes.
+Alternatively pass a downloadable Parquet `url`. If you ran `bun run download
+off`, omit both `input` and `url`; the importer automatically reads
+`data/cache/openfoodfacts.parquet`. The response is a job object; poll
+`GET /admin/jobs/:id` until it completes.
 
 ## Safe database promotion
 

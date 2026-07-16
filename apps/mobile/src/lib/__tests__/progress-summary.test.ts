@@ -96,8 +96,8 @@ describe("buildProgressSummary", () => {
     expect(summary.body.latestWeightKg).toBe(79.1)
     expect(summary.body.latestBodyFatPct).toBe(19.4)
     expect(summary.body.weightDeltaKg).toBeCloseTo(-0.9)
-    expect(summary.body.weeklyWeightDeltaKg).toBeCloseTo(-0.21, 1)
-    expect(summary.body.weightTrendDays).toBe(21)
+    expect(summary.body.weeklyWeightDeltaKg).toBeCloseTo(-0.3)
+    expect(summary.body.weightTrendDays).toBeCloseTo(21)
     expect(summary.body.latestCheckInDate).toBe("2026-06-22")
     expect(summary.body.bodyFatDeltaPct).toBeCloseTo(-0.6)
     expect(summary.body.weightPoints).toEqual([

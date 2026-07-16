@@ -2649,6 +2649,9 @@ export default function App() {
     proteinLeft,
     waterProgress,
     burnedCalories: calorieInfo?.burnedCalories ?? 0,
+    caloriesLeft,
+    scheduledWorkoutName: scheduledWorkout?.name,
+    currentMealLabel,
   })
 
   function runDashboardBriefingAction() {

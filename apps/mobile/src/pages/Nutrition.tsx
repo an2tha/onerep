@@ -28,6 +28,7 @@ import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { DateSelectorButton } from "@repo/ui"
 import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { cn } from "@/lib/utils"
 import {
@@ -1628,6 +1629,29 @@ export default function Nutrition() {
   const isTrainingDay = effectiveGoals?.isTrainingDay === true
   const workoutAdjustmentEnabled =
     effectiveGoals?.workoutAdjustmentEnabled === true
+
+  useEffect(() => {
+    if (!isToday || !goals) return
+    void updateOneRepWidgets({
+      calories: Math.round(intakeTotals.calories),
+      calorieGoal: Math.round(calorieTarget),
+      caloriesLeft: Math.round(caloriesLeft),
+      protein: Math.round(intakeTotals.protein),
+      proteinGoal: Math.round(goals.protein),
+      carbs: Math.round(intakeTotals.carbs),
+      carbsGoal: Math.round(goals.carbs),
+      fat: Math.round(intakeTotals.fat),
+      fatGoal: Math.round(goals.fat),
+      foodsLogged:
+        entries.length > 0
+          ? entries
+              .slice(-4)
+              .map((entry) => entry.name)
+              .join(" · ")
+          : "No food logged yet",
+    })
+  }, [calorieTarget, caloriesLeft, entries, goals, intakeTotals, isToday])
+
   const loggedToday = entries.length + waterEntries.length + supplementDone
   const recentFood = [...entries]
     .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))

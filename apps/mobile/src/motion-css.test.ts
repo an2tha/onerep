@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test"
 
-const css = await Bun.file(new URL("./index.css", import.meta.url)).text()
+const css = await Bun.file(
+  new URL("../../../packages/ui/src/index.css", import.meta.url)
+).text()
 const animatedAccordion = await Bun.file(
-  new URL("./components/animated-accordion.tsx", import.meta.url)
+  new URL(
+    "../../../packages/ui/src/components/animated-accordion.tsx",
+    import.meta.url
+  )
 ).text()
 
 describe("app motion CSS", () => {

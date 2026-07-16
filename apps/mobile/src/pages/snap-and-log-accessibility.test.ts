@@ -23,8 +23,8 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain(
       "Keep OneRep open while we connect to your camera.",
     )
-    expect(SNAP_SOURCE).toContain("<CameraFallbackActions")
-    expect(SNAP_SOURCE).toContain("onSearch={() => navigate(\"/foods/search\")}")
+    expect(SNAP_SOURCE).toContain("Try camera again")
+    expect(SNAP_SOURCE).toContain('navigate("/foods/search")')
   })
 
   test("results sheet controls expose names and selected state", () => {
@@ -43,11 +43,9 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain("const [loggingTarget, setLoggingTarget]")
     expect(SNAP_SOURCE).toContain("const loggingTargetRef = useRef<string | null>(null)")
     expect(SNAP_SOURCE).toContain("if (loggingTargetRef.current || added === item.id) return")
-    expect(SNAP_SOURCE).toContain(
-      'if (loggingTargetRef.current || added === "snap-review") return',
-    )
+    expect(SNAP_SOURCE).toContain("if (snapLogging) return")
     expect(SNAP_SOURCE).toContain("setLoggingTarget(item.id)")
-    expect(SNAP_SOURCE).toContain('setLoggingTarget("snap-review")')
+    expect(SNAP_SOURCE).toContain("setSnapLogging(true)")
     expect(SNAP_SOURCE).toContain("reportOfflineMutationError(error)")
     expect(SNAP_SOURCE).toContain("loggingTarget={loggingTarget}")
   })
@@ -58,6 +56,6 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain("disabled={snapLogged || snapLogging}")
     expect(SNAP_SOURCE).toContain("aria-busy={snapLogging}")
     expect(SNAP_SOURCE).toContain("aria-busy={logging}")
-    expect(SNAP_SOURCE).toContain('? "Logging..."')
+    expect(SNAP_SOURCE).toContain("Logging…")
   })
 })

@@ -1277,10 +1277,10 @@ export default function RecipesHub() {
                           loading="lazy"
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                         />
-                        <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur">
+                        <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[13px] font-semibold text-white backdrop-blur">
                           {recipe.category}
                         </span>
-                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[9px] font-semibold text-black shadow-sm backdrop-blur">
+                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-[13px] font-semibold text-black shadow-sm backdrop-blur">
                           <SealCheck size={11} weight="fill" /> Created by
                           OneRep
                         </span>
@@ -1406,7 +1406,7 @@ export default function RecipesHub() {
                             </div>
                           )}
                           <div className="p-4">
-                            <div className="flex items-center justify-between gap-3 text-[10px] font-medium text-muted-foreground">
+                            <div className="flex items-center justify-between gap-3 text-[13px] font-medium text-muted-foreground">
                               <span>
                                 By{" "}
                                 {recipe.communityAuthorName ?? "OneRep member"}
@@ -1603,7 +1603,7 @@ export default function RecipesHub() {
                       <p className="text-[15px] font-semibold">
                         {(recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0)}m
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[13px] text-muted-foreground">
                         Total time
                       </p>
                     </div>
@@ -1611,7 +1611,7 @@ export default function RecipesHub() {
                       <p className="text-[15px] font-semibold">
                         {nutrition.calories}
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[13px] text-muted-foreground">
                         Calories
                       </p>
                     </div>
@@ -1619,7 +1619,7 @@ export default function RecipesHub() {
                       <p className="text-[15px] font-semibold">
                         {nutrition.protein}g
                       </p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[13px] text-muted-foreground">
                         Protein
                       </p>
                     </div>
@@ -1849,7 +1849,7 @@ export default function RecipesHub() {
               <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
                 <div>
                   <p className="text-[15px] font-semibold">{selected.time}m</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[13px] text-muted-foreground">
                     Total time
                   </p>
                 </div>
@@ -1857,13 +1857,13 @@ export default function RecipesHub() {
                   <p className="text-[15px] font-semibold">
                     {selected.calories}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Calories</p>
+                  <p className="text-[13px] text-muted-foreground">Calories</p>
                 </div>
                 <div>
                   <p className="text-[15px] font-semibold">
                     {selected.protein}g
                   </p>
-                  <p className="text-[10px] text-muted-foreground">Protein</p>
+                  <p className="text-[13px] text-muted-foreground">Protein</p>
                 </div>
               </div>
               <div className="mt-6">

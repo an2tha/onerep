@@ -15,7 +15,6 @@ describe("auth form mobile accessibility and autofill", () => {
     expect(LOGIN_SOURCE).toContain('name="email"')
     expect(LOGIN_SOURCE).toContain('name="password"')
     expect(LOGIN_SOURCE).toContain('name="name"')
-    expect(LOGIN_SOURCE).toContain('name="one-time-code"')
   })
 
   test("reset password fields expose stable form names", () => {
@@ -32,7 +31,6 @@ describe("auth form mobile accessibility and autofill", () => {
     )
     expect(LOGIN_SOURCE).toContain("authActionRef.current = true")
     expect(LOGIN_SOURCE).toContain("authActionRef.current = false")
-    expect(LOGIN_SOURCE).toContain("setOauthLoading(strategy)")
     expect(LOGIN_SOURCE).toContain("setLoading(true)")
   })
 

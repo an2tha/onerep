@@ -67,6 +67,7 @@ import {
 } from "@/lib/exercise-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
+import { celebrateAchievement, playRestCompletion } from "@/lib/workout-celebration"
 import { api } from "../../../../convex/_generated/api"
 import {
   calcPaceSecondsPerKm,
@@ -93,6 +94,11 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
 import { suggestDoubleProgression } from "@/lib/workout-progression"
 import { useCoachContext } from "@/lib/coach-context"
+import {
+  endWorkoutLiveActivity,
+  startWorkoutLiveActivity,
+  updateWorkoutLiveActivity,
+} from "@/lib/workout-live-activity"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -251,34 +257,6 @@ const ACTIVE_WORKOUT_DRAFT_PREFIX = "onerep:active-workout-draft:v1:"
 const REST_TIMER_PREFIX = "onerep:active-rest-timer:v1:"
 
 const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
-
-const SET_CFG: Record<SetType, { label: string; color: string; bg: string }> = {
-  working: {
-    label: "Working",
-    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
-    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
-  },
-  warmup: {
-    label: "Warm-up",
-    color: "color-mix(in srgb, var(--foreground) 58%, var(--muted-foreground))",
-    bg: "color-mix(in srgb, var(--muted) 48%, transparent)",
-  },
-  failure: {
-    label: "Failure",
-    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
-    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
-  },
-  myoreps: {
-    label: "Myo-reps",
-    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
-    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
-  },
-  drop: {
-    label: "Drop set",
-    color: "color-mix(in srgb, var(--foreground) 68%, var(--muted-foreground))",
-    bg: "color-mix(in srgb, var(--muted) 58%, transparent)",
-  },
-}
 
 const KG_TO_LBS = 2.20462
 
@@ -1064,6 +1042,7 @@ function useRestCountdown(storageKey: string) {
       endAtRef.current = null
       safeLocalStorageRemove(storageKey)
       setRemaining(null)
+      playRestCompletion()
       return
     }
 
@@ -1824,18 +1803,12 @@ function ActiveSetRow({
   const [showRest, setShowRest] = useState(false)
   const [showWeight, setShowWeight] = useState(false)
   const [completionPulse, setCompletionPulse] = useState(false)
-  const cfg = SET_CFG[set.type]
 
   useEffect(() => {
     if (!completionPulse) return
     const id = window.setTimeout(() => setCompletionPulse(false), 520)
     return () => window.clearTimeout(id)
   }, [completionPulse])
-
-  function cycleType() {
-    const i = SET_ORDER.indexOf(set.type)
-    onUpdate({ ...set, type: SET_ORDER[(i + 1) % SET_ORDER.length] })
-  }
 
   function toggleDone() {
     const next = !set.completed
@@ -1851,7 +1824,6 @@ function ActiveSetRow({
     <>
       <AppleFitnessSetRow
         index={index}
-        typeLabel={cfg.label}
         unit={unit}
         weightValue={toDisplay(set.weight, unit)}
         weightPlaceholder={weightPlaceholder}
@@ -1863,13 +1835,6 @@ function ActiveSetRow({
         completed={set.completed}
         completionPulse={completionPulse}
         isNext={isNext}
-        onCycleType={cycleType}
-        typeValue={set.type}
-        typeOptions={SET_ORDER.map((type) => ({
-          value: type,
-          label: SET_CFG[type].label,
-        }))}
-        onTypeChange={(value) => onUpdate({ ...set, type: value as SetType })}
         onDelete={onDelete}
         onToggleComplete={toggleDone}
         onWeightClick={() => setShowWeight(true)}
@@ -2449,6 +2414,7 @@ function ActiveExerciseCard({
   }
   const isCardio = exercise.category === "cardio"
   const cardioLogged = hasCardioStateDetails(data.cardio)
+  const isActive = nextSetIndex != null || Boolean(isNextCardio)
   const allDone = isCardio
     ? cardioLogged
     : data.sets.length > 0 && data.sets.every((s) => s.completed)
@@ -2486,6 +2452,8 @@ function ActiveExerciseCard({
           ? "border-t border-border/18 bg-transparent first:border-t-0"
           : "border-y border-border bg-transparent",
         !inSuperset && allDone && "border-border/25 bg-muted/[0.05]",
+        isActive &&
+          "bg-foreground/[0.035] shadow-[inset_3px_0_0_var(--foreground)]",
         !inSuperset && dropActive && "border-foreground/20",
         !inSuperset &&
           supersetDropActive &&
@@ -2504,23 +2472,30 @@ function ActiveExerciseCard({
         <ExerciseDropIndicator position={dropPosition} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={cn("px-1 py-2 md:py-2.5", inSuperset && "pl-4")}>
+        <div className={cn("px-1 py-1", inSuperset && "pl-3")}>
           <div className="flex items-center gap-2">
             {dragHandlers && (
               <div
                 {...dragHandlers}
                 role="button"
                 aria-label="Reorder exercise"
-                className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
+                className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
               >
                 <DotsSixVertical size={13} weight="bold" />
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[16px] leading-tight font-semibold tracking-tight">
-                {exercise.name}
-              </p>
-              <p className="mt-1 truncate text-[13px] text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="truncate text-[15px] leading-tight font-semibold tracking-tight">
+                  {exercise.name}
+                </p>
+                {isActive && (
+                  <span className="shrink-0 text-[10px] font-bold tracking-[0.12em] text-foreground uppercase">
+                    Active
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground">
                 {collapsed
                   ? isCardio
                     ? compactCardioSummary(
@@ -2543,10 +2518,11 @@ function ActiveExerciseCard({
                   : "Open"
                 : `${doneSets}/${data.sets.length}`}
             </span>
+            {reorderControls}
             <button
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
-              className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
+              className="flex h-9 w-9 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/30 active:text-foreground"
             >
               {collapsed ? (
                 <CaretDown size={14} weight="bold" />
@@ -2555,11 +2531,13 @@ function ActiveExerciseCard({
               )}
             </button>
           </div>
-          {reorderControls && (
-            <div className="mt-2 flex justify-end">{reorderControls}</div>
-          )}
         </div>
-        <div className="flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
+        <div
+          className={cn(
+            "min-h-11 items-stretch border-t border-border text-[13px] font-medium",
+            collapsed ? "hidden" : "flex"
+          )}
+        >
           {!isCardio && (
             <button
               onClick={onShowHistory}
@@ -3694,6 +3672,9 @@ function ResumeWorkoutSheet({
   return (
     <div className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="resume-workout-title"
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
@@ -3703,7 +3684,10 @@ function ResumeWorkoutSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-semibold tracking-tight">
+          <h2
+            id="resume-workout-title"
+            className="text-[20px] font-semibold tracking-tight"
+          >
             You have an active workout
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
@@ -3768,6 +3752,9 @@ function FinishSheet({
       onClick={finishing ? undefined : onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="finish-workout-title"
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
@@ -3786,7 +3773,10 @@ function FinishSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-semibold tracking-tight">
+          <h2
+            id="finish-workout-title"
+            className="text-[20px] font-semibold tracking-tight"
+          >
             {allDone ? "Workout complete" : "Finish early?"}
           </h2>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
@@ -3865,6 +3855,9 @@ function AbortSheet({
       onClick={aborting ? undefined : onCancel}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="abort-workout-title"
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
@@ -3875,7 +3868,10 @@ function AbortSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="px-6 pt-5 pb-2">
-          <h2 className="text-[20px] font-semibold tracking-tight">
+          <h2
+            id="abort-workout-title"
+            className="text-[20px] font-semibold tracking-tight"
+          >
             Abort workout?
           </h2>
           <p className="mt-1.5 text-[13px] text-muted-foreground/70">
@@ -3941,6 +3937,7 @@ function renderSupersetItem(
   dropTarget: DropTarget,
   collapsed: Record<string, boolean>,
   toggleCollapsed: (id: string) => void,
+  toggleGroupCollapsed: (ids: string[]) => void,
   makeDragHandlers: (itemKey: string) => React.HTMLAttributes<HTMLDivElement>,
   itemRefs: React.MutableRefObject<Map<string, HTMLDivElement>>,
   onStartRest: (s: number) => void,
@@ -3961,6 +3958,7 @@ function renderSupersetItem(
     isTarget && (dt?.type === "before" || dt?.type === "after")
   )
   const supersetDropActive = Boolean(isTarget && dt?.type === "superset")
+  const groupCollapsed = item.exerciseIds.every((id) => collapsed[id])
   const allDone = item.exerciseIds.every((id) => {
     const exercise = exerciseLookup[id]
     const data = exData[id]
@@ -3996,11 +3994,11 @@ function renderSupersetItem(
         else itemRefs.current.delete(key)
       }}
       className={cn(
-        "relative scroll-mt-56 overflow-hidden rounded-lg border bg-card transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-        allDone ? "border-border/70 bg-muted/[0.08]" : "border-border/55",
+        "relative scroll-mt-56 overflow-hidden border-y border-border bg-card/30 transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        allDone && "bg-muted/[0.06]",
         dropActive && "border-foreground/35",
         supersetDropActive &&
-          "border-foreground/70 bg-foreground/[0.035] shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_22%,transparent)] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background",
+          "border-foreground/70 bg-foreground/[0.035] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background",
         drag?.itemKey === key && drag.active && "scale-[0.985] opacity-25"
       )}
     >
@@ -4014,35 +4012,49 @@ function renderSupersetItem(
       {dt?.type !== "superset" && isTarget && (
         <ExerciseDropIndicator position={dt.type} />
       )}
-      <div className="flex items-center justify-between gap-3 border-b border-border/45 bg-foreground/[0.035] px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
+      <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-2">
+        <div className="flex min-w-0 items-center">
           <div
             {...makeDragHandlers(key)}
             role="button"
             aria-label="Reorder superset"
-            className="flex h-8 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-muted-foreground/70"
+            className="flex h-11 w-9 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground transition-colors select-none active:cursor-grabbing active:text-foreground"
           >
             <DotsSixVertical size={15} weight="bold" />
           </div>
-          <div className="min-w-0">
-            <span className="text-[13px] font-bold text-muted-foreground/75">
-              superset
-            </span>
-            <p className="mt-1 truncate text-[13px] text-muted-foreground">
-              {item.exerciseIds.length} exercises
-            </p>
-          </div>
+          <div className="h-4 w-0.5 shrink-0 bg-foreground" />
+          <span className="ml-3 truncate text-[13px] font-semibold">
+            Superset
+          </span>
+          <span className="ml-2 text-[13px] text-muted-foreground">
+            {item.exerciseIds.length} movements
+          </span>
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-lg px-2 py-1 text-[13px] font-semibold tabular-nums",
-            allDone
-              ? "bg-primary/[0.10] text-primary"
-              : "bg-muted/45 text-muted-foreground/70"
-          )}
-        >
-          {groupSets.done}/{groupSets.total}
-        </span>
+        <div className="flex shrink-0 items-center">
+          <span
+            className={cn(
+              "px-2 text-[13px] font-semibold tabular-nums",
+              allDone ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            {groupSets.done}/{groupSets.total}
+          </span>
+          <button
+            type="button"
+            onClick={() => toggleGroupCollapsed(item.exerciseIds)}
+            aria-label={
+              groupCollapsed ? "Expand superset" : "Collapse superset"
+            }
+            aria-expanded={!groupCollapsed}
+            className="flex h-11 w-11 items-center justify-center text-muted-foreground transition-colors active:bg-muted active:text-foreground"
+          >
+            {groupCollapsed ? (
+              <CaretDown size={14} weight="bold" />
+            ) : (
+              <CaretUp size={14} weight="bold" />
+            )}
+          </button>
+        </div>
       </div>
       {reorderMode && (
         <div className="flex justify-end border-b border-border/45 px-3 py-2">
@@ -4055,37 +4067,48 @@ function renderSupersetItem(
           />
         </div>
       )}
-      <div className="flex flex-col">
-        {item.exerciseIds.map((exId) => {
+      <div className="relative">
+        <div className="pointer-events-none absolute top-0 bottom-0 left-5 w-px bg-border" />
+        {item.exerciseIds.map((exId, exerciseIndex) => {
           const ex = exerciseLookup[exId]
           if (!ex || !exData[exId]) return null
           return (
-            <ActiveExerciseCard
+            <div
               key={exId}
-              exercise={ex}
-              data={exData[exId]}
-              unit={unit}
-              onUpdate={(d) => updateExData(exId, d)}
-              onRemove={() => removeExercise(exId)}
-              isDragging={false}
-              dropActive={false}
-              inSuperset
-              collapsed={Boolean(collapsed[exId])}
-              onToggleCollapse={() => toggleCollapsed(exId)}
-              cardRef={() => undefined}
-              onStartRest={onStartRest}
-              lastSession={lastSessionMap[exId] ?? null}
-              onShowHistory={() => onShowHistory(exId, ex.name)}
-              onAiChange={() => onAiChange(exId, ex.name)}
-              nextSetIndex={
-                nextTarget?.kind === "set" && nextTarget.exerciseId === exId
-                  ? nextTarget.setIndex
-                  : null
-              }
-              isNextCardio={
-                nextTarget?.kind === "cardio" && nextTarget.exerciseId === exId
-              }
-            />
+              className="relative my-1.5 grid grid-cols-[2.25rem_minmax(0,1fr)] border-y border-border/60 first:mt-0 last:mb-0"
+            >
+              <div className="relative z-10 flex items-start justify-center bg-card/30 pt-2.5">
+                <span className="flex h-6 min-w-6 items-center justify-center border border-border bg-background px-1 text-[11px] font-bold tabular-nums">
+                  {String.fromCharCode(65 + exerciseIndex)}
+                </span>
+              </div>
+              <ActiveExerciseCard
+                exercise={ex}
+                data={exData[exId]}
+                unit={unit}
+                onUpdate={(d) => updateExData(exId, d)}
+                onRemove={() => removeExercise(exId)}
+                isDragging={false}
+                dropActive={false}
+                inSuperset
+                collapsed={Boolean(collapsed[exId])}
+                onToggleCollapse={() => toggleCollapsed(exId)}
+                cardRef={() => undefined}
+                onStartRest={onStartRest}
+                lastSession={lastSessionMap[exId] ?? null}
+                onShowHistory={() => onShowHistory(exId, ex.name)}
+                onAiChange={() => onAiChange(exId, ex.name)}
+                nextSetIndex={
+                  nextTarget?.kind === "set" && nextTarget.exerciseId === exId
+                    ? nextTarget.setIndex
+                    : null
+                }
+                isNextCardio={
+                  nextTarget?.kind === "cardio" &&
+                  nextTarget.exerciseId === exId
+                }
+              />
+            </div>
           )
         })}
       </div>
@@ -4183,6 +4206,8 @@ export default function ActiveWorkout() {
   const dirtyVersionRef = useRef(0)
   const abortingRef = useRef(false)
   const aiUpdatingRef = useRef(false)
+  const liveActivityStartedRef = useRef(false)
+  const completedExerciseTargetsRef = useRef<Set<string> | null>(null)
   // Refs to capture current state for sync
   const itemsRef = useRef(items)
   const exDataRef = useRef(exData)
@@ -4215,6 +4240,7 @@ export default function ActiveWorkout() {
     i.kind === "solo" ? [i.exerciseId] : i.exerciseIds
   )
   const uniqueExerciseIds = [...new Set(allExIds)]
+  const uniqueExerciseKey = uniqueExerciseIds.join("|")
   const { total: totalSets, done: doneSets } = countWorkoutProgress(
     items,
     exData,
@@ -4223,6 +4249,29 @@ export default function ActiveWorkout() {
   const dragLabel = drag?.active
     ? workoutDragLabel(drag.itemKey, items, exerciseLookup)
     : ""
+
+  // Celebrate an exercise target once, when its final programmed set is hit.
+  useEffect(() => {
+    if (!isInitialized) return
+    const completed = new Set(
+      uniqueExerciseIds.filter((id) => {
+        const exercise = exerciseLookup[id]
+        const data = exData[id]
+        return Boolean(
+          exercise &&
+            exercise.category !== "cardio" &&
+            data?.sets.length &&
+            data.sets.every((set) => set.completed)
+        )
+      })
+    )
+    const previous = completedExerciseTargetsRef.current
+    if (previous) {
+      const newlyHit = [...completed].some((id) => !previous.has(id))
+      if (newlyHit) celebrateAchievement("target")
+    }
+    completedExerciseTargetsRef.current = completed
+  }, [exData, exerciseLookup, isInitialized, uniqueExerciseKey])
 
   const lastSessionMap = useMemo(() => {
     if (!workoutHistory)
@@ -4283,6 +4332,19 @@ export default function ActiveWorkout() {
     nextExercise?.name ?? (totalSets > 0 ? "Workout" : "No exercise yet")
   const activeSetNumber =
     nextTarget?.kind === "set" ? nextTarget.setIndex + 1 : doneSets + 1
+  const liveActivityState = useMemo(
+    () => ({
+      exerciseName: nextExercise?.name ?? "OneRep workout",
+      setLabel: nextTarget
+        ? nextTarget.kind === "set"
+          ? `Set ${nextTarget.setIndex + 1}`
+          : "Log cardio"
+        : "Ready to finish",
+      completedSets: doneSets,
+      totalSets,
+    }),
+    [doneSets, nextExercise?.name, nextTarget, totalSets]
+  )
   const activeWorkoutItem = nextTarget
     ? items.find((item) =>
         item.kind === "solo"
@@ -4474,6 +4536,20 @@ export default function ActiveWorkout() {
     if (elapsed % 5 !== 0) return // Only sync every 5 seconds for elapsed time
     syncToConvex()
   }, [isInitialized, elapsed, syncToConvex])
+
+  useEffect(() => {
+    if (!isInitialized || items.length === 0) return
+    if (!liveActivityStartedRef.current) {
+      liveActivityStartedRef.current = true
+      void startWorkoutLiveActivity(liveActivityState).catch((error) =>
+        logDevWarn("Failed to start workout Live Activity", error)
+      )
+      return
+    }
+    void updateWorkoutLiveActivity(liveActivityState).catch((error) =>
+      logDevWarn("Failed to update workout Live Activity", error)
+    )
+  }, [isInitialized, items.length, liveActivityState])
 
   useEffect(() => {
     if (preferences?.weightUnit) {
@@ -5090,7 +5166,9 @@ export default function ActiveWorkout() {
         cardio_count: exercises.filter((ex) => Boolean(ex.cardio)).length,
       })
       clearActiveWorkoutDraft(slot)
-      navigate(-1)
+      void endWorkoutLiveActivity(liveActivityState)
+      celebrateAchievement("workout")
+      window.setTimeout(() => navigate(-1), 450)
     } catch (err) {
       logDevError("Failed to finish workout:", err)
       // Fallback to old method if Convex fails
@@ -5103,7 +5181,9 @@ export default function ActiveWorkout() {
           durationSeconds: elapsed,
         })
         clearActiveWorkoutDraft(slot)
-        navigate(-1)
+        void endWorkoutLiveActivity(liveActivityState)
+        celebrateAchievement("workout")
+        window.setTimeout(() => navigate(-1), 450)
       } catch (fallbackErr) {
         logDevError("Failed to log workout as fallback:", fallbackErr)
         toast.error("Failed to finish workout. Please try again.")
@@ -5185,8 +5265,8 @@ export default function ActiveWorkout() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:px-8">
-      <div className="mx-auto flex w-full max-w-xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:max-w-5xl md:pb-10 xl:max-w-6xl">
-        <div className="workout-live-header sticky top-0 z-30 border-b border-border/35 bg-background/96 px-[var(--app-page-x)] backdrop-blur-xl md:border-b-0 md:px-8">
+      <div className="mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
+        <header className="workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
           <div
             className="flex items-center gap-2"
             style={{
@@ -5204,8 +5284,8 @@ export default function ActiveWorkout() {
               <X size={22} weight="bold" />
             </button>
             <div className="min-w-0 flex-1 text-center">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                {rest.remaining !== null ? "Rest remaining" : "Workout time"}
+              <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
+                {rest.remaining !== null ? "Rest" : "Elapsed"}
               </p>
               <p className="mt-1 text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]">
                 {formatElapsed(rest.remaining ?? elapsed)}
@@ -5224,10 +5304,10 @@ export default function ActiveWorkout() {
                 className={cn(
                   "motion-tactile min-h-11 shrink-0 rounded-xl px-4 text-[13px] font-semibold transition-colors",
                   nextTarget?.kind === "set"
-                    ? "bg-muted text-foreground"
+                    ? "border border-border bg-card text-foreground"
                     : totalSets > 0
-                      ? "bg-white text-black"
-                      : "bg-muted text-foreground"
+                      ? "bg-foreground text-background"
+                      : "border border-border bg-card text-foreground"
                 )}
               >
                 {nextTarget?.kind === "set"
@@ -5238,13 +5318,15 @@ export default function ActiveWorkout() {
               </button>
             )}
             <div
-              className="flex h-11 shrink-0 overflow-hidden border border-border text-[13px] font-semibold"
+              className="flex h-11 shrink-0 overflow-hidden rounded-lg border border-border text-[13px] font-semibold"
+              role="group"
               aria-label="Weight unit"
             >
               {(["kg", "lbs"] as WeightUnit[]).map((u) => (
                 <button
                   key={u}
                   onClick={() => setUnit(u)}
+                  aria-pressed={unit === u}
                   className={cn(
                     "motion-tactile min-w-10 px-2.5 md:min-w-12 md:px-3",
                     unit === u
@@ -5275,7 +5357,10 @@ export default function ActiveWorkout() {
             />
           )}
           <section
-            className={cn("pb-3", completedPulseKey && "motion-success-pop")}
+            className={cn(
+              "border-t border-border/60 py-3",
+              completedPulseKey && "motion-success-pop"
+            )}
           >
             <div className="flex items-center gap-3">
               {workoutSyncStatus === "error" && (
@@ -5335,9 +5420,9 @@ export default function ActiveWorkout() {
               )}
             </div>
           </section>
-        </div>
-        <div className="flex flex-col gap-3 px-[var(--app-page-x)] pt-2 md:px-8 md:pt-4">
-          <div className="flex flex-col gap-2 md:gap-2">
+        </header>
+        <main className="flex flex-col gap-4 px-[var(--app-page-x)] pt-4 md:px-0 md:pt-6">
+          <div className="flex flex-col gap-4 md:gap-5">
             {items.length > 0 && (
               <ExerciseReorderToolbar
                 active={reorderMode}
@@ -5435,6 +5520,20 @@ export default function ActiveWorkout() {
                 dropTarget,
                 collapsed,
                 toggleCollapsed,
+                (exerciseIds) => {
+                  const shouldCollapse = !exerciseIds.every(
+                    (exerciseId) => collapsed[exerciseId]
+                  )
+                  setCollapsed((previous) => ({
+                    ...previous,
+                    ...Object.fromEntries(
+                      exerciseIds.map((exerciseId) => [
+                        exerciseId,
+                        shouldCollapse,
+                      ])
+                    ),
+                  }))
+                },
                 makeDragHandlers,
                 itemRefs,
                 rest.start,
@@ -5487,7 +5586,7 @@ export default function ActiveWorkout() {
             />
             Ask Coach about this workout
           </button>
-        </div>
+        </main>
       </div>
       {drag?.active && dragLabel && (
         <div
@@ -5550,6 +5649,7 @@ export default function ActiveWorkout() {
               await abortActive({ slot })
               clearActiveWorkoutDraft(slot)
               safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
+              void endWorkoutLiveActivity(liveActivityState)
               navigate(-1)
             } catch (err) {
               abortingRef.current = false

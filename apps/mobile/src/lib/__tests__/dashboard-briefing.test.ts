@@ -26,7 +26,7 @@ describe("dashboard briefing", () => {
       burnedCalories: 320,
     })
     expect(briefing.action).toBe("log_recovery_food")
-    expect(briefing.actionLabel).toContain("320 kcal")
+    expect(briefing.actionLabel).toBe("Log recovery food")
   })
 
   test("a scheduled session is prioritized before generic logging", () => {

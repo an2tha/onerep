@@ -50,6 +50,12 @@ import {
 } from "@/lib/auth-client"
 import { celebrateSubscription } from "@/lib/subscription-celebration"
 import {
+  restBellEnabled,
+  restVibrationEnabled,
+  setRestBellEnabled,
+  setRestVibrationEnabled,
+} from "@/lib/workout-celebration"
+import {
   clearOfflineQueue,
   flushOfflineQueue,
   getOfflineQueueSummary,
@@ -257,11 +263,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [loggingOut, setLoggingOut] = useState(false)
   const [resettingOnboarding, setResettingOnboarding] = useState(false)
   const [refreshingTooltips, setRefreshingTooltips] = useState(false)
+  const [testingNotification, setTestingNotification] = useState(false)
   const [activeView, setActiveView] = useState<SettingsView>("overview")
   const [hapticsOn, setHapticsOn] = useState(() => {
     if (typeof window === "undefined") return true
     return hapticsEnabled()
   })
+  const [restBellOn, setRestBellOn] = useState(() => restBellEnabled())
+  const [restVibrationOn, setRestVibrationOn] = useState(() =>
+    restVibrationEnabled()
+  )
   const [pwaInstallPrompt, setPwaInstallPrompt] =
     useState<PwaBeforeInstallPromptEvent | null>(null)
   const [pwaInstalled, setPwaInstalled] = useState(() => {
@@ -524,6 +535,38 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       )
     } finally {
       setRefreshingTooltips(false)
+    }
+  }
+
+  async function handleTestNotification() {
+    if (testingNotification) return
+    hapticTap()
+    setTestingNotification(true)
+    try {
+      const { LocalNotifications } =
+        await import("@capacitor/local-notifications")
+      const permission = await LocalNotifications.requestPermissions()
+      if (permission.display !== "granted") {
+        toast.error("Notification permission was not granted")
+        return
+      }
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: 909_001,
+            title: "OneRep test notification",
+            body: "Notifications are working on this device.",
+            schedule: { at: new Date(Date.now() + 2_000) },
+          },
+        ],
+      })
+      toast.success("Test notification scheduled")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not test notifications"
+      )
+    } finally {
+      setTestingNotification(false)
     }
   }
 
@@ -1076,6 +1119,28 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       label="Haptic feedback"
                     />
                   </SettingsRow>
+                  <SettingsRow label="Rest completion bell" detail="A smooth bell when rest ends">
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={restBellOn}
+                      onChange={(enabled) => {
+                        setRestBellOn(enabled)
+                        setRestBellEnabled(enabled)
+                      }}
+                      label="Rest completion bell"
+                    />
+                  </SettingsRow>
+                  <SettingsRow label="Rest completion vibration" detail="A distinct vibration when rest ends">
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={restVibrationOn}
+                      onChange={(enabled) => {
+                        setRestVibrationOn(enabled)
+                        setRestVibrationEnabled(enabled)
+                      }}
+                      label="Rest completion vibration"
+                    />
+                  </SettingsRow>
                 </GroupedList>
                 <SectionSaveButton
                   label="Save preferences"
@@ -1423,6 +1488,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     disabled={refreshingTooltips}
                     onClick={() => void handleRefreshShownTooltips()}
                   />
+                  <ListRow
+                    title={
+                      testingNotification ? "Scheduling…" : "Test notification"
+                    }
+                    detail="Send a local notification in two seconds"
+                    disabled={testingNotification}
+                    onClick={() => void handleTestNotification()}
+                  />
                 </GroupedList>
               </>
             )}
@@ -1489,6 +1562,7 @@ function RevenueCatSubscriptionPanel({
   const active = revenueCat.hasOneRepPro
   const canceling = action === "cancel"
   const opensSubscriptionManagement = revenueCat.cancelOpensManagement
+  const requiresWebCancellation = revenueCat.requiresWebCancellation
   const loading = revenueCat.status === "loading"
   const unsupported = revenueCat.status === "unsupported"
   const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
@@ -1631,10 +1705,13 @@ function RevenueCatSubscriptionPanel({
           <div className="profile-pro-actions">
             <button
               type="button"
-              disabled={active ? disabled : purchaseDisabled}
+              disabled={
+                active ? disabled || requiresWebCancellation : purchaseDisabled
+              }
               aria-busy={active ? action === "cancel" : action === "purchase"}
               onClick={() => {
                 if (active) {
+                  if (requiresWebCancellation) return
                   hapticTap()
                   setConfirmCancel(true)
                   return
@@ -1649,15 +1726,23 @@ function RevenueCatSubscriptionPanel({
               {action === "purchase"
                 ? "Starting checkout..."
                 : active
-                  ? action === "cancel"
-                    ? "Canceling..."
-                    : opensSubscriptionManagement
-                      ? "Manage subscription"
-                      : "Cancel renewal"
+                  ? requiresWebCancellation
+                    ? "Manage on the web"
+                    : action === "cancel"
+                      ? "Canceling..."
+                      : opensSubscriptionManagement
+                        ? "Manage subscription"
+                        : "Cancel renewal"
                   : revenueCat.canPurchase
                     ? "Upgrade to Pro"
                     : "Products unavailable"}
             </button>
+            {active && requiresWebCancellation && (
+              <p className="text-[13px] leading-5 text-white/65">
+                This membership was purchased through Stripe. Open the OneRep
+                web app to manage or cancel it.
+              </p>
+            )}
 
             <div className="profile-pro-secondary-actions">
               {!active && (

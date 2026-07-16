@@ -2,10 +2,13 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const PROGRESS_SOURCE = readFileSync(
-  new URL("./Progress.tsx", import.meta.url),
-  "utf8"
-)
+const PROGRESS_SOURCE = [
+  "./Progress.tsx",
+  "../../../../packages/ui/src/components/progress-views.tsx",
+  "../../../../packages/ui/src/components/app-feedback.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 const COACH_SOURCE = readFileSync(
   new URL("./Coach.tsx", import.meta.url),
   "utf8"

@@ -6,10 +6,16 @@ function source(path: string) {
   return readFileSync(new URL(path, import.meta.url), "utf8")
 }
 
-const progress = source("./Progress.tsx")
-const tooltips = source("../components/tooltips.tsx")
-const dashboardInsights = source("../components/dashboard-progress-panels.tsx")
-const home = source("../components/home/index.tsx")
+const progress = `${source("./Progress.tsx")}\n${source(
+  "../../../../packages/ui/src/components/progress-views.tsx"
+)}`
+const tooltips = `${source("../components/tooltips.tsx")}\n${source(
+  "../../../../packages/ui/src/components/app-feedback.tsx"
+)}`
+const dashboardInsights = source(
+  "../../../../packages/ui/src/components/dashboard-progress-panels.tsx"
+)
+const home = source("../../../../packages/ui/src/components/home/index.tsx")
 const app = source("../App.tsx")
 
 describe("progress UX contract", () => {

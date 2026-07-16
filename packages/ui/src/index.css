@@ -877,7 +877,7 @@
 }
 
 .app-route-frame-current[data-route-ready="true"] {
-  animation: app-route-crossfade-in 240ms var(--motion-ease-standard) both;
+  animation: app-route-crossfade-in 360ms cubic-bezier(0.22, 0.72, 0.24, 1) both;
 }
 
 .app-route-frame-previous {
@@ -890,7 +890,7 @@
 }
 
 .app-route-frame-previous[data-route-ready="true"] {
-  animation: app-route-crossfade-out 240ms var(--motion-ease-standard) both;
+  animation: app-route-crossfade-out 280ms cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 .app-route-chrome[data-route-chrome="loading"] {
@@ -899,7 +899,7 @@
 }
 
 .app-route-chrome[data-route-chrome="ready"] {
-  animation: app-route-crossfade-in 240ms var(--motion-ease-standard) both;
+  animation: app-route-chrome-in 280ms ease-out both;
 }
 
 .app-route-chrome[data-route-chrome="previous"],
@@ -914,12 +914,23 @@
 }
 
 .app-route-chrome[data-route-chrome="previous-ready"] {
-  animation: app-route-crossfade-out 240ms var(--motion-ease-standard) both;
+  animation: app-route-crossfade-out 220ms ease-out both;
 }
 
 @keyframes app-route-crossfade-in {
   from {
-    opacity: 0;
+    opacity: 0.76;
+    transform: translate3d(0, 5px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes app-route-chrome-in {
+  from {
+    opacity: 0.82;
   }
   to {
     opacity: 1;
@@ -3196,6 +3207,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
    keeping billing controls calm, legible, and clearly secondary. */
 .profile-pro-group {
   overflow: visible;
+  width: auto;
+  margin-inline: var(--app-page-x);
   border: 0;
   background: transparent;
 }
@@ -3205,19 +3218,18 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   isolation: isolate;
   overflow: hidden;
   color: #f8f9ff;
-  border: 1px solid rgba(173, 181, 255, 0.24);
-  border-radius: 1.25rem;
+  border: 1px solid rgba(194, 201, 230, 0.2);
+  border-radius: 1.1rem;
   background:
     radial-gradient(
-      ellipse at 64% -12%,
-      rgba(182, 195, 255, 0.52),
-      rgba(91, 75, 211, 0.17) 42%,
-      transparent 68%
+      ellipse at 72% -18%,
+      rgba(154, 169, 224, 0.22),
+      transparent 58%
     ),
-    linear-gradient(145deg, #11194b 0%, #151441 54%, #070c22 100%);
+    #0b1022;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 22px 48px -34px rgba(25, 18, 92, 0.82);
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 16px 36px -30px rgba(7, 10, 25, 0.9);
 }
 
 .profile-pro-card::before,
@@ -3238,8 +3250,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     rgba(4, 8, 31, 0.34) 37% 49%,
     transparent 52% 65%
   );
-  filter: blur(14px);
-  opacity: 0.62;
+  filter: blur(18px);
+  opacity: 0.24;
   animation: coach-dashboard-wave 20s ease-in-out infinite alternate;
 }
 
@@ -3266,7 +3278,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 .profile-pro-content {
   position: relative;
   z-index: 1;
-  padding: 1.25rem;
+  padding: 1.1rem;
 }
 
 .profile-pro-title {

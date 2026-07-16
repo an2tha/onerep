@@ -1,31 +1,35 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const NEW_PRESET_SOURCE = readFileSync(
-  new URL("./NewPreset.tsx", import.meta.url),
-  "utf8",
-)
+const NEW_PRESET_SOURCE = [
+  "./NewPreset.tsx",
+  "../../../../packages/ui/src/components/workout-controls.tsx",
+  "../../../../packages/ui/src/components/apple-fitness-set-row.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 
 describe("New preset accessibility contract", () => {
   test("rest timer controls expose names and selected state", () => {
     expect(NEW_PRESET_SOURCE).toContain('aria-label="Close rest timer"')
-    expect(NEW_PRESET_SOURCE).toContain("aria-pressed={s === current}")
-    expect(NEW_PRESET_SOURCE).toContain("aria-label={`Set rest to ${formatRest(s)}`}")
-    expect(NEW_PRESET_SOURCE).toContain('name="custom-rest-minutes"')
-    expect(NEW_PRESET_SOURCE).toContain('aria-label="Custom rest minutes"')
-    expect(NEW_PRESET_SOURCE).toContain('name="custom-rest-seconds"')
-    expect(NEW_PRESET_SOURCE).toContain('aria-label="Custom rest seconds"')
+    expect(NEW_PRESET_SOURCE).toContain("aria-pressed={option === current}")
+    expect(NEW_PRESET_SOURCE).toContain(
+      "aria-label={`Set rest to ${formatRestDuration(option)}`}"
+    )
+    expect(NEW_PRESET_SOURCE).toContain(
+      'aria-label={`Custom rest ${label === "Min" ? "minutes" : "seconds"}`}'
+    )
   })
 
   test("set row numeric fields expose stable mobile form metadata", () => {
-    expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-weight`}')
+    expect(NEW_PRESET_SOURCE).toContain('name={`set-${index + 1}-weight`}')
     expect(NEW_PRESET_SOURCE).toContain(
       "aria-label={`Set ${index + 1} weight in ${unit}`}",
     )
-    expect(NEW_PRESET_SOURCE).toContain('name={`preset-set-${index + 1}-reps`}')
+    expect(NEW_PRESET_SOURCE).toContain('name={`set-${index + 1}-reps`}')
     expect(NEW_PRESET_SOURCE).not.toContain("left-reps")
     expect(NEW_PRESET_SOURCE).not.toContain("right-reps")
-    expect(NEW_PRESET_SOURCE).not.toContain('name={`preset-set-${index + 1}-rpe`}')
+    expect(NEW_PRESET_SOURCE).not.toContain('name={`set-${index + 1}-rpe`}')
     expect(NEW_PRESET_SOURCE).toContain(
       "aria-label={`Set ${index + 1} rest time`}",
     )

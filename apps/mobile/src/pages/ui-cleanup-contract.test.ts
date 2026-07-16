@@ -11,10 +11,14 @@ const ONBOARDING = source("./OnboardingMobile.tsx")
 const SETTINGS = source("./Settings.tsx")
 const AUTH_GUARD = source("../components/auth-guard.tsx")
 const MOBILE_UI = source("../../../../packages/ui/src/components/mobile-ui.tsx")
-const MOBILE_SHEET = source("../components/mobile-sheet.tsx")
-const BOTTOM_BAR = source("../components/bottom-bar.tsx")
+const MOBILE_SHEET = source(
+  "../../../../packages/ui/src/components/mobile-sheet.tsx"
+)
+const BOTTOM_BAR = `${source("../components/bottom-bar.tsx")}\n${source(
+  "../../../../packages/ui/src/components/app-navigation.tsx"
+)}`
 const MAIN = source("../main.tsx")
-const CSS = source("../index.css")
+const CSS = source("../../../../packages/ui/src/index.css")
 
 describe("authentication interface cleanup", () => {
   test("uses a direct labeled form without marketing slides or dead provider controls", () => {
@@ -72,8 +76,11 @@ describe("onboarding interface cleanup", () => {
 
 describe("shared native interface cleanup", () => {
   test("settings switches use a 44px interaction target", () => {
-    assert.match(SETTINGS, /inline-flex h-11 w-14/)
-    assert.match(SETTINGS, /role="switch"/)
+    const controls = source(
+      "../../../../packages/ui/src/components/settings-controls.tsx"
+    )
+    assert.match(controls, /inline-flex h-11 w-14/)
+    assert.match(controls, /role="switch"/)
   })
 
   test("empty states use simple hierarchy instead of an animated icon card", () => {

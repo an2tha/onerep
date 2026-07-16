@@ -33,9 +33,8 @@ describe("Workouts page production contract", () => {
     expect(WORKOUTS_SOURCE).toContain("setDuplicatingPresetId(preset.id)")
     expect(WORKOUTS_SOURCE).toContain("await createPresetMutation({")
     expect(WORKOUTS_SOURCE).toContain("setDuplicatingPresetId(null)")
-    expect(WORKOUTS_SOURCE).toContain(
-      "const duplicatingThis = duplicatingPresetId === preset.id",
-    )
+    expect(WORKOUTS_SOURCE).toContain("const duplicatingThis =")
+    expect(WORKOUTS_SOURCE).toContain("duplicatingPresetId === preset.id")
     expect(WORKOUTS_SOURCE).toContain("disabled={duplicatingPresetId !== null}")
     expect(WORKOUTS_SOURCE).toContain("aria-busy={duplicatingThis}")
     expect(WORKOUTS_SOURCE).toContain("animate-spin")

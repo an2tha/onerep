@@ -22,6 +22,9 @@ export function buildDashboardBriefing({
   proteinLeft,
   waterProgress,
   burnedCalories,
+  caloriesLeft = 0,
+  scheduledWorkoutName,
+  currentMealLabel = "meal",
 }: {
   activeWorkout: boolean
   completedWorkout: boolean
@@ -31,6 +34,9 @@ export function buildDashboardBriefing({
   proteinLeft: number
   waterProgress: number
   burnedCalories: number
+  caloriesLeft?: number
+  scheduledWorkoutName?: string
+  currentMealLabel?: string
 }): DashboardBriefing {
   if (!isToday) {
     return {
@@ -50,55 +56,71 @@ export function buildDashboardBriefing({
     }
   }
 
-  if (completedWorkout && proteinLeft > 15) {
-    return {
-      action: "log_recovery_food",
-      title: `${Math.round(proteinLeft)}g protein still to go`,
-      detail: "A recovery meal will help close today's gap.",
-      actionLabel:
-        burnedCalories > 0
-          ? `Fuel +${Math.round(burnedCalories)} kcal`
-          : "Log food",
-    }
-  }
-
   if (scheduledWorkout && !completedWorkout) {
     return {
       action: "start_workout",
-      title: "Today’s workout is ready",
-      detail: "Your planned session is ready to start.",
-      actionLabel: "Start",
+      title: scheduledWorkoutName ?? "Today’s workout",
+      detail: "Start the planned session and OneRep will track each set.",
+      actionLabel: "Start workout",
+    }
+  }
+
+  if (completedWorkout && (proteinLeft > 15 || caloriesLeft > 250)) {
+    const roundedProtein = Math.max(0, Math.round(proteinLeft))
+    return {
+      action: "log_recovery_food",
+      title:
+        roundedProtein > 15
+          ? `${roundedProtein}g protein for recovery`
+          : "Refuel after training",
+      detail:
+        caloriesLeft > 0
+          ? `${Math.round(caloriesLeft)} kcal remain today. Log your recovery meal.`
+          : "Log a protein-rich meal to support recovery.",
+      actionLabel:
+        burnedCalories > 0
+          ? `Log recovery food`
+          : `Log ${currentMealLabel.toLowerCase()}`,
     }
   }
 
   if (foodLogCount === 0) {
     return {
       action: "log_meal",
-      title: "Log your first meal",
-      detail: "Start today's record with what you ate.",
-      actionLabel: "Log food",
+      title: `Log ${currentMealLabel.toLowerCase()}`,
+      detail:
+        caloriesLeft > 0
+          ? `${Math.round(caloriesLeft)} kcal are available today.`
+          : "Add what you ate to start today's nutrition record.",
+      actionLabel: "Add food",
     }
   }
 
-  if (waterProgress < 50) {
+  if (waterProgress < 40) {
     return {
       action: "add_water",
-      title: `${Math.max(0, Math.round(100 - waterProgress))}% hydration left`,
-      detail: "A glass of water is the simplest next win.",
+      title: "Hydration is behind",
+      detail: `You're at ${Math.max(0, Math.round(waterProgress))}% of today's water goal.`,
       actionLabel: "Add 250 ml",
+    }
+  }
+
+  if (proteinLeft > 10) {
+    return {
+      action: "log_meal",
+      title: `${Math.round(proteinLeft)}g protein left`,
+      detail: "Add a protein-rich food to close the most important macro gap.",
+      actionLabel: "Add protein",
     }
   }
 
   return {
     action: "review_day",
-    title:
-      proteinLeft > 0
-        ? `${Math.round(proteinLeft)}g protein left`
-        : "On track today",
+    title: "Today is on track",
     detail:
-      proteinLeft > 0
-        ? "Review today's food and choose a protein-rich option."
-        : "Everything important is moving in the right direction.",
-    actionLabel: "Review",
+      caloriesLeft > 0
+        ? `${Math.round(caloriesLeft)} kcal remain. Review the day before your next meal.`
+        : "Your workout, nutrition, and hydration are up to date.",
+    actionLabel: "Review today",
   }
 }

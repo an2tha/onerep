@@ -13,8 +13,9 @@ describe("AuthGuard source contract", () => {
     expect(AUTH_GUARD_SOURCE).toContain("authLoadTimedOut")
     expect(AUTH_GUARD_SOURCE).toContain("Sign-in service unavailable")
     expect(AUTH_GUARD_SOURCE).toContain("Retry")
-    expect(AUTH_GUARD_SOURCE).toContain("if (!isLoaded) {")
-    expect(AUTH_GUARD_SOURCE).toContain("return null")
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (!isLoaded || (isSignedIn && convexAuth.isLoading))"
+    )
   })
 
   test("unauthenticated protected routes render a visible sign-in handoff", () => {

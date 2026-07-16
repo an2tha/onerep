@@ -2,11 +2,22 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const source = readFileSync(
+const pageSource = readFileSync(
   new URL("./OnboardingMobile.tsx", import.meta.url),
   "utf8"
 )
-const styles = readFileSync(new URL("../index.css", import.meta.url), "utf8")
+const controlsSource = readFileSync(
+  new URL(
+    "../../../../packages/ui/src/components/onboarding-controls.tsx",
+    import.meta.url
+  ),
+  "utf8"
+)
+const source = `${pageSource}\n${controlsSource}`
+const styles = readFileSync(
+  new URL("../../../../packages/ui/src/index.css", import.meta.url),
+  "utf8"
+)
 
 describe("Onboarding production contract", () => {
   test("uses five task-oriented steps instead of illustrated micro-steps", () => {

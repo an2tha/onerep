@@ -35,7 +35,7 @@ export function AppleFitnessSetRow({
   onRestClick,
 }: {
   index: number
-  typeLabel: string
+  typeLabel?: string
   unit: string
   weightValue: string
   weightPlaceholder?: string
@@ -47,7 +47,7 @@ export function AppleFitnessSetRow({
   completed?: boolean
   completionPulse?: boolean
   isNext?: boolean
-  onCycleType: () => void
+  onCycleType?: () => void
   typeValue?: string
   typeOptions?: Array<{ value: string; label: string }>
   onTypeChange?: (value: string) => void
@@ -86,7 +86,13 @@ export function AppleFitnessSetRow({
       >
         <div className="flex min-h-12 items-center justify-between gap-3 px-3">
           <div className="min-w-0 flex-1">
-            {typeOptions && typeValue && onTypeChange ? (
+            {!typeLabel ? (
+              <div className="flex min-h-11 items-center">
+                <span className="text-[13px] font-bold tracking-[0.12em] text-muted-foreground uppercase">
+                  Set {index + 1}
+                </span>
+              </div>
+            ) : typeOptions && typeValue && onTypeChange ? (
               <label className="relative inline-flex max-w-full items-center">
                 <span className="sr-only">Set type</span>
                 <select

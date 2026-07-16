@@ -13,7 +13,7 @@ describe("Food review page production contract", () => {
     expect(FOOD_REVIEW_SOURCE).toContain("if (savingRef.current || added) return")
     expect(FOOD_REVIEW_SOURCE).toContain("savingRef.current = true")
     expect(FOOD_REVIEW_SOURCE).toContain("setSaving(true)")
-    expect(FOOD_REVIEW_SOURCE).toContain("await setDay({")
+    expect(FOOD_REVIEW_SOURCE).toContain("await addFoodEntry({")
     expect(FOOD_REVIEW_SOURCE).toContain("savingRef.current = false")
     expect(FOOD_REVIEW_SOURCE).toContain("setSaving(false)")
     expect(FOOD_REVIEW_SOURCE).toContain("reportOfflineMutationError(error)")

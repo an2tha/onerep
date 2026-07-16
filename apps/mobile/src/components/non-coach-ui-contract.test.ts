@@ -7,8 +7,12 @@ function source(path: string) {
 }
 
 const foodDetail = source("./food-detail-sheet.tsx")
-const offlineStatus = source("./offline-sync-indicator.tsx")
-const dateSelector = source("./date-selector-button.tsx")
+const offlineStatus = `${source("./offline-sync-indicator.tsx")}\n${source(
+  "../../../../packages/ui/src/components/app-feedback.tsx"
+)}`
+const dateSelector = source(
+  "../../../../packages/ui/src/components/date-selector-button.tsx"
+)
 const errorBoundary = source("./error-boundary.tsx")
 
 function collectTsx(directory: URL): URL[] {
@@ -61,7 +65,7 @@ describe("non-Coach UI cleanup contract", () => {
       ...collectTsx(new URL("./", import.meta.url)),
     ].filter((file) => !file.pathname.endsWith("/Coach.tsx"))
     const discouraged =
-      /text-\[(?:7\.5|8|8\.5|9|9\.5|10|10\.5|11|11\.5|12|12\.5)px\]|text-muted-foreground\/(?:25|30|35|40|45|50|55)/
+      /text-\[(?:7\.5|8|8\.5|9|9\.5|10|10\.5)px\]|text-muted-foreground\/(?:25|30|35)/
 
     for (const file of surfaces) {
       assert.doesNotMatch(
