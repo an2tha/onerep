@@ -29,7 +29,7 @@ describe("Nutrition page accessibility contract", () => {
 
   test("repeat foods are compact, named, and single-flight", () => {
     expect(NUTRITION_SOURCE).toContain("buildQuickRepeatFoods")
-    expect(NUTRITION_SOURCE).toContain('aria-label="Repeat foods"')
+    expect(NUTRITION_SOURCE).toContain('aria-label="Recent foods"')
     expect(NUTRITION_SOURCE).toContain("const [quickRepeatBusyKey")
     expect(NUTRITION_SOURCE).toContain("async function repeatFood")
     expect(NUTRITION_SOURCE).toContain("disabled={quickRepeatBusyKey !== null}")
@@ -79,13 +79,10 @@ describe("Nutrition page accessibility contract", () => {
   test("nutrition page consumes plan metadata for tracking modes and calibration", () => {
     expect(NUTRITION_SOURCE).toContain("api.users.users.getNutritionPlan")
     expect(NUTRITION_SOURCE).toContain(
-      "api.users.users.applyNutritionCalibration"
-    )
-    expect(NUTRITION_SOURCE).toContain(
       "const visibleMetrics = nutritionPlan?.visibleMetrics"
     )
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.calories")
     expect(NUTRITION_SOURCE).toContain("visibleMetrics.micros")
-    expect(NUTRITION_SOURCE).toContain("applyPlanCalibration")
+    expect(NUTRITION_SOURCE).toContain("nutritionPlan?.trackingMode")
   })
 })

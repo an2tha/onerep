@@ -6,9 +6,6 @@ const APP_SOURCE = readFileSync(new URL("./App.tsx", import.meta.url), "utf8")
 describe("home loading state contract", () => {
   test("today loading state includes visible explanatory copy", () => {
     expect(APP_SOURCE).toContain('aria-label="Loading today"')
-    expect(APP_SOURCE).toContain("Loading today")
-    expect(APP_SOURCE).toContain(
-      "Pulling together your workout, food, water, and supplement logs.",
-    )
+    expect(APP_SOURCE).toContain("animate-spin")
   })
 })

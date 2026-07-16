@@ -14,10 +14,12 @@
 import { describe, test, expect } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const ACTIVE_WORKOUT_SOURCE = readFileSync(
-  new URL("./ActiveWorkout.tsx", import.meta.url),
-  "utf8"
-)
+const ACTIVE_WORKOUT_SOURCE = [
+  "./ActiveWorkout.tsx",
+  "../../../../packages/ui/src/components/workout-controls.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -537,15 +539,17 @@ describe("exercise picker search surface", () => {
   })
 
   test("keeps useful browse and recovery states visible", () => {
-    expect(ACTIVE_WORKOUT_SOURCE).toContain('label="Recent"')
-    expect(ACTIVE_WORKOUT_SOURCE).toContain('label="Popular"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('recentLabel = "Recent"')
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('popularLabel = "Popular"')
     expect(ACTIVE_WORKOUT_SOURCE).toContain("function ExerciseCategoryFilters")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("function ExerciseSearchResult")
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       'aria-label="Clear exercise search"'
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("Exercise search is unavailable.")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("No matches{query.trim()")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain(
+      'No matches{query.trim() ? ` for “${query.trim()}”` : ""}.'
+    )
   })
 
   test("lets a person add several exercises before closing the picker", () => {

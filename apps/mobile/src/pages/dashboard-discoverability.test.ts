@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 
 const app = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
 const home = readFileSync(
-  new URL("../components/home/index.tsx", import.meta.url),
+  new URL("../../../../packages/ui/src/components/home/index.tsx", import.meta.url),
   "utf8"
 )
 

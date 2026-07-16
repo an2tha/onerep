@@ -1,5 +1,6 @@
 import { mkdir, rename, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
+import { downloadFile } from "./downloader.ts";
 
 export function required(value: string | undefined, label: string): string {
   if (!value?.trim()) throw new Error(`${label} is required`);
@@ -47,21 +48,12 @@ export function jsonOrNull(value: unknown): string | null {
 }
 
 export async function download(url: string, outputPath: string): Promise<void> {
-  await ensureParent(outputPath);
-  const response = await fetch(url, { headers: { "User-Agent": "OneRep-Datasource/1.0 (app.onerep.life)" } });
-  if (!response.ok || !response.body) throw new Error(`Download failed (${response.status}) for ${url}`);
-  const file = Bun.file(outputPath);
-  const writer = file.writer();
-  const reader = response.body.getReader();
-  let received = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    writer.write(value);
-    received += value.byteLength;
-    if (received > 0 && received % (100 * 1024 * 1024) < value.byteLength) console.log(`Downloaded ${(received / 1024 / 1024).toFixed(0)} MB…`);
-  }
-  await writer.end();
+  let lastReported = 0;
+  await downloadFile(url, outputPath, { concurrency: Number(process.env.DOWNLOAD_CONCURRENCY) || 8, onProgress(received, total) {
+    if (received - lastReported < 100 * 1024 * 1024 && received !== total) return;
+    lastReported = received;
+    console.log(`Downloaded ${(received / 1024 / 1024).toFixed(0)}${total ? `/${(total / 1024 / 1024).toFixed(0)}` : ""} MB → ${outputPath}`);
+  } });
 }
 
 export function sqlString(value: string): string {

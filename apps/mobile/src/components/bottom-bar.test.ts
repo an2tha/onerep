@@ -2,10 +2,12 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const SOURCE = readFileSync(
-  new URL("./bottom-bar.tsx", import.meta.url),
-  "utf8"
-)
+const SOURCE = [
+  "./bottom-bar.tsx",
+  "../../../../packages/ui/src/components/app-navigation.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 
 function expect(value: string) {
   return {
@@ -28,8 +30,8 @@ function expect(value: string) {
 
 describe("bottom bar accessibility contract", () => {
   test("mobile tab buttons expose names and current page state", () => {
-    expect(SOURCE).toContain("aria-label={label}")
-    expect(SOURCE).toContain('aria-current={active ? "page" : undefined}')
+    expect(SOURCE).toContain("aria-label={tab.label}")
+    expect(SOURCE).toContain('aria-current={tab.active ? "page" : undefined}')
   })
 
   test("primary navigation exposes five stable labeled destinations", () => {
@@ -43,7 +45,7 @@ describe("bottom bar accessibility contract", () => {
       expect(SOURCE).toContain(`label: "${label}"`)
     }
     expect(SOURCE).toContain(
-      'className="mx-auto grid h-[4.25rem] max-w-xl grid-cols-5'
+      '"mx-auto grid h-[4.25rem] max-w-xl grid-cols-5 px-1"'
     )
   })
 

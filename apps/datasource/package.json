@@ -6,15 +6,12 @@
   "scripts": {
     "dev": "bun --hot src/index.ts",
     "start": "bun src/index.ts",
+    "download": "bun src/download-cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
+  "devDependencies": { "@types/bun": "latest" },
+  "peerDependencies": { "typescript": "^5" },
   "dependencies": {
     "@duckdb/node-api": "^1.5.4-r.1",
     "drizzle-orm": "^0.45.2",

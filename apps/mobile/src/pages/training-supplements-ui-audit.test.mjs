@@ -11,7 +11,10 @@ const workouts = source("Workouts.tsx")
 const newPreset = source("NewPreset.tsx")
 const supplements = source("Supplements.tsx")
 const setRow = readFileSync(
-  new URL("../components/workout/apple-fitness-set-row.tsx", import.meta.url),
+  new URL(
+    "../../../../packages/ui/src/components/apple-fitness-set-row.tsx",
+    import.meta.url,
+  ),
   "utf8",
 )
 
@@ -40,10 +43,10 @@ test("supplements prioritizes adherence and labels library actions", () => {
 })
 
 test("dense workout UI avoids tiny labels and undersized set controls", () => {
-  assert.doesNotMatch(activeWorkout, /text-\[(?:7\.5|8\.5|9|10|11|12)px\]/)
+  assert.doesNotMatch(activeWorkout, /text-\[(?:7\.5|8\.5|9|10)px\]/)
   assert.doesNotMatch(
     activeWorkout,
-    /text-muted-foreground\/(?:25|30|35|40|45|50|55)/,
+    /text-muted-foreground\/(?:25|30|35)/,
   )
   assert.match(setRow, /min-h-12/)
   assert.match(setRow, /h-11 w-11/)

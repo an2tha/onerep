@@ -59,6 +59,7 @@ import {
 } from "@/lib/food-snap-review"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ export default function SnapAndLog() {
   const scanLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [cameraState, setCameraState] = useState<CameraState>("requesting")
+  const [cameraAttempt, setCameraAttempt] = useState(0)
   const [mode, setMode] = useState<ScreenMode>(initialMode)
   const [facingMode, setFacingMode] = useState<"environment" | "user">(
     "environment"
@@ -113,6 +115,8 @@ export default function SnapAndLog() {
   // Log state
   const [meal, setMeal] = useState<MealType>(defaultMeal())
   const [added, setAdded] = useState<string | null>(null)
+  const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
+  const loggingTargetRef = useRef<string | null>(null)
   const useNativeCapture = Capacitor.isNativePlatform()
 
   useEffect(() => {
@@ -188,7 +192,12 @@ export default function SnapAndLog() {
       streamRef.current = null
       if (video) video.srcObject = null
     }
-  }, [facingMode, startCamera, useNativeCapture])
+  }, [cameraAttempt, facingMode, startCamera, useNativeCapture])
+
+  function retryCamera() {
+    setCameraState("requesting")
+    setCameraAttempt((attempt) => attempt + 1)
+  }
 
   // ── Barcode scan loop ─────────────────────────────────────────────────────
 
@@ -410,6 +419,9 @@ export default function SnapAndLog() {
   // ── Log a food item ───────────────────────────────────────────────────────
 
   async function handleAdd(item: FoodResult) {
+    if (loggingTargetRef.current || added === item.id) return
+    loggingTargetRef.current = item.id
+    setLoggingTarget(item.id)
     const entry = stripUndefined({
       id: Math.random().toString(36).slice(2),
       name: item.name,
@@ -427,17 +439,24 @@ export default function SnapAndLog() {
       openFoodFacts: toConvexSafe(item.openFoodFacts),
     })
 
-    const existingEntries = foodLogs ?? []
-    await setDay({ date, entries: [...existingEntries, entry] })
+    try {
+      const existingEntries = foodLogs ?? []
+      await setDay({ date, entries: [...existingEntries, entry] })
 
-    posthog.capture("food_logged_from_camera", {
-      food_name: item.name,
-      calories: item.calories,
-      meal,
-      source: mode,
-    })
-    setAdded(item.id)
-    setTimeout(() => setAdded(null), 1800)
+      posthog.capture("food_logged_from_camera", {
+        food_name: item.name,
+        calories: item.calories,
+        meal,
+        source: mode,
+      })
+      setAdded(item.id)
+      setTimeout(() => setAdded(null), 1800)
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      loggingTargetRef.current = null
+      setLoggingTarget(null)
+    }
   }
 
   async function handleConfirmSnapLog() {
@@ -531,7 +550,15 @@ export default function SnapAndLog() {
       {cameraState !== "active" && !useNativeCapture && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0c0c0c]">
           {cameraState === "requesting" && (
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+            <>
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white/60" />
+              <p className="text-[15px] font-semibold text-white">
+                Starting camera
+              </p>
+              <p className="text-[14px] text-white/75">
+                Keep OneRep open while we connect to your camera.
+              </p>
+            </>
           )}
           {cameraState === "denied" && (
             <>
@@ -547,6 +574,24 @@ export default function SnapAndLog() {
             <p className="text-[17px] font-semibold text-white">
               Camera not available
             </p>
+          )}
+          {(cameraState === "denied" || cameraState === "unsupported") && (
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                onClick={retryCamera}
+                className="min-h-11 rounded-lg bg-white px-4 text-[14px] font-semibold text-black"
+              >
+                Try camera again
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/foods/search")}
+                className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
+              >
+                Search foods
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -780,6 +825,7 @@ export default function SnapAndLog() {
           onMealChange={setMeal}
           added={added}
           snapLogging={snapLogging}
+          loggingTarget={loggingTarget}
           onAdd={handleAdd}
           onConfirmSnap={handleConfirmSnapLog}
           onSnapItemChange={updateSnapReviewItem}
@@ -819,6 +865,7 @@ type ResultsSheetProps = {
   onMealChange: (m: MealType) => void
   added: string | null
   snapLogging: boolean
+  loggingTarget: string | null
   onAdd: (item: FoodResult) => void
   onConfirmSnap: () => void
   onSnapItemChange: (
@@ -841,6 +888,7 @@ function ResultsSheet({
   onMealChange,
   added,
   snapLogging,
+  loggingTarget,
   onAdd,
   onConfirmSnap,
   onSnapItemChange,
@@ -972,6 +1020,8 @@ function ResultsSheet({
                     item={item}
                     meal={meal}
                     added={added === item.id}
+                    logging={loggingTarget === item.id}
+                    disabled={Boolean(loggingTarget)}
                     onAdd={onAdd}
                   />
                 ))}
@@ -985,6 +1035,7 @@ function ResultsSheet({
                 type="button"
                 onClick={snapCanLog ? onConfirmSnap : onSearchManually}
                 disabled={snapLogged || snapLogging}
+                aria-busy={snapLogging}
                 className="flex min-h-12 w-full items-center justify-center rounded-lg px-4 text-[15px] font-semibold transition-opacity active:opacity-80 disabled:opacity-50"
                 style={{
                   backgroundColor: snapLogged
@@ -1260,11 +1311,15 @@ function BarcodeResultRow({
   item,
   meal,
   added,
+  logging,
+  disabled,
   onAdd,
 }: {
   item: FoodResult
   meal: MealType
   added: boolean
+  logging: boolean
+  disabled: boolean
   onAdd: (item: FoodResult) => void
 }) {
   const mealCfg = mealConfig(meal)
@@ -1308,13 +1363,17 @@ function BarcodeResultRow({
       <button
         type="button"
         onClick={() => onAdd(item)}
+        disabled={disabled}
+        aria-busy={logging}
         className="flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg px-2 text-[14px] font-semibold transition-opacity active:opacity-75"
         aria-label={added ? `${item.name} added` : `Add ${item.name}`}
         style={{
           backgroundColor: added ? mealCfg.bg : "rgba(255,255,255,0.1)",
         }}
       >
-        {added ? (
+        {logging ? (
+          <span className="text-white">Logging…</span>
+        ) : added ? (
           <span style={{ color: mealCfg.color }}>Added</span>
         ) : (
           <span className="text-white">Add</span>

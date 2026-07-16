@@ -1,6 +1,8 @@
+import ActivityKit
 import Capacitor
 import Foundation
 import HealthKit
+import WidgetKit
 
 @objc(AppleHealthPlugin)
 public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -364,3 +366,103 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 }
 
+@available(iOS 16.1, *)
+struct WorkoutActivityAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        var exerciseName: String
+        var setLabel: String
+        var completedSets: Int
+        var totalSets: Int
+    }
+
+    var startedAt: Date
+}
+
+@objc(WorkoutLiveActivityPlugin)
+public class WorkoutLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
+    public let identifier = "WorkoutLiveActivityPlugin"
+    public let jsName = "WorkoutLiveActivity"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "start", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "update", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "end", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "updateWidgets", returnType: CAPPluginReturnPromise),
+    ]
+
+    @objc func start(_ call: CAPPluginCall) {
+        guard #available(iOS 16.1, *), ActivityAuthorizationInfo().areActivitiesEnabled else {
+            call.resolve(["supported": false])
+            return
+        }
+        let state = contentState(call)
+        Task {
+            do {
+                for activity in Activity<WorkoutActivityAttributes>.activities {
+                    await activity.end(nil, dismissalPolicy: .immediate)
+                }
+                let activity = try Activity.request(
+                    attributes: WorkoutActivityAttributes(startedAt: Date()),
+                    content: ActivityContent(state: state, staleDate: nil),
+                    pushType: nil
+                )
+                call.resolve(["supported": true, "id": activity.id])
+            } catch {
+                call.reject("Unable to start workout Live Activity", nil, error)
+            }
+        }
+    }
+
+    @objc func update(_ call: CAPPluginCall) {
+        guard #available(iOS 16.1, *) else { call.resolve(); return }
+        let state = contentState(call)
+        Task {
+            for activity in Activity<WorkoutActivityAttributes>.activities {
+                await activity.update(ActivityContent(state: state, staleDate: nil))
+            }
+            call.resolve()
+        }
+    }
+
+    @objc func updateWidgets(_ call: CAPPluginCall) {
+        guard let defaults = UserDefaults(suiteName: "group.com.ananthh.onerep") else {
+            call.reject("Shared widget storage is unavailable")
+            return
+        }
+        for key in ["calories", "calorieGoal", "protein", "proteinGoal", "carbs", "carbsGoal", "fat", "fatGoal", "caloriesLeft"] {
+            if let value = call.getInt(key) { defaults.set(value, forKey: key) }
+        }
+        for key in ["foodsLogged", "workoutExercises", "workoutBrief"] {
+            if let value = call.getString(key) { defaults.set(value, forKey: key) }
+        }
+        let updatedAt = Date().timeIntervalSince1970
+        if call.getInt("calorieGoal") != nil {
+            defaults.set(updatedAt, forKey: "nutritionWidgetUpdatedAt")
+        }
+        if call.getString("workoutExercises") != nil {
+            defaults.set(updatedAt, forKey: "workoutWidgetUpdatedAt")
+        }
+        WidgetCenter.shared.reloadAllTimelines()
+        call.resolve()
+    }
+
+    @objc func end(_ call: CAPPluginCall) {
+        guard #available(iOS 16.1, *) else { call.resolve(); return }
+        let state = contentState(call)
+        Task {
+            for activity in Activity<WorkoutActivityAttributes>.activities {
+                await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .default)
+            }
+            call.resolve()
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func contentState(_ call: CAPPluginCall) -> WorkoutActivityAttributes.ContentState {
+        WorkoutActivityAttributes.ContentState(
+            exerciseName: call.getString("exerciseName") ?? "Workout",
+            setLabel: call.getString("setLabel") ?? "In progress",
+            completedSets: call.getInt("completedSets") ?? 0,
+            totalSets: call.getInt("totalSets") ?? 0
+        )
+    }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
@@ -19,6 +19,7 @@ import {
   type LogMicros,
 } from "@/lib/food-log"
 import type { FoodDetail, FoodResult } from "@repo/models"
+import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 
 type FoodReviewLocationState = {
   item?: FoodResult
@@ -34,6 +35,8 @@ export default function FoodReview() {
   const [loading, setLoading] = useState(!stateItem)
   const [failed, setFailed] = useState(false)
   const [added, setAdded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
 
   const preferences = useQuery(api.users.users.getPreferences, {})
   const date = currentDateKey(
@@ -89,6 +92,9 @@ export default function FoodReview() {
     detail?: FoodDetail | null,
     portion?: FoodPortion
   ) {
+    if (savingRef.current || added) return
+    savingRef.current = true
+    setSaving(true)
     const macros = scaledFoodMacros(food, grams, detail)
     const product = detail?.openFoodFacts ?? food.openFoodFacts
     const entry = stripUndefined({
@@ -110,17 +116,24 @@ export default function FoodReview() {
       ...micros,
     })
 
-    await addFoodEntry({ date, entry })
-    posthog.capture("food_logged", {
-      food_name: food.name,
-      calories: macros.calories,
-      grams,
-      meal,
-      source: "search_review_page",
-    })
+    try {
+      await addFoodEntry({ date, entry })
+      posthog.capture("food_logged", {
+        food_name: food.name,
+        calories: macros.calories,
+        grams,
+        meal,
+        source: "search_review_page",
+      })
 
-    setAdded(true)
-    window.setTimeout(() => navigate(-1), 650)
+      setAdded(true)
+      window.setTimeout(() => navigate(-1), 650)
+    } catch (error) {
+      reportOfflineMutationError(error)
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+    }
   }
 
   if (loading || failed || !item) {
@@ -166,6 +179,7 @@ export default function FoodReview() {
     <FoodDetailSheet
       item={item}
       added={added}
+      saving={saving}
       presentation="page"
       onAdd={(food, grams, micros, meal, detail, portion) => {
         void handleAdd(food, grams, micros, meal, detail, portion)

@@ -22,6 +22,7 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
+import { WidgetDataSync } from "@/components/widget-data-sync"
 
 import "./index.css"
 
@@ -88,7 +89,7 @@ function shouldShowBottomBar(pathname: string) {
   )
 }
 
-const ROUTE_CROSSFADE_MS = 240
+const ROUTE_CROSSFADE_MS = 360
 const ROUTE_MIN_READY_MS = 80
 const ROUTE_FONT_WAIT_MS = 220
 const ROUTE_IMAGE_WAIT_MS = 300
@@ -309,7 +310,7 @@ function NavSync() {
               fromKey: previousKey,
               fromPathname: previousPathnameRef.current,
               toKey: location.key,
-              ready: false,
+              ready: true,
             }
           : null
       )
@@ -387,19 +388,11 @@ function NavSync() {
     }
   }
 
-  const previousChromePathname = routeTransition?.fromPathname
-  const showPreviousChrome = Boolean(
-    previousChromePathname && shouldShowBottomBar(previousChromePathname)
-  )
   const currentChromeState = routeTransition
     ? routeTransition.ready
       ? "ready"
       : "loading"
     : undefined
-  const previousChromeState = routeTransition?.ready
-    ? "previous-ready"
-    : "previous"
-
   return (
     <BottomBarActionProvider onActionChange={setBottomBarAction}>
       <div
@@ -408,17 +401,6 @@ function NavSync() {
         className="app-route-shell"
       >
         <div className="app-route-stack">
-          {routeTransition?.from && (
-            <div
-              key={`from-${routeTransition.fromKey}`}
-              className="app-route-frame app-route-frame-previous"
-              data-route-path={routeTransition.fromPathname}
-              data-route-ready={routeTransition.ready ? "true" : undefined}
-              aria-hidden="true"
-            >
-              {routeTransition.from}
-            </div>
-          )}
           <div
             key={location.key}
             ref={activeRouteFrameRef}
@@ -433,12 +415,6 @@ function NavSync() {
           </div>
         </div>
       </div>
-      {showPreviousChrome && previousChromePathname && (
-        <BottomBar
-          pathname={previousChromePathname}
-          chromeState={previousChromeState}
-        />
-      )}
       {showBottomBar && (
         <BottomBar
           pathname={location.pathname}
@@ -726,8 +702,14 @@ createRoot(document.getElementById("root")!).render(
         <ThemeProvider>
           <ErrorBoundary label="the app">
             <OfflineSyncIndicator />
+            <WidgetDataSync />
             <RouterProvider router={router} />
-            <Toaster position="top-center" richColors />
+            <Toaster
+              position="top-center"
+              offset="calc(env(safe-area-inset-top, 0px) + 12px)"
+              mobileOffset="calc(env(safe-area-inset-top, 0px) + 12px)"
+              richColors
+            />
           </ErrorBoundary>
         </ThemeProvider>
       </PostHogProvider>

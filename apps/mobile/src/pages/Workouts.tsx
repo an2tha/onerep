@@ -14,6 +14,7 @@ import {
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart } from "@repo/ui"
 import { DateSelectorButton } from "@repo/ui"
@@ -307,13 +308,25 @@ function ConfirmDeleteSheet({
   onCancel,
 }: {
   preset: WorkoutPresetCard
-  onConfirm: () => void
+  onConfirm: () => Promise<void>
   onCancel: () => void
 }) {
+  const [deleting, setDeleting] = useState(false)
+
+  async function confirm() {
+    if (deleting) return
+    setDeleting(true)
+    try {
+      await onConfirm()
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/30 backdrop-blur-[2px]"
-      onClick={onCancel}
+      onClick={deleting ? undefined : onCancel}
     >
       <div
         className="sheet-panel app-sheet-panel w-full max-w-sm border-t border-border bg-background px-5 pt-5"
@@ -330,13 +343,16 @@ function ConfirmDeleteSheet({
         </p>
         <div className="mt-6 flex flex-col gap-2">
           <button
-            onClick={onConfirm}
+            onClick={() => void confirm()}
+            disabled={deleting}
+            aria-busy={deleting}
             className="app-button app-button-danger h-12 w-full"
           >
-            Delete preset
+            {deleting ? "Deleting..." : "Delete preset"}
           </button>
           <button
-            onClick={onCancel}
+            onClick={deleting ? undefined : onCancel}
+            disabled={deleting}
             className="app-button app-button-quiet h-12 w-full"
           >
             Keep it
@@ -684,12 +700,12 @@ export default function Workouts() {
     "logs.workouts.completion"
   )
 
-  function persist(
+  async function persist(
     nextPresets: WorkoutPresetCard[],
     nextRoutine: Routine,
     nextRoutine2: Routine = routine2
   ) {
-    void setSchedule({
+    await setSchedule({
       routine: scheduleRoutinePayload(nextRoutine, nextRoutine2),
       presetOrder: nextPresets.map((p) => p.id),
     })
@@ -697,6 +713,9 @@ export default function Workouts() {
 
   // ── Preset ordering (local, synced once from server) ──────────────────────
   const [localOrder, setLocalOrder] = useState<string[]>([])
+  const [duplicatingPresetId, setDuplicatingPresetId] = useState<string | null>(
+    null
+  )
   const orderReady = useRef(false)
 
   useEffect(() => {
@@ -805,6 +824,42 @@ export default function Workouts() {
   const today = isToday ? todayDay() : dayFromDateKey(dateKey)
   const todayPreset = presets.find((p) => p.id === routine[today]) ?? null
   const todayPreset2 = presets.find((p) => p.id === routine2[today]) ?? null
+
+  useEffect(() => {
+    if (syncing) return
+    const scheduled = [todayPreset, todayPreset2].filter(
+      (preset): preset is WorkoutPresetCard => Boolean(preset)
+    )
+    const exerciseNames = scheduled
+      .flatMap((preset) => preset.steps)
+      .slice(0, 5)
+    const totalSets = scheduled.reduce((sum, preset) => {
+      const source = serverPresets?.find(
+        (candidate) => String(candidate.id ?? candidate._id) === preset.id
+      )
+      const exerciseData = (source?.exerciseData ?? {}) as Record<
+        string,
+        { sets?: unknown[] }
+      >
+      return (
+        sum +
+        Object.values(exerciseData).reduce(
+          (setSum, exercise) => setSum + (exercise.sets?.length ?? 0),
+          0
+        )
+      )
+    }, 0)
+    void updateOneRepWidgets({
+      workoutExercises:
+        exerciseNames.length > 0
+          ? exerciseNames.join(" · ")
+          : "No workout scheduled",
+      workoutBrief:
+        exerciseNames.length > 0
+          ? `${exerciseNames.length} exercises · ${totalSets} sets`
+          : "Recovery day",
+    })
+  }, [serverPresets, syncing, todayPreset, todayPreset2])
 
   const workoutDates = useMemo(() => {
     if (!workoutHistory) return new Set<string>()
@@ -1038,21 +1093,27 @@ export default function Workouts() {
 
   // ── Delete confirmed ──────────────────────────────────────────────────────
 
-  function duplicatePreset(preset: WorkoutPresetCard) {
+  async function duplicatePreset(preset: WorkoutPresetCard) {
+    if (duplicatingPresetId !== null) return
     const source = serverPresets?.find(
       (item) => (item._id as string) === preset.id
     )
-    void createPresetMutation({
-      name: `${preset.name} copy`,
-      items: (source?.items as unknown[]) ?? [],
-      exerciseData: source?.exerciseData ?? {},
-      focus: source?.focus ?? preset.focus,
-      duration: source?.duration ?? preset.duration,
-      steps: source?.steps ?? preset.steps,
-    })
+    setDuplicatingPresetId(preset.id)
+    try {
+      await createPresetMutation({
+        name: `${preset.name} copy`,
+        items: (source?.items as unknown[]) ?? [],
+        exerciseData: source?.exerciseData ?? {},
+        focus: source?.focus ?? preset.focus,
+        duration: source?.duration ?? preset.duration,
+        steps: source?.steps ?? preset.steps,
+      })
+    } finally {
+      setDuplicatingPresetId(null)
+    }
   }
 
-  function deletePreset(id: string) {
+  async function deletePreset(id: string) {
     const nextPresets = presets.filter((p) => p.id !== id)
     const nextRoutine = { ...routine }
     const nextRoutine2 = { ...routine2 }
@@ -1064,10 +1125,9 @@ export default function Workouts() {
     setLocalOrder(nextPresets.map((p) => p.id))
     setRoutine(nextRoutine)
     setRoutine2(nextRoutine2)
+    await persist(nextPresets, nextRoutine, nextRoutine2)
+    await removePresetMutation({ id: id as Id<"presets"> })
     setConfirmDeleteId(null)
-
-    persist(nextPresets, nextRoutine, nextRoutine2)
-    void removePresetMutation({ id: id as Id<"presets"> })
   }
 
   function deleteSelectedWorkout() {
@@ -1624,6 +1684,7 @@ export default function Workouts() {
                         hasMoved &&
                         drag?.presetId !== preset.id
                       const isPressing = pressingPreset === preset.id
+                      const duplicatingThis = duplicatingPresetId === preset.id
 
                       return (
                         <div key={preset.id} className="relative">
@@ -1711,12 +1772,18 @@ export default function Workouts() {
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={() => {
                                   hapticSelection()
-                                  duplicatePreset(preset)
+                                  void duplicatePreset(preset)
                                 }}
+                                disabled={duplicatingPresetId !== null}
+                                aria-busy={duplicatingThis}
                                 className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
                                 aria-label={`Duplicate ${preset.name}`}
                               >
-                                <Copy size={12} />
+                                {duplicatingThis ? (
+                                  <span className="h-3 w-3 animate-spin rounded-full border border-current/25 border-t-current" />
+                                ) : (
+                                  <Copy size={12} />
+                                )}
                               </button>
                               <button
                                 type="button"

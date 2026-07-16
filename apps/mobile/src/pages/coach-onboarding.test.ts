@@ -10,7 +10,10 @@ const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
 )
-const APP_CSS = readFileSync(new URL("../index.css", import.meta.url), "utf8")
+const APP_CSS = readFileSync(
+  new URL("../../../../packages/ui/src/index.css", import.meta.url),
+  "utf8"
+)
 
 function expect(value: string) {
   return {

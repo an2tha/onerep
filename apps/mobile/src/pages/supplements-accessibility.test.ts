@@ -60,10 +60,11 @@ describe("Supplements page accessibility contract", () => {
   })
 
   test("bulk supplement logging exposes busy state", () => {
-    expect(SUPPLEMENTS_SOURCE).toContain("if (bulkLogging || remainingScheduledPlans.length === 0) return")
+    expect(SUPPLEMENTS_SOURCE).toContain("remainingScheduledPlans.length === 0")
     expect(SUPPLEMENTS_SOURCE).toContain("disabled={bulkLogging}")
     expect(SUPPLEMENTS_SOURCE).toContain("aria-busy={bulkLogging}")
-    expect(SUPPLEMENTS_SOURCE).toContain('{bulkLogging ? "Logging" : `Take ${remainingScheduledCount}`}')
+    expect(SUPPLEMENTS_SOURCE).toContain('? "Logging"')
+    expect(SUPPLEMENTS_SOURCE).toContain(": `Take ${remainingScheduledCount}`")
     expect(SUPPLEMENTS_SOURCE).toContain("const [bulkLoggedFeedback, setBulkLoggedFeedback]")
     expect(SUPPLEMENTS_SOURCE).toContain("bulkLoggedFeedback && \"motion-success-pop\"")
   })

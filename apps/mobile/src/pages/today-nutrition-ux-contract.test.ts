@@ -6,7 +6,7 @@ function source(path: string) {
   return readFileSync(new URL(path, import.meta.url), "utf8")
 }
 
-const HOME_SOURCE = source("../components/home/index.tsx")
+const HOME_SOURCE = source("../../../../packages/ui/src/components/home/index.tsx")
 const NUTRITION_SOURCE = source("./Nutrition.tsx")
 const SEARCH_SOURCE = source("./SearchFoods.tsx")
 const RECIPE_SOURCE = source("./NewRecipe.tsx")
@@ -14,8 +14,8 @@ const SNAP_SOURCE = source("./SnapAndLog.tsx")
 
 describe("Today and nutrition UX contract", () => {
   test("Today exposes the high-frequency actions as labeled rows", () => {
-    assert.match(HOME_SOURCE, /renderAction\(water/)
-    assert.match(HOME_SOURCE, /renderAction\(workout/)
+    assert.match(HOME_SOURCE, /Open food selector/)
+    assert.match(HOME_SOURCE, /Add 250 ml water/)
     assert.match(HOME_SOURCE, /Your day is ready to log/)
     assert.match(HOME_SOURCE, /Add 250 ml/)
   })
@@ -37,7 +37,10 @@ describe("Today and nutrition UX contract", () => {
   })
 
   test("recipe editing uses a linear ingredient list and named controls", () => {
-    assert.match(RECIPE_SOURCE, /Recipe nutrition/)
+    const recipeViews = source(
+      "../../../../packages/ui/src/components/recipe-views.tsx"
+    )
+    assert.match(recipeViews, /Recipe nutrition/)
     assert.match(RECIPE_SOURCE, /name="recipe-name"/)
     assert.match(RECIPE_SOURCE, /divide-y divide-border border-y/)
     assert.doesNotMatch(RECIPE_SOURCE, /function MacroRing/)

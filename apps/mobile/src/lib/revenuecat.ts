@@ -663,7 +663,14 @@ export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
     const store = (
       state.customerInfo as EntitlementContainer | null
     )?.store?.toLowerCase()
-    if (managementUrl && (isNative || store !== "rc_billing")) {
+    const requiresWebCancellation =
+      store === "rc_billing" || store?.includes("stripe") === true
+    if (isNative && requiresWebCancellation) {
+      throw new Error(
+        "This subscription was purchased on the web. Open the OneRep web app to manage it."
+      )
+    }
+    if (managementUrl && store !== "rc_billing") {
       openSubscriptionManagement(managementUrl)
       return state.customerInfo
     }
@@ -691,14 +698,21 @@ export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
   const subscriptionStore = (
     state.customerInfo as EntitlementContainer | null
   )?.store?.toLowerCase()
+  const requiresWebCancellation =
+    isNative &&
+    (subscriptionStore === "rc_billing" ||
+      subscriptionStore?.includes("stripe") === true)
   const cancelOpensManagement =
-    Boolean(managementUrl) && (isNative || subscriptionStore !== "rc_billing")
+    !requiresWebCancellation &&
+    Boolean(managementUrl) &&
+    subscriptionStore !== "rc_billing"
 
   return useMemo(
     () => ({
       ...state,
       cancelOpensManagement,
       cancelSubscription,
+      requiresWebCancellation,
       canPurchase: isNative
         ? state.status !== "loading" &&
           state.status !== "unsupported" &&
@@ -727,6 +741,7 @@ export function useRevenueCat({ email, name, userId }: UseRevenueCatOptions) {
       isWeb,
       cancelOpensManagement,
       cancelSubscription,
+      requiresWebCancellation,
       managementUrl,
       purchaseMonthly,
       refresh,

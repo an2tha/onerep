@@ -1,5 +1,4 @@
 import { Capacitor } from "@capacitor/core"
-import { LocalNotifications } from "@capacitor/local-notifications"
 
 export type BodyMeasurementEntry = {
   _id?: string // Convex ID
@@ -107,6 +106,10 @@ export async function syncDailyCheckInReminder(
   if (Capacitor.getPlatform() === "web") {
     return "unsupported"
   }
+
+  const { LocalNotifications } = await import(
+    "@capacitor/local-notifications"
+  )
 
   await LocalNotifications.cancel({
     notifications: [{ id: DAILY_CHECK_IN_NOTIFICATION_ID }],

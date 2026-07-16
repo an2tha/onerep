@@ -54,6 +54,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>OneRep uses the camera to snap and log meals.</string>
 	<key>NSHealthShareUsageDescription</key>

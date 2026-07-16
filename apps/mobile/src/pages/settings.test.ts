@@ -21,9 +21,16 @@ const SETTINGS_SOURCE = readFileSync(
   "utf8"
 )
 const APP_STYLES_SOURCE = readFileSync(
-  new URL("../index.css", import.meta.url),
+  new URL("../../../../packages/ui/src/index.css", import.meta.url),
   "utf8"
 )
+const SETTINGS_UI_SOURCE = [
+  "../../../../packages/ui/src/components/settings-controls.tsx",
+  "../../../../packages/ui/src/components/settings-display.tsx",
+  "../../../../packages/ui/src/components/mobile-ui.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 
 // ─── NumberInput logic ────────────────────────────────────────────────────────
 // Mirror of the NumberInput commit / step logic from Settings.tsx
@@ -215,7 +222,7 @@ describe("OneRep Pro membership surface", () => {
   test("keeps cancellation confirmed and adds tactile feedback at entry", () => {
     assert.match(
       SETTINGS_SOURCE,
-      /if \(active\) \{\s+hapticTap\(\)\s+setConfirmCancel\(true\)/
+      /if \(active\) \{[\s\S]*?hapticTap\(\)\s+setConfirmCancel\(true\)/
     )
     assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
     assert.match(SETTINGS_SOURCE, /Keep OneRep Pro/)
@@ -338,10 +345,10 @@ describe("getEffectiveGoals – priority: custom > health > default", () => {
 
 describe("Settings – production feature visibility", () => {
   test("settings loading state explains what is happening", () => {
-    assert.match(SETTINGS_SOURCE, /aria-label="Loading settings"/)
-    assert.match(SETTINGS_SOURCE, /Loading settings/)
+    assert.match(SETTINGS_UI_SOURCE, /aria-label="Loading settings"/)
+    assert.match(SETTINGS_UI_SOURCE, /Loading settings/)
     assert.match(
-      SETTINGS_SOURCE,
+      SETTINGS_UI_SOURCE,
       /Syncing your preferences, goals, and account controls\./
     )
   })
@@ -363,14 +370,15 @@ describe("Settings – production feature visibility", () => {
   })
 
   test("uses the native settings hierarchy and accessible controls", () => {
-    assert.match(SETTINGS_SOURCE, /<NavigationBar/)
-    assert.match(SETTINGS_SOURCE, /<GroupedList/)
-    assert.match(SETTINGS_SOURCE, /<DisclosureRow/)
-    assert.match(SETTINGS_SOURCE, /role="switch"/)
-    assert.match(SETTINGS_SOURCE, /aria-checked=\{checked\}/)
-    assert.match(SETTINGS_SOURCE, /role="progressbar"/)
+    const combinedSource = `${SETTINGS_SOURCE}\n${SETTINGS_UI_SOURCE}`
+    assert.match(combinedSource, /<NavigationBar/)
+    assert.match(combinedSource, /<GroupedList/)
+    assert.match(combinedSource, /<DisclosureRow/)
+    assert.match(combinedSource, /role="switch"/)
+    assert.match(combinedSource, /aria-checked=\{checked\}/)
+    assert.match(combinedSource, /role="progressbar"/)
     assert.match(
-      SETTINGS_SOURCE,
+      combinedSource,
       /<span className="sr-only">\{label\} reminder time<\/span>/
     )
   })

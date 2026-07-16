@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const SOURCE = readFileSync(
-  new URL("./offline-sync-indicator.tsx", import.meta.url),
-  "utf8"
-)
+const SOURCE = [
+  "./offline-sync-indicator.tsx",
+  "../../../../packages/ui/src/components/app-feedback.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 
 describe("offline sync indicator production contract", () => {
   test("prevents duplicate manual and automatic flushes", () => {
@@ -22,9 +24,8 @@ describe("offline sync indicator production contract", () => {
     expect(SOURCE).toContain("disabled={syncing}")
     expect(SOURCE).toContain("aria-busy={syncing}")
     expect(SOURCE).toContain(
-      'const actionLabel = status.tone === "error" ? "Retry" : "Sync"'
+      '{syncing ? "Syncing" : status.tone === "error" ? "Retry" : "Sync"}'
     )
-    expect(SOURCE).toContain('{syncing ? "Syncing" : actionLabel}')
     expect(SOURCE).toContain('"Retry offline sync"')
     expect(SOURCE).toContain('"Sync saved changes"')
   })

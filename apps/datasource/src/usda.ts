@@ -53,8 +53,12 @@ export async function discoverUsdaUrls(datasets: Array<keyof typeof DATASET_PATT
 export async function syncUsda(args: { db: DatasourceDatabase; cacheDir: string; datasets?: Array<"foundation" | "survey" | "legacy"> }): Promise<number> {
   const datasets: Array<keyof typeof DATASET_PATTERNS> = args.datasets?.length ? args.datasets : ["foundation", "survey"];
   const sources = await discoverUsdaUrls(datasets); args.db.reset(); let total = 0;
-  for (const source of sources) {
-    const zipPath = join(args.cacheDir, basename(new URL(source.url).pathname)); await download(source.url, zipPath);
+  const downloads = await Promise.all(sources.map(async (source) => {
+    const zipPath = join(args.cacheDir, basename(new URL(source.url).pathname));
+    await download(source.url, zipPath);
+    return { source, zipPath };
+  }));
+  for (const { source, zipPath } of downloads) {
     const archive = unzipSync(new Uint8Array(await Bun.file(zipPath).arrayBuffer())); const entry = Object.entries(archive).find(([name]) => name.toLowerCase().endsWith(".json"));
     if (!entry) throw new Error(`No JSON file found in ${zipPath}`);
     const parsed = JSON.parse(new TextDecoder().decode(entry[1])) as { FoundationFoods?: RawFood[]; SurveyFoods?: RawFood[]; SRLegacyFoods?: RawFood[] } | RawFood[];
