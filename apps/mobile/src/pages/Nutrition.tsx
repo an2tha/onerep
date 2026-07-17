@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useSearchParams } from "react-router"
+import { createPortal } from "react-dom"
 import {
   Aperture,
   Barcode,
@@ -64,7 +65,7 @@ import {
 import { APP_ACCENT_COLORS, MACRO_COLORS, MICRO_COLORS } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
-import { hapticSelection } from "@/lib/haptics"
+import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { COACH_RECIPE_PLACEHOLDER } from "@/lib/recipe-images"
 import {
   clampSnapGrams,
@@ -316,26 +317,51 @@ function ProgressLine({
   target,
   suffix,
   color,
+  animateChanges = false,
+  rainKey = 0,
 }: {
   label: string
   value: number
   target: number
   suffix: string
   color: string
+  animateChanges?: boolean
+  rainKey?: number
 }) {
   return (
-    <div>
+    <div className="relative overflow-hidden">
+      {rainKey > 0 && (
+        <span
+          key={rainKey}
+          className="water-rain nutrient-micro-rain"
+          style={{ "--nutrient-rain-color": color } as CSSProperties}
+          aria-hidden
+        >
+          {Array.from({ length: 7 }, (_, index) => (
+            <span key={index} />
+          ))}
+        </span>
+      )}
       <div className="mb-1 flex items-baseline justify-between gap-2">
         <span className="text-[13px] font-semibold text-muted-foreground">
           {label}
         </span>
-        <span className="text-[13px] font-semibold text-foreground tabular-nums">
+        <span
+          key={animateChanges ? value : undefined}
+          className={cn(
+            "text-[13px] font-semibold text-foreground tabular-nums",
+            animateChanges && "motion-number-refresh"
+          )}
+        >
           {fmt(value)} / {fmt(target)} {suffix}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
         <div
-          className="h-full rounded-full"
+          className={cn(
+            "h-full rounded-full",
+            animateChanges && "water-progress-refresh"
+          )}
           style={{ width: `${pct(value, target)}%`, backgroundColor: color }}
         />
       </div>
@@ -664,6 +690,12 @@ function WaterGlassControls({
 }) {
   const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
+  const previousFilledCount = useRef(filledCount)
+  const newlyFilledFrom = previousFilledCount.current
+
+  useEffect(() => {
+    previousFilledCount.current = filledCount
+  }, [filledCount])
   const previewFilledCount =
     hoveredGlass === null
       ? filledCount
@@ -696,7 +728,8 @@ function WaterGlassControls({
             onBlur={() => setHoveredGlass(null)}
             className={cn(
               "motion-tactile flex items-center justify-center rounded-[10px] py-2.5 transition-all disabled:opacity-50 short-phone:py-2",
-              previewFilled ? "" : "bg-muted/25"
+              previewFilled ? "" : "bg-muted/25",
+              filled && index >= newlyFilledFrom && "water-glass-filled-in"
             )}
             style={
               previewFilled
@@ -1430,6 +1463,13 @@ export default function Nutrition() {
   const [loggingWaterAmount, setLoggingWaterAmount] = useState<number | null>(
     null
   )
+  const [waterRainKey, setWaterRainKey] = useState(0)
+  const [waterGoalCelebration, setWaterGoalCelebration] = useState(false)
+  const [calorieGoalCelebration, setCalorieGoalCelebration] = useState(false)
+  const [nutrientRainKeys, setNutrientRainKeys] = useState({
+    protein: 0,
+    carbs: 0,
+  })
   const [loggingSupplementId, setLoggingSupplementId] = useState<string | null>(
     null
   )
@@ -1625,6 +1665,49 @@ export default function Nutrition() {
     dueSupplements.length > 0 ? dueSupplements : supplementPlan.slice(0, 3)
 
   const caloriesLeft = calorieTarget - intakeTotals.calories
+  const previousNutrients = useRef({
+    calories: intakeTotals.calories,
+    protein: intakeTotals.protein,
+    carbs: intakeTotals.carbs,
+  })
+
+  useEffect(() => {
+    const previous = previousNutrients.current
+    if (isToday) {
+      if (
+        previous.calories < calorieTarget &&
+        intakeTotals.calories >= calorieTarget
+      ) {
+        setCalorieGoalCelebration(true)
+      }
+      setNutrientRainKeys((current) => ({
+        protein:
+          previous.protein < macroTargets.protein &&
+          intakeTotals.protein >= macroTargets.protein
+            ? current.protein + 1
+            : current.protein,
+        carbs:
+          previous.carbs < macroTargets.carbs &&
+          intakeTotals.carbs >= macroTargets.carbs
+            ? current.carbs + 1
+            : current.carbs,
+      }))
+    }
+    previousNutrients.current = {
+      calories: intakeTotals.calories,
+      protein: intakeTotals.protein,
+      carbs: intakeTotals.carbs,
+    }
+  }, [
+    calorieTarget,
+    intakeTotals.calories,
+    intakeTotals.carbs,
+    intakeTotals.protein,
+    isToday,
+    macroTargets.carbs,
+    macroTargets.protein,
+  ])
+
   const workoutCalories = Math.max(0, effectiveGoals?.burnedCalories ?? 0)
   const isTrainingDay = effectiveGoals?.isTrainingDay === true
   const workoutAdjustmentEnabled =
@@ -1704,6 +1787,8 @@ export default function Nutrition() {
 
   async function addWater(amountMl: number) {
     if (amountMl <= 0 || loggingWaterAmount !== null) return false
+    const completesGoal =
+      waterTotal < waterGoal && waterTotal + amountMl >= waterGoal
     setLoggingWaterAmount(amountMl)
     try {
       await addWaterEntry({
@@ -1715,11 +1800,46 @@ export default function Nutrition() {
         },
       })
       hapticSelection()
+      setWaterRainKey((value) => value + 1)
+      if (completesGoal) setWaterGoalCelebration(true)
       return true
     } finally {
       setLoggingWaterAmount(null)
     }
   }
+
+  useEffect(() => {
+    if (!waterGoalCelebration) return
+    document.documentElement.dataset.waterGoalCelebration = "true"
+    hapticMedium()
+    const secondHaptic = window.setTimeout(hapticSelection, 140)
+    const thirdHaptic = window.setTimeout(hapticMedium, 300)
+    const close = window.setTimeout(() => setWaterGoalCelebration(false), 2600)
+    return () => {
+      delete document.documentElement.dataset.waterGoalCelebration
+      window.clearTimeout(secondHaptic)
+      window.clearTimeout(thirdHaptic)
+      window.clearTimeout(close)
+    }
+  }, [waterGoalCelebration])
+
+  useEffect(() => {
+    if (!calorieGoalCelebration) return
+    document.documentElement.dataset.calorieGoalCelebration = "true"
+    hapticMedium()
+    const secondHaptic = window.setTimeout(hapticSelection, 150)
+    const thirdHaptic = window.setTimeout(hapticMedium, 320)
+    const close = window.setTimeout(
+      () => setCalorieGoalCelebration(false),
+      2600
+    )
+    return () => {
+      delete document.documentElement.dataset.calorieGoalCelebration
+      window.clearTimeout(secondHaptic)
+      window.clearTimeout(thirdHaptic)
+      window.clearTimeout(close)
+    }
+  }, [calorieGoalCelebration])
 
   async function saveWaterGoal(ml: number) {
     if (savingWaterGoal) return false
@@ -1982,7 +2102,7 @@ export default function Nutrition() {
                   <button
                     type="button"
                     onClick={() => setAddOpen(true)}
-                    className="native-toolbar-button border border-border bg-card"
+                    className="native-toolbar-button"
                     aria-label="Add nutrition entry"
                   >
                     <Plus weight="bold" />
@@ -1992,7 +2112,7 @@ export default function Nutrition() {
                 <button
                   type="button"
                   onClick={() => setAddOpen(true)}
-                  className="native-toolbar-button hidden border border-border bg-card md:inline-flex"
+                  className="native-toolbar-button hidden md:inline-flex"
                   aria-label="Add nutrition entry"
                 >
                   <Plus weight="bold" />
@@ -2231,9 +2351,17 @@ export default function Nutrition() {
                 visibleMetrics.calories ? "Energy remaining" : "Meals logged"
               }
               value={
-                visibleMetrics.calories
-                  ? `${caloriesLeft >= 0 ? "" : "+"}${fmt(Math.abs(caloriesLeft))} kcal`
-                  : loggedToday
+                visibleMetrics.calories ? (
+                  <span
+                    key={caloriesLeft}
+                    className="motion-number-refresh inline-block"
+                  >
+                    {caloriesLeft >= 0 ? "" : "+"}
+                    {fmt(Math.abs(caloriesLeft))} kcal
+                  </span>
+                ) : (
+                  loggedToday
+                )
               }
               detail={
                 visibleMetrics.calories
@@ -2241,22 +2369,25 @@ export default function Nutrition() {
                   : `${nutritionPlan?.trackingMode ?? "habit"} tracking mode`
               }
               tone="food"
-              action={
-                <button
-                  type="button"
-                  onClick={() => setAddOpen(true)}
-                  className="native-toolbar-button border border-border bg-card"
-                  aria-label="Add food, water, or supplements"
-                >
-                  <Plus size={22} weight="bold" />
-                  <span>Add</span>
-                </button>
-              }
             >
               <StatRow
                 label="Water"
-                value={`${fmtWater(waterTotal)} / ${fmtWater(waterGoal)}`}
-                detail={`${pct(waterTotal, waterGoal)}%`}
+                value={
+                  <span
+                    key={`water-${waterTotal}`}
+                    className="motion-number-refresh"
+                  >
+                    {fmtWater(waterTotal)} / {fmtWater(waterGoal)}
+                  </span>
+                }
+                detail={
+                  <span
+                    key={`water-pct-${waterTotal}`}
+                    className="motion-number-refresh"
+                  >
+                    {pct(waterTotal, waterGoal)}%
+                  </span>
+                }
                 color="var(--accent-water)"
               />
               <StatRow
@@ -2293,64 +2424,48 @@ export default function Nutrition() {
             </SummaryBlock>
 
             <nav
-              className="mt-4 grid grid-cols-2 gap-3"
+              className="mt-5 grid grid-cols-2 gap-5"
               aria-label="Nutrition libraries"
             >
               <button
                 type="button"
                 onClick={openRecipes}
-                className="group flex min-h-24 flex-col items-stretch justify-between gap-3 rounded-[var(--radius-panel)] border border-border bg-card p-3 text-left shadow-[var(--shadow-surface)] transition-[background-color,transform] active:scale-[0.985] active:bg-muted/45 sm:min-h-32 sm:gap-5 sm:p-4"
+                className="group min-h-16 border-t border-border px-1 pt-3 pb-2 text-left transition-[background-color,transform] active:translate-y-0.5 active:bg-muted/25"
               >
-                <span className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5">
                   <BookBookmark
-                    size={25}
+                    size={18}
                     weight="regular"
-                    className="size-[21px] shrink-0 text-[var(--accent-food)] sm:size-[25px]"
+                    className="shrink-0 text-muted-foreground transition-colors group-active:text-foreground"
                     aria-hidden
                   />
-                  <CaretRight
-                    size={15}
-                    weight="bold"
-                    className="shrink-0 text-muted-foreground transition-transform group-active:translate-x-0.5"
-                    aria-hidden
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[15px] leading-tight font-semibold tracking-tight sm:text-[16px]">
+                  <span className="truncate text-[15px] font-semibold tracking-tight">
                     Recipes
                   </span>
-                  <span className="mt-0.5 block text-[12px] leading-4 text-muted-foreground sm:mt-1 sm:text-[13px]">
-                    Browse your library
-                  </span>
+                </span>
+                <span className="mt-1 block pl-[1.75rem] text-[12px] text-muted-foreground tabular-nums">
+                  {recipes.length} saved
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={openSupplements}
-                className="group flex min-h-24 flex-col items-stretch justify-between gap-3 rounded-[var(--radius-panel)] border border-border bg-card p-3 text-left shadow-[var(--shadow-surface)] transition-[background-color,transform] active:scale-[0.985] active:bg-muted/45 sm:min-h-32 sm:gap-5 sm:p-4"
+                className="group min-h-16 border-t border-border px-1 pt-3 pb-2 text-left transition-[background-color,transform] active:translate-y-0.5 active:bg-muted/25"
               >
-                <span className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2.5">
                   <Pill
-                    size={25}
+                    size={18}
                     weight="regular"
-                    className="size-[21px] shrink-0 text-[var(--accent-supplement)] sm:size-[25px]"
+                    className="shrink-0 text-muted-foreground transition-colors group-active:text-foreground"
                     aria-hidden
                   />
-                  <CaretRight
-                    size={15}
-                    weight="bold"
-                    className="shrink-0 text-muted-foreground transition-transform group-active:translate-x-0.5"
-                    aria-hidden
-                  />
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-[15px] leading-tight font-semibold tracking-tight sm:text-[16px]">
+                  <span className="truncate text-[15px] font-semibold tracking-tight">
                     Supplements
                   </span>
-                  <span className="mt-0.5 block text-[12px] leading-4 text-muted-foreground sm:mt-1 sm:text-[13px]">
-                    Manage your plan
-                  </span>
+                </span>
+                <span className="mt-1 block pl-[1.75rem] text-[12px] text-muted-foreground tabular-nums">
+                  {scheduledSupplements.length} scheduled
                 </span>
               </button>
             </nav>
@@ -2414,6 +2529,14 @@ export default function Nutrition() {
                         target={macroTargets[key]}
                         suffix="g"
                         color={MACRO_COLORS[key]}
+                        animateChanges={key === "protein" || key === "carbs"}
+                        rainKey={
+                          key === "protein"
+                            ? nutrientRainKeys.protein
+                            : key === "carbs"
+                              ? nutrientRainKeys.carbs
+                              : 0
+                        }
                       />
                     ))}
                   {!visibleMetrics.macros && !visibleMetrics.protein && (
@@ -2482,9 +2605,20 @@ export default function Nutrition() {
                 )}
               </div>
 
-              <div className="grid gap-6">
-                <div className="border-y border-border py-4">
-                  <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="grid content-start gap-6 self-start">
+                <div className="relative overflow-hidden border-y border-border py-4">
+                  {waterRainKey > 0 && (
+                    <span
+                      key={waterRainKey}
+                      className="water-rain water-rain-nutrition"
+                      aria-hidden
+                    >
+                      {Array.from({ length: 9 }, (_, index) => (
+                        <span key={index} />
+                      ))}
+                    </span>
+                  )}
+                  <div className="relative z-10 mb-3 flex items-center justify-between gap-3">
                     <p className="app-section-title">Water</p>
                     <button
                       type="button"
@@ -2502,6 +2636,7 @@ export default function Nutrition() {
                     target={waterGoal}
                     suffix="ml"
                     color={APP_ACCENT_COLORS.water}
+                    animateChanges
                   />
                   <WaterGlassControls
                     totalMl={waterTotal}
@@ -2572,6 +2707,74 @@ export default function Nutrition() {
           </>
         )}
       </main>
+
+      {waterGoalCelebration &&
+        createPortal(
+          <div
+            className="water-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
+            role="status"
+            aria-live="assertive"
+          >
+            <div className="water-goal-rain" aria-hidden>
+              {Array.from({ length: 32 }, (_, index) => (
+                <span
+                  key={index}
+                  style={{
+                    left: `${(index * 37) % 101}%`,
+                    animationDelay: `${(index * 73) % 640}ms`,
+                    animationDuration: `${1050 + ((index * 97) % 700)}ms`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="relative z-10 flex flex-col items-center gap-3 px-5 text-center">
+              <CheckCircle
+                size={42}
+                weight="fill"
+                className="water-goal-check text-emerald-400"
+                aria-hidden
+              />
+              <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
+                Hydration goal complete
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {calorieGoalCelebration &&
+        createPortal(
+          <div
+            className="water-goal-celebration calorie-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
+            role="status"
+            aria-live="assertive"
+          >
+            <div className="water-goal-rain calorie-goal-rain" aria-hidden>
+              {Array.from({ length: 32 }, (_, index) => (
+                <span
+                  key={index}
+                  style={{
+                    left: `${(index * 37) % 101}%`,
+                    animationDelay: `${(index * 73) % 640}ms`,
+                    animationDuration: `${1050 + ((index * 97) % 700)}ms`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="relative z-10 flex flex-col items-center gap-3 px-5 text-center">
+              <CheckCircle
+                size={42}
+                weight="fill"
+                className="water-goal-check text-[var(--accent-food)]"
+                aria-hidden
+              />
+              <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
+                Calorie goal complete
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {customWaterOpen && (
         <CustomWaterSheet

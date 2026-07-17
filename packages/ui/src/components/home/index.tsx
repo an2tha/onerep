@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import {
   ArrowRight,
   Barbell,
@@ -19,11 +19,9 @@ import {
   GroupedList,
   PrimaryButton,
   SectionHeader,
-  StatRow,
   SummaryBlock,
 } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
-import { AnimatedAccordion } from "../animated-accordion"
 
 export type DashboardBriefingView = {
   action: string
@@ -250,10 +248,7 @@ export function FirstWeekGuide({ onDismiss }: { onDismiss: () => void }) {
         </span>
         <div className="min-w-0 flex-1">
           <p className="native-row-title">Your first-week guide</p>
-          <p className="native-row-detail mt-1">
-            Start with Next step, use Quick log during the day, and correct
-            entries from Recent.
-          </p>
+          <p className="native-row-detail mt-1">Use + to log your day.</p>
         </div>
         <button
           type="button"
@@ -491,9 +486,6 @@ export function DailyLedgerHero({
   onBriefingAction,
   showBriefingAction = true,
   proteinLeft,
-  streak,
-  workoutsThisWeek,
-  macros = [],
   className,
 }: {
   caloriesLeft: number
@@ -514,11 +506,9 @@ export function DailyLedgerHero({
   onBriefingAction: () => void
   showBriefingAction?: boolean
   proteinLeft: number
-  streak: number
-  workoutsThisWeek: number
-  macros?: MacroProgress[]
   className?: string
 }) {
+  const [waterRainKey, setWaterRainKey] = useState(0)
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const waterPct = pct(waterMl, waterGoalMl)
@@ -549,42 +539,50 @@ export function DailyLedgerHero({
           }}
         />
       </div>
-      <AnimatedAccordion
-        summary={(open) => (open ? "Hide breakdown" : "Show breakdown")}
-        className="mt-3 border-y border-border"
-        triggerClassName="min-h-11 text-[13px] font-semibold"
-      >
-        <div className="mt-3">
-          {macros.map((macro) => (
-            <StatRow
-              key={macro.label}
-              label={macro.label}
-              value={`${fmt(macro.value)} / ${fmt(macro.target)} ${macro.unit ?? "g"}`}
-              color={macro.color}
-            />
-          ))}
-          <StatRow
-            label="Water"
-            value={`${fmt(waterMl)} / ${fmt(waterGoalMl)} ml`}
-            detail={`${waterPct}%`}
-            color="var(--accent-water)"
-          />
-          <StatRow
-            label="Protein remaining"
-            value={proteinLeft > 0 ? `${fmt(proteinLeft)} g` : "Target met"}
-            color="var(--accent-food)"
-          />
-          <StatRow
-            label="Training"
-            value={workoutValue}
-            detail={`${workoutsThisWeek} this week · ${streak} day streak`}
-            color="var(--accent-workout)"
-          />
+      <div className="mt-4 grid grid-cols-3 divide-x divide-border border-y border-border py-3">
+        <div className="px-2 first:pl-0">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Protein
+          </p>
+          <p className="mt-1 truncate text-[14px] font-semibold tabular-nums">
+            {proteinLeft > 0 ? `${fmt(proteinLeft)}g left` : "Done"}
+          </p>
         </div>
-      </AnimatedAccordion>
+        <div className="relative overflow-hidden px-3">
+          {waterRainKey > 0 && (
+            <span key={waterRainKey} className="water-rain" aria-hidden>
+              {Array.from({ length: 7 }, (_, index) => (
+                <span key={index} />
+              ))}
+            </span>
+          )}
+          <p className="relative z-10 text-[11px] font-medium text-muted-foreground">
+            Water
+          </p>
+          <p
+            key={waterPct}
+            className="motion-number-refresh relative z-10 mt-1 truncate text-[14px] font-semibold tabular-nums"
+          >
+            {waterPct}%
+          </p>
+        </div>
+        <div className="px-3 pr-0">
+          <p className="text-[11px] font-medium text-muted-foreground">
+            Workout
+          </p>
+          <p className="mt-1 truncate text-[14px] font-semibold tabular-nums">
+            {workoutValue}
+          </p>
+        </div>
+      </div>
       {showBriefingAction && (
         <PrimaryButton
-          onClick={onBriefingAction}
+          onClick={() => {
+            if (briefing.action === "add_water") {
+              setWaterRainKey((value) => value + 1)
+            }
+            onBriefingAction()
+          }}
           className="mt-4 w-full justify-between"
         >
           <span className="flex min-w-0 items-center gap-2 truncate">
@@ -652,7 +650,17 @@ export function TodayTimeline({
   onEditEvent?: (event: TimelineEvent) => void
 }) {
   const [showAll, setShowAll] = useState(false)
-  const visibleEvents = showAll ? events : events.slice(0, 4)
+  const knownEventIds = useRef(new Set(events.map((event) => event.id)))
+  const newEventIds = new Set(
+    events
+      .filter((event) => !knownEventIds.current.has(event.id))
+      .map((event) => event.id)
+  )
+  const visibleEvents = showAll ? events : events.slice(0, 3)
+
+  useEffect(() => {
+    for (const event of events) knownEventIds.current.add(event.id)
+  }, [events])
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6 md:max-w-5xl short-phone:mt-4">
       <SectionHeader title="Recent" className="px-0 pt-0 pb-2" />
@@ -730,7 +738,14 @@ export function TodayTimeline({
 
             if (!onDeleteEvent) {
               return (
-                <div key={event.id} className={cn("motion-item", rowClassName)}>
+                <div
+                  key={event.id}
+                  className={cn(
+                    "motion-item",
+                    newEventIds.has(event.id) && "recent-entry-in",
+                    rowClassName
+                  )}
+                >
                   {content}
                 </div>
               )
@@ -741,7 +756,10 @@ export function TodayTimeline({
                 key={event.id}
                 deleteLabel={event.deleteLabel ?? `Delete ${event.title}`}
                 onDelete={() => onDeleteEvent(event)}
-                className="motion-item"
+                className={cn(
+                  "motion-item",
+                  newEventIds.has(event.id) && "recent-entry-in"
+                )}
                 rowClassName={rowClassName}
               >
                 {content}
@@ -756,11 +774,7 @@ export function TodayTimeline({
                 className="mt-0.5 shrink-0 text-muted-foreground"
               />
               <div className="min-w-0">
-                <p className="native-row-title">Your day is ready to log</p>
-                <p className="native-row-detail mt-0.5">
-                  Food, water, workouts, and supplements will appear here in
-                  time order.
-                </p>
+                <p className="native-row-title">Nothing logged yet</p>
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 pl-[1.875rem]">
@@ -786,7 +800,7 @@ export function TodayTimeline({
           </div>
         )}
       </GroupedList>
-      {events.length > 4 && (
+      {events.length > 3 && (
         <button
           type="button"
           onClick={() => setShowAll((value) => !value)}

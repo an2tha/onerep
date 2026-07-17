@@ -71,7 +71,10 @@ export function AppNavigationChrome({
         </nav>
       </div>
       {renderDesktopSidebar && (
-        <aside className="desktop-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 flex-col overflow-hidden border-r border-border bg-background p-4 lg:flex">
+        <aside
+          className="desktop-sidebar fixed app-route-sidebar inset-y-0 left-0 z-40 hidden w-64 flex-col overflow-hidden border-r border-border bg-background p-4 lg:flex"
+          data-route-chrome={chromeState}
+        >
           <button
             onClick={onToday}
             aria-label="Go to Today"

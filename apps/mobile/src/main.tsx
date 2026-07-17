@@ -71,8 +71,10 @@ import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
 import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
 import {
   clearRouteMotion,
+  getRouteMotion,
   prefersReducedMotion,
   useSmoothNavigate,
+  type RouteMotion,
 } from "./lib/navigation"
 
 function shouldShowBottomBar(pathname: string) {
@@ -89,7 +91,56 @@ function shouldShowBottomBar(pathname: string) {
   )
 }
 
-const ROUTE_CROSSFADE_MS = 360
+const ROUTE_TRANSITION_MS = 500
+
+const PRIMARY_TAB_ORDER = ["/", "/workouts", "/nutrition", "/progress", "/coach"]
+const TASK_ROUTE_PREFIXES = [
+  "/workouts/new",
+  "/workouts/edit/",
+  "/workout/active",
+  "/camera",
+  "/foods/search",
+  "/foods/review/",
+  "/foods/recipe/new",
+]
+
+function isTaskRoute(pathname: string) {
+  return TASK_ROUTE_PREFIXES.some(
+    (route) => pathname === route || pathname.startsWith(route)
+  )
+}
+
+type RouteTransitionKind =
+  | "tab"
+  | "push"
+  | "back"
+  | "task"
+  | "task-back"
+  | "replace"
+
+function classifyRouteTransition(
+  fromPathname: string,
+  toPathname: string,
+  motion: RouteMotion
+): { kind: RouteTransitionKind; direction: "left" | "right" | "up" } {
+  if (motion === "replace") return { kind: "replace", direction: "up" }
+  if (motion === "back" && isTaskRoute(fromPathname)) {
+    return { kind: "task-back", direction: "up" }
+  }
+  if (motion === "back") return { kind: "back", direction: "right" }
+  if (isTaskRoute(toPathname)) return { kind: "task", direction: "up" }
+
+  const fromTab = PRIMARY_TAB_ORDER.indexOf(fromPathname)
+  const toTab = PRIMARY_TAB_ORDER.indexOf(toPathname)
+  if (motion === "switch" || (fromTab >= 0 && toTab >= 0)) {
+    return {
+      kind: "tab",
+      direction: fromTab >= 0 && toTab >= 0 && toTab < fromTab ? "right" : "left",
+    }
+  }
+
+  return { kind: "push", direction: "left" }
+}
 const ROUTE_MIN_READY_MS = 80
 const ROUTE_FONT_WAIT_MS = 220
 const ROUTE_IMAGE_WAIT_MS = 300
@@ -101,6 +152,8 @@ type RouteTransitionState = {
   fromPathname: string
   toKey: string
   ready: boolean
+  kind: RouteTransitionKind
+  direction: "left" | "right" | "up"
 }
 
 function waitForMs(ms: number, signal: AbortSignal) {
@@ -303,6 +356,12 @@ function NavSync() {
     const previousOutlet = previousOutletRef.current
 
     if (previousKey !== location.key) {
+      const motion = getRouteMotion() ?? "forward"
+      const transition = classifyRouteTransition(
+        previousPathnameRef.current,
+        location.pathname,
+        motion
+      )
       setRouteTransition(
         previousOutlet && !prefersReducedMotion()
           ? {
@@ -310,7 +369,8 @@ function NavSync() {
               fromKey: previousKey,
               fromPathname: previousPathnameRef.current,
               toKey: location.key,
-              ready: true,
+              ready: false,
+              ...transition,
             }
           : null
       )
@@ -345,7 +405,7 @@ function NavSync() {
         setRouteTransition((current) =>
           current?.toKey === location.key ? null : current
         )
-      }, ROUTE_CROSSFADE_MS + 80)
+      }, ROUTE_TRANSITION_MS + 80)
     }
 
     void finishWhenReady()
@@ -401,11 +461,26 @@ function NavSync() {
         className="app-route-shell"
       >
         <div className="app-route-stack">
+          {routeTransition?.from && (
+            <div
+              key={`from-${routeTransition.fromKey}`}
+              className="app-route-frame app-route-frame-previous"
+              data-route-path={routeTransition.fromPathname}
+              data-route-ready={routeTransition.ready ? "true" : undefined}
+              data-route-kind={routeTransition.kind}
+              data-route-direction={routeTransition.direction}
+              aria-hidden="true"
+            >
+              {routeTransition.from}
+            </div>
+          )}
           <div
             key={location.key}
             ref={activeRouteFrameRef}
             className="app-route-frame app-route-frame-current"
             data-route-path={location.pathname}
+            data-route-kind={routeTransition?.kind}
+            data-route-direction={routeTransition?.direction}
             data-route-loading={
               routeTransition && !routeTransition.ready ? "true" : undefined
             }
