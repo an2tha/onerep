@@ -67,7 +67,10 @@ import {
 } from "@/lib/exercise-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
-import { celebrateAchievement, playRestCompletion } from "@/lib/workout-celebration"
+import {
+  celebrateAchievement,
+  playRestCompletion,
+} from "@/lib/workout-celebration"
 import { api } from "../../../../convex/_generated/api"
 import {
   calcPaceSecondsPerKm,
@@ -2447,13 +2450,13 @@ function ActiveExerciseCard({
       ref={cardRef}
       tabIndex={-1}
       className={cn(
-        "relative flex scroll-mt-56 overflow-hidden transition-[border-color,opacity] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "active-workout-exercise relative flex scroll-mt-56 overflow-hidden transition-[border-color,background-color,box-shadow,opacity] duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         inSuperset
           ? "border-t border-border/18 bg-transparent first:border-t-0"
           : "border-y border-border bg-transparent",
         !inSuperset && allDone && "border-border/25 bg-muted/[0.05]",
         isActive &&
-          "bg-foreground/[0.035] shadow-[inset_3px_0_0_var(--foreground)]",
+          "active-workout-exercise-current bg-foreground/[0.035] shadow-[inset_3px_0_0_var(--foreground)]",
         !inSuperset && dropActive && "border-foreground/20",
         !inSuperset &&
           supersetDropActive &&
@@ -4259,9 +4262,9 @@ export default function ActiveWorkout() {
         const data = exData[id]
         return Boolean(
           exercise &&
-            exercise.category !== "cardio" &&
-            data?.sets.length &&
-            data.sets.every((set) => set.completed)
+          exercise.category !== "cardio" &&
+          data?.sets.length &&
+          data.sets.every((set) => set.completed)
         )
       })
     )
@@ -5266,7 +5269,7 @@ export default function ActiveWorkout() {
   return (
     <div className="desktop-canvas min-h-svh bg-background md:px-8">
       <div className="mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
-        <header className="workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
+        <header className="active-workout-header-enter workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
           <div
             className="flex items-center gap-2"
             style={{
@@ -5287,7 +5290,10 @@ export default function ActiveWorkout() {
               <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                 {rest.remaining !== null ? "Rest" : "Elapsed"}
               </p>
-              <p className="mt-1 text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]">
+              <p
+                key={rest.remaining !== null ? "rest" : "workout"}
+                className="active-workout-timer-mode mt-1 text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]"
+              >
                 {formatElapsed(rest.remaining ?? elapsed)}
               </p>
             </div>
@@ -5422,7 +5428,7 @@ export default function ActiveWorkout() {
           </section>
         </header>
         <main className="flex flex-col gap-4 px-[var(--app-page-x)] pt-4 md:px-0 md:pt-6">
-          <div className="flex flex-col gap-4 md:gap-5">
+          <div className="active-workout-list-enter flex flex-col gap-4 md:gap-5">
             {items.length > 0 && (
               <ExerciseReorderToolbar
                 active={reorderMode}

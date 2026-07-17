@@ -2,8 +2,10 @@ import * as React from "react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
+  CaretDown,
   CaretRight,
   Copy,
+  DotsThree,
   Fire,
   Heart,
   PencilSimple,
@@ -42,7 +44,14 @@ import {
 } from "@/lib/muscle-volume"
 import { MuscleRecoveryHeatmapCard } from "@repo/ui"
 import { PrimaryButton } from "@repo/ui"
-import { AnimatedAccordion } from "@repo/ui"
+import {
+  AnimatedAccordion,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ui"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import {
   getLoggedExerciseId,
@@ -147,124 +156,7 @@ function formatDateLabel(dateKey: string, todayKey: string) {
   })
 }
 
-import {
-  dateToIso,
-  calcStreak,
-  calcWorkoutsThisWeek,
-  buildCalendarDays,
-} from "@/lib/training-consistency"
-
-// ─── Training streak helpers ──────────────────────────────────────────────────
-
-function TrainingConsistencyCard({
-  workoutDates,
-}: {
-  workoutDates: Set<string>
-}) {
-  const today = new Date()
-  today.setUTCHours(12, 0, 0, 0)
-
-  const calendarDays = buildCalendarDays(today, 28)
-  const todayIso = dateToIso(today)
-  const streak = calcStreak(workoutDates, today)
-  const thisWeek = calcWorkoutsThisWeek(workoutDates, today)
-  const last28Count = calendarDays.filter((iso) => workoutDates.has(iso)).length
-
-  const dayLabels = ["M", "T", "W", "T", "F", "S", "S"]
-
-  return (
-    <section
-      className="border-y border-border py-5"
-      aria-labelledby="training-consistency-title"
-    >
-      {/* Header row */}
-      <div className="mb-3 flex items-start justify-between">
-        <div>
-          <h2 id="training-consistency-title" className="app-section-title">
-            Four-week consistency
-          </h2>
-          <p className="app-section-subtitle">Completed workout days</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-right">
-            <p className="text-[13px] font-medium text-muted-foreground">
-              Streak
-            </p>
-            <p className="mt-1 text-[22px] leading-none font-bold tabular-nums">
-              {streak}
-              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                day{streak === 1 ? "" : "s"}
-              </span>
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-[13px] font-medium text-muted-foreground">
-              This week
-            </p>
-            <p className="mt-1 text-[22px] leading-none font-bold tabular-nums">
-              {thisWeek}
-              <span className="ml-1 text-[13px] font-medium text-muted-foreground">
-                workout{thisWeek === 1 ? "" : "s"}
-              </span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Day-of-week labels */}
-      <div className="mb-2 grid grid-cols-7 gap-1 px-0.5" aria-hidden="true">
-        {dayLabels.map((l, i) => (
-          <p
-            key={i}
-            className="text-center text-[13px] font-medium text-muted-foreground"
-          >
-            {l}
-          </p>
-        ))}
-      </div>
-
-      {/* 4 weeks × 7 days grid */}
-      <div className="grid grid-cols-7 gap-1">
-        {calendarDays.map((iso) => {
-          const isToday = iso === todayIso
-          const hasWorkout = workoutDates.has(iso)
-          const isFuture = iso > todayIso
-          return (
-            <div
-              key={iso}
-              className="aspect-square rounded-md transition-colors"
-              role="img"
-              aria-label={`${new Date(`${iso}T12:00:00Z`).toLocaleDateString(
-                [],
-                {
-                  month: "short",
-                  day: "numeric",
-                }
-              )}: ${hasWorkout ? "workout completed" : isFuture ? "upcoming" : "no workout"}${isToday ? ", today" : ""}`}
-              style={{
-                background: isFuture
-                  ? "color-mix(in srgb, var(--foreground) 3%, transparent)"
-                  : hasWorkout
-                    ? "color-mix(in srgb, var(--foreground) 72%, transparent)"
-                    : isToday
-                      ? "color-mix(in srgb, var(--foreground) 10%, transparent)"
-                      : "color-mix(in srgb, var(--foreground) 5%, transparent)",
-                boxShadow: isToday
-                  ? "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 25%, transparent)"
-                  : undefined,
-              }}
-            />
-          )
-        })}
-      </div>
-
-      {/* Footer */}
-      <p className="mt-3 text-[13px] text-muted-foreground">
-        {last28Count} workout{last28Count === 1 ? "" : "s"} in the last 28 days
-      </p>
-    </section>
-  )
-}
+import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
 
 function PresetSteps({
   preset,
@@ -802,6 +694,7 @@ export default function Workouts() {
   const selectedWorkoutLog = workoutLogs[0] ?? null
 
   const [routineEditMode, setRoutineEditMode] = useState(false)
+  const [presetsOpen, setPresetsOpen] = useState(true)
   const [showSecondWorkoutSheet, setShowSecondWorkoutSheet] = useState(false)
   const [pickRoutineDay, setPickRoutineDay] = useState<Day | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -1341,12 +1234,16 @@ export default function Workouts() {
                 {heroDetail}
               </p>
               {workoutLogs.length < 2 && (
-                <PrimaryButton
-                  onClick={() => navigate(nextWorkoutHref)}
-                  className="mt-4 w-full"
-                >
-                  {nextWorkoutAction}
-                </PrimaryButton>
+                <div className="mt-4">
+                  <SwipeToStart
+                    label={nextWorkoutAction}
+                    onHaptic={(kind) => {
+                      if (kind === "complete") hapticMedium()
+                      else hapticSelection()
+                    }}
+                    onComplete={() => navigate(nextWorkoutHref)}
+                  />
+                </div>
               )}
               <dl className="mt-4 grid grid-cols-2 divide-x divide-border border-t border-border pt-4">
                 <div className="pr-4">
@@ -1367,7 +1264,7 @@ export default function Workouts() {
               </dl>
             </section>
 
-            <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+            <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3">
               <div className="grid min-w-0 content-start gap-3">
                 {workoutLogs.length > 0 && (
                   <section className="border-y border-border py-5">
@@ -1626,12 +1523,17 @@ export default function Workouts() {
               </div>
 
               <div className="grid min-w-0 content-start gap-3">
-                <section className="border-y border-border py-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <div>
+                <section className="border-y border-border py-6">
+                  <div
+                    className={cn(
+                      "flex items-center justify-between gap-3 transition-[margin] duration-300 ease-out",
+                      presetsOpen && "mb-5"
+                    )}
+                  >
+                    <div className="min-w-0 flex-1">
                       <p className="app-section-title">Presets</p>
                       <p className="app-section-subtitle">
-                        Build and assign reusable sessions
+                        Your reusable training sessions
                       </p>
                     </div>
                     <button
@@ -1640,174 +1542,218 @@ export default function Workouts() {
                         hapticSelection()
                         navigate("/workouts/new")
                       }}
-                      className="app-button app-button-quiet min-h-11"
+                      className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
                     >
+                      <Plus size={14} weight="bold" />
                       New preset
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPresetsOpen((open) => !open)}
+                      className="app-icon-button h-10 w-10 shrink-0 bg-transparent text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                      aria-expanded={presetsOpen}
+                      aria-controls="workout-presets-list"
+                      aria-label={
+                        presetsOpen ? "Collapse presets" : "Expand presets"
+                      }
+                    >
+                      <CaretDown
+                        size={15}
+                        weight="bold"
+                        className={cn(
+                          "transition-transform duration-300 ease-out",
+                          !presetsOpen && "-rotate-90"
+                        )}
+                      />
                     </button>
                   </div>
 
-                  <div className="flex flex-col gap-2">
-                    {syncing && presets.length === 0 && (
-                      <>
-                        {[0, 1, 2].map((i) => (
-                          <div
-                            key={i}
-                            className="h-[62px] animate-pulse rounded-[0.8rem] bg-foreground/[0.04]"
-                          />
-                        ))}
-                      </>
+                  <div
+                    className={cn(
+                      "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                      presetsOpen
+                        ? "grid-rows-[1fr] opacity-100"
+                        : "grid-rows-[0fr] opacity-0"
                     )}
-                    {!syncing && presets.length === 0 && (
-                      <div className="border-y border-border py-5">
-                        <p className="text-[16px] font-semibold text-foreground">
-                          No presets yet
-                        </p>
-                        <p className="mt-1 text-[15px] leading-6 text-muted-foreground">
-                          Save a repeatable workout, then assign it to your
-                          weekly routine.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => navigate("/workouts/new")}
-                          className="app-button app-button-primary mt-3 h-10 w-full"
-                        >
-                          Create your first preset
-                        </button>
-                      </div>
-                    )}
-                    {presets.map((preset, idx) => {
-                      const FocusIcon = FOCUS_ICON[preset.focus]
-                      const isDraggingThis =
-                        drag?.presetId === preset.id && hasMoved
-                      const isDropTarget =
-                        dragOverIdx === idx &&
-                        hasMoved &&
-                        drag?.presetId !== preset.id
-                      const isPressing = pressingPreset === preset.id
-                      const duplicatingThis = duplicatingPresetId === preset.id
-
-                      return (
-                        <div key={preset.id} className="relative">
-                          {isDropTarget && (
-                            <div className="absolute inset-x-3 -top-1 h-0.5 rounded-full bg-foreground/30" />
-                          )}
-
-                          <div
-                            ref={(el) => {
-                              presetRefs.current[idx] = el
-                            }}
-                            className={cn(
-                              "relative touch-pan-y overflow-hidden border-b border-border transition-colors select-none last:border-b-0 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-3 md:py-2.5",
-                              isDraggingThis && "opacity-40",
-                              isDropTarget && "bg-foreground/[0.07]"
-                            )}
-                            onPointerDown={
-                              !routineEditMode
-                                ? undefined
-                                : (e) => onPresetPointerDown(e, preset.id)
-                            }
-                            onPointerMove={
-                              !routineEditMode ? undefined : onPresetPointerMove
-                            }
-                            onPointerUp={
-                              !routineEditMode ? undefined : onPresetPointerUp
-                            }
-                            onPointerCancel={
-                              !routineEditMode ? undefined : onPresetPointerUp
-                            }
-                          >
-                            {isPressing && (
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div
+                        id="workout-presets-list"
+                        className="divide-y divide-border/70 border-y border-border/70"
+                      >
+                        {syncing && presets.length === 0 && (
+                          <>
+                            {[0, 1, 2].map((i) => (
                               <div
-                                className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
-                                style={{
-                                  animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
-                                }}
+                                key={i}
+                                className="h-[62px] animate-pulse rounded-[0.8rem] bg-foreground/[0.04]"
                               />
-                            )}
+                            ))}
+                          </>
+                        )}
+                        {!syncing && presets.length === 0 && (
+                          <div className="border-y border-border py-5">
+                            <p className="text-[16px] font-semibold text-foreground">
+                              No presets yet
+                            </p>
+                            <p className="mt-1 text-[15px] leading-6 text-muted-foreground">
+                              Save a repeatable workout, then assign it to your
+                              weekly routine.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => navigate("/workouts/new")}
+                              className="app-button app-button-primary mt-3 h-10 w-full"
+                            >
+                              Create your first preset
+                            </button>
+                          </div>
+                        )}
+                        {presets.map((preset, idx) => {
+                          const isDraggingThis =
+                            drag?.presetId === preset.id && hasMoved
+                          const isDropTarget =
+                            dragOverIdx === idx &&
+                            hasMoved &&
+                            drag?.presetId !== preset.id
+                          const isPressing = pressingPreset === preset.id
+                          const duplicatingThis =
+                            duplicatingPresetId === preset.id
 
-                            <div className="flex min-h-14 items-center gap-2 pt-2.5 md:pt-0">
-                              <FocusIcon
-                                size={18}
-                                weight="regular"
-                                className="shrink-0 text-muted-foreground"
-                              />
-                              <div className="min-w-0 flex-1">
-                                <p className="truncate text-[15px] leading-tight font-semibold">
-                                  {preset.name}
-                                </p>
-                                <p className="mt-1 text-[13px] text-muted-foreground">
-                                  {preset.steps.length} exercises ·{" "}
-                                  {preset.duration}
-                                </p>
+                          return (
+                            <div key={preset.id} className="relative">
+                              {isDropTarget && (
+                                <div className="absolute inset-x-0 -top-px z-10 h-px bg-foreground/40" />
+                              )}
+
+                              <div
+                                ref={(el) => {
+                                  presetRefs.current[idx] = el
+                                }}
+                                className={cn(
+                                  "group relative touch-pan-y overflow-hidden py-4 transition-colors select-none hover:bg-foreground/[0.018] md:flex md:items-center md:gap-6 md:px-1",
+                                  isDraggingThis && "opacity-35",
+                                  isDropTarget && "bg-foreground/[0.045]"
+                                )}
+                                onPointerDown={
+                                  !routineEditMode
+                                    ? undefined
+                                    : (e) => onPresetPointerDown(e, preset.id)
+                                }
+                                onPointerMove={
+                                  !routineEditMode
+                                    ? undefined
+                                    : onPresetPointerMove
+                                }
+                                onPointerUp={
+                                  !routineEditMode
+                                    ? undefined
+                                    : onPresetPointerUp
+                                }
+                                onPointerCancel={
+                                  !routineEditMode
+                                    ? undefined
+                                    : onPresetPointerUp
+                                }
+                              >
+                                {isPressing && (
+                                  <div
+                                    className="absolute inset-x-0 bottom-0 z-10 h-[3px] origin-left bg-destructive"
+                                    style={{
+                                      animation: `sweep-delete ${PRESET_PRESS_MS}ms linear forwards`,
+                                    }}
+                                  />
+                                )}
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[16px] leading-tight font-semibold tracking-[-0.015em]">
+                                    {preset.name}
+                                  </p>
+                                  <p className="mt-1.5 text-[13px] text-muted-foreground/75">
+                                    {preset.steps.length} exercises ·{" "}
+                                    {preset.duration}
+                                  </p>
+                                </div>
+                                <div className="mt-3 flex items-center gap-1 md:mt-0">
+                                  <button
+                                    type="button"
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={() => {
+                                      hapticMedium()
+                                      navigate(`/workout/active/${preset.id}`)
+                                    }}
+                                    className="motion-tactile flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-[13px] font-semibold text-foreground/70 transition-colors hover:bg-foreground/[0.045] hover:text-foreground md:flex-none"
+                                    aria-label={`Start ${preset.name} now`}
+                                  >
+                                    <Play size={12} weight="fill" />
+                                    Start
+                                  </button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button
+                                        type="button"
+                                        onPointerDown={(e) =>
+                                          e.stopPropagation()
+                                        }
+                                        className="app-icon-button h-10 w-10 shrink-0 bg-transparent text-muted-foreground/65 hover:bg-foreground/[0.045] hover:text-foreground"
+                                        aria-label={`More actions for ${preset.name}`}
+                                        aria-busy={duplicatingThis}
+                                      >
+                                        {duplicatingThis ? (
+                                          <span className="h-3.5 w-3.5 animate-spin rounded-full border border-current/25 border-t-current" />
+                                        ) : (
+                                          <DotsThree size={18} weight="bold" />
+                                        )}
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                      align="end"
+                                      sideOffset={6}
+                                      className="min-w-44 rounded-xl p-1.5"
+                                    >
+                                      <DropdownMenuItem
+                                        className="rounded-lg py-2.5"
+                                        onSelect={() => {
+                                          hapticSelection()
+                                          navigate(
+                                            `/workouts/edit/${preset.id}`
+                                          )
+                                        }}
+                                      >
+                                        <PencilSimple /> Edit preset
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="rounded-lg py-2.5"
+                                        disabled={duplicatingPresetId !== null}
+                                        onSelect={() => {
+                                          hapticSelection()
+                                          void duplicatePreset(preset)
+                                        }}
+                                      >
+                                        <Copy /> Duplicate
+                                      </DropdownMenuItem>
+                                      <DropdownMenuSeparator />
+                                      <DropdownMenuItem
+                                        variant="destructive"
+                                        className="rounded-lg py-2.5"
+                                        onSelect={() => {
+                                          hapticSelection()
+                                          setConfirmDeleteId(preset.id)
+                                        }}
+                                      >
+                                        <Trash /> Delete preset
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1.5 pb-2.5 md:pb-0">
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => {
-                                  hapticMedium()
-                                  navigate(`/workout/active/${preset.id}`)
-                                }}
-                                className="app-button app-button-primary motion-tactile min-h-11 flex-1 md:w-36 md:flex-none"
-                                aria-label={`Start ${preset.name} now`}
-                              >
-                                <Play size={13} weight="fill" />
-                                Start now
-                              </button>
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => {
-                                  hapticSelection()
-                                  navigate(`/workouts/edit/${preset.id}`)
-                                }}
-                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
-                                aria-label={`Edit ${preset.name}`}
-                              >
-                                <PencilSimple size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => {
-                                  hapticSelection()
-                                  void duplicatePreset(preset)
-                                }}
-                                disabled={duplicatingPresetId !== null}
-                                aria-busy={duplicatingThis}
-                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent"
-                                aria-label={`Duplicate ${preset.name}`}
-                              >
-                                {duplicatingThis ? (
-                                  <span className="h-3 w-3 animate-spin rounded-full border border-current/25 border-t-current" />
-                                ) : (
-                                  <Copy size={12} />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                onClick={() => {
-                                  hapticSelection()
-                                  setConfirmDeleteId(preset.id)
-                                }}
-                                className="app-icon-button h-11 w-11 shrink-0 bg-transparent text-destructive"
-                                aria-label={`Delete ${preset.name}`}
-                              >
-                                <Trash size={12} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
                 </section>
-
-                {workoutHistory !== undefined && workoutDates.size > 0 && (
-                  <TrainingConsistencyCard workoutDates={workoutDates} />
-                )}
               </div>
             </section>
           </>

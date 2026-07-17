@@ -16,7 +16,7 @@ describe("Today and nutrition UX contract", () => {
   test("Today exposes the high-frequency actions as labeled rows", () => {
     assert.match(HOME_SOURCE, /Open food selector/)
     assert.match(HOME_SOURCE, /Add 250 ml water/)
-    assert.match(HOME_SOURCE, /Your day is ready to log/)
+    assert.match(HOME_SOURCE, /Nothing logged yet/)
     assert.match(HOME_SOURCE, /Add 250 ml/)
   })
 

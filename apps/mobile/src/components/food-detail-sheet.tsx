@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type CSSProperties } from "react"
 import {
   ArrowLeft,
   CaretDown,
@@ -34,6 +34,7 @@ import type { FoodResult, FoodDetail } from "@repo/models"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import { APP_ACCENT_COLORS, tint } from "@repo/ui"
+import { hapticMedium, hapticSelection } from "@/lib/haptics"
 
 type Detail = FoodDetail | null | undefined
 
@@ -490,13 +491,41 @@ export function FoodDetailSheet({
     () => defaultFoodPortion(item.serving, item.name).unit
   )
   const [showExtra, setShowExtra] = useState(false)
+  const [ctaVisualState, setCtaVisualState] = useState<
+    "ready" | "saving" | "added" | "reverting"
+  >(added ? "added" : "ready")
   const [meal, setMeal] = useState<string>(() => defaultMeal())
   const extraRef = useRef<HTMLDivElement>(null)
+  const previousAdded = useRef(added)
   const mealCfg = readAllMealCategories().find((c) => c.id === meal) ?? {
     label: meal,
     color: APP_ACCENT_COLORS.neutral,
     bg: tint(APP_ACCENT_COLORS.neutral, 12),
   }
+
+  useEffect(() => {
+    if (saving) {
+      setCtaVisualState("saving")
+      return
+    }
+    if (added) {
+      setCtaVisualState("added")
+      if (!previousAdded.current) {
+        hapticMedium()
+        const settle = window.setTimeout(hapticSelection, 170)
+        previousAdded.current = true
+        return () => window.clearTimeout(settle)
+      }
+      return
+    }
+    if (previousAdded.current) {
+      previousAdded.current = false
+      setCtaVisualState("reverting")
+      const reset = window.setTimeout(() => setCtaVisualState("ready"), 1200)
+      return () => window.clearTimeout(reset)
+    }
+    setCtaVisualState("ready")
+  }, [added, saving])
 
   useEffect(() => {
     const embeddedDetail = initialFoodDetail(item)
@@ -592,12 +621,23 @@ export function FoodDetailSheet({
       ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
       : (actionLabel?.(grams, mealCfg.label, portion) ??
         `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
+  const ctaContent =
+    saving || added || actionLabel ? (
+      ctaLabel
+    ) : (
+      <>
+        Log {foodPortionLabel(portion)}{" "}
+        <span key={meal} className="food-log-meal-transition inline-block">
+          to {mealCfg.label}
+        </span>
+      </>
+    )
   const isPage = presentation === "page"
 
   return (
     <MobileSheet
       onClose={onClose}
-      overlayClassName={isPage ? "hidden" : "bg-black/32 backdrop-blur-[4px]"}
+      overlayClassName={isPage ? "hidden" : "food-detail-overlay bg-black/40"}
       panelClassName={
         isPage
           ? "app-sheet-panel sheet-panel-fullscreen mx-auto !h-svh !min-h-svh !max-h-svh !w-full !max-w-none !rounded-none !border-0 bg-background md:!max-w-none"
@@ -635,9 +675,10 @@ export function FoodDetailSheet({
           >
             <button
               type="button"
-              disabled={saving || added}
+              disabled={saving || added || ctaVisualState === "reverting"}
               aria-busy={saving}
-              onClick={() =>
+              onClick={() => {
+                hapticMedium()
                 onAdd(
                   item,
                   grams,
@@ -646,15 +687,18 @@ export function FoodDetailSheet({
                   detail,
                   portion
                 )
-              }
-              className="flex min-h-[58px] w-full min-w-0 items-center justify-between gap-3 rounded-[17px] px-4 py-3.5 text-left text-[15px] font-extrabold transition-all active:scale-[0.985] disabled:scale-100 disabled:opacity-75"
-              style={{
-                backgroundColor: added ? mealCfg.bg : "var(--foreground)",
-                color: added ? mealCfg.color : "var(--background)",
               }}
+              data-state={ctaVisualState}
+              className="food-log-cta relative flex min-h-[58px] w-full min-w-0 items-center justify-between gap-3 overflow-hidden rounded-[17px] px-4 py-3.5 text-left text-[15px] font-extrabold disabled:opacity-75"
+              style={
+                {
+                  "--food-log-added-bg": mealCfg.color,
+                  "--food-log-added-color": "var(--background)",
+                } as CSSProperties
+              }
             >
-              <span className="min-w-0 truncate">{ctaLabel}</span>
-              <span className="shrink-0 text-[18px] tabular-nums">
+              <span className="relative z-10 min-w-0">{ctaContent}</span>
+              <span className="relative z-10 shrink-0 text-[18px] tabular-nums">
                 +{formatNumber(calories, 0)}
               </span>
             </button>

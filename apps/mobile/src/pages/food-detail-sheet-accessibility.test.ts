@@ -31,7 +31,9 @@ describe("Food detail sheet accessibility contract", () => {
     expect(FOOD_DETAIL_SOURCE).toContain("saving?: boolean")
     expect(FOOD_DETAIL_SOURCE).toContain("saving = false")
     expect(FOOD_DETAIL_SOURCE).toContain('? "Logging..."')
-    expect(FOOD_DETAIL_SOURCE).toContain("disabled={saving || added}")
+    expect(FOOD_DETAIL_SOURCE).toContain(
+      'disabled={saving || added || ctaVisualState === "reverting"}'
+    )
     expect(FOOD_DETAIL_SOURCE).toContain("aria-busy={saving}")
   })
 

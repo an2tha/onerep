@@ -35,28 +35,16 @@ import {
   CoachGoalCards,
   TodayHeader,
   TodayTimeline,
-  WorkoutWeekStrip,
-  DashboardQuickActions,
-  NextStepCard,
-  TodayChecklist,
   FirstWeekGuide,
-  type MacroProgress,
   type PinnedCoachGoal,
   type TimelineEvent,
-  type WorkoutWeekDay,
 } from "@repo/ui"
 import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { AnimatedAccordion } from "@repo/ui"
 import { SwipeToStart } from "@repo/ui"
 import { SlideToDeleteRow } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
-import {
-  buildCalendarDays,
-  calcStreak,
-  calcWorkoutsThisWeek,
-} from "@/lib/training-consistency"
 import {
   compactCardioSummary,
   hasCardioDetails,
@@ -105,11 +93,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@repo/ui"
-import { hapticHeavy, hapticSelection } from "@/lib/haptics"
+import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
-import { DashboardProgressPanels, type TrendMetric } from "@repo/ui"
-import { useMuscleRecovery } from "@/lib/use-muscle-recovery"
-import type { BodyMeasurementEntry } from "@/lib/body-progress"
+import type { TrendMetric } from "@repo/ui"
 import { toast } from "@repo/ui"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2276,8 +2262,6 @@ export default function App() {
   })
   const serverPresets = useQuery(api.logs.presets.list, {})
   const schedule = useQuery(api.users.schedules.get, {})
-  const workoutHistory = useQuery(api.logs.workouts.getHistory, {})
-  const bodyMeasurements = useQuery(api.bodyProgress.list, {})
   const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
   const pinnedCoachGoals = useQuery(api.ai.coachGoals.listPinned, { limit: 4 })
@@ -2314,9 +2298,6 @@ export default function App() {
     "logs.supplements.removeEntry"
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
-  const setDashboardTrendMetric = useMutation(
-    api.users.users.setDashboardTrendMetric
-  )
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setCoachGoalTaskCompleted = useMutation(
     api.ai.coachGoals.setTaskCompleted
@@ -2372,10 +2353,6 @@ export default function App() {
     () => (workoutLogsQuery ?? []) as unknown as CachedWorkoutLog[],
     [workoutLogsQuery]
   )
-  const muscleRecovery = useMuscleRecovery(
-    workoutHistory as unknown as
-      import("@/lib/exercise-history").WorkoutHistoryLog[] | undefined
-  )
   const foodEntries = useMemo(
     () => (foodLogs ?? []) as FoodLogEntry[],
     [foodLogs]
@@ -2399,32 +2376,6 @@ export default function App() {
     preferences === undefined
 
   const now = useMemo(() => new Date(), [])
-
-  const workoutDates = useMemo(
-    () =>
-      new Set((workoutHistory ?? []).map((log: { date: string }) => log.date)),
-    [workoutHistory]
-  )
-  const streak = useMemo(
-    () => calcStreak(workoutDates, now),
-    [now, workoutDates]
-  )
-  const workoutsThisWeek = useMemo(
-    () => calcWorkoutsThisWeek(workoutDates, now),
-    [now, workoutDates]
-  )
-  const workoutWeekDays = useMemo<WorkoutWeekDay[]>(
-    () =>
-      buildCalendarDays(now, 7).map((date) => ({
-        date,
-        label: dateKeyToCalendarDate(date).toLocaleDateString("en-US", {
-          weekday: "narrow",
-        }),
-        hasWorkout: workoutDates.has(date),
-        isToday: date === todayKey,
-      })),
-    [now, todayKey, workoutDates]
-  )
 
   // ── Effects ───────────────────────────────────────────────────────────────
 
@@ -2580,42 +2531,10 @@ export default function App() {
           ? "Ready"
           : "Planned"
         : "Rest"
-  const workoutActionDetail = activeWorkout
-    ? "Resume active session"
-    : hasCompletedWorkout
-      ? "View workout log"
-      : scheduledWorkout
-        ? `${scheduledWorkout.duration} planned`
-        : "Choose workout"
   const currentMealLabel =
     DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
     "food"
   const proteinTarget = calorieInfo?.protein ?? 140
-  const carbsTarget = calorieInfo?.carbs ?? 220
-  const fatTarget = calorieInfo?.fat ?? 65
-  const macroProgress: MacroProgress[] = [
-    {
-      label: "Protein",
-      shortLabel: "P",
-      value: foodTotals.protein,
-      target: proteinTarget,
-      color: MACRO_COLORS.protein,
-    },
-    {
-      label: "Carbs",
-      shortLabel: "C",
-      value: foodTotals.carbs,
-      target: carbsTarget,
-      color: MACRO_COLORS.carbs,
-    },
-    {
-      label: "Fat",
-      shortLabel: "F",
-      value: foodTotals.fat,
-      target: fatTarget,
-      color: MACRO_COLORS.fat,
-    },
-  ]
   const proteinLeft = Math.max(0, proteinTarget - foodTotals.protein)
   const proteinProgress =
     proteinTarget > 0
@@ -2681,90 +2600,6 @@ export default function App() {
     setShowFirstWeekGuide(false)
   }
 
-  const dashboardQuickActions = [
-    {
-      id: "food",
-      label: `Log ${currentMealLabel.toLowerCase()}`,
-      icon: <ForkKnife size={17} weight="bold" />,
-      tone: "food" as const,
-      onClick: () => setHomeAddOpen(true),
-    },
-    {
-      id: "water",
-      label: "Add water",
-      icon: <PintGlass size={17} weight="bold" />,
-      tone: "water" as const,
-      onClick: addQuickWater,
-    },
-    {
-      id: "workout",
-      label: activeWorkout ? "Continue workout" : "Start workout",
-      icon: <Barbell size={17} weight="bold" />,
-      tone: "workout" as const,
-      onClick: openWorkoutAction,
-    },
-    {
-      id: "supplements",
-      label: "Supplements",
-      icon: <Pill size={17} weight="bold" />,
-      onClick: () => navigate("/supplements", { motion: "switch" }),
-    },
-  ]
-
-  const dueSupplementCount = supplementOverview
-    ? buildSupplementDayPlan({
-        items: supplementOverview.items as SupplementItem[],
-        logs: supplementOverview.logs as SupplementIntakeLog[],
-        date: selectedDate,
-        today: todayKey,
-        isTrainingDay: supplementOverview.isTrainingDay,
-      }).filter(
-        (item) =>
-          item.isScheduled && item.state !== "taken" && item.state !== "skipped"
-      ).length
-    : 0
-
-  const checklistItems = [
-    {
-      id: "meal",
-      label: `Log ${currentMealLabel.toLowerCase()}`,
-      detail:
-        foodEntries.length > 0
-          ? "Keep today's food record complete"
-          : "No food recorded yet",
-      completed: foodEntries.length > 0,
-      onClick: () => setHomeAddOpen(true),
-    },
-    {
-      id: "water",
-      label: "Drink more water",
-      detail: `${fmtWater(Math.max(0, waterGoalMl - waterTotalMl))} remaining`,
-      completed: waterTotalMl >= waterGoalMl,
-      onClick: addQuickWater,
-    },
-    {
-      id: "training",
-      label: activeWorkout
-        ? "Finish your workout"
-        : "Complete today's training",
-      detail: activeWorkout
-        ? "Your active session is waiting"
-        : workoutActionDetail,
-      completed: hasCompletedWorkout || (!scheduledWorkout && !activeWorkout),
-      onClick: openWorkoutAction,
-    },
-    {
-      id: "supplements",
-      label:
-        dueSupplementCount > 0
-          ? `Take ${dueSupplementCount} supplement${dueSupplementCount === 1 ? "" : "s"}`
-          : "Supplements checked",
-      detail:
-        dueSupplementCount > 0 ? "Scheduled for today" : "Nothing else is due",
-      completed: dueSupplementCount === 0,
-      onClick: () => navigate("/supplements", { motion: "switch" }),
-    },
-  ]
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const foodEvents = foodEntries.map((entry) => ({
       id: `food-${entry.id}`,
@@ -2813,6 +2648,7 @@ export default function App() {
   }, [foodEntries, selectedDate, supplementEntries, waterEntries, workoutLogs])
 
   function addQuickWater() {
+    hapticMedium()
     const id = crypto.randomUUID()
     void addWaterEntry({
       date: selectedDate,
@@ -2820,12 +2656,6 @@ export default function App() {
         id,
         amountMl: 250,
         loggedAt: new Date().toISOString(),
-      },
-    })
-    toast.success("Added 250 ml water", {
-      action: {
-        label: "Undo",
-        onClick: () => void removeWaterEntry({ date: selectedDate, id }),
       },
     })
   }
@@ -2906,8 +2736,7 @@ export default function App() {
     activeWorkouts !== undefined &&
     pinnedCoachGoals !== undefined &&
     serverPresets !== undefined &&
-    schedule !== undefined &&
-    bodyMeasurements !== undefined
+    schedule !== undefined
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
@@ -2962,36 +2791,13 @@ export default function App() {
               }
               briefing={dashboardBriefing}
               onBriefingAction={runDashboardBriefingAction}
-              showBriefingAction={false}
+              showBriefingAction
               proteinLeft={proteinLeft}
-              streak={streak}
-              workoutsThisWeek={workoutsThisWeek}
-              macros={macroProgress}
             />
-
-            <DashboardQuickActions actions={dashboardQuickActions} />
-
-            <NextStepCard
-              title={dashboardBriefing.title}
-              detail={dashboardBriefing.detail}
-              actionLabel={dashboardBriefing.actionLabel}
-              onAction={runDashboardBriefingAction}
-            />
-
-            <button
-              type="button"
-              onClick={() => navigate("/coach", { motion: "switch" })}
-              className="mx-[var(--app-page-x)] mt-2 flex min-h-11 w-[calc(100%-2*var(--app-page-x))] items-center justify-center gap-2 text-[13px] font-semibold text-muted-foreground md:mx-8 md:w-[calc(100%-4rem)]"
-            >
-              <Sparkle size={16} weight="fill" />
-              Help me decide what to do next
-            </button>
 
             {isTodaySelected && showFirstWeekGuide && (
               <FirstWeekGuide onDismiss={dismissFirstWeekGuide} />
             )}
-
-            {isTodaySelected && <TodayChecklist items={checklistItems} />}
 
             {isTodaySelected && !settings.simpleMode ? (
               <CoachGoalCards
@@ -3006,44 +2812,6 @@ export default function App() {
                 }}
               />
             ) : null}
-
-            {!settings.simpleMode && (
-              <WorkoutWeekStrip
-                days={workoutWeekDays}
-                onClick={() => navigate("/workouts", { motion: "switch" })}
-              />
-            )}
-
-            {!settings.simpleMode && (
-              <AnimatedAccordion
-                className="mx-[var(--app-page-x)] mt-5 border-y border-border md:mx-8"
-                triggerClassName="min-h-14 text-[15px] font-semibold"
-                contentClassName="pb-4"
-                summary={
-                  <span>
-                    <span className="block">Your progress</span>
-                    <span className="native-row-detail block font-normal">
-                      {workoutsThisWeek} workouts this week ·{" "}
-                      {Math.round(proteinProgress)}% protein
-                    </span>
-                  </span>
-                }
-              >
-                <DashboardProgressPanels
-                  measurements={
-                    (bodyMeasurements ?? []) as BodyMeasurementEntry[]
-                  }
-                  metric={settings.trendMetric ?? "bodyFatPct"}
-                  onMetricChange={(metric) =>
-                    void setDashboardTrendMetric({ metric })
-                  }
-                  tdee={calorieInfo?.tdee ?? caloriesTarget}
-                  calorieTarget={caloriesTarget}
-                  muscleRecovery={muscleRecovery}
-                  weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
-                />
-              </AnimatedAccordion>
-            )}
 
             <TodayTimeline
               events={timelineEvents}

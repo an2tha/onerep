@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { useLocation } from "react-router"
+import { flushSync } from "react-dom"
 import { useAction, useMutation, useQuery } from "convex/react"
 import {
   ArrowRight,
@@ -23,10 +24,12 @@ import {
   Plus,
   PushPin,
   SneakerMove,
+  Sparkle,
   StopCircle,
   Timer,
   TrendDown,
   TrendUp,
+  TrashSimple,
   WarningCircle,
   X,
 } from "@phosphor-icons/react"
@@ -331,8 +334,8 @@ type CoachMode = "chat" | "chef" | "personal_trainer"
 const COACH_MODES = [
   {
     id: "chat",
-    label: "Chat",
-    heading: "What do you want to work on?",
+    label: "Briefing",
+    heading: "Your performance briefing",
     placeholder: "Ask Coach anything…",
     icon: PaperPlaneTilt,
     centerArt: ChatCircleDots,
@@ -348,8 +351,8 @@ const COACH_MODES = [
   },
   {
     id: "chef",
-    label: "Chef Coach",
-    heading: "What are we cooking?",
+    label: "Nutrition",
+    heading: "Your nutrition briefing",
     placeholder: "Ask about meals, recipes, or nutrition…",
     icon: ForkKnife,
     centerArt: ChefHat,
@@ -365,8 +368,8 @@ const COACH_MODES = [
   },
   {
     id: "personal_trainer",
-    label: "Personal Trainer",
-    heading: "What are we training?",
+    label: "Training",
+    heading: "Your training briefing",
     placeholder: "Ask about workouts, form, or recovery…",
     icon: Barbell,
     centerArt: Barbell,
@@ -1686,6 +1689,18 @@ export default function Coach() {
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
   const [activeMode, setActiveMode] = useState<CoachMode>("chat")
+  const [modeSwipeDirection, setModeSwipeDirection] = useState<
+    "forward" | "back"
+  >("forward")
+  const [modeTransitioning, setModeTransitioning] = useState(false)
+  const [carouselBackgroundPhase, setCarouselBackgroundPhase] = useState<
+    "idle" | "out" | "in"
+  >("idle")
+  const coachSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [newChatPhase, setNewChatPhase] = useState<
+    "idle" | "appear" | "open" | "suck" | "out"
+  >("idle")
+  const newChatTimersRef = useRef<number[]>([])
   const [messages, setMessages] = useState<CoachMessage[]>(() =>
     loadCoachConversation("chat")
   )
@@ -1755,6 +1770,11 @@ export default function Coach() {
   useEffect(() => {
     attachmentRef.current = attachment
   }, [attachment])
+
+  useEffect(
+    () => () => newChatTimersRef.current.forEach(window.clearTimeout),
+    []
+  )
 
   useEffect(
     () => () => {
@@ -2829,493 +2849,644 @@ export default function Coach() {
   }
 
   function startNewChat() {
-    if (busy) return
+    if (busy || newChatPhase !== "idle") return
     hapticTap()
     dictation.cancel()
     clearAttachment()
-    setMessages([])
-    updateComposer("")
-    setLastFailedPrompt(null)
-    requestAnimationFrame(() => composerRef.current?.focus())
+    newChatTimersRef.current.forEach(window.clearTimeout)
+    setNewChatPhase("appear")
+    newChatTimersRef.current = [
+      window.setTimeout(() => setNewChatPhase("open"), 280),
+      window.setTimeout(() => {
+        hapticMedium()
+        setNewChatPhase("suck")
+      }, 540),
+      window.setTimeout(() => {
+        setMessages([])
+        updateComposer("")
+        setLastFailedPrompt(null)
+        setNewChatPhase("out")
+      }, 1160),
+      window.setTimeout(() => {
+        setNewChatPhase("idle")
+        requestAnimationFrame(() => composerRef.current?.focus())
+      }, 1500),
+    ]
   }
 
   function switchCoachMode(nextMode: CoachMode) {
-    if (busy || nextMode === activeMode) return
+    if (busy || modeTransitioning || nextMode === activeMode) return
+    const currentIndex = COACH_MODES.findIndex((item) => item.id === activeMode)
+    const nextIndex = COACH_MODES.findIndex((item) => item.id === nextMode)
+    const direction = nextIndex > currentIndex ? "forward" : "back"
+    const isLongJump = Math.abs(nextIndex - currentIndex) > 1
+
+    setModeSwipeDirection(direction)
+    setModeTransitioning(true)
     hapticSelection()
     dictation.cancel()
     clearAttachment()
-    setActiveMode(nextMode)
-    setMessages(loadCoachConversation(nextMode))
-    updateComposer("")
-    setLastFailedPrompt(null)
+
+    const transitionDocument = document as Document & {
+      startViewTransition?: (update: () => void) => { finished: Promise<void> }
+    }
+    const commitModeChange = (mode: CoachMode) => {
+      setActiveMode(mode)
+      setMessages(loadCoachConversation(mode))
+      updateComposer("")
+      setLastFailedPrompt(null)
+    }
+    const showMode = async (mode: CoachMode) => {
+      document.documentElement.dataset.coachSwipe = direction
+      if (!transitionDocument.startViewTransition) {
+        commitModeChange(mode)
+        return
+      }
+      const transition = transitionDocument.startViewTransition(() => {
+        flushSync(() => commitModeChange(mode))
+      })
+      await transition.finished
+    }
+
+    const flyAcrossNutrition = async () => {
+      const currentPage =
+        document.querySelector<HTMLElement>(".coach-page-slide")
+      if (!currentPage) {
+        commitModeChange(nextMode)
+        return
+      }
+      const rect = currentPage.getBoundingClientRect()
+      const source = currentPage.cloneNode(true) as HTMLElement
+      flushSync(() => commitModeChange("chef"))
+      const nutritionPage =
+        document.querySelector<HTMLElement>(".coach-page-slide")
+      const nutrition = nutritionPage?.cloneNode(true) as
+        HTMLElement | undefined
+      flushSync(() => commitModeChange(nextMode))
+      const destination =
+        document.querySelector<HTMLElement>(".coach-page-slide")
+      if (!nutrition || !destination) return
+      const destinationClone = destination.cloneNode(true) as HTMLElement
+      const clip = document.createElement("div")
+      clip.className = "coach-carousel-clip"
+      Object.assign(clip.style, {
+        position: "fixed",
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        zIndex: "120",
+        overflow: "hidden",
+        pointerEvents: "none",
+        contain: "strict",
+      })
+      document.body.appendChild(clip)
+
+      const prepareClone = (element: HTMLElement, mode: CoachMode) => {
+        element.classList.add("coach-swoosh-surface", "coach-carousel-frame")
+        element.dataset.coachMode = mode
+        element.setAttribute("aria-hidden", "true")
+        element.style.position = "absolute"
+        element.style.inset = "0"
+        element.style.width = "100%"
+        element.style.height = "100%"
+        element.style.pointerEvents = "none"
+        element.style.overflow = "hidden"
+        element.style.viewTransitionName = "none"
+        element
+          .querySelectorAll<HTMLElement>(".coach-background-layer")
+          .forEach((layer) => {
+            layer.style.opacity = "0"
+          })
+        clip.appendChild(element)
+      }
+      prepareClone(source, activeMode)
+      prepareClone(nutrition, "chef")
+      prepareClone(destinationClone, nextMode)
+      destination.style.visibility = "hidden"
+
+      const sign = direction === "forward" ? 1 : -1
+      const timing: KeyframeAnimationOptions = {
+        duration: 620,
+        easing: "cubic-bezier(0.65, 0, 0.35, 1)",
+        fill: "both",
+      }
+      const animations = [
+        source.animate(
+          [
+            { transform: "translate3d(0,0,0)" },
+            { transform: `translate3d(${-2 * sign * rect.width}px,0,0)` },
+          ],
+          timing
+        ),
+        nutrition.animate(
+          [
+            { transform: `translate3d(${sign * rect.width}px,0,0)` },
+            { transform: `translate3d(${-sign * rect.width}px,0,0)` },
+          ],
+          timing
+        ),
+        destinationClone.animate(
+          [
+            { transform: `translate3d(${2 * sign * rect.width}px,0,0)` },
+            { transform: "translate3d(0,0,0)" },
+          ],
+          timing
+        ),
+      ]
+      await Promise.all(animations.map((animation) => animation.finished))
+      // Paint the real destination underneath the final clone before removing
+      // the animation layer. This avoids a one-frame empty compositor layer.
+      destination.style.removeProperty("visibility")
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve())
+      )
+      clip.remove()
+    }
+
+    void (async () => {
+      try {
+        // Commit the fade before measuring or cloning anything. Without the
+        // synchronous paint boundary, React may batch the fade with the mode
+        // change and the carousel starts while the background is still visible.
+        flushSync(() => setCarouselBackgroundPhase("out"))
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => window.setTimeout(resolve, 420))
+          )
+        )
+        if (isLongJump) await flyAcrossNutrition()
+        else await showMode(nextMode)
+        setCarouselBackgroundPhase("in")
+        await new Promise((resolve) => window.setTimeout(resolve, 380))
+      } finally {
+        delete document.documentElement.dataset.coachSwipe
+        setCarouselBackgroundPhase("idle")
+        setModeTransitioning(false)
+      }
+    })()
   }
 
   const mode = COACH_MODES.find((item) => item.id === activeMode)!
-  const CenterArt = mode.centerArt
-  const LeftArt = mode.leftArt
-  const RightArt = mode.rightArt
-  const starters =
-    activeMode === "chef"
-      ? context.experienceLevel === "beginner"
-        ? [BEGINNER_SETUP_STARTERS[1], ...CHEF_STARTERS]
-        : CHEF_STARTERS
-      : activeMode === "personal_trainer"
-        ? context.experienceLevel === "beginner"
-          ? [BEGINNER_SETUP_STARTERS[0], ...TRAINER_STARTERS]
-          : TRAINER_STARTERS
-        : COACH_STARTERS
-
   return (
     <main
-      className="coach-mobile-immersive desktop-canvas relative isolate h-svh overflow-hidden bg-background lg:pl-64"
+      className="coach-mobile-immersive coach-swoosh-surface desktop-canvas relative isolate h-svh overflow-hidden bg-background lg:pl-64"
       data-coach-mode={activeMode}
+      data-new-chat-phase={newChatPhase}
+      data-carousel-background={carouselBackgroundPhase}
     >
       <div
-        key={`mobile-flow-${activeMode}`}
-        className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile"
-        aria-hidden="true"
-      />
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] pt-[var(--app-safe-top)] md:px-8 lg:pt-0">
-        <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/45 bg-transparent lg:bg-background/95">
-          <h1 className="text-[18px] leading-tight font-bold tracking-tight">
-            Coach
-          </h1>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                hapticSelection()
-                setShowMemory(true)
-              }}
-              aria-label="Coach memory"
-              className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
-            >
-              <Brain size={16} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                hapticSelection()
-                setShowHistory(true)
-              }}
-              aria-label="Coach action history"
-              className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
-            >
-              <ClockCounterClockwise size={16} weight="bold" />
-            </button>
-            {messages.length > 0 ? (
-              <AppTooltip
-                id={APP_TOOLTIP_IDS.coachNewChat}
-                content="Clear this conversation and return to Coach’s skill shortcuts."
-                side="bottom"
-                enabled
-              >
-                <button
-                  type="button"
-                  onClick={startNewChat}
-                  disabled={busy}
-                  className="motion-tactile inline-flex min-h-11 items-center gap-1.5 px-2 text-[11px] font-bold text-muted-foreground active:text-foreground disabled:opacity-40"
-                >
-                  <Plus size={13} weight="bold" />
-                  New chat
-                </button>
-              </AppTooltip>
-            ) : null}
-          </div>
-        </header>
-
-        <nav
-          className="grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
-          role="tablist"
-          aria-label="Coach modes"
-        >
-          {COACH_MODES.map((item) => {
-            const active = item.id === activeMode
-            const Icon = item.icon
-            return (
+        key={`coach-page-${activeMode}`}
+        className="coach-page-slide relative h-full w-full touch-pan-y"
+        data-swipe-direction={modeSwipeDirection}
+        onPointerDown={(event) => {
+          if ((event.target as HTMLElement).closest("button, input, textarea"))
+            return
+          coachSwipeStartRef.current = { x: event.clientX, y: event.clientY }
+        }}
+        onPointerUp={(event) => {
+          const start = coachSwipeStartRef.current
+          coachSwipeStartRef.current = null
+          if (!start || modeTransitioning || busy) return
+          const dx = event.clientX - start.x
+          const dy = event.clientY - start.y
+          if (Math.abs(dx) < 64 || Math.abs(dx) < Math.abs(dy) * 1.25) return
+          const currentIndex = COACH_MODES.findIndex(
+            (item) => item.id === activeMode
+          )
+          const nextIndex = dx < 0 ? currentIndex + 1 : currentIndex - 1
+          const nextMode = COACH_MODES[nextIndex]?.id
+          if (nextMode) switchCoachMode(nextMode)
+        }}
+        onPointerCancel={() => {
+          coachSwipeStartRef.current = null
+        }}
+      >
+        <div className="coach-background-layer" aria-hidden="true">
+          <div className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile" />
+        </div>
+        <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] pt-[var(--app-safe-top)] md:px-8 lg:pt-0">
+          <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-transparent">
+            <h1 className="text-[18px] leading-tight font-bold tracking-tight">
+              Coach
+            </h1>
+            <div className="flex items-center gap-1">
               <button
-                key={item.id}
                 type="button"
-                role="tab"
-                aria-selected={active}
-                aria-controls="coach-workspace"
-                disabled={busy}
-                onClick={() => switchCoachMode(item.id)}
-                className={cn(
-                  "motion-tactile flex min-h-11 min-w-0 items-center justify-center gap-1 border-b-2 px-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 sm:gap-1.5 sm:text-[11px]",
-                  active
-                    ? cn(item.tabClass, "text-foreground")
-                    : "border-transparent text-muted-foreground active:text-foreground"
-                )}
+                onClick={() => {
+                  hapticSelection()
+                  setShowMemory(true)
+                }}
+                aria-label="Coach memory"
+                className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
-                <Icon className="shrink-0" size={13} weight="bold" />
-                <span className="min-w-0 whitespace-nowrap">{item.label}</span>
+                <Brain size={16} weight="bold" />
               </button>
-            )
-          })}
-        </nav>
-
-        <section
-          key={activeMode}
-          id="coach-workspace"
-          role="tabpanel"
-          aria-label={mode.label}
-          className="coach-mode-stage coach-swoosh-surface relative isolate flex min-h-0 flex-1 flex-col overflow-hidden lg:my-3 lg:rounded-2xl lg:border lg:border-white/10"
-          data-coach-mode={activeMode}
-        >
-          <div
-            key={`panel-flow-${activeMode}`}
-            className="coach-swoosh-backdrop coach-swoosh-backdrop--panel"
-            aria-hidden="true"
-          />
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5">
-            {loading ? (
-              <CoachLoadingState />
-            ) : messages.length === 0 ? (
-              <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-4 sm:py-6">
-                <div className="px-1 text-left">
-                  <p className="text-[12px] font-medium text-muted-foreground">
-                    {timeGreeting()}
-                  </p>
-                  <h2 className="mt-1 text-[24px] leading-tight font-semibold tracking-[-0.02em] text-foreground sm:text-[27px]">
-                    {mode.heading}
-                  </h2>
-                </div>
-
-                <div
-                  className="relative flex min-h-32 flex-1 items-center justify-center"
-                  aria-hidden="true"
-                >
-                  <LeftArt
-                    size={68}
-                    weight="thin"
-                    className={cn(
-                      "absolute left-[5%] -rotate-6 sm:left-[13%]",
-                      mode.artClass
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "flex size-11 items-center justify-center rounded-full border border-border/35 bg-background/45 backdrop-blur-sm",
-                      mode.centerArtClass
-                    )}
-                  >
-                    <CenterArt size={21} weight="regular" />
-                  </span>
-                  <RightArt
-                    size={68}
-                    weight="thin"
-                    className={cn(
-                      "absolute right-[5%] rotate-6 sm:right-[13%]",
-                      mode.artClass
-                    )}
-                  />
-                </div>
-
+              <button
+                type="button"
+                onClick={() => {
+                  hapticSelection()
+                  setShowHistory(true)
+                }}
+                aria-label="Coach action history"
+                className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+              >
+                <ClockCounterClockwise size={16} weight="bold" />
+              </button>
+              {messages.length > 0 ? (
                 <AppTooltip
-                  id={APP_TOOLTIP_IDS.coachStarters}
-                  content="Choose a focused coaching task."
-                  targetClassName="block w-full"
-                  side="top"
+                  id={APP_TOOLTIP_IDS.coachNewChat}
+                  content="Clear this conversation and return to Coach’s skill shortcuts."
+                  side="bottom"
                   enabled
                 >
-                  <div className="-mx-3 flex snap-x [scrollbar-width:none] gap-2 overflow-x-auto px-3 pb-1 [&::-webkit-scrollbar]:hidden">
-                    {starters.map((starter) => {
-                      const StarterIcon = starter.icon
-                      return (
-                        <button
-                          key={starter.title}
-                          type="button"
-                          onClick={() => {
-                            if (starter.prompt === null) {
-                              hapticTap()
-                              navigate("/progress?checkIn=1", {
-                                motion: "switch",
-                              })
-                              return
-                            }
-                            void submit(starter.prompt)
-                          }}
-                          className={cn(
-                            "motion-tactile flex min-h-24 w-[9.25rem] min-w-[9.25rem] snap-start flex-col items-start justify-between rounded-2xl border p-3 text-left shadow-[0_18px_42px_-24px_rgba(0,0,0,0.85)] active:bg-muted",
-                            mode.cardClass
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex size-7 items-center justify-center rounded-full border bg-black/15",
-                              mode.cardIconClass
-                            )}
-                          >
-                            <StarterIcon size={13} weight="bold" />
-                          </span>
-                          <span className="text-[11px] leading-[1.3] font-semibold text-foreground/85">
-                            {starter.title}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </AppTooltip>
-              </div>
-            ) : (
-              <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col">
-                <div className="flex flex-1 flex-col gap-5" aria-live="polite">
-                  {messages.map((message, index) =>
-                    message.role === "user" ? (
-                      <div
-                        key={index}
-                        className="ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
-                      >
-                        {message.content}
-                      </div>
-                    ) : (
-                      <div key={index} className="max-w-2xl">
-                        <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
-                          {mode.label}
-                        </p>
-                        <div
-                          className={cn(
-                            "min-w-0 border-l-2 pl-4 text-[14px] leading-6",
-                            message.error
-                              ? "border-destructive/35 text-foreground"
-                              : cn(mode.messageClass, "text-foreground")
-                          )}
-                        >
-                          <p>{message.content}</p>
-                          {message.error && lastFailedPrompt ? (
-                            <button
-                              type="button"
-                              onClick={() => void submit(lastFailedPrompt)}
-                              className="motion-tactile mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[11px] font-bold text-background"
-                            >
-                              <ArrowClockwise size={13} weight="bold" />
-                              Try again
-                            </button>
-                          ) : (
-                            <>
-                              <CoachUiBlocks
-                                blocks={message.uiBlocks}
-                                onAction={handleUiAction}
-                                onPinGoal={pinGoalFromCoachBlock}
-                              />
-                              <CoachArtifacts artifacts={message.artifacts} />
-                              <CoachProposal
-                                operations={message.pendingOperations}
-                                applying={applyingMessageIndex === index}
-                                onApply={() =>
-                                  void applyPendingOperations(index)
-                                }
-                                onDismiss={() =>
-                                  dismissPendingOperations(index)
-                                }
-                              />
-                              <CoachOperationResults
-                                results={message.operationResults}
-                                onOpenRecipe={(id) =>
-                                  navigate(`/foods/recipe/${id}`, {
-                                    motion: "forward",
-                                  })
-                                }
-                                onOpenWorkouts={() =>
-                                  navigate("/workouts", { motion: "switch" })
-                                }
-                                onOpenNutrition={() =>
-                                  navigate("/nutrition", { motion: "switch" })
-                                }
-                                onUndo={(id) => void undoAction(id)}
-                                onLogRecipe={(result) =>
-                                  void logRecipeResult(result)
-                                }
-                                onPinGoal={pinSavedGoal}
-                              />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  )}
-                  {busy && <ThinkingIndicator />}
-                  <div ref={messagesEndRef} />
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            void submit()
-          }}
-          className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/45 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:bg-background/95 lg:pb-4"
-        >
-          <AppTooltip
-            id={APP_TOOLTIP_IDS.coachMessage}
-            content="Ask Coach about today’s workout, food choices, recovery, or what changed in your progress."
-            targetClassName="block w-full min-w-0 max-w-full"
-            side="top"
-            enabled
-          >
-            <div
-              className={cn(
-                "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
-                mode.composerClass
-              )}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0]
-                  event.currentTarget.value = ""
-                  if (file) void attachImage(file)
-                }}
-              />
-              {attachment ? (
-                <div className="mb-2 flex items-center gap-3 rounded-xl bg-muted/55 p-2">
-                  <img
-                    src={attachment.previewUrl}
-                    alt="Selected Coach attachment"
-                    className="size-12 shrink-0 rounded-lg object-cover"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[10px] font-black">
-                      {attachment.fileName}
-                    </p>
-                    <p
-                      role="status"
-                      className={cn(
-                        "mt-0.5 text-[9px] font-medium",
-                        attachment.status === "error"
-                          ? "text-destructive"
-                          : "text-muted-foreground"
-                      )}
-                    >
-                      {attachment.status === "preparing"
-                        ? "Preparing image…"
-                        : attachment.status === "uploading"
-                          ? "Uploading securely…"
-                          : attachment.status === "ready"
-                            ? "Ready for Coach"
-                            : attachment.error}
-                    </p>
-                  </div>
                   <button
                     type="button"
-                    onClick={() => clearAttachment()}
-                    aria-label="Remove attached image"
-                    className="motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full bg-background"
+                    onClick={startNewChat}
+                    disabled={busy}
+                    className="motion-tactile inline-flex min-h-11 items-center gap-1.5 px-2 text-[11px] font-bold text-muted-foreground active:text-foreground disabled:opacity-40"
                   >
-                    <X size={14} weight="bold" />
+                    <Plus size={13} weight="bold" />
+                    New chat
+                  </button>
+                </AppTooltip>
+              ) : null}
+            </div>
+          </header>
+
+          <nav
+            className="grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
+            role="tablist"
+            aria-label="Coach modes"
+          >
+            {COACH_MODES.map((item) => {
+              const active = item.id === activeMode
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls="coach-workspace"
+                  disabled={busy || modeTransitioning}
+                  onClick={() => switchCoachMode(item.id)}
+                  className={cn(
+                    "motion-tactile flex min-h-11 min-w-0 items-center justify-center gap-1 border-b-2 px-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 sm:gap-1.5 sm:text-[11px]",
+                    active
+                      ? cn(item.tabClass, "text-foreground")
+                      : "border-transparent text-muted-foreground active:text-foreground"
+                  )}
+                >
+                  <Icon className="shrink-0" size={13} weight="bold" />
+                  <span className="min-w-0 whitespace-nowrap">
+                    {item.label}
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+
+          <section
+            key={activeMode}
+            id="coach-workspace"
+            role="tabpanel"
+            aria-label={mode.label}
+            className="coach-mode-stage relative isolate flex min-h-0 flex-1 flex-col overflow-hidden"
+            data-coach-mode={activeMode}
+            data-swipe-direction={modeSwipeDirection}
+          >
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-5 sm:px-5">
+              {loading ? (
+                <CoachLoadingState />
+              ) : messages.length === 0 ? (
+                <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-5 sm:py-9">
+                  <div className="max-w-2xl px-1">
+                    <p className="text-[12px] font-medium text-foreground/48">
+                      {timeGreeting()}
+                    </p>
+                    <h2 className="mt-3 text-[30px] leading-[1.06] font-semibold tracking-[-0.035em] text-foreground sm:text-[40px]">
+                      {activeMode === "chef"
+                        ? context.proteinAdherence < 85
+                          ? "Close the protein gap today."
+                          : "Keep today’s food simple."
+                        : activeMode === "personal_trainer"
+                          ? context.workoutDays7 >= 4
+                            ? "You’ve earned a lighter day."
+                            : "Make the next session count."
+                          : context.workoutDays7 >= 3 &&
+                              context.proteinAdherence >= 85
+                            ? "You’re on track. Don’t overcorrect."
+                            : "Do one useful thing well today."}
+                    </h2>
+                    <p className="mt-4 max-w-lg text-[13px] leading-5 text-foreground/55">
+                      {activeMode === "chef"
+                        ? `${Math.round(context.averageProtein)}g daily protein average · ${Math.round(context.proteinTarget)}g target`
+                        : activeMode === "personal_trainer"
+                          ? `${context.workoutDays7} sessions · ${context.hardSets7} working sets over the last 7 days`
+                          : `${context.workoutDays7} sessions this week · ${Math.round(context.proteinAdherence)}% of protein target`}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void submit(
+                          activeMode === "chef"
+                            ? "Turn today’s nutrition direction into a practical plan."
+                            : activeMode === "personal_trainer"
+                              ? "Turn today’s training direction into my next workout."
+                              : "Explain today’s direction and give me the single best next action."
+                        )
+                      }
+                      className="motion-tactile mt-7 inline-flex min-h-11 items-center gap-2 border-b border-foreground/35 text-[12px] font-semibold text-foreground active:border-foreground"
+                    >
+                      See what I’d do <ArrowRight size={14} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="coach-conversation-content mx-auto flex w-full max-w-3xl flex-1 flex-col">
+                  <div
+                    className="flex flex-1 flex-col gap-5"
+                    aria-live="polite"
+                  >
+                    {messages.map((message, index) =>
+                      message.role === "user" ? (
+                        <div
+                          key={index}
+                          className="ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
+                        >
+                          {message.content}
+                        </div>
+                      ) : (
+                        <div key={index} className="max-w-2xl">
+                          <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
+                            {mode.label}
+                          </p>
+                          <div
+                            className={cn(
+                              "min-w-0 border-l-2 pl-4 text-[14px] leading-6",
+                              message.error
+                                ? "border-destructive/35 text-foreground"
+                                : cn(mode.messageClass, "text-foreground")
+                            )}
+                          >
+                            <p>{message.content}</p>
+                            {message.error && lastFailedPrompt ? (
+                              <button
+                                type="button"
+                                onClick={() => void submit(lastFailedPrompt)}
+                                className="motion-tactile mt-3 inline-flex h-9 items-center gap-1.5 rounded-xl bg-foreground px-3 text-[11px] font-bold text-background"
+                              >
+                                <ArrowClockwise size={13} weight="bold" />
+                                Try again
+                              </button>
+                            ) : (
+                              <>
+                                <CoachUiBlocks
+                                  blocks={message.uiBlocks}
+                                  onAction={handleUiAction}
+                                  onPinGoal={pinGoalFromCoachBlock}
+                                />
+                                <CoachArtifacts artifacts={message.artifacts} />
+                                <CoachProposal
+                                  operations={message.pendingOperations}
+                                  applying={applyingMessageIndex === index}
+                                  onApply={() =>
+                                    void applyPendingOperations(index)
+                                  }
+                                  onDismiss={() =>
+                                    dismissPendingOperations(index)
+                                  }
+                                />
+                                <CoachOperationResults
+                                  results={message.operationResults}
+                                  onOpenRecipe={(id) =>
+                                    navigate(`/foods/recipe/${id}`, {
+                                      motion: "forward",
+                                    })
+                                  }
+                                  onOpenWorkouts={() =>
+                                    navigate("/workouts", { motion: "switch" })
+                                  }
+                                  onOpenNutrition={() =>
+                                    navigate("/nutrition", { motion: "switch" })
+                                  }
+                                  onUndo={(id) => void undoAction(id)}
+                                  onLogRecipe={(result) =>
+                                    void logRecipeResult(result)
+                                  }
+                                  onPinGoal={pinSavedGoal}
+                                />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    )}
+                    {busy && <ThinkingIndicator />}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
+            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-white/10 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:pb-4"
+          >
+            <AppTooltip
+              id={APP_TOOLTIP_IDS.coachMessage}
+              content="Ask Coach about today’s workout, food choices, recovery, or what changed in your progress."
+              targetClassName="block w-full min-w-0 max-w-full"
+              side="top"
+              enabled
+            >
+              <div
+                className={cn(
+                  "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
+                  mode.composerClass
+                )}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0]
+                    event.currentTarget.value = ""
+                    if (file) void attachImage(file)
+                  }}
+                />
+                {attachment ? (
+                  <div className="mb-2 flex items-center gap-3 rounded-xl bg-muted/55 p-2">
+                    <img
+                      src={attachment.previewUrl}
+                      alt="Selected Coach attachment"
+                      className="size-12 shrink-0 rounded-lg object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[10px] font-black">
+                        {attachment.fileName}
+                      </p>
+                      <p
+                        role="status"
+                        className={cn(
+                          "mt-0.5 text-[9px] font-medium",
+                          attachment.status === "error"
+                            ? "text-destructive"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {attachment.status === "preparing"
+                          ? "Preparing image…"
+                          : attachment.status === "uploading"
+                            ? "Uploading securely…"
+                            : attachment.status === "ready"
+                              ? "Ready for Coach"
+                              : attachment.error}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => clearAttachment()}
+                      aria-label="Remove attached image"
+                      className="motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full bg-background"
+                    >
+                      <X size={14} weight="bold" />
+                    </button>
+                  </div>
+                ) : null}
+                <div className="flex min-w-0 items-end gap-1 sm:gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading || busy}
+                    aria-label="Attach a picture"
+                    className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35"
+                  >
+                    <ImageSquare size={18} weight="bold" />
+                  </button>
+                  <textarea
+                    ref={composerRef}
+                    value={input}
+                    rows={1}
+                    maxLength={1200}
+                    onChange={(event) =>
+                      updateComposer(event.target.value, event.currentTarget)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault()
+                        void submit()
+                      }
+                    }}
+                    placeholder={
+                      loading ? "Connecting your data…" : mode.placeholder
+                    }
+                    disabled={loading || busy}
+                    className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      if (dictation.status === "listening")
+                        void dictation.stop()
+                      else void dictation.start()
+                    }}
+                    disabled={loading || busy || !dictation.available}
+                    aria-label={
+                      dictation.status === "listening"
+                        ? "Stop voice input"
+                        : "Start voice input"
+                    }
+                    aria-pressed={dictation.status === "listening"}
+                    title={
+                      dictation.available
+                        ? "Voice input"
+                        : "Voice input is unavailable on this device"
+                    }
+                    className={cn(
+                      "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
+                      dictation.status === "listening"
+                        ? "animate-pulse bg-foreground text-background"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {dictation.status === "listening" ? (
+                      <StopCircle size={18} weight="fill" />
+                    ) : (
+                      <Microphone size={18} weight="bold" />
+                    )}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      loading ||
+                      busy ||
+                      (input.trim().length === 0 &&
+                        attachment?.status !== "ready")
+                    }
+                    aria-label="Send message"
+                    className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-background disabled:bg-muted-foreground/25"
+                  >
+                    <PaperPlaneTilt size={17} weight="fill" />
                   </button>
                 </div>
-              ) : null}
-              <div className="flex min-w-0 items-end gap-1 sm:gap-2">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading || busy}
-                  aria-label="Attach a picture"
-                  className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35"
-                >
-                  <ImageSquare size={18} weight="bold" />
-                </button>
-                <textarea
-                  ref={composerRef}
-                  value={input}
-                  rows={1}
-                  maxLength={1200}
-                  onChange={(event) =>
-                    updateComposer(event.target.value, event.currentTarget)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault()
-                      void submit()
-                    }
-                  }}
-                  placeholder={
-                    loading ? "Connecting your data…" : mode.placeholder
-                  }
-                  disabled={loading || busy}
-                  className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    hapticSelection()
-                    if (dictation.status === "listening") void dictation.stop()
-                    else void dictation.start()
-                  }}
-                  disabled={loading || busy || !dictation.available}
-                  aria-label={
-                    dictation.status === "listening"
-                      ? "Stop voice input"
-                      : "Start voice input"
-                  }
-                  aria-pressed={dictation.status === "listening"}
-                  title={
-                    dictation.available
-                      ? "Voice input"
-                      : "Voice input is unavailable on this device"
-                  }
-                  className={cn(
-                    "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
-                    dictation.status === "listening"
-                      ? "animate-pulse bg-foreground text-background"
-                      : "text-muted-foreground hover:bg-muted"
-                  )}
-                >
-                  {dictation.status === "listening" ? (
-                    <StopCircle size={18} weight="fill" />
-                  ) : (
-                    <Microphone size={18} weight="bold" />
-                  )}
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    loading ||
-                    busy ||
-                    (input.trim().length === 0 &&
-                      attachment?.status !== "ready")
-                  }
-                  aria-label="Send message"
-                  className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-background disabled:bg-muted-foreground/25"
-                >
-                  <PaperPlaneTilt size={17} weight="fill" />
-                </button>
-              </div>
-              {dictation.status === "listening" ? (
-                <p
-                  role="status"
-                  aria-live="polite"
-                  className="px-2.5 pt-1 text-[9px] font-bold text-foreground/65"
-                >
-                  Listening{dictation.interim ? ` · ${dictation.interim}` : "…"}
-                </p>
-              ) : dictation.error ? (
-                <p
-                  role="status"
-                  className="px-2.5 pt-1 text-[9px] font-medium text-destructive"
-                >
-                  {dictation.error}
-                </p>
-              ) : null}
-              <div className="flex items-center justify-end px-2.5 pb-1">
-                {input.length > 900 && (
-                  <p className="text-[9px] font-bold text-muted-foreground/45 tabular-nums">
-                    {input.length}/1200
+                {dictation.status === "listening" ? (
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    className="px-2.5 pt-1 text-[9px] font-bold text-foreground/65"
+                  >
+                    Listening
+                    {dictation.interim ? ` · ${dictation.interim}` : "…"}
                   </p>
-                )}
+                ) : dictation.error ? (
+                  <p
+                    role="status"
+                    className="px-2.5 pt-1 text-[9px] font-medium text-destructive"
+                  >
+                    {dictation.error}
+                  </p>
+                ) : null}
+                <div className="flex items-center justify-end px-2.5 pb-1">
+                  {input.length > 900 && (
+                    <p className="text-[9px] font-bold text-muted-foreground/45 tabular-nums">
+                      {input.length}/1200
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
-          </AppTooltip>
-        </form>
+            </AppTooltip>
+          </form>
+        </div>
       </div>
+      {newChatPhase !== "idle" && (
+        <div
+          className="coach-new-chat-ritual fixed inset-0 z-[80] flex items-center justify-center"
+          aria-hidden="true"
+        >
+          <div className="coach-new-chat-bin">
+            <Sparkle
+              className="coach-new-chat-sparkle coach-new-chat-sparkle--one"
+              size={12}
+              weight="fill"
+            />
+            <TrashSimple size={42} weight="thin" />
+            <Sparkle
+              className="coach-new-chat-sparkle coach-new-chat-sparkle--two"
+              size={8}
+              weight="fill"
+            />
+          </div>
+        </div>
+      )}
       <CoachSheet
         title="Coach activity"
         open={showHistory}
