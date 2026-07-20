@@ -17,6 +17,7 @@ import {
 } from "@repo/ui"
 import {
   ArrowLeft,
+  ArrowsOutSimple,
   AppleLogo,
   Barbell,
   Brain,
@@ -24,6 +25,7 @@ import {
   CaretUp,
   ChartLine,
   Check,
+  CheckCircle,
   ClockCounterClockwise,
   DotsSixVertical,
   MagnifyingGlass,
@@ -97,6 +99,11 @@ import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
 import { suggestDoubleProgression } from "@/lib/workout-progression"
 import { useCoachContext } from "@/lib/coach-context"
+import {
+  cancelRestAlert,
+  playNativeRestHaptic,
+  scheduleRestAlert,
+} from "@/lib/rest-alerts"
 import {
   endWorkoutLiveActivity,
   startWorkoutLiveActivity,
@@ -1046,6 +1053,8 @@ function useRestCountdown(storageKey: string) {
       safeLocalStorageRemove(storageKey)
       setRemaining(null)
       playRestCompletion()
+      void playNativeRestHaptic()
+      void cancelRestAlert()
       return
     }
 
@@ -1062,6 +1071,7 @@ function useRestCountdown(storageKey: string) {
     const endAt = Date.now() + seconds * 1000
     endAtRef.current = endAt
     safeLocalStorageSet(storageKey, JSON.stringify({ endAt }))
+    void scheduleRestAlert(endAt)
     startTicker()
   }
 
@@ -1069,6 +1079,7 @@ function useRestCountdown(storageKey: string) {
     stopInterval()
     endAtRef.current = null
     safeLocalStorageRemove(storageKey)
+    void cancelRestAlert()
     setRemaining(null)
   }
 
@@ -2357,6 +2368,7 @@ function ActiveExerciseCard({
   lastSession,
   onShowHistory,
   onAiChange,
+  onBreakOut,
   nextSetIndex,
   isNextCardio,
   reorderControls,
@@ -2387,6 +2399,7 @@ function ActiveExerciseCard({
   } | null
   onShowHistory: () => void
   onAiChange?: () => void
+  onBreakOut?: () => void
   nextSetIndex?: number | null
   isNextCardio?: boolean
   reorderControls?: React.ReactNode
@@ -2452,12 +2465,12 @@ function ActiveExerciseCard({
       className={cn(
         "active-workout-exercise relative flex scroll-mt-56 overflow-hidden transition-[border-color,background-color,box-shadow,opacity] duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         inSuperset
-          ? "border-t border-border/18 bg-transparent first:border-t-0"
-          : "border-y border-border bg-transparent",
-        !inSuperset && allDone && "border-border/25 bg-muted/[0.05]",
+          ? "border-t border-border/20 bg-card first:border-t-0"
+          : "rounded-[24px] border border-border/55 bg-card shadow-[0_10px_32px_rgba(0,0,0,0.055)]",
+        !inSuperset && allDone && "border-border/30 bg-muted/[0.12]",
         isActive &&
-          "active-workout-exercise-current bg-foreground/[0.035] shadow-[inset_3px_0_0_var(--foreground)]",
-        !inSuperset && dropActive && "border-foreground/20",
+          "active-workout-exercise-current border-foreground/25 bg-card shadow-[0_12px_36px_rgba(0,0,0,0.09)]",
+        !inSuperset && dropActive && "border-foreground/35",
         !inSuperset &&
           supersetDropActive &&
           "border-foreground/70 bg-foreground/[0.035] shadow-[0_0_0_3px_color-mix(in_srgb,var(--foreground)_22%,transparent)] ring-2 ring-foreground/65 ring-offset-2 ring-offset-background",
@@ -2475,8 +2488,8 @@ function ActiveExerciseCard({
         <ExerciseDropIndicator position={dropPosition} />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className={cn("px-1 py-1", inSuperset && "pl-3")}>
-          <div className="flex items-center gap-2">
+        <div className={cn("px-3 py-3 md:px-4", inSuperset && "pl-4")}>
+          <div className="flex items-center gap-2.5">
             {dragHandlers && (
               <div
                 {...dragHandlers}
@@ -2493,9 +2506,7 @@ function ActiveExerciseCard({
                   {exercise.name}
                 </p>
                 {isActive && (
-                  <span className="shrink-0 text-[10px] font-bold tracking-[0.12em] text-foreground uppercase">
-                    Active
-                  </span>
+                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Active" />
                 )}
               </div>
               <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground">
@@ -2522,6 +2533,17 @@ function ActiveExerciseCard({
                 : `${doneSets}/${data.sets.length}`}
             </span>
             {reorderControls}
+            {inSuperset && onBreakOut && (
+              <button
+                type="button"
+                onClick={onBreakOut}
+                aria-label={`Move ${exercise.name} out of superset`}
+                title="Move out of superset"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
+              >
+                <ArrowsOutSimple size={15} weight="bold" />
+              </button>
+            )}
             <button
               onClick={onToggleCollapse}
               aria-label={collapsed ? "Expand exercise" : "Collapse exercise"}
@@ -2537,34 +2559,34 @@ function ActiveExerciseCard({
         </div>
         <div
           className={cn(
-            "min-h-11 items-stretch border-t border-border text-[13px] font-medium",
+            "items-center justify-end gap-1 px-3 pb-2 text-[13px] font-medium",
             collapsed ? "hidden" : "flex"
           )}
         >
           {!isCardio && (
             <button
               onClick={onShowHistory}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground active:bg-muted/30 active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
+              aria-label="Exercise history"
             >
-              <ChartLine size={15} weight="bold" />
-              History
+              <ChartLine size={16} weight="bold" />
             </button>
           )}
           {onAiChange && (
             <button
               onClick={onAiChange}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground active:bg-muted/30 active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
+              aria-label="Ask Coach to change exercise"
             >
-              <Sparkle size={14} weight="fill" />
-              Change
+              <Sparkle size={15} weight="fill" />
             </button>
           )}
           <button
             onClick={onRemove}
-            className="flex min-h-11 flex-1 items-center justify-center gap-2 text-destructive active:bg-destructive/10"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground active:bg-destructive/10 active:text-destructive"
+            aria-label={`Remove ${exercise.name}`}
           >
-            <X size={15} weight="bold" />
-            Remove
+            <X size={16} weight="bold" />
           </button>
         </div>
         <div
@@ -3398,7 +3420,6 @@ function AiWorkoutSheet({
   target,
   loading,
   contextReady,
-  contextSummary,
   onAsk,
   onApply,
   onClose,
@@ -3414,19 +3435,9 @@ function AiWorkoutSheet({
   const [text, setText] = useState("")
   const [proposal, setProposal] = useState<CoachWorkoutProposal | null>(null)
   const [error, setError] = useState("")
+  const [closing, setClosing] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canAsk = text.trim().length >= 4 && !loading && contextReady
-  const quickPrompts = target?.exerciseName
-    ? [
-        `Replace ${target.exerciseName} around my recovery today`,
-        "Keep the same movement pattern, but make it joint-friendly",
-        "Rebuild the session with a better substitute",
-      ]
-    : [
-        "Build the best workout for me today",
-        "Make this a focused 45-minute session",
-        "Adapt this workout to my recovery",
-      ]
 
   async function askCoach(prompt = text) {
     const request = prompt.trim()
@@ -3451,13 +3462,32 @@ function AiWorkoutSheet({
     window.setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
+  function requestClose() {
+    if (loading || closing) return
+    setClosing(true)
+    window.setTimeout(onClose, 320)
+  }
+
+  async function applyProposal() {
+    if (!proposal || loading || closing) return
+    await onApply(proposal)
+    setClosing(true)
+    window.setTimeout(onClose, 320)
+  }
+
   return (
     <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-2 backdrop-blur-[8px] sm:items-center sm:p-5"
-      onClick={loading ? undefined : onClose}
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center bg-black/65 p-2 backdrop-blur-[8px] sm:items-center sm:p-5",
+        closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
+      )}
+      onClick={requestClose}
     >
       <div
-        className="sheet-panel max-h-[min(760px,calc(100svh-1rem))] w-full max-w-[560px] overflow-y-auto rounded-[26px] border border-border/55 bg-background shadow-2xl"
+        className={cn(
+          "sheet-panel max-h-[min(680px,calc(100svh-1rem))] w-full max-w-[480px] overflow-y-auto rounded-[22px] border border-border/55 bg-background shadow-2xl",
+          closing ? "sheet-panel-exit" : "sheet-panel-enter"
+        )}
         style={{
           paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
         }}
@@ -3466,25 +3496,15 @@ function AiWorkoutSheet({
         aria-label="Ask Coach for workout help"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 pt-4 sm:px-6 sm:pt-6">
-          <div className="flex items-start gap-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border/70 bg-card text-foreground shadow-sm">
-              <Brain size={18} weight="bold" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-                Ask Coach
-              </p>
-              <h2 className="mt-1 text-[20px] leading-tight font-bold tracking-[-0.02em]">
-                {target?.exerciseName
-                  ? `Rethink ${target.exerciseName}`
-                  : "Plan this workout with me"}
-              </h2>
-            </div>
+        <div className="px-4 pt-4 sm:px-5 sm:pt-5">
+          <div className="flex items-center gap-3">
+            <h2 className="min-w-0 flex-1 truncate text-[18px] leading-tight font-semibold tracking-tight">
+              {target?.exerciseName ?? "Ask Coach"}
+            </h2>
             <button
               type="button"
-              onClick={onClose}
-              disabled={loading}
+              onClick={requestClose}
+              disabled={loading || closing}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:opacity-40"
               aria-label="Close Ask Coach"
             >
@@ -3492,23 +3512,6 @@ function AiWorkoutSheet({
             </button>
           </div>
 
-          <div className="mt-5 rounded-[18px] border border-border/55 bg-card/45 px-3.5 py-3">
-            <div className="flex items-start gap-2.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/65 text-muted-foreground">
-                <Check size={13} weight="bold" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[12px] font-bold text-foreground/80">
-                  Coach has your context
-                </p>
-                <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
-                  {contextReady
-                    ? contextSummary
-                    : "Loading your training, recovery, goals, and preferences…"}
-                </p>
-              </div>
-            </div>
-          </div>
 
           {proposal ? (
             <div className="mt-4">
@@ -3560,7 +3563,7 @@ function AiWorkoutSheet({
                 </button>
                 <button
                   type="button"
-                  onClick={() => void onApply(proposal)}
+                  onClick={() => void applyProposal()}
                   disabled={loading}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-40"
                 >
@@ -3570,8 +3573,8 @@ function AiWorkoutSheet({
               </div>
             </div>
           ) : (
-            <div className="mt-4">
-              <div className="rounded-[20px] border border-border/65 bg-card/30 p-2.5 transition-colors focus-within:border-foreground/25 focus-within:bg-card/50">
+            <div className="mt-4 pb-1">
+              <div className="rounded-[18px] border border-border/65 bg-card/25 p-2 transition-colors focus-within:border-foreground/30">
                 <textarea
                   ref={textareaRef}
                   value={text}
@@ -3592,26 +3595,23 @@ function AiWorkoutSheet({
                       ? `What should I do instead of ${target.exerciseName}?`
                       : "Tell Coach what you want from today's session…"
                   }
-                  className="min-h-28 w-full resize-none bg-transparent px-2 py-1.5 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground/55 disabled:opacity-60"
+                  autoFocus
+                  className="min-h-32 w-full resize-none bg-transparent px-2 py-2 text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground/55 disabled:opacity-60"
                 />
-                <div className="flex items-center justify-between gap-3 px-1 pb-0.5">
-                  <span className="text-[11px] text-muted-foreground/60">
-                    Shift + Enter for a new line
-                  </span>
+                <div className="flex items-center justify-end px-1 pb-0.5">
                   <button
                     type="button"
                     onClick={() => void askCoach()}
                     disabled={!canAsk}
                     aria-busy={loading}
                     aria-label="Ask Coach"
-                    className="flex h-9 items-center justify-center gap-2 rounded-lg bg-foreground px-3.5 text-[12px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-30"
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-foreground text-background transition-opacity active:opacity-80 disabled:opacity-25"
                   >
                     <PaperPlaneRight
                       size={14}
                       weight="fill"
                       className={loading ? "animate-pulse" : ""}
                     />
-                    {loading ? "Thinking…" : "Ask Coach"}
                   </button>
                 </div>
               </div>
@@ -3622,19 +3622,6 @@ function AiWorkoutSheet({
                 </p>
               )}
 
-              <div className="mt-3 flex [scrollbar-width:none] gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
-                {quickPrompts.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => void askCoach(prompt)}
-                    disabled={loading || !contextReady}
-                    className="shrink-0 rounded-full border border-border/60 bg-card/30 px-3 py-2 text-[11.5px] font-semibold text-muted-foreground transition-colors hover:bg-muted/55 hover:text-foreground disabled:opacity-35"
-                  >
-                    {prompt}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
         </div>
@@ -3948,6 +3935,7 @@ function renderSupersetItem(
   lastSessionMap: Record<string, LastSession>,
   onShowHistory: (exId: string, name: string) => void,
   onAiChange: (exId: string, name: string) => void,
+  onBreakOut: (exId: string) => void,
   nextTarget: NextTarget,
   reorderMode: boolean,
   itemIndex: number,
@@ -3997,7 +3985,7 @@ function renderSupersetItem(
         else itemRefs.current.delete(key)
       }}
       className={cn(
-        "relative scroll-mt-56 overflow-hidden border-y border-border bg-card/30 transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        "relative scroll-mt-56 overflow-hidden rounded-[26px] border border-border/55 bg-card shadow-[0_10px_32px_rgba(0,0,0,0.055)] transition-[border-color,opacity,transform] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         allDone && "bg-muted/[0.06]",
         dropActive && "border-foreground/35",
         supersetDropActive &&
@@ -4015,7 +4003,7 @@ function renderSupersetItem(
       {dt?.type !== "superset" && isTarget && (
         <ExerciseDropIndicator position={dt.type} />
       )}
-      <div className="flex min-h-12 items-center justify-between gap-3 border-b border-border px-2">
+      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border/45 px-3">
         <div className="flex min-w-0 items-center">
           <div
             {...makeDragHandlers(key)}
@@ -4025,12 +4013,8 @@ function renderSupersetItem(
           >
             <DotsSixVertical size={15} weight="bold" />
           </div>
-          <div className="h-4 w-0.5 shrink-0 bg-foreground" />
-          <span className="ml-3 truncate text-[13px] font-semibold">
+          <span className="ml-1 truncate text-[13px] font-semibold">
             Superset
-          </span>
-          <span className="ml-2 text-[13px] text-muted-foreground">
-            {item.exerciseIds.length} movements
           </span>
         </div>
         <div className="flex shrink-0 items-center">
@@ -4070,21 +4054,15 @@ function renderSupersetItem(
           />
         </div>
       )}
-      <div className="relative">
-        <div className="pointer-events-none absolute top-0 bottom-0 left-5 w-px bg-border" />
-        {item.exerciseIds.map((exId, exerciseIndex) => {
+      <div>
+        {item.exerciseIds.map((exId) => {
           const ex = exerciseLookup[exId]
           if (!ex || !exData[exId]) return null
           return (
             <div
               key={exId}
-              className="relative my-1.5 grid grid-cols-[2.25rem_minmax(0,1fr)] border-y border-border/60 first:mt-0 last:mb-0"
+              className="border-t border-border/35 first:border-t-0"
             >
-              <div className="relative z-10 flex items-start justify-center bg-card/30 pt-2.5">
-                <span className="flex h-6 min-w-6 items-center justify-center border border-border bg-background px-1 text-[11px] font-bold tabular-nums">
-                  {String.fromCharCode(65 + exerciseIndex)}
-                </span>
-              </div>
               <ActiveExerciseCard
                 exercise={ex}
                 data={exData[exId]}
@@ -4101,6 +4079,7 @@ function renderSupersetItem(
                 lastSession={lastSessionMap[exId] ?? null}
                 onShowHistory={() => onShowHistory(exId, ex.name)}
                 onAiChange={() => onAiChange(exId, ex.name)}
+                onBreakOut={() => onBreakOut(exId)}
                 nextSetIndex={
                   nextTarget?.kind === "set" && nextTarget.exerciseId === exId
                     ? nextTarget.setIndex
@@ -4129,7 +4108,7 @@ export default function ActiveWorkout() {
   const { presetId } = useParams<{ presetId?: string }>()
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   const { context: coachContext, loading: coachContextLoading } =
@@ -4211,6 +4190,9 @@ export default function ActiveWorkout() {
   const aiUpdatingRef = useRef(false)
   const liveActivityStartedRef = useRef(false)
   const completedExerciseTargetsRef = useRef<Set<string> | null>(null)
+  const [achievementMessage, setAchievementMessage] = useState<string | null>(
+    null
+  )
   // Refs to capture current state for sync
   const itemsRef = useRef(items)
   const exDataRef = useRef(exData)
@@ -4270,11 +4252,22 @@ export default function ActiveWorkout() {
     )
     const previous = completedExerciseTargetsRef.current
     if (previous) {
-      const newlyHit = [...completed].some((id) => !previous.has(id))
-      if (newlyHit) celebrateAchievement("target")
+      const newlyHitId = [...completed].find((id) => !previous.has(id))
+      if (newlyHitId) {
+        celebrateAchievement("target")
+        setAchievementMessage(
+          `${exerciseLookup[newlyHitId]?.name ?? "Exercise"} complete`
+        )
+      }
     }
     completedExerciseTargetsRef.current = completed
   }, [exData, exerciseLookup, isInitialized, uniqueExerciseKey])
+
+  useEffect(() => {
+    if (!achievementMessage) return
+    const timer = window.setTimeout(() => setAchievementMessage(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [achievementMessage])
 
   const lastSessionMap = useMemo(() => {
     if (!workoutHistory)
@@ -4345,8 +4338,11 @@ export default function ActiveWorkout() {
         : "Ready to finish",
       completedSets: doneSets,
       totalSets,
+      isResting: rest.remaining !== null,
+      restEndAt: rest.remaining !== null ? Date.now() + rest.remaining * 1000 : undefined,
+      slot,
     }),
-    [doneSets, nextExercise?.name, nextTarget, totalSets]
+    [doneSets, nextExercise?.name, nextTarget, rest.remaining, slot, totalSets]
   )
   const activeWorkoutItem = nextTarget
     ? items.find((item) =>
@@ -4553,6 +4549,18 @@ export default function ActiveWorkout() {
       logDevWarn("Failed to update workout Live Activity", error)
     )
   }, [isInitialized, items.length, liveActivityState])
+
+  useEffect(() => {
+    if (!isInitialized) return
+    const action = searchParams.get("liveAction")
+    if (action === "complete") completeNextSet()
+    if (action === "skipRest") rest.dismiss()
+    if (action) {
+      const next = new URLSearchParams(searchParams)
+      next.delete("liveAction")
+      setSearchParams(next, { replace: true })
+    }
+  }, [isInitialized, searchParams, setSearchParams])
 
   useEffect(() => {
     if (preferences?.weightUnit) {
@@ -4842,7 +4850,6 @@ export default function ActiveWorkout() {
           matched_count: 1,
           unmatched_count: resolved.length - 1,
         })
-        setAiSheetTarget(null)
         toast.success(`Changed to ${exercise.name}`)
         return
       }
@@ -4934,7 +4941,6 @@ export default function ActiveWorkout() {
         unmatched_count: unmatched.length,
       })
 
-      setAiSheetTarget(null)
       toast.success(
         unmatched.length > 0
           ? `Added ${nextItems.length} exercises. ${unmatched.length} couldn't be matched.`
@@ -5064,6 +5070,15 @@ export default function ActiveWorkout() {
         })
       },
     }
+  }
+
+  function breakOutExercise(exerciseId: string) {
+    captureReorderPositions()
+    setItems((previous) => [
+      ...removeExFromItems(previous, exerciseId),
+      { kind: "solo" as const, exerciseId },
+    ])
+    hapticSelection()
   }
 
   function executeDrop(draggedKey: string, zone: DropTarget) {
@@ -5268,6 +5283,16 @@ export default function ActiveWorkout() {
 
   return (
     <div className="desktop-canvas min-h-svh bg-background md:px-8">
+      {achievementMessage && (
+        <div
+          className="workout-achievement-pill"
+          role="status"
+          aria-live="polite"
+        >
+          <CheckCircle size={18} weight="fill" aria-hidden="true" />
+          {achievementMessage}
+        </div>
+      )}
       <div className="mx-auto flex w-full max-w-2xl flex-col pb-[calc(var(--app-safe-bottom-lg)+7rem)] md:pb-12">
         <header className="active-workout-header-enter workout-live-header sticky top-0 z-30 border-b border-border bg-background/95 px-[var(--app-page-x)] backdrop-blur-xl md:px-0">
           <div
@@ -5427,8 +5452,8 @@ export default function ActiveWorkout() {
             </div>
           </section>
         </header>
-        <main className="flex flex-col gap-4 px-[var(--app-page-x)] pt-4 md:px-0 md:pt-6">
-          <div className="active-workout-list-enter flex flex-col gap-4 md:gap-5">
+        <main className="flex flex-col gap-5 px-[var(--app-page-x)] pt-5 md:px-0 md:pt-7">
+          <div className="active-workout-list-enter flex flex-col gap-5 md:gap-6">
             {items.length > 0 && (
               <ExerciseReorderToolbar
                 active={reorderMode}
@@ -5548,6 +5573,7 @@ export default function ActiveWorkout() {
                 (exId, name) => setHistorySheet({ exerciseId: exId, name }),
                 (exId, name) =>
                   openAiWorkoutSheet({ exerciseId: exId, exerciseName: name }),
+                breakOutExercise,
                 nextTarget,
                 reorderMode,
                 itemIndex,

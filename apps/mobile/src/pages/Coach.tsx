@@ -76,6 +76,23 @@ type CoachMessage = {
   error?: boolean
 }
 
+type GuidedCoachIntent = {
+  kind: "create_recipe" | "suggest_meal"
+  title: string
+  detail: string
+  examples: string[]
+}
+
+type RecipeCustomization = {
+  name: string
+  description: string
+  image: string
+  time: number
+  calories: number
+  protein: number
+  ingredients: string[]
+}
+
 type CoachAttachment = {
   id?: Id<"coachUploads">
   fileName: string
@@ -846,7 +863,7 @@ function CoachOperationResults({
   if (!results?.length) return null
 
   return (
-    <div className="mt-4 space-y-3">
+    <div className="coach-generated-content mt-4 space-y-3">
       {results.map((result, index) => {
         if (result.type === "save_goal") {
           const pinned = result.pinned || pinnedGoalIds.has(result.goalId)
@@ -1071,7 +1088,7 @@ function CoachArtifacts({ artifacts }: { artifacts?: CoachArtifact[] }) {
     recovery_adaptation: "Recovery",
   }
   return (
-    <div className="mt-5 divide-y divide-border/45 border-y border-border/45">
+    <div className="coach-generated-content mt-5 divide-y divide-border/45 border-y border-border/45">
       {artifacts.map((artifact, index) => (
         <article key={`${artifact.type}-${index}`} className="py-4">
           <div className="flex items-center gap-2">
@@ -1133,7 +1150,7 @@ function CoachProposal({
   if (recipe) {
     const isEdit = Boolean(recipe.recipeId)
     return (
-      <section className="mt-5 border-y border-border/55 py-5">
+      <section className="coach-generated-content mt-5 border-y border-border/55 py-5">
         <p className="text-[10px] font-medium text-muted-foreground">
           Recipe preview · nothing saved yet
         </p>
@@ -1211,7 +1228,7 @@ function CoachProposal({
   ]
   const warnings = [...new Set(operations.flatMap((item) => item.warnings))]
   return (
-    <section className="mt-5 border-y border-border/55 py-4">
+    <section className="coach-generated-content mt-5 border-y border-border/55 py-4">
       <p className="text-[10px] font-medium text-muted-foreground">
         Review changes
       </p>
@@ -1308,7 +1325,7 @@ function CoachUiBlocks({
   }
 
   return (
-    <div className="mt-5 divide-y divide-border/45 border-y border-border/45">
+    <div className="coach-generated-content mt-5 divide-y divide-border/45 border-y border-border/45">
       {blocks.map((block, index) => {
         if (block.type === "card") {
           return (
@@ -1678,6 +1695,11 @@ export default function Coach() {
     limit: 30,
   })
   const [input, setInput] = useState("")
+  const [recipeCustomization, setRecipeCustomization] =
+    useState<RecipeCustomization | null>(null)
+  const [guidedIntent, setGuidedIntent] = useState<GuidedCoachIntent | null>(null)
+  const [recipeCustomizationClosing, setRecipeCustomizationClosing] =
+    useState(false)
   const [busy, setBusy] = useState(false)
   const [applyingMessageIndex, setApplyingMessageIndex] = useState<
     number | null
@@ -1735,13 +1757,21 @@ export default function Coach() {
     if (recipeHandoffHandled.current) return
     const state = location.state as {
       coachMode?: CoachMode
-      recipeRequest?: string
+      recipeCustomization?: RecipeCustomization
+      guidedIntent?: GuidedCoachIntent
     } | null
-    if (state?.coachMode !== "chef" || !state.recipeRequest) return
+    if (
+      state?.coachMode !== "chef" ||
+      (!state.recipeCustomization && !state.guidedIntent)
+    )
+      return
     recipeHandoffHandled.current = true
     setActiveMode("chef")
     setMessages(loadCoachConversation("chef"))
-    setInput(state.recipeRequest)
+    setRecipeCustomizationClosing(false)
+    setRecipeCustomization(state.recipeCustomization ?? null)
+    setGuidedIntent(state.guidedIntent ?? null)
+    setInput("")
     requestAnimationFrame(() => composerRef.current?.focus())
   }, [location.state])
   const registerCoachUpload = useMutation(api.ai.coachState.registerUpload)
@@ -2743,9 +2773,12 @@ export default function Coach() {
       )
       return
     }
-    const prompt =
-      rawPrompt ||
-      "Analyze this image in the context of my goals and recent data."
+    const prompt = recipeCustomization
+      ? `Customize this recipe: ${recipeCustomization.name}. Current direction: ${recipeCustomization.description} Ingredients: ${recipeCustomization.ingredients.join(", ")}. The user wants: ${rawPrompt}`
+      : guidedIntent
+        ? `${guidedIntent.kind === "create_recipe" ? "Create a detailed recipe" : "Suggest a practical meal"} based on this request: ${rawPrompt}`
+        : rawPrompt ||
+        "Analyze this image in the context of my goals and recent data."
     if (busy || loading) return
     if (!requireAiAccess()) return
 
@@ -2760,6 +2793,8 @@ export default function Coach() {
     ]
     setMessages(nextMessages)
     updateComposer("")
+    if (recipeCustomization) setRecipeCustomization(null)
+    if (guidedIntent) setGuidedIntent(null)
     setBusy(true)
 
     try {
@@ -3066,7 +3101,7 @@ export default function Coach() {
           <div className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile" />
         </div>
         <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] pt-[var(--app-safe-top)] md:px-8 lg:pt-0">
-          <header className="z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-transparent">
+          <header className="coach-chrome-enter z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/55 bg-transparent">
             <h1 className="text-[18px] leading-tight font-bold tracking-tight">
               Coach
             </h1>
@@ -3115,7 +3150,7 @@ export default function Coach() {
           </header>
 
           <nav
-            className="grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
+            className="coach-mode-tabs grid shrink-0 grid-cols-3 gap-1 border-b border-border/45 py-2"
             role="tablist"
             aria-label="Coach modes"
           >
@@ -3160,8 +3195,120 @@ export default function Coach() {
               {loading ? (
                 <CoachLoadingState />
               ) : messages.length === 0 ? (
-                <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col py-5 sm:py-9">
-                  <div className="max-w-2xl px-1">
+                <div className="coach-empty-intro mx-auto flex w-full max-w-3xl flex-1 flex-col py-5 sm:py-9">
+                  {guidedIntent && (
+                    <div className="coach-customization-state mx-auto w-full max-w-2xl">
+                      <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_18px_50px_color-mix(in_srgb,black_7%,transparent)]">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">
+                              Guided request
+                            </p>
+                            <h2 className="mt-2 text-[24px] leading-tight font-semibold tracking-[-0.025em]">
+                              {guidedIntent.title}
+                            </h2>
+                            <p className="mt-2 max-w-lg text-[13px] leading-5 text-muted-foreground">
+                              {guidedIntent.detail}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              hapticSelection()
+                              setGuidedIntent(null)
+                              updateComposer("")
+                            }}
+                            aria-label="Close guided request"
+                            className="coach-customization-close motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                          >
+                            <X size={14} weight="bold" />
+                          </button>
+                        </div>
+                        <div className="mt-5 flex flex-wrap gap-2">
+                          {guidedIntent.examples.map((example) => (
+                            <button
+                              key={example}
+                              type="button"
+                              onClick={() => {
+                                hapticSelection()
+                                updateComposer(example)
+                                requestAnimationFrame(() => composerRef.current?.focus())
+                              }}
+                              className="motion-tactile min-h-10 rounded-full border border-border/70 px-3 text-[11px] font-medium active:bg-muted"
+                            >
+                              {example}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {recipeCustomization && (
+                    <div
+                      className={cn(
+                        "coach-customization-state mx-auto w-full max-w-2xl",
+                        recipeCustomizationClosing &&
+                          "coach-customization-state--closing"
+                      )}
+                    >
+                      <div className="coach-customization-card overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_18px_50px_color-mix(in_srgb,black_7%,transparent)] sm:grid sm:grid-cols-[11rem_1fr]">
+                        <img
+                          src={recipeCustomization.image}
+                          alt=""
+                          className="h-36 w-full object-cover sm:h-full"
+                        />
+                        <div className="relative p-4 sm:p-5">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">
+                              Customize recipe
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (recipeCustomizationClosing) return
+                                hapticSelection()
+                                setRecipeCustomizationClosing(true)
+                                window.setTimeout(() => {
+                                  setRecipeCustomization(null)
+                                  setRecipeCustomizationClosing(false)
+                                  updateComposer("")
+                                }, 260)
+                              }}
+                              aria-label="Stop customizing recipe"
+                              className="coach-customization-close motion-tactile -mt-2 -mr-2 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                            >
+                              <X size={14} weight="bold" />
+                            </button>
+                          </div>
+                          <h2 className="mt-1.5 text-[20px] leading-tight font-semibold tracking-tight">
+                            {recipeCustomization.name}
+                          </h2>
+                          <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">
+                            {recipeCustomization.description}
+                          </p>
+                          <div className="mt-4 flex gap-3 text-[10px] font-semibold text-muted-foreground tabular-nums">
+                            <span>{recipeCustomization.time} min</span>
+                            <span>{recipeCustomization.calories} kcal</span>
+                            <span>{recipeCustomization.protein}g protein</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-6 px-1">
+                        <h3 className="text-[24px] leading-tight font-semibold tracking-[-0.025em]">
+                          What would you like to change?
+                        </h3>
+                        <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
+                          Try “make it vegetarian,” “more protein,” or “under 20 minutes.”
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-2xl px-1",
+                      (recipeCustomization || guidedIntent) && "hidden"
+                    )}
+                  >
                     <p className="text-[12px] font-medium text-foreground/48">
                       {timeGreeting()}
                     </p>
@@ -3213,12 +3360,17 @@ export default function Coach() {
                       message.role === "user" ? (
                         <div
                           key={index}
-                          className="ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
+                          className="coach-message coach-message--user ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
+                          style={{ animationDelay: `${Math.min(index, 6) * 35}ms` }}
                         >
                           {message.content}
                         </div>
                       ) : (
-                        <div key={index} className="max-w-2xl">
+                        <div
+                          key={index}
+                          className="coach-message coach-message--assistant max-w-2xl"
+                          style={{ animationDelay: `${Math.min(index, 6) * 35}ms` }}
+                        >
                           <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
                             {mode.label}
                           </p>
@@ -3296,7 +3448,7 @@ export default function Coach() {
               event.preventDefault()
               void submit()
             }}
-            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-white/10 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:pb-4"
+            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:pb-4"
           >
             <AppTooltip
               id={APP_TOOLTIP_IDS.coachMessage}
@@ -3307,7 +3459,7 @@ export default function Coach() {
             >
               <div
                 className={cn(
-                  "w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
+                  "coach-composer w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
                   mode.composerClass
                 )}
               >
@@ -3386,7 +3538,13 @@ export default function Coach() {
                       }
                     }}
                     placeholder={
-                      loading ? "Connecting your data…" : mode.placeholder
+                      loading
+                        ? "Connecting your data…"
+                        : recipeCustomization
+                          ? "Describe what you’d like to change…"
+                          : guidedIntent
+                            ? "Tell Coach what you have in mind…"
+                            : mode.placeholder
                     }
                     disabled={loading || busy}
                     className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
@@ -3433,7 +3591,7 @@ export default function Coach() {
                         attachment?.status !== "ready")
                     }
                     aria-label="Send message"
-                    className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-background disabled:bg-muted-foreground/25"
+                    className="coach-send-button motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-background disabled:bg-muted-foreground/25"
                   >
                     <PaperPlaneTilt size={17} weight="fill" />
                   </button>

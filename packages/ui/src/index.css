@@ -83,6 +83,31 @@
   animation-delay: var(--delay);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .onerep-confetti-piece {
+    animation: none !important;
+    display: none;
+  }
+
+  .onerep-confetti-root::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5rem;
+    height: 5rem;
+    border: 2px solid
+      color-mix(in srgb, var(--status-complete) 65%, transparent);
+    border-radius: 999px;
+    content: "✓";
+    display: grid;
+    place-items: center;
+    color: var(--status-complete);
+    background: var(--background);
+    font-size: 2rem;
+    transform: translate(-50%, -50%);
+  }
+}
+
 @keyframes onerep-confetti-fall {
   0% {
     opacity: 0;
@@ -760,11 +785,63 @@
   }
 }
 
+.onboarding-complete {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.9rem;
+  color: white;
+  background: color-mix(in srgb, var(--foreground) 92%, transparent);
+  animation: onboarding-complete-in 720ms cubic-bezier(0.22, 0.72, 0.24, 1) both;
+}
+
+.onboarding-complete-mark {
+  display: grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 999px;
+  animation: onboarding-complete-mark 520ms cubic-bezier(0.2, 0.9, 0.25, 1.2)
+    both;
+}
+
+.onboarding-complete p {
+  font-size: clamp(1.25rem, 4vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+@keyframes onboarding-complete-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes onboarding-complete-mark {
+  from {
+    opacity: 0;
+    transform: scale(0.72) rotate(-8deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .onboarding-atmosphere::before,
   .onboarding-atmosphere::after,
   .onboarding-atmosphere,
-  .onboarding-step {
+  .onboarding-step,
+  .onboarding-complete,
+  .onboarding-complete-mark {
     animation: none !important;
   }
 
@@ -882,7 +959,7 @@
 }
 
 .app-route-frame-current[data-route-ready="true"] {
-  animation: app-route-enter-push 440ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
+  animation: app-route-enter-push 860ms cubic-bezier(0.22, 0.72, 0.18, 1) both;
 }
 
 .app-route-frame-previous {
@@ -896,19 +973,19 @@
 }
 
 .app-route-frame-previous[data-route-ready="true"] {
-  animation: app-route-exit-push 400ms cubic-bezier(0.22, 0.72, 0.2, 1) both;
+  animation: app-route-exit-push 860ms cubic-bezier(0.22, 0.72, 0.18, 1) both;
 }
 
 /* Primary destinations occupy a stable horizontal map. The navigation chrome
    remains outside these frames, so only the content moves. */
 .app-route-frame-current[data-route-kind="tab"][data-route-ready="true"] {
   animation-name: app-route-enter-tab-left;
-  animation-duration: 360ms;
+  animation-duration: 860ms;
 }
 
 .app-route-frame-previous[data-route-kind="tab"][data-route-ready="true"] {
   animation-name: app-route-exit-tab-left;
-  animation-duration: 340ms;
+  animation-duration: 860ms;
 }
 
 .app-route-frame-current[data-route-kind="tab"][data-route-direction="right"][data-route-ready="true"] {
@@ -921,12 +998,12 @@
 
 .app-route-frame-current[data-route-kind="back"][data-route-ready="true"] {
   animation-name: app-route-enter-back-layer;
-  animation-duration: 400ms;
+  animation-duration: 860ms;
 }
 
 .app-route-frame-previous[data-route-kind="back"][data-route-ready="true"] {
   animation-name: app-route-exit-back-layer;
-  animation-duration: 380ms;
+  animation-duration: 860ms;
 }
 
 .app-route-frame-current[data-route-kind="task"][data-route-ready="true"] {
@@ -987,43 +1064,91 @@
 }
 
 @keyframes app-route-enter-push {
-  from { opacity: 0; transform: translate3d(44px, 0, 0) scale(0.992); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  from {
+    opacity: 0.78;
+    transform: translate3d(-100%, 0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes app-route-exit-push {
-  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-  to { opacity: 0; transform: translate3d(-16px, 0, 0) scale(0.992); }
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0.78;
+    transform: translate3d(100%, 0, 0) scale(1.02);
+  }
 }
 
 @keyframes app-route-enter-back-layer {
-  from { opacity: 0; transform: translate3d(-16px, 0, 0) scale(0.992); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  from {
+    opacity: 0.78;
+    transform: translate3d(-100%, 0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes app-route-exit-back-layer {
-  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
-  to { opacity: 0; transform: translate3d(44px, 0, 0) scale(0.992); }
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0.78;
+    transform: translate3d(100%, 0, 0) scale(1.02);
+  }
 }
 
 @keyframes app-route-enter-tab-left {
-  from { opacity: 0; transform: translate3d(18px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  from {
+    opacity: 0.78;
+    transform: translate3d(-100%, 0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes app-route-exit-tab-left {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to { opacity: 0; transform: translate3d(-8px, 0, 0); }
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0.78;
+    transform: translate3d(100%, 0, 0) scale(1.02);
+  }
 }
 
 @keyframes app-route-enter-tab-right {
-  from { opacity: 0; transform: translate3d(-18px, 0, 0); }
-  to { opacity: 1; transform: translate3d(0, 0, 0); }
+  from {
+    opacity: 0.78;
+    transform: translate3d(-100%, 0, 0) scale(1.02);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 @keyframes app-route-exit-tab-right {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to { opacity: 0; transform: translate3d(8px, 0, 0); }
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0.78;
+    transform: translate3d(100%, 0, 0) scale(1.02);
+  }
 }
 
 @keyframes app-route-enter-task {
@@ -1041,13 +1166,25 @@
 }
 
 @keyframes app-route-exit-underlay {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.975); }
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.975);
+  }
 }
 
 @keyframes app-route-restore-underlay {
-  from { opacity: 0; transform: scale(0.975); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes app-route-dismiss-task {
@@ -1062,13 +1199,21 @@
 }
 
 @keyframes app-route-enter-replace-soft {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes app-route-exit-replace-soft {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 @keyframes app-route-chrome-in {
@@ -1183,6 +1328,19 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-countdown-fill,
   .motion-set-complete,
   .motion-success-pop,
+  .coach-chrome-enter,
+  .coach-mode-tabs,
+  .coach-empty-intro,
+  .coach-message,
+  .coach-customization-state,
+  .coach-customization-card img,
+  .coach-customization-close svg,
+  .coach-generated-content,
+  .coach-generated-content > *,
+  .coach-generated-content button,
+  .coach-generated-content button svg,
+  .coach-composer,
+  .coach-send-button svg,
   [data-slot="accordion-content"],
   [data-slot="accordion-trigger-icon"],
   [data-slot="card"],
@@ -3359,18 +3517,62 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @keyframes swipe-thumb-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.045); }
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+  45% {
+    opacity: 0.2;
+    transform: scale(1.12);
+  }
 }
 
 @keyframes swipe-label-sheen {
-  0%, 58% { opacity: 0; transform: translateX(-140%) skewX(-18deg); }
-  82%, 100% { opacity: 0.2; transform: translateX(240%) skewX(-18deg); }
+  0%,
+  58% {
+    opacity: 0;
+    transform: translateX(-140%) skewX(-18deg);
+  }
+  82%,
+  100% {
+    opacity: 0.2;
+    transform: translateX(240%) skewX(-18deg);
+  }
 }
 
 .swipe-to-start-track {
   border: 1px solid color-mix(in srgb, var(--foreground) 10%, transparent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out,
+    background-color 180ms ease-out;
+}
+
+.swipe-to-start-track[data-dragging="true"] {
+  border-color: color-mix(in srgb, var(--accent-workout) 28%, transparent);
+}
+
+.swipe-to-start-track[data-ready="true"] {
+  border-color: color-mix(in srgb, var(--status-success) 42%, transparent);
+}
+
+.swipe-to-start-fill {
+  transition: background-color 100ms linear;
+}
+
+.swipe-to-start-label,
+.swipe-to-start-ready-label,
+.swipe-to-start-endpoint {
+  transition:
+    opacity 140ms ease-out,
+    transform 140ms ease-out;
+}
+
+.swipe-to-start-endpoint {
+  color: color-mix(in srgb, var(--foreground) 56%, transparent);
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
 }
 
 .swipe-to-start-label::after {
@@ -3382,8 +3584,21 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: swipe-label-sheen 2800ms ease-in-out infinite;
 }
 
-.swipe-to-start-thumb:not(:active) svg {
-  animation: swipe-thumb-breathe 1800ms ease-in-out infinite;
+.swipe-to-start-thumb::after {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid currentColor;
+  border-radius: 19px;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+}
+
+.swipe-to-start-track:not([data-dragging="true"]):not([data-ready="true"]):not(
+    [data-completing="true"]
+  )
+  .swipe-to-start-thumb::after {
+  animation: swipe-thumb-breathe 2200ms ease-in-out infinite;
 }
 
 .swipe-to-start-track[data-completing="true"] {
@@ -3407,12 +3622,17 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 .swipe-to-start-track[data-completing="true"] .swipe-to-start-thumb {
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--status-success) 14%, transparent) !important;
+  box-shadow: 0 0 0 5px
+    color-mix(in srgb, var(--status-success) 14%, transparent) !important;
 }
 
 @keyframes swipe-complete-sweep {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(100%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
 }
 
 .food-detail-overlay {
@@ -3468,7 +3688,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 @media (hover: hover) {
   .food-log-cta[data-state="ready"]:hover {
     transform: translate3d(0, -2px, 0);
-    box-shadow: 0 14px 30px -22px color-mix(in srgb, var(--foreground) 70%, transparent);
+    box-shadow: 0 14px 30px -22px
+      color-mix(in srgb, var(--foreground) 70%, transparent);
   }
 
   .food-log-cta[data-state="ready"]:hover::after {
@@ -3509,8 +3730,12 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @keyframes food-log-sheen {
-  from { transform: translateX(0) skewX(-18deg); }
-  to { transform: translateX(600%) skewX(-18deg); }
+  from {
+    transform: translateX(0) skewX(-18deg);
+  }
+  to {
+    transform: translateX(600%) skewX(-18deg);
+  }
 }
 
 @keyframes food-log-color-swipe {
@@ -3545,19 +3770,36 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @keyframes food-log-saving {
-  from { filter: brightness(0.92); }
-  to { filter: brightness(1.08); }
+  from {
+    filter: brightness(0.92);
+  }
+  to {
+    filter: brightness(1.08);
+  }
 }
 
 @keyframes food-log-added {
-  0%, 70% { transform: scale(1); }
-  84% { transform: scale(1.008); }
-  100% { transform: scale(1); }
+  0%,
+  70% {
+    transform: scale(1);
+  }
+  84% {
+    transform: scale(1.008);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .swipe-to-start-label::after,
   .swipe-to-start-thumb svg,
+  .swipe-to-start-thumb::after,
+  .swipe-to-start-track,
+  .swipe-to-start-fill,
+  .swipe-to-start-label,
+  .swipe-to-start-ready-label,
+  .swipe-to-start-endpoint,
   .food-detail-overlay,
   .food-log-cta,
   .food-log-cta::before,
@@ -3701,12 +3943,14 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @keyframes water-goal-backdrop-in {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0;
     backdrop-filter: blur(0);
     -webkit-backdrop-filter: blur(0);
   }
-  28%, 82% {
+  28%,
+  82% {
     opacity: 1;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
@@ -3722,7 +3966,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   18% {
     opacity: 0;
   }
-  42%, 82% {
+  42%,
+  82% {
     opacity: 1;
     filter: blur(0);
     transform: translate3d(0, 0, 0);
@@ -3735,7 +3980,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @keyframes water-goal-check-pop {
-  0%, 24% {
+  0%,
+  24% {
     opacity: 0;
     transform: scale(0.55);
   }
@@ -3743,7 +3989,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     opacity: 1;
     transform: scale(1.08);
   }
-  50%, 82% {
+  50%,
+  82% {
     opacity: 1;
     transform: scale(1);
   }
@@ -3837,7 +4084,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 .nutrient-micro-rain > span {
   background: var(--nutrient-rain-color);
-  box-shadow: 0 0 7px color-mix(in srgb, var(--nutrient-rain-color) 35%, transparent);
+  box-shadow: 0 0 7px
+    color-mix(in srgb, var(--nutrient-rain-color) 35%, transparent);
   animation-duration: 880ms;
 }
 
@@ -3862,6 +4110,270 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 .water-rain-nutrition > span {
   animation-name: water-rain-nutrition-drop;
   animation-duration: 980ms;
+}
+
+.water-rain-home {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+}
+
+@keyframes water-rain-home-drop {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -5vh, 0) rotate(12deg);
+  }
+  12% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-10px, 105vh, 0) rotate(12deg);
+  }
+}
+
+.water-rain-home > span {
+  animation-name: water-rain-home-drop;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+}
+
+.streak-milestone {
+  animation: streak-milestone 900ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+@keyframes streak-milestone {
+  0% {
+    opacity: 0.65;
+    transform: scale(0.82);
+  }
+  45% {
+    filter: drop-shadow(0 0 12px var(--accent-food));
+    transform: scale(1.16) rotate(-3deg);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+    transform: scale(1) rotate(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-rain-home > span,
+  .streak-milestone {
+    animation: none !important;
+  }
+}
+
+.progress-tab-content {
+  view-transition-name: progress-tab-content;
+}
+
+::view-transition-group(progress-tab-content) {
+  animation-duration: 260ms;
+  animation-timing-function: ease-in-out;
+}
+
+::view-transition-old(progress-tab-content) {
+  animation: progress-tab-crossfade-out 260ms ease-in-out both;
+}
+
+::view-transition-new(progress-tab-content) {
+  animation: progress-tab-crossfade-in 260ms ease-in-out both;
+}
+
+@keyframes progress-tab-crossfade-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+@keyframes progress-tab-crossfade-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes progress-tab-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes progress-chart-grow {
+  from {
+    transform: scaleY(0);
+    opacity: 0.25;
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes progress-chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes progress-point-pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.progress-tab-enter {
+  animation: progress-tab-enter 280ms var(--motion-ease-out) both;
+}
+
+.progress-chart-bar {
+  transform-origin: bottom;
+  animation: progress-chart-grow 520ms var(--motion-ease-out) both;
+}
+
+.progress-chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: progress-chart-draw 700ms var(--motion-ease-out) 80ms forwards;
+}
+
+.progress-chart-point {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: progress-point-pop 260ms var(--motion-ease-out) forwards;
+}
+
+.progress-checkin-celebration {
+  position: fixed;
+  top: calc(var(--app-safe-top) + 1rem);
+  left: 50%;
+  z-index: 220;
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border: 1px solid
+    color-mix(in srgb, var(--accent-progress) 35%, var(--border));
+  border-radius: 999px;
+  padding: 0.75rem 1.1rem;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--background) 90%, var(--accent-progress));
+  box-shadow: 0 14px 40px rgb(0 0 0 / 16%);
+  font-size: 0.875rem;
+  font-weight: 700;
+  transform: translateX(-50%);
+  animation: achievement-pill-in 1500ms var(--motion-ease-out) both;
+}
+
+.progress-checkin-rings {
+  position: absolute;
+  left: 1.55rem;
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--accent-progress);
+  border-radius: 999px;
+  animation: checkin-ring 900ms ease-out both;
+}
+
+.workout-achievement-pill {
+  position: fixed;
+  top: calc(var(--app-safe-top) + 0.75rem);
+  left: 50%;
+  z-index: 2100;
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--accent-workout) 38%, var(--border));
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--background) 90%, var(--accent-workout));
+  box-shadow: 0 14px 40px rgb(0 0 0 / 18%);
+  font-size: 0.875rem;
+  font-weight: 750;
+  transform: translateX(-50%);
+  animation: achievement-pill-in 1800ms var(--motion-ease-out) both;
+}
+
+@keyframes achievement-pill-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -12px) scale(0.94);
+  }
+  16%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -6px) scale(0.98);
+  }
+}
+
+@keyframes checkin-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.35);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.4);
+  }
+}
+
+.workout-history-row {
+  animation: progress-tab-enter 260ms var(--motion-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(progress-tab-content),
+  ::view-transition-new(progress-tab-content),
+  ::view-transition-group(progress-tab-content),
+  .progress-tab-enter,
+  .progress-chart-bar,
+  .progress-chart-line,
+  .progress-chart-point,
+  .progress-checkin-celebration,
+  .progress-checkin-rings,
+  .workout-achievement-pill,
+  .workout-history-row {
+    animation: none !important;
+  }
+
+  .progress-chart-line {
+    stroke-dashoffset: 0;
+  }
+
+  .progress-chart-point {
+    opacity: 1;
+  }
 }
 
 /* The Profile membership surface borrows Coach's depth and motion while
@@ -4134,6 +4646,274 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* Coach interaction choreography is shared by every mode. */
+.coach-chrome-enter {
+  animation: coach-chrome-in 480ms var(--motion-ease-out) both;
+}
+
+.coach-mode-tabs {
+  animation: coach-tabs-in 520ms 70ms var(--motion-ease-out) both;
+}
+
+.coach-mode-tabs [role="tab"] {
+  position: relative;
+  transform-origin: center bottom;
+}
+
+.coach-mode-tabs [role="tab"]::after {
+  content: "";
+  position: absolute;
+  right: 30%;
+  bottom: -0.15rem;
+  left: 30%;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0;
+  transform: scaleX(0.25);
+  transition:
+    opacity 180ms var(--motion-ease-standard),
+    transform 260ms var(--motion-ease-out);
+}
+
+.coach-mode-tabs [role="tab"][aria-selected="true"]::after {
+  opacity: 0.7;
+  transform: scaleX(1);
+}
+
+.coach-empty-intro {
+  animation: coach-intro-in 620ms 110ms var(--motion-ease-out) both;
+}
+
+.coach-message {
+  animation: coach-message-in 400ms var(--motion-ease-out) both;
+}
+
+.coach-message--user {
+  transform-origin: right bottom;
+}
+
+.coach-message--assistant {
+  transform-origin: left top;
+}
+
+.coach-customization-state {
+  animation: coach-customization-in 480ms var(--motion-ease-out) both;
+}
+
+.coach-customization-state--closing {
+  animation: coach-customization-out 260ms var(--motion-ease-in) both;
+  pointer-events: none;
+}
+
+.coach-customization-card img {
+  transition: transform 500ms var(--motion-ease-out);
+}
+
+.coach-customization-close svg {
+  transition: transform 220ms var(--motion-ease-out);
+}
+
+.coach-customization-close:active svg {
+  transform: rotate(90deg) scale(0.82);
+}
+
+@media (hover: hover) {
+  .coach-customization-card:hover img {
+    transform: scale(1.025);
+  }
+
+  .coach-customization-close:hover svg {
+    transform: rotate(90deg);
+  }
+}
+
+.coach-generated-content {
+  position: relative;
+  animation: coach-generated-shell-in 460ms 90ms var(--motion-ease-out) both;
+}
+
+.coach-generated-content > * {
+  animation: coach-generated-item-in 420ms var(--motion-ease-out) both;
+}
+
+.coach-generated-content > :nth-child(2) { animation-delay: 55ms; }
+.coach-generated-content > :nth-child(3) { animation-delay: 100ms; }
+.coach-generated-content > :nth-child(4) { animation-delay: 140ms; }
+.coach-generated-content > :nth-child(n + 5) { animation-delay: 175ms; }
+
+.coach-generated-content button {
+  transition:
+    transform 180ms var(--motion-ease-out),
+    background-color 180ms var(--motion-ease-standard),
+    border-color 180ms var(--motion-ease-standard),
+    opacity 180ms var(--motion-ease-standard);
+}
+
+.coach-generated-content button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.coach-generated-content button svg {
+  transition: transform 220ms var(--motion-ease-out);
+}
+
+.coach-generated-content button:active:not(:disabled) svg {
+  transform: scale(0.86) rotate(-5deg);
+}
+
+.coach-generated-content svg.text-\[var\(--status-success\)\] {
+  animation: coach-success-mark-in 480ms 180ms var(--motion-ease-out) both;
+}
+
+@media (hover: hover) {
+  .coach-generated-content button:hover:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  .coach-generated-content button:hover:not(:disabled) svg {
+    transform: translateX(1px);
+  }
+}
+
+.coach-composer {
+  box-shadow: 0 8px 28px color-mix(in srgb, black 5%, transparent);
+  transition:
+    border-color 180ms var(--motion-ease-standard),
+    box-shadow 240ms var(--motion-ease-standard),
+    transform 240ms var(--motion-ease-out),
+    background-color 180ms var(--motion-ease-standard);
+}
+
+.coach-composer:focus-within {
+  border-color: color-mix(in srgb, var(--foreground) 28%, var(--border));
+  box-shadow:
+    0 12px 36px color-mix(in srgb, var(--coach-mode-glow) 22%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--coach-mode-glow) 12%, transparent);
+  transform: translateY(-2px);
+}
+
+.coach-send-button:not(:disabled) svg {
+  transition: transform 220ms var(--motion-ease-out);
+}
+
+.coach-send-button:not(:disabled):active svg {
+  transform: translate3d(3px, -3px, 0) rotate(-6deg) scale(0.9);
+}
+
+@media (hover: hover) {
+  .coach-mode-tabs [role="tab"]:hover {
+    transform: translateY(-1px);
+  }
+
+  .coach-send-button:not(:disabled):hover svg {
+    transform: translate3d(2px, -2px, 0) rotate(-4deg);
+  }
+}
+
+@keyframes coach-chrome-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes coach-tabs-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes coach-intro-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coach-message-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coach-customization-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coach-customization-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.975);
+  }
+}
+
+@keyframes coach-generated-shell-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes coach-generated-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes coach-success-mark-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.35) rotate(-18deg);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.16) rotate(4deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
 /* Coach is intentionally immersive: a moving, high-contrast field behind the
    otherwise compact chat UI. */
 .coach-swoosh-surface {
@@ -4297,6 +5077,85 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* In light mode Coach keeps its atmosphere without forcing a dark theme. */
+:root:not(.dark) .coach-swoosh-surface {
+  --surface-app: #f7f5ef;
+  --surface-panel: rgba(255, 255, 252, 0.88);
+  --surface-raised: #ffffff;
+  --surface-elevated: #fbfaf6;
+  --background: #f7f5ef;
+  --foreground: #1c211d;
+  --card: rgba(255, 255, 252, 0.86);
+  --card-foreground: #1c211d;
+  --popover: #fffefb;
+  --popover-foreground: #1c211d;
+  --primary: #1c211d;
+  --primary-foreground: #fffefb;
+  --secondary: rgba(28, 33, 29, 0.07);
+  --secondary-foreground: #1c211d;
+  --muted: rgba(28, 33, 29, 0.065);
+  --muted-foreground: rgba(28, 33, 29, 0.6);
+  --accent: rgba(28, 33, 29, 0.08);
+  --accent-foreground: #1c211d;
+  --border: rgba(28, 33, 29, 0.13);
+  --input: rgba(28, 33, 29, 0.16);
+  --coach-flow-top: #eef0ff;
+  --coach-flow-mid: #f3efff;
+  --coach-flow-bottom: #f7f5ef;
+  --coach-core-start: rgba(112, 131, 224, 0.34);
+  --coach-core-mid: rgba(137, 112, 217, 0.22);
+  --coach-core-end: rgba(112, 86, 190, 0.08);
+  --coach-core-soft: rgba(156, 166, 231, 0.24);
+  --coach-core-fade: rgba(134, 114, 214, 0.12);
+  --coach-mode-glow: rgba(112, 86, 190, 0.14);
+  --coach-band-dark-one: rgba(118, 126, 180, 0.055);
+  --coach-band-dark-two: rgba(112, 91, 164, 0.045);
+  --coach-band-one: rgba(125, 145, 225, 0.12);
+  --coach-band-two: rgba(171, 132, 220, 0.1);
+  color: var(--foreground);
+  background: #f7f5ef !important;
+  box-shadow: inset 0 -1px 0 rgba(28, 33, 29, 0.06);
+}
+
+:root:not(.dark)
+  .coach-swoosh-surface[data-coach-mode="chef"] {
+  --coach-flow-top: #fff3e8;
+  --coach-flow-mid: #faeee4;
+  --coach-flow-bottom: #f7f5ef;
+  --coach-core-start: rgba(238, 148, 74, 0.3);
+  --coach-core-mid: rgba(231, 113, 52, 0.18);
+  --coach-core-end: rgba(191, 76, 43, 0.06);
+  --coach-core-soft: rgba(246, 181, 112, 0.22);
+  --coach-core-fade: rgba(229, 112, 61, 0.1);
+  --coach-mode-glow: rgba(231, 113, 52, 0.13);
+  --coach-band-dark-one: rgba(169, 89, 50, 0.045);
+  --coach-band-dark-two: rgba(154, 67, 42, 0.04);
+  --coach-band-one: rgba(237, 145, 76, 0.12);
+  --coach-band-two: rgba(225, 105, 70, 0.09);
+}
+
+:root:not(.dark)
+  .coach-swoosh-surface[data-coach-mode="personal_trainer"] {
+  --coach-flow-top: #e9f7f8;
+  --coach-flow-mid: #eaf2f5;
+  --coach-flow-bottom: #f7f5ef;
+  --coach-core-start: rgba(54, 174, 188, 0.28);
+  --coach-core-mid: rgba(42, 142, 175, 0.17);
+  --coach-core-end: rgba(61, 102, 181, 0.06);
+  --coach-core-soft: rgba(86, 194, 202, 0.2);
+  --coach-core-fade: rgba(45, 133, 178, 0.1);
+  --coach-mode-glow: rgba(42, 142, 175, 0.12);
+  --coach-band-dark-one: rgba(34, 104, 125, 0.04);
+  --coach-band-dark-two: rgba(38, 89, 128, 0.04);
+  --coach-band-one: rgba(47, 168, 187, 0.11);
+  --coach-band-two: rgba(66, 119, 190, 0.09);
+}
+
+:root:not(.dark) .coach-swoosh-surface .coach-swoosh-backdrop::after {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
 .coach-swoosh-backdrop {
   position: absolute;
   z-index: 0;
@@ -4425,15 +5284,27 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   view-transition-name: coach-page;
 }
 
-/* Carousel clones are clipped to the Coach content column, keeping the desktop
-   sidebar fixed while also freezing ambient motion that would cause jitter. */
+/* Carousel clones are clipped to the Coach content column. Disable animations
+   rather than pausing them: pausing an entrance animation with `fill: both`
+   freezes cloned UI at its invisible first frame. */
 .coach-carousel-frame,
 .coach-carousel-frame *,
 .coach-carousel-frame::before,
 .coach-carousel-frame::after,
 .coach-carousel-frame *::before,
 .coach-carousel-frame *::after {
-  animation-play-state: paused !important;
+  animation: none !important;
+  transition: none !important;
+}
+
+.coach-carousel-frame .coach-chrome-enter,
+.coach-carousel-frame .coach-mode-tabs,
+.coach-carousel-frame .coach-empty-intro,
+.coach-carousel-frame .coach-message,
+.coach-carousel-frame .coach-generated-content,
+.coach-carousel-frame .coach-generated-content > * {
+  opacity: 1 !important;
+  transform: none !important;
 }
 
 ::view-transition-group(coach-page) {
@@ -4660,7 +5531,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 .app-route-frame-current[data-route-path^="/workout/active"][data-route-ready="true"] {
-  animation: active-workout-route-enter 620ms cubic-bezier(0.16, 0.72, 0.2, 1) both;
+  animation: active-workout-route-enter 620ms cubic-bezier(0.16, 0.72, 0.2, 1)
+    both;
 }
 
 .active-workout-header-enter {
@@ -4668,13 +5540,22 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 .active-workout-list-enter > * {
-  animation: active-workout-item-enter 560ms cubic-bezier(0.16, 0.72, 0.2, 1) both;
+  animation: active-workout-item-enter 560ms cubic-bezier(0.16, 0.72, 0.2, 1)
+    both;
 }
 
-.active-workout-list-enter > :nth-child(2) { animation-delay: 55ms; }
-.active-workout-list-enter > :nth-child(3) { animation-delay: 95ms; }
-.active-workout-list-enter > :nth-child(4) { animation-delay: 130ms; }
-.active-workout-list-enter > :nth-child(n + 5) { animation-delay: 160ms; }
+.active-workout-list-enter > :nth-child(2) {
+  animation-delay: 55ms;
+}
+.active-workout-list-enter > :nth-child(3) {
+  animation-delay: 95ms;
+}
+.active-workout-list-enter > :nth-child(4) {
+  animation-delay: 130ms;
+}
+.active-workout-list-enter > :nth-child(n + 5) {
+  animation-delay: 160ms;
+}
 
 .active-workout-timer-mode {
   animation: active-workout-timer-mode 620ms ease-in-out both;
@@ -4772,4 +5653,117 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+}
+
+/* Recipes — restrained food-forward motion */
+@keyframes recipes-hero-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.recipes-hero {
+  animation: recipes-hero-in 520ms var(--motion-ease-out) both;
+  transform-origin: center top;
+}
+
+.recipes-card {
+  transition:
+    transform var(--motion-fast) var(--motion-ease-out),
+    box-shadow var(--motion-fast) var(--motion-ease-standard),
+    border-color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.recipes-card:active {
+  transform: scale(0.985);
+}
+
+@media (hover: hover) {
+  .recipes-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--foreground) 18%, var(--border));
+    box-shadow: 0 22px 48px -34px
+      color-mix(in srgb, var(--foreground) 32%, transparent);
+  }
+}
+
+.recipes-card-image {
+  animation: recipes-image-in 560ms var(--motion-ease-out) both;
+}
+
+@keyframes recipes-image-in {
+  from {
+    opacity: 0;
+    transform: scale(1.035);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes recipes-tab-in {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.recipes-tab-panel {
+  animation: recipes-tab-in 380ms var(--motion-ease-out) both;
+}
+
+.recipes-results-enter > * {
+  animation: recipes-tab-in 420ms var(--motion-ease-out) both;
+}
+
+.recipes-results-enter > :nth-child(2) {
+  animation-delay: 35ms;
+}
+.recipes-results-enter > :nth-child(3) {
+  animation-delay: 65ms;
+}
+.recipes-results-enter > :nth-child(4) {
+  animation-delay: 90ms;
+}
+.recipes-results-enter > :nth-child(n + 5) {
+  animation-delay: 115ms;
+}
+
+@keyframes recipes-heart-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  58% {
+    transform: scale(1.25) rotate(-7deg);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.recipes-heart-saved {
+  animation: recipes-heart-pop 360ms var(--motion-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipes-hero,
+  .recipes-card-image,
+  .recipes-heart-saved,
+  .recipes-tab-panel,
+  .recipes-results-enter > * {
+    animation: none !important;
+  }
+  .recipes-card {
+    transition: none !important;
+  }
 }

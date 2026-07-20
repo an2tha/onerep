@@ -692,6 +692,7 @@ export default function RecipesHub() {
   const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null)
   const [submittingRating, setSubmittingRating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const [closingOverlay, setClosingOverlay] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
       return new Set(JSON.parse(safeLocalStorageGet(FAVORITES_KEY) ?? "[]"))
@@ -808,7 +809,15 @@ export default function RecipesHub() {
       motion: "forward",
       state: {
         coachMode: "chef",
-        recipeRequest: `Create a detailed recipe for ${recipe.name}. Keep this direction: ${recipe.description} Include ${recipe.ingredients.join(", ")}.`,
+        recipeCustomization: {
+          name: recipe.name,
+          description: recipe.description,
+          image: recipe.image,
+          time: recipe.time,
+          calories: recipe.calories,
+          protein: recipe.protein,
+          ingredients: recipe.ingredients,
+        },
       },
     })
   }
@@ -979,6 +988,15 @@ export default function RecipesHub() {
     }
   }
 
+  function closeOverlay(clear: () => void) {
+    if (closingOverlay) return
+    setClosingOverlay(true)
+    window.setTimeout(() => {
+      clear()
+      setClosingOverlay(false)
+    }, 300)
+  }
+
   async function submitRating(rating: number) {
     if (!ratingRecipe?._id || submittingRating) return
     setSubmittingRating(true)
@@ -1025,7 +1043,7 @@ export default function RecipesHub() {
         />
 
         <div className="px-[var(--app-page-x)]">
-          <section className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(135deg,#17152e_0%,#31275d_55%,#8c583c_140%)] px-5 py-6 text-white md:px-8 md:py-8">
+          <section className="recipes-hero motion-page overflow-hidden rounded-[1.75rem] bg-[linear-gradient(135deg,#17152e_0%,#31275d_55%,#8c583c_140%)] px-5 py-6 text-white md:px-8 md:py-8">
             <div className="max-w-xl">
               <p className="text-[11px] font-semibold tracking-[0.12em] text-white/55 uppercase">
                 Your kitchen
@@ -1048,7 +1066,7 @@ export default function RecipesHub() {
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search dishes, ingredients, or tags"
                 aria-label="Search recipes"
-                className="min-h-13 w-full rounded-2xl border border-white/10 bg-white/10 pr-11 pl-11 text-[14px] text-white backdrop-blur outline-none placeholder:text-white/45 focus:border-white/25"
+                className="min-h-13 w-full rounded-2xl border border-white/10 bg-white/10 pr-11 pl-11 text-[14px] text-white backdrop-blur transition-[background-color,border-color,transform] outline-none placeholder:text-white/45 focus:scale-[1.005] focus:border-white/30 focus:bg-white/[0.14]"
               />
               {query && (
                 <button
@@ -1063,7 +1081,10 @@ export default function RecipesHub() {
             </div>
           </section>
 
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            className="motion-item mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            style={{ animationDelay: "80ms" }}
+          >
             <div
               className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
               aria-label="Recipe source"
@@ -1079,8 +1100,12 @@ export default function RecipesHub() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setSource(value)}
-                  className={`min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold ${source === value ? "bg-foreground text-background" : "border border-border bg-card text-muted-foreground"}`}
+                  onClick={() => {
+                    if (source === value) return
+                    hapticSelection()
+                    setSource(value)
+                  }}
+                  className={`motion-tactile min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold transition-all ${source === value ? "scale-[1.02] bg-foreground text-background shadow-sm" : "border border-border bg-card text-muted-foreground active:bg-muted"}`}
                 >
                   {label}
                 </button>
@@ -1106,7 +1131,11 @@ export default function RecipesHub() {
 
           {(source === "all" || source === "mine") &&
             visibleSavedRecipes.length > 0 && (
-              <section className="mt-8" aria-labelledby="saved-recipes-title">
+              <section
+                key={`saved-${source}`}
+                className="recipes-tab-panel mt-8"
+                aria-labelledby="saved-recipes-title"
+              >
                 <div className="mb-3 flex items-end justify-between">
                   <div>
                     <h2
@@ -1124,7 +1153,7 @@ export default function RecipesHub() {
                   </span>
                 </div>
                 <div className="flex snap-x gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden">
-                  {visibleSavedRecipes.map((recipe) => {
+                  {visibleSavedRecipes.map((recipe, index) => {
                     const nutrition = totals(recipe)
                     const image =
                       recipe.photoUrls?.[0] ??
@@ -1134,7 +1163,10 @@ export default function RecipesHub() {
                     return (
                       <article
                         key={recipe._id ?? recipe.name}
-                        className="relative min-w-[78%] snap-start overflow-hidden rounded-3xl border border-border bg-card text-left sm:min-w-72"
+                        className="recipes-card motion-card relative min-w-[78%] snap-start overflow-hidden rounded-3xl border border-border bg-card text-left sm:min-w-72"
+                        style={{
+                          animationDelay: `${Math.min(index, 5) * 55 + 120}ms`,
+                        }}
                       >
                         <button
                           type="button"
@@ -1150,7 +1182,7 @@ export default function RecipesHub() {
                             <img
                               src={image}
                               alt=""
-                              className="h-28 w-full object-cover"
+                              className="recipes-card-image h-28 w-full object-cover"
                             />
                           ) : (
                             <div className="grid h-28 place-items-center bg-muted/40">
@@ -1179,7 +1211,7 @@ export default function RecipesHub() {
                                 setShareCountry(recipe.originCountry ?? ""),
                                 setShareAnonymously(false))
                           }
-                          className="absolute right-3 bottom-3 grid size-10 place-items-center rounded-full bg-muted text-muted-foreground"
+                          className="motion-tactile absolute right-3 bottom-3 grid size-10 place-items-center rounded-full bg-muted text-muted-foreground transition-[transform,background-color] active:scale-90 active:bg-muted/70"
                           aria-label={
                             recipe.isCommunityShared
                               ? `Stop sharing ${recipe.name}`
@@ -1204,7 +1236,11 @@ export default function RecipesHub() {
             )}
 
           {(source === "all" || source === "official") && (
-            <section className="mt-8" aria-labelledby="discover-recipes-title">
+            <section
+              key={`discover-${source}`}
+              className="recipes-tab-panel mt-8"
+              aria-labelledby="discover-recipes-title"
+            >
               <div className="flex items-end justify-between gap-4">
                 <div>
                   <h2
@@ -1260,11 +1296,17 @@ export default function RecipesHub() {
                   </button>
                 </div>
               ) : (
-                <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {filtered.map((recipe) => (
+                <div
+                  key={`${source}-${category}-${query}`}
+                  className="recipes-results-enter mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+                >
+                  {filtered.map((recipe, index) => (
                     <article
                       key={recipe.id}
-                      className="group overflow-hidden rounded-3xl border border-border bg-card shadow-[0_18px_45px_-38px_rgba(0,0,0,0.65)]"
+                      className="recipes-card motion-card group overflow-hidden rounded-3xl border border-border bg-card shadow-[0_18px_45px_-38px_rgba(0,0,0,0.65)]"
+                      style={{
+                        animationDelay: `${Math.min(index, 8) * 45 + 120}ms`,
+                      }}
                     >
                       <button
                         type="button"
@@ -1275,7 +1317,7 @@ export default function RecipesHub() {
                           src={recipe.image}
                           alt=""
                           loading="lazy"
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                          className="recipes-card-image h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.045]"
                         />
                         <span className="absolute top-3 left-3 rounded-full bg-black/45 px-2.5 py-1 text-[13px] font-semibold text-white backdrop-blur">
                           {recipe.category}
@@ -1301,9 +1343,12 @@ export default function RecipesHub() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => toggleFavorite(recipe.id)}
+                            onClick={() => {
+                              hapticSelection()
+                              toggleFavorite(recipe.id)
+                            }}
                             aria-label={`${favorites.has(recipe.id) ? "Remove" : "Add"} ${recipe.name} ${favorites.has(recipe.id) ? "from" : "to"} favorites`}
-                            className="grid size-10 shrink-0 place-items-center rounded-full bg-muted/55"
+                            className="motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted/55 transition-transform active:scale-90"
                           >
                             <Heart
                               size={18}
@@ -1312,7 +1357,7 @@ export default function RecipesHub() {
                               }
                               className={
                                 favorites.has(recipe.id)
-                                  ? "text-rose-500"
+                                  ? "recipes-heart-saved text-rose-500"
                                   : "text-muted-foreground"
                               }
                             />
@@ -1339,7 +1384,8 @@ export default function RecipesHub() {
 
           {(source === "all" || source === "community") && (
             <section
-              className="mt-10 border-t border-border pt-8"
+              key={`community-${source}`}
+              className="recipes-tab-panel mt-10 border-t border-border pt-8"
               aria-labelledby="community-recipes-title"
             >
               <div className="flex items-end justify-between gap-4">
@@ -1373,7 +1419,7 @@ export default function RecipesHub() {
                 </div>
               ) : (
                 <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {filteredCommunity.map((recipe) => {
+                  {filteredCommunity.map((recipe, index) => {
                     const nutrition = totals(recipe)
                     const image =
                       recipe.photoUrls?.[0] ??
@@ -1383,7 +1429,10 @@ export default function RecipesHub() {
                     return (
                       <article
                         key={recipe._id ?? recipe.name}
-                        className="overflow-hidden rounded-3xl border border-border bg-card"
+                        className="recipes-card motion-card overflow-hidden rounded-3xl border border-border bg-card"
+                        style={{
+                          animationDelay: `${Math.min(index, 8) * 45}ms`,
+                        }}
                       >
                         <button
                           type="button"
@@ -1461,12 +1510,14 @@ export default function RecipesHub() {
 
       {shareTarget && (
         <div
-          className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm md:items-center md:p-6"
+          className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm md:items-center md:p-6`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="share-recipe-title"
         >
-          <div className="w-full max-w-md rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem] md:p-6">
+          <div
+            className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} w-full max-w-md rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem] md:p-6`}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
@@ -1481,7 +1532,7 @@ export default function RecipesHub() {
               </div>
               <button
                 type="button"
-                onClick={() => setShareTarget(null)}
+                onClick={() => closeOverlay(() => setShareTarget(null))}
                 aria-label="Close sharing dialog"
                 className="grid size-10 place-items-center rounded-full bg-muted"
               >
@@ -1544,16 +1595,18 @@ export default function RecipesHub() {
             (recipe.placeholderImage ? COACH_RECIPE_PLACEHOLDER : undefined)
           return (
             <div
-              className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
+              className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6`}
               role="dialog"
               aria-modal="true"
               aria-labelledby="community-recipe-title"
               onMouseDown={(event) => {
                 if (event.target === event.currentTarget)
-                  setSelectedCommunity(null)
+                  closeOverlay(() => setSelectedCommunity(null))
               }}
             >
-              <div className="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]">
+              <div
+                className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]`}
+              >
                 <div className="relative h-56">
                   {image ? (
                     <img
@@ -1568,7 +1621,9 @@ export default function RecipesHub() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setSelectedCommunity(null)}
+                    onClick={() =>
+                      closeOverlay(() => setSelectedCommunity(null))
+                    }
                     aria-label="Close community recipe"
                     className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
                   >
@@ -1710,12 +1765,12 @@ export default function RecipesHub() {
 
       {loggingCommunity && (
         <div
-          className="fixed inset-0 z-[120] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
+          className="sheet-backdrop-enter fixed inset-0 z-[120] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="log-community-recipe-title"
         >
-          <div className="w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]">
+          <div className="sheet-panel-enter w-full max-w-sm rounded-t-[2rem] bg-background p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:rounded-[2rem]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
@@ -1760,12 +1815,12 @@ export default function RecipesHub() {
 
       {ratingRecipe && (
         <div
-          className="fixed inset-0 z-[130] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
+          className="sheet-backdrop-enter fixed inset-0 z-[130] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="rate-recipe-title"
         >
-          <div className="w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]">
+          <div className="sheet-panel-enter w-full max-w-sm rounded-t-[2rem] bg-background p-6 pb-[max(1.75rem,env(safe-area-inset-bottom))] text-center md:rounded-[2rem]">
             <div className="mx-auto grid size-12 place-items-center rounded-full bg-amber-500/12 text-amber-500">
               <Star size={24} weight="fill" />
             </div>
@@ -1809,15 +1864,18 @@ export default function RecipesHub() {
 
       {selected && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm md:items-center md:p-6"
+          className={`${closingOverlay ? "sheet-backdrop-exit" : "sheet-backdrop-enter"} fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-0 backdrop-blur-sm md:items-center md:p-6`}
           role="dialog"
           aria-modal="true"
           aria-labelledby="recipe-preview-title"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setSelected(null)
+            if (event.target === event.currentTarget)
+              closeOverlay(() => setSelected(null))
           }}
         >
-          <div className="max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]">
+          <div
+            className={`${closingOverlay ? "sheet-panel-exit" : "sheet-panel-enter"} max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]`}
+          >
             <div className="relative h-56">
               <img
                 src={selected.image}
@@ -1826,7 +1884,7 @@ export default function RecipesHub() {
               />
               <button
                 type="button"
-                onClick={() => setSelected(null)}
+                onClick={() => closeOverlay(() => setSelected(null))}
                 aria-label="Close recipe preview"
                 className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
               >

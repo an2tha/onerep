@@ -15,12 +15,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "../../lib/utils"
-import {
-  GroupedList,
-  PrimaryButton,
-  SectionHeader,
-  SummaryBlock,
-} from "../mobile-ui"
+import { GroupedList, SectionHeader, SummaryBlock } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
 
 export type DashboardBriefingView = {
@@ -576,24 +571,32 @@ export function DailyLedgerHero({
         </div>
       </div>
       {showBriefingAction && (
-        <PrimaryButton
+        <button
+          type="button"
           onClick={() => {
             if (briefing.action === "add_water") {
               setWaterRainKey((value) => value + 1)
             }
             onBriefingAction()
           }}
-          className="mt-4 w-full justify-between"
+          className="group mt-3 flex min-h-12 w-full items-center gap-2 border-t border-border px-0.5 pt-2 text-left transition-colors active:text-muted-foreground md:w-auto md:min-w-[20rem]"
         >
-          <span className="flex min-w-0 items-center gap-2 truncate">
-            <Lightning size={18} weight="fill" />
+          <Lightning
+            size={14}
+            weight="fill"
+            className="shrink-0 text-[var(--accent-food)] transition-transform group-active:scale-90"
+          />
+          <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
             {briefing.title}
           </span>
-          <span className="flex shrink-0 items-center gap-1">
+          <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold">
             {briefing.actionLabel}
-            <ArrowRight size={16} />
+            <ArrowRight
+              size={13}
+              className="text-muted-foreground transition-transform group-active:translate-x-0.5"
+            />
           </span>
-        </PrimaryButton>
+        </button>
       )}
     </SummaryBlock>
   )

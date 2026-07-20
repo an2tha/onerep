@@ -5,9 +5,10 @@ import {
   useState,
   type FormEvent,
 } from "react"
-import { Barbell, ForkKnife, Plus, X } from "@phosphor-icons/react"
+import { Barbell, CheckCircle, ForkKnife, Plus, X } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { useSearchParams } from "react-router"
+import { flushSync } from "react-dom"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { currentDateKey, type FoodLogDaySnapshot } from "@/lib/food-log"
@@ -24,7 +25,7 @@ import {
   ToolbarButton,
 } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { hapticMedium } from "@/lib/haptics"
+import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 
@@ -56,6 +57,7 @@ export default function Progress() {
   const [entryPrepared, setEntryPrepared] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
   const [entryError, setEntryError] = useState("")
+  const [checkInCelebration, setCheckInCelebration] = useState(false)
   const saveMeasurement = useMutation(api.bodyProgress.save)
   const today = currentDateKey()
   const bodyMeasurements = useQuery(api.bodyProgress.list) as
@@ -160,7 +162,23 @@ export default function Progress() {
     setEntryPrepared(true)
   }, [todayMeasurement, unit])
 
+  function selectMetric(nextMetric: "body" | "nutrition" | "training") {
+    if (nextMetric === metric) return
+    hapticSelection()
+    const transitionDocument = document as Document & {
+      startViewTransition?: (update: () => void) => { finished: Promise<void> }
+    }
+    if (!transitionDocument.startViewTransition) {
+      setMetric(nextMetric)
+      return
+    }
+    transitionDocument.startViewTransition(() => {
+      flushSync(() => setMetric(nextMetric))
+    })
+  }
+
   function openEntry() {
+    hapticSelection()
     if (bodyMeasurements === undefined) {
       setWeight("")
       setBodyFat("")
@@ -265,6 +283,7 @@ export default function Progress() {
       toast.success(
         entryClientId ? "Today’s check-in updated" : "Check-in saved"
       )
+      if (!entryClientId) setCheckInCelebration(true)
       setWeight("")
       setBodyFat("")
       setWaist("")
@@ -280,6 +299,12 @@ export default function Progress() {
       setSavingEntry(false)
     }
   }
+
+  useEffect(() => {
+    if (!checkInCelebration) return
+    const timer = window.setTimeout(() => setCheckInCelebration(false), 1500)
+    return () => window.clearTimeout(timer)
+  }, [checkInCelebration])
 
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
@@ -316,7 +341,7 @@ export default function Progress() {
               type="button"
               data-active={metric === item}
               aria-pressed={metric === item}
-              onClick={() => setMetric(item)}
+              onClick={() => selectMetric(item)}
               className="app-segmented-button capitalize"
             >
               {item}
@@ -327,7 +352,7 @@ export default function Progress() {
         {loading ? (
           <ProgressLoading />
         ) : (
-          <div className="grid gap-6">
+          <div className="progress-tab-content grid gap-6">
             {metric === "body" && (
               <BodyProgress
                 summary={summary}
@@ -370,6 +395,18 @@ export default function Progress() {
           </div>
         )}
       </main>
+
+      {checkInCelebration && (
+        <div
+          className="progress-checkin-celebration"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="progress-checkin-rings" aria-hidden="true" />
+          <CheckCircle size={34} weight="fill" aria-hidden="true" />
+          <span>Check-in complete</span>
+        </div>
+      )}
 
       {entryOpen && (
         <MobileSheet

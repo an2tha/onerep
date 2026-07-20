@@ -175,12 +175,13 @@ function NutritionWeekBars({ days }: { days: ProgressDayView[] }) {
                 />
               )}
               <span
-                className={`w-full max-w-8 rounded-t-lg ${
+                className={`progress-chart-bar w-full max-w-8 rounded-t-lg ${
                   isLogged ? "bg-[var(--accent-food)]" : "bg-muted"
                 }`}
                 style={{
                   height: `${height}%`,
                   opacity: day.isToday ? 1 : 0.82,
+                  animationDelay: `${days.indexOf(day) * 45}ms`,
                 }}
                 aria-hidden="true"
               />
@@ -224,12 +225,13 @@ function TrainingWeekBars({ days }: { days: ProgressDayView[] }) {
               }
             >
               <span
-                className={`w-full max-w-8 rounded-t-lg ${
+                className={`progress-chart-bar w-full max-w-8 rounded-t-lg ${
                   trained ? "bg-[var(--accent-workout)]" : "bg-muted"
                 }`}
                 style={{
                   height: `${height}%`,
                   opacity: day.isToday ? 1 : 0.82,
+                  animationDelay: `${days.indexOf(day) * 45}ms`,
                 }}
                 aria-hidden="true"
               />
@@ -342,8 +344,10 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
+              pathLength="1"
+              className="progress-chart-line"
             />
-            {points.split(" ").map((point) => {
+            {points.split(" ").map((point, index) => {
               const [x, y] = point.split(",")
               return (
                 <circle
@@ -354,6 +358,8 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
                   fill="var(--background)"
                   stroke="var(--accent-progress)"
                   strokeWidth="2.5"
+                  className="progress-chart-point"
+                  style={{ animationDelay: `${240 + index * 70}ms` }}
                 />
               )
             })}

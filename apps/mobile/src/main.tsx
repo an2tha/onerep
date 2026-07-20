@@ -91,9 +91,15 @@ function shouldShowBottomBar(pathname: string) {
   )
 }
 
-const ROUTE_TRANSITION_MS = 500
+const ROUTE_TRANSITION_MS = 900
 
-const PRIMARY_TAB_ORDER = ["/", "/workouts", "/nutrition", "/progress", "/coach"]
+const PRIMARY_TAB_ORDER = [
+  "/",
+  "/workouts",
+  "/nutrition",
+  "/progress",
+  "/coach",
+]
 const TASK_ROUTE_PREFIXES = [
   "/workouts/new",
   "/workouts/edit/",
@@ -111,12 +117,7 @@ function isTaskRoute(pathname: string) {
 }
 
 type RouteTransitionKind =
-  | "tab"
-  | "push"
-  | "back"
-  | "task"
-  | "task-back"
-  | "replace"
+  "tab" | "push" | "back" | "task" | "task-back" | "replace"
 
 function classifyRouteTransition(
   fromPathname: string,
@@ -135,7 +136,8 @@ function classifyRouteTransition(
   if (motion === "switch" || (fromTab >= 0 && toTab >= 0)) {
     return {
       kind: "tab",
-      direction: fromTab >= 0 && toTab >= 0 && toTab < fromTab ? "right" : "left",
+      direction:
+        fromTab >= 0 && toTab >= 0 && toTab < fromTab ? "right" : "left",
     }
   }
 

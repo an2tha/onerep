@@ -1234,8 +1234,17 @@ export default function NewRecipe() {
                     motion: "forward",
                     state: {
                       coachMode: "chef",
-                      recipeRequest:
-                        "Create a detailed recipe from these instructions: ",
+                      guidedIntent: {
+                        kind: "create_recipe",
+                        title: "What are you cooking?",
+                        detail:
+                          "Describe the ingredients, style, or nutrition target and Coach will shape it into a complete recipe.",
+                        examples: [
+                          "A quick dinner with chicken and rice",
+                          "A vegetarian lunch with 30g protein",
+                          "Use up spinach, eggs, and feta",
+                        ],
+                      },
                     },
                   })
                 }

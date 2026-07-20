@@ -6,7 +6,9 @@ import {
   CaretDown,
   CaretLeft,
   CaretRight,
+  Check,
   Coffee,
+  Clock,
   Fire,
   ForkKnife,
   Lightning,
@@ -27,11 +29,12 @@ import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
-import { cn } from "@/lib/utils"
+import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
+  DashboardProgressPanels,
   CoachGoalCards,
   TodayHeader,
   TodayTimeline,
@@ -97,6 +100,10 @@ import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import type { TrendMetric } from "@repo/ui"
 import { toast } from "@repo/ui"
+import {
+  STARTER_RECIPES,
+  type StarterRecipe,
+} from "@/pages/RecipesHub"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1262,6 +1269,24 @@ function StreakCard({
   })
 
   const active = streak > 0
+  const [milestoneActive, setMilestoneActive] = useState(false)
+  const previousStreak = useRef(streak)
+
+  useEffect(() => {
+    const crossedMilestone =
+      streak > previousStreak.current && [1, 3, 7, 14, 30].includes(streak)
+    previousStreak.current = streak
+    if (!crossedMilestone) return
+
+    const key = `onerep:streak-milestone:${streak}`
+    if (safeLocalStorageGet(key)) return
+    safeLocalStorageSet(key, "seen")
+    setMilestoneActive(true)
+    hapticMedium()
+    const timer = window.setTimeout(() => setMilestoneActive(false), 1500)
+    return () => window.clearTimeout(timer)
+  }, [streak])
+
   const fireColor = active
     ? FOOD_COLOR
     : "color-mix(in srgb, var(--foreground) 18%, transparent)"
@@ -1284,7 +1309,16 @@ function StreakCard({
 
         <div className="flex items-center gap-4">
           {/* Flame + count */}
-          <div className="flex shrink-0 flex-col items-center gap-0.5">
+          <div
+            className={cn(
+              "flex shrink-0 flex-col items-center gap-0.5",
+              milestoneActive && "streak-milestone"
+            )}
+            role={milestoneActive ? "status" : undefined}
+            aria-label={
+              milestoneActive ? `${streak} day streak milestone` : undefined
+            }
+          >
             <Fire
               size={32}
               weight={active ? "fill" : "regular"}
@@ -2244,6 +2278,9 @@ export default function App() {
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
   const [dayOffset, setDayOffset] = useState(0)
+  const [quickWaterRainKey, setQuickWaterRainKey] = useState(0)
+  const [dashboardTrendMetric, setDashboardTrendMetric] =
+    useState<TrendMetric>("waistCm")
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -2264,7 +2301,12 @@ export default function App() {
   const schedule = useQuery(api.users.schedules.get, {})
   const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
   const recipesQuery = useQuery(api.logs.recipes.list, {})
+  const suggestedMeals = useQuery(api.logs.recipes.suggestedForDashboard, {
+    beforeOrOn: selectedDate,
+    limit: 6,
+  })
   const pinnedCoachGoals = useQuery(api.ai.coachGoals.listPinned, { limit: 4 })
+  const bodyMeasurements = useQuery(api.bodyProgress.list)
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
   const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
@@ -2298,6 +2340,7 @@ export default function App() {
     "logs.supplements.removeEntry"
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
+  const saveRecipe = useMutation(api.logs.recipes.save)
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setCoachGoalTaskCompleted = useMutation(
     api.ai.coachGoals.setTaskCompleted
@@ -2414,6 +2457,10 @@ export default function App() {
   )
   const [unpinningCoachGoal, setUnpinningCoachGoal] = useState(false)
   const [homeAddOpen, setHomeAddOpen] = useState(false)
+  const [previewRecipe, setPreviewRecipe] = useState<StarterRecipe | null>(null)
+  const [recipePreviewClosing, setRecipePreviewClosing] = useState(false)
+  const [savingPreviewRecipe, setSavingPreviewRecipe] = useState(false)
+  const [previewRecipeSaved, setPreviewRecipeSaved] = useState(false)
   const [snapOffline, setSnapOffline] = useState(false)
   const [showFirstWeekGuide, setShowFirstWeekGuide] = useState(() =>
     typeof window === "undefined"
@@ -2600,6 +2647,72 @@ export default function App() {
     setShowFirstWeekGuide(false)
   }
 
+  function closeRecipePreview() {
+    if (recipePreviewClosing || savingPreviewRecipe) return
+    setRecipePreviewClosing(true)
+    window.setTimeout(() => {
+      setPreviewRecipe(null)
+      setRecipePreviewClosing(false)
+      setPreviewRecipeSaved(false)
+    }, 320)
+  }
+
+  async function savePreviewRecipe(recipe: StarterRecipe) {
+    if (savingPreviewRecipe || previewRecipeSaved) return
+    setSavingPreviewRecipe(true)
+    hapticSelection()
+    try {
+      const ingredientCount = recipe.ingredients.length
+      const calorieShare = recipe.calories / ingredientCount
+      const proteinShare = recipe.protein / ingredientCount
+      const remainingCalories = Math.max(0, recipe.calories - recipe.protein * 4)
+      const noCook =
+        recipe.tags.includes("no cook") ||
+        recipe.tags.includes("no bake") ||
+        /smoothie|overnight|chia pudding|yogurt bowl/i.test(recipe.name)
+      const carbsShare = (remainingCalories * 0.65) / 4 / ingredientCount
+      const fatShare = (remainingCalories * 0.35) / 9 / ingredientCount
+      await saveRecipe({
+        name: recipe.name,
+        recipeType: "detailed",
+        description: recipe.description,
+        servings: 1,
+        prepMinutes: noCook ? recipe.time : Math.max(5, Math.round(recipe.time * 0.35)),
+        cookMinutes: noCook ? 0 : Math.max(1, Math.round(recipe.time * 0.65)),
+        category: recipe.category,
+        originCountry: recipe.origin,
+        notes: recipe.notes,
+        placeholderImage: "starter-kitchen",
+        tags: recipe.tags,
+        steps: recipe.steps,
+        photoStorageIds: [],
+        ingredients: recipe.ingredients.map((label, index) => {
+          const parsedAmount = Number(label.match(/[\d.]+/)?.[0] ?? 100)
+          const grams = /\bg\b/i.test(label) ? parsedAmount : 100
+          const name = label.replace(/^[\d.]+\s*(?:g|tbsp|serving)?\s*/i, "")
+          return {
+            id: `${recipe.id}-${index}`,
+            name,
+            grams,
+            displayAmount: grams,
+            displayUnit: "g",
+            caloriesPer100: (calorieShare * 100) / grams,
+            proteinPer100: (proteinShare * 100) / grams,
+            carbsPer100: (carbsShare * 100) / grams,
+            fatPer100: (fatShare * 100) / grams,
+          }
+        }),
+      })
+      hapticMedium()
+      setPreviewRecipeSaved(true)
+      toast.success(`${recipe.name} saved`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save recipe")
+    } finally {
+      setSavingPreviewRecipe(false)
+    }
+  }
+
   const timelineEvents = useMemo<TimelineEvent[]>(() => {
     const foodEvents = foodEntries.map((entry) => ({
       id: `food-${entry.id}`,
@@ -2649,6 +2762,7 @@ export default function App() {
 
   function addQuickWater() {
     hapticMedium()
+    setQuickWaterRainKey((value) => value + 1)
     const id = crypto.randomUUID()
     void addWaterEntry({
       date: selectedDate,
@@ -2657,7 +2771,7 @@ export default function App() {
         amountMl: 250,
         loggedAt: new Date().toISOString(),
       },
-    })
+    }).catch(() => toast.error("Could not add water. Try again."))
   }
 
   function deleteTimelineEvent(event: TimelineEvent) {
@@ -2736,11 +2850,31 @@ export default function App() {
     activeWorkouts !== undefined &&
     pinnedCoachGoals !== undefined &&
     serverPresets !== undefined &&
-    schedule !== undefined
+    schedule !== undefined &&
+    bodyMeasurements !== undefined &&
+    suggestedMeals !== undefined
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <div className="mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
+    <div className="desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
+      {quickWaterRainKey > 0 && (
+        <span
+          key={quickWaterRainKey}
+          className="water-rain water-rain-home"
+          aria-hidden
+        >
+          {Array.from({ length: 18 }, (_, index) => (
+            <span
+              key={index}
+              style={{
+                left: `${(index * 37) % 101}%`,
+                animationDelay: `${(index * 43) % 260}ms`,
+                animationDuration: `${850 + ((index * 67) % 420)}ms`,
+              }}
+            />
+          ))}
+        </span>
+      )}
+      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         <TodayHeader
           dateLabel={dateLabel}
           salutation={salutation}
@@ -2795,8 +2929,176 @@ export default function App() {
               proteinLeft={proteinLeft}
             />
 
+            <div className="mx-[var(--app-page-x)] mt-4 md:mx-8">
+              <WorkoutCard
+                settings={settings}
+                dayOffset={dayOffset}
+                scheduledWorkout={scheduledWorkout}
+                timeZone={activeTimezone}
+                workoutLogs={workoutLogs}
+                collapsed={todayWorkoutCollapsed}
+                onToggleCollapse={() =>
+                  setTodayWorkoutCollapsed((collapsed) => !collapsed)
+                }
+                onDeleteSlot={setConfirmDeleteSlot}
+              />
+            </div>
+
+            <section className="mt-5" aria-label="Suggested meals">
+              <div className="mx-[var(--app-page-x)] mb-3 flex items-end justify-between gap-4 md:mx-8">
+                <div>
+                  <p className="app-section-title">Suggested meals</p>
+                  <p className="native-row-detail mt-0.5">
+                    OneRep recipes matched to recent ingredients
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/coach", {
+                      motion: "forward",
+                      state: {
+                        coachMode: "chef",
+                        guidedIntent: {
+                          kind: "suggest_meal",
+                          title: "What sounds good?",
+                          detail:
+                            "Share a craving, ingredient, time limit, or nutrition goal.",
+                          examples: [
+                            "High-protein dinner under 30 minutes",
+                            "Something with chicken and rice",
+                            "A light vegetarian lunch",
+                          ],
+                        },
+                      },
+                    })
+                  }
+                  className="min-h-11 shrink-0 text-[13px] font-semibold text-[var(--accent-food)] active:opacity-60"
+                >
+                  Ask Coach
+                </button>
+              </div>
+
+              {suggestedMeals.length > 0 ? (
+                <div className="flex snap-x snap-mandatory scroll-pl-[var(--app-page-x)] gap-2.5 overflow-x-auto px-[var(--app-page-x)] pb-2 md:scroll-pl-8 md:px-8">
+                  {suggestedMeals.map((meal) => (
+                    <button
+                      key={meal.id}
+                      type="button"
+                      onClick={() => {
+                        const recipe = STARTER_RECIPES.find(
+                          (item) => item.id === meal.id
+                        )
+                        if (recipe) {
+                          hapticSelection()
+                          setPreviewRecipeSaved(false)
+                          setRecipePreviewClosing(false)
+                          setPreviewRecipe(recipe)
+                        }
+                      }}
+                      className="flex h-36 w-[17rem] shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card text-left transition-transform active:scale-[0.985] md:h-40 md:w-[22rem]"
+                    >
+                      {meal.photoUrl ? (
+                        <img
+                          src={meal.photoUrl}
+                          alt=""
+                          className="h-full w-[40%] shrink-0 object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-[40%] shrink-0 items-center justify-center bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
+                          <ForkKnife size={30} weight="bold" />
+                        </span>
+                      )}
+                      <span className="flex min-w-0 flex-1 flex-col p-3 md:p-3.5">
+                        <span className="text-[9px] font-semibold text-muted-foreground md:text-[10px]">
+                          OneRep recipe
+                        </span>
+                        <span className="mt-1 line-clamp-2 shrink-0 text-[14px] leading-tight font-bold tracking-tight md:text-[16px]">
+                          {meal.name}
+                        </span>
+                        <span className="mt-1.5 line-clamp-1 min-h-0 text-[10px] leading-4 text-muted-foreground md:text-[11px]">
+                          {meal.description}
+                        </span>
+                        <span className="mt-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-medium text-muted-foreground tabular-nums md:text-[10px]">
+                          <span className="inline-flex items-center gap-1">
+                            <Clock size={11} /> {meal.prepMinutes} min
+                          </span>
+                          <span>·</span>
+                          <span>{meal.calories} kcal</span>
+                          <span>·</span>
+                          <span>{meal.protein}g P</span>
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="mx-[var(--app-page-x)] md:mx-8">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate("/coach", {
+                        motion: "forward",
+                        state: {
+                          coachMode: "chef",
+                          guidedIntent: {
+                            kind: "suggest_meal",
+                            title: "What sounds good?",
+                            detail:
+                              "Share a craving, ingredient, time limit, or nutrition goal.",
+                            examples: [
+                              "High-protein dinner under 30 minutes",
+                              "Use ingredients I eat often",
+                              "A light vegetarian lunch",
+                            ],
+                          },
+                        },
+                      })
+                    }
+                    className="flex min-h-20 w-full items-center gap-3 rounded-xl border border-dashed border-border px-4 text-left"
+                  >
+                    <ForkKnife size={21} className="text-muted-foreground" />
+                    <span>
+                      <span className="block text-[13px] font-semibold">
+                        Ask Coach for a meal idea
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Your saved recipes will appear here.
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              )}
+
+              <div className="mx-[var(--app-page-x)] mt-2 md:mx-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticSelection()
+                    navigate("/recipes", { motion: "forward" })
+                  }}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[13px] font-semibold transition-colors active:bg-muted/60"
+                >
+                  <ForkKnife size={17} weight="bold" />
+                  Discover more recipes
+                  <CaretRight size={16} className="text-muted-foreground" />
+                </button>
+              </div>
+            </section>
+
             {isTodaySelected && showFirstWeekGuide && (
               <FirstWeekGuide onDismiss={dismissFirstWeekGuide} />
+            )}
+
+            {isTodaySelected && !settings.simpleMode && (
+              <DashboardProgressPanels
+                measurements={bodyMeasurements}
+                metric={dashboardTrendMetric}
+                onMetricChange={setDashboardTrendMetric}
+                tdee={calorieInfo?.tdee ?? caloriesTarget}
+                calorieTarget={caloriesTarget}
+                weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+              />
             )}
 
             {isTodaySelected && !settings.simpleMode ? (
@@ -2840,6 +3142,157 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {previewRecipe && (
+        <div
+          className={cn(
+            "sheet-overlay fixed inset-0 z-[100] flex items-end justify-center bg-black/55 backdrop-blur-sm md:items-center md:p-6",
+            recipePreviewClosing && "sheet-backdrop-exit"
+          )}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-recipe-preview-title"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeRecipePreview()
+          }}
+        >
+          <div
+            className={cn(
+              "sheet-panel max-h-[90svh] w-full max-w-xl overflow-y-auto rounded-t-[2rem] bg-background md:rounded-[2rem]",
+              recipePreviewClosing && "sheet-panel-exit"
+            )}
+          >
+            <div className="relative h-56">
+              <img
+                src={previewRecipe.image}
+                alt=""
+                className="h-full w-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={closeRecipePreview}
+                aria-label="Close recipe preview"
+                className="absolute top-4 right-4 grid size-10 place-items-center rounded-full bg-black/50 text-white backdrop-blur"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-7">
+              <p className="text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                {previewRecipe.category} · {previewRecipe.difficulty}
+              </p>
+              <h2
+                id="dashboard-recipe-preview-title"
+                className="mt-2 text-[1.8rem] leading-tight font-semibold tracking-[-0.035em]"
+              >
+                {previewRecipe.name}
+              </h2>
+              <p className="mt-3 text-[14px] leading-6 text-muted-foreground">
+                {previewRecipe.description}
+              </p>
+              <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
+                <div>
+                  <p className="text-[15px] font-semibold">{previewRecipe.time}m</p>
+                  <p className="text-[13px] text-muted-foreground">Total time</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold">{previewRecipe.calories}</p>
+                  <p className="text-[13px] text-muted-foreground">Calories</p>
+                </div>
+                <div>
+                  <p className="text-[15px] font-semibold">{previewRecipe.protein}g</p>
+                  <p className="text-[13px] text-muted-foreground">Protein</p>
+                </div>
+              </div>
+              <div className="mt-6">
+                <h3 className="text-[13px] font-semibold">Ingredients</h3>
+                <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
+                  {previewRecipe.ingredients.map((ingredient) => (
+                    <li key={ingredient} className="py-2.5 text-[13px] text-foreground/75">
+                      {ingredient}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="mt-7">
+                <h3 className="text-[13px] font-semibold">Instructions</h3>
+                <ol className="mt-3 space-y-4">
+                  {previewRecipe.steps.map((step, index) => (
+                    <li key={step} className="flex gap-3 text-[13px] leading-5 text-foreground/75">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
+                        {index + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="mt-6 rounded-2xl bg-muted/55 p-4">
+                <p className="text-[11px] font-semibold text-muted-foreground">Serving & storage</p>
+                <p className="mt-1 text-[12px] leading-5 text-foreground/70">{previewRecipe.notes}</p>
+              </div>
+              <button
+                type="button"
+                disabled={savingPreviewRecipe || previewRecipeSaved}
+                aria-busy={savingPreviewRecipe}
+                onClick={() => void savePreviewRecipe(previewRecipe)}
+                className={cn(
+                  "motion-tactile mt-7 flex min-h-13 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 text-[14px] font-semibold transition-[background-color,color,transform]",
+                  previewRecipeSaved
+                    ? "text-white"
+                    : "bg-foreground text-background active:scale-[0.985]"
+                )}
+                style={
+                  previewRecipeSaved ? { backgroundColor: COMPLETE_COLOR } : undefined
+                }
+              >
+                <span
+                  key={previewRecipeSaved ? "saved" : savingPreviewRecipe ? "saving" : "save"}
+                  className="motion-pop inline-flex items-center gap-2"
+                >
+                  {previewRecipeSaved ? (
+                    <Check size={18} weight="bold" />
+                  ) : (
+                    <Plus size={18} weight="bold" />
+                  )}
+                  {previewRecipeSaved
+                    ? "Saved to recipes"
+                    : savingPreviewRecipe
+                      ? "Saving…"
+                      : "Save to my recipes"}
+                  {previewRecipeSaved && <Sparkle size={15} weight="fill" />}
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={savingPreviewRecipe}
+                onClick={() => {
+                  const recipe = previewRecipe
+                  setPreviewRecipe(null)
+                  navigate("/coach", {
+                    motion: "forward",
+                    state: {
+                      coachMode: "chef",
+                      recipeCustomization: {
+                        name: recipe.name,
+                        description: recipe.description,
+                        image: recipe.image,
+                        time: recipe.time,
+                        calories: recipe.calories,
+                        protein: recipe.protein,
+                        ingredients: recipe.ingredients,
+                      },
+                    },
+                  })
+                }}
+                className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-border px-4 text-[13px] font-semibold"
+              >
+                <Sparkle size={17} /> Customize with Coach
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {homeAddOpen && (
         <MobileSheet

@@ -373,6 +373,9 @@ struct WorkoutActivityAttributes: ActivityAttributes {
         var setLabel: String
         var completedSets: Int
         var totalSets: Int
+        var isResting: Bool
+        var restEndAt: Date?
+        var slot: Int
     }
 
     var startedAt: Date
@@ -462,7 +465,10 @@ public class WorkoutLiveActivityPlugin: CAPPlugin, CAPBridgedPlugin {
             exerciseName: call.getString("exerciseName") ?? "Workout",
             setLabel: call.getString("setLabel") ?? "In progress",
             completedSets: call.getInt("completedSets") ?? 0,
-            totalSets: call.getInt("totalSets") ?? 0
+            totalSets: call.getInt("totalSets") ?? 0,
+            isResting: call.getBool("isResting") ?? false,
+            restEndAt: call.getDouble("restEndAt").map { Date(timeIntervalSince1970: $0 / 1000) },
+            slot: call.getInt("slot") ?? 1
         )
     }
 }
