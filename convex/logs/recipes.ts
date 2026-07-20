@@ -64,6 +64,91 @@ export const list = query({
   },
 });
 
+const SUGGESTION_STOP_WORDS = new Set([
+  "and", "with", "the", "a", "an", "of", "in", "on", "fresh", "cooked",
+  "grilled", "roasted", "large", "small", "medium", "organic",
+]);
+
+function ingredientTokens(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && !SUGGESTION_STOP_WORDS.has(token));
+}
+
+const OFFICIAL_DASHBOARD_MEALS = [
+  { id: "chicken-bowl", name: "Weeknight chicken bowl", description: "Roasted chicken, rice, cucumber, herbs, and lemon yogurt.", prepMinutes: 25, calories: 520, protein: 38, imageUrl: "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=900&q=82", ingredients: ["Chicken breast", "Rice", "Cucumber", "Greek yogurt"] },
+  { id: "lentil-skillet", name: "Herby lentil skillet", description: "Green lentils, tomatoes, spinach, lemon, and feta.", prepMinutes: 30, calories: 460, protein: 24, imageUrl: "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82", ingredients: ["Green lentils", "Tomatoes", "Spinach", "Feta"] },
+  { id: "berry-oats", name: "Overnight berry oats", description: "Creamy oats with Greek yogurt, berries, chia, and almonds.", prepMinutes: 5, calories: 410, protein: 26, imageUrl: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?auto=format&fit=crop&w=900&q=82", ingredients: ["Oats", "Greek yogurt", "Berries", "Chia seeds"] },
+  { id: "salmon-greens", name: "Salmon and greens", description: "Pan-seared salmon, potatoes, green beans, and mustard dressing.", prepMinutes: 35, calories: 610, protein: 42, imageUrl: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=900&q=82", ingredients: ["Salmon", "Potatoes", "Green beans", "Mustard"] },
+  { id: "turkey-wrap", name: "Crunchy turkey wrap", description: "Turkey, avocado, cabbage, and lime yogurt in a soft wrap.", prepMinutes: 15, calories: 445, protein: 35, imageUrl: "https://images.unsplash.com/photo-1476224203421-9ac39bcb3327?auto=format&fit=crop&w=900&q=82", ingredients: ["Turkey", "Tortilla", "Avocado", "Cabbage"] },
+  { id: "tofu-rice", name: "Ginger tofu rice bowl", description: "Crisp tofu, edamame, rice, carrots, and sesame ginger sauce.", prepMinutes: 30, calories: 540, protein: 27, imageUrl: "https://images.unsplash.com/photo-1603133872878-684f208fb84b?auto=format&fit=crop&w=900&q=82", ingredients: ["Tofu", "Rice", "Edamame", "Carrots"] },
+] as const;
+
+export const suggestedForDashboard = query({
+  args: { beforeOrOn: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+    const recentLogs = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).lte("date", args.beforeOrOn),
+      )
+      .order("desc")
+      .take(14);
+
+    const tokenFrequency = new Map<string, number>();
+    for (const log of recentLogs) {
+      for (const entry of log.entries as Array<Record<string, unknown>>) {
+        const names = [typeof entry.name === "string" ? entry.name : ""];
+        const draft = entry.recipeDraft as
+          | { ingredients?: Array<{ name?: unknown }> }
+          | undefined;
+        for (const ingredient of draft?.ingredients ?? []) {
+          if (typeof ingredient.name === "string") names.push(ingredient.name);
+        }
+        for (const token of names.flatMap(ingredientTokens)) {
+          tokenFrequency.set(token, (tokenFrequency.get(token) ?? 0) + 1);
+        }
+      }
+    }
+
+    return OFFICIAL_DASHBOARD_MEALS.map((recipe, index) => {
+      const matched = recipe.ingredients.filter((ingredient) =>
+        ingredientTokens(ingredient).some((token) => tokenFrequency.has(token)),
+      );
+      const score = matched.reduce(
+        (total, ingredient) =>
+          total +
+          Math.max(
+            ...ingredientTokens(ingredient).map(
+              (token) => tokenFrequency.get(token) ?? 0,
+            ),
+          ),
+        0,
+      );
+      return { recipe, score, index, matched };
+    })
+      .sort((a, b) => b.score - a.score || a.index - b.index)
+      .slice(0, Math.max(1, Math.min(args.limit ?? 6, 6)))
+      .map(({ recipe, score, matched }) => ({
+        id: recipe.id,
+        name: recipe.name,
+        description: recipe.description,
+        prepMinutes: recipe.prepMinutes,
+        cookMinutes: 0,
+        calories: recipe.calories,
+        protein: recipe.protein,
+        ingredientCount: recipe.ingredients.length,
+        matchedIngredients: matched.slice(0, 3),
+        matchScore: score,
+        photoUrl: recipe.imageUrl,
+      }));
+  },
+});
+
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {

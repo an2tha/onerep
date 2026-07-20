@@ -218,7 +218,7 @@ export function DashboardProgressPanels({
   onMetricChange: (metric: TrendMetric) => void
   tdee: number
   calorieTarget: number
-  muscleRecovery: MuscleRecoveryItem[]
+  muscleRecovery?: MuscleRecoveryItem[]
   weightUnit: "kg" | "lbs"
 }) {
   const selected = METRICS.find((item) => item.id === metric) ?? METRICS[0]
@@ -232,100 +232,100 @@ export function DashboardProgressPanels({
     return typeof value === "number" ? [value] : []
   })
   const deficit = Math.max(0, Math.round(tdee - calorieTarget))
-  const weeklyKg = (deficit * 7) / 7700
-  const recoveryCounts = muscleRecovery.reduce(
+  const recoveryCounts = (muscleRecovery ?? []).reduce(
     (counts, item) => ({ ...counts, [item.status]: counts[item.status] + 1 }),
     { trained: 0, recovering: 0, overdue: 0 }
   )
 
   return (
     <section
-      className="mx-[var(--app-page-x)] mt-3 grid gap-3 md:mx-8 md:grid-cols-2"
-      aria-label="Progress trends"
+      className="mx-[var(--app-page-x)] mt-4 md:mx-8"
+      aria-label="Progress snapshot"
     >
-      <Card className="p-4">
-        <div>
-          <p className="app-eyebrow">Calorie budget</p>
-          <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
-            {calorieTarget.toLocaleString()} kcal
-          </p>
-        </div>
-        <BudgetChart
-          maintenance={tdee || calorieTarget}
-          budget={calorieTarget}
-        />
-        <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
-          {deficit > 0
-            ? `About ${weeklyKg.toFixed(2)} kg/week at the estimated rate.`
-            : "Maintenance budget — no planned deficit."}
-        </p>
-      </Card>
-
-      <Card className="h-full p-4">
-        <div>
-          <p className="app-eyebrow">Weight trend</p>
-          <p className="text-[13px] text-muted-foreground">Last 14 check-ins</p>
-        </div>
-        <TrendChart values={weightValues} label="Weight" unit={weightUnit} />
-      </Card>
-
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3">
+      <Card className="overflow-hidden p-0">
+        <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3.5">
           <div>
-            <p className="app-eyebrow">Other metric</p>
-            <p className="text-[13px] text-muted-foreground">
-              Choose what appears here
+            <p className="app-eyebrow">Progress snapshot</p>
+            <p className="mt-0.5 text-[13px] text-muted-foreground">
+              Last 14 check-ins
             </p>
           </div>
-          <label>
-            <span className="sr-only">Choose dashboard metric</span>
-            <select
-              value={metric}
-              onChange={(event) =>
-                onMetricChange(event.target.value as TrendMetric)
-              }
-              className="h-11 rounded-lg border border-border bg-background px-3 py-0 text-[13px] font-semibold"
-            >
-              {METRICS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <TrendChart
-          values={metricValues}
-          label={selected.label}
-          unit={selected.unit}
-        />
-      </Card>
+          <div className="text-right">
+            <p className="text-[13px] font-bold tabular-nums">
+              {calorieTarget.toLocaleString()} kcal
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}
+            </p>
+          </div>
+        </header>
 
-      <Card className="h-full p-4">
-        <div>
-          <p className="app-eyebrow">Muscle recovery</p>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Recovery distribution across tracked muscle groups
-          </p>
-        </div>
-        {muscleRecovery.length > 0 ? (
-          <div className="mt-2 grid grid-cols-[5.5rem_1fr] items-center gap-4">
-            <MuscleBodySvg
-              recovery={muscleRecovery}
-              className="h-36 w-full text-foreground"
-            />
-            <RecoveryChart
-              trained={recoveryCounts.trained}
-              recovering={recoveryCounts.recovering}
-              ready={recoveryCounts.overdue}
+        <div className="grid md:grid-cols-2 md:divide-x md:divide-y-0 divide-border">
+          <div className="border-b border-border px-4 pt-4 pb-2 md:border-b-0">
+            <p className="text-[13px] font-semibold text-muted-foreground">
+              Weight
+            </p>
+            <TrendChart values={weightValues} label="Weight" unit={weightUnit} />
+          </div>
+
+          <div className="px-4 pt-3 pb-2 md:pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[13px] font-semibold text-muted-foreground">
+                {selected.label}
+              </p>
+              <label>
+                <span className="sr-only">Choose dashboard metric</span>
+                <select
+                  value={metric}
+                  onChange={(event) =>
+                    onMetricChange(event.target.value as TrendMetric)
+                  }
+                  className="h-9 rounded-md border-0 bg-muted px-2 text-[12px] font-semibold"
+                >
+                  {METRICS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <TrendChart
+              values={metricValues}
+              label={selected.label}
+              unit={selected.unit}
             />
           </div>
-        ) : (
-          <p className="py-10 text-center text-[13px] text-muted-foreground">
-            Finish a workout to start the recovery chart.
-          </p>
-        )}
+        </div>
       </Card>
+
+      {muscleRecovery && (
+        <Card className="h-full p-4">
+          <div>
+            <p className="app-eyebrow">Muscle recovery</p>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Recovery distribution across tracked muscle groups
+            </p>
+          </div>
+          {muscleRecovery.length > 0 ? (
+            <div className="mt-2 grid grid-cols-[5.5rem_1fr] items-center gap-4">
+              <MuscleBodySvg
+                recovery={muscleRecovery}
+                className="h-36 w-full text-foreground"
+              />
+              <RecoveryChart
+                trained={recoveryCounts.trained}
+                recovering={recoveryCounts.recovering}
+                ready={recoveryCounts.overdue}
+              />
+            </div>
+          ) : (
+            <p className="py-10 text-center text-[13px] text-muted-foreground">
+              Finish a workout to start the recovery chart.
+            </p>
+          )}
+        </Card>
+      )}
     </section>
   )
 }

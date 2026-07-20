@@ -1469,7 +1469,9 @@ export default function Nutrition() {
   const [nutrientRainKeys, setNutrientRainKeys] = useState({
     protein: 0,
     carbs: 0,
+    fat: 0,
   })
+  const [supplementRainKey, setSupplementRainKey] = useState(0)
   const [loggingSupplementId, setLoggingSupplementId] = useState<string | null>(
     null
   )
@@ -1669,6 +1671,7 @@ export default function Nutrition() {
     calories: intakeTotals.calories,
     protein: intakeTotals.protein,
     carbs: intakeTotals.carbs,
+    fat: intakeTotals.fat,
   })
 
   useEffect(() => {
@@ -1691,21 +1694,29 @@ export default function Nutrition() {
           intakeTotals.carbs >= macroTargets.carbs
             ? current.carbs + 1
             : current.carbs,
+        fat:
+          previous.fat < macroTargets.fat &&
+          intakeTotals.fat >= macroTargets.fat
+            ? current.fat + 1
+            : current.fat,
       }))
     }
     previousNutrients.current = {
       calories: intakeTotals.calories,
       protein: intakeTotals.protein,
       carbs: intakeTotals.carbs,
+      fat: intakeTotals.fat,
     }
   }, [
     calorieTarget,
     intakeTotals.calories,
     intakeTotals.carbs,
     intakeTotals.protein,
+    intakeTotals.fat,
     isToday,
     macroTargets.carbs,
     macroTargets.protein,
+    macroTargets.fat,
   ])
 
   const workoutCalories = Math.max(0, effectiveGoals?.burnedCalories ?? 0)
@@ -1790,6 +1801,8 @@ export default function Nutrition() {
     const completesGoal =
       waterTotal < waterGoal && waterTotal + amountMl >= waterGoal
     setLoggingWaterAmount(amountMl)
+    hapticSelection()
+    setWaterRainKey((value) => value + 1)
     try {
       await addWaterEntry({
         date: dateKey,
@@ -1799,10 +1812,11 @@ export default function Nutrition() {
           loggedAt: new Date().toISOString(),
         },
       })
-      hapticSelection()
-      setWaterRainKey((value) => value + 1)
       if (completesGoal) setWaterGoalCelebration(true)
       return true
+    } catch {
+      toast.error("Could not add water. Try again.")
+      return false
     } finally {
       setLoggingWaterAmount(null)
     }
@@ -1970,6 +1984,11 @@ export default function Nutrition() {
         loggedAt: new Date().toISOString(),
         servingMultiplier: 1,
       })
+      hapticSelection()
+      if (dueSupplements.length === 1) {
+        setSupplementRainKey((value) => value + 1)
+        hapticMedium()
+      }
     } finally {
       setLoggingSupplementId(null)
     }
@@ -2529,13 +2548,13 @@ export default function Nutrition() {
                         target={macroTargets[key]}
                         suffix="g"
                         color={MACRO_COLORS[key]}
-                        animateChanges={key === "protein" || key === "carbs"}
+                        animateChanges={true}
                         rainKey={
                           key === "protein"
                             ? nutrientRainKeys.protein
                             : key === "carbs"
                               ? nutrientRainKeys.carbs
-                              : 0
+                              : nutrientRainKeys.fat
                         }
                       />
                     ))}
@@ -2672,8 +2691,24 @@ export default function Nutrition() {
                   </div>
                 </div>
 
-                <div className="border-y border-border py-4">
-                  <div className="mb-1 flex items-center justify-between gap-3">
+                <div className="relative overflow-hidden border-y border-border py-4">
+                  {supplementRainKey > 0 && (
+                    <span
+                      key={supplementRainKey}
+                      className="water-rain water-rain-nutrition nutrient-micro-rain"
+                      style={
+                        {
+                          "--nutrient-rain-color": "var(--accent-supplement)",
+                        } as CSSProperties
+                      }
+                      aria-hidden
+                    >
+                      {Array.from({ length: 9 }, (_, index) => (
+                        <span key={index} />
+                      ))}
+                    </span>
+                  )}
+                  <div className="relative z-10 mb-1 flex items-center justify-between gap-3">
                     <p className="app-section-title">Supplements</p>
                     <button
                       type="button"
@@ -2713,8 +2748,17 @@ export default function Nutrition() {
           <div
             className="water-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
             role="status"
+            onClick={() => setWaterGoalCelebration(false)}
             aria-live="assertive"
           >
+            <button
+              type="button"
+              className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
+              aria-label="Dismiss hydration celebration"
+              onClick={() => setWaterGoalCelebration(false)}
+            >
+              <X size={20} weight="bold" />
+            </button>
             <div className="water-goal-rain" aria-hidden>
               {Array.from({ length: 32 }, (_, index) => (
                 <span
@@ -2747,8 +2791,17 @@ export default function Nutrition() {
           <div
             className="water-goal-celebration calorie-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
             role="status"
+            onClick={() => setCalorieGoalCelebration(false)}
             aria-live="assertive"
           >
+            <button
+              type="button"
+              className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
+              aria-label="Dismiss calorie celebration"
+              onClick={() => setCalorieGoalCelebration(false)}
+            >
+              <X size={20} weight="bold" />
+            </button>
             <div className="water-goal-rain calorie-goal-rain" aria-hidden>
               {Array.from({ length: 32 }, (_, index) => (
                 <span

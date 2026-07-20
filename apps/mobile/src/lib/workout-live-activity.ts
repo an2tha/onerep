@@ -5,6 +5,9 @@ type WorkoutActivityState = {
   setLabel: string
   completedSets: number
   totalSets: number
+  isResting: boolean
+  restEndAt?: number
+  slot: 1 | 2
 }
 
 export type WidgetOverviewState = {

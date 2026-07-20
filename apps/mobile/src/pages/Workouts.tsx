@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { SwipeToStart } from "@repo/ui"
+import { SwipeToStart, toast } from "@repo/ui"
 import { DateSelectorButton } from "@repo/ui"
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -947,6 +947,7 @@ export default function Workouts() {
     setPressingPreset(null)
 
     if (drag && hasMoved) {
+      hapticMedium()
       const day = hitDay(e.clientX, e.clientY)
 
       if (day) {
@@ -1001,6 +1002,10 @@ export default function Workouts() {
         duration: source?.duration ?? preset.duration,
         steps: source?.steps ?? preset.steps,
       })
+      hapticMedium()
+      toast.success(`${preset.name} duplicated`)
+    } catch {
+      toast.error("Could not duplicate this preset")
     } finally {
       setDuplicatingPresetId(null)
     }
@@ -1020,13 +1025,18 @@ export default function Workouts() {
     setRoutine2(nextRoutine2)
     await persist(nextPresets, nextRoutine, nextRoutine2)
     await removePresetMutation({ id: id as Id<"presets"> })
+    hapticMedium()
+    toast.success("Preset deleted")
     setConfirmDeleteId(null)
   }
 
   function deleteSelectedWorkout() {
     const id = selectedWorkoutLog?._id as Id<"workoutLogs"> | undefined
     if (!id) return
+    hapticMedium()
     void removeWorkoutLog({ id })
+      .then(() => toast.success("Workout removed"))
+      .catch(() => toast.error("Could not remove workout"))
   }
 
   function removeLoggedExercise(exerciseKey: string) {
@@ -1170,7 +1180,7 @@ export default function Workouts() {
                   return (
                     <div
                       key={key}
-                      className="flex min-h-12 items-center justify-between gap-2 py-2.5"
+                      className="workout-history-row flex min-h-12 items-center justify-between gap-2 py-2.5"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[15px] font-semibold">
@@ -1340,7 +1350,7 @@ export default function Workouts() {
                   </section>
                 )}
 
-                <section className="border-y border-border py-5">
+                <section className="py-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <div>
                       <p className="app-section-title">Routine</p>
@@ -1366,7 +1376,7 @@ export default function Workouts() {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex flex-wrap justify-center gap-2 pb-1 md:grid md:grid-cols-7 md:justify-stretch md:gap-1.5 md:pb-0">
+                    <div className="flex flex-wrap justify-center gap-2.5 pb-1 md:grid md:grid-cols-7 md:justify-stretch md:gap-2.5 md:pb-0">
                       {DAYS.map((day) => {
                         const preset =
                           presets.find((p) => p.id === routine[day]) ?? null
@@ -1392,9 +1402,12 @@ export default function Workouts() {
                               slotRefs.current[day] = el
                             }}
                             className={cn(
-                              "relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center gap-1.5 overflow-hidden border border-border px-2 py-2.5 transition-colors min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:gap-2 md:px-1 md:py-3",
-                              isToday && !isOver && "bg-foreground/[0.07]",
-                              isOver && "scale-[1.04] bg-foreground/[0.1]"
+                              "motion-card relative flex min-h-[6rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-2 overflow-hidden rounded-[20px] border border-border/55 bg-card px-2 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.05)] transition-[transform,background-color,border-color,box-shadow] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[6.25rem] md:basis-auto md:px-2 md:py-3.5",
+                              isToday &&
+                                !isOver &&
+                                "border-foreground/20 bg-foreground/[0.055] shadow-[0_10px_32px_rgba(0,0,0,0.075)]",
+                              isOver &&
+                                "scale-[1.035] border-foreground/30 bg-foreground/[0.08] shadow-lg"
                             )}
                           >
                             {isPressing && (
@@ -1425,7 +1438,7 @@ export default function Workouts() {
 
                             <span
                               className={cn(
-                                "text-[13px] font-bold uppercase md:text-[13px]",
+                                "text-[12px] font-bold tracking-[0.06em] uppercase",
                                 isToday
                                   ? "text-foreground"
                                   : "text-muted-foreground/62"
@@ -1442,7 +1455,7 @@ export default function Workouts() {
                                 onPointerLeave={onSlotPressEnd}
                                 onPointerCancel={onSlotPressEnd}
                                 className={cn(
-                                  "flex w-full flex-col items-center gap-0 transition-all duration-200",
+                                  "motion-tactile flex w-full flex-col items-center gap-0 rounded-xl transition-all duration-200 active:scale-[0.97]",
                                   isRemoving && "opacity-0"
                                 )}
                               >
@@ -1482,13 +1495,13 @@ export default function Workouts() {
                               <button
                                 type="button"
                                 onClick={() => setPickRoutineDay(day)}
-                                className="flex min-h-11 flex-col items-center justify-center gap-1 px-2 text-[13px] font-bold text-muted-foreground/62 transition-colors active:text-foreground md:min-h-10"
+                                className="motion-tactile flex min-h-11 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[13px] font-bold text-muted-foreground/62 transition-colors active:scale-[0.96] active:text-foreground md:min-h-10"
                               >
                                 <Plus size={14} weight="bold" />
                                 Add
                               </button>
                             ) : (
-                              <span className="py-1.5 text-[13px] text-muted-foreground">
+                              <span className="py-1.5 text-[13px] font-medium text-muted-foreground/70">
                                 Rest
                               </span>
                             )}
@@ -1512,7 +1525,7 @@ export default function Workouts() {
                     <div className="mb-2 px-1">
                       <p className="app-section-title">Muscle recovery</p>
                       <p className="app-section-subtitle">
-                        Based on completed sets and days since training
+                        Estimate from your latest completed sets
                       </p>
                     </div>
                     <MuscleRecoveryHeatmapCard

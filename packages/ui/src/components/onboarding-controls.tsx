@@ -215,6 +215,7 @@ export function MultiSelectList({
             key={id}
             type="button"
             onClick={() => toggle(id)}
+            aria-label={label}
             aria-pressed={selected}
             data-selected={selected}
             className={cn(

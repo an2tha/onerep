@@ -381,6 +381,7 @@ export function OnboardingMobile() {
     "forward" | "back"
   >("forward")
   const [saving, setSaving] = useState(false)
+  const [complete, setComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const savingRef = useRef(false)
 
@@ -638,6 +639,9 @@ export function OnboardingMobile() {
         }),
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
+      setComplete(true)
+      hapticMedium()
+      await new Promise((resolve) => window.setTimeout(resolve, 720))
       navigate(experienceLevel === "beginner" ? "/coach?setup=beginner" : "/", {
         replace: true,
       })
@@ -670,6 +674,18 @@ export function OnboardingMobile() {
       className="onboarding-shell min-h-svh bg-background text-foreground"
       data-onboarding-step={step}
     >
+      {complete && (
+        <div
+          className="onboarding-complete"
+          role="status"
+          aria-live="assertive"
+        >
+          <span className="onboarding-complete-mark" aria-hidden="true">
+            <Check size={30} weight="bold" />
+          </span>
+          <p>Your plan is ready</p>
+        </div>
+      )}
       <div className="onboarding-atmosphere" aria-hidden="true" />
       <section className="onboarding-frame">
         <header className="onboarding-header">

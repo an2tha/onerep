@@ -16,6 +16,7 @@ import {
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
   ArrowLeft,
+  ArrowsOutSimple,
   Barbell,
   CaretDown,
   CaretUp,
@@ -519,6 +520,7 @@ function PresetExerciseCard({
   inSuperset,
   collapsed,
   onToggleCollapse,
+  onBreakOut,
   dragHandlers,
   cardRef,
   reorderControls,
@@ -535,6 +537,7 @@ function PresetExerciseCard({
   inSuperset?: boolean
   collapsed: boolean
   onToggleCollapse: () => void
+  onBreakOut?: () => void
   dragHandlers: React.HTMLAttributes<HTMLDivElement>
   cardRef: (el: HTMLDivElement | null) => void
   reorderControls?: React.ReactNode
@@ -583,10 +586,10 @@ function PresetExerciseCard({
     <div
       ref={cardRef}
       className={cn(
-        "relative flex overflow-hidden transition-[border-color,opacity] duration-150",
+        "relative flex overflow-hidden transition-[border-color,box-shadow,opacity] duration-150",
         inSuperset
-          ? "border-t border-border/35 bg-transparent first:border-t-0"
-          : "border-y border-border bg-transparent",
+          ? "border-t border-border/25 bg-card first:border-t-0"
+          : "rounded-[24px] border border-border/55 bg-card shadow-[0_8px_28px_rgba(0,0,0,0.05)]",
         isDragging && "opacity-20",
         showSupersetRing &&
           !inSuperset &&
@@ -607,8 +610,8 @@ function PresetExerciseCard({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* ── Header row ──────────────────────────── */}
-        <div className={cn("px-1 py-2.5 md:py-3", inSuperset && "pl-4")}>
-          <div className="flex items-center gap-2">
+        <div className={cn("px-3 py-3.5 md:px-4", inSuperset && "pl-4")}>
+          <div className="flex items-center gap-2.5">
             {/* Drag handle */}
             <div
               {...dragHandlers}
@@ -631,46 +634,31 @@ function PresetExerciseCard({
               </p>
             </div>
 
-            {!isCardio && (
-              <span className="shrink-0 text-[13px] font-medium text-muted-foreground tabular-nums">
-                {data.sets.length} set{data.sets.length === 1 ? "" : "s"}
-              </span>
+            {reorderControls}
+            {inSuperset && onBreakOut && (
+              <button
+                type="button"
+                onClick={onBreakOut}
+                aria-label={`Move ${exercise.name} out of superset`}
+                title="Move out of superset"
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
+              >
+                <ArrowsOutSimple size={15} weight="bold" />
+              </button>
             )}
-          </div>
-
-          {reorderControls && (
-            <div className="mt-2 flex justify-end">{reorderControls}</div>
-          )}
-
-          <div className="mt-2 flex min-h-11 items-stretch border-t border-border text-[13px] font-medium">
-            {/* Remove */}
             <button
               onClick={onRemove}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-destructive transition-colors active:bg-destructive/10"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-destructive/10 active:text-destructive"
               aria-label={`Remove ${exercise.name}`}
             >
               <X size={15} weight="bold" />
-              Remove
             </button>
-
             <button
               onClick={onToggleCollapse}
-              className="flex min-h-11 flex-1 items-center justify-center gap-2 text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
-              aria-label={
-                collapsed
-                  ? `Expand ${exercise.name}`
-                  : `Collapse ${exercise.name}`
-              }
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
+              aria-label={collapsed ? `Expand ${exercise.name}` : `Collapse ${exercise.name}`}
             >
-              {collapsed ? (
-                <>
-                  <CaretDown size={15} weight="bold" /> Expand
-                </>
-              ) : (
-                <>
-                  <CaretUp size={15} weight="bold" /> Collapse
-                </>
-              )}
+              {collapsed ? <CaretDown size={15} weight="bold" /> : <CaretUp size={15} weight="bold" />}
             </button>
           </div>
         </div>
@@ -1619,6 +1607,15 @@ export default function NewPreset() {
     }
   }
 
+  function breakOutExercise(exerciseId: string) {
+    captureReorderPositions()
+    setItems((previous) => [
+      ...removeExFromItems(previous, exerciseId),
+      { kind: "solo" as const, exerciseId },
+    ])
+    hapticSelection()
+  }
+
   function executeDrop(draggedId: string, zone: DropTarget) {
     if (
       zone ||
@@ -1771,7 +1768,7 @@ export default function NewPreset() {
           if (element) topLevelItemRefs.current.set(item.id, element)
           else topLevelItemRefs.current.delete(item.id)
         }}
-        className="relative overflow-hidden border-y border-foreground/30 bg-transparent"
+        className="relative overflow-hidden rounded-[26px] border border-foreground/25 bg-card shadow-[0_8px_28px_rgba(0,0,0,0.05)]"
       >
         {showLineBefore && <ExerciseDropIndicator position="before" />}
         {showLineAfter && <ExerciseDropIndicator position="after" />}
@@ -1783,11 +1780,8 @@ export default function NewPreset() {
             paddingLeft: "calc(0.875rem + 4px)",
           }}
         >
-          <span className="text-[15px] font-semibold text-foreground">
-            Superset · {item.exerciseIds.length} exercises
-          </span>
-          <span className="text-[13px] font-medium text-muted-foreground">
-            Drag out to split
+          <span className="text-[13px] font-bold tracking-[0.08em] text-foreground uppercase">
+            Superset · {item.exerciseIds.length}
           </span>
         </div>
 
@@ -1821,6 +1815,7 @@ export default function NewPreset() {
                 inSuperset
                 collapsed={Boolean(collapsed[exId])}
                 onToggleCollapse={() => toggleCollapsed(exId)}
+                onBreakOut={() => breakOutExercise(exId)}
                 dragHandlers={makeDragHandlers(exId)}
                 cardRef={(el) => {
                   if (el) cardRefs.current.set(exId, el)
@@ -1901,7 +1896,7 @@ export default function NewPreset() {
             }
             maxLength={40}
             disabled={loadingPreset}
-            className="mt-1 min-h-12 w-full border-b border-border bg-transparent text-[1.75rem] font-semibold outline-none placeholder:text-muted-foreground focus:border-foreground"
+            className="mt-2 min-h-14 w-full rounded-[20px] border border-border/55 bg-card px-4 text-[1.6rem] font-semibold shadow-sm outline-none placeholder:text-muted-foreground focus:border-foreground/35"
           />
           <div className="mt-2 flex items-center gap-3">
             {addedIds.length > 0 && (
@@ -1933,10 +1928,10 @@ export default function NewPreset() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4 px-[var(--app-page-x)] md:px-8">
+        <div className="flex flex-col gap-5 px-[var(--app-page-x)] md:px-8">
           {/* ── Exercise list ──────────────────────────── */}
           {items.length > 0 && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-5">
               <ExerciseReorderToolbar
                 active={reorderMode}
                 count={addedIds.length}
