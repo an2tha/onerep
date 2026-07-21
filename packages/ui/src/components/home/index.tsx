@@ -780,23 +780,43 @@ export function TodayTimeline({
                 <p className="native-row-title">Nothing logged yet</p>
               </div>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2 pl-[1.875rem]">
+            <div
+              className={cn(
+                "mt-4 grid border-t border-border pl-[1.875rem]",
+                onLogWater ? "grid-cols-2" : "grid-cols-1"
+              )}
+            >
               <button
                 type="button"
                 onClick={onLogFood}
-                className="native-toolbar-button border border-border bg-card"
+                className="group flex min-h-12 items-center gap-2.5 pr-3 text-left text-[12px] font-semibold transition-colors active:text-muted-foreground"
               >
-                <ForkKnife size={17} weight="bold" />
-                Log food
+                <ForkKnife
+                  size={15}
+                  weight="bold"
+                  className="text-[var(--accent-food)] transition-transform group-active:scale-90"
+                />
+                <span>Log food</span>
+                <ArrowRight
+                  size={13}
+                  className="ml-auto text-muted-foreground transition-transform group-active:translate-x-0.5"
+                />
               </button>
               {onLogWater && (
                 <button
                   type="button"
                   onClick={onLogWater}
-                  className="native-toolbar-button border border-border bg-card"
+                  className="group flex min-h-12 items-center gap-2.5 border-l border-border px-3 text-left text-[12px] font-semibold transition-colors active:text-muted-foreground"
                 >
-                  <PintGlass size={17} weight="bold" />
-                  Add 250 ml
+                  <PintGlass
+                    size={15}
+                    weight="bold"
+                    className="text-[var(--accent-water)] transition-transform group-active:scale-90"
+                  />
+                  <span>Add water</span>
+                  <span className="ml-auto text-[10px] font-medium text-muted-foreground tabular-nums">
+                    250 ml
+                  </span>
                 </button>
               )}
             </div>

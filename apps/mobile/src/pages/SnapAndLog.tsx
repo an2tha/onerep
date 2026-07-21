@@ -117,7 +117,11 @@ export default function SnapAndLog() {
   const [added, setAdded] = useState<string | null>(null)
   const [loggingTarget, setLoggingTarget] = useState<string | null>(null)
   const loggingTargetRef = useRef<string | null>(null)
-  const useNativeCapture = Capacitor.isNativePlatform()
+  // Keep the camera feed inside OneRep on iOS and Android. The Capacitor
+  // camera picker remains available only as a fallback when WebView capture
+  // cannot start on a particular device.
+  const useNativeCapture = false
+  const hasNativeCameraFallback = Capacitor.isNativePlatform()
 
   useEffect(() => {
     if (mode === "snap" && !aiAccessLoading && !hasAiAccess) {
@@ -147,6 +151,16 @@ export default function SnapAndLog() {
         return
       }
       try {
+        if (Capacitor.isNativePlatform()) {
+          const permission = await NativeCamera.requestPermissions({
+            permissions: ["camera"],
+          })
+          if (permission.camera !== "granted") {
+            if (!signal.aborted) setCameraState("denied")
+            return
+          }
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facing },
@@ -198,6 +212,23 @@ export default function SnapAndLog() {
     setCameraState("requesting")
     setCameraAttempt((attempt) => attempt + 1)
   }
+
+  useEffect(() => {
+    const track = streamRef.current?.getVideoTracks()[0]
+    if (!track || cameraState !== "active") return
+    const capabilities = track.getCapabilities?.() as MediaTrackCapabilities & {
+      torch?: boolean
+    }
+    if (!capabilities?.torch) {
+      if (flash) setFlash(false)
+      return
+    }
+    void track
+      .applyConstraints({
+        advanced: [{ torch: flash } as MediaTrackConstraintSet],
+      })
+      .catch(() => setFlash(false))
+  }, [cameraState, flash])
 
   // ── Barcode scan loop ─────────────────────────────────────────────────────
 
@@ -584,6 +615,15 @@ export default function SnapAndLog() {
               >
                 Try camera again
               </button>
+              {hasNativeCameraFallback && (
+                <button
+                  type="button"
+                  onClick={() => void handleNativeCapture()}
+                  className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
+                >
+                  Use camera app
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => navigate("/foods/search")}
