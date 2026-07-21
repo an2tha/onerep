@@ -77,6 +77,8 @@ function TrendChart({
             <path d="M0 61H260" stroke="currentColor" strokeOpacity="0.08" />
             <polyline
               points={points}
+              className="dashboard-trend-line"
+              pathLength="1"
               fill="none"
               stroke="var(--accent-progress)"
               strokeWidth="3"
@@ -91,6 +93,8 @@ function TrendChart({
                   cx={x}
                   cy={y}
                   r="2.4"
+                  className="dashboard-trend-point"
+                  style={{ animationDelay: `${180 + index * 35}ms` }}
                   fill="var(--accent-progress)"
                 />
               )
@@ -208,12 +212,16 @@ export function DashboardProgressPanels({
           </div>
         </header>
 
-        <div className="grid md:grid-cols-2 md:divide-x md:divide-y-0 divide-border">
+        <div className="grid divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
           <div className="border-b border-border px-4 pt-4 pb-2 md:border-b-0">
             <p className="text-[13px] font-semibold text-muted-foreground">
               Weight
             </p>
-            <TrendChart values={weightValues} label="Weight" unit={weightUnit} />
+            <TrendChart
+              values={weightValues}
+              label="Weight"
+              unit={weightUnit}
+            />
           </div>
 
           <div className="px-4 pt-3 pb-2 md:pt-4">

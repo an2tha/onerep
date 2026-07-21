@@ -35,6 +35,8 @@ export default defineSchema({
         v.object({
           id: v.string(), // WidgetId
           size: v.union(v.literal("full"), v.literal("small")),
+          hidden: v.optional(v.boolean()),
+          pinned: v.optional(v.boolean()),
         }),
       ),
     ),
@@ -631,7 +633,11 @@ export default defineSchema({
   coachOperationRuns: defineTable({
     userId: v.string(),
     requestId: v.string(),
-    status: v.union(v.literal("running"), v.literal("completed"), v.literal("failed")),
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
     result: v.optional(v.any()),
     error: v.optional(v.string()),
     createdAt: v.number(),

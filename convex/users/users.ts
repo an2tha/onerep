@@ -301,6 +301,8 @@ export const setWidgetLayout = mutation({
       v.object({
         id: v.string(),
         size: v.union(v.literal("full"), v.literal("small")),
+        hidden: v.optional(v.boolean()),
+        pinned: v.optional(v.boolean()),
       }),
     ),
   },
