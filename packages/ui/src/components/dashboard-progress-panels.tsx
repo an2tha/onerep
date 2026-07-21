@@ -106,61 +106,6 @@ function TrendChart({
   )
 }
 
-function BudgetChart({
-  maintenance,
-  budget,
-}: {
-  maintenance: number
-  budget: number
-}) {
-  const deficit = Math.max(0, Math.round(maintenance - budget))
-
-  return (
-    <div
-      className="mt-5"
-      role="img"
-      aria-label={`${Math.round(maintenance).toLocaleString()} maintenance calories minus ${deficit.toLocaleString()} planned deficit calories equals a ${Math.round(budget).toLocaleString()} calorie daily budget`}
-    >
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full border border-border bg-muted/55 px-2 text-center">
-          <span className="text-[13px] font-semibold text-muted-foreground">
-            Maintain
-          </span>
-          <strong className="mt-0.5 text-[15px] font-bold text-foreground tabular-nums">
-            {Math.round(maintenance).toLocaleString()}
-          </strong>
-        </div>
-        <span className="text-[18px] text-muted-foreground" aria-hidden="true">
-          −
-        </span>
-        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full border border-[var(--accent-food)]/35 bg-[var(--accent-food-bg)] px-2 text-center">
-          <span className="text-[13px] font-semibold text-muted-foreground">
-            Deficit
-          </span>
-          <strong className="mt-0.5 text-[15px] font-bold text-foreground tabular-nums">
-            {deficit.toLocaleString()}
-          </strong>
-        </div>
-        <span className="text-[18px] text-muted-foreground" aria-hidden="true">
-          =
-        </span>
-        <div className="flex min-h-20 min-w-0 flex-col items-center justify-center rounded-full bg-foreground px-2 text-center text-background">
-          <span className="text-[13px] font-semibold text-background/80">
-            Daily
-          </span>
-          <strong className="mt-0.5 text-[15px] font-bold tabular-nums">
-            {Math.round(budget).toLocaleString()}
-          </strong>
-        </div>
-      </div>
-      <p className="mt-3 text-[13px] leading-5 text-muted-foreground">
-        Values are daily kcal. Your budget is maintenance minus the planned
-        deficit.
-      </p>
-    </div>
-  )
-}
-
 function RecoveryChart({
   trained,
   recovering,
@@ -242,6 +187,9 @@ export function DashboardProgressPanels({
       className="mx-[var(--app-page-x)] mt-4 md:mx-8"
       aria-label="Progress snapshot"
     >
+      <p className="sr-only">
+        Daily target is maintenance minus the planned deficit.
+      </p>
       <Card className="overflow-hidden p-0">
         <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3.5">
           <div>
@@ -251,7 +199,7 @@ export function DashboardProgressPanels({
             </p>
           </div>
           <div className="text-right">
-            <p className="text-[13px] font-bold tabular-nums">
+            <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
               {calorieTarget.toLocaleString()} kcal
             </p>
             <p className="text-[11px] text-muted-foreground">
