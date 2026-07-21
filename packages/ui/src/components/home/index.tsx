@@ -18,6 +18,8 @@ import { cn } from "../../lib/utils"
 import { GroupedList, SectionHeader, SummaryBlock } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
 
+export * from "./dashboard-intelligence"
+
 export type DashboardBriefingView = {
   action: string
   title: string
@@ -479,6 +481,7 @@ export function DailyLedgerHero({
   workoutProgress,
   briefing,
   onBriefingAction,
+  onBriefingDismiss,
   showBriefingAction = true,
   proteinLeft,
   className,
@@ -499,6 +502,7 @@ export function DailyLedgerHero({
   onRecoveryClick?: () => void
   briefing: DashboardBriefingView
   onBriefingAction: () => void
+  onBriefingDismiss?: () => void
   showBriefingAction?: boolean
   proteinLeft: number
   className?: string
@@ -596,6 +600,15 @@ export function DailyLedgerHero({
               className="text-muted-foreground transition-transform group-active:translate-x-0.5"
             />
           </span>
+        </button>
+      )}
+      {showBriefingAction && onBriefingDismiss && (
+        <button
+          type="button"
+          onClick={onBriefingDismiss}
+          className="mt-1 min-h-9 text-[10px] font-medium text-muted-foreground active:text-foreground"
+        >
+          Not now
         </button>
       )}
     </SummaryBlock>

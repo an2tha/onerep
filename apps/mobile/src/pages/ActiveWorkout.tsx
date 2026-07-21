@@ -2506,7 +2506,10 @@ function ActiveExerciseCard({
                   {exercise.name}
                 </p>
                 {isActive && (
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Active" />
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full bg-primary"
+                    aria-label="Active"
+                  />
                 )}
               </div>
               <p className="mt-0.5 truncate text-[12px] leading-tight text-muted-foreground">
@@ -3512,7 +3515,6 @@ function AiWorkoutSheet({
             </button>
           </div>
 
-
           {proposal ? (
             <div className="mt-4">
               <div className="rounded-[20px] border border-border/60 bg-card/55 p-4">
@@ -3621,7 +3623,6 @@ function AiWorkoutSheet({
                   {error}
                 </p>
               )}
-
             </div>
           )}
         </div>
@@ -4339,7 +4340,10 @@ export default function ActiveWorkout() {
       completedSets: doneSets,
       totalSets,
       isResting: rest.remaining !== null,
-      restEndAt: rest.remaining !== null ? Date.now() + rest.remaining * 1000 : undefined,
+      restEndAt:
+        rest.remaining !== null
+          ? Date.now() + rest.remaining * 1000
+          : undefined,
       slot,
     }),
     [doneSets, nextExercise?.name, nextTarget, rest.remaining, slot, totalSets]
@@ -5282,7 +5286,10 @@ export default function ActiveWorkout() {
   }
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background md:px-8">
+    <div
+      className="desktop-canvas min-h-svh bg-background md:px-8"
+      style={{ viewTransitionName: "active-workout" }}
+    >
       {achievementMessage && (
         <div
           className="workout-achievement-pill"

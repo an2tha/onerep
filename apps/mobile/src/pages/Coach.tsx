@@ -77,7 +77,13 @@ type CoachMessage = {
 }
 
 type GuidedCoachIntent = {
-  kind: "create_recipe" | "suggest_meal"
+  kind:
+    | "create_recipe"
+    | "suggest_meal"
+    | "modify_workout"
+    | "explain_plateau"
+    | "plan_recovery"
+    | "plan_week"
   title: string
   detail: string
   examples: string[]
@@ -1697,7 +1703,9 @@ export default function Coach() {
   const [input, setInput] = useState("")
   const [recipeCustomization, setRecipeCustomization] =
     useState<RecipeCustomization | null>(null)
-  const [guidedIntent, setGuidedIntent] = useState<GuidedCoachIntent | null>(null)
+  const [guidedIntent, setGuidedIntent] = useState<GuidedCoachIntent | null>(
+    null
+  )
   const [recipeCustomizationClosing, setRecipeCustomizationClosing] =
     useState(false)
   const [busy, setBusy] = useState(false)
@@ -1759,19 +1767,20 @@ export default function Coach() {
       coachMode?: CoachMode
       recipeCustomization?: RecipeCustomization
       guidedIntent?: GuidedCoachIntent
+      initialInput?: string
     } | null
     if (
-      state?.coachMode !== "chef" ||
+      !state?.coachMode ||
       (!state.recipeCustomization && !state.guidedIntent)
     )
       return
     recipeHandoffHandled.current = true
-    setActiveMode("chef")
-    setMessages(loadCoachConversation("chef"))
+    setActiveMode(state.coachMode)
+    setMessages(loadCoachConversation(state.coachMode))
     setRecipeCustomizationClosing(false)
     setRecipeCustomization(state.recipeCustomization ?? null)
     setGuidedIntent(state.guidedIntent ?? null)
-    setInput("")
+    setInput(state.initialInput ?? "")
     requestAnimationFrame(() => composerRef.current?.focus())
   }, [location.state])
   const registerCoachUpload = useMutation(api.ai.coachState.registerUpload)
@@ -2773,12 +2782,20 @@ export default function Coach() {
       )
       return
     }
+    const guidedInstruction: Record<GuidedCoachIntent["kind"], string> = {
+      create_recipe: "Create a detailed recipe",
+      suggest_meal: "Suggest a practical meal",
+      modify_workout: "Modify the user's next workout safely",
+      explain_plateau: "Explain the likely plateau using recent progress data",
+      plan_recovery: "Create a practical recovery adjustment",
+      plan_week: "Create a realistic seven-day plan",
+    }
     const prompt = recipeCustomization
       ? `Customize this recipe: ${recipeCustomization.name}. Current direction: ${recipeCustomization.description} Ingredients: ${recipeCustomization.ingredients.join(", ")}. The user wants: ${rawPrompt}`
       : guidedIntent
-        ? `${guidedIntent.kind === "create_recipe" ? "Create a detailed recipe" : "Suggest a practical meal"} based on this request: ${rawPrompt}`
+        ? `${guidedInstruction[guidedIntent.kind]} based on this request: ${rawPrompt}`
         : rawPrompt ||
-        "Analyze this image in the context of my goals and recent data."
+          "Analyze this image in the context of my goals and recent data."
     if (busy || loading) return
     if (!requireAiAccess()) return
 
@@ -3232,7 +3249,9 @@ export default function Coach() {
                               onClick={() => {
                                 hapticSelection()
                                 updateComposer(example)
-                                requestAnimationFrame(() => composerRef.current?.focus())
+                                requestAnimationFrame(() =>
+                                  composerRef.current?.focus()
+                                )
                               }}
                               className="motion-tactile min-h-10 rounded-full border border-border/70 px-3 text-[11px] font-medium active:bg-muted"
                             >
@@ -3298,7 +3317,8 @@ export default function Coach() {
                           What would you like to change?
                         </h3>
                         <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
-                          Try “make it vegetarian,” “more protein,” or “under 20 minutes.”
+                          Try “make it vegetarian,” “more protein,” or “under 20
+                          minutes.”
                         </p>
                       </div>
                     </div>
@@ -3361,7 +3381,9 @@ export default function Coach() {
                         <div
                           key={index}
                           className="coach-message coach-message--user ml-auto max-w-[82%] rounded-xl bg-foreground px-4 py-3 text-[13.5px] leading-5 text-background"
-                          style={{ animationDelay: `${Math.min(index, 6) * 35}ms` }}
+                          style={{
+                            animationDelay: `${Math.min(index, 6) * 35}ms`,
+                          }}
                         >
                           {message.content}
                         </div>
@@ -3369,7 +3391,9 @@ export default function Coach() {
                         <div
                           key={index}
                           className="coach-message coach-message--assistant max-w-2xl"
-                          style={{ animationDelay: `${Math.min(index, 6) * 35}ms` }}
+                          style={{
+                            animationDelay: `${Math.min(index, 6) * 35}ms`,
+                          }}
                         >
                           <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
                             {mode.label}

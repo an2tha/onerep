@@ -1332,6 +1332,15 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .coach-mode-tabs,
   .coach-empty-intro,
   .coach-message,
+  .dashboard-home .native-summary,
+  .dashboard-workout-stage,
+  .dashboard-meals-stage,
+  .dashboard-widgets-stage,
+  .dashboard-trend-line,
+  .dashboard-trend-point,
+  .dashboard-intelligence,
+  .dashboard-intelligence-panel,
+  .dashboard-record-in,
   .coach-customization-state,
   .coach-customization-card img,
   .coach-customization-close svg,
@@ -4646,6 +4655,162 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+.dashboard-home .native-summary {
+  animation: dashboard-stage-in 460ms 70ms var(--motion-ease-out) both;
+}
+
+.dashboard-workout-stage {
+  animation: dashboard-stage-in 480ms 130ms var(--motion-ease-out) both;
+}
+
+.dashboard-meals-stage {
+  animation: dashboard-stage-in 500ms 190ms var(--motion-ease-out) both;
+}
+
+.dashboard-widgets-stage {
+  animation: dashboard-stage-in 520ms 250ms var(--motion-ease-out) both;
+}
+
+@keyframes dashboard-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dashboard-trend-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: dashboard-trend-draw 720ms 120ms var(--motion-ease-out) forwards;
+}
+
+.dashboard-trend-point {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dashboard-trend-point-in 260ms var(--motion-ease-out) forwards;
+}
+
+@keyframes dashboard-trend-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes dashboard-trend-point-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+:root[data-recipe-transition="true"]::view-transition-group(*) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--motion-ease-out);
+}
+
+::view-transition-group(active-workout) {
+  animation-duration: 480ms;
+  animation-timing-function: var(--motion-ease-out);
+}
+
+::view-transition-old(active-workout) {
+  animation: shared-workout-old 480ms var(--motion-ease-in) both;
+}
+
+::view-transition-new(active-workout) {
+  animation: shared-workout-new 480ms var(--motion-ease-out) both;
+}
+
+@keyframes shared-workout-old {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@keyframes shared-workout-new {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+}
+
+/* Dashboard intelligence uses one restrained content-plane transition. */
+.dashboard-intelligence {
+  animation: dashboard-intelligence-in 520ms var(--motion-ease-out) both;
+}
+
+.dashboard-intelligence-tab::after {
+  content: "";
+  position: absolute;
+  right: 34%;
+  bottom: -1px;
+  left: 34%;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--foreground);
+  opacity: 0;
+  transform: scaleX(0.4);
+  transition:
+    opacity 180ms ease,
+    transform 240ms var(--motion-ease-out);
+}
+
+.dashboard-intelligence-tab[aria-selected="true"]::after {
+  opacity: 0.8;
+  transform: scaleX(1);
+}
+
+.dashboard-intelligence-panel {
+  animation: dashboard-intelligence-panel-in 300ms var(--motion-ease-out) both;
+}
+
+.dashboard-record-in {
+  animation: dashboard-record-in 320ms var(--motion-ease-out) both;
+}
+
+@keyframes dashboard-record-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dashboard-intelligence-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dashboard-intelligence-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Coach interaction choreography is shared by every mode. */
 .coach-chrome-enter {
   animation: coach-chrome-in 480ms var(--motion-ease-out) both;
@@ -4737,10 +4902,18 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: coach-generated-item-in 420ms var(--motion-ease-out) both;
 }
 
-.coach-generated-content > :nth-child(2) { animation-delay: 55ms; }
-.coach-generated-content > :nth-child(3) { animation-delay: 100ms; }
-.coach-generated-content > :nth-child(4) { animation-delay: 140ms; }
-.coach-generated-content > :nth-child(n + 5) { animation-delay: 175ms; }
+.coach-generated-content > :nth-child(2) {
+  animation-delay: 55ms;
+}
+.coach-generated-content > :nth-child(3) {
+  animation-delay: 100ms;
+}
+.coach-generated-content > :nth-child(4) {
+  animation-delay: 140ms;
+}
+.coach-generated-content > :nth-child(n + 5) {
+  animation-delay: 175ms;
+}
 
 .coach-generated-content button {
   transition:
@@ -5117,8 +5290,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   box-shadow: inset 0 -1px 0 rgba(28, 33, 29, 0.06);
 }
 
-:root:not(.dark)
-  .coach-swoosh-surface[data-coach-mode="chef"] {
+:root:not(.dark) .coach-swoosh-surface[data-coach-mode="chef"] {
   --coach-flow-top: #fff3e8;
   --coach-flow-mid: #faeee4;
   --coach-flow-bottom: #f7f5ef;
@@ -5134,8 +5306,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --coach-band-two: rgba(225, 105, 70, 0.09);
 }
 
-:root:not(.dark)
-  .coach-swoosh-surface[data-coach-mode="personal_trainer"] {
+:root:not(.dark) .coach-swoosh-surface[data-coach-mode="personal_trainer"] {
   --coach-flow-top: #e9f7f8;
   --coach-flow-mid: #eaf2f5;
   --coach-flow-bottom: #f7f5ef;

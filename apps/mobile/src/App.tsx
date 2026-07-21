@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import {
   Barbell,
   Barcode,
@@ -35,6 +36,7 @@ import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
   DashboardProgressPanels,
+  DashboardIntelligence,
   CoachGoalCards,
   TodayHeader,
   TodayTimeline,
@@ -56,7 +58,11 @@ import {
   type CachedWorkoutLog,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
-import { getLoggedExerciseId } from "@/lib/exercise-history"
+import {
+  getLoggedExerciseId,
+  type WorkoutHistoryLog,
+} from "@/lib/exercise-history"
+import { useMuscleRecovery } from "@/lib/use-muscle-recovery"
 import {
   currentDateKey,
   dateForOffset,
@@ -100,10 +106,7 @@ import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import type { TrendMetric } from "@repo/ui"
 import { toast } from "@repo/ui"
-import {
-  STARTER_RECIPES,
-  type StarterRecipe,
-} from "@/pages/RecipesHub"
+import { STARTER_RECIPES, type StarterRecipe } from "@/pages/RecipesHub"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -112,6 +115,26 @@ type DashboardSettings = {
   workoutFocus: WorkoutFocus
   trendMetric?: TrendMetric
   simpleMode?: boolean
+}
+
+type DashboardWidgetId = "intelligence" | "progress" | "goals"
+type DashboardWidgetLayoutItem = {
+  id: DashboardWidgetId
+  size: "full" | "small"
+  hidden?: boolean
+  pinned?: boolean
+}
+
+const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetLayoutItem[] = [
+  { id: "intelligence", size: "full", pinned: true },
+  { id: "progress", size: "full" },
+  { id: "goals", size: "full" },
+]
+
+const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
+  intelligence: "Weekly intelligence",
+  progress: "Progress snapshot",
+  goals: "Coach goals",
 }
 
 type CalorieInfo = {
@@ -740,7 +763,7 @@ function WorkoutCard({
   }, [workoutLogs.length])
 
   return (
-    <Card>
+    <Card style={{ viewTransitionName: "active-workout" }}>
       <div className="px-4 py-2.5">
         {/* ── Header ── */}
         <div className="mb-1 flex items-center justify-between">
@@ -2279,6 +2302,9 @@ export default function App() {
   const { user } = useAppAuth()
   const [dayOffset, setDayOffset] = useState(0)
   const [quickWaterRainKey, setQuickWaterRainKey] = useState(0)
+  const [dismissedBriefingKey, setDismissedBriefingKey] = useState(
+    () => safeLocalStorageGet("onerep:dismissed-dashboard-briefing") ?? ""
+  )
   const [dashboardTrendMetric, setDashboardTrendMetric] =
     useState<TrendMetric>("waistCm")
 
@@ -2306,9 +2332,18 @@ export default function App() {
     limit: 6,
   })
   const pinnedCoachGoals = useQuery(api.ai.coachGoals.listPinned, { limit: 4 })
+  const latestCheckIns = useQuery(api.ai.coachState.listCheckIns, { limit: 1 })
   const bodyMeasurements = useQuery(api.bodyProgress.list)
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
+  const recentFoodLogs = useQuery(api.logs.foodLogs.getRecent, {
+    beforeOrOn: selectedDate,
+    limit: 7,
+  })
+  const workoutHistoryQuery = useQuery(api.logs.workouts.getHistory)
+  const muscleRecovery = useMuscleRecovery(
+    workoutHistoryQuery as unknown as WorkoutHistoryLog[] | undefined
+  )
   const waterLogs = useQuery(api.logs.water.getDay, { date: selectedDate })
   const supplementLogs = useQuery(api.logs.supplements.getDay, {
     date: selectedDate,
@@ -2341,6 +2376,10 @@ export default function App() {
   )
   const removeWorkoutBySlot = useMutation(api.logs.workouts.removeBySlot)
   const saveRecipe = useMutation(api.logs.recipes.save)
+  const saveDashboardWidgetLayout = useOfflineMutation(
+    api.users.users.setWidgetLayout,
+    "users.users.setWidgetLayout"
+  )
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setCoachGoalTaskCompleted = useMutation(
     api.ai.coachGoals.setTaskCompleted
@@ -2355,6 +2394,22 @@ export default function App() {
       }
     )
   }, [preferences])
+
+  useEffect(() => {
+    const saved = preferences?.widgetLayout as
+      DashboardWidgetLayoutItem[] | undefined
+    if (!saved?.length) return
+    const known = saved.filter((item) => item.id in DASHBOARD_WIDGET_LABELS)
+    const missing = DEFAULT_DASHBOARD_WIDGETS.filter(
+      (widget) => !known.some((item) => item.id === widget.id)
+    )
+    setDashboardWidgetLayout([...known, ...missing])
+  }, [preferences?.widgetLayout])
+
+  function updateDashboardLayout(next: DashboardWidgetLayoutItem[]) {
+    setDashboardWidgetLayout(next)
+    void saveDashboardWidgetLayout({ layout: next })
+  }
 
   // ── Mappings ──────────────────────────────────────────────────────────────
 
@@ -2461,6 +2516,16 @@ export default function App() {
   const [recipePreviewClosing, setRecipePreviewClosing] = useState(false)
   const [savingPreviewRecipe, setSavingPreviewRecipe] = useState(false)
   const [previewRecipeSaved, setPreviewRecipeSaved] = useState(false)
+  const [recipeRemix, setRecipeRemix] = useState<{
+    label: string
+    calories: number
+    protein: number
+    request: string
+  } | null>(null)
+  const [dashboardCustomizeOpen, setDashboardCustomizeOpen] = useState(false)
+  const [dashboardWidgetLayout, setDashboardWidgetLayout] = useState<
+    DashboardWidgetLayoutItem[]
+  >(DEFAULT_DASHBOARD_WIDGETS)
   const [snapOffline, setSnapOffline] = useState(false)
   const [showFirstWeekGuide, setShowFirstWeekGuide] = useState(() =>
     typeof window === "undefined"
@@ -2606,6 +2671,145 @@ export default function App() {
           waterPercent: waterProgress,
         }
       : null
+  const dashboardWeeklyStory = useMemo(() => {
+    const allWorkouts = [
+      ...((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[]),
+    ].sort(
+      (a, b) =>
+        Number(new Date(a.completedAt)) - Number(new Date(b.completedAt))
+    )
+    const recentWorkouts = allWorkouts.slice(-7)
+    const completedSets = recentWorkouts.reduce(
+      (total, workout) =>
+        total +
+        (workout.exercises ?? []).reduce(
+          (exerciseTotal, exercise) =>
+            exerciseTotal +
+            (exercise.sets ?? []).filter((set) => set.completed).length,
+          0
+        ),
+      0
+    )
+    const days = (recentFoodLogs ?? []) as Array<{
+      entries: FoodLogEntry[]
+    }>
+    const proteinAverage =
+      days.length > 0
+        ? days.reduce(
+            (sum, day) =>
+              sum +
+              day.entries.reduce((daySum, entry) => daySum + entry.protein, 0),
+            0
+          ) / days.length
+        : 0
+    const bestByExercise = new Map<string, number>()
+    const recordTimeline: Array<{ label: string; detail: string }> = []
+    for (const workout of allWorkouts) {
+      for (const exercise of workout.exercises ?? []) {
+        const bestSet = Math.max(
+          0,
+          ...(exercise.sets ?? [])
+            .filter((set) => set.completed)
+            .map((set) => Number(set.weight))
+            .filter(Number.isFinite)
+        )
+        const previousBest = bestByExercise.get(exercise.name) ?? 0
+        if (bestSet > previousBest) {
+          if (previousBest > 0) {
+            recordTimeline.push({
+              label: exercise.name,
+              detail: `${bestSet} ${preferences?.weightUnit === "lbs" ? "lb" : "kg"} · ${workout.date}`,
+            })
+          }
+          bestByExercise.set(exercise.name, bestSet)
+        }
+      }
+    }
+    const measured = (bodyMeasurements ?? []).filter(
+      (item) => typeof item.weightKg === "number"
+    )
+    const firstWeight = measured[0]?.weightKg
+    const lastWeight = measured.at(-1)?.weightKg
+    const unitMultiplier = preferences?.weightUnit === "lbs" ? 2.20462 : 1
+    return {
+      workouts: recentWorkouts.length,
+      completedSets,
+      nutritionDays: days.filter((day) => day.entries.length > 0).length,
+      proteinAdherence:
+        proteinTarget > 0
+          ? Math.min(200, (proteinAverage / proteinTarget) * 100)
+          : 0,
+      ...(firstWeight != null && lastWeight != null
+        ? { weightChange: (lastWeight - firstWeight) * unitMultiplier }
+        : {}),
+      weightUnit:
+        preferences?.weightUnit === "lbs" ? ("lbs" as const) : ("kg" as const),
+      records: recordTimeline.slice(-3).reverse(),
+    }
+  }, [
+    bodyMeasurements,
+    preferences?.weightUnit,
+    proteinTarget,
+    recentFoodLogs,
+    workoutHistoryQuery,
+  ])
+
+  const dashboardReadiness = useMemo(() => {
+    const checkIn = latestCheckIns?.[0]
+    const fuelScore = (proteinProgress + waterProgress) / 2
+    const selfReportScore = checkIn
+      ? ((checkIn.energy + checkIn.sleepQuality + (6 - checkIn.soreness)) /
+          15) *
+        100
+      : fuelScore
+    const recoveringMuscles = muscleRecovery.filter(
+      (muscle) => muscle.status === "trained" || muscle.status === "recovering"
+    ).length
+    const muscleScore =
+      muscleRecovery.length > 0
+        ? Math.max(20, 100 - (recoveringMuscles / muscleRecovery.length) * 65)
+        : selfReportScore
+    const recoveryScore = Math.round(
+      fuelScore * 0.3 + selfReportScore * 0.45 + muscleScore * 0.25
+    )
+    const context = checkIn
+      ? `Sleep ${checkIn.sleepQuality}/5 · energy ${checkIn.energy}/5 · soreness ${checkIn.soreness}/5.`
+      : "Add a Coach check-in to include sleep, energy, and soreness."
+    const muscleContext =
+      recoveringMuscles > 0
+        ? ` ${recoveringMuscles} muscle group${recoveringMuscles === 1 ? " is" : "s are"} still recovering.`
+        : " Muscle recovery is clear."
+    if (recoveryScore >= 75)
+      return {
+        score: recoveryScore,
+        label: "Ready" as const,
+        detail: `Training as planned is supported. ${context}${muscleContext}`,
+      }
+    if (recoveryScore >= 45)
+      return {
+        score: recoveryScore,
+        label: "Steady" as const,
+        detail: `Keep one or two reps in reserve. ${context}${muscleContext}`,
+      }
+    return {
+      score: recoveryScore,
+      label: "Recover" as const,
+      detail: `Reduce volume and prioritize recovery. ${context}${muscleContext}`,
+    }
+  }, [latestCheckIns, muscleRecovery, proteinProgress, waterProgress])
+
+  const recentMealNames = useMemo(
+    () =>
+      [
+        ...new Set(
+          (
+            (recentFoodLogs ?? []) as Array<{ entries: FoodLogEntry[] }>
+          ).flatMap((day) => day.entries.map((entry) => entry.name))
+        ),
+      ].slice(0, 3),
+    [recentFoodLogs]
+  )
+
   const dashboardBriefing = buildDashboardBriefing({
     activeWorkout: activeWorkout !== null,
     completedWorkout: hasCompletedWorkout,
@@ -2647,6 +2851,23 @@ export default function App() {
     setShowFirstWeekGuide(false)
   }
 
+  function openRecipePreview(recipe: StarterRecipe) {
+    const transitionDocument = document as Document & {
+      startViewTransition?: (update: () => void) => { finished: Promise<void> }
+    }
+    if (!transitionDocument.startViewTransition) {
+      setPreviewRecipe(recipe)
+      return
+    }
+    document.documentElement.dataset.recipeTransition = "true"
+    const transition = transitionDocument.startViewTransition(() => {
+      flushSync(() => setPreviewRecipe(recipe))
+    })
+    void transition.finished.finally(() => {
+      delete document.documentElement.dataset.recipeTransition
+    })
+  }
+
   function closeRecipePreview() {
     if (recipePreviewClosing || savingPreviewRecipe) return
     setRecipePreviewClosing(true)
@@ -2665,7 +2886,10 @@ export default function App() {
       const ingredientCount = recipe.ingredients.length
       const calorieShare = recipe.calories / ingredientCount
       const proteinShare = recipe.protein / ingredientCount
-      const remainingCalories = Math.max(0, recipe.calories - recipe.protein * 4)
+      const remainingCalories = Math.max(
+        0,
+        recipe.calories - recipe.protein * 4
+      )
       const noCook =
         recipe.tags.includes("no cook") ||
         recipe.tags.includes("no bake") ||
@@ -2677,7 +2901,9 @@ export default function App() {
         recipeType: "detailed",
         description: recipe.description,
         servings: 1,
-        prepMinutes: noCook ? recipe.time : Math.max(5, Math.round(recipe.time * 0.35)),
+        prepMinutes: noCook
+          ? recipe.time
+          : Math.max(5, Math.round(recipe.time * 0.35)),
         cookMinutes: noCook ? 0 : Math.max(1, Math.round(recipe.time * 0.65)),
         category: recipe.category,
         originCountry: recipe.origin,
@@ -2707,7 +2933,9 @@ export default function App() {
       setPreviewRecipeSaved(true)
       toast.success(`${recipe.name} saved`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save recipe")
+      toast.error(
+        error instanceof Error ? error.message : "Could not save recipe"
+      )
     } finally {
       setSavingPreviewRecipe(false)
     }
@@ -2839,6 +3067,97 @@ export default function App() {
     navigate("/workout/active")
   }
 
+  function renderDashboardWidget(widget: DashboardWidgetLayoutItem) {
+    const compactClass = widget.size === "small" ? "md:max-w-xl" : undefined
+    if (widget.id === "intelligence") {
+      return (
+        <div key={widget.id} className={compactClass}>
+          <DashboardIntelligence
+            story={dashboardWeeklyStory}
+            readiness={dashboardReadiness}
+            recentMeals={recentMealNames}
+            onOpenProgress={() => navigate("/progress", { motion: "switch" })}
+            onOpenTraining={() =>
+              navigate("/coach", {
+                motion: "forward",
+                state: {
+                  coachMode: "personal_trainer",
+                  guidedIntent: {
+                    kind: "modify_workout",
+                    title: "Adjust today’s training",
+                    detail:
+                      "Tell Coach what feels different and it will preserve the useful work while adjusting the rest.",
+                    examples: [
+                      "I’m sore but still want to train",
+                      "Cut this session to 30 minutes",
+                      "Replace lower-body work today",
+                    ],
+                  },
+                },
+              })
+            }
+            onRepeatMeal={(name) => {
+              const recipe = recipes.find((item) => item.name === name)
+              if (recipe) logRecipeFromQuickAdd(recipe)
+              else
+                navigate(`/foods/search?q=${encodeURIComponent(name)}`, {
+                  motion: "forward",
+                })
+            }}
+            onAskCoach={() =>
+              navigate("/coach", {
+                motion: "forward",
+                state: {
+                  coachMode: "chat",
+                  guidedIntent: {
+                    kind: "plan_week",
+                    title: "Shape the next seven days",
+                    detail:
+                      "Coach will balance training, meals, and recovery around what is realistic for you.",
+                    examples: [
+                      "Plan around three training days",
+                      "Prioritize protein and simple dinners",
+                      "Make next week lighter than this one",
+                    ],
+                  },
+                },
+              })
+            }
+          />
+        </div>
+      )
+    }
+    if (widget.id === "progress") {
+      return (
+        <div key={widget.id} className={compactClass}>
+          <DashboardProgressPanels
+            measurements={bodyMeasurements ?? []}
+            metric={dashboardTrendMetric}
+            onMetricChange={setDashboardTrendMetric}
+            tdee={calorieInfo?.tdee ?? caloriesTarget}
+            calorieTarget={caloriesTarget}
+            weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
+          />
+        </div>
+      )
+    }
+    return (
+      <div key={widget.id} className={compactClass}>
+        <CoachGoalCards
+          goals={(pinnedCoachGoals ?? []) as PinnedCoachGoal[]}
+          today={todayKey}
+          onToggleTask={(taskId, completed) =>
+            void toggleCoachGoalTask(taskId, completed)
+          }
+          onRequestUnpin={(goalId) => {
+            hapticSelection()
+            setConfirmUnpinGoalId(goalId)
+          }}
+        />
+      </div>
+    )
+  }
+
   const homeBodyReady =
     preferences !== undefined &&
     effectiveGoals !== undefined &&
@@ -2852,10 +3171,13 @@ export default function App() {
     serverPresets !== undefined &&
     schedule !== undefined &&
     bodyMeasurements !== undefined &&
-    suggestedMeals !== undefined
+    suggestedMeals !== undefined &&
+    latestCheckIns !== undefined &&
+    recentFoodLogs !== undefined &&
+    workoutHistoryQuery !== undefined
 
   return (
-    <div className="desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
+    <div className="dashboard-home desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
       {quickWaterRainKey > 0 && (
         <span
           key={quickWaterRainKey}
@@ -2925,11 +3247,20 @@ export default function App() {
               }
               briefing={dashboardBriefing}
               onBriefingAction={runDashboardBriefingAction}
-              showBriefingAction
+              onBriefingDismiss={() => {
+                const key = `${selectedDate}:${dashboardBriefing.action}`
+                safeLocalStorageSet("onerep:dismissed-dashboard-briefing", key)
+                setDismissedBriefingKey(key)
+                hapticSelection()
+              }}
+              showBriefingAction={
+                dismissedBriefingKey !==
+                `${selectedDate}:${dashboardBriefing.action}`
+              }
               proteinLeft={proteinLeft}
             />
 
-            <div className="mx-[var(--app-page-x)] mt-4 md:mx-8">
+            <div className="dashboard-workout-stage mx-[var(--app-page-x)] mt-4 md:mx-8">
               <WorkoutCard
                 settings={settings}
                 dayOffset={dayOffset}
@@ -2944,7 +3275,10 @@ export default function App() {
               />
             </div>
 
-            <section className="mt-5" aria-label="Suggested meals">
+            <section
+              className="dashboard-meals-stage mt-5"
+              aria-label="Suggested meals"
+            >
               <div className="mx-[var(--app-page-x)] mb-3 flex items-end justify-between gap-4 md:mx-8">
                 <div>
                   <p className="app-section-title">Suggested meals</p>
@@ -2992,8 +3326,9 @@ export default function App() {
                         if (recipe) {
                           hapticSelection()
                           setPreviewRecipeSaved(false)
+                          setRecipeRemix(null)
                           setRecipePreviewClosing(false)
-                          setPreviewRecipe(recipe)
+                          openRecipePreview(recipe)
                         }
                       }}
                       className="flex h-36 w-[17rem] shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card text-left transition-transform active:scale-[0.985] md:h-40 md:w-[22rem]"
@@ -3003,6 +3338,7 @@ export default function App() {
                           src={meal.photoUrl}
                           alt=""
                           className="h-full w-[40%] shrink-0 object-cover"
+                          style={{ viewTransitionName: `recipe-${meal.id}` }}
                         />
                       ) : (
                         <span className="flex h-full w-[40%] shrink-0 items-center justify-center bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
@@ -3019,7 +3355,7 @@ export default function App() {
                         <span className="mt-1.5 line-clamp-1 min-h-0 text-[10px] leading-4 text-muted-foreground md:text-[11px]">
                           {meal.description}
                         </span>
-                        <span className="mt-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-medium text-muted-foreground tabular-nums md:text-[10px]">
+                        <span className="mt-auto flex shrink-0 items-center gap-1.5 text-[9px] font-medium whitespace-nowrap text-muted-foreground tabular-nums md:text-[10px]">
                           <span className="inline-flex items-center gap-1">
                             <Clock size={11} /> {meal.prepMinutes} min
                           </span>
@@ -3091,29 +3427,31 @@ export default function App() {
             )}
 
             {isTodaySelected && !settings.simpleMode && (
-              <DashboardProgressPanels
-                measurements={bodyMeasurements}
-                metric={dashboardTrendMetric}
-                onMetricChange={setDashboardTrendMetric}
-                tdee={calorieInfo?.tdee ?? caloriesTarget}
-                calorieTarget={caloriesTarget}
-                weightUnit={preferences?.weightUnit === "lbs" ? "lbs" : "kg"}
-              />
+              <section
+                className="dashboard-widgets-stage mt-5"
+                aria-label="Custom dashboard widgets"
+              >
+                <div className="mx-[var(--app-page-x)] mb-1 flex items-center justify-end md:mx-8">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      setDashboardCustomizeOpen(true)
+                    }}
+                    className="motion-tactile min-h-11 text-[11px] font-semibold text-muted-foreground active:text-foreground"
+                  >
+                    Customize dashboard
+                  </button>
+                </div>
+                {[...dashboardWidgetLayout]
+                  .sort(
+                    (a, b) =>
+                      Number(Boolean(b.pinned)) - Number(Boolean(a.pinned))
+                  )
+                  .filter((widget) => !widget.hidden)
+                  .map(renderDashboardWidget)}
+              </section>
             )}
-
-            {isTodaySelected && !settings.simpleMode ? (
-              <CoachGoalCards
-                goals={(pinnedCoachGoals ?? []) as PinnedCoachGoal[]}
-                today={todayKey}
-                onToggleTask={(taskId, completed) =>
-                  void toggleCoachGoalTask(taskId, completed)
-                }
-                onRequestUnpin={(goalId) => {
-                  hapticSelection()
-                  setConfirmUnpinGoalId(goalId)
-                }}
-              />
-            ) : null}
 
             <TodayTimeline
               events={timelineEvents}
@@ -3143,6 +3481,136 @@ export default function App() {
         )}
       </div>
 
+      {dashboardCustomizeOpen && (
+        <MobileSheet
+          onClose={() => setDashboardCustomizeOpen(false)}
+          overlayClassName="bg-black/45"
+          panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
+        >
+          <div className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="app-eyebrow">Today</p>
+                <h2 className="mt-1 text-[20px] font-bold">
+                  Customize dashboard
+                </h2>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  Reorder, resize, hide, or pin dashboard sections.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDashboardCustomizeOpen(false)}
+                aria-label="Close dashboard customization"
+                className="native-toolbar-button -mt-1 -mr-2 px-0"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+            <div className="mt-5 divide-y divide-border border-y border-border">
+              {dashboardWidgetLayout.map((widget, index) => (
+                <div key={widget.id} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold">
+                        {DASHBOARD_WIDGET_LABELS[widget.id]}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {widget.hidden
+                          ? "Hidden"
+                          : `${widget.size === "small" ? "Compact" : "Full width"}${widget.pinned ? " · Pinned first" : ""}`}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      aria-label={`Move ${DASHBOARD_WIDGET_LABELS[widget.id]} up`}
+                      onClick={() => {
+                        const next = [...dashboardWidgetLayout]
+                        ;[next[index - 1], next[index]] = [
+                          next[index],
+                          next[index - 1],
+                        ]
+                        updateDashboardLayout(next)
+                      }}
+                      className="native-toolbar-button size-10 px-0 disabled:opacity-25"
+                    >
+                      <CaretDown size={14} className="rotate-180" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={index === dashboardWidgetLayout.length - 1}
+                      aria-label={`Move ${DASHBOARD_WIDGET_LABELS[widget.id]} down`}
+                      onClick={() => {
+                        const next = [...dashboardWidgetLayout]
+                        ;[next[index], next[index + 1]] = [
+                          next[index + 1],
+                          next[index],
+                        ]
+                        updateDashboardLayout(next)
+                      }}
+                      className="native-toolbar-button size-10 px-0 disabled:opacity-25"
+                    >
+                      <CaretDown size={14} />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateDashboardLayout(
+                          dashboardWidgetLayout.map((item) =>
+                            item.id === widget.id
+                              ? { ...item, hidden: !item.hidden }
+                              : item
+                          )
+                        )
+                      }
+                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
+                    >
+                      {widget.hidden ? "Show" : "Hide"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateDashboardLayout(
+                          dashboardWidgetLayout.map((item) =>
+                            item.id === widget.id
+                              ? {
+                                  ...item,
+                                  size: item.size === "full" ? "small" : "full",
+                                }
+                              : item
+                          )
+                        )
+                      }
+                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
+                    >
+                      {widget.size === "full" ? "Make compact" : "Make full"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateDashboardLayout(
+                          dashboardWidgetLayout.map((item) =>
+                            item.id === widget.id
+                              ? { ...item, pinned: !item.pinned }
+                              : { ...item, pinned: false }
+                          )
+                        )
+                      }
+                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
+                    >
+                      {widget.pinned ? "Unpin" : "Pin first"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </MobileSheet>
+      )}
+
       {previewRecipe && (
         <div
           className={cn(
@@ -3167,6 +3635,9 @@ export default function App() {
                 src={previewRecipe.image}
                 alt=""
                 className="h-full w-full object-cover"
+                style={{
+                  viewTransitionName: `recipe-${previewRecipe.id}`,
+                }}
               />
               <button
                 type="button"
@@ -3192,23 +3663,102 @@ export default function App() {
               </p>
               <div className="mt-5 grid grid-cols-3 divide-x divide-border rounded-2xl border border-border py-3 text-center">
                 <div>
-                  <p className="text-[15px] font-semibold">{previewRecipe.time}m</p>
-                  <p className="text-[13px] text-muted-foreground">Total time</p>
+                  <p className="text-[15px] font-semibold">
+                    {previewRecipe.time}m
+                  </p>
+                  <p className="text-[13px] text-muted-foreground">
+                    Total time
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[15px] font-semibold">{previewRecipe.calories}</p>
+                  <p className="text-[15px] font-semibold">
+                    {previewRecipe.calories}
+                  </p>
                   <p className="text-[13px] text-muted-foreground">Calories</p>
                 </div>
                 <div>
-                  <p className="text-[15px] font-semibold">{previewRecipe.protein}g</p>
+                  <p className="text-[15px] font-semibold">
+                    {previewRecipe.protein}g
+                  </p>
                   <p className="text-[13px] text-muted-foreground">Protein</p>
                 </div>
+              </div>
+              <div className="mt-5">
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Preview a remix
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    {
+                      label: "Higher protein",
+                      calories: previewRecipe.calories + 70,
+                      protein: previewRecipe.protein + 18,
+                      request:
+                        "Increase protein by at least 15g without making the recipe much larger.",
+                    },
+                    {
+                      label: "Lighter",
+                      calories: Math.max(200, previewRecipe.calories - 120),
+                      protein: previewRecipe.protein,
+                      request:
+                        "Reduce calories by about 120 while preserving protein and the character of the recipe.",
+                    },
+                    {
+                      label: "Vegetarian",
+                      calories: previewRecipe.calories - 30,
+                      protein: Math.max(15, previewRecipe.protein - 5),
+                      request:
+                        "Make this vegetarian with a satisfying protein replacement.",
+                    },
+                  ].map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => {
+                        hapticSelection()
+                        setRecipeRemix(option)
+                      }}
+                      className={cn(
+                        "motion-tactile min-h-10 rounded-full border px-3 text-[10px] font-semibold",
+                        recipeRemix?.label === option.label
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {recipeRemix && (
+                  <div className="motion-pop mt-3 grid grid-cols-2 divide-x divide-border rounded-xl bg-muted/55 py-3 text-center">
+                    <div>
+                      <p className="text-[9px] font-semibold text-muted-foreground">
+                        Current
+                      </p>
+                      <p className="mt-1 text-[12px] font-bold">
+                        {previewRecipe.calories} kcal · {previewRecipe.protein}g
+                        P
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-semibold text-muted-foreground">
+                        Estimated remix
+                      </p>
+                      <p className="mt-1 text-[12px] font-bold">
+                        {recipeRemix.calories} kcal · {recipeRemix.protein}g P
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-6">
                 <h3 className="text-[13px] font-semibold">Ingredients</h3>
                 <ul className="mt-2 divide-y divide-border/60 border-y border-border/60">
                   {previewRecipe.ingredients.map((ingredient) => (
-                    <li key={ingredient} className="py-2.5 text-[13px] text-foreground/75">
+                    <li
+                      key={ingredient}
+                      className="py-2.5 text-[13px] text-foreground/75"
+                    >
                       {ingredient}
                     </li>
                   ))}
@@ -3218,7 +3768,10 @@ export default function App() {
                 <h3 className="text-[13px] font-semibold">Instructions</h3>
                 <ol className="mt-3 space-y-4">
                   {previewRecipe.steps.map((step, index) => (
-                    <li key={step} className="flex gap-3 text-[13px] leading-5 text-foreground/75">
+                    <li
+                      key={step}
+                      className="flex gap-3 text-[13px] leading-5 text-foreground/75"
+                    >
                       <span className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground text-[11px] font-semibold text-background">
                         {index + 1}
                       </span>
@@ -3228,8 +3781,12 @@ export default function App() {
                 </ol>
               </div>
               <div className="mt-6 rounded-2xl bg-muted/55 p-4">
-                <p className="text-[11px] font-semibold text-muted-foreground">Serving & storage</p>
-                <p className="mt-1 text-[12px] leading-5 text-foreground/70">{previewRecipe.notes}</p>
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Serving & storage
+                </p>
+                <p className="mt-1 text-[12px] leading-5 text-foreground/70">
+                  {previewRecipe.notes}
+                </p>
               </div>
               <button
                 type="button"
@@ -3243,11 +3800,19 @@ export default function App() {
                     : "bg-foreground text-background active:scale-[0.985]"
                 )}
                 style={
-                  previewRecipeSaved ? { backgroundColor: COMPLETE_COLOR } : undefined
+                  previewRecipeSaved
+                    ? { backgroundColor: COMPLETE_COLOR }
+                    : undefined
                 }
               >
                 <span
-                  key={previewRecipeSaved ? "saved" : savingPreviewRecipe ? "saving" : "save"}
+                  key={
+                    previewRecipeSaved
+                      ? "saved"
+                      : savingPreviewRecipe
+                        ? "saving"
+                        : "save"
+                  }
                   className="motion-pop inline-flex items-center gap-2"
                 >
                   {previewRecipeSaved ? (
@@ -3282,6 +3847,7 @@ export default function App() {
                         protein: recipe.protein,
                         ingredients: recipe.ingredients,
                       },
+                      initialInput: recipeRemix?.request,
                     },
                   })
                 }}
