@@ -1,0 +1,41 @@
+- generic [ref=e2]:
+  - main [ref=e132]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]: OneRep
+          - generic [ref=e138]: 1 / 5 · Goals
+        - progressbar "Profile setup progress" [ref=e139]
+      - generic [ref=e146]:
+        - generic [ref=e147]:
+          - heading "What are you working toward?" [level=1] [ref=e148]
+          - paragraph [ref=e149]: Choose a goal and the amount of guidance you want.
+        - generic [ref=e151]:
+          - region [ref=e152]:
+            - heading "Primary goal" [level=2] [ref=e153]
+            - generic [ref=e154]:
+              - button [ref=e155]:
+                - generic [ref=e156]: Lose fat
+                - paragraph [ref=e160]: Steady, sustainable deficit
+              - button [ref=e161]:
+                - generic [ref=e162]: Build muscle
+                - paragraph [ref=e166]: More fuel and protein
+              - button [pressed] [ref=e167]:
+                - generic [ref=e168]: Stay healthy
+                - paragraph [ref=e174]: Maintain and build consistency
+          - region [ref=e175]:
+            - heading "Training experience" [level=2] [ref=e176]
+            - generic [ref=e177]:
+              - button [ref=e178]:
+                - generic [ref=e179]: New to this
+                - paragraph [ref=e183]: Keep setup simple
+              - button [active] [pressed] [ref=e184]:
+                - generic [ref=e185]: Some experience
+                - paragraph [ref=e189]: I know the basics
+              - button [ref=e190]:
+                - generic [ref=e191]: Very experienced
+                - paragraph [ref=e195]: Give me full control
+      - generic [ref=e196]:
+        - button "Back" [disabled] [ref=e197]
+        - button "Continue" [ref=e200]
+  - region "Notifications alt+T"

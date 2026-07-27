@@ -1,0 +1,51 @@
+- generic [ref=e2]:
+  - main [ref=e132]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]: OneRep
+          - generic [ref=e138]: 5 / 5 · Review
+        - progressbar "Profile setup progress" [ref=e139]
+      - generic [ref=e384]:
+        - generic [ref=e385]:
+          - heading "Review your starting targets" [level=1] [ref=e386]
+          - paragraph [ref=e387]: These are estimates, not medical advice. You can change them in Settings.
+        - generic [ref=e389]:
+          - region [ref=e390]:
+            - heading "Starting daily targets" [level=2] [ref=e391]
+            - generic [ref=e392]:
+              - generic [ref=e393]:
+                - paragraph [ref=e394]: Calories
+                - paragraph [ref=e395]: 3,095 kcal
+                - paragraph [ref=e396]: "Small surplus: about 175 kcal above estimated maintenance."
+              - generic [ref=e397]:
+                - generic [ref=e398]: Maintenance estimate
+                - generic [ref=e399]: 2,920 kcal
+              - generic [ref=e400]:
+                - generic [ref=e401]: Protein
+                - generic [ref=e402]: 143 g
+              - generic [ref=e403]:
+                - generic [ref=e404]: Carbohydrates
+                - generic [ref=e405]: 465 g
+              - generic [ref=e406]:
+                - generic [ref=e407]: Fat
+                - generic [ref=e408]: 96 g
+          - region [ref=e409]:
+            - heading "Estimate inputs" [level=2] [ref=e410]
+            - generic [ref=e411]:
+              - generic [ref=e412]:
+                - term [ref=e413]: Goal
+                - definition [ref=e414]: Build muscle
+              - generic [ref=e415]:
+                - term [ref=e416]: Experience
+                - definition [ref=e417]: Some experience
+              - generic [ref=e418]:
+                - term [ref=e419]: Activity
+                - definition [ref=e420]: Very active
+              - generic [ref=e421]:
+                - term [ref=e422]: Body
+                - definition [ref=e423]: 25 years, 75 kg
+      - generic [ref=e196]:
+        - button "Back" [ref=e197]
+        - button "Finish" [active] [ref=e424]
+  - region "Notifications alt+T"

@@ -1,0 +1,32 @@
+- generic [ref=e2]:
+  - main [ref=e132]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]: OneRep
+          - generic [ref=e138]: 3 / 5 · Activity
+        - progressbar "Profile setup progress" [ref=e139]
+      - generic [ref=e271]:
+        - generic [ref=e272]:
+          - heading "Describe a typical week" [level=1] [ref=e273]
+          - paragraph [ref=e274]: Choose the option that best reflects your usual activity, not your best week.
+        - generic [ref=e276]:
+          - button [ref=e277]:
+            - generic [ref=e278]: Sedentary
+            - paragraph [ref=e282]: Mostly seated
+          - button [ref=e283]:
+            - generic [ref=e284]: Light
+            - paragraph [ref=e288]: A few active days
+          - button [ref=e289]:
+            - generic [ref=e290]: Moderate
+            - paragraph [ref=e296]: Active most weeks
+          - button [active] [pressed] [ref=e297]:
+            - generic [ref=e298]: Very active
+            - paragraph [ref=e302]: Training most days
+          - button [ref=e303]:
+            - generic [ref=e304]: Athlete
+            - paragraph [ref=e308]: High training load
+      - generic [ref=e196]:
+        - button "Back" [ref=e197]
+        - button "Continue" [ref=e200]
+  - region "Notifications alt+T"

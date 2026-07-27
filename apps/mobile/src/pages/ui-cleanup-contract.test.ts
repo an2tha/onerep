@@ -36,26 +36,38 @@ describe("authentication interface cleanup", () => {
 })
 
 describe("onboarding interface cleanup", () => {
-  test("groups setup into five task-oriented steps", () => {
-    for (const id of ["goals", "baseline", "activity", "safety", "review"]) {
+  test("groups setup into six task-oriented steps", () => {
+    for (const id of [
+      "goals",
+      "coach",
+      "baseline",
+      "activity",
+      "safety",
+      "review",
+    ]) {
       assert.match(ONBOARDING, new RegExp(`id: "${id}"`))
     }
     assert.match(ONBOARDING, /\{step \+ 1\} \/ \{steps\.length\}/)
     assert.match(ONBOARDING, /role="progressbar"/)
   })
 
-  test("removes decorative illustrations, hard-coded theme colors, and tiny display copy", () => {
+  test("uses purposeful SVG product mockups without hard-coded page colors or tiny utility copy", () => {
     assert.doesNotMatch(ONBOARDING, /\/onboarding\/|OnboardingIllustration/)
     assert.doesNotMatch(ONBOARDING, /#[0-9a-fA-F]{3,8}|font-black|uppercase/)
     assert.doesNotMatch(ONBOARDING, /text-\[(?:9|10|11|12)(?:px|\.5px)/)
+    assert.match(ONBOARDING, /function CoachFeatureMockups/)
+    assert.match(ONBOARDING, /<svg/)
   })
 
-  test("uses an open flow instead of floating frames or card stacks", () => {
+  test("uses one responsive frosted frame and restrained glass feature panels", () => {
     assert.doesNotMatch(ONBOARDING, /onboarding-brand-mark/)
-    assert.match(CSS, /\.onboarding-frame \{[\s\S]*background: transparent/)
     assert.match(
       CSS,
-      /\.onboarding-option,[\s\S]*border-radius: 0;[\s\S]*background: transparent/
+      /\.onboarding-frame \{[\s\S]*backdrop-filter: blur\(26px\)/
+    )
+    assert.match(
+      CSS,
+      /\.onboarding-coach-glass \{[\s\S]*backdrop-filter: blur\(18px\)/
     )
   })
 
@@ -63,7 +75,10 @@ describe("onboarding interface cleanup", () => {
     assert.doesNotMatch(ONBOARDING, /framer-motion|AnimatePresence/)
     assert.doesNotMatch(ONBOARDING, /startViewTransition/)
     assert.match(ONBOARDING, /key=\{step\}/)
-    assert.match(ONBOARDING, /data-transition-direction=\{transitionDirection\}/)
+    assert.match(
+      ONBOARDING,
+      /data-transition-direction=\{transitionDirection\}/
+    )
     assert.match(CSS, /\.onboarding-step\[data-transition-direction="back"\]/)
     assert.match(CSS, /animation: onboarding-step-in-forward/)
   })

@@ -1,0 +1,542 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - banner [ref=f1e3]:
+      - generic [ref=f1e8]:
+        - link [ref=f1e11] [cursor=pointer]:
+          - /url: https://www.hevyapp.com/
+          - img "updated Hevy app logo" [ref=f1e12]
+        - navigation [ref=f1e16]:
+          - list [ref=f1e17]:
+            - listitem [ref=f1e18]:
+              - link "Home" [ref=f1e19] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/
+            - listitem [ref=f1e20]:
+              - button [ref=f1e21]:
+                - link "Product" [ref=f1e22] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/product/
+            - listitem [ref=f1e23]:
+              - button [ref=f1e24]:
+                - link "Articles" [ref=f1e25] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/articles/
+            - listitem [ref=f1e26]:
+              - link "Hevy Coach" [ref=f1e27] [cursor=pointer]:
+                - /url: https://hevycoach.com?utm_source=hevyapp.com&utm_medium=navigation_header
+            - listitem [ref=f1e28]:
+              - link "About Us" [ref=f1e29] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/about-us/
+            - listitem [ref=f1e30]:
+              - link "Careers" [ref=f1e31] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/careers/
+        - paragraph [ref=f1e34]:
+          - link "Log in" [ref=f1e35] [cursor=pointer]:
+            - /url: https://www.hevy.com/login?utm_source=hevyapp.com&utm_medium=menu
+        - link "Sign Up" [ref=f1e39] [cursor=pointer]:
+          - /url: https://www.hevy.com/signup?utm_source=hevyapp.com&utm_medium=menu
+    - generic [ref=f1e42]:
+      - generic [ref=f1e49]:
+        - generic [ref=f1e51]:
+          - heading "Log Workouts" [level=1] [ref=f1e58]
+          - heading "Get Stronger" [level=1] [ref=f1e61]
+          - heading "Stay Motivated" [level=1] [ref=f1e64]
+          - heading "Hevy is a free workout tracker for iOS and Android. Build routines and track progress with friends." [level=2] [ref=f1e67]
+          - link [ref=f1e70] [cursor=pointer]:
+            - /url: https://hevy.go.link/home?adj_t=20au7x2d&adj_deep_link=com.hevy%3A%2F%2Fhome&adj_redirect_macos=https%3A%2F%2Fapps.apple.com%2Fapp%2Fid1458862350
+            - img "app store button to download the Hevy app" [ref=f1e71]
+          - link [ref=f1e74] [cursor=pointer]:
+            - /url: https://hevy.go.link/home?adj_t=205x0l03&adj_fallback=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.hevy
+            - img "google play button to download Hevy app" [ref=f1e75]
+          - paragraph [ref=f1e84]: "The #1 workout tracker. Loved by 15+ million athletes."
+          - generic [ref=f1e88]:
+            - generic [ref=f1e89]:  
+            - generic [ref=f1e90]:  
+            - generic [ref=f1e91]:  
+            - generic [ref=f1e92]:  
+            - generic [ref=f1e93]:  
+            - generic [ref=f1e94]: Rated 5 out of 5
+          - paragraph [ref=f1e97]: 4.9 App Store & 4.9 Google Play (545,000+ ratings)
+        - img "hevy app displayed on smartphone and smartwatch" [ref=f1e102]
+      - generic [ref=f1e107]:
+        - heading "Featured on" [level=2] [ref=f1e110]
+        - region "Image Carousel" [ref=f1e113]:
+          - generic [ref=f1e114]:
+            - group "1 of 12" [ref=f1e115]:
+              - figure [ref=f1e116]:
+                - img "Hevy app featured on apps we love" [ref=f1e117]
+            - group "2 of 12" [ref=f1e118]:
+              - figure [ref=f1e119]:
+                - img "letters in red on a transparent background" [ref=f1e120]
+            - group "3 of 12" [ref=f1e121]:
+              - figure [ref=f1e122]:
+                - img "Hevy app featured on Lifewire" [ref=f1e123]
+            - group "4 of 12" [ref=f1e124]:
+              - figure [ref=f1e125]:
+                - img "Hevy app featured on Sports Illustrated" [ref=f1e126]
+            - group "5 of 12" [ref=f1e127]:
+              - figure [ref=f1e128]:
+                - img "Hevy app winning Golden Kitty Award" [ref=f1e129]
+            - group "6 of 12" [ref=f1e130]:
+              - figure [ref=f1e131]:
+                - 'img "Hevy app winning Product Hunt #1 product" [ref=f1e132]'
+            - group "7 of 12" [ref=f1e133]:
+              - figure [ref=f1e134]:
+                - img "letters in red on a transparent background" [ref=f1e135]
+            - group "8 of 12" [ref=f1e136]:
+              - figure [ref=f1e137]:
+                - img "letters in black on one row and on a transparent background" [ref=f1e138]
+            - group "9 of 12" [ref=f1e139]:
+              - figure [ref=f1e140]:
+                - img "dark red logo on a transparent background" [ref=f1e141]
+            - group "10 of 12" [ref=f1e142]:
+              - figure [ref=f1e143]:
+                - img "letters in black on a transparent background" [ref=f1e144]
+            - group "11 of 12" [ref=f1e145]:
+              - figure [ref=f1e146]:
+                - img "colorful logo on four rows with a transparent background" [ref=f1e147]
+            - group "12 of 12" [ref=f1e148]:
+              - figure [ref=f1e149]:
+                - img "logo in black on a transparent background" [ref=f1e150]
+      - generic [ref=f1e156]:
+        - img "Marking workout sets as complete in Hevy app" [ref=f1e161]
+        - generic [ref=f1e163]:
+          - heading "Log workouts" [level=2] [ref=f1e166]
+          - heading "A workout tracking app that just works. Everything you need to log your workouts and smash your goals." [level=3] [ref=f1e169]
+          - list [ref=f1e172]:
+            - listitem [ref=f1e173]:
+              - generic [ref=f1e177]: Intuitive Workout Logging
+            - listitem [ref=f1e178]:
+              - generic [ref=f1e182]: Advanced Routine Planner
+            - listitem [ref=f1e183]:
+              - generic [ref=f1e187]: Mark Warmup, Drop, and Failure Sets
+            - listitem [ref=f1e188]:
+              - generic [ref=f1e192]: Automatic Rest Timers
+            - listitem [ref=f1e193]:
+              - generic [ref=f1e197]: Add Exercise Notes
+      - generic [ref=f1e207]:
+        - generic [ref=f1e209]:
+          - heading "Measure progress" [level=2] [ref=f1e212]
+          - paragraph [ref=f1e215]: Staying motivated is easier when you can see how far you’ve come.
+          - list [ref=f1e218]:
+            - listitem [ref=f1e219]:
+              - generic [ref=f1e223]: Advanced Exercise Charts
+            - listitem [ref=f1e224]:
+              - generic [ref=f1e228]: Personal Records
+            - listitem [ref=f1e229]:
+              - generic [ref=f1e233]: Calculate One Rep Max
+            - listitem [ref=f1e234]:
+              - generic [ref=f1e238]: High Quality Exercise Videos
+            - listitem [ref=f1e239]:
+              - generic [ref=f1e243]: Create Your Own Custom Exercises
+            - listitem [ref=f1e244]:
+              - generic [ref=f1e248]: Complete Exercise History
+        - img "A look at the Hevy app's progress-tracking options" [ref=f1e257]
+      - generic [ref=f1e263]:
+        - img "An overview of Hevy's social aspect" [ref=f1e268]
+        - generic [ref=f1e270]:
+          - heading "Join the community" [level=2] [ref=f1e273]
+          - heading "Follow and compete with other athletes to stay motivated." [level=3] [ref=f1e276]
+          - list [ref=f1e279]:
+            - listitem [ref=f1e280]:
+              - generic [ref=f1e284]: Follow Other Athletes
+            - listitem [ref=f1e285]:
+              - generic [ref=f1e289]: Like and Comment on Workouts
+            - listitem [ref=f1e290]:
+              - generic [ref=f1e294]: Save Athlete's Routines
+            - listitem [ref=f1e295]:
+              - generic [ref=f1e299]: Stay Accountable
+      - generic [ref=f1e309]:
+        - generic [ref=f1e311]:
+          - heading "Apple Watch & WearOS" [level=2] [ref=f1e314]
+          - heading "Leave your phone in the locker room, and track your workouts completely from your Apple Watch or WearOS device. Easily sync your routines and focus on your workout." [level=3] [ref=f1e317]
+          - list [ref=f1e320]:
+            - listitem [ref=f1e321]:
+              - generic [ref=f1e325]: Simple Interface
+            - listitem [ref=f1e326]:
+              - generic [ref=f1e330]: Sync App Routines
+            - listitem [ref=f1e331]:
+              - generic [ref=f1e335]: Workout Offline
+          - paragraph [ref=f1e338]:
+            - text: Get our Hevy
+            - link "custom Apple Watch faces" [ref=f1e339] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/hevy-apple-watch-custom-face/
+            - text: .
+        - img "The Hevy app displayed on smartwatch screens" [ref=f1e344]
+      - generic [ref=f1e349]:
+        - img "Hevy app displayed on desktop" [ref=f1e354]
+        - generic [ref=f1e356]:
+          - heading "Also on desktop" [level=2] [ref=f1e359]
+          - heading "Use Hevy on the desktop and get a big screen view of your routines, exercise progress, and see your friend's workouts!" [level=3] [ref=f1e362]
+          - list [ref=f1e365]:
+            - listitem [ref=f1e366]:
+              - link "Use Hevy on Web -> hevy.com" [ref=f1e367] [cursor=pointer]:
+                - /url: http://hevy.com
+            - listitem [ref=f1e372]:
+              - generic [ref=f1e376]: Create And Plan Routines
+            - listitem [ref=f1e377]:
+              - generic [ref=f1e381]: Analyze Exercise Progress
+            - listitem [ref=f1e382]:
+              - generic [ref=f1e386]: Save Athlete's Routines
+      - generic [ref=f1e394]:
+        - heading "The Easiest Way to Stay Consistent in the Gym" [level=3] [ref=f1e397]
+        - link [ref=f1e400] [cursor=pointer]:
+          - /url: https://hevy.go.link/home?adj_t=209ohsom&adj_deep_link=com.hevy%3A%2F%2Fhome&adj_redirect_macos=https%3A%2F%2Fapps.apple.com%2Fapp%2Fid1458862350
+          - img "app store button to download the Hevy app" [ref=f1e401]
+        - link [ref=f1e404] [cursor=pointer]:
+          - /url: https://hevy.go.link/home?adj_t=205x0l03&adj_fallback=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.hevy
+          - img "google play button to download Hevy app" [ref=f1e405]
+      - generic [ref=f1e408]:
+        - heading "More than 15 million athletes are on Hevy" [level=2] [ref=f1e411]
+        - generic [ref=f1e413]:
+          - generic [ref=f1e415]:
+            - paragraph [ref=f1e418]:
+              - link "4.9/5 stars - 305k+ ratings" [ref=f1e419] [cursor=pointer]:
+                - /url: https://apps.apple.com/app/apple-store/id1458862350
+            - generic [ref=f1e423]:
+              - generic [ref=f1e424]:  
+              - generic [ref=f1e425]:  
+              - generic [ref=f1e426]:  
+              - generic [ref=f1e427]:  
+              - generic [ref=f1e428]:  
+              - generic [ref=f1e429]: Rated 5 out of 5
+            - img "app store button" [ref=f1e432]
+          - generic [ref=f1e434]:
+            - paragraph [ref=f1e437]:
+              - link "4.9/5 stars - 242k+ ratings" [ref=f1e438] [cursor=pointer]:
+                - /url: https://play.google.com/store/apps/details?id=com.hevy
+            - generic [ref=f1e442]:
+              - generic [ref=f1e443]:  
+              - generic [ref=f1e444]:  
+              - generic [ref=f1e445]:  
+              - generic [ref=f1e446]:  
+              - generic [ref=f1e447]:  
+              - generic [ref=f1e448]: Rated 5 out of 5
+            - img "google play button" [ref=f1e451]
+        - region "Image Carousel" [ref=f1e454]:
+          - generic [ref=f1e455]:
+            - group "1 of 6" [ref=f1e456]:
+              - figure [ref=f1e457]:
+                - img "hevy app testimonial by user Csrgrado" [ref=f1e458]
+            - group "2 of 6" [ref=f1e459]:
+              - figure [ref=f1e460]:
+                - img "hevy app testimonial by user sashaost" [ref=f1e461]
+            - group "3 of 6" [ref=f1e462]:
+              - figure [ref=f1e463]:
+                - img "hevy app testimonial by user gbleg3nd" [ref=f1e464]
+            - group "4 of 6" [ref=f1e465]:
+              - figure [ref=f1e466]:
+                - img "hevy app testimonial by user Zjh19" [ref=f1e467]
+            - group "5 of 6" [ref=f1e468]:
+              - figure [ref=f1e469]:
+                - img "hevy app testimonial by user t_HERO_n" [ref=f1e470]
+            - group "6 of 6" [ref=f1e471]:
+              - figure [ref=f1e472]:
+                - img "hevy app testimonial by user Swolebroham Liftin" [ref=f1e473]
+        - link "See more" [ref=f1e477] [cursor=pointer]:
+          - /url: https://www.hevyapp.com/reviews/
+      - generic [ref=f1e486]:
+        - generic [ref=f1e488]:
+          - heading "Need help?" [level=2] [ref=f1e491]
+          - heading "Check out our short tutorials and feel free to get in touch if you still have any questions." [level=3] [ref=f1e494]
+        - list [ref=f1e499]:
+          - listitem [ref=f1e500]:
+            - link "How to Get Started" [ref=f1e501] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/hevy-tutorial/
+          - listitem [ref=f1e507]:
+            - link "Get Stronger With Hevy" [ref=f1e508] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/stronger-with-hevy/
+          - listitem [ref=f1e514]:
+            - link "Explore Hevy's Features" [ref=f1e515] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/features/
+          - listitem [ref=f1e521]:
+            - link "About Hevy App" [ref=f1e522] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/about/
+      - generic [ref=f1e531]:
+        - heading "Our Guides" [level=2] [ref=f1e534]
+        - list [ref=f1e537]:
+          - listitem [ref=f1e538]:
+            - link [ref=f1e539] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/3-day-split-workout-complete-guide/
+              - img "a person preparing to deadlift a loaded barbell using a wide grip" [ref=f1e541]
+            - generic [ref=f1e542]:
+              - heading [level=3] [ref=f1e543]:
+                - 'link "Best 3-Day Workout Split: The Complete Guide (2026)" [ref=f1e544] [cursor=pointer]':
+                  - /url: https://www.hevyapp.com/3-day-split-workout-complete-guide/
+              - 'link "Read more about Best 3-Day Workout Split: The Complete Guide (2026)" [ref=f1e545] [cursor=pointer]':
+                - /url: https://www.hevyapp.com/3-day-split-workout-complete-guide/
+                - text: Read More →
+          - listitem [ref=f1e546]:
+            - link [ref=f1e547] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/4-day-workout-split-complete-guide/
+              - img "a man wearing a beanie and overhead pressing a loaded barbell in a gym setting" [ref=f1e549]
+            - generic [ref=f1e550]:
+              - heading [level=3] [ref=f1e551]:
+                - link "4 Day Workout Split – The Complete Guide (2026)" [ref=f1e552] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/4-day-workout-split-complete-guide/
+              - link "Read more about 4 Day Workout Split – The Complete Guide (2026)" [ref=f1e553] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/4-day-workout-split-complete-guide/
+                - text: Read More →
+          - listitem [ref=f1e554]:
+            - link [ref=f1e555] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/5-day-split-workout-complete-guide/
+              - img "man using a wide grip to overhead press a loaded barbell inside a squat rack at the gym" [ref=f1e557]
+            - generic [ref=f1e558]:
+              - heading [level=3] [ref=f1e559]:
+                - 'link "5 Day Workout Split: Upper/Lower, PPL & More (Examples, Tips & Workouts)" [ref=f1e560] [cursor=pointer]':
+                  - /url: https://www.hevyapp.com/5-day-split-workout-complete-guide/
+              - 'link "Read more about 5 Day Workout Split: Upper/Lower, PPL & More (Examples, Tips & Workouts)" [ref=f1e561] [cursor=pointer]':
+                - /url: https://www.hevyapp.com/5-day-split-workout-complete-guide/
+                - text: Read More →
+          - listitem [ref=f1e562]:
+            - link [ref=f1e563] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/bro-split-workout-program-guide/
+              - img "a man sitting on a bench in a gym and holding a green water bottle" [ref=f1e565]
+            - generic [ref=f1e566]:
+              - heading [level=3] [ref=f1e567]:
+                - link "5 Day Bro Split for Natural Bodybuilding (+Sample Workouts)" [ref=f1e568] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/bro-split-workout-program-guide/
+              - link "Read more about 5 Day Bro Split for Natural Bodybuilding (+Sample Workouts)" [ref=f1e569] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/bro-split-workout-program-guide/
+                - text: Read More →
+          - listitem [ref=f1e570]:
+            - link [ref=f1e571] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/upper-lower-split-complete-guide/
+              - img "a man wearing Olympic lifting shoes performing a high-bar squat with a loaded barbell next to a rack inside a gym" [ref=f1e573]
+            - generic [ref=f1e574]:
+              - heading [level=3] [ref=f1e575]:
+                - link "The Upper / Lower Split – Complete Workout Program Guide" [ref=f1e576] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/upper-lower-split-complete-guide/
+              - link "Read more about The Upper / Lower Split – Complete Workout Program Guide" [ref=f1e577] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/upper-lower-split-complete-guide/
+                - text: Read More →
+          - listitem [ref=f1e578]:
+            - link [ref=f1e579] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/push-pull-legs-ultimate-guide/
+              - img "Push Pull Legs Workout Guide" [ref=f1e581]
+            - generic [ref=f1e582]:
+              - heading [level=3] [ref=f1e583]:
+                - link "Push Pull Legs – 3, 4, 5 & 6-Day Splits (+12 Exercises to Do)" [ref=f1e584] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/push-pull-legs-ultimate-guide/
+              - link "Read more about Push Pull Legs – 3, 4, 5 & 6-Day Splits (+12 Exercises to Do)" [ref=f1e585] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/push-pull-legs-ultimate-guide/
+                - text: Read More →
+        - link "See all guides" [ref=f1e589] [cursor=pointer]:
+          - /url: https://www.hevyapp.com/guides
+      - generic [ref=f1e594]:
+        - heading "Recent Articles" [level=2] [ref=f1e597]
+        - list [ref=f1e600]:
+          - listitem [ref=f1e601]:
+            - link [ref=f1e602] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/what-is-a-drop-set/
+              - img "a muscular man performing chest fly on a double cable machine in a gym setting" [ref=f1e604]
+            - generic [ref=f1e605]:
+              - heading [level=3] [ref=f1e606]:
+                - link "What Is a Drop Set and When Should You Actually Use One" [ref=f1e607] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/what-is-a-drop-set/
+              - link "Read more about What Is a Drop Set and When Should You Actually Use One" [ref=f1e608] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/what-is-a-drop-set/
+                - text: Read More →
+          - listitem [ref=f1e609]:
+            - link [ref=f1e610] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/hybrid-training/
+              - img "two images side by side, one showing a woman performing a barbell deadlift in a gym setting, the other showing a woman running outdoors" [ref=f1e612]
+            - generic [ref=f1e613]:
+              - heading [level=3] [ref=f1e614]:
+                - 'link "Hybrid Training Guide: Mix Strength and Cardio Like a Pro" [ref=f1e615] [cursor=pointer]':
+                  - /url: https://www.hevyapp.com/hybrid-training/
+              - 'link "Read more about Hybrid Training Guide: Mix Strength and Cardio Like a Pro" [ref=f1e616] [cursor=pointer]':
+                - /url: https://www.hevyapp.com/hybrid-training/
+                - text: Read More →
+          - listitem [ref=f1e617]:
+            - link [ref=f1e618] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/hyrox-training/
+            - generic [ref=f1e620]:
+              - heading [level=3] [ref=f1e621]:
+                - link "Hyrox Training for Competition (With a Sample Weekly Split)" [ref=f1e622] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/hyrox-training/
+              - link "Read more about Hyrox Training for Competition (With a Sample Weekly Split)" [ref=f1e623] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/hyrox-training/
+                - text: Read More →
+          - listitem [ref=f1e624]:
+            - link [ref=f1e625] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/announcing-hevy-trainer/
+              - img "Hevy trainer screenshots displaying some of the functions, including replacing exercises, logging workouts, and tracking consistency" [ref=f1e627]
+            - generic [ref=f1e628]:
+              - heading [level=3] [ref=f1e629]:
+                - link "Announcing Hevy Trainer" [ref=f1e630] [cursor=pointer]:
+                  - /url: https://www.hevyapp.com/announcing-hevy-trainer/
+              - link "Read more about Announcing Hevy Trainer" [ref=f1e631] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/announcing-hevy-trainer/
+                - text: Read More →
+          - listitem [ref=f1e632]:
+            - link [ref=f1e633] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/full-body-workout-vs-split/
+            - generic [ref=f1e635]:
+              - heading [level=3] [ref=f1e636]:
+                - 'link "Full Body Workout vs Split: Pros, Cons & How to Pick" [ref=f1e637] [cursor=pointer]':
+                  - /url: https://www.hevyapp.com/full-body-workout-vs-split/
+              - 'link "Read more about Full Body Workout vs Split: Pros, Cons & How to Pick" [ref=f1e638] [cursor=pointer]':
+                - /url: https://www.hevyapp.com/full-body-workout-vs-split/
+                - text: Read More →
+          - listitem [ref=f1e639]:
+            - link [ref=f1e640] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/workout-splits/
+              - img "three side by side images showing men doing pull ups, bicep curls, and deadlifts in a gym setting" [ref=f1e642]
+            - generic [ref=f1e643]:
+              - heading [level=3] [ref=f1e644]:
+                - 'link "Workout Splits Explained: Types, Examples, and How to Pick" [ref=f1e645] [cursor=pointer]':
+                  - /url: https://www.hevyapp.com/workout-splits/
+              - 'link "Read more about Workout Splits Explained: Types, Examples, and How to Pick" [ref=f1e646] [cursor=pointer]':
+                - /url: https://www.hevyapp.com/workout-splits/
+                - text: Read More →
+        - link "See all posts" [ref=f1e650] [cursor=pointer]:
+          - /url: https://www.hevyapp.com/blog/
+    - contentinfo:
+      - generic [ref=f1e654]:
+        - generic [ref=f1e658]:
+          - heading "Ready to get started?" [level=5] [ref=f1e665]
+          - generic [ref=f1e667]:
+            - generic [ref=f1e669]:
+              - heading "Hevy App" [level=2] [ref=f1e672]
+              - paragraph [ref=f1e675]: For Personal Use
+              - paragraph [ref=f1e678]: Log your workouts and track your progress on Hevy app while being part of an amazing community of 15+ million gym athletes.
+              - img "Hevy app on two smartphone screens" [ref=f1e681]
+              - link [ref=f1e684] [cursor=pointer]:
+                - /url: https://hevy.go.link/home?adj_t=209wq2ur&adj_deep_link=com.hevy%3A%2F%2Fhome&adj_redirect_macos=https%3A%2F%2Fapps.apple.com%2Fapp%2Fid1458862350
+                - img "app store button to download the Hevy app" [ref=f1e685]
+              - link [ref=f1e688] [cursor=pointer]:
+                - /url: https://hevy.go.link/home?adj_t=20l4jefg&adj_fallback=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3Dcom.hevy
+                - img "google play button to download Hevy app" [ref=f1e689]
+            - generic [ref=f1e691]:
+              - heading [level=2] [ref=f1e694]:
+                - link "Hevy Coach" [ref=f1e695] [cursor=pointer]:
+                  - /url: https://hevycoach.com?utm_source=hevyapp.com&utm_medium=footer
+              - paragraph [ref=f1e698]: For Personal Trainers and Coaches
+              - paragraph [ref=f1e701]:
+                - text: World class
+                - link "personal trainer software" [ref=f1e702] [cursor=pointer]:
+                  - /url: https://hevycoach.com/
+                - text: for you to build and assign workout programs for your clients, and track their progress.
+              - img "An overview of the Hevy Coach online fitness training platform's dashboard" [ref=f1e705]
+              - img "hevy coach capterra rating" [ref=f1e708]
+              - link "Learn About Hevy Coach" [ref=f1e712] [cursor=pointer]:
+                - /url: https://hevycoach.com?utm_source=hevyapp.com&utm_medium=footer
+          - generic [ref=f1e720]:
+            - generic [ref=f1e722]:
+              - link [ref=f1e725] [cursor=pointer]:
+                - /url: https://www.hevyapp.com/
+                - img "updated Hevy app logo" [ref=f1e726]
+              - list [ref=f1e729]:
+                - listitem [ref=f1e730]:
+                  - link "Instagram" [ref=f1e731] [cursor=pointer]:
+                    - /url: https://www.instagram.com/hevyapp
+                    - generic [ref=f1e733]: 
+                - listitem [ref=f1e734]:
+                  - link "Tiktok" [ref=f1e735] [cursor=pointer]:
+                    - /url: https://www.tiktok.com/@hevyapp
+                    - generic [ref=f1e737]: 
+                - listitem [ref=f1e738]:
+                  - link [ref=f1e739] [cursor=pointer]:
+                    - /url: https://x.com/HevyApp
+                - listitem [ref=f1e743]:
+                  - link "Reddit" [ref=f1e744] [cursor=pointer]:
+                    - /url: https://www.reddit.com/r/Hevy/
+                    - generic [ref=f1e746]: 
+                - listitem [ref=f1e747]:
+                  - link "Strava" [ref=f1e748] [cursor=pointer]:
+                    - /url: https://www.strava.com/clubs/hevy
+                    - generic [ref=f1e750]: 
+            - generic [ref=f1e752]:
+              - paragraph [ref=f1e755]: Product
+              - generic [ref=f1e757]:
+                - paragraph [ref=f1e758]:
+                  - link "Features" [ref=f1e759] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/features/
+                - paragraph [ref=f1e760]:
+                  - link "Reviews" [ref=f1e761] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/reviews/
+                - paragraph [ref=f1e762]:
+                  - link "Affiliate Program" [ref=f1e763] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/affiliate/
+                - paragraph [ref=f1e764]:
+                  - link "Use Cases" [ref=f1e765] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/use-cases/
+                - paragraph [ref=f1e766]:
+                  - link "Help Center" [ref=f1e767] [cursor=pointer]:
+                    - /url: https://hevyapp.zendesk.com/hc/en-us
+                - paragraph [ref=f1e768]:
+                  - link "Hevy Coach" [ref=f1e769] [cursor=pointer]:
+                    - /url: https://hevycoach.com?utm_source=hevyapp.com&utm_medium=footer
+            - generic [ref=f1e771]:
+              - paragraph [ref=f1e774]: Company
+              - generic [ref=f1e776]:
+                - paragraph [ref=f1e777]:
+                  - link "About" [ref=f1e778] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/about-us/
+                - paragraph [ref=f1e779]:
+                  - link "Contact Us" [ref=f1e780] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/contact/
+                - paragraph [ref=f1e781]:
+                  - link "Careers" [ref=f1e782] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/careers/
+                - paragraph [ref=f1e783]:
+                  - link "Press Center" [ref=f1e784] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/press/
+                - paragraph [ref=f1e785]:
+                  - link "Partner With Us" [ref=f1e786] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/partners/
+            - generic [ref=f1e788]:
+              - paragraph [ref=f1e791]: Resources
+              - generic [ref=f1e793]:
+                - paragraph [ref=f1e794]:
+                  - link "Blog" [ref=f1e795] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/blog/
+                - paragraph [ref=f1e796]:
+                  - link "Guides" [ref=f1e797] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/guides/
+                - paragraph [ref=f1e798]:
+                  - link "Exercise Library" [ref=f1e799] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/exercises/
+                - paragraph [ref=f1e800]:
+                  - link "Workout Splits" [ref=f1e801] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/workout-splits/
+                - paragraph [ref=f1e802]:
+                  - link "Public API" [ref=f1e803] [cursor=pointer]:
+                    - /url: https://api.hevyapp.com/docs
+            - generic [ref=f1e805]:
+              - paragraph [ref=f1e808]: Guides
+              - generic [ref=f1e810]:
+                - paragraph [ref=f1e811]:
+                  - link "3 Day Workout Splits" [ref=f1e812] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/3-day-split-workout-complete-guide/
+                - paragraph [ref=f1e813]:
+                  - link "4 Day Workout Splits" [ref=f1e814] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/4-day-workout-split-complete-guide/
+                - paragraph [ref=f1e815]:
+                  - link "5 Day Workout Splits" [ref=f1e816] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/5-day-split-workout-complete-guide/
+                - paragraph [ref=f1e817]:
+                  - link "Upper / Lower Split" [ref=f1e818] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/upper-lower-split-complete-guide/
+                - paragraph [ref=f1e819]:
+                  - link "Push / Pull / Legs (PPL)" [ref=f1e820] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/push-pull-legs-ultimate-guide/
+                - paragraph [ref=f1e821]:
+                  - link "Arnold Split Workout" [ref=f1e822] [cursor=pointer]:
+                    - /url: https://www.hevyapp.com/arnold-split-workout/
+        - generic [ref=f1e830]:
+          - paragraph [ref=f1e837]:
+            - link "Terms & Conditions" [ref=f1e838] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/legal/terms-and-conditions/
+          - paragraph [ref=f1e841]:
+            - link "Privacy Policy" [ref=f1e842] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/legal/privacy-policy/
+          - paragraph [ref=f1e845]:
+            - link "Cookie Policy" [ref=f1e846] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/legal/cookie-policy/
+          - paragraph [ref=f1e849]:
+            - link "Status" [ref=f1e850] [cursor=pointer]:
+              - /url: https://www.hevyapp.com/status/
+          - paragraph [ref=f1e853]:
+            - link "Sitemap" [ref=f1e854] [cursor=pointer]:
+              - /url: /sitemap_index.xml
+          - paragraph [ref=f1e857]: Copyright © 2026 Hevy Studios, S.L. All rights reserved. Hevy® is a registered trademark of Hevy Studios, S.L. in the United States and Europe, as well as certain other jurisdictions.
+  - generic: 

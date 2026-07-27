@@ -49,6 +49,16 @@ describe("bottom bar accessibility contract", () => {
     )
   })
 
+  test("Coach navigation stays light in light mode and dark in dark mode", () => {
+    expect(SOURCE).toContain(
+      "border-border bg-background/96 dark:border-white/10 dark:bg-[#020817]/96"
+    )
+    expect(SOURCE).toContain("text-foreground dark:text-white")
+    expect(SOURCE).toContain(
+      "text-muted-foreground active:text-foreground dark:text-white/55 dark:active:text-white"
+    )
+  })
+
   test("desktop brand action exposes an explicit accessible name", () => {
     expect(SOURCE).toContain('aria-label="Go to Today"')
   })
@@ -62,7 +72,9 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).toContain('chromeState !== "previous"')
     expect(SOURCE).toContain('chromeState !== "previous-ready"')
     expect(SOURCE).toContain("{renderDesktopSidebar && (")
-    expect(SOURCE).toContain('className="desktop-sidebar fixed')
+    expect(SOURCE).toContain(
+      'className="desktop-sidebar app-route-sidebar fixed'
+    )
     expect(SOURCE).not.toContain("desktop-sidebar motion-card")
     expect(SOURCE).not.toContain('className="app-route-chrome desktop-sidebar')
   })

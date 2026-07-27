@@ -1,0 +1,53 @@
+[     115ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[     946ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/onboarding:0
+[     946ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[    1134ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/sign-out' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/onboarding:0
+[    1134ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/sign-out:0
+[    1134ms] [WARNING] Failed to sign out auth client after unauthenticated error TypeError: Failed to fetch
+    at betterFetch (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1320:24)
+    at async $fetch (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1215:12)
+    at async Object.apply (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1589:16)
+    at async signOutApp (http://127.0.0.1:5174/src/lib/auth-client.ts:67:3)
+    at async clearAuthClientSession (http://127.0.0.1:5174/src/lib/auth-session.ts?t=1784653655347:83:5)
+    at async handleUnauthenticatedSession (http://127.0.0.1:5174/src/lib/auth-session.ts?t=1784653655347:110:5) @ http://127.0.0.1:5174/src/lib/utils.ts?t=1784653655347:99
+[    1222ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/sign-out' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login?next=%2Fonboarding:0
+[    1223ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/sign-out:0
+[    1223ms] [WARNING] Failed to sign out auth client after unauthenticated error TypeError: Failed to fetch
+    at betterFetch (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1320:24)
+    at async $fetch (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1215:12)
+    at async Object.apply (http://127.0.0.1:5174/node_modules/.vite/deps/better-auth_react.js?v=155ee56f:1589:16)
+    at async signOutApp (http://127.0.0.1:5174/src/lib/auth-client.ts:67:3)
+    at async clearAuthClientSession (http://127.0.0.1:5174/src/lib/auth-session.ts?t=1784653655347:83:5)
+    at async handleUnauthenticatedSession (http://127.0.0.1:5174/src/lib/auth-session.ts?t=1784653655347:110:5) @ http://127.0.0.1:5174/src/lib/utils.ts?t=1784653655347:99
+[   17593ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[   18363ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[   18363ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[  427057ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[  427926ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[  427927ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[  431982ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[  432731ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[  432731ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[  448152ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[  448885ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[  448885ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[ 1935052ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[ 1935990ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[ 1935990ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[ 2134210ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[ 2134992ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[ 2134992ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[ 2144717ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[ 2145478ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[ 2145478ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[ 2186407ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[ 2187320ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[ 2187321ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[ 3094667ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5174/@vite/client:864
+[ 3094747ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[ 3095553ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[ 3095553ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0
+[11780720ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5174/@vite/client:864
+[11780795ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5174/node_modules/.vite/deps/react-dom_client.js?v=1f51e459:20102
+[11781656ms] [ERROR] Access to fetch at 'https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session' from origin 'http://127.0.0.1:5174' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://127.0.0.1:5174/login:0
+[11781656ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://hallowed-llama-854.eu-west-1.convex.site/api/auth/get-session:0

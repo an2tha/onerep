@@ -1,0 +1,417 @@
+- generic [ref=f4e3]:
+  - link "Skip to content" [ref=f4e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f4e5]:
+    - link "OneRep home" [ref=f4e6] [cursor=pointer]:
+      - /url: "#top"
+      - generic [ref=f4e7]: OneRep
+    - button "Open navigation" [ref=f4e9]
+  - main [ref=f4e11]:
+    - generic [ref=f4e12]:
+      - generic [ref=f4e14]:
+        - paragraph [ref=f4e15]:
+          - generic [ref=f4e16]: "1"
+          - text: OneRep for iPhone
+        - generic [ref=f4e20]:
+          - generic [ref=f4e21]: Your
+          - generic [ref=f4e22]: workout
+          - generic [ref=f4e23]: app
+          - generic [ref=f4e24]: should
+          - generic [ref=f4e25]: remember
+          - generic [ref=f4e26]: lunch.
+        - paragraph [ref=f4e27]: OneRep keeps your workouts, food, water and progress in the same place. Log what happened. Then get on with your day.
+        - generic [ref=f4e28]:
+          - link [ref=f4e29] [cursor=pointer]:
+            - /url: /app?mode=signup
+          - link "See what’s inside" [ref=f4e38] [cursor=pointer]:
+            - /url: "#inside"
+        - paragraph [ref=f4e41]: No card needed. Coach is the only paid part.
+      - generic [ref=f4e42]:
+        - generic "OneRep training screen" [ref=f4e44]:
+          - generic [ref=f4e51]:
+            - generic [ref=f4e52]:
+              - generic [ref=f4e53]: 9:41
+              - generic [ref=f4e55]: ● ◒
+            - generic [ref=f4e56]:
+              - text: WEEK 4 · DAY 1
+              - heading "Upper A" [level=3] [ref=f4e57]
+              - paragraph [ref=f4e58]: 4 exercises · about 45 min
+            - generic [ref=f4e59]:
+              - article [ref=f4e60]:
+                - generic [ref=f4e61]: "01"
+                - generic [ref=f4e62]:
+                  - generic [ref=f4e63]: Bench press
+                  - generic [ref=f4e64]: 3 sets
+                - emphasis [ref=f4e65]: 80 kg × 8
+              - article [ref=f4e66]:
+                - generic [ref=f4e67]: "02"
+                - generic [ref=f4e68]:
+                  - generic [ref=f4e69]: Seated row
+                  - generic [ref=f4e70]: 3 sets
+                - emphasis [ref=f4e71]: 72 kg × 10
+              - article [ref=f4e72]:
+                - generic [ref=f4e73]: "03"
+                - generic [ref=f4e74]:
+                  - generic [ref=f4e75]: Overhead press
+                  - generic [ref=f4e76]: 2 sets
+                - emphasis [ref=f4e77]: 42 kg × 8
+              - article [ref=f4e78]:
+                - generic [ref=f4e79]: "04"
+                - generic [ref=f4e80]:
+                  - generic [ref=f4e81]: Lat pulldown
+                  - generic [ref=f4e82]: 2 sets
+                - emphasis [ref=f4e83]: 68 kg × 10
+            - button "Start workout" [ref=f4e84]
+            - navigation [ref=f4e88]:
+              - generic [ref=f4e89]: Today
+              - generic [ref=f4e93]: Food
+              - generic [ref=f4e99]: Train
+              - generic [ref=f4e107]: Progress
+        - generic "OneRep nutrition screen" [ref=f4e114]:
+          - generic [ref=f4e121]:
+            - generic [ref=f4e122]:
+              - generic [ref=f4e123]: 9:41
+              - generic [ref=f4e125]: ● ◒
+            - generic [ref=f4e126]:
+              - text: TODAY’S FOOD
+              - heading [level=3] [ref=f4e127]:
+                - text: 1,832
+                - emphasis [ref=f4e128]: kcal
+              - paragraph [ref=f4e129]: 1,263 left
+            - generic [ref=f4e130]:
+              - generic [ref=f4e131]:
+                - generic [ref=f4e132]:
+                  - text: Protein
+                  - generic [ref=f4e133]: 108 / 143g
+                - emphasis [ref=f4e135]
+              - generic [ref=f4e136]:
+                - generic [ref=f4e137]:
+                  - text: Carbs
+                  - generic [ref=f4e138]: 184 / 290g
+                - emphasis [ref=f4e140]
+              - generic [ref=f4e141]:
+                - generic [ref=f4e142]:
+                  - text: Fat
+                  - generic [ref=f4e143]: 54 / 86g
+                - emphasis [ref=f4e145]
+            - generic [ref=f4e146]:
+              - article [ref=f4e147]:
+                - generic [ref=f4e148]:
+                  - text: Breakfast
+                  - generic [ref=f4e149]: Oats, yogurt, berries
+                - generic [ref=f4e150]: "620"
+              - article [ref=f4e151]:
+                - generic [ref=f4e152]:
+                  - text: Lunch
+                  - generic [ref=f4e153]: Chicken rice bowl
+                - generic [ref=f4e154]: "745"
+              - article [ref=f4e155]:
+                - generic [ref=f4e156]:
+                  - text: Snack
+                  - generic [ref=f4e157]: Shake and banana
+                - generic [ref=f4e158]: "467"
+            - generic [ref=f4e159]:
+              - button "Scan" [ref=f4e160]
+              - button "Snap" [ref=f4e167]
+            - navigation [ref=f4e173]:
+              - generic [ref=f4e174]: Today
+              - generic [ref=f4e178]: Food
+              - generic [ref=f4e184]: Train
+              - generic [ref=f4e192]: Progress
+        - generic "OneRep Today screen" [ref=f4e199]:
+          - generic [ref=f4e206]:
+            - generic [ref=f4e207]:
+              - generic [ref=f4e208]: 9:41
+              - generic [ref=f4e210]: ● ◒
+            - generic [ref=f4e211]:
+              - text: MONDAY, JUL 27
+              - heading "Good morning, Alex." [level=3] [ref=f4e212]: Good morning,Alex.
+              - generic [ref=f4e213]: A
+            - generic [ref=f4e214]:
+              - generic [ref=f4e215]:
+                - generic [ref=f4e216]: Energy remaining
+                - generic [ref=f4e217]: 68%
+              - strong [ref=f4e218]:
+                - text: 2,140
+                - emphasis [ref=f4e219]: kcal
+              - generic [ref=f4e222]:
+                - generic [ref=f4e223]:
+                  - text: Protein
+                  - generic [ref=f4e224]: 92g left
+                - generic [ref=f4e225]:
+                  - text: Water
+                  - generic [ref=f4e226]: 1.5 L
+                - generic [ref=f4e227]:
+                  - text: Workout
+                  - generic [ref=f4e228]: Upper A
+            - button [ref=f4e229]:
+              - generic [ref=f4e230]: Up next
+              - generic [ref=f4e237]: Upper A
+            - generic [ref=f4e241]:
+              - generic [ref=f4e242]:
+                - generic [ref=f4e243]: Today
+                - generic [ref=f4e244]: 3 of 5
+              - paragraph [ref=f4e245]:
+                - generic [ref=f4e249]: Breakfast
+                - generic [ref=f4e250]: 620 kcal
+              - paragraph [ref=f4e251]:
+                - generic [ref=f4e253]: Upper A
+                - generic [ref=f4e254]: 46 min
+              - paragraph [ref=f4e255]:
+                - generic [ref=f4e257]: Dinner
+                - generic [ref=f4e258]: 7:30 pm
+            - navigation [ref=f4e259]:
+              - generic [ref=f4e260]: Today
+              - generic [ref=f4e264]: Food
+              - generic [ref=f4e269]: Train
+              - generic [ref=f4e277]: Progress
+        - generic [ref=f4e281]: three apps became one
+        - generic [ref=f4e282]: today, sorted
+    - region "A day logged in OneRep" [ref=f4e283]:
+      - list [ref=f4e285]:
+        - listitem [ref=f4e286]:
+          - blockquote [ref=f4e287]:
+            - text: Bench press · 80 kg × 8
+            - generic [ref=f4e289]:
+              - generic [ref=f4e290]: 7:04 am
+              - generic [ref=f4e291]: one rep up from last week
+        - listitem [ref=f4e292]:
+          - blockquote [ref=f4e293]:
+            - text: Chicken rice bowl · 620 kcal
+            - generic [ref=f4e295]:
+              - generic [ref=f4e296]: 12:38 pm
+              - generic [ref=f4e297]: photo logged
+        - listitem [ref=f4e298]:
+          - blockquote [ref=f4e299]:
+            - text: Water · 1.5 L
+            - generic [ref=f4e301]:
+              - generic [ref=f4e302]: 3:16 pm
+              - generic [ref=f4e303]: two glasses to go
+        - listitem [ref=f4e304]:
+          - blockquote [ref=f4e305]:
+            - text: Upper A · 46 min
+            - generic [ref=f4e307]:
+              - generic [ref=f4e308]: 7:52 am
+              - generic [ref=f4e309]: workout done
+        - listitem [ref=f4e310]:
+          - blockquote [ref=f4e311]:
+            - text: 8,102 steps
+            - generic [ref=f4e313]:
+              - generic [ref=f4e314]: 9:17 pm
+              - generic [ref=f4e315]: the walk counted
+        - listitem [ref=f4e316]:
+          - blockquote [ref=f4e317]:
+            - text: Bench press · 80 kg × 8
+            - generic [ref=f4e319]:
+              - generic [ref=f4e320]: 7:04 am
+              - generic [ref=f4e321]: one rep up from last week
+        - listitem [ref=f4e322]:
+          - blockquote [ref=f4e323]:
+            - text: Chicken rice bowl · 620 kcal
+            - generic [ref=f4e325]:
+              - generic [ref=f4e326]: 12:38 pm
+              - generic [ref=f4e327]: photo logged
+        - listitem [ref=f4e328]:
+          - blockquote [ref=f4e329]:
+            - text: Water · 1.5 L
+            - generic [ref=f4e331]:
+              - generic [ref=f4e332]: 3:16 pm
+              - generic [ref=f4e333]: two glasses to go
+        - listitem [ref=f4e334]:
+          - blockquote [ref=f4e335]:
+            - text: Upper A · 46 min
+            - generic [ref=f4e337]:
+              - generic [ref=f4e338]: 7:52 am
+              - generic [ref=f4e339]: workout done
+        - listitem [ref=f4e340]:
+          - blockquote [ref=f4e341]:
+            - text: 8,102 steps
+            - generic [ref=f4e343]:
+              - generic [ref=f4e344]: 9:17 pm
+              - generic [ref=f4e345]: the walk counted
+        - listitem [ref=f4e346]:
+          - blockquote [ref=f4e347]:
+            - text: Bench press · 80 kg × 8
+            - generic [ref=f4e349]:
+              - generic [ref=f4e350]: 7:04 am
+              - generic [ref=f4e351]: one rep up from last week
+        - listitem [ref=f4e352]:
+          - blockquote [ref=f4e353]:
+            - text: Chicken rice bowl · 620 kcal
+            - generic [ref=f4e355]:
+              - generic [ref=f4e356]: 12:38 pm
+              - generic [ref=f4e357]: photo logged
+        - listitem [ref=f4e358]:
+          - blockquote [ref=f4e359]:
+            - text: Water · 1.5 L
+            - generic [ref=f4e361]:
+              - generic [ref=f4e362]: 3:16 pm
+              - generic [ref=f4e363]: two glasses to go
+        - listitem [ref=f4e364]:
+          - blockquote [ref=f4e365]:
+            - text: Upper A · 46 min
+            - generic [ref=f4e367]:
+              - generic [ref=f4e368]: 7:52 am
+              - generic [ref=f4e369]: workout done
+        - listitem [ref=f4e370]:
+          - blockquote [ref=f4e371]:
+            - text: 8,102 steps
+            - generic [ref=f4e373]:
+              - generic [ref=f4e374]: 9:17 pm
+              - generic [ref=f4e375]: the walk counted
+        - listitem [ref=f4e376]:
+          - blockquote [ref=f4e377]:
+            - text: Bench press · 80 kg × 8
+            - generic [ref=f4e379]:
+              - generic [ref=f4e380]: 7:04 am
+              - generic [ref=f4e381]: one rep up from last week
+        - listitem [ref=f4e382]:
+          - blockquote [ref=f4e383]:
+            - text: Chicken rice bowl · 620 kcal
+            - generic [ref=f4e385]:
+              - generic [ref=f4e386]: 12:38 pm
+              - generic [ref=f4e387]: photo logged
+        - listitem [ref=f4e388]:
+          - blockquote [ref=f4e389]:
+            - text: Water · 1.5 L
+            - generic [ref=f4e391]:
+              - generic [ref=f4e392]: 3:16 pm
+              - generic [ref=f4e393]: two glasses to go
+        - listitem [ref=f4e394]:
+          - blockquote [ref=f4e395]:
+            - text: Upper A · 46 min
+            - generic [ref=f4e397]:
+              - generic [ref=f4e398]: 7:52 am
+              - generic [ref=f4e399]: workout done
+        - listitem [ref=f4e400]:
+          - blockquote [ref=f4e401]:
+            - text: 8,102 steps
+            - generic [ref=f4e403]:
+              - generic [ref=f4e404]: 9:17 pm
+              - generic [ref=f4e405]: the walk counted
+    - generic [ref=f4e406]:
+      - generic [ref=f4e407]:
+        - paragraph [ref=f4e408]:
+          - generic [ref=f4e409]: "01"
+          - text: Inside OneRep
+        - heading "Open it. The answer is probably right there." [level=2] [ref=f4e410]
+      - generic [ref=f4e411]:
+        - generic [ref=f4e412]:
+          - generic [ref=f4e413]:
+            - generic [ref=f4e414]: Energy remaining
+            - strong [ref=f4e415]: 2,140 kcal
+            - emphasis [ref=f4e417]
+            - generic [ref=f4e418]:
+              - generic [ref=f4e419]: Protein92g left
+              - generic [ref=f4e420]: Water1.5 L
+          - generic [ref=f4e421]:
+            - generic [ref=f4e424]: What’s left today?
+            - generic [ref=f4e425]: Calories, protein, water and the next workout. That’s the home screen.
+        - generic [ref=f4e426]:
+          - generic [ref=f4e427]:
+            - generic [ref=f4e428]: Last time
+            - strong [ref=f4e429]: 80 kg × 8
+            - generic [ref=f4e435]: Bench press · set 1
+          - generic [ref=f4e436]:
+            - generic [ref=f4e443]: Where was I?
+            - generic [ref=f4e444]: Your old sets sit beside the new ones. No guessing the weight.
+        - generic [ref=f4e445]:
+          - generic [ref=f4e446]:
+            - generic [ref=f4e452]: Point. Shoot. Lunch.
+            - generic [ref=f4e453]: You can fix the portion later.
+          - generic [ref=f4e454]:
+            - generic [ref=f4e458]: Lunch took twelve minutes.
+            - generic [ref=f4e459]: Logging it takes less. Search, scan or take a photo.
+        - generic [ref=f4e460]:
+          - generic [ref=f4e461]:
+            - strong [ref=f4e462]: 86%
+            - generic [ref=f4e463]: 12 week consistency
+          - generic [ref=f4e466]:
+            - generic [ref=f4e469]: So, is it working?
+            - generic [ref=f4e470]: Look at the last twelve weeks instead of letting one bad Monday ruin your mood.
+    - generic [ref=f4e471]:
+      - generic [ref=f4e472]:
+        - paragraph [ref=f4e473]:
+          - generic [ref=f4e474]: "02"
+          - text: One fairly normal Tuesday
+        - heading "Fitness happens between everything else." [level=2] [ref=f4e475]
+      - generic [ref=f4e478]:
+        - generic [ref=f4e479]:
+          - heading "7:04 am. Upper A." [level=2] [ref=f4e480]
+          - paragraph [ref=f4e481]: Last week’s numbers are beside today’s sets. Add a rep, tap done, get to work.
+        - generic [ref=f4e482]:
+          - heading "12:38 pm. Lunch." [level=2] [ref=f4e483]
+          - paragraph [ref=f4e484]: Take a photo. OneRep gets you close. Change the portion if it guessed wrong.
+        - generic [ref=f4e485]:
+          - heading "9:17 pm. Quick check." [level=2] [ref=f4e486]
+          - paragraph [ref=f4e487]: The walk counted. Protein was close. Tomorrow’s workout is ready.
+    - generic [ref=f4e489]:
+      - generic [ref=f4e491]:
+        - paragraph [ref=f4e492]:
+          - generic [ref=f4e493]: "03"
+          - text: Coach, if you want it
+        - heading "The gym is packed. You have 35 minutes." [level=2] [ref=f4e494]
+        - generic [ref=f4e495]:
+          - paragraph [ref=f4e496]: Tell Coach what changed. It knows today’s workout and what you’ve done lately, so the answer starts in the right place.
+          - paragraph [ref=f4e497]: It shows you the edit before touching your plan.
+      - generic [ref=f4e498]:
+        - generic "OneRep coach screen" [ref=f4e499]:
+          - generic [ref=f4e506]:
+            - generic [ref=f4e507]:
+              - generic [ref=f4e508]: 9:41
+              - generic [ref=f4e510]: ● ◒
+            - generic [ref=f4e517]:
+              - generic [ref=f4e518]: Coach
+              - generic [ref=f4e519]: Personal trainer
+            - paragraph [ref=f4e520]: I’ve got 35 minutes. Can we shorten Upper A?
+            - generic [ref=f4e528]:
+              - paragraph [ref=f4e529]: Yep. Keep the bench. Pair the accessories. Skip the last isolation movement.
+              - article [ref=f4e530]:
+                - generic [ref=f4e531]: UPDATED · 34 MIN
+                - generic [ref=f4e532]: Upper A, shortened
+                - emphasis [ref=f4e533]: Bench press · 3 sets
+                - emphasis [ref=f4e534]: Row + press · 3 rounds
+                - button "Review changes" [ref=f4e535]
+            - generic [ref=f4e539]: Ask Coach
+        - generic [ref=f4e544]:
+          - generic [ref=f4e548]: THE SHORT VERSION
+          - strong [ref=f4e549]: Keep the bench.Pair the accessories.Home by six.
+          - generic [ref=f4e550]: 34 min total
+    - generic [ref=f4e551]:
+      - generic [ref=f4e552]:
+        - paragraph [ref=f4e553]:
+          - generic [ref=f4e554]: "04"
+          - text: Pricing
+        - heading "The useful stuff is free." [level=2] [ref=f4e555]
+        - paragraph [ref=f4e556]: Workout logging, food, water, progress and sync cost nothing. Coach is optional and paid separately.
+      - generic [ref=f4e557]:
+        - generic [ref=f4e558]:
+          - generic [ref=f4e559]:
+            - generic [ref=f4e560]: OneRep core
+            - generic [ref=f4e561]: $0
+            - generic [ref=f4e562]: forever
+          - list [ref=f4e563]:
+            - listitem [ref=f4e564]: Unlimited workouts
+            - listitem [ref=f4e567]: Food and hydration
+            - listitem [ref=f4e570]: Progress tracking
+            - listitem [ref=f4e573]: Device sync
+          - link "Create an account" [ref=f4e576] [cursor=pointer]:
+            - /url: /app?mode=signup
+        - generic [ref=f4e579]:
+          - generic [ref=f4e583]: Coach
+          - heading "There when you need a second opinion." [level=3] [ref=f4e584]
+          - paragraph [ref=f4e585]: Buy it separately. Cancel whenever.
+          - generic [ref=f4e586]: Optional add-on
+    - generic [ref=f4e595]:
+      - generic [ref=f4e596]: OneRep
+      - paragraph [ref=f4e598]: Start with the next thing.
+      - heading [level=2] [ref=f4e599]:
+        - text: One workout.One meal.
+        - emphasis [ref=f4e600]: See where it goes.
+      - link "Get OneRep free" [ref=f4e601] [cursor=pointer]:
+        - /url: /app?mode=signup
+      - generic [ref=f4e604]: iPhone · Android · Web
+  - contentinfo [ref=f4e605]:
+    - generic [ref=f4e606]: OneRep
+    - generic [ref=f4e608]: © 2026 OneRep
+  - button [ref=f4e611]

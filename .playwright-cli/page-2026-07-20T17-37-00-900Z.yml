@@ -1,0 +1,8 @@
+- generic [ref=f6e2]:
+  - navigation "Primary" [ref=f6e7]:
+    - button "Today" [ref=f6e8]
+    - button "Nutrition" [ref=f6e12]
+    - button "Training" [ref=f6e16]
+    - button "Progress" [ref=f6e20]
+    - button "Coach" [ref=f6e24]
+  - region "Notifications alt+T"

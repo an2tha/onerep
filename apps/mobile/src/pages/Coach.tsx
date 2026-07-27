@@ -20,6 +20,7 @@ import {
   ForkKnife,
   LightbulbFilament,
   Microphone,
+  Minus,
   PaperPlaneTilt,
   Plus,
   PushPin,
@@ -237,6 +238,33 @@ type CoachOperation = CoachOperationMeta &
         tasks: CoachGoalTaskDraft[]
       }
     | {
+        type: "save_progress_metric"
+        title: string
+        description: string
+        tab: "body" | "nutrition" | "training"
+        kind: "counter" | "number" | "toggle"
+        unit: string
+        step: number
+        target?: number
+        accent: "food" | "water" | "workout" | "progress"
+      }
+    | {
+        type: "save_dashboard_widget"
+        title: string
+        description: string
+        kind: "stat" | "counter" | "progress" | "sparkline" | "decay"
+        sourceMetricId?: string
+        sourceMetricTitle: string
+        unit: string
+        accent: "food" | "water" | "workout" | "progress"
+        target?: number
+        windowDays?: number
+        halfLifeHours?: number
+        parentWidgetId?: string
+        followUpTitle?: string
+        followUpKind?: "stat" | "counter" | "progress" | "sparkline" | "decay"
+      }
+    | {
         type: "undo_action"
         actionId: string
         actionSummary: string
@@ -295,6 +323,17 @@ type CoachOperationResult =
       CoachOperation,
       { type: "save_goal" }
     >)
+  | ({
+      type: "save_progress_metric"
+      metricId: string
+      actionId?: string
+    } & Extract<CoachOperation, { type: "save_progress_metric" }>)
+  | ({
+      type: "save_dashboard_widget"
+      widgetId: string
+      pinned: boolean
+      actionId?: string
+    } & Extract<CoachOperation, { type: "save_dashboard_widget" }>)
   | {
       type:
         | "remember"
@@ -314,6 +353,83 @@ type CoachUiAction =
   | "open_workout_builder"
   | "open_recipe_builder"
   | "log_food"
+
+type CoachInteractiveElement =
+  | { type: "text"; text: string; emphasis?: "quiet" | "strong" }
+  | { type: "section"; title: string; detail?: string }
+  | { type: "divider"; label?: string }
+  | {
+      type: "key_value"
+      items: Array<{ label: string; value: string; detail?: string }>
+    }
+  | {
+      type: "progress"
+      label: string
+      value: number
+      max: number
+      unit?: string
+      detail?: string
+    }
+  | {
+      type: "list"
+      style: "bullet" | "number" | "timeline"
+      items: Array<{ title: string; detail?: string }>
+    }
+  | {
+      type: "metric_group"
+      metrics: Array<{
+        label: string
+        value: number
+        unit?: string
+        detail?: string
+        scaleWith?: string
+      }>
+    }
+  | {
+      type: "stepper"
+      id: string
+      label: string
+      value: number
+      min: number
+      max: number
+      step: number
+      unit?: string
+    }
+  | {
+      type: "range"
+      id: string
+      label: string
+      value: number
+      min: number
+      max: number
+      step: number
+      unit?: string
+      lowLabel?: string
+      highLabel?: string
+    }
+  | {
+      type: "choice"
+      id: string
+      label: string
+      value: string
+      options: string[]
+    }
+  | {
+      type: "rating"
+      id: string
+      label: string
+      value: number
+      max: number
+      lowLabel?: string
+      highLabel?: string
+    }
+  | {
+      type: "toggle"
+      id: string
+      label: string
+      detail?: string
+      value: boolean
+    }
 
 type CoachUiBlock =
   | {
@@ -348,6 +464,30 @@ type CoachUiBlock =
       type: "action_row"
       title: string
       actions: Array<{ label: string; action: CoachUiAction }>
+    }
+  | {
+      type: "interactive_card"
+      label: string
+      title: string
+      detail?: string
+      accent: "nutrition" | "training" | "progress" | "neutral"
+      elements: CoachInteractiveElement[]
+      submit?: {
+        type: "log_nutrition"
+        label: string
+        name: string
+        meal: string
+        date?: string
+        calories: number
+        protein: number
+        carbs: number
+        fat: number
+        quantityControlId?: string
+        baseQuantity?: number
+        mealControlId?: string
+        assumptions: string[]
+      }
+      actions?: Array<{ label: string; action: CoachUiAction }>
     }
 
 const COACH_CONVERSATION_KEY = "onerep:coach-conversation:v1"
@@ -525,6 +665,14 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
         row.detail &&
         Array.isArray(row.tasks) &&
         row.tasks.length > 0
+      )
+    }
+    if (row.type === "interactive_card") {
+      return Boolean(
+        row.label &&
+        row.title &&
+        Array.isArray(row.elements) &&
+        row.elements.length > 0
       )
     }
     if (row.type === "action_row") {
@@ -851,21 +999,31 @@ function CoachOperationResults({
   onOpenRecipe,
   onOpenWorkouts,
   onOpenNutrition,
+  onOpenProgress,
   onUndo,
   onLogRecipe,
   onPinGoal,
+  onPinWidget,
+  onCreateWidgetFollowUp,
 }: {
   results?: CoachOperationResult[]
   onOpenRecipe: (id: string) => void
   onOpenWorkouts: () => void
   onOpenNutrition: () => void
+  onOpenProgress: () => void
   onUndo: (id: string) => void
   onLogRecipe: (
     result: Extract<CoachOperationResult, { type: "save_recipe" }>
   ) => void
   onPinGoal: (goalId: string) => Promise<void>
+  onPinWidget: (widgetId: string) => Promise<void>
+  onCreateWidgetFollowUp: (
+    widget: Extract<CoachOperationResult, { type: "save_dashboard_widget" }>
+  ) => void
 }) {
   const [pinnedGoalIds, setPinnedGoalIds] = useState<Set<string>>(new Set())
+  const [pinningWidgetId, setPinningWidgetId] = useState<string | null>(null)
+  const [pinnedWidgetIds, setPinnedWidgetIds] = useState<Set<string>>(new Set())
   if (!results?.length) return null
 
   return (
@@ -988,6 +1146,131 @@ function CoachOperationResults({
                 ) : null}
               </div>
             </article>
+          )
+        }
+
+        if (result.type === "save_dashboard_widget") {
+          const pinned = result.pinned || pinnedWidgetIds.has(result.widgetId)
+          const pinning = pinningWidgetId === result.widgetId
+          return (
+            <article
+              key={`${result.type}-${result.widgetId}`}
+              className="border-l-2 border-l-[var(--accent-progress)] bg-foreground/[0.025] px-4 py-4"
+            >
+              <p className="text-[9px] font-bold tracking-[0.14em] text-muted-foreground/55 uppercase">
+                Widget ready · {result.kind}
+              </p>
+              <div className="mt-1 flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-[14px] font-bold">{result.title}</h3>
+                  <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/65">
+                    {result.description}
+                  </p>
+                </div>
+                <ChartLineUp
+                  size={18}
+                  weight="bold"
+                  className="shrink-0 text-muted-foreground/45"
+                />
+              </div>
+              <div className="mt-3 border-y border-border/40 py-2.5">
+                <p className="text-[11px] font-semibold">
+                  Include this compact widget in your dashboard?
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={pinned || pinning}
+                    onClick={async () => {
+                      setPinningWidgetId(result.widgetId)
+                      try {
+                        await onPinWidget(result.widgetId)
+                        setPinnedWidgetIds((current) =>
+                          new Set(current).add(result.widgetId)
+                        )
+                      } finally {
+                        setPinningWidgetId(null)
+                      }
+                    }}
+                    className="motion-tactile min-h-10 bg-foreground px-3 text-[10px] font-bold text-background disabled:opacity-50"
+                  >
+                    {pinned
+                      ? "Added to dashboard"
+                      : pinning
+                        ? "Adding…"
+                        : "Add to dashboard"}
+                  </button>
+                  <span className="text-[9px] text-muted-foreground">
+                    You can remove it from the dashboard anytime.
+                  </span>
+                </div>
+              </div>
+              {result.followUpTitle && result.followUpKind ? (
+                <button
+                  type="button"
+                  onClick={() => onCreateWidgetFollowUp(result)}
+                  className="motion-tactile mt-3 flex min-h-10 w-full items-center justify-between gap-3 text-left"
+                >
+                  <span>
+                    <span className="block text-[9px] font-bold tracking-wide text-muted-foreground/55 uppercase">
+                      Suggested follow-up
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-semibold">
+                      {result.followUpTitle}
+                    </span>
+                  </span>
+                  <ArrowRight size={14} weight="bold" />
+                </button>
+              ) : null}
+              {result.actionId ? (
+                <button
+                  type="button"
+                  onClick={() => onUndo(result.actionId!)}
+                  className="mt-2 inline-flex min-h-9 items-center gap-1 text-[9px] text-muted-foreground"
+                >
+                  <ClockCounterClockwise size={12} /> Remove widget
+                </button>
+              ) : null}
+            </article>
+          )
+        }
+
+        if (result.type === "save_progress_metric") {
+          return (
+            <div
+              key={`${result.type}-${result.metricId}`}
+              className="coach-generated-content flex items-center gap-3 border-y border-border/50 py-3.5"
+            >
+              <CheckCircle
+                size={18}
+                weight="fill"
+                className="shrink-0 text-[var(--status-success)]"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13px] font-bold">
+                  {result.title} added
+                </span>
+                <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                  {result.tab} · {result.step} {result.unit} controls
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={onOpenProgress}
+                className="min-h-9 px-2 text-[10px] font-bold"
+              >
+                Open Progress
+              </button>
+              {result.actionId && (
+                <button
+                  type="button"
+                  onClick={() => onUndo(result.actionId!)}
+                  aria-label={`Undo ${result.title}`}
+                >
+                  <ClockCounterClockwise size={17} />
+                </button>
+              )}
+            </div>
           )
         }
 
@@ -1292,13 +1575,600 @@ function CoachProposal({
   )
 }
 
+function CoachInteractiveCard({
+  block,
+  onAction,
+  onSubmit,
+}: {
+  block: Extract<CoachUiBlock, { type: "interactive_card" }>
+  onAction: (action: CoachUiAction) => void
+  onSubmit: (
+    operation: Extract<CoachOperation, { type: "log_nutrition" }>
+  ) => Promise<void>
+}) {
+  const initialValues = useMemo(
+    () =>
+      Object.fromEntries(
+        block.elements.flatMap((element) =>
+          element.type === "stepper" ||
+          element.type === "range" ||
+          element.type === "choice" ||
+          element.type === "rating" ||
+          element.type === "toggle"
+            ? [[element.id, element.value]]
+            : []
+        )
+      ) as Record<string, number | string | boolean>,
+    [block.elements]
+  )
+  const [values, setValues] = useState(initialValues)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const accentClass = {
+    nutrition: "border-l-amber-500/70",
+    training: "border-l-sky-500/70",
+    progress: "border-l-emerald-500/70",
+    neutral: "border-l-foreground/35",
+  }[block.accent]
+
+  function scaleFor(controlId?: string, baseQuantity?: number) {
+    if (!controlId) return 1
+    const current = values[controlId]
+    const initial = initialValues[controlId]
+    if (typeof current !== "number") return 1
+    const base =
+      typeof baseQuantity === "number"
+        ? baseQuantity
+        : typeof initial === "number" && initial > 0
+          ? initial
+          : 1
+    return Math.max(0, current / base)
+  }
+
+  function displayNumber(value: number) {
+    return new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: value < 10 ? 1 : 0,
+    }).format(value)
+  }
+
+  async function submit() {
+    if (!block.submit || submitting || submitted) return
+    setSubmitting(true)
+    const factor = scaleFor(
+      block.submit.quantityControlId,
+      block.submit.baseQuantity
+    )
+    const selectedMeal = block.submit.mealControlId
+      ? values[block.submit.mealControlId]
+      : undefined
+    try {
+      await onSubmit({
+        type: "log_nutrition",
+        confirmation: "auto",
+        summary: `Log ${block.submit.name}`,
+        assumptions: block.submit.assumptions,
+        warnings: [],
+        name: block.submit.name,
+        meal:
+          typeof selectedMeal === "string" ? selectedMeal : block.submit.meal,
+        ...(block.submit.date ? { date: block.submit.date } : {}),
+        calories: Math.round(block.submit.calories * factor),
+        protein: Math.round(block.submit.protein * factor * 10) / 10,
+        carbs: Math.round(block.submit.carbs * factor * 10) / 10,
+        fat: Math.round(block.submit.fat * factor * 10) / 10,
+      })
+      setSubmitted(true)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section
+      className={cn(
+        "my-4 border-l-2 bg-foreground/[0.025] px-4 py-4",
+        accentClass
+      )}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[9px] font-bold tracking-[0.16em] text-muted-foreground/60 uppercase">
+            {block.label}
+          </p>
+          <h3 className="mt-1 text-[15px] leading-tight font-bold">
+            {block.title}
+          </h3>
+          {block.detail ? (
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground/70">
+              {block.detail}
+            </p>
+          ) : null}
+        </div>
+        <Sparkle
+          size={17}
+          weight="fill"
+          className="mt-0.5 shrink-0 text-muted-foreground/35"
+          aria-hidden="true"
+        />
+      </div>
+
+      <div className="mt-4 divide-y divide-border/35 border-y border-border/35">
+        {block.elements.map((element, elementIndex) => {
+          if (element.type === "text") {
+            return (
+              <p
+                key={`${element.type}-${elementIndex}`}
+                className={cn(
+                  "py-3 text-[11px] leading-relaxed",
+                  element.emphasis === "strong"
+                    ? "font-semibold text-foreground"
+                    : "text-muted-foreground/70"
+                )}
+              >
+                {element.text}
+              </p>
+            )
+          }
+
+          if (element.type === "section") {
+            return (
+              <header
+                key={`${element.type}-${elementIndex}`}
+                className="py-3.5"
+              >
+                <h4 className="text-[12px] font-bold">{element.title}</h4>
+                {element.detail ? (
+                  <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground/65">
+                    {element.detail}
+                  </p>
+                ) : null}
+              </header>
+            )
+          }
+
+          if (element.type === "divider") {
+            return (
+              <div
+                key={`${element.type}-${elementIndex}`}
+                className="flex items-center gap-2 py-2"
+                aria-hidden={!element.label}
+              >
+                <span className="h-px flex-1 bg-border/55" />
+                {element.label ? (
+                  <span className="text-[8px] font-bold tracking-[0.14em] text-muted-foreground/50 uppercase">
+                    {element.label}
+                  </span>
+                ) : null}
+                <span className="h-px flex-1 bg-border/55" />
+              </div>
+            )
+          }
+
+          if (element.type === "key_value") {
+            return (
+              <dl
+                key={`${element.type}-${elementIndex}`}
+                className="divide-y divide-border/30 py-1"
+              >
+                {element.items.map((item) => (
+                  <div
+                    key={`${item.label}-${item.value}`}
+                    className="flex items-start justify-between gap-5 py-2.5"
+                  >
+                    <dt>
+                      <span className="block text-[10px] font-semibold text-muted-foreground">
+                        {item.label}
+                      </span>
+                      {item.detail ? (
+                        <span className="mt-0.5 block text-[9px] text-muted-foreground/50">
+                          {item.detail}
+                        </span>
+                      ) : null}
+                    </dt>
+                    <dd className="text-right text-[11px] font-bold tabular-nums">
+                      {item.value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )
+          }
+
+          if (element.type === "progress") {
+            const percentage = Math.min(
+              100,
+              Math.max(0, (element.value / element.max) * 100)
+            )
+            return (
+              <div key={`${element.type}-${elementIndex}`} className="py-3.5">
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold">{element.label}</p>
+                    {element.detail ? (
+                      <p className="mt-0.5 text-[9px] text-muted-foreground/55">
+                        {element.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                  <output className="text-[11px] font-bold tabular-nums">
+                    {displayNumber(element.value)} /{" "}
+                    {displayNumber(element.max)} {element.unit ?? ""}
+                  </output>
+                </div>
+                <div
+                  className="mt-2 h-1.5 overflow-hidden bg-foreground/10"
+                  role="progressbar"
+                  aria-label={element.label}
+                  aria-valuenow={element.value}
+                  aria-valuemin={0}
+                  aria-valuemax={element.max}
+                >
+                  <span
+                    className="block h-full bg-foreground transition-[width] duration-300 motion-reduce:transition-none"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </div>
+            )
+          }
+
+          if (element.type === "list") {
+            return (
+              <ol
+                key={`${element.type}-${elementIndex}`}
+                className="divide-y divide-border/30 py-1"
+              >
+                {element.items.map((item, itemIndex) => (
+                  <li
+                    key={`${item.title}-${itemIndex}`}
+                    className="relative flex gap-3 py-2.5"
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 grid size-4 shrink-0 place-items-center text-[8px] font-bold",
+                        element.style === "timeline"
+                          ? "rounded-full border border-foreground/35"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {element.style === "number"
+                        ? itemIndex + 1
+                        : element.style === "timeline"
+                          ? ""
+                          : "•"}
+                    </span>
+                    <span>
+                      <span className="block text-[11px] font-semibold">
+                        {item.title}
+                      </span>
+                      {item.detail ? (
+                        <span className="mt-0.5 block text-[9px] leading-relaxed text-muted-foreground/60">
+                          {item.detail}
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )
+          }
+
+          if (element.type === "metric_group") {
+            return (
+              <div
+                key={`${element.type}-${elementIndex}`}
+                className="grid grid-cols-2 gap-x-5 gap-y-3 py-3.5 sm:grid-cols-4"
+              >
+                {element.metrics.map((metric) => {
+                  const value =
+                    metric.value * scaleFor(metric.scaleWith, undefined)
+                  return (
+                    <div key={`${metric.label}-${metric.unit ?? ""}`}>
+                      <p className="text-[9px] font-semibold tracking-wide text-muted-foreground/60 uppercase">
+                        {metric.label}
+                      </p>
+                      <p className="mt-1 text-[17px] leading-none font-bold tabular-nums">
+                        {displayNumber(value)}
+                        {metric.unit ? (
+                          <span className="ml-0.5 text-[9px] font-semibold text-muted-foreground">
+                            {metric.unit}
+                          </span>
+                        ) : null}
+                      </p>
+                      {metric.detail ? (
+                        <p className="mt-1 text-[9px] text-muted-foreground/55">
+                          {metric.detail}
+                        </p>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          }
+
+          if (element.type === "stepper") {
+            const current =
+              typeof values[element.id] === "number"
+                ? (values[element.id] as number)
+                : element.value
+            const update = (direction: -1 | 1) => {
+              hapticSelection()
+              setValues((existing) => ({
+                ...existing,
+                [element.id]: Math.max(
+                  element.min,
+                  Math.min(
+                    element.max,
+                    Math.round((current + direction * element.step) * 1000) /
+                      1000
+                  )
+                ),
+              }))
+            }
+            return (
+              <div
+                key={element.id}
+                className="flex min-h-14 items-center justify-between gap-4 py-2.5"
+              >
+                <p className="text-[11px] font-semibold">{element.label}</p>
+                <div className="flex items-center border border-border/60 bg-background/55">
+                  <button
+                    type="button"
+                    onClick={() => update(-1)}
+                    disabled={current <= element.min || submitted}
+                    className="motion-tactile grid size-9 place-items-center disabled:opacity-25"
+                    aria-label={`Decrease ${element.label}`}
+                  >
+                    <Minus size={13} weight="bold" />
+                  </button>
+                  <output
+                    aria-live="polite"
+                    className="min-w-16 border-x border-border/45 px-2 text-center text-[12px] font-bold tabular-nums"
+                  >
+                    {displayNumber(current)} {element.unit ?? ""}
+                  </output>
+                  <button
+                    type="button"
+                    onClick={() => update(1)}
+                    disabled={current >= element.max || submitted}
+                    className="motion-tactile grid size-9 place-items-center disabled:opacity-25"
+                    aria-label={`Increase ${element.label}`}
+                  >
+                    <Plus size={13} weight="bold" />
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          if (element.type === "range") {
+            const current =
+              typeof values[element.id] === "number"
+                ? (values[element.id] as number)
+                : element.value
+            return (
+              <div key={element.id} className="py-3.5">
+                <div className="flex items-center justify-between gap-4">
+                  <label
+                    htmlFor={`coach-range-${element.id}`}
+                    className="text-[10px] font-semibold"
+                  >
+                    {element.label}
+                  </label>
+                  <output className="text-[12px] font-bold tabular-nums">
+                    {displayNumber(current)} {element.unit ?? ""}
+                  </output>
+                </div>
+                <input
+                  id={`coach-range-${element.id}`}
+                  type="range"
+                  min={element.min}
+                  max={element.max}
+                  step={element.step}
+                  value={current}
+                  disabled={submitted}
+                  onChange={(event) => {
+                    hapticSelection()
+                    setValues((existing) => ({
+                      ...existing,
+                      [element.id]: Number(event.target.value),
+                    }))
+                  }}
+                  className="mt-3 h-8 w-full cursor-pointer accent-foreground disabled:opacity-40"
+                />
+                {(element.lowLabel || element.highLabel) && (
+                  <div className="-mt-1 flex justify-between text-[8px] font-medium text-muted-foreground/55">
+                    <span>{element.lowLabel}</span>
+                    <span>{element.highLabel}</span>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          if (element.type === "choice") {
+            return (
+              <fieldset key={element.id} className="py-3">
+                <legend className="text-[10px] font-semibold text-muted-foreground">
+                  {element.label}
+                </legend>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {element.options.map((option) => {
+                    const selected = values[element.id] === option
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        disabled={submitted}
+                        aria-pressed={selected}
+                        onClick={() => {
+                          hapticSelection()
+                          setValues((existing) => ({
+                            ...existing,
+                            [element.id]: option,
+                          }))
+                        }}
+                        className={cn(
+                          "motion-tactile min-h-9 border px-3 text-[10px] font-bold transition-colors",
+                          selected
+                            ? "border-foreground bg-foreground text-background"
+                            : "border-border/60 text-muted-foreground"
+                        )}
+                      >
+                        {option}
+                      </button>
+                    )
+                  })}
+                </div>
+              </fieldset>
+            )
+          }
+
+          if (element.type === "rating") {
+            const current =
+              typeof values[element.id] === "number"
+                ? (values[element.id] as number)
+                : element.value
+            return (
+              <fieldset key={element.id} className="py-3.5">
+                <legend className="text-[10px] font-semibold">
+                  {element.label}
+                </legend>
+                <div className="mt-2 flex items-center justify-between gap-1.5">
+                  {Array.from(
+                    { length: element.max },
+                    (_, index) => index + 1
+                  ).map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      disabled={submitted}
+                      aria-label={`${element.label}: ${rating} of ${element.max}`}
+                      aria-pressed={current === rating}
+                      onClick={() => {
+                        hapticSelection()
+                        setValues((existing) => ({
+                          ...existing,
+                          [element.id]: rating,
+                        }))
+                      }}
+                      className={cn(
+                        "motion-tactile grid min-h-9 flex-1 place-items-center border text-[10px] font-bold",
+                        rating <= current
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border/60 text-muted-foreground"
+                      )}
+                    >
+                      {rating}
+                    </button>
+                  ))}
+                </div>
+                {(element.lowLabel || element.highLabel) && (
+                  <div className="mt-1.5 flex justify-between text-[8px] text-muted-foreground/55">
+                    <span>{element.lowLabel}</span>
+                    <span>{element.highLabel}</span>
+                  </div>
+                )}
+              </fieldset>
+            )
+          }
+
+          const enabled = Boolean(values[element.id])
+          return (
+            <button
+              key={element.id}
+              type="button"
+              disabled={submitted}
+              aria-pressed={enabled}
+              onClick={() => {
+                hapticSelection()
+                setValues((existing) => ({
+                  ...existing,
+                  [element.id]: !enabled,
+                }))
+              }}
+              className="flex min-h-14 w-full items-center justify-between gap-4 py-2.5 text-left"
+            >
+              <span>
+                <span className="block text-[11px] font-semibold">
+                  {element.label}
+                </span>
+                {element.detail ? (
+                  <span className="mt-0.5 block text-[9px] text-muted-foreground">
+                    {element.detail}
+                  </span>
+                ) : null}
+              </span>
+              <span
+                className={cn(
+                  "relative h-5 w-9 shrink-0 border transition-colors",
+                  enabled
+                    ? "border-foreground bg-foreground"
+                    : "border-border bg-background"
+                )}
+                aria-hidden="true"
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 size-3.5 bg-background transition-transform",
+                    enabled ? "translate-x-[17px]" : "translate-x-0.5"
+                  )}
+                />
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {(block.submit || block.actions?.length) && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {block.submit ? (
+            <button
+              type="button"
+              disabled={submitting || submitted}
+              onClick={() => void submit()}
+              className="motion-tactile min-h-11 bg-foreground px-4 text-[11px] font-bold text-background disabled:opacity-55"
+            >
+              {submitted
+                ? "Logged"
+                : submitting
+                  ? "Logging…"
+                  : block.submit.label}
+            </button>
+          ) : null}
+          {block.actions?.map((action) => (
+            <button
+              key={`${action.action}-${action.label}`}
+              type="button"
+              onClick={() => onAction(action.action)}
+              className="motion-tactile min-h-10 border-b border-foreground/30 text-[10px] font-bold"
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {block.submit?.assumptions.length ? (
+        <p className="mt-3 text-[9px] leading-relaxed text-muted-foreground/55">
+          Estimate: {block.submit.assumptions.join(" · ")}
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
 function CoachUiBlocks({
   blocks,
   onAction,
   onPinGoal,
+  onSubmitInteractive,
 }: {
   blocks?: CoachUiBlock[]
   onAction: (action: CoachUiAction) => void
+  onSubmitInteractive: (
+    operation: Extract<CoachOperation, { type: "log_nutrition" }>
+  ) => Promise<void>
   onPinGoal: (goal: {
     title: string
     detail: string
@@ -1479,6 +2349,17 @@ function CoachUiBlocks({
                     : "Pin as a 7-day goal"}
               </button>
             </div>
+          )
+        }
+
+        if (block.type === "interactive_card") {
+          return (
+            <CoachInteractiveCard
+              key={`${block.type}-${index}-${block.title}`}
+              block={block}
+              onAction={onAction}
+              onSubmit={onSubmitInteractive}
+            />
           )
         }
 
@@ -1789,6 +2670,7 @@ export default function Coach() {
   const saveWeeklyPlan = useMutation(api.ai.coachState.saveWeeklyPlan)
   const saveCoachGoal = useMutation(api.ai.coachGoals.save)
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
+  const setDashboardWidgetPinned = useMutation(api.dashboardWidgets.setPinned)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   const dictation = useCoachDictation({
     value: input,
@@ -2546,6 +3428,40 @@ export default function Coach() {
       hapticHeavy()
       toast.error(
         error instanceof Error ? error.message : "Could not pin this goal"
+      )
+      throw error
+    }
+  }
+
+  async function submitInteractiveCard(
+    messageIndex: number,
+    operation: Extract<CoachOperation, { type: "log_nutrition" }>
+  ) {
+    try {
+      const datedOperation = {
+        ...operation,
+        date: operation.date ?? todayKey,
+      }
+      const operationResults = await executeOperations([datedOperation])
+      setMessages((current) =>
+        current.map((message, index) =>
+          index === messageIndex
+            ? {
+                ...message,
+                operationResults: [
+                  ...(message.operationResults ?? []),
+                  ...operationResults,
+                ],
+              }
+            : message
+        )
+      )
+      hapticTap()
+      toast.success(`${operation.name} logged`)
+    } catch (error) {
+      hapticHeavy()
+      toast.error(
+        error instanceof Error ? error.message : "Could not log this meal"
       )
       throw error
     }
@@ -3421,6 +4337,9 @@ export default function Coach() {
                                 <CoachUiBlocks
                                   blocks={message.uiBlocks}
                                   onAction={handleUiAction}
+                                  onSubmitInteractive={(operation) =>
+                                    submitInteractiveCard(index, operation)
+                                  }
                                   onPinGoal={pinGoalFromCoachBlock}
                                 />
                                 <CoachArtifacts artifacts={message.artifacts} />
@@ -3447,11 +4366,32 @@ export default function Coach() {
                                   onOpenNutrition={() =>
                                     navigate("/nutrition", { motion: "switch" })
                                   }
+                                  onOpenProgress={() =>
+                                    navigate("/progress", { motion: "switch" })
+                                  }
                                   onUndo={(id) => void undoAction(id)}
                                   onLogRecipe={(result) =>
                                     void logRecipeResult(result)
                                   }
                                   onPinGoal={pinSavedGoal}
+                                  onPinWidget={async (widgetId) => {
+                                    await setDashboardWidgetPinned({
+                                      widgetId:
+                                        widgetId as Id<"dashboardWidgets">,
+                                      pinned: true,
+                                    })
+                                    hapticTap()
+                                    toast.success("Widget added to dashboard")
+                                  }}
+                                  onCreateWidgetFollowUp={(widget) => {
+                                    const title =
+                                      widget.followUpTitle ?? "Follow-up widget"
+                                    const kind =
+                                      widget.followUpKind ?? "sparkline"
+                                    void submit(
+                                      `Create the suggested compact ${kind} widget “${title}” as a follow-up to dashboard widget ${widget.widgetId}. Use ${widget.sourceMetricTitle} as its source and do not add it to my dashboard yet.`
+                                    )
+                                  }}
                                 />
                               </>
                             )}

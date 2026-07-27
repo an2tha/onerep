@@ -1,0 +1,240 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f1e5]:
+    - link "OneRep home" [ref=f1e6] [cursor=pointer]:
+      - /url: "#top"
+      - generic [ref=f1e7]: OneRep
+    - button "Open navigation" [ref=f1e9] [cursor=pointer]
+  - main [ref=f1e11]:
+    - generic [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - generic [ref=f1e14]:
+          - paragraph [ref=f1e15]: Training, food & the rest of your life
+          - heading [level=1] [ref=f1e17]:
+            - text: One app for your
+            - emphasis [ref=f1e18]: whole fitness life.
+          - paragraph [ref=f1e19]: Log the 7am lift. Snap the hurried lunch. Notice the quiet wins adding up. OneRep keeps the whole story in one place.
+          - generic [ref=f1e20]:
+            - link "Try it free" [ref=f1e21] [cursor=pointer]:
+              - /url: /app?mode=signup
+            - link "Have a look around" [ref=f1e24] [cursor=pointer]:
+              - /url: "#product"
+          - paragraph [ref=f1e27]: No card. No fourteen-day countdown.
+        - generic [ref=f1e31]:
+          - img "A person running"
+          - paragraph [ref=f1e32]:
+            - generic [ref=f1e33]: 7:04
+            - text: one more set ↗
+          - paragraph [ref=f1e34]:
+            - generic [ref=f1e35]: 12:38
+            - text: lunch, logged
+          - generic "OneRep Today screen preview" [ref=f1e36]:
+            - generic [ref=f1e37]:
+              - generic [ref=f1e38]: 9:41
+              - generic [ref=f1e41]:
+                - generic [ref=f1e42]:
+                  - text: MONDAY, JUL 27
+                  - heading "Good morning, Alex." [level=3] [ref=f1e43]: Good morning,Alex.
+                - button "Profile" [ref=f1e44]: A
+              - generic [ref=f1e45]:
+                - generic [ref=f1e46]:
+                  - generic [ref=f1e47]: Energy remaining
+                  - generic [ref=f1e48]: 68%
+                - strong [ref=f1e49]:
+                  - text: 2,140
+                  - emphasis [ref=f1e50]: kcal
+                - generic [ref=f1e52]:
+                  - generic [ref=f1e53]:
+                    - generic [ref=f1e54]: Protein
+                    - generic [ref=f1e55]: 92g left
+                  - generic [ref=f1e56]:
+                    - generic [ref=f1e57]: Water
+                    - generic [ref=f1e58]: 1.5 L
+                  - generic [ref=f1e59]:
+                    - generic [ref=f1e60]: Workout
+                    - generic [ref=f1e61]: Upper A
+              - button [ref=f1e62]:
+                - generic [ref=f1e63]: Up next
+                - generic [ref=f1e70]: Upper A
+              - generic [ref=f1e73]:
+                - generic [ref=f1e74]:
+                  - generic [ref=f1e75]: Today’s plan
+                  - generic [ref=f1e76]: 3 of 5
+                - generic [ref=f1e77]:
+                  - generic [ref=f1e81]: Breakfast
+                  - generic [ref=f1e82]: 620 kcal
+                - generic [ref=f1e83]:
+                  - generic [ref=f1e85]: Upper A
+                  - generic [ref=f1e86]: 45 min
+                - generic [ref=f1e87]:
+                  - generic [ref=f1e89]: Dinner
+                  - generic [ref=f1e90]: 7:30 PM
+              - navigation "Preview navigation" [ref=f1e91]:
+                - generic [ref=f1e92]: Today
+                - generic [ref=f1e96]: Food
+                - generic [ref=f1e101]: Train
+                - generic [ref=f1e109]: Progress
+            - generic [ref=f1e113]:
+              - generic [ref=f1e114]: THIS WEEK
+              - generic [ref=f1e115]: 3 sessions
+              - generic [ref=f1e116]: on track
+            - generic [ref=f1e118]:
+              - generic [ref=f1e119]: PROTEIN
+              - generic [ref=f1e120]:
+                - text: "108"
+                - emphasis [ref=f1e121]: g
+              - generic [ref=f1e122]: 76% of target
+      - generic [ref=f1e123]:
+        - generic [ref=f1e124]: However your day moves
+        - generic [ref=f1e125]:
+          - generic [ref=f1e126]: TRAIN
+          - generic [ref=f1e128]: EAT
+          - generic [ref=f1e130]: REST
+          - generic [ref=f1e132]: REPEAT
+    - region [ref=f1e133]:
+      - generic [ref=f1e134]:
+        - paragraph [ref=f1e135]: One ordinary Tuesday
+        - heading "Your life doesn’t happen in neat little categories." [level=2] [ref=f1e136]
+      - generic [ref=f1e137]:
+        - article [ref=f1e138]:
+          - time [ref=f1e139]: 07:04
+          - generic [ref=f1e140]:
+            - text: TRAINING
+            - heading "Last set. Best set." [level=3] [ref=f1e141]: Last set.Best set.
+            - paragraph [ref=f1e142]: Bench press · 80 kg × 8
+        - article [ref=f1e143]:
+          - img "A person carrying an enormous cup" [ref=f1e144]
+          - time [ref=f1e145]: 12:38
+          - generic [ref=f1e146]:
+            - text: NUTRITION
+            - heading "Lunch happened in twelve minutes." [level=3] [ref=f1e147]: Lunch happenedin twelve minutes.
+            - paragraph [ref=f1e148]: Snap it now. Tidy it up later.
+        - article [ref=f1e149]:
+          - time [ref=f1e150]: 21:17
+          - generic [ref=f1e151]:
+            - text: PROGRESS
+            - heading "The walk still counts." [level=3] [ref=f1e152]: The walkstill counts.
+            - paragraph [ref=f1e153]: 8,102 steps · goal reached
+      - paragraph [ref=f1e154]: OneRep holds onto the details, so you can get on with the day.
+    - generic [ref=f1e155]:
+      - generic [ref=f1e156]:
+        - paragraph [ref=f1e157]: Go ahead, tap around
+        - heading [level=2] [ref=f1e159]:
+          - text: Everything has a place.
+          - emphasis [ref=f1e160]: Nothing feels like admin.
+        - paragraph [ref=f1e161]: Your training, meals, hydration, and progress finally speak to each other.
+      - generic [ref=f1e162]:
+        - tablist "OneRep features" [ref=f1e163]:
+          - tab "Today" [selected] [ref=f1e164] [cursor=pointer]
+          - tab "Training" [ref=f1e169] [cursor=pointer]
+          - tab "Nutrition" [ref=f1e178] [cursor=pointer]
+          - tab "Progress" [ref=f1e184] [cursor=pointer]
+        - tabpanel [ref=f1e189]:
+          - generic [ref=f1e190]:
+            - generic [ref=f1e191]:
+              - generic [ref=f1e192]: OneRep
+              - generic [ref=f1e194]: Today
+            - generic [ref=f1e200]:
+              - generic [ref=f1e201]:
+                - text: MONDAY, JUL 27
+                - heading "Good morning, Alex." [level=3] [ref=f1e202]
+              - generic [ref=f1e203]:
+                - generic [ref=f1e204]:
+                  - generic [ref=f1e205]: Energy remaining
+                  - strong [ref=f1e206]: 2,140 kcal
+                  - emphasis [ref=f1e207]: 955 of 3,095 kcal
+                - generic [ref=f1e208]: 68%
+              - generic [ref=f1e210]:
+                - article [ref=f1e211]:
+                  - generic [ref=f1e215]: Water
+                  - generic [ref=f1e216]: 1.5 L
+                - article [ref=f1e218]:
+                  - generic [ref=f1e225]: Training
+                  - generic [ref=f1e226]: Upper A
+                  - generic [ref=f1e227]: 45 min planned
+    - generic [ref=f1e228]:
+      - generic [ref=f1e229]:
+        - img "A person sitting cross-legged and thinking" [ref=f1e230]
+        - generic [ref=f1e231]: Was that 75 or 80 kg?
+        - generic [ref=f1e232]: Have I had any water?
+        - generic [ref=f1e233]: Is this actually working?
+      - generic [ref=f1e234]:
+        - paragraph [ref=f1e235]: Less wondering
+        - heading "The little questions, answered." [level=2] [ref=f1e237]
+        - paragraph [ref=f1e238]: No spreadsheet archaeology. No piecing together screenshots from three different apps.
+        - generic [ref=f1e239]:
+          - article [ref=f1e240]:
+            - generic [ref=f1e241]: “What did I lift last time?”
+            - generic [ref=f1e242]: It’s beside your next set.
+          - article [ref=f1e243]:
+            - generic [ref=f1e244]: “Am I eating enough protein?”
+            - generic [ref=f1e245]: You’ll know before dinner.
+          - article [ref=f1e246]:
+            - generic [ref=f1e247]: “Am I making progress?”
+            - generic [ref=f1e248]: See the trend, not just today.
+    - generic [ref=f1e251]:
+      - generic [ref=f1e252]:
+        - paragraph [ref=f1e253]: OneRep Coach · If you want it
+        - heading "Plans change at 4:42 pm. Coach can too." [level=2] [ref=f1e255]
+        - paragraph [ref=f1e256]: Running late? Gym packed? Nothing in the fridge? Coach already knows your plan and can help you make a sensible call without starting over.
+        - list [ref=f1e257]:
+          - listitem [ref=f1e258]: Knows what you’ve actually been doing
+          - listitem [ref=f1e261]: Makes a useful change, not a motivational speech
+          - listitem [ref=f1e264]: Lets you review everything first
+      - generic [ref=f1e267]:
+        - generic [ref=f1e268]:
+          - generic [ref=f1e269]: Coach
+          - generic [ref=f1e276]: Personal trainer
+        - generic [ref=f1e277]: I only have 35 minutes today. Can you adjust Upper A?
+        - generic [ref=f1e285]:
+          - paragraph [ref=f1e286]: Absolutely. I kept your main press, paired the accessories, and trimmed one isolation movement.
+          - article [ref=f1e287]:
+            - generic [ref=f1e288]: UPDATED · 34 MIN
+            - generic [ref=f1e289]: Upper A — condensed
+            - generic [ref=f1e290]: Bench press · 3 sets
+            - generic [ref=f1e291]: Row + shoulder press · 3 rounds
+            - generic [ref=f1e292]: Pulldown · 2 sets
+            - button "Review changes" [ref=f1e293]
+        - generic [ref=f1e297]:
+          - generic [ref=f1e298]: Ask Coach anything
+          - button "Send message" [ref=f1e299]
+    - generic [ref=f1e303]:
+      - generic [ref=f1e304]:
+        - paragraph [ref=f1e305]: This part is simple
+        - heading "Use the whole app. Pay nothing." [level=2] [ref=f1e307]
+        - paragraph [ref=f1e308]: Training, nutrition, progress, and cross-device sync are free. Coach costs extra if you want it. That’s the deal.
+        - img "A person dancing"
+      - generic [ref=f1e309]:
+        - generic [ref=f1e310]:
+          - generic [ref=f1e311]: OneRep Core
+          - strong [ref=f1e312]: $0
+          - emphasis [ref=f1e313]: forever
+        - list [ref=f1e314]:
+          - listitem [ref=f1e315]: Unlimited workout logging
+          - listitem [ref=f1e318]: Nutrition and hydration
+          - listitem [ref=f1e321]: Progress and body metrics
+          - listitem [ref=f1e324]: Sync across your devices
+        - link "Create free account" [ref=f1e327] [cursor=pointer]:
+          - /url: /app?mode=signup
+        - generic [ref=f1e331]: Coach available separately
+    - generic [ref=f1e337]:
+      - generic [ref=f1e338]:
+        - generic [ref=f1e339]: Today
+        - generic [ref=f1e340]: Show up.
+        - generic [ref=f1e342]: Tomorrow
+        - generic [ref=f1e343]: Do it again.
+      - generic [ref=f1e344]:
+        - generic [ref=f1e345]: OneRep
+        - paragraph [ref=f1e347]: Do tomorrow a favor
+        - heading "Log today. Keep going." [level=2] [ref=f1e349]: Log today.Keep going.
+        - paragraph [ref=f1e350]: The useful kind of consistency—imperfect, repeatable, yours.
+        - generic [ref=f1e351]:
+          - link "Get OneRep" [ref=f1e352] [cursor=pointer]:
+            - /url: /app?mode=signup
+          - generic [ref=f1e355]: iOS · Android · Web
+  - contentinfo [ref=f1e356]:
+    - generic [ref=f1e357]:
+      - generic [ref=f1e358]: OneRep
+      - paragraph [ref=f1e360]: Training. Nutrition. Progress.
+    - paragraph [ref=f1e361]: © 2026 OneRep

@@ -369,6 +369,12 @@ describe("Settings – production feature visibility", () => {
     assert.doesNotMatch(SETTINGS_SOURCE, /AccordionItem/)
   })
 
+  test("developer options can replay Coach onboarding", () => {
+    assert.match(SETTINGS_SOURCE, /Reset Coach onboarding/)
+    assert.match(SETTINGS_SOURCE, /handleResetCoachOnboarding/)
+    assert.match(SETTINGS_SOURCE, /\/onboarding\?replay=coach/)
+  })
+
   test("uses the native settings hierarchy and accessible controls", () => {
     const combinedSource = `${SETTINGS_SOURCE}\n${SETTINGS_UI_SOURCE}`
     assert.match(combinedSource, /<NavigationBar/)

@@ -122,9 +122,10 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachNewChat")
   })
 
-  test("does not expose obsolete introduction controls in settings", () => {
-    expect(SETTINGS_SOURCE).not.toContain("handleResetCoachOnboarding")
-    expect(SETTINGS_SOURCE).not.toContain("Reset Coach introduction")
+  test("lets developers replay the Coach capabilities onboarding", () => {
+    expect(SETTINGS_SOURCE).toContain("handleResetCoachOnboarding")
+    expect(SETTINGS_SOURCE).toContain("Reset Coach onboarding")
+    expect(SETTINGS_SOURCE).toContain("/onboarding?replay=coach")
   })
 
   test("beginner setup and safety context reach Coach and plan builders", () => {
