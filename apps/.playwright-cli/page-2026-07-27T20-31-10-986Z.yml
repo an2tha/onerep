@@ -1,0 +1,225 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e5]:
+    - link "OneRep home" [ref=e6] [cursor=pointer]:
+      - /url: "#top"
+      - generic [ref=e7]: OneRep
+    - button "Open navigation" [ref=e369] [cursor=pointer]
+  - main [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: Your whole fitness routine
+          - heading [level=1] [ref=e23]:
+            - text: Every rep.Every meal.
+            - emphasis [ref=e24]: One clear picture.
+          - paragraph [ref=e25]: OneRep brings training, nutrition, and progress into one focused place—so consistency feels simpler, not busier.
+          - generic [ref=e26]:
+            - link "Start for free" [ref=e27] [cursor=pointer]:
+              - /url: /app?mode=signup
+            - link "See how it works" [ref=e30] [cursor=pointer]:
+              - /url: "#product"
+          - paragraph [ref=e33]: Core tracking is free, forever.
+        - generic "OneRep Today screen preview" [ref=e37]:
+          - generic [ref=e38]:
+            - generic [ref=e39]: 9:41
+            - generic [ref=e42]:
+              - generic [ref=e43]:
+                - text: MONDAY, JUL 27
+                - heading "Good morning, Alex." [level=3] [ref=e44]: Good morning,Alex.
+              - button "Profile" [ref=e45]: A
+            - generic [ref=e46]:
+              - generic [ref=e47]:
+                - generic [ref=e48]: Energy remaining
+                - generic [ref=e49]: 68%
+              - strong [ref=e50]:
+                - text: 2,140
+                - emphasis [ref=e51]: kcal
+              - generic [ref=e53]:
+                - generic [ref=e54]:
+                  - generic [ref=e55]: Protein
+                  - generic [ref=e56]: 92g left
+                - generic [ref=e57]:
+                  - generic [ref=e58]: Water
+                  - generic [ref=e59]: 1.5 L
+                - generic [ref=e60]:
+                  - generic [ref=e61]: Workout
+                  - generic [ref=e62]: Upper A
+            - button [ref=e63]:
+              - generic [ref=e64]: Up next
+              - generic [ref=e71]: Upper A
+            - generic [ref=e74]:
+              - generic [ref=e75]:
+                - generic [ref=e76]: Today’s plan
+                - generic [ref=e77]: 3 of 5
+              - generic [ref=e78]:
+                - generic [ref=e82]: Breakfast
+                - generic [ref=e83]: 620 kcal
+              - generic [ref=e84]:
+                - generic [ref=e86]: Upper A
+                - generic [ref=e87]: 45 min
+              - generic [ref=e88]:
+                - generic [ref=e90]: Dinner
+                - generic [ref=e91]: 7:30 PM
+            - navigation "Preview navigation" [ref=e92]:
+              - generic [ref=e93]: Today
+              - generic [ref=e97]: Food
+              - generic [ref=e102]: Train
+              - generic [ref=e110]: Progress
+          - generic [ref=e114]:
+            - generic [ref=e115]: THIS WEEK
+            - generic [ref=e116]: 3 sessions
+            - generic [ref=e117]: on track
+          - generic [ref=e119]:
+            - generic [ref=e120]: PROTEIN
+            - generic [ref=e121]:
+              - text: "108"
+              - emphasis [ref=e122]: g
+            - generic [ref=e123]: 76% of target
+      - generic [ref=e124]:
+        - generic [ref=e125]: One daily system
+        - generic [ref=e126]:
+          - generic [ref=e127]: TRAIN
+          - generic [ref=e129]: FUEL
+          - generic [ref=e131]: RECOVER
+          - generic [ref=e133]: PROGRESS
+    - generic [ref=e134]:
+      - paragraph [ref=e135]: Fitness gets noisy when every part lives in a different place.
+      - heading "OneRep keeps the work together." [level=2] [ref=e136]
+    - generic [ref=e137]:
+      - generic [ref=e138]:
+        - paragraph [ref=e139]: The core app
+        - heading [level=2] [ref=e141]:
+          - text: Less managing.
+          - emphasis [ref=e142]: More momentum.
+        - paragraph [ref=e143]: Everything connects around your day, but nothing competes for your attention.
+      - generic [ref=e144]:
+        - tablist "OneRep features" [ref=e145]:
+          - tab "Today" [ref=e361] [cursor=pointer]
+          - tab "Training" [ref=e362] [cursor=pointer]
+          - tab "Nutrition" [active] [selected] [ref=e363] [cursor=pointer]
+          - tab "Progress" [ref=e364] [cursor=pointer]
+        - tabpanel [ref=e188]:
+          - generic [ref=e189]:
+            - generic [ref=e190]:
+              - generic [ref=e191]: OneRep
+              - generic [ref=e193]: Today
+            - generic [ref=e371]:
+              - generic [ref=e372]:
+                - text: TODAY’S NUTRITION
+                - heading "1,832 kcal" [level=3] [ref=e373]
+                - paragraph [ref=e374]: 1,263 remaining
+              - generic [ref=e375]:
+                - generic [ref=e376]:
+                  - generic [ref=e377]:
+                    - text: Protein
+                    - generic [ref=e378]: 108 / 143g
+                  - emphasis [ref=e380]
+                - generic [ref=e381]:
+                  - generic [ref=e382]:
+                    - text: Carbs
+                    - generic [ref=e383]: 184 / 290g
+                  - emphasis [ref=e385]
+                - generic [ref=e386]:
+                  - generic [ref=e387]:
+                    - text: Fat
+                    - generic [ref=e388]: 54 / 86g
+                  - emphasis [ref=e390]
+              - generic [ref=e391]:
+                - article [ref=e392]:
+                  - generic [ref=e393]: Breakfast
+                  - generic [ref=e394]: 620 kcal
+                  - generic [ref=e395]: Oats, yogurt, berries
+                - article [ref=e396]:
+                  - generic [ref=e397]: Lunch
+                  - generic [ref=e398]: 745 kcal
+                  - generic [ref=e399]: Chicken rice bowl
+                - article [ref=e400]:
+                  - generic [ref=e401]: Snack
+                  - generic [ref=e402]: 467 kcal
+                  - generic [ref=e403]: Protein shake, banana
+              - generic [ref=e404]:
+                - button "Scan" [ref=e405]
+                - button "Snap & log" [ref=e411]
+    - generic [ref=e234]:
+      - generic [ref=e235]:
+        - paragraph [ref=e236]: Built for real life
+        - heading "A calmer way to stay consistent." [level=2] [ref=e238]
+      - generic [ref=e239]:
+        - article [ref=e240]:
+          - text: "01"
+          - heading "Fast when you need it" [level=3] [ref=e241]
+          - paragraph [ref=e242]: Open workouts, repeat meals, smart defaults, and quick logging keep the routine moving.
+        - article [ref=e243]:
+          - text: "02"
+          - heading "Flexible by design" [level=3] [ref=e244]
+          - paragraph [ref=e245]: Track every macro or just the essentials. Follow a plan or train as you go.
+        - article [ref=e246]:
+          - text: "03"
+          - heading "Useful, not judgmental" [level=3] [ref=e247]
+          - paragraph [ref=e248]: Clear trends and context help you adjust without turning every day into a score.
+    - generic [ref=e251]:
+      - generic [ref=e252]:
+        - paragraph [ref=e253]: OneRep Coach · Optional
+        - heading "A coach that already knows the work." [level=2] [ref=e255]
+        - paragraph [ref=e256]: Ask about the session, adjust the plan, build a meal, or understand a trend. Coach uses the context already in OneRep and turns the conversation into something useful.
+        - list [ref=e257]:
+          - listitem [ref=e258]: Grounded in your training and nutrition
+          - listitem [ref=e261]: Turns answers into editable actions
+          - listitem [ref=e264]: Always asks before changing your data
+      - generic [ref=e267]:
+        - generic [ref=e268]:
+          - generic [ref=e269]: Coach
+          - generic [ref=e274]: Personal trainer
+        - generic [ref=e275]: I only have 35 minutes today. Can you adjust Upper A?
+        - generic [ref=e281]:
+          - paragraph [ref=e282]: Absolutely. I kept your main press, paired the accessories, and trimmed one isolation movement.
+          - article [ref=e283]:
+            - generic [ref=e284]: UPDATED · 34 MIN
+            - generic [ref=e285]: Upper A — condensed
+            - generic [ref=e286]: Bench press · 3 sets
+            - generic [ref=e287]: Row + shoulder press · 3 rounds
+            - generic [ref=e288]: Pulldown · 2 sets
+            - button "Review changes" [ref=e289]
+        - generic [ref=e292]:
+          - generic [ref=e293]: Ask Coach anything
+          - button "Send message" [ref=e294]
+    - generic [ref=e297]:
+      - generic [ref=e298]:
+        - paragraph [ref=e299]: Simple pricing
+        - heading "Start with everything you need." [level=2] [ref=e301]
+        - paragraph [ref=e302]: Training, nutrition, progress, and cross-device sync are free. Coach is an optional add-on—never a requirement.
+      - generic [ref=e303]:
+        - generic [ref=e304]:
+          - generic [ref=e305]: OneRep Core
+          - strong [ref=e306]: $0
+          - emphasis [ref=e307]: forever
+        - list [ref=e308]:
+          - listitem [ref=e309]: Unlimited workout logging
+          - listitem [ref=e312]: Nutrition and hydration
+          - listitem [ref=e315]: Progress and body metrics
+          - listitem [ref=e318]: Sync across your devices
+        - link "Create free account" [ref=e321] [cursor=pointer]:
+          - /url: /app?mode=signup
+        - generic [ref=e324]: Coach available separately
+    - generic [ref=e328]:
+      - generic [ref=e329]:
+        - generic [ref=e330]: Today
+        - generic [ref=e331]: Show up.
+        - generic [ref=e333]: Tomorrow
+        - generic [ref=e334]: Do it again.
+      - generic [ref=e335]:
+        - generic [ref=e336]: OneRep
+        - paragraph [ref=e338]: Start where you are
+        - heading "Your next rep starts here." [level=2] [ref=e340]: Your next repstarts here.
+        - paragraph [ref=e341]: One place for the work—and the progress it creates.
+        - generic [ref=e342]:
+          - link "Get OneRep" [ref=e343] [cursor=pointer]:
+            - /url: /app?mode=signup
+          - generic [ref=e346]: iOS · Android · Web
+  - contentinfo [ref=e347]:
+    - generic [ref=e348]:
+      - generic [ref=e349]: OneRep
+      - paragraph [ref=e351]: Training. Nutrition. Progress.
+    - paragraph [ref=e357]: © 2026 OneRep

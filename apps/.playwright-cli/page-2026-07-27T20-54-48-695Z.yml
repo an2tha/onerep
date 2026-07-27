@@ -1,0 +1,572 @@
+- main [ref=e4]:
+  - link "View the Hilary Duff Campaign → HERE" [ref=e5] [cursor=pointer]:
+    - /url: /hilary
+  - navigation [ref=e6]:
+    - link [ref=e7] [cursor=pointer]:
+      - /url: /
+      - img "Ladder Logo" [ref=e9]
+    - generic [ref=e10]:
+      - generic [ref=e11]:
+        - link "Free Workout Of The Day" [ref=e12] [cursor=pointer]:
+          - /url: /app/workout/today
+        - link "Shop" [ref=e13] [cursor=pointer]:
+          - /url: https://shop.joinladder.com/
+        - link "Careers" [ref=e14] [cursor=pointer]:
+          - /url: https://jobs.ashbyhq.com/ladder
+      - link "Find your plan" [ref=e16] [cursor=pointer]:
+        - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+  - generic [ref=e17]:
+    - generic [ref=e21]:
+      - heading "HILARY DUFF TRAINS ON LADDER" [level=1] [ref=e22]
+      - generic [ref=e23]:
+        - link "Find your plan" [ref=e25] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+        - paragraph [ref=e26]: No Credit Card To Start • Cancel anytime
+      - generic [ref=e27]:
+        - img "App Store App of the Year 2025 Finalist" [ref=e28]
+        - img "App Store App of the Year 2025 Finalist" [ref=e29]
+    - generic [ref=e30]:
+      - img "ladder logo" [ref=e31]
+      - generic [ref=e32]:
+        - heading "FEATURED ON" [level=2] [ref=e33]
+        - img "featured logos" [ref=e34]
+    - generic [ref=e35]:
+      - heading "For busy people who prioritize fitness" [level=2] [ref=e36]
+      - generic [ref=e37]:
+        - generic [ref=e38]:
+          - img "clock" [ref=e39]
+          - heading "Results in less time" [level=3] [ref=e40]
+          - paragraph [ref=e41]: Make the most of your workouts and spend no time planning.
+        - generic [ref=e42]:
+          - img "calendar" [ref=e43]
+          - heading "New workouts weekly" [level=3] [ref=e44]
+          - paragraph [ref=e45]: 5+ new workouts each week and a variety of training plans to choose from.
+        - generic [ref=e46]:
+          - img "friends" [ref=e47]
+          - heading "Always with you" [level=3] [ref=e48]
+          - paragraph [ref=e49]: Stay consistent with challenging workouts that can be done from anywhere.
+        - generic [ref=e50]:
+          - img "chat" [ref=e51]
+          - heading "Real Coaching" [level=3] [ref=e52]
+          - paragraph [ref=e53]: Have confidence in your workouts and form, get answers to all your questions.
+    - generic [ref=e57]:
+      - generic [ref=e58]:
+        - generic [ref=e59]:
+          - generic [ref=e60]: M
+          - generic [ref=e61]: T
+          - generic [ref=e62]: W
+          - generic [ref=e63]: T
+          - generic [ref=e64]: F
+          - generic [ref=e65]: S
+          - generic [ref=e66]: S
+        - heading "Know exactly what WORKOUT to do, eVERY day" [level=2] [ref=e67]
+        - paragraph [ref=e68]: A workout plan for every day, created by an expert coach and new each week.
+        - link "Find your plan" [ref=e69] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+      - img "Ladder app showing daily workout" [ref=e75]
+    - generic [ref=e79]:
+      - img "Watch" [ref=e81]
+      - generic [ref=e82]:
+        - heading "Save time & train on your schedule" [level=2] [ref=e83]:
+          - generic [ref=e84]: Save time & train
+          - generic [ref=e85]: on your schedule
+        - paragraph [ref=e86]: Workouts that are easy-to-follow, fit into your schedule, and can be done from anywhere.
+    - generic [ref=e88]:
+      - generic [ref=e90]:
+        - heading "EXPERIENCE AN app built for" [level=3] [ref=e91]
+        - heading "strength training" [level=2] [ref=e92]
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - heading "Video Demonstrations" [level=3] [ref=e96]:
+            - text: Video
+            - generic [ref=e97]: Demonstrations
+          - img "left airpod" [ref=e99]
+        - generic [ref=e103]:
+          - heading "In-ear Coaching" [level=2] [ref=e104]
+          - img "right airpod" [ref=e106]
+          - heading "Precise Pacing built-in" [level=3] [ref=e107]:
+            - text: Precise
+            - generic [ref=e108]: Pacing built-in
+    - generic [ref=e109]:
+      - img "Corey" [ref=e110]
+      - generic [ref=e112]:
+        - heading "Learn from the best" [level=2] [ref=e113]
+        - paragraph [ref=e114]: Get answers to your questions and expert coaching through it all.
+        - link "Find your plan" [ref=e116] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+    - generic [ref=e117]:
+      - img "Records" [ref=e118]
+      - generic [ref=e120]:
+        - heading "Track Your Progress" [level=2] [ref=e121]
+        - paragraph [ref=e122]: Integrated rep & weight tracking to visualize your progress, get PR alerts, and manage training notes in one place.
+        - link "Find your plan" [ref=e124] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+    - generic [ref=e125]:
+      - img "Ladder nutrition tracking showing meal logging and macro tracking" [ref=e127]
+      - generic [ref=e129]:
+        - heading "Track Nutrition" [level=2] [ref=e130]: TrackNutrition
+        - paragraph [ref=e131]: Log meals in seconds to track nutrition and workouts in one app
+        - link "Find your plan" [ref=e133] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+    - generic [ref=e134]:
+      - heading "ONLY THE BEST STRENGTH COACHES" [level=2] [ref=e138]:
+        - generic [ref=e139]: ONLY THE
+        - text: BEST STRENGTH COACHES
+      - generic [ref=e140]:
+        - generic [ref=e141]:
+          - generic [ref=e144]:
+            - img "Define"
+            - generic [ref=e146]:
+              - text: Coach Maia
+              - heading "DEFINE" [level=3] [ref=e147]
+              - paragraph [ref=e148]: Sculpt a toned, lean body with pilates and strength training
+          - generic [ref=e151]:
+            - img "Embody"
+            - generic [ref=e153]:
+              - text: Coach Allegra
+              - heading "EMBODY" [level=3] [ref=e154]
+              - paragraph [ref=e155]: Low-impact pilates sculpt with targeted glute and core work
+          - generic [ref=e158]:
+            - img "Vitality"
+            - generic [ref=e160]:
+              - text: Coach Brian
+              - heading "VITALITY" [level=3] [ref=e161]
+              - paragraph [ref=e162]: Energize your body and mind with functional strength training using minimal equipment
+          - generic [ref=e165]:
+            - img "Endure"
+            - generic [ref=e167]:
+              - text: Coach Jennifer
+              - heading "ENDURE" [level=3] [ref=e168]
+              - paragraph [ref=e169]: Enhance longevity and sustainable strength with only dumbbells
+          - generic [ref=e172]:
+            - img "Versa"
+            - generic [ref=e174]:
+              - text: Coach Abbie
+              - heading "VERSA" [level=3] [ref=e175]
+              - paragraph [ref=e176]: Hybrid strength training for competitive performance and an athletic physique
+          - generic [ref=e179]:
+            - img "Transform"
+            - generic [ref=e181]:
+              - text: Coach Shelby
+              - heading "TRANSFORM" [level=3] [ref=e182]
+              - paragraph [ref=e183]: Glute focused strength training without the bulk
+          - generic [ref=e186]:
+            - img "Forged"
+            - generic [ref=e188]:
+              - text: Coach Corey
+              - heading "FORGED" [level=3] [ref=e189]
+              - paragraph [ref=e190]: Maximize muscle size, symmetry, and definition with traditional bodybuilding
+          - generic [ref=e193]:
+            - img "Movewell"
+            - generic [ref=e195]:
+              - text: Coach Nicole
+              - heading "MOVEWELL" [level=3] [ref=e196]
+              - paragraph [ref=e197]: Develop strength and endurance with beginner-friendly strength training and running
+          - generic [ref=e200]:
+            - img "LIMITLESS"
+            - generic [ref=e202]:
+              - text: Coach Kelly
+              - heading "LIMITLESS" [level=3] [ref=e203]
+              - paragraph [ref=e204]: Build an athletic physique with heavy strength training and conditioning
+          - generic [ref=e207]:
+            - img "Elevate"
+            - generic [ref=e209]:
+              - text: Coach Elise
+              - heading "ELEVATE" [level=3] [ref=e210]
+              - paragraph [ref=e211]: Get fit fast with 30 minute high-intensity cardio and strength
+          - generic [ref=e214]:
+            - img "Ascend"
+            - generic [ref=e216]:
+              - text: Coach Aria
+              - heading "ASCEND" [level=3] [ref=e217]
+              - paragraph [ref=e218]: Shape an hourglass physique with traditional bodybuilding
+          - generic [ref=e221]:
+            - img "Formation"
+            - generic [ref=e223]:
+              - text: Coach Robin
+              - heading "FORMATION" [level=3] [ref=e224]
+              - paragraph [ref=e225]: Sculpt, tone, and maximize efficiency with HIIT-focused workouts
+          - generic [ref=e228]:
+            - img "Project Alpha"
+            - generic [ref=e230]:
+              - text: Coach Sam
+              - heading "PROJECT ALPHA" [level=3] [ref=e231]
+              - paragraph [ref=e232]: Hybrid strength training for athletic performance
+          - generic [ref=e235]:
+            - img "Body & Bell"
+            - generic [ref=e237]:
+              - text: Coach Lauren
+              - heading "BODY & BELL" [level=3] [ref=e238]
+              - paragraph [ref=e239]: Master kettlebell training for explosive power and functional strength
+          - generic [ref=e242]:
+            - img "Align"
+            - generic [ref=e244]:
+              - text: Coach Sasha
+              - heading "ALIGN" [level=3] [ref=e245]
+              - paragraph [ref=e246]: Balance yoga and strength training for improved mobility and muscle definition
+          - generic [ref=e249]:
+            - img "Evolve"
+            - generic [ref=e251]:
+              - text: Coach Samantha
+              - heading "EVOLVE" [level=3] [ref=e252]
+              - paragraph [ref=e253]: Build aesthetic muscle with glute-focused bodybuilding
+          - generic [ref=e256]:
+            - img "Crews Control"
+            - generic [ref=e258]:
+              - text: Coach André
+              - heading "CREWS CONTROL" [level=3] [ref=e259]
+              - paragraph [ref=e260]: High intensity functional body building with minimal equipment
+          - generic [ref=e263]:
+            - img "MAXIMUS"
+            - generic [ref=e265]:
+              - text: Coach Bobby & Joe
+              - heading "MAXIMUS" [level=3] [ref=e266]
+              - paragraph [ref=e267]: Perfect the fundamentals with push-pull strength training
+          - generic [ref=e270]:
+            - img "Resilient"
+            - generic [ref=e272]:
+              - text: Coach Neen
+              - heading "RESILIENT" [level=3] [ref=e273]
+              - paragraph [ref=e274]: Build explosive power with athletic strength and conditioning
+          - generic [ref=e277]:
+            - img "Ignite"
+            - generic [ref=e279]:
+              - text: Coach Stevie
+              - heading "IGNITE" [level=3] [ref=e280]
+              - paragraph [ref=e281]: Get started with strength training from home.
+          - generic [ref=e284]:
+            - img "Vantage"
+            - generic [ref=e286]:
+              - text: Coach Brady
+              - heading "VANTAGE" [level=3] [ref=e287]
+              - paragraph [ref=e288]: Build a lean, athletic physique — without spending hours at the gym.
+          - generic [ref=e291]:
+            - img "Era"
+            - generic [ref=e293]:
+              - text: Coach Dani
+              - heading "ERA" [level=3] [ref=e294]
+              - paragraph [ref=e295]: Grow Your Glutes & Reshape Your Body
+          - generic [ref=e298]:
+            - img "Flourish"
+            - generic [ref=e300]:
+              - text: Coach Kimmie
+              - heading "FLOURISH" [level=3] [ref=e301]
+              - paragraph [ref=e302]: Classical Mat Pilates Blended with Strength
+        - generic [ref=e305]:
+          - button "Go to slide 1" [ref=e307] [cursor=pointer]
+          - button "Go to slide 2" [ref=e309] [cursor=pointer]
+          - button "Go to slide 3" [ref=e311] [cursor=pointer]
+          - button "Go to slide 4" [ref=e313] [cursor=pointer]
+          - button "Go to slide 5" [ref=e315] [cursor=pointer]
+    - generic [ref=e317]:
+      - generic [ref=e319]:
+        - heading "find the perfect plan for you" [level=2] [ref=e320]:
+          - generic [ref=e321]: find the perfect plan
+          - text: for you
+        - paragraph [ref=e322]: Receive a personalized recommendation based on your training goals and preferred training styles.
+        - link "Find your plan" [ref=e323] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+      - img "ladder coaches" [ref=e325]
+    - generic [ref=e327]:
+      - generic [ref=e328]:
+        - img "womans health award" [ref=e330]
+        - heading "WHAT PEOPLE LIKE YOU ARE SAYING" [level=3] [ref=e332]
+      - generic [ref=e334]:
+        - generic [ref=e337]:
+          - generic [ref=e338]: Michael L.
+          - generic [ref=e339]: My coach in my ear pushing me to be better, not just physically, but mentally day in day out.
+        - generic [ref=e342]:
+          - generic [ref=e343]: Michelle H.
+          - generic [ref=e344]: I needed structure in my life, I need someone to tell me what to do.
+        - generic [ref=e347]:
+          - generic [ref=e348]: Ross B.
+          - generic [ref=e349]: It helps me be consistent. I have a coach in my ear, telling me what to do.
+        - generic [ref=e352]:
+          - generic [ref=e353]: Kelly C.
+          - generic [ref=e354]: Gave me the confidence to go to the gym, I know what to do now
+        - generic [ref=e357]:
+          - generic [ref=e358]: CC A.
+          - generic [ref=e359]: Honestly from the first workout I was like this is it. This is addictive, this is fun, this is very beneficial.
+        - generic [ref=e362]:
+          - generic [ref=e363]: Liz W.
+          - generic [ref=e364]: Do the workout like it is. It’s there for a reason. It’s programed.
+    - generic [ref=e373]:
+      - generic [ref=e374]:
+        - generic [ref=e375]:
+          - heading "What you need" [level=4] [ref=e377]
+          - paragraph [ref=e390]: Jimmy V
+        - paragraph [ref=e391]: You think you only have 25-40 minute daily for your health/exercise? That is not a problem. You will have everything you need with this app. From timing every workout to having videos and a chat with the coaches. No gear? No problem. Suit yourself for an amazing experience.
+      - generic [ref=e392]:
+        - generic [ref=e393]:
+          - heading "Best coaching around" [level=4] [ref=e395]
+          - paragraph [ref=e408]: Reyez042287
+        - paragraph [ref=e409]: I've been working out for over 13 years and tried everything from personal trainers, crossfit, etc. This programming has changed my life. I’m stronger and able to lift heavier then I ever have and working out 6 days a week. My body alone has changed for the better in just the 2 short months i’ve been a member. And this team. let me tell you about this team that builds you up, challenges you daily and holds you accountable.
+      - generic [ref=e410]:
+        - generic [ref=e411]:
+          - heading "Amazing Workout Platform" [level=4] [ref=e413]
+          - paragraph [ref=e426]: Mdubb57
+        - paragraph [ref=e427]: The vibe and energy on the Ladders platform is unlike any other. I used to search to find strength workouts ahead of my workouts and try to mix and match body parts and splits. It's all taken care of for me thru the App. No thinking. Just work. Not always in the mood for it but Bobby and Joe push you thru it and you happy when it's over!
+      - generic [ref=e428]:
+        - generic [ref=e429]:
+          - heading "Elevate is Great!" [level=4] [ref=e431]
+          - paragraph [ref=e444]: Annie4273
+        - paragraph [ref=e445]: I joined Coach Elise's elevate team on Ladder and love the motivation and intention in her workouts and among the team members. The workouts are generally :0-40 minutes and they fly by thanks to Elise's pace and style of switching things up. I feel stronger already and look forward to the workouts every day!
+      - generic [ref=e446]:
+        - generic [ref=e447]:
+          - heading "This program checked all the boxes for me." [level=4] [ref=e449]
+          - paragraph [ref=e462]: JB140.6
+        - paragraph [ref=e463]: ✅ Structured Workouts ✅ Coached Sessions ✅ Workout from home ✅ Flexibility ✅ Accountability. Having coached workout sessions delivered every Sunday evening for the upcoming week is a lifesaver! Knowing my week is already planned allows me to stay focused and on track with my fitness goals.
+      - generic [ref=e464]:
+        - generic [ref=e465]:
+          - heading "Do Body and Bell" [level=4] [ref=e467]
+          - paragraph [ref=e480]: DarcyDP
+        - paragraph [ref=e481]: The workouts are extremely fun and motivating. I can't wait to login and see my workouts each day. Lauren is a great coach. She is smart, funny, raw, and unfiltered. It is well thought out programming at its best. She builds on what you have learned while keeping it fresh and engaging. I would highly recommend.
+      - generic [ref=e482]:
+        - generic [ref=e483]:
+          - heading "Alpha Wolfpack" [level=4] [ref=e485]
+          - paragraph [ref=e498]: mattyb5702
+        - paragraph [ref=e499]: Great personal training app for those with hectic schedules and no time to plan their own training sessions. Literally start the app and push ‘Start Workout' and you are being led through a training plan with tangible goal posts and noticeable strength increases. Highly recommend for time constrained athletes!
+      - generic [ref=e500]:
+        - generic [ref=e501]:
+          - heading "For Athletes!" [level=4] [ref=e503]
+          - paragraph [ref=e516]: Cashashworth
+        - paragraph [ref=e517]: Best training I've had since college athletics. If you're looking for fun and functional workouts that will push you, start with Body+Bell on the Ladder App. Coach Lauren is incredibly knowledgeable w/ no frills (in the best way possible). My best app investment ever.
+      - generic [ref=e518]:
+        - generic [ref=e519]:
+          - heading "Best training 'app', hands down" [level=4] [ref=e521]
+          - paragraph [ref=e534]: wbdenks
+        - paragraph [ref=e535]: "Calling this an 'app' undersells what it truly is: a gateway to amazing trainers (Lauren Kanski in particular!) and team members, with ever changing programming, and a ton of support to keep you motivated. I'm 50 days in, and have worked out 48 of them - not just because I want my 'badge' (I do), but because I look forward to the workouts."
+      - generic [ref=e536]:
+        - generic [ref=e537]:
+          - heading "Team Crews Control" [level=4] [ref=e539]
+          - paragraph [ref=e552]: Pr2rcan
+        - paragraph [ref=e553]: This app is amazing and my coach and team are even more amazing. Coach Andre has built an incredible program that's easy to follow, with clear coaching. The work outs are very challenging but do not be intimidated by them. Coach Andre will help you modify your work outs according to your fitness level and knowledge.
+      - generic [ref=e554]:
+        - generic [ref=e555]:
+          - heading "Exceeded expectations!" [level=4] [ref=e557]
+          - paragraph [ref=e570]: aàv
+        - paragraph [ref=e571]: I've been using the ladder app for a little over 2 months now and it has exceeded my expectations in every way. From the unique programming, coach engagement, the ladder community, it is one of the best fitness apps I've tried. Will be sticking with this plan for a while. Love the progress so far!
+      - generic [ref=e572]:
+        - generic [ref=e573]:
+          - heading "Great app for home workouts!" [level=4] [ref=e575]
+          - paragraph [ref=e588]: cannan138
+        - paragraph [ref=e589]: I signed up with Team Maximus. The app works great. Coaches set up the daily routine, client hits go! Ofers a great way to communicate with team coaches and other members. Plus, it integrates well with Apple Music to keep your playlist going.
+      - generic [ref=e590]:
+        - generic [ref=e591]:
+          - 'heading "Love #TeamBoundless" [level=4] [ref=e593]'
+          - paragraph [ref=e606]: Sodonne4
+        - paragraph [ref=e607]: Tried the free week trial and was hooked. Unbelievable value. You get new weekly workouts, coach videos, coaching and suggestions during the workouts, and chat support with your team and coaches. I thought I was in decent shape, but these workouts are a whole new kind of challenge. Absolutely love it!
+      - generic [ref=e608]:
+        - generic [ref=e609]:
+          - heading "The End All Of All Apps" [level=4] [ref=e611]
+          - paragraph [ref=e624]: Johnatlanticism
+        - paragraph [ref=e625]: I've been working out religiously for 10+ years. Always circuit training. I've used a lot of sites and apps, trust me. This one is hands down the best. My search for THE App is over. The layout is clean, a fresh week of workouts every Sunday night. You can't beat it. You just can't. So many different teams and coaches to go with your style, you can't go wrong. It's worth the price. I'm a member for life.
+      - generic [ref=e626]:
+        - generic [ref=e627]:
+          - heading "The best workout app out there!" [level=4] [ref=e629]
+          - paragraph [ref=e642]: TJ1TJ2TJ3
+        - paragraph [ref=e643]: Fantastic workout app. Fresh new workouts every week - 7 days a week! Super convenient as you can get a workout in on your own schedule which has helped me get in a workout in every day vs. relying on getting out to a physical gym, which wasn't happening 7 days a week. Highly recommend this app!
+      - generic [ref=e644]:
+        - generic [ref=e645]:
+          - heading "Climb with me" [level=4] [ref=e647]
+          - paragraph [ref=e660]: eormada
+        - paragraph [ref=e661]: Wow! Can I just say how awesome Andre is?! He makes you feel comfortable no matter what skill level you are. Good explanations and there is always a modification. I went from a few times a week to working out everyday. The workouts are varied and never a dull day. Also they are fast. Like around 30 minutes each. Been very happy and am seeing results.
+    - generic [ref=e663]:
+      - generic [ref=e664]:
+        - heading [level=2] [ref=e665]
+        - img "ladder app" [ref=e667]
+      - link "Find your plan" [ref=e668] [cursor=pointer]:
+        - /url: /pricing
+    - generic [ref=e670]:
+      - heading "Still have questions?" [level=2] [ref=e671]
+      - generic [ref=e672]:
+        - generic [ref=e673]:
+          - generic [ref=e674] [cursor=pointer]: Do I need to give a credit card to start a trial?
+          - generic [ref=e680]:
+            - paragraph [ref=e682]: Nope! Ladder offers a 7 day, completely free test drive.
+            - paragraph [ref=e684]: Ladder will not ask for a credit card to start a trial. No payment info is collected until AFTER the free trial ends.
+        - generic [ref=e685]:
+          - generic [ref=e686] [cursor=pointer]: How do I find the right plan/program?
+          - generic [ref=e692]:
+            - paragraph [ref=e694]: Ladder features some of the best strength coaches in the world, each offering unique coaching and training styles.
+            - paragraph [ref=e696]:
+              - text: To find the right team/fitness plan, we recommend taking the
+              - link "team quiz" [ref=e697] [cursor=pointer]:
+                - /url: https://www.joinladder.com/quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage
+              - text: . This quiz will connect you with the best coach/team based on your goals and preferences.
+        - generic [ref=e698]:
+          - generic [ref=e699] [cursor=pointer]: Can I change plans after I make a choice?
+          - generic [ref=e705]:
+            - paragraph [ref=e707]: Yes! During your free trial, you can try as many teams as you would like. Our goal is for you to find the right match, we are confident that we have a team for everyone.
+            - paragraph [ref=e709]: For subscribed members, we offer the PRO Annual plan to get access to all teams whenever you want. For the PRO Monthly plan, you can change teams twice per month.
+        - generic [ref=e710]:
+          - generic [ref=e711] [cursor=pointer]: Is Ladder for people who work out at home or at the gym?
+          - paragraph [ref=e719]: Ladder members work out at home, at the gym, outside, or across all three. With Ladder your workout programming is in your pocket and ready when you are.
+        - generic [ref=e720]:
+          - generic [ref=e721] [cursor=pointer]: How is Ladder different from other fitness apps?
+          - generic [ref=e727]:
+            - paragraph [ref=e729]: Ladder is built for strength training and specifically for busy people who are already motivated to workout.
+            - paragraph [ref=e731]: This isn't just a library of random workout content. Ladder gives you a complete workout plan to help you maximize your workouts and achieve real results.
+            - paragraph [ref=e733]: With Ladder you'll know exactly what workout to do, with a daily workout plan that's programmed by an expert coach and new each week.
+            - paragraph [ref=e735]: "With Ladder, you get:"
+            - paragraph [ref=e737]: ✓ Results in less time
+            - paragraph [ref=e739]: ✓ New workouts every week
+            - paragraph [ref=e741]: ✓ A training plan that's always with you
+            - paragraph [ref=e743]: ✓ Real coaching
+            - paragraph [ref=e745]: The Ladder app is built specifically for progressive strength training, with in-ear coaching, video demonstrations and precise pacing built-in.
+            - paragraph [ref=e747]: And Ladder doesn't force its own music into your workouts.
+            - paragraph [ref=e749]: The Ladder app works seamlessly with Spotify and Apple Music to integrate your playlists into your workout experience - complete with volume control that automatically lowers the volume of your music when your coach is speaking and raises it when you're working hardest.
+        - button "show all FAQs" [ref=e751] [cursor=pointer]: Show All
+    - generic [ref=e753]:
+      - generic [ref=e754]:
+        - heading "Join a community" [level=3] [ref=e755]
+        - heading "THAT SHARES YOUR PASSION" [level=2] [ref=e756]
+        - paragraph [ref=e757]: Start your free 7 day trial now.
+        - link "Find your plan" [ref=e759] [cursor=pointer]:
+          - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+      - img "community" [ref=e760]
+    - generic [ref=e761]:
+      - generic [ref=e762]:
+        - img "Ladder Logo" [ref=e764]
+        - generic [ref=e766]:
+          - link "Free Workout Of The Day" [ref=e767] [cursor=pointer]:
+            - /url: /app/workout/today
+          - link "Pricing" [ref=e768] [cursor=pointer]:
+            - /url: /pricing
+          - link "Ladder Shop" [ref=e769] [cursor=pointer]:
+            - /url: https://shop.joinladder.com
+          - link "Find your plan" [ref=e770] [cursor=pointer]:
+            - /url: /quiz?utm_medium=organic&utm_source=website&utm_campaign=homepage&utm_term=hero-cta&utm_content=homepagesurvey&variant=riddler_hybrid_og_v2&page=0
+      - generic [ref=e771]:
+        - generic [ref=e773]:
+          - img "qr code" [ref=e774]
+          - img "download on the app store" [ref=e776]
+        - generic [ref=e777]:
+          - generic [ref=e778]:
+            - heading "Pages" [level=2] [ref=e779]
+            - list [ref=e780]:
+              - listitem [ref=e781]:
+                - link "Home" [ref=e782] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/
+              - listitem [ref=e783]:
+                - link "Pricing" [ref=e784] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/pricing
+              - listitem [ref=e785]:
+                - link "Free Workout Of The Day" [ref=e786] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/app/workout/today
+              - listitem [ref=e787]:
+                - link "Ladder Shop" [ref=e788] [cursor=pointer]:
+                  - /url: https://shop.joinladder.com
+              - listitem [ref=e789]:
+                - link "Find Your Plan" [ref=e790] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/quiz
+              - listitem [ref=e791]:
+                - link "Blog" [ref=e792] [cursor=pointer]:
+                  - /url: https://blog.joinladder.com
+              - listitem [ref=e793]:
+                - link "Careers" [ref=e794] [cursor=pointer]:
+                  - /url: https://jobs.ashbyhq.com/ladder
+              - listitem [ref=e795]:
+                - link "Consumer Health Privacy" [ref=e796] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/consumer-health-privacy
+          - generic [ref=e797]:
+            - heading "Programs" [level=2] [ref=e798]
+            - list [ref=e799]:
+              - listitem [ref=e800]:
+                - link "Ascend" [ref=e801] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/ascend
+              - listitem [ref=e802]:
+                - link "Align" [ref=e803] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/align
+              - listitem [ref=e804]:
+                - link "Body & Bell" [ref=e805] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/body-and-bell
+              - listitem [ref=e806]:
+                - link "Crews Control" [ref=e807] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/crews-control
+              - listitem [ref=e808]:
+                - link "Define" [ref=e809] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/define
+              - listitem [ref=e810]:
+                - link "Elevate" [ref=e811] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/elevate
+              - listitem [ref=e812]:
+                - link "Endure" [ref=e813] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/endure
+              - listitem [ref=e814]:
+                - link "Era" [ref=e815] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/era
+              - listitem [ref=e816]:
+                - link "Evolve" [ref=e817] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/evolve
+              - listitem [ref=e818]:
+                - link "Flourish" [ref=e819] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/flourish
+              - listitem [ref=e820]:
+                - link "Forged" [ref=e821] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/forged
+              - listitem [ref=e822]:
+                - link "Formation" [ref=e823] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/formation
+              - listitem [ref=e824]:
+                - link "Ignite" [ref=e825] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/ignite
+              - listitem [ref=e826]:
+                - link "Limitless" [ref=e827] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/limitless
+              - listitem [ref=e828]:
+                - link "Maximus" [ref=e829] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/maximus
+              - listitem [ref=e830]:
+                - link "Movewell" [ref=e831] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/movewell
+              - listitem [ref=e832]:
+                - link "Project Alpha" [ref=e833] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/project-alpha
+              - listitem [ref=e834]:
+                - link "Resilient" [ref=e835] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/resilient
+              - listitem [ref=e836]:
+                - link "Transform" [ref=e837] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/transform
+              - listitem [ref=e838]:
+                - link "Vantage" [ref=e839] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/vantage
+              - listitem [ref=e840]:
+                - link "Versa" [ref=e841] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/versa
+              - listitem [ref=e842]:
+                - link "Vitality" [ref=e843] [cursor=pointer]:
+                  - /url: https://www.joinladder.com/team/vitality
+        - generic [ref=e844]:
+          - link "tiktok tiktok.com/@joinladder" [ref=e845] [cursor=pointer]:
+            - /url: https://tiktok.com/@joinladder
+            - img "tiktok" [ref=e846]
+            - generic [ref=e847]: tiktok.com/@joinladder
+          - link "instagram instagram.com/joinladder" [ref=e848] [cursor=pointer]:
+            - /url: https://instagram.com/joinladder
+            - img "instagram" [ref=e849]
+            - generic [ref=e850]: instagram.com/joinladder
+          - link "facebook facebook.com/joinladder" [ref=e851] [cursor=pointer]:
+            - /url: https://facebook.com/joinladder
+            - img "facebook" [ref=e852]
+            - generic [ref=e853]: facebook.com/joinladder
+          - link "mail support@joinladder.com" [ref=e854] [cursor=pointer]:
+            - /url: mailto:support@joinladder.com
+            - img "mail" [ref=e855]
+            - generic [ref=e856]: support@joinladder.com
+      - generic [ref=e857]:
+        - generic [ref=e858]: © 2026 Ladder Technologies, Inc.
+        - generic [ref=e859]: "|"
+        - generic [ref=e860]:
+          - link "Terms" [ref=e861] [cursor=pointer]:
+            - /url: https://www.joinladder.com/terms
+          - generic [ref=e862]: •
+          - link "Privacy" [ref=e863] [cursor=pointer]:
+            - /url: https://www.joinladder.com/privacy
+          - generic [ref=e864]: •
+          - link "Consumer Health Privacy" [ref=e865] [cursor=pointer]:
+            - /url: https://www.joinladder.com/consumer-health-privacy
+          - generic [ref=e866]: •
+          - link "Sitemap" [ref=e867] [cursor=pointer]:
+            - /url: /sitemap

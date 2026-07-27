@@ -19,6 +19,7 @@ import { GroupedList, SectionHeader, SummaryBlock } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
 
 export * from "./dashboard-intelligence"
+export * from "./coach-dashboard-widgets"
 
 export type DashboardBriefingView = {
   action: string

@@ -1,0 +1,4 @@
+[      36ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_bun/client/index-00000000266c5d8b.js:27420
+[      58ms] [INFO] [Bun] Hot-module-reloading socket connected, waiting for changes... @ http://127.0.0.1:3000/_bun/client/index-00000000266c5d8b.js:20
+[   65844ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:3000/_bun/client/index-00000000580e09e3.js:27420
+[   65868ms] [INFO] [Bun] Hot-module-reloading socket connected, waiting for changes... @ http://127.0.0.1:3000/_bun/client/index-00000000580e09e3.js:20

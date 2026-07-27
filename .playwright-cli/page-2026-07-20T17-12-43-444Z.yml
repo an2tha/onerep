@@ -1,0 +1,54 @@
+- generic [ref=e2]:
+  - main [ref=e132]:
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]: OneRep
+          - generic [ref=e138]: 2 / 5 · Baseline
+        - progressbar "Profile setup progress" [ref=e139]
+      - generic [ref=e208]:
+        - generic [ref=e209]:
+          - heading "Add your baseline" [level=1] [ref=e210]
+          - paragraph [ref=e211]: These measurements are used to estimate your starting energy needs.
+        - generic [ref=e213]:
+          - region [ref=e214]:
+            - heading "Body profile used for the estimate" [level=2] [ref=e215]
+            - generic [ref=e216]:
+              - button "Female" [ref=e217]
+              - button "Male" [active] [ref=e221]
+          - region [ref=e225]:
+            - generic [ref=e226]:
+              - heading "Measurements" [level=2] [ref=e227]
+              - button "Use pounds" [ref=e228]: kg
+            - generic [ref=e229]:
+              - generic [ref=e230]:
+                - generic [ref=e231]:
+                  - generic [ref=e232]: Age
+                  - generic [ref=e233]: 13–100
+                - generic [ref=e234]:
+                  - button "Decrease Age" [ref=e235]
+                  - spinbutton "Age" [ref=e238]: "25"
+                  - button "Increase Age" [ref=e239]
+                - generic [ref=e242]: "Current value: 25 years"
+              - generic [ref=e243]:
+                - generic [ref=e244]:
+                  - generic [ref=e245]: Height (cm)
+                  - generic [ref=e246]: 100–250
+                - generic [ref=e247]:
+                  - button "Decrease Height (cm)" [ref=e248]
+                  - spinbutton "Height (cm)" [ref=e251]: "170"
+                  - button "Increase Height (cm)" [ref=e252]
+                - generic [ref=e255]: "Current value: 170 cm"
+              - generic [ref=e256]:
+                - generic [ref=e257]:
+                  - generic [ref=e258]: Weight (kg)
+                  - generic [ref=e259]: 35–250
+                - generic [ref=e260]:
+                  - button "Decrease Weight (kg)" [ref=e261]
+                  - spinbutton "Weight (kg)" [ref=e264]: "75"
+                  - button "Increase Weight (kg)" [ref=e265]
+                - generic [ref=e268]: "Current value: 75 kg"
+      - generic [ref=e196]:
+        - button "Back" [ref=e197]
+        - button "Continue" [ref=e200]
+  - region "Notifications alt+T"

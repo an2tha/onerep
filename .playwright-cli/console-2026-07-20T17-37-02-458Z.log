@@ -1,0 +1,412 @@
+[      45ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[  309365ms] [WARNING] Capacitor plugin "WorkoutLiveActivity" already registered. Cannot register plugins twice. @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-MCGFQOG7.js?v=f1215094:51
+[  317686ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[  344235ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1228913ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1228980ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1272685ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1272749ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1292151ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1292220ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1520836ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1520903ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1537156ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:5173/src/pages/RecipesHub.tsx?t=1784570559591:0
+[ 1537156ms] [ERROR] [vite] Failed to reload /src/pages/RecipesHub.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[ 1544515ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1544581ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1563639ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1563702ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1580542ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1580608ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1927432ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[ 1927476ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[ 1927476ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[ 1927476ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[ 1927476ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[ 1927476ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[ 1927476ms] [WARNING] %s
+
+%s
+ An error occurred in the <aside> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[ 1927476ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10249:13)
+    at recursivelyTraverseMutationEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10379:13)
+[ 1927476ms] [WARNING] %s
+
+%s
+ An error occurred in the <section> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[ 1927527ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 2832893ms] [LOG] WebSocket reconnected at t=905.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 7322746ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 7322746ms] [LOG] Attempting reconnect in 536ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 7322746ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[ 7322960ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 9374063ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 9374064ms] [LOG] Attempting reconnect in 904ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 9375141ms] [LOG] WebSocket reconnected at t=48.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 9375772ms] [LOG] WebSocket reconnected at t=49.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[10923688ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[10923688ms] [LOG] Attempting reconnect in 1363ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[10925223ms] [LOG] WebSocket reconnected at t=97.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[10925803ms] [LOG] WebSocket reconnected at t=98.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[14154547ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[14154548ms] [LOG] Attempting reconnect in 1304ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[14583918ms] [LOG] WebSocket reconnected at t=135.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[14584525ms] [LOG] WebSocket reconnected at t=136.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[21905808ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[21905808ms] [LOG] Attempting reconnect in 1412ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[21907432ms] [LOG] WebSocket reconnected at t=188.2s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[21908037ms] [LOG] WebSocket reconnected at t=188.8s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[28203691ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[28203692ms] [LOG] Attempting reconnect in 1401ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[28205232ms] [LOG] WebSocket reconnected at t=235.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[28205797ms] [LOG] WebSocket reconnected at t=236.3s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[32888905ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[32888906ms] [LOG] Attempting reconnect in 1364ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[32890414ms] [LOG] WebSocket reconnected at t=283s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[38610870ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[38610870ms] [LOG] Attempting reconnect in 2743ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[39191497ms] [LOG] WebSocket reconnected at t=331s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[39192180ms] [LOG] WebSocket reconnected at t=331.6s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[41196743ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[41196743ms] [LOG] Attempting reconnect in 1173ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[41198125ms] [LOG] WebSocket reconnected at t=368.2s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[41198658ms] [LOG] WebSocket reconnected at t=368.7s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[43552683ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[43552684ms] [LOG] Attempting reconnect in 933ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[43553806ms] [LOG] WebSocket reconnected at t=415.4s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[43554384ms] [LOG] WebSocket reconnected at t=416s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[46395981ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[46395981ms] [LOG] Attempting reconnect in 934ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[46397121ms] [LOG] WebSocket reconnected at t=449.3s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[46397804ms] [LOG] WebSocket reconnected at t=450s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[49531214ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[49531214ms] [LOG] Attempting reconnect in 701ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[49532135ms] [LOG] WebSocket reconnected at t=479.5s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[51993132ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[51993132ms] [LOG] Attempting reconnect in 2808ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[51996150ms] [LOG] WebSocket reconnected at t=527.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[51996732ms] [LOG] WebSocket reconnected at t=528.2s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[54850087ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[54850088ms] [LOG] Attempting reconnect in 514ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[55843830ms] [LOG] WebSocket reconnected at t=575.3s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[55844563ms] [LOG] WebSocket reconnected at t=576s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[58144083ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[58144083ms] [LOG] Attempting reconnect in 961ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[61708002ms] [ERROR] WebSocket connection to 'wss://hallowed-llama-854.eu-west-1.convex.cloud/api/1.42.1/sync' failed: Error during WebSocket handshake: net::ERR_CONNECTION_RESET @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:1218
+[61708002ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[61708002ms] [LOG] Attempting reconnect in 2840ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[62165623ms] [LOG] WebSocket reconnected at t=651.4s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[62166342ms] [LOG] WebSocket reconnected at t=652.1s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[65823685ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[65823685ms] [LOG] Attempting reconnect in 1008ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[65824859ms] [LOG] WebSocket reconnected at t=682.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[65825563ms] [LOG] WebSocket reconnected at t=683.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[69826449ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[69826450ms] [LOG] Attempting reconnect in 1469ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[69828140ms] [LOG] WebSocket reconnected at t=736.1s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[69828933ms] [LOG] WebSocket reconnected at t=736.8s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[72775157ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[72775157ms] [LOG] Attempting reconnect in 1114ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[72776563ms] [LOG] WebSocket reconnected at t=792.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[72777123ms] [LOG] WebSocket reconnected at t=793.1s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[73358110ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[73358110ms] [LOG] Attempting reconnect in 2084ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[73360467ms] [LOG] WebSocket reconnected at t=840.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[73666274ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[74566691ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[74566747ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[74566747ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[74566747ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[74566747ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[74566747ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[74566747ms] [WARNING] %s
+
+%s
+ An error occurred in the <aside> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[74566747ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10249:13)
+    at recursivelyTraverseMutationEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10379:13)
+[74566747ms] [WARNING] %s
+
+%s
+ An error occurred in the <section> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[74567089ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[75365842ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:5173/@fs/Users/ananth/Documents/Code/onerep/packages/ui/src/components/home/dashboard-intelligence.tsx?t=1784644388294:0
+[75365842ms] [ERROR] [vite] Failed to reload /@fs/Users/ananth/Documents/Code/onerep/packages/ui/src/components/home/dashboard-intelligence.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[75380277ms] [ERROR] [vite] Failed to reload /src/App.tsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[75487897ms] [LOG] WebSocket reconnected at t=921.1s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[76276323ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[76276324ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[76276325ms] [LOG] Attempting reconnect in 807ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[76276402ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[76908049ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[76908049ms] [LOG] Attempting reconnect in 1310ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[76909518ms] [LOG] WebSocket reconnected at t=67.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[77038929ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[77038929ms] [LOG] Attempting reconnect in 971ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[77038929ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[77038986ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[81178353ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[81178353ms] [LOG] Attempting reconnect in 708ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[81178353ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[81178486ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[81537383ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[81537383ms] [LOG] Attempting reconnect in 550ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[81538181ms] [LOG] WebSocket reconnected at t=51.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[83719185ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[83748826ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[83933230ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[84633800ms] [ERROR] You are calling ReactDOMClient.createRoot() on a container that has already been passed to createRoot() before. Instead, call root.render() on the existing root instead if you want to update it. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:17253
+[84633855ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[84633855ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[84633856ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[84633855ms] [WARNING] %s
+
+%s
+ An error occurred in the <div> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[84633856ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10272:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+[84633855ms] [WARNING] %s
+
+%s
+ An error occurred in the <aside> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[84633856ms] NotFoundError: Failed to execute 'removeChild' on 'Node': The node to be removed is not a child of this node.
+    at removeChildFromContainer (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:15921:128)
+    at runWithFiberInDEV (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:997:72)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10175:19)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10237:13)
+    at recursivelyTraverseDeletionEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10115:11)
+    at commitDeletionEffectsOnFiber (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10249:13)
+    at recursivelyTraverseMutationEffects (http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:10379:13)
+[84633855ms] [WARNING] %s
+
+%s
+ An error occurred in the <section> component. Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://react.dev/link/error-boundaries to learn more about error boundaries. @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:6965
+[84634208ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[84901739ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[84994600ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[88057554ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=c5ac9661:20102
+[88461356ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[88461356ms] [LOG] Attempting reconnect in 870ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[88461356ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[88461436ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=c5ac9661:20102
+[90715424ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[90715425ms] [LOG] Attempting reconnect in 1196ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[90716780ms] [LOG] WebSocket reconnected at t=52.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[90717435ms] [LOG] WebSocket reconnected at t=53.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[91690108ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[91690108ms] [LOG] Attempting reconnect in 1058ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[91691376ms] [LOG] WebSocket reconnected at t=62.1s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[91691868ms] [LOG] WebSocket reconnected at t=62.6s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[94071966ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[94071966ms] [LOG] Attempting reconnect in 1210ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[94073340ms] [LOG] WebSocket reconnected at t=89.5s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[94073819ms] [LOG] WebSocket reconnected at t=89.9s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[94096029ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[97147407ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[97147407ms] [LOG] Attempting reconnect in 767ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[97151773ms] [LOG] WebSocket reconnected at t=3167.8s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[97758394ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[97758394ms] [LOG] Attempting reconnect in 522ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[98673682ms] [LOG] WebSocket reconnected at t=3184.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[98674351ms] [LOG] WebSocket reconnected at t=3185.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[99676052ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[99676053ms] [LOG] Attempting reconnect in 938ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[99677506ms] [LOG] WebSocket reconnected at t=3203.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[99678018ms] [LOG] WebSocket reconnected at t=3204.2s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[102646620ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[102646620ms] [LOG] Attempting reconnect in 1131ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[102650000ms] [LOG] WebSocket reconnected at t=3259.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[102651496ms] [LOG] WebSocket reconnected at t=3261.2s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[106532989ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[106532989ms] [LOG] Attempting reconnect in 588ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[106537040ms] [LOG] WebSocket reconnected at t=3329.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[110175934ms] [LOG] WebSocket reconnected at t=3352.7s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[110178880ms] [LOG] WebSocket reconnected at t=3355.7s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[111731915ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[111731915ms] [LOG] Attempting reconnect in 1213ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[111733392ms] [LOG] WebSocket reconnected at t=3368.9s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[111733842ms] [LOG] WebSocket reconnected at t=3369.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[115394251ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[115394251ms] [LOG] Attempting reconnect in 832ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[116388060ms] [LOG] WebSocket reconnected at t=3395.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[116388852ms] [LOG] WebSocket reconnected at t=3396.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[119051680ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[119051680ms] [LOG] Attempting reconnect in 909ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[119052934ms] [LOG] WebSocket reconnected at t=3416.7s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[119053740ms] [LOG] WebSocket reconnected at t=3417.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[123712665ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[123712665ms] [LOG] Attempting reconnect in 1264ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[123714380ms] [LOG] WebSocket reconnected at t=3464.5s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[123715145ms] [LOG] WebSocket reconnected at t=3465.3s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[124647782ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[124647782ms] [LOG] Attempting reconnect in 1443ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[124649526ms] [LOG] WebSocket reconnected at t=3468.1s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[124650283ms] [LOG] WebSocket reconnected at t=3468.8s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[129443869ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[129443869ms] [LOG] Attempting reconnect in 560ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[129445244ms] [LOG] WebSocket reconnected at t=3516.4s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[131576783ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[131576783ms] [LOG] Attempting reconnect in 2593ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[132516876ms] [LOG] WebSocket reconnected at t=3551.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[132517756ms] [LOG] WebSocket reconnected at t=3552.5s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[135320327ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[135320327ms] [LOG] Attempting reconnect in 954ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[135323372ms] [LOG] WebSocket reconnected at t=3601s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[135328263ms] [LOG] WebSocket reconnected at t=3602.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[138423769ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[138423769ms] [LOG] Attempting reconnect in 1340ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[139377232ms] [LOG] WebSocket reconnected at t=3655.4s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[139379658ms] [LOG] WebSocket reconnected at t=3657.8s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[141950802ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[141950802ms] [LOG] Attempting reconnect in 917ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[141952456ms] [LOG] WebSocket reconnected at t=3677.3s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[142426671ms] [LOG] WebSocket reconnected at t=3679.1s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[143580513ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[143580513ms] [LOG] Attempting reconnect in 1141ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[144621100ms] [LOG] WebSocket reconnected at t=3731.6s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[144621870ms] [LOG] WebSocket reconnected at t=3732.3s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[149064318ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[149064318ms] [LOG] Attempting reconnect in 1009ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[149066105ms] [LOG] WebSocket reconnected at t=3776.8s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[149067064ms] [LOG] WebSocket reconnected at t=3777.8s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[150018618ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[150018618ms] [LOG] Attempting reconnect in 555ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[150019642ms] [LOG] WebSocket reconnected at t=3795.5s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93
+[150020553ms] [LOG] WebSocket reconnected at t=3796.4s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=c5ac9661:93

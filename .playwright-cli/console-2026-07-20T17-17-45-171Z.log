@@ -1,0 +1,10 @@
+[      35ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[   76431ms] [LOG] [vite] server connection lost. Polling for restart... @ http://127.0.0.1:5173/@vite/client:864
+[   76432ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[   76433ms] [LOG] Attempting reconnect in 621ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[   76485ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102
+[ 1067794ms] [LOG] WebSocket closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 1067794ms] [LOG] Attempting reconnect in 1186ms @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 1069198ms] [LOG] WebSocket reconnected at t=52.8s after disconnect due to closed with code 1006 @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 1069734ms] [LOG] WebSocket reconnected at t=53.3s @ http://127.0.0.1:5173/node_modules/.vite/deps/chunk-FXOLFFIH.js?v=f1215094:93
+[ 1152250ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://127.0.0.1:5173/node_modules/.vite/deps/react-dom_client.js?v=02bfa747:20102

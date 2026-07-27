@@ -1,0 +1,12 @@
+- generic [ref=f3e2]:
+  - complementary [ref=f3e6]:
+    - button "Go to Today" [ref=f3e7]:
+      - paragraph [ref=f3e8]: OneRep
+    - navigation [ref=f3e9]:
+      - button "Today" [ref=f3e10]
+      - button "Nutrition" [ref=f3e13]
+      - button "Training" [ref=f3e16]
+      - button "Progress" [ref=f3e19]
+      - button "Coach" [ref=f3e22]
+    - button "Open profile and settings" [ref=f3e27]: Profile & settings
+  - region "Notifications alt+T"

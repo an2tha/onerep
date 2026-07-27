@@ -1,0 +1,18 @@
+- generic [active] [ref=f3e1]:
+  - main [ref=f3e2]:
+    - generic [ref=f3e3]:
+      - heading "fitbod.me" [level=1] [ref=f3e5]
+      - heading "Performing security verification" [level=2] [ref=f3e6]
+      - paragraph [ref=f3e7]: This website uses a security service to protect against malicious bots. This page is displayed while the website verifies you are not a bot.
+  - contentinfo [ref=f3e14]:
+    - generic [ref=f3e16]:
+      - generic [ref=f3e18]:
+        - text: "Ray ID:"
+        - code [ref=f3e19]: a21e8b0ffa53d9d0
+      - generic [ref=f3e20]:
+        - generic [ref=f3e21]:
+          - text: Performance and Security by
+          - link "Cloudflare" [ref=f3e22] [cursor=pointer]:
+            - /url: https://www.cloudflare.com?utm_source=challenge&utm_campaign=m
+        - link "Privacy" [ref=f3e24] [cursor=pointer]:
+          - /url: https://www.cloudflare.com/privacypolicy/

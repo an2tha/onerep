@@ -1,0 +1,396 @@
+- generic [ref=f2e1]:
+  - dialog "Manage cookie consent" [ref=f2e2]:
+    - generic [ref=f2e3]:
+      - generic [ref=f2e4]: Manage cookie consent
+      - button "Close dialog" [active] [ref=f2e5] [cursor=pointer]:
+        - img [ref=f2e6]: 
+    - generic [ref=f2e8]: To provide the best experiences, we use technologies like cookies to store and/or access device information. Consenting to these technologies will allow us to process data such as browsing behavior or unique IDs on this site. Not consenting or withdrawing consent, may adversely affect certain features and functions.
+    - generic [ref=f2e10]:
+      - button "Accept" [ref=f2e11] [cursor=pointer]
+      - button "Deny" [ref=f2e12] [cursor=pointer]
+      - button "View preferences" [ref=f2e13] [cursor=pointer]
+    - generic:
+      - list:
+        - listitem
+        - listitem
+        - listitem
+  - link "Skip to content" [ref=f2e14] [cursor=pointer]:
+    - /url: "#content"
+  - generic [ref=f2e15]:
+    - banner [ref=f2e16]:
+      - generic [ref=f2e18]:
+        - link [ref=f2e23] [cursor=pointer]:
+          - /url: https://macrofactor.com/
+          - img "MF Logo Wordmark White ppi" [ref=f2e24]
+        - generic [ref=f2e28]:
+          - navigation "Menu" [ref=f2e29]:
+            - list [ref=f2e30]:
+              - listitem [ref=f2e31]:
+                - link "Nutrition" [ref=f2e32] [cursor=pointer]:
+                  - /url: https://macrofactor.com/macrofactor/
+              - listitem [ref=f2e33]:
+                - link "Workouts" [ref=f2e34] [cursor=pointer]:
+                  - /url: https://macrofactor.com/workouts/
+              - listitem [ref=f2e35]:
+                - link [ref=f2e36] [cursor=pointer]:
+                  - /url: https://macrofactor.com/articles/
+                  - text: Articles
+                  - button "Menu Toggle"
+                  - generic [ref=f2e37]: 
+              - listitem [ref=f2e38]:
+                - link [ref=f2e39] [cursor=pointer]:
+                  - /url: "#"
+                  - text: Tools
+                  - button "Menu Toggle"
+                  - generic [ref=f2e40]: 
+              - listitem [ref=f2e41]:
+                - link "Roadmap" [ref=f2e42] [cursor=pointer]:
+                  - /url: https://feedback.macrofactorapp.com/roadmap
+          - text:    
+    - generic [ref=f2e45]:
+      - generic [ref=f2e49]:
+        - heading "Eat Smarter" [level=2] [ref=f2e52]
+        - heading "MacroFactor Nutrition" [level=3] [ref=f2e55]
+        - link "Download" [ref=f2e59] [cursor=pointer]:
+          - /url: https://onelink.to/macrofactor
+        - img "Three Phone MacroFactor Dark" [ref=f2e64]
+      - generic [ref=f2e68]:
+        - heading "Lift Smarter" [level=2] [ref=f2e71]
+        - heading "MacroFactor Workouts" [level=3] [ref=f2e74]
+        - link "Download" [ref=f2e78] [cursor=pointer]:
+          - /url: https://onelink.to/workouts
+        - img "Workouts half screen" [ref=f2e83]
+      - generic [ref=f2e87]:
+        - heading "Get Inspired" [level=2] [ref=f2e90]
+        - heading [level=3] [ref=f2e93]:
+          - link "User Success Stories" [ref=f2e94] [cursor=pointer]:
+            - /url: https://macrofactor.com/case-study/
+      - list [ref=f2e101]:
+        - listitem [ref=f2e102]:
+          - link [ref=f2e103] [cursor=pointer]:
+            - /url: https://macrofactor.com/case-study-zarina/
+          - generic [ref=f2e105]:
+            - heading [level=3] [ref=f2e106]:
+              - link "How Zarina Learned Her True Expenditure With MacroFactor" [ref=f2e107] [cursor=pointer]:
+                - /url: https://macrofactor.com/case-study-zarina/
+            - generic [ref=f2e108]: July 24, 2026
+        - listitem [ref=f2e109]:
+          - link [ref=f2e110] [cursor=pointer]:
+            - /url: https://macrofactor.com/case-study-cameron/
+          - generic [ref=f2e112]:
+            - heading [level=3] [ref=f2e113]:
+              - link "How Cameron Lost 60lb and Caught a Lifelong Goal" [ref=f2e114] [cursor=pointer]:
+                - /url: https://macrofactor.com/case-study-cameron/
+            - generic [ref=f2e115]: June 22, 2026
+        - listitem [ref=f2e116]:
+          - link [ref=f2e117] [cursor=pointer]:
+            - /url: https://macrofactor.com/case-study-nic/
+            - img "TEMPLATE Case Study Featured Image" [ref=f2e119]
+          - generic [ref=f2e120]:
+            - heading [level=3] [ref=f2e121]:
+              - link "Nic’s Long Game, With a Little Help From MacroFactor" [ref=f2e122] [cursor=pointer]:
+                - /url: https://macrofactor.com/case-study-nic/
+            - generic [ref=f2e123]: May 14, 2026
+        - listitem [ref=f2e124]:
+          - link [ref=f2e125] [cursor=pointer]:
+            - /url: https://macrofactor.com/case-study-bryan/
+          - generic [ref=f2e127]:
+            - heading [level=3] [ref=f2e128]:
+              - link "From Surviving to Strategizing with MacroFactor" [ref=f2e129] [cursor=pointer]:
+                - /url: https://macrofactor.com/case-study-bryan/
+            - generic [ref=f2e130]: March 27, 2026
+      - generic [ref=f2e134]:
+        - heading "Level Up" [level=2] [ref=f2e137]
+        - heading [level=3] [ref=f2e140]:
+          - link "In-Depth Articles" [ref=f2e141] [cursor=pointer]:
+            - /url: https://macrofactor.com/articles/
+      - list [ref=f2e148]:
+        - listitem [ref=f2e149]:
+          - generic [ref=f2e150]:
+            - link [ref=f2e151] [cursor=pointer]:
+              - /url: https://macrofactor.com/rest-times-between-sets/
+            - generic [ref=f2e153]:
+              - heading [level=3] [ref=f2e154]:
+                - link "Do Rest Times Matter for Performance or Muscle Growth?" [ref=f2e155] [cursor=pointer]:
+                  - /url: https://macrofactor.com/rest-times-between-sets/
+              - paragraph [ref=f2e157]: This article looks at rest times between sets for strength and muscle growth, including what the research says and how you could save time without limiting performance.
+            - generic [ref=f2e158]: June 16, 2026
+        - listitem [ref=f2e159]:
+          - generic [ref=f2e160]:
+            - link [ref=f2e161] [cursor=pointer]:
+              - /url: https://macrofactor.com/warm-up-resistance-training/
+              - img "MacroFactor featured images" [ref=f2e163]
+            - generic [ref=f2e164]:
+              - heading [level=3] [ref=f2e165]:
+                - link "How to Warm-Up for Resistance Training" [ref=f2e166] [cursor=pointer]:
+                  - /url: https://macrofactor.com/warm-up-resistance-training/
+              - paragraph [ref=f2e168]: This article dives into the current research on warming up for resistance training and explains how to implement load progressions if you’re new to warm-up sets.
+            - generic [ref=f2e169]: May 18, 2026
+        - listitem [ref=f2e170]:
+          - generic [ref=f2e171]:
+            - link [ref=f2e172] [cursor=pointer]:
+              - /url: https://macrofactor.com/reps-in-reserve/
+              - img "MacroFactor featured images" [ref=f2e174]
+            - generic [ref=f2e175]:
+              - heading [level=3] [ref=f2e176]:
+                - link "How to Use Reps in Reserve for Lifting" [ref=f2e177] [cursor=pointer]:
+                  - /url: https://macrofactor.com/reps-in-reserve/
+              - paragraph [ref=f2e179]: This article covers the origin of Reps in Reserve (RIR) and how the system could help you gauge effort, rather than choosing weights at random.
+            - generic [ref=f2e180]: April 20, 2026
+        - listitem [ref=f2e181]:
+          - generic [ref=f2e182]:
+            - link [ref=f2e183] [cursor=pointer]:
+              - /url: https://macrofactor.com/post-workout-nutrition/
+              - img "MacroFactor featured images" [ref=f2e185]
+            - generic [ref=f2e186]:
+              - heading [level=3] [ref=f2e187]:
+                - 'link "Post-Workout Nutrition: Does Timing Matter?" [ref=f2e188] [cursor=pointer]':
+                  - /url: https://macrofactor.com/post-workout-nutrition/
+              - paragraph [ref=f2e190]: In the final article of this three-part series, we look at what current research says about post-workout nutrition.
+            - generic [ref=f2e191]: March 18, 2026
+      - generic [ref=f2e195]:
+        - heading "Dig Deeper" [level=2] [ref=f2e198]
+        - heading [level=3] [ref=f2e201]:
+          - link "App Insights" [ref=f2e202] [cursor=pointer]:
+            - /url: https://macrofactor.com/app-insights/
+      - list [ref=f2e209]:
+        - listitem [ref=f2e210]:
+          - generic [ref=f2e211]:
+            - link [ref=f2e212] [cursor=pointer]:
+              - /url: https://macrofactor.com/10-macrofactor-features/
+            - generic [ref=f2e214]:
+              - heading [level=3] [ref=f2e215]:
+                - link "10 MacroFactor Features You Might Have Missed" [ref=f2e216] [cursor=pointer]:
+                  - /url: https://macrofactor.com/10-macrofactor-features/
+              - paragraph [ref=f2e218]: From taking a picture of your receipt to coming out of your cut with more peace of mind, here are some of our favorite MacroFactor features you might have missed along the way.
+            - generic [ref=f2e219]: July 13, 2026
+        - listitem [ref=f2e220]:
+          - generic [ref=f2e221]:
+            - link [ref=f2e222] [cursor=pointer]:
+              - /url: https://macrofactor.com/macrofactor-vs-cal-ai/
+              - img "MF vs Cal" [ref=f2e224]
+            - generic [ref=f2e225]:
+              - heading [level=3] [ref=f2e226]:
+                - 'link "MacroFactor vs Cal AI: Which App Wins in 2026?" [ref=f2e227] [cursor=pointer]':
+                  - /url: https://macrofactor.com/macrofactor-vs-cal-ai/
+              - paragraph [ref=f2e229]: We compared MacroFactor to Cal AI, a newer app focused on AI-driven food logging. While the approach emphasizes simplicity, how well does it hold up for tracking Calories and macros?
+            - generic [ref=f2e230]: April 6, 2026
+      - generic [ref=f2e234]:
+        - heading "Stay Informed" [level=2] [ref=f2e237]
+        - heading [level=3] [ref=f2e240]:
+          - link "Product Updates" [ref=f2e241] [cursor=pointer]:
+            - /url: https://macrofactor.com/product-press/
+      - generic [ref=f2e243]:
+        - generic [ref=f2e245]:
+          - generic [ref=f2e249]:
+            - heading [level=4] [ref=f2e250]:
+              - link "Help" [ref=f2e251] [cursor=pointer]:
+                - /url: https://help.macrofactor.com/
+            - paragraph [ref=f2e252]: The MacroFactor Knowledge Base contains helpful how-tos, answers to FAQs, and explanations of the app's unique features.
+          - paragraph [ref=f2e255]:
+            - link "Go to Knowledge Base" [ref=f2e256] [cursor=pointer]:
+              - /url: https://help.macrofactor.com/
+        - generic [ref=f2e258]:
+          - generic [ref=f2e262]:
+            - heading "Roadmap" [level=4] [ref=f2e263]
+            - paragraph [ref=f2e264]: The MacroFactor public roadmap shows our plans for new features and improvements. We welcome your feature requests here too!
+          - paragraph [ref=f2e267]:
+            - link "See our roadmap or request a feature" [ref=f2e268] [cursor=pointer]:
+              - /url: https://feedback.macrofactor.com/roadmap
+        - generic [ref=f2e270]:
+          - generic [ref=f2e274]:
+            - heading "Community" [level=4] [ref=f2e275]
+            - paragraph [ref=f2e276]: The MacroFactor groups are a great place to ask and answer questions and connect with a likeminded and supportive community.
+          - paragraph [ref=f2e279]:
+            - text: Join the
+            - link "Facebook group" [ref=f2e280] [cursor=pointer]:
+              - /url: https://www.facebook.com/groups/macrofactorcommunity
+            - text: or
+            - link "subreddit" [ref=f2e281] [cursor=pointer]:
+              - /url: https://www.reddit.com/r/macrofactor
+      - generic [ref=f2e287]:
+        - generic [ref=f2e289]:
+          - list [ref=f2e292]:
+            - listitem [ref=f2e293]:
+              - generic [ref=f2e294]:
+                - link [ref=f2e295] [cursor=pointer]:
+                  - /url: https://macrofactor.com/annual-report-2025/
+                  - img "Annual Report" [ref=f2e297]
+                - generic [ref=f2e298]:
+                  - heading [level=3] [ref=f2e299]:
+                    - link "The 2025 MacroFactor Annual Report" [ref=f2e300] [cursor=pointer]:
+                      - /url: https://macrofactor.com/annual-report-2025/
+                  - paragraph [ref=f2e302]: In our Annual Report, we reflect on the improvements made to MacroFactor in its fourth year, and provide a sneak peek at the development we’re planning for Year 5 and beyond.
+          - list [ref=f2e305]:
+            - listitem [ref=f2e306]:
+              - link [ref=f2e307] [cursor=pointer]:
+                - /url: https://macrofactor.com/ai-food-logging/
+                - img "image" [ref=f2e309]
+              - generic [ref=f2e310]:
+                - heading [level=3] [ref=f2e311]:
+                  - link "AI-Powered Food Logging Comes to MacroFactor" [ref=f2e312] [cursor=pointer]:
+                    - /url: https://macrofactor.com/ai-food-logging/
+                - paragraph [ref=f2e314]: You can now test drive the MacroFactor AI and log your foods simply by snapping a photo. This feature is a first step towards a smarter, AI-powered MacroFactor. Our goal is to save veteran users time by automating the bulk search process for complex dishes and remove barriers to entry
+            - listitem [ref=f2e315]:
+              - link [ref=f2e316] [cursor=pointer]:
+                - /url: https://macrofactor.com/favorite-foods/
+                - img "macrofactor favorite foods" [ref=f2e318]
+              - generic [ref=f2e319]:
+                - heading [level=3] [ref=f2e320]:
+                  - 'link "Favorite Foods: Your Staples Within Reach" [ref=f2e321] [cursor=pointer]':
+                    - /url: https://macrofactor.com/favorite-foods/
+                - paragraph [ref=f2e323]: MacroFactor just launched its new Favorites feature. This update brings a convenient way to save and organize your staples, complete with your preferred serving sizes. By putting your favorite foods at your fingertips, MacroFactor is streamlining the daily food logging experience, saving you time on every entry.
+        - generic [ref=f2e325]:
+          - heading "MacroFactor Monthly" [level=3] [ref=f2e328]
+          - generic [ref=f2e329]: On the last Monday of each month, we send a digest of what’s new, what’s noteworthy, and what’s next for MacroFactor.
+          - list [ref=f2e334]:
+            - listitem [ref=f2e335]:
+              - generic [ref=f2e336]:
+                - heading [level=3] [ref=f2e337]:
+                  - link "Plate Stack AI, Food Logging Updates, Lesser-Known Features, and a MacroFactor Case Study" [ref=f2e338] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-july-2026/
+                - generic [ref=f2e339]: July 27, 2026
+            - listitem [ref=f2e340]:
+              - generic [ref=f2e341]:
+                - heading [level=3] [ref=f2e342]:
+                  - link "Whether Rest Times Really Matter, How One User Lost 60lb, and Roadmap Updates" [ref=f2e343] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-june-2026/
+                - generic [ref=f2e344]: June 29, 2026
+            - listitem [ref=f2e345]:
+              - generic [ref=f2e346]:
+                - heading [level=3] [ref=f2e347]:
+                  - link "Food Logging Upgrade, Live Activity, and How to Use Warm-Ups in Your Lifting Programs" [ref=f2e348] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-may-2026/
+                - generic [ref=f2e349]: May 25, 2026
+            - listitem [ref=f2e350]:
+              - generic [ref=f2e351]:
+                - heading [level=3] [ref=f2e352]:
+                  - link "Recipe creation updates, Workouts improvements, and MacroFactor vs Cal AI" [ref=f2e353] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-april-2026/
+                - generic [ref=f2e354]: April 27, 2026
+            - listitem [ref=f2e355]:
+              - generic [ref=f2e356]:
+                - heading [level=3] [ref=f2e357]:
+                  - link "Final Article in the Workout Nutrition Series, New Case Study, and Live Activity Coming Soon" [ref=f2e358] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-march-2026/
+                - generic [ref=f2e359]: March 30, 2026
+            - listitem [ref=f2e360]:
+              - generic [ref=f2e361]:
+                - heading [level=3] [ref=f2e362]:
+                  - link "Rest Timer Updates, Expanded Cardio Support, And Workout Nutrition Insights" [ref=f2e363] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-feb-2026/
+                - generic [ref=f2e364]: February 23, 2026
+            - listitem [ref=f2e365]:
+              - generic [ref=f2e366]:
+                - heading [level=3] [ref=f2e367]:
+                  - link "Workout App Launched, Version Updates, And Deep-Dive On Workout Nutrition" [ref=f2e368] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-jan-2026/
+                - generic [ref=f2e369]: January 26, 2026
+            - listitem [ref=f2e370]:
+              - generic [ref=f2e371]:
+                - heading [level=3] [ref=f2e372]:
+                  - link "Workouts AMA, Pricing Preview, and a Look at Organic vs Conventional Foods" [ref=f2e373] [cursor=pointer]:
+                    - /url: https://macrofactor.com/mm-dec-2025/
+                - generic [ref=f2e374]: December 29, 2025
+    - contentinfo [ref=f2e375]:
+      - generic [ref=f2e377]:
+        - generic [ref=f2e379]:
+          - img "MF Logo Wordmark Stacked White ppi" [ref=f2e382]
+          - paragraph [ref=f2e385]:
+            - text: Start your free trial of
+            - link "MacroFactor Nutrition" [ref=f2e386] [cursor=pointer]:
+              - /url: https://onelink.to/macrofactor
+            - text: or
+            - link "MacroFactor Workouts" [ref=f2e387] [cursor=pointer]:
+              - /url: https://onelink.to/workouts
+            - text: today
+        - generic [ref=f2e391]:
+          - generic [ref=f2e393]:
+            - generic [ref=f2e394]: Learn more
+            - list [ref=f2e399]:
+              - listitem [ref=f2e400]:
+                - link "Home" [ref=f2e401] [cursor=pointer]:
+                  - /url: https://macrofactor.com/#
+                  - generic [ref=f2e402]: 
+              - listitem [ref=f2e405]:
+                - link "Nutrition app" [ref=f2e406] [cursor=pointer]:
+                  - /url: https://macrofactor.com/macrofactor/
+                  - generic [ref=f2e407]: 
+              - listitem [ref=f2e410]:
+                - link "Workouts app" [ref=f2e411] [cursor=pointer]:
+                  - /url: https://macrofactor.com/workouts/
+                  - generic [ref=f2e412]: 
+              - listitem [ref=f2e415]:
+                - link "Articles" [ref=f2e416] [cursor=pointer]:
+                  - /url: https://macrofactor.com/articles/
+                  - generic [ref=f2e417]: 
+              - listitem [ref=f2e420]:
+                - link "Press kit" [ref=f2e421] [cursor=pointer]:
+                  - /url: https://macrofactor.com/press-kit/
+                  - generic [ref=f2e422]: 
+          - generic [ref=f2e426]:
+            - generic [ref=f2e427]: Resources
+            - list [ref=f2e432]:
+              - listitem [ref=f2e433]:
+                - link "Help center" [ref=f2e434] [cursor=pointer]:
+                  - /url: https://help.macrofactor.com/
+                  - generic [ref=f2e435]: 
+              - listitem [ref=f2e438]:
+                - link "Roadmap" [ref=f2e439] [cursor=pointer]:
+                  - /url: https://feedback.macrofactor.com/roadmap
+                  - generic [ref=f2e440]: 
+              - listitem [ref=f2e443]:
+                - link "Newsletter" [ref=f2e444] [cursor=pointer]:
+                  - /url: https://macrofactor.com/macrofactor-monthly/
+                  - generic [ref=f2e445]: 
+              - listitem [ref=f2e448]:
+                - link "MF release notes" [ref=f2e449] [cursor=pointer]:
+                  - /url: https://macrofactor.com/release-notes/
+                  - generic [ref=f2e450]: 
+              - listitem [ref=f2e453]:
+                - link "WO release notes" [ref=f2e454] [cursor=pointer]:
+                  - /url: https://macrofactor.com/workouts-release-notes/
+                  - generic [ref=f2e455]: 
+          - generic [ref=f2e459]:
+            - generic [ref=f2e460]: Connect with us
+            - list [ref=f2e465]:
+              - listitem [ref=f2e466]:
+                - link "Facebook group" [ref=f2e467] [cursor=pointer]:
+                  - /url: https://www.facebook.com/groups/macrofactorcommunity/
+                  - generic [ref=f2e468]: 
+              - listitem [ref=f2e471]:
+                - link "Subreddit" [ref=f2e472] [cursor=pointer]:
+                  - /url: https://www.reddit.com/r/macrofactor
+                  - generic [ref=f2e473]: 
+              - listitem [ref=f2e476]:
+                - link "Instagram" [ref=f2e477] [cursor=pointer]:
+                  - /url: https://www.instagram.com/macrofactorapp/
+                  - generic [ref=f2e478]: 
+              - listitem [ref=f2e481]:
+                - link "Contact Us" [ref=f2e482] [cursor=pointer]:
+                  - /url: https://help.macrofactorapp.com/en/articles/103-email-support
+                  - generic [ref=f2e483]: 
+      - contentinfo [ref=f2e486]:
+        - navigation "Menu" [ref=f2e492]:
+          - list [ref=f2e493]:
+            - listitem [ref=f2e494]:
+              - link "Copyright © 2021-2026 MacroFactor" [ref=f2e495] [cursor=pointer]:
+                - /url: "#"
+            - listitem [ref=f2e496]:
+              - link "Privacy Policy" [ref=f2e497] [cursor=pointer]:
+                - /url: https://macrofactor.com/privacy
+            - listitem [ref=f2e498]:
+              - link "Cookie Notice" [ref=f2e499] [cursor=pointer]:
+                - /url: https://macrofactor.com/cookie-notice/
+            - listitem [ref=f2e500]:
+              - link "Health Disclaimer" [ref=f2e501] [cursor=pointer]:
+                - /url: https://macrofactor.com/health-disclaimer/
+            - listitem [ref=f2e502]:
+              - link "Health Data Notice" [ref=f2e503] [cursor=pointer]:
+                - /url: https://macrofactor.com/consumer-health-data/
+            - listitem [ref=f2e504]:
+              - link "Terms" [ref=f2e505] [cursor=pointer]:
+                - /url: https://macrofactor.com/terms/
+            - listitem [ref=f2e506]:
+              - generic [ref=f2e507]: Cookie Preferences
+  - generic [ref=f2e508]: desktop

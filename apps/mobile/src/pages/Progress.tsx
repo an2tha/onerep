@@ -5,8 +5,17 @@ import {
   useState,
   type FormEvent,
 } from "react"
-import { Barbell, CheckCircle, ForkKnife, Plus, X } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import {
+  Barbell,
+  CheckCircle,
+  ForkKnife,
+  Minus,
+  Plus,
+  Sparkle,
+  Trash,
+  X,
+} from "@phosphor-icons/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { useSearchParams } from "react-router"
 import { flushSync } from "react-dom"
 import { api } from "../../../../convex/_generated/api"
@@ -58,8 +67,22 @@ export default function Progress() {
   const [savingEntry, setSavingEntry] = useState(false)
   const [entryError, setEntryError] = useState("")
   const [checkInCelebration, setCheckInCelebration] = useState(false)
+  const [metricBuilderOpen, setMetricBuilderOpen] = useState(false)
+  const [metricRequest, setMetricRequest] = useState("")
+  const [generatingMetric, setGeneratingMetric] = useState(false)
+  const [metricBuilderError, setMetricBuilderError] = useState("")
   const saveMeasurement = useMutation(api.bodyProgress.save)
+  const generateCustomMetric = useAction(
+    api.ai.metricGeneration.generateCustomProgressMetric
+  )
+  const saveCustomMetric = useMutation(api.customProgressMetrics.saveDefinition)
+  const setCustomMetricValue = useMutation(api.customProgressMetrics.setValue)
+  const removeCustomMetric = useMutation(api.customProgressMetrics.remove)
   const today = currentDateKey()
+  const customMetrics = useQuery(api.customProgressMetrics.list, {
+    tab: metric,
+    days: 30,
+  })
   const bodyMeasurements = useQuery(api.bodyProgress.list) as
     BodyMeasurementEntry[] | undefined
   const workoutHistory = useQuery(api.logs.workouts.getHistory) as
@@ -120,7 +143,8 @@ export default function Progress() {
     workoutHistory === undefined ||
     foodHistory === undefined ||
     effectiveGoals === undefined ||
-    preferences === undefined
+    preferences === undefined ||
+    customMetrics === undefined
 
   const prepareEntry = useCallback(() => {
     if (todayMeasurement) {
@@ -175,6 +199,41 @@ export default function Progress() {
     transitionDocument.startViewTransition(() => {
       flushSync(() => setMetric(nextMetric))
     })
+  }
+
+  async function createCustomMetric() {
+    const request = metricRequest.trim()
+    if (request.length < 3 || generatingMetric) {
+      setMetricBuilderError("Describe what you want to track.")
+      return
+    }
+    setGeneratingMetric(true)
+    setMetricBuilderError("")
+    try {
+      const generated = await generateCustomMetric({ tab: metric, request })
+      await saveCustomMetric({
+        title: generated.title,
+        description: generated.description,
+        tab: generated.tab,
+        kind: generated.kind,
+        unit: generated.unit,
+        step: generated.step,
+        ...(generated.target == null ? {} : { target: generated.target }),
+        accent: generated.accent,
+      })
+      hapticMedium()
+      toast.success(`${generated.title} added to Progress`)
+      setMetricRequest("")
+      setMetricBuilderOpen(false)
+    } catch (error) {
+      setMetricBuilderError(
+        error instanceof Error
+          ? error.message
+          : "Coach could not create that metric."
+      )
+    } finally {
+      setGeneratingMetric(false)
+    }
   }
 
   function openEntry() {
@@ -314,21 +373,35 @@ export default function Progress() {
             <p className="app-eyebrow">Last 7 days</p>
             <h1 className="app-title">Progress</h1>
           </div>
-          <AppTooltip
-            id={APP_TOOLTIP_IDS.progressCheckIn}
-            content="Add a consistent body check-in here. Two or more measurements reveal direction; one measurement is only a baseline."
-            side="bottom"
-            align="end"
-          >
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={openEntry}
+              onClick={() => {
+                hapticSelection()
+                setMetricBuilderError("")
+                setMetricBuilderOpen(true)
+              }}
               className="native-toolbar-button"
-              aria-label="Add body measurement"
+              aria-label={`Ask Coach to create a ${metric} metric`}
             >
-              <Plus size={22} weight="bold" />
+              <Sparkle size={20} weight="bold" />
             </button>
-          </AppTooltip>
+            <AppTooltip
+              id={APP_TOOLTIP_IDS.progressCheckIn}
+              content="Add a consistent body check-in here. Two or more measurements reveal direction; one measurement is only a baseline."
+              side="bottom"
+              align="end"
+            >
+              <button
+                type="button"
+                onClick={openEntry}
+                className="native-toolbar-button"
+                aria-label="Add body measurement"
+              >
+                <Plus size={22} weight="bold" />
+              </button>
+            </AppTooltip>
+          </div>
         </header>
 
         <div
@@ -378,6 +451,151 @@ export default function Progress() {
               />
             )}
 
+            {customMetrics.length > 0 && (
+              <section aria-label={`Custom ${metric} metrics`}>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="native-section-title">Made with Coach</p>
+                  <button
+                    type="button"
+                    onClick={() => setMetricBuilderOpen(true)}
+                    className="min-h-11 text-[11px] font-semibold text-muted-foreground"
+                  >
+                    Create another
+                  </button>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {customMetrics.map((customMetric) => {
+                    const todayEntry = customMetric.entries.find(
+                      (entry) => entry.date === today
+                    )
+                    const value = todayEntry?.value ?? 0
+                    const maxValue = Math.max(
+                      customMetric.target ?? 0,
+                      value,
+                      ...customMetric.entries.map((entry) => entry.value),
+                      1
+                    )
+                    const ordered = [...customMetric.entries]
+                      .sort((a, b) => a.date.localeCompare(b.date))
+                      .slice(-14)
+                    const setValue = (next: number) => {
+                      hapticSelection()
+                      void setCustomMetricValue({
+                        metricId: customMetric._id,
+                        date: today,
+                        value: Math.max(0, next),
+                      })
+                    }
+                    return (
+                      <article
+                        key={customMetric._id}
+                        className="custom-metric-card overflow-hidden rounded-xl border border-border bg-card p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[15px] font-semibold">
+                              {customMetric.title}
+                            </p>
+                            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+                              {customMetric.description}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                window.confirm(`Remove ${customMetric.title}?`)
+                              )
+                                void removeCustomMetric({
+                                  metricId: customMetric._id,
+                                })
+                            }}
+                            aria-label={`Remove ${customMetric.title}`}
+                            className="motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                          >
+                            <Trash size={14} />
+                          </button>
+                        </div>
+
+                        <div className="mt-4 flex items-end justify-between gap-4">
+                          <p className="text-[26px] leading-none font-bold tabular-nums">
+                            {customMetric.kind === "toggle"
+                              ? value > 0
+                                ? "Done"
+                                : "Not yet"
+                              : value.toLocaleString()}
+                            {customMetric.kind !== "toggle" &&
+                              customMetric.unit && (
+                                <span className="ml-1 text-[11px] font-medium text-muted-foreground">
+                                  {customMetric.unit}
+                                </span>
+                              )}
+                          </p>
+                          {customMetric.kind === "toggle" ? (
+                            <button
+                              type="button"
+                              aria-pressed={value > 0}
+                              onClick={() => setValue(value > 0 ? 0 : 1)}
+                              className="motion-tactile min-h-10 rounded-xl bg-foreground px-4 text-[11px] font-bold text-background"
+                            >
+                              {value > 0 ? "Undo" : "Mark done"}
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setValue(value - customMetric.step)
+                                }
+                                aria-label={`Decrease ${customMetric.title}`}
+                                className="motion-tactile flex size-10 items-center justify-center rounded-full border border-border"
+                              >
+                                <Minus size={14} weight="bold" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setValue(value + customMetric.step)
+                                }
+                                aria-label={`Increase ${customMetric.title}`}
+                                className="motion-tactile flex size-10 items-center justify-center rounded-full bg-foreground text-background"
+                              >
+                                <Plus size={14} weight="bold" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {ordered.length > 0 && (
+                          <div
+                            className="mt-4 flex h-10 items-end gap-1"
+                            role="img"
+                            aria-label={`${customMetric.title} recent trend`}
+                          >
+                            {ordered.map((entry) => (
+                              <span
+                                key={entry._id}
+                                className="custom-metric-bar min-h-1 flex-1 rounded-t-sm bg-[var(--accent-progress)]"
+                                style={{
+                                  height: `${Math.max(8, (entry.value / maxValue) * 100)}%`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {customMetric.target != null && (
+                          <p className="mt-2 text-[9px] text-muted-foreground tabular-nums">
+                            Daily guide: {customMetric.target}{" "}
+                            {customMetric.unit}
+                          </p>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
+              </section>
+            )}
+
             <GroupedList label="Related history">
               <DisclosureRow
                 title="Nutrition diary"
@@ -395,6 +613,74 @@ export default function Progress() {
           </div>
         )}
       </main>
+
+      {metricBuilderOpen && (
+        <MobileSheet
+          onClose={() => {
+            if (!generatingMetric) setMetricBuilderOpen(false)
+          }}
+          overlayClassName="bg-black/45"
+          panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
+        >
+          <form
+            onSubmit={(event) => {
+              event.preventDefault()
+              void createCustomMetric()
+            }}
+            className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="app-eyebrow">Coach metric builder</p>
+                <h2 className="mt-1 text-[20px] font-bold">
+                  What should appear in {metric}?
+                </h2>
+              </div>
+              <button
+                type="button"
+                disabled={generatingMetric}
+                onClick={() => setMetricBuilderOpen(false)}
+                aria-label="Close metric builder"
+                className="native-toolbar-button -mt-1 -mr-2 px-0"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+            <p className="mt-2 text-[12px] leading-5 text-muted-foreground">
+              Coach will choose the controls, unit, target, and visualization.
+              Try caffeine, stretching, sleep, steps, or a training habit.
+            </p>
+            <label className="mt-5 block">
+              <span className="sr-only">Describe a custom progress metric</span>
+              <textarea
+                autoFocus
+                rows={4}
+                value={metricRequest}
+                onChange={(event) => setMetricRequest(event.target.value)}
+                placeholder="For example: Track caffeine in 50 mg increments with a 400 mg daily limit"
+                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-3 text-[14px] leading-5 outline-none focus:border-foreground/35"
+              />
+            </label>
+            {metricBuilderError && (
+              <p className="mt-2 text-[11px] text-destructive" role="alert">
+                {metricBuilderError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={generatingMetric || metricRequest.trim().length < 3}
+              className="motion-tactile mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background disabled:opacity-35"
+            >
+              <Sparkle
+                size={16}
+                weight="fill"
+                className={generatingMetric ? "animate-pulse" : undefined}
+              />
+              {generatingMetric ? "Coach is designing it…" : "Generate metric"}
+            </button>
+          </form>
+        </MobileSheet>
+      )}
 
       {checkInCelebration && (
         <div

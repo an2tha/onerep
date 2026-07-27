@@ -68,6 +68,83 @@ type CoachGoalTaskDraft = {
   completed?: boolean;
 };
 
+type CoachInteractiveElement =
+  | { type: "text"; text: string; emphasis?: "quiet" | "strong" }
+  | { type: "section"; title: string; detail?: string }
+  | { type: "divider"; label?: string }
+  | {
+      type: "key_value";
+      items: Array<{ label: string; value: string; detail?: string }>;
+    }
+  | {
+      type: "progress";
+      label: string;
+      value: number;
+      max: number;
+      unit?: string;
+      detail?: string;
+    }
+  | {
+      type: "list";
+      style: "bullet" | "number" | "timeline";
+      items: Array<{ title: string; detail?: string }>;
+    }
+  | {
+      type: "metric_group";
+      metrics: Array<{
+        label: string;
+        value: number;
+        unit?: string;
+        detail?: string;
+        scaleWith?: string;
+      }>;
+    }
+  | {
+      type: "stepper";
+      id: string;
+      label: string;
+      value: number;
+      min: number;
+      max: number;
+      step: number;
+      unit?: string;
+    }
+  | {
+      type: "range";
+      id: string;
+      label: string;
+      value: number;
+      min: number;
+      max: number;
+      step: number;
+      unit?: string;
+      lowLabel?: string;
+      highLabel?: string;
+    }
+  | {
+      type: "choice";
+      id: string;
+      label: string;
+      value: string;
+      options: string[];
+    }
+  | {
+      type: "rating";
+      id: string;
+      label: string;
+      value: number;
+      max: number;
+      lowLabel?: string;
+      highLabel?: string;
+    }
+  | {
+      type: "toggle";
+      id: string;
+      label: string;
+      detail?: string;
+      value: boolean;
+    };
+
 type CoachUiBlock =
   | {
       type: "card";
@@ -96,6 +173,30 @@ type CoachUiBlock =
       type: "action_row";
       title: string;
       actions: Array<{ label: string; action: CoachUiAction }>;
+    }
+  | {
+      type: "interactive_card";
+      label: string;
+      title: string;
+      detail?: string;
+      accent: "nutrition" | "training" | "progress" | "neutral";
+      elements: CoachInteractiveElement[];
+      submit?: {
+        type: "log_nutrition";
+        label: string;
+        name: string;
+        meal: string;
+        date?: string;
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+        quantityControlId?: string;
+        baseQuantity?: number;
+        mealControlId?: string;
+        assumptions: string[];
+      };
+      actions?: Array<{ label: string; action: CoachUiAction }>;
     };
 
 type CoachRecipeIngredient = {
@@ -222,6 +323,33 @@ type CoachOperation = CoachOperationMeta &
         tasks: CoachGoalTaskDraft[];
       }
     | {
+        type: "save_progress_metric";
+        title: string;
+        description: string;
+        tab: "body" | "nutrition" | "training";
+        kind: "counter" | "number" | "toggle";
+        unit: string;
+        step: number;
+        target?: number;
+        accent: "food" | "water" | "workout" | "progress";
+      }
+    | {
+        type: "save_dashboard_widget";
+        title: string;
+        description: string;
+        kind: "stat" | "counter" | "progress" | "sparkline" | "decay";
+        sourceMetricId?: string;
+        sourceMetricTitle: string;
+        unit: string;
+        accent: "food" | "water" | "workout" | "progress";
+        target?: number;
+        windowDays?: number;
+        halfLifeHours?: number;
+        parentWidgetId?: string;
+        followUpTitle?: string;
+        followUpKind?: "stat" | "counter" | "progress" | "sparkline" | "decay";
+      }
+    | {
         type: "undo_action";
         actionId: string;
         actionSummary: string;
@@ -288,6 +416,25 @@ type CoachWorkspace = {
   }>;
   recentWorkouts?: unknown[];
   recentActions?: unknown[];
+  progressMetrics?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    tab: string;
+    kind: string;
+    unit: string;
+    target?: number;
+  }>;
+  dashboardWidgets?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    kind: string;
+    sourceMetricId: string;
+    sourceMetricTitle: string;
+    pinned: boolean;
+    parentWidgetId?: string;
+  }>;
   routine: Array<{
     day: string;
     presetId?: string | null;
@@ -490,6 +637,227 @@ function normalizeCoachGoalTasks(value: unknown): CoachGoalTaskDraft[] {
     .slice(0, 12);
 }
 
+function normalizeInteractiveElements(
+  value: unknown,
+): CoachInteractiveElement[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item): CoachInteractiveElement | null => {
+      if (!item || typeof item !== "object") return null;
+      const row = item as Record<string, unknown>;
+      const type = clampText(row.type, 20);
+      if (type === "text") {
+        const text = clampText(row.text, 220);
+        if (!text) return null;
+        return {
+          type,
+          text,
+          ...(row.emphasis === "strong" || row.emphasis === "quiet"
+            ? { emphasis: row.emphasis }
+            : {}),
+        };
+      }
+      if (type === "section") {
+        const title = clampText(row.title, 64);
+        if (!title) return null;
+        return {
+          type,
+          title,
+          ...(clampText(row.detail, 140)
+            ? { detail: clampText(row.detail, 140) }
+            : {}),
+        };
+      }
+      if (type === "divider") {
+        return {
+          type,
+          ...(clampText(row.label, 32)
+            ? { label: clampText(row.label, 32) }
+            : {}),
+        };
+      }
+      if (type === "key_value") {
+        const items = (Array.isArray(row.items) ? row.items : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const pair = item as Record<string, unknown>;
+            const label = clampText(pair.label, 36);
+            const pairValue = clampText(pair.value, 48);
+            if (!label || !pairValue) return null;
+            return {
+              label,
+              value: pairValue,
+              ...(clampText(pair.detail, 64)
+                ? { detail: clampText(pair.detail, 64) }
+                : {}),
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 6);
+        return items.length > 0 ? { type, items } : null;
+      }
+      if (type === "progress") {
+        const label = clampText(row.label, 48);
+        if (!label) return null;
+        const max = clampNumber(row.max, 0.01, 1_000_000, 100);
+        return {
+          type,
+          label,
+          value: clampNumber(row.value, 0, max),
+          max,
+          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
+          ...(clampText(row.detail, 100)
+            ? { detail: clampText(row.detail, 100) }
+            : {}),
+        };
+      }
+      if (type === "list") {
+        const items = (Array.isArray(row.items) ? row.items : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const listItem = item as Record<string, unknown>;
+            const title = clampText(listItem.title, 72);
+            if (!title) return null;
+            return {
+              title,
+              ...(clampText(listItem.detail, 120)
+                ? { detail: clampText(listItem.detail, 120) }
+                : {}),
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 8);
+        if (items.length === 0) return null;
+        return {
+          type,
+          style:
+            row.style === "number" || row.style === "timeline"
+              ? row.style
+              : "bullet",
+          items,
+        };
+      }
+      if (type === "metric_group") {
+        const metrics = (Array.isArray(row.metrics) ? row.metrics : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const metric = item as Record<string, unknown>;
+            const label = clampText(metric.label, 32);
+            if (!label) return null;
+            return {
+              label,
+              value: clampNumber(metric.value, 0, 100_000),
+              ...(clampText(metric.unit, 12)
+                ? { unit: clampText(metric.unit, 12) }
+                : {}),
+              ...(clampText(metric.detail, 48)
+                ? { detail: clampText(metric.detail, 48) }
+                : {}),
+              ...(clampText(metric.scaleWith, 32)
+                ? { scaleWith: clampText(metric.scaleWith, 32) }
+                : {}),
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 4);
+        return metrics.length > 0 ? { type, metrics } : null;
+      }
+      if (type === "stepper") {
+        const id = clampText(row.id, 32);
+        const label = clampText(row.label, 48);
+        if (!id || !label) return null;
+        const min = clampNumber(row.min, 0, 100_000);
+        const max = clampNumber(row.max, min, 100_000, Math.max(min, 10));
+        return {
+          type,
+          id,
+          label,
+          value: clampNumber(row.value, min, max, min),
+          min,
+          max,
+          step: clampNumber(row.step, 0.01, Math.max(0.01, max - min), 1),
+          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
+        };
+      }
+      if (type === "range") {
+        const id = clampText(row.id, 32);
+        const label = clampText(row.label, 48);
+        if (!id || !label) return null;
+        const min = clampNumber(row.min, 0, 100_000);
+        const max = clampNumber(row.max, min, 100_000, Math.max(min, 10));
+        return {
+          type,
+          id,
+          label,
+          value: clampNumber(row.value, min, max, min),
+          min,
+          max,
+          step: clampNumber(row.step, 0.01, Math.max(0.01, max - min), 1),
+          ...(clampText(row.unit, 12) ? { unit: clampText(row.unit, 12) } : {}),
+          ...(clampText(row.lowLabel, 24)
+            ? { lowLabel: clampText(row.lowLabel, 24) }
+            : {}),
+          ...(clampText(row.highLabel, 24)
+            ? { highLabel: clampText(row.highLabel, 24) }
+            : {}),
+        };
+      }
+      if (type === "choice") {
+        const id = clampText(row.id, 32);
+        const label = clampText(row.label, 48);
+        const options = (Array.isArray(row.options) ? row.options : [])
+          .map((option) => clampText(option, 32))
+          .filter(Boolean)
+          .slice(0, 6);
+        if (!id || !label || options.length === 0) return null;
+        const requestedValue = clampText(row.value, 32);
+        return {
+          type,
+          id,
+          label,
+          value: options.includes(requestedValue) ? requestedValue : options[0],
+          options,
+        };
+      }
+      if (type === "rating") {
+        const id = clampText(row.id, 32);
+        const label = clampText(row.label, 48);
+        const max = clampInteger(row.max, 2, 10, 5);
+        if (!id || !label) return null;
+        return {
+          type,
+          id,
+          label,
+          value: clampInteger(row.value, 1, max, 3),
+          max,
+          ...(clampText(row.lowLabel, 24)
+            ? { lowLabel: clampText(row.lowLabel, 24) }
+            : {}),
+          ...(clampText(row.highLabel, 24)
+            ? { highLabel: clampText(row.highLabel, 24) }
+            : {}),
+        };
+      }
+      if (type === "toggle") {
+        const id = clampText(row.id, 32);
+        const label = clampText(row.label, 64);
+        if (!id || !label) return null;
+        return {
+          type,
+          id,
+          label,
+          value: row.value === true,
+          ...(clampText(row.detail, 100)
+            ? { detail: clampText(row.detail, 100) }
+            : {}),
+        };
+      }
+      return null;
+    })
+    .filter((item): item is CoachInteractiveElement => Boolean(item))
+    .slice(0, 12);
+}
+
 function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -555,6 +923,106 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
         return { type, title, detail, durationDays, tasks };
       }
 
+      if (type === "interactive_card") {
+        const label = clampText(row.label, 28);
+        const title = clampText(row.title, 72);
+        const detail = clampText(row.detail, 180);
+        const elements = normalizeInteractiveElements(row.elements);
+        const accent =
+          row.accent === "training" ||
+          row.accent === "progress" ||
+          row.accent === "neutral"
+            ? row.accent
+            : "nutrition";
+        if (!label || !title || elements.length === 0) return null;
+
+        let submit: Extract<
+          CoachUiBlock,
+          { type: "interactive_card" }
+        >["submit"];
+        if (row.submit && typeof row.submit === "object") {
+          const rawSubmit = row.submit as Record<string, unknown>;
+          const submitLabel = clampText(rawSubmit.label, 32);
+          const name = clampText(rawSubmit.name, 80);
+          if (rawSubmit.type === "log_nutrition" && submitLabel && name) {
+            submit = {
+              type: "log_nutrition",
+              label: submitLabel,
+              name,
+              meal: clampText(rawSubmit.meal, 32) || "Meal",
+              ...(normalizeDate(rawSubmit.date)
+                ? { date: normalizeDate(rawSubmit.date) }
+                : {}),
+              calories: clampNumber(rawSubmit.calories, 0, 10_000),
+              protein: clampNumber(rawSubmit.protein, 0, 1_000),
+              carbs: clampNumber(rawSubmit.carbs, 0, 2_000),
+              fat: clampNumber(rawSubmit.fat, 0, 1_000),
+              ...(clampText(rawSubmit.quantityControlId, 32)
+                ? {
+                    quantityControlId: clampText(
+                      rawSubmit.quantityControlId,
+                      32,
+                    ),
+                  }
+                : {}),
+              ...(typeof rawSubmit.baseQuantity === "number"
+                ? {
+                    baseQuantity: clampNumber(
+                      rawSubmit.baseQuantity,
+                      0.01,
+                      100_000,
+                      1,
+                    ),
+                  }
+                : {}),
+              ...(clampText(rawSubmit.mealControlId, 32)
+                ? { mealControlId: clampText(rawSubmit.mealControlId, 32) }
+                : {}),
+              assumptions: (Array.isArray(rawSubmit.assumptions)
+                ? rawSubmit.assumptions
+                : []
+              )
+                .map((item) => clampText(item, 120))
+                .filter(Boolean)
+                .slice(0, 3),
+            };
+          }
+        }
+
+        const allowedActions = new Set<CoachUiAction>([
+          "open_nutrition",
+          "open_workouts",
+          "open_progress",
+          "open_settings",
+          "open_workout_builder",
+          "open_recipe_builder",
+          "log_food",
+        ]);
+        const actions = (Array.isArray(row.actions) ? row.actions : [])
+          .map((item) => {
+            if (!item || typeof item !== "object") return null;
+            const action = item as Record<string, unknown>;
+            const actionName = clampText(action.action, 32) as CoachUiAction;
+            const actionLabel = clampText(action.label, 32);
+            return actionLabel && allowedActions.has(actionName)
+              ? { label: actionLabel, action: actionName }
+              : null;
+          })
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+          .slice(0, 2);
+
+        return {
+          type,
+          label,
+          title,
+          ...(detail ? { detail } : {}),
+          accent,
+          elements,
+          ...(submit ? { submit } : {}),
+          ...(actions.length > 0 ? { actions } : {}),
+        };
+      }
+
       if (type === "action_row") {
         const title = clampText(row.title, 64);
         const rawActions = Array.isArray(row.actions) ? row.actions : [];
@@ -588,7 +1056,7 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
       return null;
     })
     .filter((item): item is CoachUiBlock => Boolean(item))
-    .slice(0, 4);
+    .slice(0, 3);
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback = 0) {
@@ -1007,6 +1475,88 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
         };
       }
 
+      if (type === "save_progress_metric") {
+        const title = clampText(row.title, 48);
+        const description = clampText(row.description, 180);
+        const tab = clampText(row.tab, 16);
+        const kind = clampText(row.kind, 16);
+        const accent = clampText(row.accent, 16);
+        if (!title || !description) return null;
+        return {
+          ...meta,
+          type,
+          title,
+          description,
+          tab: tab === "body" || tab === "training" ? tab : "nutrition",
+          kind: kind === "number" || kind === "toggle" ? kind : "counter",
+          unit: clampText(row.unit, 16) || "count",
+          step: clampNumber(row.step, 0.01, 10_000, 1),
+          ...(typeof row.target === "number"
+            ? { target: clampNumber(row.target, 0, 1_000_000, 0) }
+            : {}),
+          accent:
+            accent === "water" || accent === "workout" || accent === "progress"
+              ? accent
+              : "food",
+        };
+      }
+
+      if (type === "save_dashboard_widget") {
+        const title = clampText(row.title, 48);
+        const description = clampText(row.description, 140);
+        const sourceMetricTitle = clampText(row.sourceMetricTitle, 48);
+        const kind = clampText(row.kind, 16);
+        const accent = clampText(row.accent, 16);
+        const followUpKind = clampText(row.followUpKind, 16);
+        if (!title || !description || !sourceMetricTitle) return null;
+        return {
+          ...meta,
+          type,
+          title,
+          description,
+          kind:
+            kind === "counter" ||
+            kind === "progress" ||
+            kind === "sparkline" ||
+            kind === "decay"
+              ? kind
+              : "stat",
+          ...(clampText(row.sourceMetricId, 100)
+            ? { sourceMetricId: clampText(row.sourceMetricId, 100) }
+            : {}),
+          sourceMetricTitle,
+          unit: clampText(row.unit, 16) || "count",
+          accent:
+            accent === "water" || accent === "workout" || accent === "progress"
+              ? accent
+              : "food",
+          ...(typeof row.target === "number"
+            ? { target: clampNumber(row.target, 0, 1_000_000, 0) }
+            : {}),
+          ...(typeof row.windowDays === "number"
+            ? { windowDays: clampInteger(row.windowDays, 2, 30, 7) }
+            : {}),
+          ...(typeof row.halfLifeHours === "number"
+            ? {
+                halfLifeHours: clampNumber(row.halfLifeHours, 1, 12, 5),
+              }
+            : {}),
+          ...(clampText(row.parentWidgetId, 100)
+            ? { parentWidgetId: clampText(row.parentWidgetId, 100) }
+            : {}),
+          ...(clampText(row.followUpTitle, 48)
+            ? { followUpTitle: clampText(row.followUpTitle, 48) }
+            : {}),
+          ...(followUpKind === "stat" ||
+          followUpKind === "counter" ||
+          followUpKind === "progress" ||
+          followUpKind === "sparkline" ||
+          followUpKind === "decay"
+            ? { followUpKind }
+            : {}),
+        };
+      }
+
       if (type === "undo_action") {
         const actionId = clampText(row.actionId, 100);
         if (!actionId) return null;
@@ -1065,7 +1615,7 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
 function normalizeCoachChatResponse(value: unknown, message: string) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  const reply = clampText(input.reply, 900);
+  const reply = clampText(input.reply, 280);
   if (!reply) return null;
   return {
     reply,
@@ -1177,21 +1727,127 @@ function fallbackCoachUiBlocks(context: CoachContext): CoachUiBlock[] {
   return blocks;
 }
 
+function makeFallbackUiFirst(
+  response: Pick<CoachChatResult, "reply" | "uiBlocks" | "operations">,
+  message: string,
+): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
+  if (isCasualCoachMessage(message)) return response;
+  if (response.uiBlocks.length > 0) {
+    return {
+      ...response,
+      reply: "Here’s the clearest view from your recent data.",
+      uiBlocks: response.uiBlocks.slice(0, 3),
+    };
+  }
+  return {
+    ...response,
+    reply: "Here’s the most useful next step.",
+    uiBlocks: [
+      {
+        type: "card",
+        label: "Coach recommendation",
+        title: "What to do next",
+        detail: clampText(response.reply, 280),
+      },
+    ],
+  };
+}
+
 function fallbackCoachChatResponse({
   message,
   context,
   focusInsight,
   coachMode = "chat",
+  history = [],
 }: {
   message: string;
   context: CoachContext;
   focusInsight?: CoachAdvice;
   coachMode?: "chat" | "chef" | "personal_trainer";
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
 }): Pick<CoachChatResult, "reply" | "uiBlocks" | "operations"> {
   const uiBlocks = shouldUseFallbackUi(message)
     ? fallbackCoachUiBlocks(context)
     : [];
   const normalizedMessage = message.toLowerCase();
+  const recentText = history
+    .slice(-4)
+    .map((item) => item.content)
+    .join(" ")
+    .toLowerCase();
+  if (
+    normalizedMessage.includes("widget") &&
+    /\b(?:implement|add|create|make)\b/.test(normalizedMessage) &&
+    (normalizedMessage.includes("caffeine") || recentText.includes("caffeine"))
+  ) {
+    const decay = /\b(?:decay|half-life|remaining)\b/.test(normalizedMessage);
+    const parentWidgetId = message.match(
+      /dashboard widget ([a-z0-9_-]+)/i,
+    )?.[1];
+    return {
+      reply: decay
+        ? "I’ll create a compact estimated caffeine decay widget."
+        : "I’ll create a compact caffeine dashboard widget.",
+      uiBlocks: [],
+      operations: [
+        {
+          type: "save_dashboard_widget",
+          confirmation: "auto",
+          summary: decay
+            ? "Create an estimated caffeine decay widget"
+            : "Create a compact caffeine total widget",
+          assumptions: decay
+            ? ["Uses a general five-hour caffeine half-life estimate."]
+            : [],
+          warnings: [],
+          title: decay ? "Estimated caffeine decay" : "Caffeine today",
+          description: decay
+            ? "Estimated caffeine remaining over the next 12 hours."
+            : "Today’s logged caffeine total.",
+          kind: decay ? "decay" : "counter",
+          sourceMetricTitle: "Caffeine",
+          unit: "mg",
+          accent: "food",
+          target: 400,
+          ...(decay ? { halfLifeHours: 5, windowDays: 7 } : {}),
+          ...(parentWidgetId ? { parentWidgetId } : {}),
+          ...(!decay
+            ? {
+                followUpTitle: "Estimated caffeine decay",
+                followUpKind: "decay" as const,
+              }
+            : {}),
+        },
+      ],
+    };
+  }
+  if (
+    /\b(?:implement|add|create|track|set up)\b/.test(normalizedMessage) &&
+    (normalizedMessage.includes("caffeine") || recentText.includes("caffeine"))
+  ) {
+    return {
+      reply: "I’ll add the caffeine tracker to Nutrition Progress.",
+      uiBlocks: [],
+      operations: [
+        {
+          type: "save_progress_metric",
+          confirmation: "auto",
+          summary: "Add a daily caffeine tracker to Nutrition Progress",
+          assumptions: ["Caffeine is logged as a daily milligram total."],
+          warnings: [],
+          title: "Caffeine",
+          description:
+            "Track daily caffeine intake from coffee, tea, energy drinks, and supplements.",
+          tab: "nutrition",
+          kind: "counter",
+          unit: "mg",
+          step: 50,
+          target: 400,
+          accent: "food",
+        },
+      ],
+    };
+  }
   const conservative =
     context.safetyMode !== "standard" || context.safetyFlags.length > 0;
   const safetyNote = conservative
@@ -1395,18 +2051,31 @@ async function generateCoachChatWithOpenAi({
 }) {
   if (!hasOpenAiApiKey()) return null;
   const normalizedMessage = message.toLowerCase();
-  const domain = coachMode === "chef" || /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(normalizedMessage)
-    ? "nutrition"
-    : coachMode === "personal_trainer" || /\b(workout|exercise|training|routine|preset|set|reps?|superset|strength|cardio)\b/.test(normalizedMessage)
-      ? "training"
-      : /\b(progress|trend|goal|check[ -]?in|recovery|sleep|sore|energy)\b/.test(normalizedMessage)
-        ? "progress"
-        : "general";
+  const domain =
+    coachMode === "chef" ||
+    /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(
+      normalizedMessage,
+    )
+      ? "nutrition"
+      : coachMode === "personal_trainer" ||
+          /\b(workout|exercise|training|routine|preset|set|reps?|superset|strength|cardio)\b/.test(
+            normalizedMessage,
+          )
+        ? "training"
+        : /\b(progress|trend|goal|check[ -]?in|recovery|sleep|sore|energy)\b/.test(
+              normalizedMessage,
+            )
+          ? "progress"
+          : "general";
   const domainInstructions = {
-    nutrition: "Act as the nutrition specialist. Prefer recipes, food logs, nutrition analysis, and meal-planning operations. Do not modify training unless explicitly requested.",
-    training: "Act as the training specialist. Prefer catalog-backed workouts, presets, supersets, routines, and recovery-aware training operations. Do not invent exercise IDs.",
-    progress: "Act as the progress specialist. Explain trends conservatively and prefer goals, check-ins, weekly plans, and evidence-backed recommendations.",
-    general: "Act as the coordinating coach. Answer directly and only propose a write operation when the user clearly asks to save or change something.",
+    nutrition:
+      "Act as the nutrition specialist. Prefer recipes, food logs, nutrition analysis, and meal-planning operations. Do not modify training unless explicitly requested.",
+    training:
+      "Act as the training specialist. Prefer catalog-backed workouts, presets, supersets, routines, and recovery-aware training operations. Do not invent exercise IDs.",
+    progress:
+      "Act as the progress specialist. Explain trends conservatively and prefer goals, check-ins, weekly plans, and evidence-backed recommendations.",
+    general:
+      "Act as the coordinating coach. Answer directly and only propose a write operation when the user clearly asks to save or change something.",
   } as const;
   const content = await requestOpenAiJson({
     system: `${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
@@ -1418,7 +2087,8 @@ async function generateCoachChatWithOpenAi({
       coachMode,
       message,
       responseShape: {
-        reply: "short tailored answer",
+        reply:
+          "one short orienting sentence; put recommendations and details in uiBlocks",
         uiBlocks: [
           {
             type: "stat_group",
@@ -1461,6 +2131,122 @@ async function generateCoachChatWithOpenAi({
                 completed: false,
               },
             ],
+          },
+          {
+            type: "interactive_card",
+            label: "short context label",
+            title: "custom card title",
+            detail: "optional concise orientation",
+            accent: "nutrition | training | progress | neutral",
+            elements: [
+              {
+                type: "section",
+                title: "section heading",
+                detail: "optional section context",
+              },
+              { type: "divider", label: "optional divider label" },
+              {
+                type: "key_value",
+                items: [
+                  {
+                    label: "compact fact",
+                    value: "display value",
+                    detail: "optional context",
+                  },
+                ],
+              },
+              {
+                type: "progress",
+                label: "bounded progress",
+                value: 3,
+                max: 5,
+                unit: "sessions",
+                detail: "optional context",
+              },
+              {
+                type: "list",
+                style: "bullet | number | timeline",
+                items: [{ title: "list item", detail: "optional item detail" }],
+              },
+              {
+                type: "metric_group",
+                metrics: [
+                  {
+                    label: "Calories",
+                    value: 520,
+                    unit: "kcal",
+                    detail: "estimate",
+                    scaleWith: "quantity",
+                  },
+                ],
+              },
+              {
+                type: "stepper",
+                id: "quantity",
+                label: "Serving size",
+                value: 1,
+                min: 0.25,
+                max: 6,
+                step: 0.25,
+                unit: "servings",
+              },
+              {
+                type: "range",
+                id: "intensity",
+                label: "Intensity",
+                value: 5,
+                min: 1,
+                max: 10,
+                step: 1,
+                unit: "RPE",
+                lowLabel: "Easy",
+                highLabel: "Hard",
+              },
+              {
+                type: "choice",
+                id: "meal",
+                label: "Add to",
+                value: "Lunch",
+                options: ["Breakfast", "Lunch", "Dinner", "Snack"],
+              },
+              {
+                type: "rating",
+                id: "readiness",
+                label: "Readiness",
+                value: 3,
+                max: 5,
+                lowLabel: "Low",
+                highLabel: "High",
+              },
+              {
+                type: "toggle",
+                id: "optional-control",
+                label: "Custom boolean choice",
+                detail: "only include when useful",
+                value: false,
+              },
+              {
+                type: "text",
+                text: "Optional custom note inside the card",
+                emphasis: "quiet | strong",
+              },
+            ],
+            submit: {
+              type: "log_nutrition",
+              label: "Log meal",
+              name: "meal name",
+              meal: "Lunch",
+              date: "optional YYYY-MM-DD",
+              calories: 520,
+              protein: 35,
+              carbs: 58,
+              fat: 16,
+              quantityControlId: "quantity",
+              baseQuantity: 1,
+              mealControlId: "meal",
+              assumptions: ["brief estimate assumption"],
+            },
+            actions: [{ label: "optional link", action: "open_nutrition" }],
           },
           {
             type: "action_row",
@@ -1667,6 +2453,41 @@ async function generateCoachChatWithOpenAi({
             ],
           },
           {
+            type: "save_progress_metric",
+            confirmation: "auto | confirm",
+            summary: "custom tracker being added to Progress",
+            assumptions: [],
+            warnings: [],
+            title: "short metric title",
+            description: "one-sentence tracking purpose",
+            tab: "body | nutrition | training",
+            kind: "counter | number | toggle",
+            unit: "short unit such as mg, hours, min, count",
+            step: 50,
+            target: 400,
+            accent: "food | water | workout | progress",
+          },
+          {
+            type: "save_dashboard_widget",
+            confirmation: "auto | confirm",
+            summary: "compact widget being created",
+            assumptions: [],
+            warnings: [],
+            title: "short widget title",
+            description: "one short context line",
+            kind: "stat | counter | progress | sparkline | decay",
+            sourceMetricId: "exact workspace progress metric id",
+            sourceMetricTitle: "exact workspace progress metric title",
+            unit: "short source unit",
+            accent: "food | water | workout | progress",
+            target: 400,
+            windowDays: 7,
+            halfLifeHours: 5,
+            parentWidgetId: "optional exact existing dashboard widget id",
+            followUpTitle: "optional useful compact follow-up",
+            followUpKind: "stat | counter | progress | sparkline | decay",
+          },
+          {
             type: "delete_nutrition",
             confirmation: "confirm",
             summary: "nutrition entry being deleted",
@@ -1704,6 +2525,120 @@ async function generateCoachChatWithOpenAi({
   });
   return normalizeCoachChatResponse(JSON.parse(content), message);
 }
+
+export const generateCustomProgressMetric = action({
+  args: {
+    tab: v.union(
+      v.literal("body"),
+      v.literal("nutrition"),
+      v.literal("training"),
+    ),
+    request: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const request = args.request.trim().slice(0, 400);
+    if (request.length < 3) throw new Error("Describe what you want to track.");
+    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
+
+    const fallback = () => {
+      const lower = request.toLowerCase();
+      if (lower.includes("caffeine"))
+        return {
+          title: "Caffeine",
+          description:
+            "Track daily caffeine intake from coffee, tea, and supplements.",
+          tab: "nutrition" as const,
+          kind: "counter" as const,
+          unit: "mg",
+          step: 50,
+          target: 400,
+          accent: "food" as const,
+        };
+      if (lower.includes("sleep"))
+        return {
+          title: "Sleep",
+          description: "Log nightly sleep duration and watch the recent trend.",
+          tab: "body" as const,
+          kind: "number" as const,
+          unit: "hours",
+          step: 0.5,
+          target: 8,
+          accent: "progress" as const,
+        };
+      return {
+        title: request.slice(0, 36),
+        description: `Track ${request.toLowerCase()} over time.`,
+        tab: args.tab,
+        kind: "counter" as const,
+        unit: "count",
+        step: 1,
+        target: 1,
+        accent:
+          args.tab === "nutrition"
+            ? ("food" as const)
+            : args.tab === "training"
+              ? ("workout" as const)
+              : ("progress" as const),
+      };
+    };
+
+    if (!hasOpenAiApiKey())
+      return { ...fallback(), source: "fallback" as const };
+    try {
+      const content = await requestOpenAiJson({
+        system:
+          "You design safe, simple fitness progress trackers. Return one JSON tracker definition. Use kind counter for increment buttons, number for decimal input, or toggle for yes/no. Never create diagnostic or medication dosing trackers.",
+        user: JSON.stringify({
+          requestedTab: args.tab,
+          request,
+          responseShape: {
+            title: "short title",
+            description: "one sentence",
+            tab: "body | nutrition | training",
+            kind: "counter | number | toggle",
+            unit: "short unit",
+            step: "positive number",
+            target: "optional positive number or null",
+            accent: "food | water | workout | progress",
+          },
+        }),
+        temperature: 0.2,
+        maxTokens: 400,
+      });
+      const raw = JSON.parse(content) as Record<string, unknown>;
+      const kinds = new Set(["counter", "number", "toggle"]);
+      const accents = new Set(["food", "water", "workout", "progress"]);
+      const tabs = new Set(["body", "nutrition", "training"]);
+      const generated = fallback();
+      return {
+        title: clampText(raw.title, 48) || generated.title,
+        description: clampText(raw.description, 180) || generated.description,
+        tab: tabs.has(String(raw.tab))
+          ? (raw.tab as "body" | "nutrition" | "training")
+          : args.tab,
+        kind: kinds.has(String(raw.kind))
+          ? (raw.kind as "counter" | "number" | "toggle")
+          : generated.kind,
+        unit: clampText(raw.unit, 16) || generated.unit,
+        step:
+          typeof raw.step === "number" && raw.step > 0
+            ? Math.min(raw.step, 10_000)
+            : generated.step,
+        ...(typeof raw.target === "number" && raw.target >= 0
+          ? { target: Math.min(raw.target, 1_000_000) }
+          : {}),
+        accent: accents.has(String(raw.accent))
+          ? (raw.accent as "food" | "water" | "workout" | "progress")
+          : generated.accent,
+        source: "openai" as const,
+      };
+    } catch (error) {
+      console.warn("Falling back to custom metric template", error);
+      return { ...fallback(), source: "fallback" as const };
+    }
+  },
+});
 
 export const generateMetricSet = action({
   args: {
@@ -1975,7 +2910,8 @@ export const generateCoachChatMessage = action({
           })),
         }
       : undefined;
-    const today = normalizeDate(args.today ?? args.workspace?.today ?? "") ??
+    const today =
+      normalizeDate(args.today ?? args.workspace?.today ?? "") ??
       new Date().toISOString().slice(0, 10);
     const workspace = (await ctx.runQuery(
       internal.ai.coachWorkspace.loadForModel,
@@ -2005,12 +2941,16 @@ export const generateCoachChatMessage = action({
       console.warn("Falling back to server coach chat", error);
     }
 
-    const fallback = fallbackCoachChatResponse({
+    const fallback = makeFallbackUiFirst(
+      fallbackCoachChatResponse({
+        message,
+        context,
+        focusInsight,
+        coachMode,
+        history,
+      }),
       message,
-      context,
-      focusInsight,
-      coachMode,
-    });
+    );
     return {
       ...fallback,
       artifacts: [],

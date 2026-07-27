@@ -1,0 +1,37 @@
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic:
+      - generic:
+        - main:
+          - generic: OneRep
+          - region:
+            - paragraph: Verify your email first.
+            - heading [level=1]: Check your email
+            - paragraph: Open the verification message sent to alex.screenshots@onerep.life, then return here to sign in.
+            - generic:
+              - button: Resend confirmation email
+              - button: Back to sign up
+    - generic [ref=e82]:
+      - banner [ref=e83]:
+        - generic [ref=e84]:
+          - paragraph [ref=e85]: Today · Mon, Jul 20
+          - heading "Good afternoon, Alex." [level=1] [ref=e86]
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - button "Previous day" [ref=e90]
+            - button "Choose date, Today" [ref=e93]
+            - button "Next day" [disabled] [ref=e96]
+          - button "Add food, water, workout, or supplement" [ref=e99]
+          - button "Open profile and settings" [ref=e102]
+      - status "Loading today" [ref=e105]
+  - complementary [ref=e107]:
+    - button "Go to Today" [ref=e108]:
+      - paragraph [ref=e109]: OneRep
+    - navigation [ref=e110]:
+      - button "Today" [ref=e111]
+      - button "Nutrition" [ref=e114]
+      - button "Training" [ref=e117]
+      - button "Progress" [ref=e120]
+      - button "Coach" [ref=e123]
+    - button "Open profile and settings" [ref=e128]: Profile & settings
+  - region "Notifications alt+T"

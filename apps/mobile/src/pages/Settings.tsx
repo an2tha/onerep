@@ -122,6 +122,7 @@ type SettingsView =
   | "developer"
 
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
+const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
 
 const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   overview: "Settings",
@@ -520,6 +521,13 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     } finally {
       setResettingOnboarding(false)
     }
+  }
+
+  function handleResetCoachOnboarding() {
+    hapticTap()
+    safeLocalStorageRemove(COACH_ONBOARDING_SEEN_KEY)
+    toast.success("Coach onboarding reset")
+    navigate("/onboarding?replay=coach", { replace: true })
   }
 
   async function handleRefreshShownTooltips() {
@@ -1119,7 +1127,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       label="Haptic feedback"
                     />
                   </SettingsRow>
-                  <SettingsRow label="Rest completion bell" detail="A smooth bell when rest ends">
+                  <SettingsRow
+                    label="Rest completion bell"
+                    detail="A smooth bell when rest ends"
+                  >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={restBellOn}
@@ -1130,7 +1141,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       label="Rest completion bell"
                     />
                   </SettingsRow>
-                  <SettingsRow label="Rest completion vibration" detail="A distinct vibration when rest ends">
+                  <SettingsRow
+                    label="Rest completion vibration"
+                    detail="A distinct vibration when rest ends"
+                  >
                     <CompactSwitch
                       onInteract={hapticSelection}
                       checked={restVibrationOn}
@@ -1478,6 +1492,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   state.
                 </SettingsSectionIntro>
                 <GroupedList label="Developer controls">
+                  <ListRow
+                    title="Reset Coach onboarding"
+                    detail="Replay the animated Coach capabilities introduction"
+                    onClick={handleResetCoachOnboarding}
+                  />
                   <ListRow
                     title={
                       refreshingTooltips

@@ -503,6 +503,50 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
+  if (
+    payload.kind === "delete_dashboard_widget" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("dashboardWidgets", payload.id);
+    const widget = id ? await ctx.db.get(id) : null;
+    if (widget && widget.userId === userId) {
+      for await (const candidate of ctx.db
+        .query("dashboardWidgets")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))) {
+        if (candidate.parentWidgetId === widget._id) {
+          await ctx.db.patch(candidate._id, { parentWidgetId: undefined });
+        }
+      }
+      await ctx.db.delete(widget._id);
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "delete_progress_metric" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("customProgressMetrics", payload.id);
+    const metric = id ? await ctx.db.get(id) : null;
+    if (metric && metric.userId === userId) {
+      for await (const entry of ctx.db
+        .query("customProgressMetricEntries")
+        .withIndex("by_userId_and_metricId", (q) =>
+          q.eq("userId", userId).eq("metricId", metric._id),
+        )) {
+        await ctx.db.delete(entry._id);
+      }
+      for await (const widget of ctx.db
+        .query("dashboardWidgets")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))) {
+        if (widget.sourceMetricId === metric._id)
+          await ctx.db.delete(widget._id);
+      }
+      await ctx.db.delete(metric._id);
+    }
+    return;
+  }
+
   if (payload.kind === "delete_goal" && typeof payload.id === "string") {
     const id = ctx.db.normalizeId("coachGoals", payload.id);
     const goal = id ? await ctx.db.get(id) : null;

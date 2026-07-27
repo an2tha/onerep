@@ -37,6 +37,7 @@ import {
   DailyLedgerHero,
   DashboardProgressPanels,
   DashboardIntelligence,
+  CoachDashboardWidgets,
   CoachGoalCards,
   TodayHeader,
   TodayTimeline,
@@ -2334,6 +2335,10 @@ export default function App() {
   const pinnedCoachGoals = useQuery(api.ai.coachGoals.listPinned, { limit: 4 })
   const latestCheckIns = useQuery(api.ai.coachState.listCheckIns, { limit: 1 })
   const bodyMeasurements = useQuery(api.bodyProgress.list)
+  const coachDashboardWidgets = useQuery(
+    api.dashboardWidgets.listPinnedWithData,
+    { beforeOrOn: selectedDate }
+  )
 
   const foodLogs = useQuery(api.logs.foodLogs.getDay, { date: selectedDate })
   const recentFoodLogs = useQuery(api.logs.foodLogs.getRecent, {
@@ -2381,6 +2386,12 @@ export default function App() {
     "users.users.setWidgetLayout"
   )
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
+  const setCoachDashboardWidgetPinned = useMutation(
+    api.dashboardWidgets.setPinned
+  )
+  const setCustomProgressMetricValue = useMutation(
+    api.customProgressMetrics.setValue
+  )
   const setCoachGoalTaskCompleted = useMutation(
     api.ai.coachGoals.setTaskCompleted
   )
@@ -3171,6 +3182,7 @@ export default function App() {
     serverPresets !== undefined &&
     schedule !== undefined &&
     bodyMeasurements !== undefined &&
+    coachDashboardWidgets !== undefined &&
     suggestedMeals !== undefined &&
     latestCheckIns !== undefined &&
     recentFoodLogs !== undefined &&
@@ -3443,6 +3455,28 @@ export default function App() {
                     Customize dashboard
                   </button>
                 </div>
+                <CoachDashboardWidgets
+                  widgets={(coachDashboardWidgets ?? []).map((widget) => ({
+                    ...widget,
+                    _id: String(widget._id),
+                  }))}
+                  onRemove={(widgetId) => {
+                    hapticSelection()
+                    void setCoachDashboardWidgetPinned({
+                      widgetId: widgetId as Id<"dashboardWidgets">,
+                      pinned: false,
+                    })
+                  }}
+                  onSetValue={(metricId, value) => {
+                    hapticSelection()
+                    void setCustomProgressMetricValue({
+                      metricId: metricId as Id<"customProgressMetrics">,
+                      date: selectedDate,
+                      value,
+                    })
+                  }}
+                  className="mb-2"
+                />
                 {[...dashboardWidgetLayout]
                   .sort(
                     (a, b) =>

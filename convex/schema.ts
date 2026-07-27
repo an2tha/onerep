@@ -482,6 +482,74 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_clientId", ["userId", "clientId"]),
 
+  customProgressMetrics: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    tab: v.union(
+      v.literal("body"),
+      v.literal("nutrition"),
+      v.literal("training"),
+    ),
+    kind: v.union(
+      v.literal("counter"),
+      v.literal("number"),
+      v.literal("toggle"),
+    ),
+    unit: v.string(),
+    step: v.number(),
+    target: v.optional(v.number()),
+    accent: v.union(
+      v.literal("food"),
+      v.literal("water"),
+      v.literal("workout"),
+      v.literal("progress"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
+  customProgressMetricEntries: defineTable({
+    userId: v.string(),
+    metricId: v.id("customProgressMetrics"),
+    date: v.string(),
+    value: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_metricId", ["userId", "metricId"])
+    .index("by_userId_and_metricId_and_date", ["userId", "metricId", "date"]),
+
+  dashboardWidgets: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    kind: v.union(
+      v.literal("stat"),
+      v.literal("counter"),
+      v.literal("progress"),
+      v.literal("sparkline"),
+      v.literal("decay"),
+    ),
+    sourceMetricId: v.id("customProgressMetrics"),
+    unit: v.string(),
+    accent: v.union(
+      v.literal("food"),
+      v.literal("water"),
+      v.literal("workout"),
+      v.literal("progress"),
+    ),
+    target: v.optional(v.number()),
+    windowDays: v.optional(v.number()),
+    halfLifeHours: v.optional(v.number()),
+    parentWidgetId: v.optional(v.id("dashboardWidgets")),
+    pinned: v.boolean(),
+    createdBy: v.literal("coach"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_pinned", ["userId", "pinned"]),
+
   // ── Legacy imported food catalog ──────────────────────────────────────────
   foodfacts: defineTable({
     code: v.string(), // barcode / product id

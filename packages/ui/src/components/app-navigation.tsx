@@ -37,7 +37,7 @@ export function AppNavigationChrome({
         className={cn(
           "app-route-chrome fixed inset-x-0 bottom-0 z-40 border-t pb-[env(safe-area-inset-bottom,0px)] lg:hidden",
           coachActive
-            ? "border-white/10 bg-[#020817]/96"
+            ? "border-border bg-background/96 dark:border-white/10 dark:bg-[#020817]/96"
             : "border-border bg-background/96"
         )}
         data-route-chrome={chromeState}
@@ -57,8 +57,8 @@ export function AppNavigationChrome({
                 "flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-[0.75rem] leading-none font-medium transition-colors",
                 coachActive
                   ? tab.active
-                    ? "text-white"
-                    : "text-white/55 active:text-white"
+                    ? "text-foreground dark:text-white"
+                    : "text-muted-foreground active:text-foreground dark:text-white/55 dark:active:text-white"
                   : tab.active
                     ? "text-foreground"
                     : "text-muted-foreground active:text-foreground"
@@ -72,7 +72,7 @@ export function AppNavigationChrome({
       </div>
       {renderDesktopSidebar && (
         <aside
-          className="desktop-sidebar fixed app-route-sidebar inset-y-0 left-0 z-40 hidden w-64 flex-col overflow-hidden border-r border-border bg-background p-4 lg:flex"
+          className="desktop-sidebar app-route-sidebar fixed inset-y-0 left-0 z-40 hidden w-64 flex-col overflow-hidden border-r border-border bg-background p-4 lg:flex"
           data-route-chrome={chromeState}
         >
           <button

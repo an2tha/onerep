@@ -1,0 +1,31 @@
+- generic [ref=e2]:
+  - generic [ref=e41]:
+    - complementary [ref=e42]:
+      - generic [ref=e43]: OneRep
+      - paragraph [ref=e47]: Training.Nutrition.Progress.
+    - main [ref=e49]:
+      - generic [ref=e51]:
+        - heading "Create your account" [level=1] [ref=e71]
+        - paragraph [ref=e53]: It only takes a minute to get set up.
+      - region "Create account" [ref=e72]:
+        - generic [ref=e55]:
+          - generic [ref=e73]:
+            - generic [ref=e74]: Name
+            - textbox "Name" [ref=e75]:
+              - /placeholder: Your name
+          - generic [ref=e56]:
+            - generic [ref=e57]: Email
+            - textbox "Email" [ref=e58]:
+              - /placeholder: you@example.com
+          - generic [ref=e59]:
+            - generic [ref=e60]: Password
+            - generic [ref=e61]:
+              - textbox "Password Show password At least 8 characters" [ref=e76]:
+                - /placeholder: ••••••••
+              - button "Show password" [ref=e63]
+            - generic [ref=e77]: At least 8 characters
+          - button "Create account" [ref=e78]
+        - paragraph [ref=e69]:
+          - text: Have an account?
+          - button "Sign in" [active] [ref=e79]
+  - region "Notifications alt+T"
