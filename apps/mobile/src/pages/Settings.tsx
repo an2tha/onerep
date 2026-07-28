@@ -77,6 +77,8 @@ import {
 import {
   isPwaStandalone,
   pwaInstallCopy,
+  subscribePwaInstallState,
+  takePwaInstallPrompt,
   type PwaBeforeInstallPromptEvent,
 } from "@/lib/pwa-install"
 import {
@@ -301,31 +303,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           ? "Sync"
           : "Synced"
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
-
-    function handleBeforeInstallPrompt(event: Event) {
-      event.preventDefault()
-      if (isPwaStandalone(window)) return
-      setPwaInstallPrompt(event as PwaBeforeInstallPromptEvent)
-      setPwaInstalled(false)
-    }
-
-    function handleAppInstalled() {
-      setPwaInstallPrompt(null)
-      setPwaInstalled(true)
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
-    window.addEventListener("appinstalled", handleAppInstalled)
-    return () => {
-      window.removeEventListener(
-        "beforeinstallprompt",
-        handleBeforeInstallPrompt
-      )
-      window.removeEventListener("appinstalled", handleAppInstalled)
-    }
-  }, [])
+  useEffect(
+    () =>
+      subscribePwaInstallState((state) => {
+        setPwaInstallPrompt(state.prompt)
+        setPwaInstalled(state.installed)
+      }),
+    []
+  )
 
   useEffect(() => {
     if (preferences?.dashboardSettings?.workoutFocus) {
@@ -642,8 +627,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       return
     }
 
-    const prompt = pwaInstallPrompt
-    setPwaInstallPrompt(null)
+    const prompt = takePwaInstallPrompt()
+    if (!prompt) return
     try {
       await prompt.prompt()
       const choice = await prompt.userChoice
@@ -653,7 +638,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         toast.message("Install dismissed")
       }
     } catch (error) {
-      setPwaInstallPrompt(prompt)
       toast.error(error instanceof Error ? error.message : "Install failed")
     }
   }

@@ -1,28 +1,42 @@
 {
-  "name": "OneRep",
-  "short_name": "OneRep",
-  "description": "Track workouts, food, water, supplements, and body progress from one mobile-first training log.",
   "id": "/",
+  "name": "OneRep — Training, Nutrition & Progress",
+  "short_name": "OneRep",
+  "description": "Track workouts, food, water, supplements, and body progress in one focused fitness app.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "orientation": "portrait",
+  "display_override": ["standalone", "minimal-ui"],
   "theme_color": "#f4f4f5",
   "background_color": "#f4f4f5",
   "categories": ["health", "fitness", "lifestyle"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -31,28 +45,28 @@
       "short_name": "Today",
       "description": "Open today's training and nutrition dashboard.",
       "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Log Food",
+      "name": "Log food",
       "short_name": "Food",
       "description": "Jump straight to food logging.",
       "url": "/foods",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Start Workout",
+      "name": "Start workout",
       "short_name": "Workout",
       "description": "Open the active workout tracker.",
       "url": "/workout/active",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Progress",
       "short_name": "Progress",
       "description": "Review body and performance trends.",
       "url": "/progress",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

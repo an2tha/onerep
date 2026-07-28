@@ -4,10 +4,11 @@ const sw = await Bun.file(new URL("../public/sw.js", import.meta.url)).text()
 
 describe("public service worker", () => {
   test("caches the app shell and install assets", () => {
-    expect(sw).toContain('const CACHE_NAME = "onerep-app-v2"')
+    expect(sw).toContain('const CACHE_NAME = "onerep-app-v3"')
     expect(sw).toContain('"/index.html"')
     expect(sw).toContain('"/site.webmanifest"')
     expect(sw).toContain('"/icon-512.png"')
+    expect(sw).toContain('"/icon-maskable-512.png"')
   })
 
   test("does not cache mutating or backend requests", () => {
@@ -19,6 +20,7 @@ describe("public service worker", () => {
   test("uses the cached shell for failed navigations", () => {
     expect(sw).toContain('if (request.mode === "navigate")')
     expect(sw).toContain('caches.match("/index.html")')
+    expect(sw).toContain('cache.put("/index.html", response.clone())')
   })
 
   test("supports user-triggered update activation", () => {
@@ -31,6 +33,8 @@ describe("public service worker", () => {
     expect(sw).toContain('contentType.includes("javascript")')
     expect(sw).toContain('request.destination === "style"')
     expect(sw).toContain('contentType.includes("text/css")')
-    expect(sw).toContain("response.ok && hasExpectedMimeType(response)")
+    expect(sw).toContain(
+      "response.ok && hasExpectedMimeType(request, response)"
+    )
   })
 })

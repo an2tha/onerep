@@ -165,6 +165,7 @@ describe("service worker helpers", () => {
     let controllerChange: (() => void) | null = null
     let reloadCount = 0
     const serviceWorker: AppServiceWorkerContainer = {
+      controller: {},
       register: async () => ({}),
       addEventListener: (_type: "controllerchange", listener: () => void) => {
         controllerChange = listener
@@ -179,5 +180,24 @@ describe("service worker helpers", () => {
     controllerChange?.()
 
     expect(reloadCount).toBe(1)
+  })
+
+  test("does not reload when the first worker claims an uncontrolled page", () => {
+    let controllerChange: (() => void) | null = null
+    let reloadCount = 0
+    const serviceWorker: AppServiceWorkerContainer = {
+      controller: null,
+      register: async () => ({}),
+      addEventListener: (_type: "controllerchange", listener: () => void) => {
+        controllerChange = listener
+      },
+    }
+
+    reloadWhenServiceWorkerControlsPage(serviceWorker, () => {
+      reloadCount += 1
+    })
+    controllerChange?.()
+
+    expect(reloadCount).toBe(0)
   })
 })

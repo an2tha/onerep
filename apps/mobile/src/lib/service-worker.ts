@@ -9,13 +9,18 @@ type ServiceWorkerLike = {
 export type AppServiceWorkerRegistration = {
   installing?: ServiceWorkerLike | null
   waiting?: ServiceWorkerLike | null
+  update?: () => Promise<unknown>
   addEventListener?: (type: "updatefound", listener: () => void) => void
 }
 
 export type AppServiceWorkerContainer = {
   controller?: ServiceWorkerLike | null
-  register: (url: string) => Promise<AppServiceWorkerRegistration>
+  register: (
+    url: string,
+    options?: { scope?: string; updateViaCache?: "all" | "imports" | "none" }
+  ) => Promise<AppServiceWorkerRegistration>
   addEventListener?: (type: "controllerchange", listener: () => void) => void
+  removeEventListener?: (type: "controllerchange", listener: () => void) => void
 }
 
 type RegisterAppServiceWorkerOptions = {
@@ -45,7 +50,10 @@ export async function registerAppServiceWorker({
   if (!serviceWorker || !canUseAppServiceWorker()) return null
 
   try {
-    const registration = await serviceWorker.register(url)
+    const registration = await serviceWorker.register(url, {
+      scope: "/",
+      updateViaCache: "none",
+    })
 
     if (registration.waiting && serviceWorker.controller) {
       onUpdate?.(registration)
@@ -83,10 +91,19 @@ export function reloadWhenServiceWorkerControlsPage(
 ) {
   if (!serviceWorker?.addEventListener) return
 
+  // Claiming the first installed worker must not refresh a user's first visit.
+  // A controller present at startup means controllerchange is a real update.
+  const hadController = Boolean(serviceWorker.controller)
   let reloaded = false
-  serviceWorker.addEventListener("controllerchange", () => {
-    if (reloaded) return
+  const handleControllerChange = () => {
+    if (!hadController || reloaded) return
     reloaded = true
     reload()
-  })
+  }
+  serviceWorker.addEventListener("controllerchange", handleControllerChange)
+  return () =>
+    serviceWorker.removeEventListener?.(
+      "controllerchange",
+      handleControllerChange
+    )
 }

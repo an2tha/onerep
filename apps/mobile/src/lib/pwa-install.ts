@@ -12,9 +12,21 @@ export type PwaInstallCopy = {
   statusLabel: string
 }
 
+export type PwaInstallState = {
+  installed: boolean
+  prompt: PwaBeforeInstallPromptEvent | null
+}
+
 type NavigatorWithStandalone = Navigator & {
   standalone?: boolean
 }
+
+type InstallStateListener = (state: PwaInstallState) => void
+
+let deferredPrompt: PwaBeforeInstallPromptEvent | null = null
+let installed = false
+let initialized = false
+const listeners = new Set<InstallStateListener>()
 
 export function isPwaStandalone(win: Window = window) {
   const nav = win.navigator as NavigatorWithStandalone
@@ -23,6 +35,57 @@ export function isPwaStandalone(win: Window = window) {
       win.matchMedia?.("(display-mode: standalone)").matches ||
       win.matchMedia?.("(display-mode: fullscreen)").matches
   )
+}
+
+function snapshot(): PwaInstallState {
+  return { installed, prompt: deferredPrompt }
+}
+
+function notifyInstallState() {
+  const state = snapshot()
+  for (const listener of listeners) listener(state)
+}
+
+/**
+ * Start listening as soon as the app module loads. Browsers may emit
+ * beforeinstallprompt before the user ever opens Settings, so the deferred
+ * event must be retained globally rather than by the Settings page.
+ */
+export function initializePwaInstallTracking(win: Window = window) {
+  if (initialized) return snapshot()
+  initialized = true
+  installed = isPwaStandalone(win)
+
+  win.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault()
+    if (isPwaStandalone(win)) return
+    deferredPrompt = event as PwaBeforeInstallPromptEvent
+    installed = false
+    notifyInstallState()
+  })
+
+  win.addEventListener("appinstalled", () => {
+    deferredPrompt = null
+    installed = true
+    notifyInstallState()
+  })
+
+  return snapshot()
+}
+
+export function subscribePwaInstallState(listener: InstallStateListener) {
+  listeners.add(listener)
+  listener(snapshot())
+  return () => {
+    listeners.delete(listener)
+  }
+}
+
+export function takePwaInstallPrompt() {
+  const prompt = deferredPrompt
+  deferredPrompt = null
+  notifyInstallState()
+  return prompt
 }
 
 export function pwaInstallCopy({
