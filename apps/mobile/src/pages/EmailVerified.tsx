@@ -1,4 +1,5 @@
 import { Navigate, useSearchParams } from "react-router"
+import { useConvexAuth } from "convex/react"
 import {
   clearPendingVerification,
   getPendingVerification,
@@ -24,10 +25,13 @@ export default function EmailVerified() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const { isLoaded, isSignedIn } = useAppAuth()
+  const convexAuth = useConvexAuth()
   const hasError = Boolean(searchParams.get("error"))
   const isVerificationLinkReturn = searchParams.get("source") === "email"
   const next = searchParams.get("next")
-  const checkingAuth = !hasError && !isLoaded
+  const checkingAuth =
+    !hasError &&
+    (!isLoaded || (isSignedIn && !convexAuth.isAuthenticated))
   const copy = hasError ? STATUS_COPY.error : STATUS_COPY.success
   const body = checkingAuth
     ? "Checking your sign-in state so we can send you to the right place."
@@ -48,7 +52,7 @@ export default function EmailVerified() {
 
     const pendingNext = safeAuthRedirectPath(getPendingVerification().next)
     clearPendingVerification()
-    if (!isSignedIn) {
+    if (!isSignedIn || !convexAuth.isAuthenticated) {
       navigate("/login", { replace: true })
       return
     }
@@ -61,7 +65,10 @@ export default function EmailVerified() {
   if (!isVerificationLinkReturn) {
     const pendingNext = safeAuthRedirectPath(getPendingVerification().next)
     return (
-      <Navigate to={isLoaded && isSignedIn ? pendingNext : "/login"} replace />
+      <Navigate
+        to={isLoaded && convexAuth.isAuthenticated ? pendingNext : "/login"}
+        replace
+      />
     )
   }
 

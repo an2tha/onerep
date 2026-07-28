@@ -7,33 +7,34 @@ const AUTH_GUARD_SOURCE = readFileSync(
 )
 
 describe("AuthGuard source contract", () => {
-  test("auth loading does not trap users behind a checking screen", () => {
-    expect(AUTH_GUARD_SOURCE).not.toContain("Checking sign in")
-    expect(AUTH_GUARD_SOURCE).not.toContain("AUTH_LOAD_GRACE_MS")
-    expect(AUTH_GUARD_SOURCE).toContain("authLoadTimedOut")
+  test("uses Convex authentication as the protected-route source of truth", () => {
+    expect(AUTH_GUARD_SOURCE).toContain("useConvexAuth")
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (convexAuth.isAuthenticated) return <>{children}</>"
+    )
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "Convex authentication is the source of truth"
+    )
+  })
+
+  test("keeps a newly signed-in session alive during Convex token hydration", () => {
+    expect(AUTH_GUARD_SOURCE).toContain("Finishing sign in")
+    expect(AUTH_GUARD_SOURCE).toContain("if (!authServiceConfigured || authLoadTimedOut || isSignedIn) return")
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "never destroy the newly created session"
+    )
+  })
+
+  test("surfaces a recoverable handoff timeout instead of creating a redirect loop", () => {
+    expect(AUTH_GUARD_SOURCE).toContain("CONVEX_AUTH_HANDOFF_TIMEOUT_MS")
     expect(AUTH_GUARD_SOURCE).toContain("Sign-in service unavailable")
     expect(AUTH_GUARD_SOURCE).toContain("Retry")
-    expect(AUTH_GUARD_SOURCE).toContain(
-      "if (!isLoaded || (isSignedIn && convexAuth.isLoading))"
-    )
+    expect(AUTH_GUARD_SOURCE).toContain("Sign out and start again")
   })
 
   test("unauthenticated protected routes render a visible sign-in handoff", () => {
-    expect(AUTH_GUARD_SOURCE).not.toContain("if (!isSignedIn) return null")
     expect(AUTH_GUARD_SOURCE).toContain("Taking you to sign in")
     expect(AUTH_GUARD_SOURCE).toContain("Continue to sign in")
-    expect(AUTH_GUARD_SOURCE).toContain(
-      "void handleUnauthenticatedSession({ navigate, signOut })"
-    )
-  })
-
-  test("protected routes wait for Convex authentication", () => {
-    expect(AUTH_GUARD_SOURCE).toContain("useConvexAuth")
-    expect(AUTH_GUARD_SOURCE).toContain(
-      "if (!isLoaded || (isSignedIn && convexAuth.isLoading))"
-    )
-    expect(AUTH_GUARD_SOURCE).toContain(
-      "if (!isSignedIn || !convexAuth.isAuthenticated)"
-    )
+    expect(AUTH_GUARD_SOURCE).toContain("handleUnauthenticatedSession")
   })
 })

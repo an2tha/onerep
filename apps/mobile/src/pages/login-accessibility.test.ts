@@ -44,11 +44,14 @@ describe("auth form mobile accessibility and autofill", () => {
     )
   })
 
-  test("signed-in login redirect fallback explains the handoff", () => {
-    expect(LOGIN_SOURCE).toContain("Opening OneRep")
+  test("signed-in login redirect waits for Convex token validation", () => {
+    expect(LOGIN_SOURCE).toContain("useConvexAuth")
+    expect(LOGIN_SOURCE).toContain("authenticatedHandoffReady")
     expect(LOGIN_SOURCE).toContain(
-      "Your sign-in is ready. Sending you back to where you left off."
+      "redirectingSignedInUser && convexAuth.isAuthenticated"
     )
+    expect(LOGIN_SOURCE).toContain("Sign-in accepted. Opening OneRep…")
+    expect(LOGIN_SOURCE).toContain("Opening OneRep")
   })
 
   test("unverified sign-ins are sent to the verification recovery page", () => {

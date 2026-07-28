@@ -16,6 +16,7 @@ import {
   useSearchParams,
 } from "react-router"
 import { RouterProvider } from "react-router/dom"
+import { useConvexAuth } from "convex/react"
 import posthog from "posthog-js"
 import { PostHogProvider } from "@posthog/react"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
@@ -569,11 +570,14 @@ function NavSync() {
 function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
+  const convexAuth = useConvexAuth()
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
 
   useEffect(() => {
-    navigate(nextPath, { replace: true })
-  }, [navigate, nextPath])
+    if (convexAuth.isAuthenticated) {
+      navigate(nextPath, { replace: true })
+    }
+  }, [convexAuth.isAuthenticated, navigate, nextPath])
 
   return (
     <div className="min-h-svh bg-background text-foreground">

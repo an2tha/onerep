@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
+import { useConvexAuth } from "convex/react"
 import { Eye, EyeSlash } from "@phosphor-icons/react"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
@@ -66,6 +67,7 @@ export default function Login() {
   const [searchParams] = useSearchParams()
   const posthog = usePostHog()
   const { isLoaded: authLoaded, isSignedIn } = useAppAuth()
+  const convexAuth = useConvexAuth()
   const requestedMode =
     searchParams.get("mode") === "signup" ? "signup" : "signin"
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
@@ -81,16 +83,22 @@ export default function Login() {
   const authActionRef = useRef(false)
   const submitting = loading
   const redirectingSignedInUser = authLoaded && isSignedIn
+  const authenticatedHandoffReady =
+    redirectingSignedInUser && convexAuth.isAuthenticated
 
   useEffect(() => {
-    if (redirectingSignedInUser) {
+    if (authenticatedHandoffReady) {
       navigate(nextPath, { replace: true })
     }
-  }, [navigate, nextPath, redirectingSignedInUser])
+  }, [authenticatedHandoffReady, navigate, nextPath])
 
   function redirectIfSignedIn() {
     if (!isSignedIn) return false
-    navigate(nextPath, { replace: true })
+    if (convexAuth.isAuthenticated) {
+      navigate(nextPath, { replace: true })
+    } else {
+      setMessage("Finishing your secure sign-in…")
+    }
     return true
   }
 
@@ -156,7 +164,7 @@ export default function Login() {
         }
 
         posthog.capture("user_signed_in", { method: "email" })
-        navigate(nextPath, { replace: true })
+        setMessage("Sign-in accepted. Opening OneRep…")
         return
       } else {
         const displayName = name.trim() || trimmedEmail.split("@")[0]
