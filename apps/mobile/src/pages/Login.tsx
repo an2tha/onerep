@@ -74,6 +74,7 @@ export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [legalAccepted, setLegalAccepted] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
@@ -124,6 +125,10 @@ export default function Login() {
       setError("Enter your email")
       return
     }
+    if (mode === "signup" && !legalAccepted) {
+      setError("Confirm that you are at least 16 and accept the Terms")
+      return
+    }
     if (authActionRef.current || submitting) return
 
     authActionRef.current = true
@@ -150,7 +155,6 @@ export default function Login() {
           return
         }
 
-        posthog.identify(trimmedEmail, { email: trimmedEmail })
         posthog.capture("user_signed_in", { method: "email" })
         navigate(nextPath, { replace: true })
         return
@@ -170,10 +174,6 @@ export default function Login() {
           return
         }
 
-        posthog.identify(trimmedEmail, {
-          email: trimmedEmail,
-          name: displayName,
-        })
         posthog.capture("user_signed_up", { method: "email" })
         rememberPendingVerification(trimmedEmail, "/onboarding")
         navigate("/verify-email-required", { replace: true })
@@ -305,6 +305,40 @@ export default function Login() {
                 <span className="native-field-hint">At least 8 characters</span>
               )}
             </label>
+
+            {mode === "signup" && (
+              <label className="flex cursor-pointer items-start gap-3 text-[13px] leading-5 text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={legalAccepted}
+                  onChange={(event) => setLegalAccepted(event.target.checked)}
+                  required
+                  disabled={submitting}
+                  className="mt-0.5 size-4 shrink-0 accent-foreground"
+                />
+                <span>
+                  I confirm that I am at least 16 and agree to the{" "}
+                  <a
+                    href="https://onerep.life/terms"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                  >
+                    Terms and Conditions
+                  </a>
+                  . I acknowledge the{" "}
+                  <a
+                    href="https://onerep.life/privacy"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                  >
+                    Privacy Policy
+                  </a>
+                  .
+                </span>
+              </label>
+            )}
 
             {mode === "signin" && (
               <div className="flex justify-end">
