@@ -48,10 +48,11 @@ describe("PWA install surface", () => {
     expect(main).toContain("<PwaLifecycle />")
   })
 
-  test("prevents stale service workers while caching hashed assets", () => {
+  test("prevents stale workers and HTML fallback cache poisoning", () => {
     expect(headers).toContain("/sw.js")
     expect(headers).toContain("Cache-Control: no-cache, no-store, must-revalidate")
     expect(headers).toContain("/assets/*")
-    expect(headers).toContain("max-age=31536000, immutable")
+    expect(headers).toContain("Cache-Control: public, max-age=0, must-revalidate")
+    expect(headers).toContain("X-Content-Type-Options: nosniff")
   })
 })
