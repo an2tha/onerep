@@ -16,7 +16,7 @@ function AuthHandoff() {
           Finishing sign in
         </h1>
         <p className="native-body mt-3 text-muted-foreground">
-          Your account is verified. OneRep is securely connecting your data.
+          Your account is verified. Securely connecting your OneRep data.
         </p>
       </section>
     </main>
