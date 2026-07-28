@@ -13,6 +13,8 @@ const VERIFY_REQUIRED_SOURCE = readFileSync(
 describe("email verification mobile contract", () => {
   test("verified-email auth handoff has visible busy copy", () => {
     expect(EMAIL_VERIFIED_SOURCE).toContain("const checkingAuth")
+    expect(EMAIL_VERIFIED_SOURCE).toContain("useConvexAuth")
+    expect(EMAIL_VERIFIED_SOURCE).toContain("convexAuth.isAuthenticated")
     expect(EMAIL_VERIFIED_SOURCE).toContain(
       "Checking your sign-in state so we can send you to the right place.",
     )

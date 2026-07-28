@@ -9,9 +9,9 @@ import { sendAuthEmail } from "./authEmail";
 
 type AuthCtx = QueryCtx | MutationCtx | ActionCtx;
 export const authComponent = createClient<DataModel>(components.betterAuth);
-const siteUrl = process.env.SITE_URL!;
+const siteUrl = process.env.SITE_URL?.trim() || "https://app.onerep.life";
 const convexSiteUrl = process.env.CONVEX_SITE_URL!;
-export const trustedOrigins = [
+export const trustedOrigins = Array.from(new Set([
   siteUrl,
   "https://onerep-mobile.pages.dev",
   "https://app.onerep.life",
@@ -24,7 +24,7 @@ export const trustedOrigins = [
   "onerep://auth",
   "http://localhost",
   "https://localhost",
-];
+].filter((origin) => origin.trim().length > 0)));
 
 export type CurrentUser = {
   _id: string;
