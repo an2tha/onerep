@@ -67,8 +67,15 @@ import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
-import { ThemeProvider, Toaster } from "@repo/ui"
+import { ThemeProvider, Toaster, toast } from "@repo/ui"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
+import { initializePwaInstallTracking } from "./lib/pwa-install"
+import {
+  activateWaitingServiceWorker,
+  registerAppServiceWorker,
+  reloadWhenServiceWorkerControlsPage,
+  type AppServiceWorkerRegistration,
+} from "./lib/service-worker"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
 import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
@@ -79,6 +86,60 @@ import {
   useSmoothNavigate,
   type RouteMotion,
 } from "./lib/navigation"
+
+initializePwaInstallTracking()
+
+function PwaLifecycle() {
+  useEffect(() => {
+    if (!import.meta.env.PROD) return
+
+    let disposed = false
+    let registration: AppServiceWorkerRegistration | null = null
+    const removeReloadListener = reloadWhenServiceWorkerControlsPage()
+
+    const showUpdate = (nextRegistration: AppServiceWorkerRegistration) => {
+      if (disposed) return
+      toast.message("A OneRep update is ready", {
+        id: "onerep-pwa-update",
+        description: "Update now to use the latest version.",
+        duration: Infinity,
+        action: {
+          label: "Update",
+          onClick: () => activateWaitingServiceWorker(nextRegistration),
+        },
+      })
+    }
+
+    void registerAppServiceWorker({
+      onUpdate: showUpdate,
+      onError: (error) => console.warn("Service worker registration failed", error),
+    }).then((nextRegistration) => {
+      if (disposed || !nextRegistration) return
+      registration = nextRegistration
+    })
+
+    const checkForUpdate = () => {
+      if (document.visibilityState === "hidden") return
+      void registration?.update?.().catch((error) =>
+        console.warn("Service worker update check failed", error)
+      )
+    }
+    const handleVisibilityChange = () => checkForUpdate()
+    window.addEventListener("online", checkForUpdate)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    const updateTimer = window.setInterval(checkForUpdate, 60 * 60 * 1000)
+
+    return () => {
+      disposed = true
+      removeReloadListener?.()
+      window.removeEventListener("online", checkForUpdate)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.clearInterval(updateTimer)
+    }
+  }, [])
+
+  return null
+}
 
 function shouldShowBottomBar(pathname: string) {
   return (
@@ -780,6 +841,7 @@ createRoot(document.getElementById("root")!).render(
     >
       <PostHogProvider client={posthog}>
         <ThemeProvider>
+          <PwaLifecycle />
           <ErrorBoundary label="the app">
             <OfflineSyncIndicator />
             <WidgetDataSync />
