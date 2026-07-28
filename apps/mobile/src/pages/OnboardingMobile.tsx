@@ -784,10 +784,13 @@ export function OnboardingMobile() {
     if (stepId === "baseline") return profile.sex !== null
     if (stepId === "review")
       return (
-        draft.goal !== null && experienceLevel !== null && profile.sex !== null
+        draft.goal !== null &&
+        experienceLevel !== null &&
+        profile.sex !== null &&
+        consent.dataUse
       )
     return true
-  }, [draft.goal, experienceLevel, profile.sex, step])
+  }, [consent.dataUse, draft.goal, experienceLevel, profile.sex, step])
 
   function transitionToStep(nextStep: number, direction: "forward" | "back") {
     setTransitionDirection(direction)
@@ -1210,6 +1213,54 @@ export function OnboardingMobile() {
                         </div>
                       ))}
                     </dl>
+                  </section>
+                  <section
+                    className="onboarding-question"
+                    aria-labelledby="health-data-consent-heading"
+                  >
+                    <h2
+                      id="health-data-consent-heading"
+                      className="onboarding-question-title"
+                    >
+                      Your data choice
+                    </h2>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] border border-border bg-[var(--surface-panel)] p-4 text-[13px] leading-5 text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={consent.dataUse}
+                        onChange={(event) =>
+                          setConsent((current) => ({
+                            ...current,
+                            dataUse: event.target.checked,
+                          }))
+                        }
+                        className="mt-0.5 size-4 shrink-0 accent-foreground"
+                      />
+                      <span>
+                        I explicitly consent to OneRep processing the fitness,
+                        nutrition, body, recovery, and related information I
+                        provide to deliver personalized tracking and Coach
+                        features. Some of this information may qualify as health
+                        data. I can withdraw consent with future effect by
+                        deleting affected data or my account, or by contacting{" "}
+                        <a
+                          href="mailto:support@onerep.life"
+                          className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                        >
+                          support@onerep.life
+                        </a>
+                        . See the{" "}
+                        <a
+                          href="https://onerep.life/privacy"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                        >
+                          Privacy Policy
+                        </a>
+                        .
+                      </span>
+                    </label>
                   </section>
                 </div>
               )}

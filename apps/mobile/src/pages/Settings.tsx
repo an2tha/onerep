@@ -245,8 +245,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     mergeReminderSettings(null)
   )
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
-    if (typeof window === "undefined") return true
-    return safeLocalStorageGet("onerep:analytics-enabled") !== "false"
+    if (typeof window === "undefined") return false
+    return safeLocalStorageGet("onerep:analytics-enabled") === "true"
   })
   const [personalizedInsightsEnabled, setPersonalizedInsightsEnabled] =
     useState(true)
@@ -1358,6 +1358,37 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       label="Personalized insights"
                     />
                   </SettingsRow>
+                </GroupedList>
+                <SettingsSectionLabel title="Legal" />
+                <GroupedList label="Legal documents">
+                  <ListRow
+                    title="Privacy Policy"
+                    detail="How OneRep uses and protects your information"
+                    onClick={() =>
+                      window.open(
+                        "https://onerep.life/privacy",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    trailing={
+                      <CaretRight size={18} className="text-muted-foreground" />
+                    }
+                  />
+                  <ListRow
+                    title="Terms and Conditions"
+                    detail="Rules for using OneRep and Coach"
+                    onClick={() =>
+                      window.open(
+                        "https://onerep.life/terms",
+                        "_blank",
+                        "noopener,noreferrer"
+                      )
+                    }
+                    trailing={
+                      <CaretRight size={18} className="text-muted-foreground" />
+                    }
+                  />
                 </GroupedList>
                 <SettingsSectionLabel title="This device" />
                 <GroupedList label="Device and sync settings">

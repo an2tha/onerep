@@ -37,8 +37,11 @@ if (posthogToken) {
   posthog.init(posthogToken, {
     api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
     defaults: "2026-01-30",
+    opt_out_capturing_by_default: true,
   })
-  if (localStorage.getItem("onerep:analytics-enabled") === "false") {
+  if (localStorage.getItem("onerep:analytics-enabled") === "true") {
+    posthog.opt_in_capturing()
+  } else {
     posthog.opt_out_capturing()
   }
 }
