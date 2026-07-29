@@ -1494,6 +1494,13 @@ export default function Nutrition() {
   const timeZone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(timeZone)
   const [dateKey, setDateKey] = useState(todayKey)
+  // `todayKey` is first computed with the "UTC" fallback, before preferences
+  // load. Re-sync to the real timezone unless the user picked a date already.
+  const datePickedRef = useRef(false)
+  useEffect(() => {
+    if (datePickedRef.current) return
+    setDateKey(todayKey)
+  }, [todayKey])
   const isToday = dateKey === todayKey
   const dateLabel = formatDateLabel(dateKey, todayKey)
 
@@ -1648,11 +1655,11 @@ export default function Nutrition() {
       buildSupplementDayPlan({
         items: overview.items,
         logs: overview.logs,
-        date: todayKey,
+        date: dateKey,
         today: todayKey,
         isTrainingDay: overview.isTrainingDay,
       }),
-    [overview.isTrainingDay, overview.items, overview.logs, todayKey]
+    [overview.isTrainingDay, overview.items, overview.logs, dateKey, todayKey]
   )
   const scheduledSupplements = supplementPlan.filter((plan) => plan.isScheduled)
   const takenSupplements = supplementPlan.filter(
@@ -1771,6 +1778,7 @@ export default function Nutrition() {
   useEffect(() => {
     const requestedDate = searchParams.get("date")
     if (requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)) {
+      datePickedRef.current = true
       setDateKey(requestedDate)
       const next = new URLSearchParams(searchParams)
       next.delete("date")
@@ -1789,6 +1797,7 @@ export default function Nutrition() {
     }
 
     if (searchParams.get("history") === "1") {
+      datePickedRef.current = true
       setDateKey(offsetDateKey(todayKey, -1))
       const next = new URLSearchParams(searchParams)
       next.delete("history")
@@ -2104,7 +2113,10 @@ export default function Nutrition() {
               onInteract={hapticSelection}
               value={dateKey}
               todayKey={todayKey}
-              onChange={setDateKey}
+              onChange={(next) => {
+                datePickedRef.current = true
+                setDateKey(next)
+              }}
               open={dateSelectorOpen}
               onOpenChange={setDateSelectorOpen}
               label="Nutrition date"

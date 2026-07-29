@@ -1,0 +1,105 @@
+version: 52
+jobs:
+  - name: Deploy Cloudflare Pages
+    steps:
+      - type: CheckoutStep
+        name: Checkout repository
+        cloneCredential:
+          type: DefaultCredential
+        withLfs: false
+        withSubmodules: false
+        cloneDepth: 1
+        condition: SUCCESSFUL
+        optional: false
+      - type: CommandStep
+        name: Install dependencies
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bun install --frozen-lockfile
+        runAs: 0:0
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      - type: CommandStep
+        name: Build static sites
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bun run turbo run build --filter=mobile --filter=web -- --mode development
+        runAs: 0:0
+        envVars:
+          - name: TURBO_TOKEN
+            value: "@secret:TURBO_TOKEN@"
+          - name: TURBO_TEAM
+            value: "@secret:TURBO_TEAM@"
+          - name: CONVEX_DEPLOYMENT
+            value: "@secret:DEV_CONVEX_DEPLOYMENT@"
+          - name: VITE_CONVEX_URL
+            value: "@secret:DEV_VITE_CONVEX_URL@"
+          - name: VITE_CONVEX_SITE_URL
+            value: "@secret:DEV_VITE_CONVEX_SITE_URL@"
+          - name: VITE_APP_URL
+            value: https://app.onerep.life
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      - type: CommandStep
+        name: Deploy mobile app
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bunx wrangler@4 pages deploy apps/mobile/dist \
+            --project-name=onerep-mobile \
+            --branch=main
+        runAs: 0:0
+        envVars:
+          - name: CLOUDFLARE_API_TOKEN
+            value: "@secret:CLOUDFLARE_API_TOKEN@"
+          - name: CLOUDFLARE_ACCOUNT_ID
+            value: "@secret:CLOUDFLARE_ACCOUNT_ID@"
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      - type: CommandStep
+        name: Deploy marketing site
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bunx wrangler@4 pages deploy apps/web/dist \
+            --project-name=onerep-web \
+            --branch=main
+        runAs: 0:0
+        envVars:
+          - name: CLOUDFLARE_API_TOKEN
+            value: "@secret:CLOUDFLARE_API_TOKEN@"
+          - name: CLOUDFLARE_ACCOUNT_ID
+            value: "@secret:CLOUDFLARE_ACCOUNT_ID@"
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+    triggers:
+      - type: BranchUpdateTrigger
+        branches: main
+        userMatch: anyone
+    sequentialGroup: "@project_path@:cloudflare-pages-production"
+    retryCondition: never
+    maxRetries: 3
+    retryDelay: 30
+    timeout: 3600

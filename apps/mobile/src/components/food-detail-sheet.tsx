@@ -146,7 +146,13 @@ function PortionPicker({
       unit === "g" || unit === "ml"
         ? stepFor(grams)
         : (FOOD_PORTION_UNITS.find((option) => option.id === unit)?.step ?? 1)
-    const nextAmount = Math.max(configuredStep, amount + dir * configuredStep)
+    // The steppers preventDefault so the input keeps focus; step from whatever
+    // the user has typed and keep the visible value in sync, otherwise the
+    // field shows a stale number while grams and calories move underneath.
+    const typed = focused ? Number(inputVal.replace(",", ".")) : NaN
+    const base = Number.isFinite(typed) && typed > 0 ? typed : amount
+    const nextAmount = Math.max(configuredStep, base + dir * configuredStep)
+    if (focused) setInputVal(formatInputAmount(nextAmount))
     onChange(gramsFromFoodPortion(nextAmount, unit))
   }
 

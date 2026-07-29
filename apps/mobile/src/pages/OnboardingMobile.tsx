@@ -1144,7 +1144,7 @@ export function OnboardingMobile() {
                         <p className="native-summary-value mt-1 tabular-nums">
                           {preview?.targetCalories?.toLocaleString() ??
                             "Calculating…"}
-                          {preview ? " kcal" : ""}
+                          {preview?.targetCalories != null ? " kcal" : ""}
                         </p>
                         <p className="native-row-detail mt-2">
                           {preview?.calorieStrategy ??

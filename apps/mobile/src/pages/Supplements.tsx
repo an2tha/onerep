@@ -333,10 +333,14 @@ function SummaryStrip({
   plan,
   logs,
   legacyCount,
+  dateLabel,
+  isToday,
 }: {
   plan: ReturnType<typeof buildSupplementDayPlan>
   logs: SupplementIntakeLog[]
   legacyCount: number
+  dateLabel: string
+  isToday: boolean
 }) {
   const taken = plan.filter((item) => item.state === "taken").length
   const due = plan.filter((item) => item.state === "due").length
@@ -350,7 +354,7 @@ function SummaryStrip({
       aria-labelledby="supplement-summary-title"
     >
       <p className="text-[13px] font-medium text-muted-foreground">
-        Today’s adherence
+        {isToday ? "Today’s adherence" : `${dateLabel} adherence`}
       </p>
       <h2
         id="supplement-summary-title"
@@ -362,7 +366,7 @@ function SummaryStrip({
       </h2>
       <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
         {scheduled === 0
-          ? "Add a schedule in My supplements to build today’s plan."
+          ? `Add a schedule in My supplements to build ${isToday ? "today’s" : "this day’s"} plan.`
           : due > 0
             ? `${due} still due${missed > 0 ? ` · ${missed} missed` : ""}`
             : missed > 0
@@ -911,7 +915,11 @@ function ItemSheet({
               <button
                 type="button"
                 onClick={submit}
-                disabled={saving}
+                disabled={
+                  saving ||
+                  !draft.name.trim() ||
+                  !draft.servingLabel.trim()
+                }
                 aria-busy={saving}
                 className="app-button app-button-primary min-h-11 w-full"
               >
@@ -2069,12 +2077,16 @@ export default function Supplements() {
                 plan={dayPlan}
                 logs={overview.logs}
                 legacyCount={overview.legacyEntries.length}
+                dateLabel={dateLabel}
+                isToday={dateKey === todayKey}
               />
               <Warnings totals={supplementNutrientTotals(overview.logs)} />
 
               <div className="md:col-span-2">
                 <SectionHeader
-                  title="Today’s plan"
+                  title={
+                    dateKey === todayKey ? "Today’s plan" : `${dateLabel} plan`
+                  }
                   sub={
                     overview.isTrainingDay
                       ? "Training-day schedules are active."

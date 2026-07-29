@@ -1390,6 +1390,9 @@ export function WeightSelectorSheet({
       onClick={dismiss}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Weight selector"
         className={cn(
           "max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:absolute md:top-1/2 md:left-1/2 md:max-w-3xl md:rounded-[28px] md:shadow-2xl",
           isClosing
@@ -1422,6 +1425,7 @@ export function WeightSelectorSheet({
           </div>
           <button
             onClick={dismiss}
+            aria-label="Close weight selector"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50 text-muted-foreground/60 transition-colors active:bg-muted active:text-foreground"
           >
             <X size={13} weight="bold" />
@@ -2791,6 +2795,9 @@ function ExerciseHistorySheet({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Exercise history"
         className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
         style={{
           paddingBottom: "max(2rem, env(safe-area-inset-bottom, 2rem))",
@@ -2803,6 +2810,7 @@ function ExerciseHistorySheet({
         <div className="flex items-center gap-3 px-5 pt-4 pb-3">
           <button
             onClick={onClose}
+            aria-label="Close history"
             className="flex h-10 w-10 items-center justify-center rounded-full transition-colors active:bg-muted/60"
             style={{
               color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
@@ -5491,7 +5499,7 @@ export default function ActiveWorkout() {
             {items.map((item, itemIndex) => {
               if (item.kind === "solo") {
                 const ex = exerciseLookup[item.exerciseId]
-                if (!ex) return null
+                if (!ex || !exData[item.exerciseId]) return null
                 const key = workoutItemKey(item)
                 return (
                   <ActiveExerciseCard

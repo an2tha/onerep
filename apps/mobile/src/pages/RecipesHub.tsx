@@ -637,15 +637,20 @@ const CATEGORIES = [
 const FAVORITES_KEY = "onerep.recipe-hub.favorites.v1"
 
 function totals(recipe: Recipe) {
-  return recipe.ingredients.reduce(
+  const whole = recipe.ingredients.reduce(
     (sum, item) => ({
-      calories:
-        sum.calories + Math.round((item.caloriesPer100 * item.grams) / 100),
-      protein:
-        sum.protein + Math.round((item.proteinPer100 * item.grams) / 100),
+      calories: sum.calories + (item.caloriesPer100 * item.grams) / 100,
+      protein: sum.protein + (item.proteinPer100 * item.grams) / 100,
     }),
     { calories: 0, protein: 0 }
   )
+  // Nutrition is shown and logged per serving, matching the recipe cards in
+  // SearchFoods.
+  const servings = Math.max(1, recipe.servings ?? 1)
+  return {
+    calories: Math.round(whole.calories / servings),
+    protein: Math.round(whole.protein / servings),
+  }
 }
 
 export default function RecipesHub() {
@@ -909,9 +914,9 @@ export default function RecipesHub() {
   }
 
   async function unpublishRecipe(recipe: Recipe) {
-    if (!recipe._id || sharing) return
+    if (!recipe._id || sharing) return false
     if (!window.confirm(`Remove ${recipe.name} from the OneRep community?`))
-      return
+      return false
     setSharing(true)
     try {
       await setCommunitySharing({
@@ -919,10 +924,12 @@ export default function RecipesHub() {
         shared: false,
       })
       toast.success("Recipe is private again")
+      return true
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Could not update sharing"
       )
+      return false
     } finally {
       setSharing(false)
     }
@@ -957,15 +964,17 @@ export default function RecipesHub() {
         }),
         { calories: 0, protein: 0, carbs: 0, fat: 0 }
       )
+      // Log a single serving, matching the per-serving figures on the card.
+      const servings = Math.max(1, recipe.servings ?? 1)
       await addFoodEntry({
         date: currentDateKey(),
         entry: {
           id: crypto.randomUUID(),
           name: recipe.name,
-          calories: Math.round(nutrition.calories),
-          protein: Math.round(nutrition.protein),
-          carbs: Math.round(nutrition.carbs),
-          fat: Math.round(nutrition.fat),
+          calories: Math.round(nutrition.calories / servings),
+          protein: Math.round(nutrition.protein / servings),
+          carbs: Math.round(nutrition.carbs / servings),
+          fat: Math.round(nutrition.fat / servings),
           meal,
           loggedAt: new Date().toISOString(),
           recipeId: recipe._id,
@@ -1250,7 +1259,7 @@ export default function RecipesHub() {
                     Discover
                   </h2>
                   <p className="mt-0.5 text-[13px] text-muted-foreground">
-                    {filtered.length} recipes
+                    {filtered.length} recipe{filtered.length === 1 ? "" : "s"}
                   </p>
                 </div>
                 <SlidersHorizontal
@@ -1737,8 +1746,9 @@ export default function RecipesHub() {
                       type="button"
                       disabled={sharing}
                       onClick={() => {
-                        void unpublishRecipe(recipe)
-                        setSelectedCommunity(null)
+                        void unpublishRecipe(recipe).then((removed) => {
+                          if (removed) setSelectedCommunity(null)
+                        })
                       }}
                       className="mt-7 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-destructive/25 text-[13px] font-semibold text-destructive"
                     >

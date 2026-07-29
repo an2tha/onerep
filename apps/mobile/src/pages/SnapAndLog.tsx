@@ -111,6 +111,7 @@ export default function SnapAndLog() {
   const [barcodeScanning, setBarcodeScanning] = useState(false)
   const [barcodeResult, setBarcodeResult] = useState<FoodResult | null>(null)
   const [barcodeError, setBarcodeError] = useState<string | null>(null)
+  const [barcodeScanNonce, setBarcodeScanNonce] = useState(0)
 
   // Log state
   const [meal, setMeal] = useState<MealType>(defaultMeal())
@@ -288,7 +289,7 @@ export default function SnapAndLog() {
       zxingRef.current = null
       setBarcodeScanning(false)
     }
-  }, [mode, cameraState, useNativeCapture, posthog])
+  }, [mode, cameraState, useNativeCapture, posthog, barcodeScanNonce])
 
   // ── Snap & AI capture ─────────────────────────────────────────────────────
 
@@ -875,6 +876,7 @@ export default function SnapAndLog() {
             setSnapRaw(null)
             setBarcodeResult(null)
             setBarcodeError(null)
+            setBarcodeScanNonce((n) => n + 1)
           }}
           onSearchManually={() => navigate("/foods/search")}
           onDismiss={() => {
@@ -883,6 +885,7 @@ export default function SnapAndLog() {
             setSnapRaw(null)
             setBarcodeResult(null)
             setBarcodeError(null)
+            setBarcodeScanNonce((n) => n + 1)
           }}
         />
       )}
