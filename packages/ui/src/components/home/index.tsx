@@ -7,8 +7,11 @@ import {
   Fire,
   ForkKnife,
   Lightning,
+  MagnifyingGlassMinus,
+  MagnifyingGlassPlus,
   Pill,
   PintGlass,
+  Plus,
   PushPin,
   Sparkle,
   Question,
@@ -473,25 +476,87 @@ export function CoachGoalCards({
   )
 }
 
+const WATER_SEGMENTS = 8
+
+function CalorieRing({
+  caloriesLeft,
+  caloriesPct,
+  overTarget,
+}: {
+  caloriesLeft: number
+  caloriesPct: number
+  overTarget: boolean
+}) {
+  const radius = 52
+  const circumference = 2 * Math.PI * radius
+  const swept = circumference * Math.min(1, caloriesPct / 100)
+
+  return (
+    <div className="relative h-[128px] w-[128px] shrink-0">
+      <svg
+        viewBox="0 0 128 128"
+        className="h-full w-full -rotate-90"
+        aria-hidden="true"
+      >
+        <circle
+          cx="64"
+          cy="64"
+          r={radius}
+          fill="none"
+          strokeWidth="11"
+          className="stroke-foreground/[0.09]"
+        />
+        <circle
+          cx="64"
+          cy="64"
+          r={radius}
+          fill="none"
+          strokeWidth="11"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference - swept}
+          style={{
+            stroke: overTarget
+              ? "var(--status-danger)"
+              : "color-mix(in srgb, var(--foreground) 52%, transparent)",
+            transition: "stroke-dashoffset var(--motion-medium, 320ms) ease-out",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[2rem] leading-none font-bold tracking-tight tabular-nums">
+          {fmt(Math.abs(caloriesLeft))}
+        </span>
+        <span className="mt-1 text-[11px] font-medium text-muted-foreground">
+          kcal {overTarget ? "over" : "left"}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function DailyLedgerHero({
   caloriesLeft,
   caloriesTarget,
+  macros = [],
   waterMl,
   waterGoalMl,
-  workoutState,
-  workoutProgress,
+  onAddWater,
+  mealSlots = [],
+  onMealSlotClick,
   briefing,
   onBriefingAction,
   onBriefingDismiss,
   showBriefingAction = true,
-  proteinLeft,
   className,
 }: {
   caloriesLeft: number
   caloriesTarget: number
+  macros?: MacroProgress[]
   waterMl: number
   waterGoalMl: number
-  workoutState: string
+  onAddWater?: () => void
+  workoutState?: string
   workoutProgress?: {
     completedSets: number
     totalSets: number
@@ -505,50 +570,123 @@ export function DailyLedgerHero({
   onBriefingAction: () => void
   onBriefingDismiss?: () => void
   showBriefingAction?: boolean
-  proteinLeft: number
+  proteinLeft?: number
   className?: string
 }) {
   const [waterRainKey, setWaterRainKey] = useState(0)
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
-  const waterPct = pct(waterMl, waterGoalMl)
   const overTarget = caloriesLeft < 0
-  const workoutValue =
-    workoutProgress && workoutProgress.totalSets > 0
-      ? `${workoutProgress.completedSets}/${workoutProgress.totalSets} sets`
-      : workoutProgress && workoutProgress.elapsedMinutes > 0
-        ? `${workoutProgress.elapsedMinutes} min`
-        : workoutState
+
+  const filledSegments =
+    waterGoalMl > 0
+      ? Math.max(
+          0,
+          Math.min(
+            WATER_SEGMENTS,
+            Math.floor((waterMl / waterGoalMl) * WATER_SEGMENTS)
+          )
+        )
+      : 0
+  const openSlots = mealSlots.filter((slot) => !slot.logged).length
 
   return (
-    <SummaryBlock
-      title="Energy remaining"
-      value={`${caloriesLeft >= 0 ? "" : "+"}${fmt(Math.abs(caloriesLeft))} kcal`}
-      detail={`${fmt(consumed)} of ${fmt(caloriesTarget)} kcal · ${caloriesPct}%`}
-      tone="food"
-      className={className}
-    >
-      <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-        <div
-          className="h-full rounded-full"
-          style={{
-            width: `${caloriesPct}%`,
-            backgroundColor: overTarget
-              ? "var(--status-danger)"
-              : "var(--accent-food)",
-          }}
-        />
-      </div>
-      <div className="mt-4 grid grid-cols-3 divide-x divide-border border-y border-border py-3">
-        <div className="px-2 first:pl-0">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            Protein
-          </p>
-          <p className="mt-1 truncate text-[14px] font-semibold tabular-nums">
-            {proteinLeft > 0 ? `${fmt(proteinLeft)}g left` : "Done"}
-          </p>
+    <div className={cn("mx-[var(--app-page-x)] md:mx-8", className)}>
+      <section className="dashboard-ledger-card rounded-[22px] border border-border/70 px-4 py-5">
+        {/* Calories + macros */}
+        <div className="flex items-center gap-5">
+          <CalorieRing
+            caloriesLeft={caloriesLeft}
+            caloriesPct={caloriesPct}
+            overTarget={overTarget}
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-3.5">
+            {macros.map((macro) => {
+              const macroPct = pct(macro.value, macro.target)
+              return (
+                <div key={macro.label} className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[13px] font-medium">
+                      {macro.label}
+                    </span>
+                    <span className="text-[13px] font-semibold tabular-nums">
+                      {fmt(macro.value)} / {fmt(macro.target)}
+                      {macro.unit ?? "g"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-foreground/[0.08]">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${macroPct}%`,
+                        backgroundColor: macro.color,
+                        transition:
+                          "width var(--motion-medium, 320ms) ease-out",
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <div className="relative overflow-hidden px-3">
+
+        {/* Meals */}
+        {mealSlots.length > 0 && (
+          <div className="mt-5 border-t border-border/70 pt-4">
+            <div className="flex items-baseline justify-between">
+              <p className="text-[13px] font-medium text-muted-foreground">
+                Meals
+              </p>
+              <p className="text-[13px] text-muted-foreground tabular-nums">
+                {openSlots === 0
+                  ? "All logged"
+                  : `${openSlots} slot${openSlots === 1 ? "" : "s"} open`}
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {mealSlots.map((slot) => (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => onMealSlotClick?.(slot)}
+                  aria-label={
+                    slot.logged
+                      ? `${slot.label} logged`
+                      : `Log ${slot.label.toLowerCase()}`
+                  }
+                  className={cn(
+                    "flex min-h-[4.25rem] flex-col justify-between rounded-2xl px-2.5 py-2.5 text-left transition-transform active:scale-[0.98]",
+                    slot.logged
+                      ? "bg-muted/50"
+                      : "border border-dashed border-border"
+                  )}
+                >
+                  {slot.logged ? (
+                    <CheckCircle
+                      size={16}
+                      weight="fill"
+                      className="text-[var(--accent-food)]"
+                    />
+                  ) : (
+                    <Plus size={16} className="text-muted-foreground/60" />
+                  )}
+                  <span
+                    className={cn(
+                      "truncate text-[13px] font-semibold",
+                      !slot.logged && "text-muted-foreground"
+                    )}
+                  >
+                    {slot.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Water */}
+        <div className="relative mt-4 flex items-center gap-3 overflow-hidden border-t border-border/70 pt-4">
           {waterRainKey > 0 && (
             <span key={waterRainKey} className="water-rain" aria-hidden>
               {Array.from({ length: 7 }, (_, index) => (
@@ -556,52 +694,71 @@ export function DailyLedgerHero({
               ))}
             </span>
           )}
-          <p className="relative z-10 text-[11px] font-medium text-muted-foreground">
-            Water
-          </p>
-          <p
-            key={waterPct}
-            className="motion-number-refresh relative z-10 mt-1 truncate text-[14px] font-semibold tabular-nums"
-          >
-            {waterPct}%
-          </p>
-        </div>
-        <div className="px-3 pr-0">
-          <p className="text-[11px] font-medium text-muted-foreground">
-            Workout
-          </p>
-          <p className="mt-1 truncate text-[14px] font-semibold tabular-nums">
-            {workoutValue}
-          </p>
-        </div>
-      </div>
-      {showBriefingAction && (
-        <button
-          type="button"
-          onClick={() => {
-            if (briefing.action === "add_water") {
-              setWaterRainKey((value) => value + 1)
-            }
-            onBriefingAction()
-          }}
-          className="group mt-3 flex min-h-12 w-full items-center gap-2 border-t border-border px-0.5 pt-2 text-left transition-colors active:text-muted-foreground md:w-auto md:min-w-[20rem]"
-        >
-          <Lightning
-            size={14}
+          <PintGlass
+            size={17}
             weight="fill"
-            className="shrink-0 text-[var(--accent-food)] transition-transform group-active:scale-90"
+            className="relative z-10 shrink-0 text-muted-foreground/70"
           />
-          <span className="min-w-0 flex-1 truncate text-[12px] font-medium">
-            {briefing.title}
+          <div
+            className="relative z-10 flex min-w-0 flex-1 items-center gap-1.5"
+            role="img"
+            aria-label={`${filledSegments} of ${WATER_SEGMENTS} glasses`}
+          >
+            {Array.from({ length: WATER_SEGMENTS }, (_, index) => (
+              <span
+                key={index}
+                className={cn(
+                  "h-6 min-w-0 flex-1 rounded-[5px]",
+                  index < filledSegments
+                    ? "bg-foreground/55"
+                    : "bg-foreground/[0.09]"
+                )}
+              />
+            ))}
+          </div>
+          <span className="relative z-10 shrink-0 text-[14px] font-semibold tabular-nums">
+            {(waterMl / 1000).toFixed(2).replace(/\.?0+$/, "") || "0"} L
           </span>
-          <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold">
+          {onAddWater && (
+            <button
+              type="button"
+              onClick={() => {
+                setWaterRainKey((value) => value + 1)
+                onAddWater()
+              }}
+              aria-label="Add water"
+              className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground transition-transform active:scale-95"
+            >
+              <Plus size={15} weight="bold" />
+            </button>
+          )}
+        </div>
+      </section>
+
+      {/* Briefing banner */}
+      {showBriefingAction && (
+        <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-foreground px-4 py-3.5">
+          <Lightning
+            size={17}
+            weight="fill"
+            className="shrink-0 text-background"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-semibold text-background">
+              {briefing.title}
+            </p>
+            <p className="mt-0.5 truncate text-[12px] text-background/60">
+              {briefing.detail}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onBriefingAction}
+            className="shrink-0 rounded-full bg-background px-4 py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-95"
+          >
             {briefing.actionLabel}
-            <ArrowRight
-              size={13}
-              className="text-muted-foreground transition-transform group-active:translate-x-0.5"
-            />
-          </span>
-        </button>
+          </button>
+        </div>
       )}
       {showBriefingAction && onBriefingDismiss && (
         <button
@@ -612,7 +769,205 @@ export function DailyLedgerHero({
           Not now
         </button>
       )}
-    </SummaryBlock>
+    </div>
+  )
+}
+
+export type TrainingWeekDay = {
+  label: string
+  sets: number
+  isToday?: boolean
+  planned?: boolean
+}
+
+export type ConsistencyDay = {
+  date: string
+  level: "full" | "partial" | "none"
+}
+
+export function TrainingWeekCard({
+  sessions,
+  sets,
+  records,
+  days,
+  caption,
+  consistency,
+  onOpen,
+}: {
+  sessions: number
+  sets: number
+  records: number
+  days: TrainingWeekDay[]
+  caption?: string
+  consistency?: {
+    days: ConsistencyDay[]
+    fullCount: number
+    windowSize: number
+  }
+  onOpen?: () => void
+}) {
+  const [zoomedOut, setZoomedOut] = useState(false)
+  const maxSets = Math.max(1, ...days.map((day) => day.sets))
+  const canZoom = Boolean(consistency && consistency.days.length > 0)
+  const showConsistency = canZoom && zoomedOut
+
+  return (
+    <section className="mx-[var(--app-page-x)] mt-6 md:mx-8">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="app-section-title">
+            {showConsistency ? "Consistency" : "Training this week"}
+          </p>
+          {showConsistency && consistency ? (
+            <p className="mt-1 text-[15px] tabular-nums">
+              <span className="text-[1.5rem] leading-none font-bold tracking-tight">
+                {consistency.fullCount}
+              </span>{" "}
+              <span className="font-medium text-muted-foreground">
+                of last {consistency.windowSize} days
+              </span>
+            </p>
+          ) : (
+            <p className="native-row-detail mt-1 tabular-nums">
+              {sessions} session{sessions === 1 ? "" : "s"} · {sets} set
+              {sets === 1 ? "" : "s"} · {records} record
+              {records === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {canZoom && (
+            <button
+              type="button"
+              onClick={() => setZoomedOut((value) => !value)}
+              aria-expanded={showConsistency}
+              aria-label={
+                showConsistency
+                  ? "Zoom in to this week"
+                  : "Zoom out to last 28 days"
+              }
+              className="native-toolbar-button px-0 text-muted-foreground"
+            >
+              {showConsistency ? (
+                <MagnifyingGlassPlus size={18} />
+              ) : (
+                <MagnifyingGlassMinus size={18} />
+              )}
+            </button>
+          )}
+          {onOpen && (
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label="Open training history"
+              className="native-toolbar-button px-0 text-muted-foreground"
+            >
+              <ArrowRight size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 border-t border-border pt-5">
+        {/* Week bars */}
+        <div
+          className={cn(
+            "dashboard-zoom-pane grid",
+            showConsistency
+              ? "grid-rows-[0fr] opacity-0"
+              : "grid-rows-[1fr] opacity-100"
+          )}
+          data-collapsed={showConsistency ? "true" : "false"}
+          aria-hidden={showConsistency}
+          {...(showConsistency ? { inert: true } : {})}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="flex items-end gap-2">
+              {days.map((day, index) => {
+                const height = day.sets > 0 ? (day.sets / maxSets) * 72 : 6
+                return (
+                  <div
+                    key={`${day.label}-${index}`}
+                    className="flex min-w-0 flex-1 flex-col items-center gap-2"
+                  >
+                    <span
+                      className={cn(
+                        "w-full rounded-[4px] transition-[height] duration-300 ease-out",
+                        day.planned
+                          ? "dashboard-week-bar-planned"
+                          : day.sets > 0
+                            ? "bg-foreground/55"
+                            : "bg-foreground/[0.09]"
+                      )}
+                      style={{ height: `${Math.max(6, height)}px` }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={cn(
+                        "text-[12px] tabular-nums",
+                        day.isToday
+                          ? "font-semibold text-foreground"
+                          : "text-muted-foreground"
+                      )}
+                    >
+                      {day.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            {caption && <p className="native-row-detail mt-4">{caption}</p>}
+          </div>
+        </div>
+
+        {/* 28-day consistency grid */}
+        <div
+          className={cn(
+            "dashboard-zoom-pane grid",
+            showConsistency
+              ? "grid-rows-[1fr] opacity-100"
+              : "grid-rows-[0fr] opacity-0"
+          )}
+          data-collapsed={showConsistency ? "false" : "true"}
+          aria-hidden={!showConsistency}
+          {...(showConsistency ? {} : { inert: true })}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="dashboard-consistency-grid">
+              {consistency?.days.map((day, index) => (
+                <span
+                  key={day.date}
+                  className={cn(
+                    "aspect-square rounded-[6px]",
+                    day.level === "full"
+                      ? "bg-foreground/55"
+                      : day.level === "partial"
+                        ? "bg-foreground/25"
+                        : "bg-foreground/[0.09]"
+                  )}
+                  style={{
+                    transitionDelay: `${Math.min(index, 27) * 8}ms`,
+                  }}
+                  aria-hidden="true"
+                />
+              ))}
+            </div>
+            <div className="mt-4 flex items-center gap-4">
+              <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/55" />
+                Full day
+              </span>
+              <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-[3px] bg-foreground/25" />
+                Partial
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 border-b border-border" />
+    </section>
   )
 }
 

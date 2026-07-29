@@ -195,11 +195,19 @@ function PresetSteps({
 // ─── Confirm delete sheet ─────────────────────────────────────────────────────
 
 function ConfirmDeleteSheet({
-  preset,
+  title,
+  description,
+  confirmLabel,
+  busyLabel,
+  cancelLabel = "Keep it",
   onConfirm,
   onCancel,
 }: {
-  preset: WorkoutPresetCard
+  title: string
+  description: string
+  confirmLabel: string
+  busyLabel: string
+  cancelLabel?: string
   onConfirm: () => Promise<void>
   onCancel: () => void
 }) {
@@ -210,6 +218,8 @@ function ConfirmDeleteSheet({
     setDeleting(true)
     try {
       await onConfirm()
+    } catch {
+      // onConfirm surfaces its own error toast.
     } finally {
       setDeleting(false)
     }
@@ -228,11 +238,8 @@ function ConfirmDeleteSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border" />
-        <h2 className="text-base font-semibold">Delete "{preset.name}"?</h2>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          This preset will be permanently removed. Any routine days using it
-          will be cleared.
-        </p>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
         <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={() => void confirm()}
@@ -240,14 +247,14 @@ function ConfirmDeleteSheet({
             aria-busy={deleting}
             className="app-button app-button-danger h-12 w-full"
           >
-            {deleting ? "Deleting..." : "Delete preset"}
+            {deleting ? busyLabel : confirmLabel}
           </button>
           <button
             onClick={deleting ? undefined : onCancel}
             disabled={deleting}
             className="app-button app-button-quiet h-12 w-full"
           >
-            Keep it
+            {cancelLabel}
           </button>
         </div>
       </div>
@@ -260,7 +267,7 @@ function ConfirmDeleteSheet({
 function fmtDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
   if (m < 60) return `${m} min`
-  return `${Math.floor(m / 60)}h ${m % 60 > 0 ? ` ${m % 60}m` : ""}`
+  return `${Math.floor(m / 60)}h${m % 60 > 0 ? ` ${m % 60}m` : ""}`
 }
 
 function WorkoutLogSummary({
@@ -449,6 +456,7 @@ function PickSecondWorkoutSheet({
           <p className="text-[15px] font-semibold tracking-tight">{title}</p>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
@@ -709,6 +717,7 @@ export default function Workouts() {
 
   const [pressingPreset, setPressingPreset] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [confirmDeleteWorkout, setConfirmDeleteWorkout] = useState(false)
   const presetPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const slotRefs = useRef<Partial<Record<Day, HTMLDivElement | null>>>({})
@@ -1020,23 +1029,41 @@ export default function Workouts() {
       if (nextRoutine2[day] === id) nextRoutine2[day] = null
     }
 
+    const previousOrder = localOrder
+    const previousRoutine = routine
+    const previousRoutine2 = routine2
+
     setLocalOrder(nextPresets.map((p) => p.id))
     setRoutine(nextRoutine)
     setRoutine2(nextRoutine2)
-    await persist(nextPresets, nextRoutine, nextRoutine2)
-    await removePresetMutation({ id: id as Id<"presets"> })
+    try {
+      await persist(nextPresets, nextRoutine, nextRoutine2)
+      await removePresetMutation({ id: id as Id<"presets"> })
+    } catch (error) {
+      // Roll the optimistic update back so the list matches the server.
+      setLocalOrder(previousOrder)
+      setRoutine(previousRoutine)
+      setRoutine2(previousRoutine2)
+      toast.error(
+        error instanceof Error ? error.message : "Could not delete preset"
+      )
+      return
+    }
     hapticMedium()
     toast.success("Preset deleted")
     setConfirmDeleteId(null)
   }
 
-  function deleteSelectedWorkout() {
+  async function deleteSelectedWorkout() {
     const id = selectedWorkoutLog?._id as Id<"workoutLogs"> | undefined
     if (!id) return
     hapticMedium()
-    void removeWorkoutLog({ id })
-      .then(() => toast.success("Workout removed"))
-      .catch(() => toast.error("Could not remove workout"))
+    try {
+      await removeWorkoutLog({ id })
+      toast.success("Workout removed")
+    } catch {
+      toast.error("Could not remove workout")
+    }
   }
 
   function removeLoggedExercise(exerciseKey: string) {
@@ -1059,7 +1086,7 @@ export default function Workouts() {
         ...(exercise.cardio ? { cardio: exercise.cardio } : {}),
       }))
     if (nextExercises.length === 0) {
-      deleteSelectedWorkout()
+      void deleteSelectedWorkout()
       return
     }
     void replaceWorkoutLog({
@@ -1159,7 +1186,7 @@ export default function Workouts() {
               {selectedWorkoutLog && (
                 <button
                   type="button"
-                  onClick={deleteSelectedWorkout}
+                  onClick={() => setConfirmDeleteWorkout(true)}
                   className="app-header-icon-action text-destructive/70"
                   aria-label="Delete workout log"
                 >
@@ -1518,9 +1545,7 @@ export default function Workouts() {
                   triggerClassName="min-h-14 text-[15px] font-semibold"
                   contentClassName="grid gap-4 pb-4"
                 >
-                  {muscleVolume.length > 0 && (
-                    <MuscleVolumeCard muscleVolume={muscleVolume} />
-                  )}
+                  <MuscleVolumeCard muscleVolume={muscleVolume} />
                   <div>
                     <div className="mb-2 px-1">
                       <p className="app-section-title">Muscle recovery</p>
@@ -1821,12 +1846,29 @@ export default function Workouts() {
           if (!p) return null
           return (
             <ConfirmDeleteSheet
-              preset={p}
+              title={`Delete "${p.name}"?`}
+              description="This preset will be permanently removed. Any routine days using it will be cleared."
+              confirmLabel="Delete preset"
+              busyLabel="Deleting..."
               onConfirm={() => deletePreset(confirmDeleteId)}
               onCancel={() => setConfirmDeleteId(null)}
             />
           )
         })()}
+
+      {confirmDeleteWorkout && selectedWorkoutLog && (
+        <ConfirmDeleteSheet
+          title="Delete this workout log?"
+          description="This completed training session will be permanently removed."
+          confirmLabel="Delete workout"
+          busyLabel="Deleting..."
+          onConfirm={async () => {
+            await deleteSelectedWorkout()
+            setConfirmDeleteWorkout(false)
+          }}
+          onCancel={() => setConfirmDeleteWorkout(false)}
+        />
+      )}
 
       {addOpen && (
         <MobileSheet

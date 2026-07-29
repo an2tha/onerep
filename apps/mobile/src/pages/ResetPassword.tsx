@@ -273,7 +273,9 @@ export default function ResetPassword() {
             )}
           </form>
 
-          {codeSent && !passwordChanged && (
+          {/* Without an email in scope the resend would only ever error, and
+              the email field is hidden once codeSent is true. */}
+          {codeSent && !passwordChanged && email.trim() !== "" && (
             <button
               type="button"
               onClick={() => void sendCode()}

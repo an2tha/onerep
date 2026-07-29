@@ -988,7 +988,7 @@ function SearchExerciseCard({
         </p>
         {added && (
           <p className="mt-1 text-[13px] font-medium text-muted-foreground">
-            Already in workout
+            Already in preset
           </p>
         )}
       </button>
@@ -996,7 +996,9 @@ function SearchExerciseCard({
       <button
         onClick={onAdd}
         className="flex min-h-11 min-w-11 items-center justify-center px-3 text-muted-foreground transition-colors active:text-foreground"
-        aria-label={added ? "Remove" : `Add ${exercise.name}`}
+        aria-label={
+          added ? `Remove ${exercise.name}` : `Add ${exercise.name}`
+        }
       >
         {added ? (
           <X size={14} weight="bold" className="text-foreground/40" />
@@ -1131,6 +1133,7 @@ function PastePresetSheet({
             <button
               onClick={onClose}
               disabled={loading}
+              aria-label="Close AI preset builder"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
             >
               <X size={15} weight="bold" />
@@ -1249,6 +1252,7 @@ export default function NewPreset() {
   )
   const dragRef = useRef<DragInfo | null>(null)
   const dropTargetRef = useRef<DropTarget>(null)
+  const loadedPresetIdRef = useRef<string | undefined>(undefined)
   const savingRef = useRef(false)
   const generatingPresetRef = useRef(false)
 
@@ -1279,6 +1283,10 @@ export default function NewPreset() {
     )
 
     if (match) {
+      // The presets query re-emits on every reactive update; seed the builder
+      // once per preset so in-progress edits are not clobbered.
+      if (loadedPresetIdRef.current === presetId) return
+      loadedPresetIdRef.current = presetId
       const loadedItems = (match.items as PresetItem[]) ?? []
       setPresetName(match.name)
       setItems(loadedItems)

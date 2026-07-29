@@ -6324,3 +6324,52 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     transition: none !important;
   }
 }
+
+/* ── Dashboard daily ledger ───────────────────────────────────────────────── */
+
+.dashboard-ledger-card {
+  background-color: var(--card);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--foreground) 3%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.dashboard-week-bar-planned {
+  background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--foreground) 62%, transparent) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.dashboard-zoom-pane {
+  transition:
+    grid-template-rows 380ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    opacity 260ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.dashboard-zoom-pane > * > * {
+  transition:
+    transform 380ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    opacity 260ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+}
+
+.dashboard-zoom-pane[data-collapsed="true"] > * > * {
+  transform: scale(0.96);
+}
+
+.dashboard-consistency-grid {
+  display: grid;
+  grid-template-columns: repeat(14, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-zoom-pane,
+  .dashboard-zoom-pane > * > * {
+    transition: none !important;
+  }
+}

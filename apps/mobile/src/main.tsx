@@ -537,6 +537,9 @@ function NavSync() {
               data-route-kind={routeTransition.kind}
               data-route-direction={routeTransition.direction}
               aria-hidden="true"
+              // aria-hidden alone leaves the outgoing screen focusable and
+              // tappable for the length of the transition.
+              inert
             >
               {routeTransition.from}
             </div>

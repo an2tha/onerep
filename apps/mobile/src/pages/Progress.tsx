@@ -605,7 +605,7 @@ export default function Progress() {
               />
               <DisclosureRow
                 title="Training history"
-                detail={`${summary.training.workouts} workouts · ${summary.training.completedSets} sets`}
+                detail={`${summary.training.workouts} workout${summary.training.workouts === 1 ? "" : "s"} · ${summary.training.completedSets} set${summary.training.completedSets === 1 ? "" : "s"}`}
                 leading={<Barbell size={19} />}
                 onClick={() => navigate("/workouts", { motion: "switch" })}
               />

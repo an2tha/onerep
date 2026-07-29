@@ -816,7 +816,7 @@ function SearchOverlay({
               {showEmpty && (
                 <div className="border-y border-border py-6 text-center">
                   <p className="text-[15px] font-semibold">
-                    No ingredients found for “{query}”
+                    No ingredients found for “{debouncedQuery}”
                   </p>
                   <p className="mt-1 text-[14px] text-muted-foreground">
                     Try a shorter or more general food name.
@@ -912,6 +912,7 @@ import {
   RecipeMetadataField as MetadataField,
   RecipeMicrosPanel as MicrosPanel,
   RecipeSummary,
+  toast,
 } from "@repo/ui"
 
 export default function NewRecipe() {
@@ -962,9 +963,14 @@ export default function NewRecipe() {
   const [showMicros, setShowMicros] = useState(false)
   const savingRef = useRef(false)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const initializedRecipeIdRef = useRef<string | undefined>(undefined)
 
   useEffect(() => {
     if (initial) {
+      // The recipes query re-emits a fresh object on every reactive update, so
+      // only seed the form once per recipe or in-progress edits get clobbered.
+      if (initializedRecipeIdRef.current === (initial._id ?? id)) return
+      initializedRecipeIdRef.current = initial._id ?? id
       setName(initial.name)
       setRecipeType(initial.recipeType ?? "quick")
       setDescription(initial.description ?? "")
@@ -1089,6 +1095,9 @@ export default function NewRecipe() {
       navigate(-1)
     } catch (err) {
       console.error("Failed to save recipe:", err)
+      toast.error(
+        err instanceof Error ? err.message : "Could not save recipe"
+      )
       setSaved(false)
     } finally {
       savingRef.current = false
@@ -1159,7 +1168,11 @@ export default function NewRecipe() {
               paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
             }}
           >
-            <button onClick={() => navigate(-1)} className="app-icon-button">
+            <button
+              onClick={() => navigate(-1)}
+              className="app-icon-button"
+              aria-label="Back"
+            >
               <ArrowLeft size={15} weight="bold" />
             </button>
 

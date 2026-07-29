@@ -40,6 +40,7 @@ import {
   CoachDashboardWidgets,
   CoachGoalCards,
   TodayHeader,
+  TrainingWeekCard,
   TodayTimeline,
   FirstWeekGuide,
   type PinnedCoachGoal,
@@ -812,14 +813,6 @@ function WorkoutCard({
                 />
               </button>
             )}
-            {!isToday && (
-              <button
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors active:text-foreground"
-                aria-label="Edit workout"
-              >
-                <PencilSimple size={15} />
-              </button>
-            )}
           </div>
         </div>
 
@@ -1499,9 +1492,19 @@ function CalorieSmall({
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerLeave}
-        onClick={() => {
-          // Only trigger onClick if we didn't handle the press/release above
-          // This prevents double-firing when tapping
+        onClick={(e) => {
+          // Pointer taps are handled in handlePointerUp; e.detail === 0 means
+          // this click came from the keyboard (Enter/Space)
+          if (e.detail !== 0) return
+          if (expanded) {
+            setExpanded(false)
+          } else {
+            setExpanded(true)
+            if (expandTimeoutRef.current) clearTimeout(expandTimeoutRef.current)
+            expandTimeoutRef.current = setTimeout(() => {
+              setExpanded(false)
+            }, 1800)
+          }
         }}
         onContextMenu={(e) => e.preventDefault()}
         className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
@@ -2161,11 +2164,33 @@ function FoodSmall({
 
   return (
     <Card className="h-full overflow-hidden">
-      <button
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={
+          expanded
+            ? "Food logged today"
+            : "Food. Tap to view logged food, long-press to add"
+        }
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerLeave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            if (expanded) {
+              setExpanded(false)
+            } else {
+              setExpanded(true)
+              if (expandTimeoutRef.current)
+                clearTimeout(expandTimeoutRef.current)
+              expandTimeoutRef.current = setTimeout(() => {
+                setExpanded(false)
+              }, 2200)
+            }
+          }
+        }}
         onContextMenu={(e) => e.preventDefault()}
         className="group relative flex h-full w-full flex-col justify-between px-3.5 py-3 text-left"
       >
@@ -2291,7 +2316,7 @@ function FoodSmall({
             )}
           </div>
         </div>
-      </button>
+      </div>
     </Card>
   )
 }
@@ -2344,6 +2369,12 @@ export default function App() {
   const recentFoodLogs = useQuery(api.logs.foodLogs.getRecent, {
     beforeOrOn: selectedDate,
     limit: 7,
+  })
+  // Separate window for the 28-day consistency grid so the 7-day averages
+  // above keep their own range.
+  const consistencyFoodLogs = useQuery(api.logs.foodLogs.getRecent, {
+    beforeOrOn: selectedDate,
+    limit: 28,
   })
   const workoutHistoryQuery = useQuery(api.logs.workouts.getHistory)
   const muscleRecovery = useMuscleRecovery(
@@ -2502,13 +2533,16 @@ export default function App() {
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? user?.email ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   const selectedDateLabel = dayOffsetLabel(dayOffset, activeTimezone)
-  const dateLabel = `${selectedDateLabel} · ${dateKeyToCalendarDate(
-    selectedDate
-  ).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  })}`
+  const dateLabel = `${dateKeyToCalendarDate(selectedDate).toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }
+  )}${calorieInfo?.isTrainingDay ? " · training day" : ""}${
+    dayOffset === 0 ? "" : ` · ${selectedDateLabel}`
+  }`
 
   const scheduledWorkout = useMemo(() => {
     const day = dateKeyToDay(selectedDate, activeTimezone)
@@ -2541,7 +2575,7 @@ export default function App() {
   const [showFirstWeekGuide, setShowFirstWeekGuide] = useState(() =>
     typeof window === "undefined"
       ? false
-      : window.localStorage.getItem("onerep:first-week-guide-dismissed") !== "1"
+      : safeLocalStorageGet("onerep:first-week-guide-dismissed") !== "1"
   )
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setHomeAddOpen(true))
@@ -2674,6 +2708,40 @@ export default function App() {
       })),
     [foodEntries]
   )
+  const heroMacros = useMemo(
+    () => [
+      {
+        label: "Protein",
+        shortLabel: "P",
+        value: Math.round(foodTotals.protein),
+        target: Math.round(calorieInfo?.protein ?? 140),
+        color: MACRO_COLORS.protein,
+      },
+      {
+        label: "Carbs",
+        shortLabel: "C",
+        value: Math.round(foodTotals.carbs),
+        target: Math.round(calorieInfo?.carbs ?? 220),
+        color: MACRO_COLORS.carbs,
+      },
+      {
+        label: "Fat",
+        shortLabel: "F",
+        value: Math.round(foodTotals.fat),
+        target: Math.round(calorieInfo?.fat ?? 70),
+        color: MACRO_COLORS.fat,
+      },
+    ],
+    [
+      calorieInfo?.carbs,
+      calorieInfo?.fat,
+      calorieInfo?.protein,
+      foodTotals.carbs,
+      foodTotals.fat,
+      foodTotals.protein,
+    ]
+  )
+
   const recovery =
     isTodaySelected && hasCompletedWorkout
       ? {
@@ -2682,6 +2750,116 @@ export default function App() {
           waterPercent: waterProgress,
         }
       : null
+  // Mon–Sun set volume for the "Training this week" strip. Today's scheduled
+  // (but not yet completed) session renders as the hatched, planned bar.
+  const trainingWeek = useMemo(() => {
+    const logs = ((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[])
+      .filter((log) => Boolean(log.date))
+    const todayKeyLocal = currentDateKey(activeTimezone)
+    const todayDow = dateKeyToCalendarDate(todayKeyLocal).getDay()
+    const daysFromMonday = todayDow === 0 ? 6 : todayDow - 1
+
+    const setsByDate = new Map<string, number>()
+    for (const log of logs) {
+      const completedSets = (log.exercises ?? []).reduce(
+        (total, exercise) =>
+          total + (exercise.sets ?? []).filter((set) => set.completed).length,
+        0
+      )
+      setsByDate.set(log.date, (setsByDate.get(log.date) ?? 0) + completedSets)
+    }
+
+    // Planned set count comes from the raw preset doc; the card type only
+    // carries display strings.
+    const scheduledPresetDoc = scheduledWorkout
+      ? (serverPresets ?? []).find(
+          (preset) => (preset.id ?? preset._id) === scheduledWorkout.id
+        )
+      : undefined
+    const exerciseData = (scheduledPresetDoc?.exerciseData ?? {}) as Record<
+      string,
+      { sets?: unknown[] }
+    >
+    const plannedSets = Object.values(exerciseData).reduce(
+      (total, state) => total + (state?.sets?.length ?? 0),
+      0
+    )
+
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const dateKey = offsetDateKey(todayKeyLocal, index - daysFromMonday)
+      const sets = setsByDate.get(dateKey) ?? 0
+      const isToday = dateKey === todayKeyLocal
+      return {
+        label: WEEK_LABELS[index]!,
+        sets: isToday && sets === 0 && plannedSets > 0 ? plannedSets : sets,
+        isToday,
+        planned: isToday && sets === 0 && plannedSets > 0,
+      }
+    })
+
+    const weekDateKeys = new Set(
+      Array.from({ length: 7 }, (_, index) =>
+        offsetDateKey(todayKeyLocal, index - daysFromMonday)
+      )
+    )
+    const weekLogs = logs.filter((log) => weekDateKeys.has(log.date))
+
+    return {
+      days,
+      sessions: weekLogs.length,
+      sets: days.reduce(
+        (total, day) => total + (day.planned ? 0 : day.sets),
+        0
+      ),
+      plannedSets,
+      caption:
+        scheduledWorkout && plannedSets > 0
+          ? `Hatched bar is ${isTodaySelected ? "tonight’s" : "today’s"} ${scheduledWorkout.name} — ${plannedSets} sets planned.`
+          : undefined,
+    }
+  }, [
+    activeTimezone,
+    isTodaySelected,
+    scheduledWorkout,
+    serverPresets,
+    workoutHistoryQuery,
+  ])
+
+  // 28-day consistency grid. A day counts as "full" when it was genuinely
+  // tracked (2+ meals logged), "partial" when there was some activity that day
+  // (one meal, or a workout with no food logged).
+  const consistency = useMemo(() => {
+    const foodDays = new Map<string, number>()
+    for (const day of (consistencyFoodLogs ?? []) as Array<{
+      date: string
+      entries: FoodLogEntry[]
+    }>) {
+      const meals = new Set(day.entries.map((entry) => entry.meal))
+      foodDays.set(day.date, meals.size)
+    }
+    const workoutDays = new Set(
+      ((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[])
+        .map((log) => log.date)
+        .filter(Boolean)
+    )
+
+    const todayKeyLocal = currentDateKey(activeTimezone)
+    const days = Array.from({ length: 28 }, (_, index) => {
+      const dateKey = offsetDateKey(todayKeyLocal, index - 27)
+      const mealCount = foodDays.get(dateKey) ?? 0
+      const trained = workoutDays.has(dateKey)
+      const level: "full" | "partial" | "none" =
+        mealCount >= 2 ? "full" : mealCount === 1 || trained ? "partial" : "none"
+      return { date: dateKey, level }
+    })
+
+    return {
+      days,
+      fullCount: days.filter((day) => day.level === "full").length,
+      windowSize: days.length,
+    }
+  }, [activeTimezone, consistencyFoodLogs, workoutHistoryQuery])
+
   const dashboardWeeklyStory = useMemo(() => {
     const allWorkouts = [
       ...((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[]),
@@ -2858,7 +3036,7 @@ export default function App() {
   }
 
   function dismissFirstWeekGuide() {
-    window.localStorage.setItem("onerep:first-week-guide-dismissed", "1")
+    safeLocalStorageSet("onerep:first-week-guide-dismissed", "1")
     setShowFirstWeekGuide(false)
   }
 
@@ -3245,8 +3423,10 @@ export default function App() {
             <DailyLedgerHero
               caloriesLeft={caloriesLeft}
               caloriesTarget={caloriesTarget}
+              macros={heroMacros}
               waterMl={waterTotalMl}
               waterGoalMl={waterGoalMl}
+              onAddWater={addQuickWater}
               workoutState={workoutState}
               workoutProgress={activeWorkoutProgress}
               mealSlots={mealSlots}
@@ -3286,6 +3466,18 @@ export default function App() {
                 onDeleteSlot={setConfirmDeleteSlot}
               />
             </div>
+
+            <TrainingWeekCard
+              sessions={trainingWeek.sessions}
+              sets={trainingWeek.sets}
+              records={dashboardWeeklyStory.records.length}
+              days={trainingWeek.days}
+              {...(trainingWeek.caption
+                ? { caption: trainingWeek.caption }
+                : {})}
+              consistency={consistency}
+              onOpen={() => navigate("/workouts", { motion: "switch" })}
+            />
 
             <section
               className="dashboard-meals-stage mt-5"
@@ -4152,6 +4344,9 @@ export default function App() {
 
       {confirmDeleteSlot && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Delete workout"
           className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[3px]"
           onClick={() => setConfirmDeleteSlot(null)}
         >
@@ -4177,7 +4372,7 @@ export default function App() {
                     void removeWorkoutBySlot({
                       date: selectedDate,
                       slot: confirmDeleteSlot,
-                    })
+                    }).catch(() => toast.error("Could not delete workout"))
                     setConfirmDeleteSlot(null)
                   }}
                   className="h-12 w-full rounded-xl text-[14px] font-bold text-white transition-opacity active:opacity-80"

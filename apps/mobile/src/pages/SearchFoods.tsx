@@ -459,9 +459,9 @@ export default function SearchFoods() {
                       Results
                     </h1>
                     <p className="mt-0.5 text-[12px] text-muted-foreground">
-                      {results.length} foods
+                      {results.length} food{results.length === 1 ? "" : "s"}
                       {recipeResults.length > 0
-                        ? ` · ${recipeResults.length} recipes`
+                        ? ` · ${recipeResults.length} recipe${recipeResults.length === 1 ? "" : "s"}`
                         : ""}{" "}
                       for “{completedQuery}”
                     </p>
@@ -744,18 +744,25 @@ function MealSelectSheet({
   const titleId = `meal-select-${item.id}`
   const [savingMeal, setSavingMeal] = useState<string | null>(null)
 
+  // Don't let the sheet vanish mid-save; the entry would still land with no
+  // "Added" feedback.
+  const closeIfIdle = () => {
+    if (savingMeal) return
+    onClose()
+  }
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose()
+      if (event.key === "Escape" && !savingMeal) onClose()
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose])
+  }, [onClose, savingMeal])
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/55" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/55" onClick={closeIfIdle} />
       <div
         role="dialog"
         aria-modal="true"

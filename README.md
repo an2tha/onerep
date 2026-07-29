@@ -237,7 +237,17 @@ Authenticated screenshots require `E2E_STORAGE_STATE` to point to a signed-in Pl
 
 ## Deployment
 
-Pushes to `main` run [`.github/workflows/deploy.yaml`](.github/workflows/deploy.yaml), which builds and deploys both static sites to Cloudflare Pages. Convex deployment is managed separately; frontend deployment does not push backend functions or environment variables.
+Pushes to `main` trigger the `Deploy Cloudflare Pages` job in [`.onedev-buildspec.yml`](.onedev-buildspec.yml). The job builds both static sites and deploys them to Cloudflare Pages. Add these secrets under the OneDev project's build settings before running it:
+
+- `TURBO_TOKEN`
+- `TURBO_TEAM`
+- `DEV_CONVEX_DEPLOYMENT`
+- `DEV_VITE_CONVEX_URL`
+- `DEV_VITE_CONVEX_SITE_URL`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
+
+The job uses a sequential deployment group so two production deployments cannot run at the same time. It can also be started manually from any commit in OneDev. Convex deployment is managed separately; this job does not push backend functions or environment variables.
 
 Before opening a pull request, run:
 
