@@ -79,10 +79,6 @@ jobs:
             bun run turbo run build --filter=mobile --filter=web
         runAs: 0:0
         envVars:
-          - name: TURBO_TOKEN
-            value: "@secret:TURBO_TOKEN@"
-          - name: TURBO_TEAM
-            value: "@secret:TURBO_TEAM@"
           # NOTE: the DEV_* prefix is historical. These point at the Convex
           # deployment that serves production traffic and holds all real user
           # data. The deployment literally named "prod" is empty. Do not
@@ -95,10 +91,6 @@ jobs:
             value: "@secret:DEV_VITE_CONVEX_SITE_URL@"
           - name: VITE_APP_URL
             value: https://app.onerep.life
-          - name: VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
-            value: "@secret:VITE_PUBLIC_POSTHOG_PROJECT_TOKEN@"
-          - name: VITE_PUBLIC_POSTHOG_HOST
-            value: "@secret:VITE_PUBLIC_POSTHOG_HOST@"
         useTTY: false
         condition: SUCCESSFUL
         optional: false
