@@ -49,3 +49,6 @@ apps/server/data/raw
 .ralph
 .agents/
 .claude/
+
+# Local test-account credentials (never commit)
+test-user.txt

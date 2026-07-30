@@ -27,8 +27,8 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly AUTH_EMAIL_FROM: string | undefined;
   readonly AUTH_EMAIL_LOGO_URL: string | undefined;
-  readonly FATSECRET_CLIENT_ID: string | undefined;
-  readonly FATSECRET_CLIENT_SECRET: string | undefined;
+  readonly DATASOURCE_API_TOKEN: string | undefined;
+  readonly DATASOURCE_URL: string | undefined;
   readonly OPENAI_API_KEY: string | undefined;
   readonly OPENAI_MODEL: string | undefined;
   readonly RESEND_API_KEY: string | undefined;
