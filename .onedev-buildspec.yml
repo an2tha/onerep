@@ -16,7 +16,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bun install --frozen-lockfile
@@ -29,7 +30,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bun run prompts:check
@@ -51,7 +53,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bunx convex deploy --yes
@@ -69,7 +72,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bun run turbo run build --filter=mobile --filter=web
@@ -103,7 +107,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bunx wrangler@4 pages deploy apps/mobile/dist --project-name=onerep-mobile --branch=main
@@ -121,7 +126,8 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: DefaultInterpreter
+          type: PosixInterpreter
+          shell: sh
           commands: |
             set -eu
             bunx wrangler@4 pages deploy apps/web/dist --project-name=onerep-web --branch=main
