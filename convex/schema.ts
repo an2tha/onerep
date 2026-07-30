@@ -587,9 +587,9 @@ export default defineSchema({
       filterFields: ["popularityKey"],
     }),
 
-  // FatSecret permits non-ID API content to be retained for less than 24h.
-  // Entries are hard-expired and replaced; this is an API response cache only.
-  fatSecretCache: defineTable({
+  // Datasource API response cache. Entries are hard-expired and replaced;
+  // this holds no user data.
+  foodSourceCache: defineTable({
     key: v.string(),
     value: v.any(),
     expiresAt: v.number(),

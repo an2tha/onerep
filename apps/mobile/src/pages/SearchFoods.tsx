@@ -559,14 +559,14 @@ export default function SearchFoods() {
                   })}
                 </div>
                 <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                  Food data powered by{" "}
+                  Food data from{" "}
                   <a
-                    href="https://www.fatsecret.com"
+                    href="https://fdc.nal.usda.gov"
                     target="_blank"
                     rel="noreferrer"
                     className="underline underline-offset-2"
                   >
-                    FatSecret
+                    USDA FoodData Central
                   </a>
                 </p>
               </>

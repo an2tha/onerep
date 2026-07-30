@@ -8,7 +8,7 @@ The production app lives at [app.onerep.life](https://app.onerep.life). The mark
 
 - **Daily dashboard:** calorie and macro targets, meals, water, supplements, scheduled training, Coach goals, and configurable widgets.
 - **Training:** exercise catalog, workout templates, weekly routines, two concurrent workout slots, rest timers, persisted active workouts, history, volume trends, and muscle-recovery estimates.
-- **Nutrition:** FatSecret food search and nutrition details, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water, and supplement schedules.
+- **Nutrition:** self-hosted USDA food search and nutrition details, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water, and supplement schedules.
 - **Progress:** body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, and user-defined metrics.
 - **Coach:** text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Generated changes are reviewed before they are applied when confirmation is required.
 - **Photo logging:** food detection with OpenAI, followed by a review step that matches detections to food records before logging them.
@@ -24,7 +24,7 @@ AI, food lookup, email, analytics, and subscriptions depend on their correspondi
 ├── apps/
 │   ├── mobile/       # Main React app, PWA, and Capacitor iOS/Android projects
 │   ├── web/          # Bun + React marketing and legal site
-│   └── datasource/   # Experimental Bun datasource scaffold; not used by the app
+│   └── datasource/   # Self-hosted USDA food + wger exercise API (Bun + SQLite)
 ├── convex/           # Schema, auth, queries, mutations, actions, HTTP routes, and crons
 ├── packages/
 │   ├── models/       # Shared TypeScript models and Coach operation contracts
@@ -33,7 +33,7 @@ AI, food lookup, email, analytics, and subscriptions depend on their correspondi
 └── docs/             # Feature and UI implementation notes
 ```
 
-The mobile app talks directly to Convex. FatSecret, OpenAI, Resend, and RevenueCat secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
+The mobile app talks directly to Convex. Datasource, OpenAI, Resend, and RevenueCat secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
 
 `@repo/ui` is the presentation boundary: it owns primitives and reusable presenters, while `apps/mobile` owns routing, Convex calls, authentication, platform APIs, storage, and feature state. See [`packages/ui/README.md`](packages/ui/README.md) before adding shared UI.
 
@@ -56,7 +56,7 @@ The mobile app talks directly to Convex. FatSecret, OpenAI, Resend, and RevenueC
 - A [Convex](https://convex.dev/) account
 - Xcode for iOS work or Android Studio for Android work
 
-Docker is not required for the current app. Food search uses FatSecret through Convex; `apps/datasource` is only a scaffold at present.
+Docker is not required for the current app. Food search runs through Convex against `apps/datasource`, a self-hosted Bun service backed by USDA FoodData Central.
 
 ### 1. Install dependencies
 
@@ -126,11 +126,11 @@ Set backend secrets with `bunx convex env set NAME VALUE`. Do not put them behin
 ### Food search and barcodes
 
 ```env
-FATSECRET_CLIENT_ID=
-FATSECRET_CLIENT_SECRET=
+DATASOURCE_URL=
+DATASOURCE_API_TOKEN=
 ```
 
-Food search, details, and barcode requests pass through `convex/food/fatSecret.ts`. Responses are cached server-side for less than 24 hours and expired cache entries are removed.
+Food search, details, and barcode requests pass through `convex/food/datasource.ts` to the self-hosted [`apps/datasource`](apps/datasource/README.md) service, which serves USDA FoodData Central over a Cloudflare tunnel. Responses are cached server-side for less than 24 hours and expired cache entries are removed.
 
 ### AI Coach and photo logging
 
