@@ -16,11 +16,10 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bun install --frozen-lockfile
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bun install --frozen-lockfile
         runAs: 0:0
         useTTY: false
         condition: SUCCESSFUL
@@ -30,22 +29,17 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bun run prompts:check
-          bun run turbo run typecheck
-          # apps/mobile is deliberately excluded: it has 11 pre-existing
-          # UI-contract failures (Coach tabs, onboarding steps, dashboard
-          # copy) that predate this job. Add --filter=mobile here once those
-          # are fixed, so the gate covers the whole repo.
-          bun run turbo run test \
-            --filter=datasource \
-            --filter=@repo/ui \
-            --filter=@repo/models \
-            --filter=web
-          bun run test:convex
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bun run prompts:check
+            bun run turbo run typecheck
+            # apps/mobile is deliberately excluded: it has 11 pre-existing
+            # UI-contract failures (Coach tabs, onboarding steps, dashboard
+            # copy) that predate this job. Add --filter=mobile here once those
+            # are fixed, so the gate covers the whole repo.
+            bun run turbo run test --filter=datasource --filter=@repo/ui --filter=@repo/models --filter=web
+            bun run test:convex
         runAs: 0:0
         useTTY: false
         condition: SUCCESSFUL
@@ -57,11 +51,10 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bunx convex deploy --yes
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bunx convex deploy --yes
         runAs: 0:0
         envVars:
           # Deploy key for the deployment that actually serves the live app.
@@ -76,11 +69,10 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bun run turbo run build --filter=mobile --filter=web
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bun run turbo run build --filter=mobile --filter=web
         runAs: 0:0
         envVars:
           - name: TURBO_TOKEN
@@ -111,13 +103,10 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bunx wrangler@4 pages deploy apps/mobile/dist \
-            --project-name=onerep-mobile \
-            --branch=main
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bunx wrangler@4 pages deploy apps/mobile/dist --project-name=onerep-mobile --branch=main
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
@@ -132,13 +121,10 @@ jobs:
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
-          type: PosixInterpreter
-          shell: sh
-        commands: |
-          set -eu
-          bunx wrangler@4 pages deploy apps/web/dist \
-            --project-name=onerep-web \
-            --branch=main
+          type: DefaultInterpreter
+          commands: |
+            set -eu
+            bunx wrangler@4 pages deploy apps/web/dist --project-name=onerep-web --branch=main
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
