@@ -40,7 +40,7 @@ jobs:
             # UI-contract failures (Coach tabs, onboarding steps, dashboard
             # copy) that predate this job. Add --filter=mobile here once those
             # are fixed, so the gate covers the whole repo.
-            bun run turbo run test --filter=datasource --filter=@repo/ui --filter=@repo/models --filter=web
+            bun run turbo run test --filter=datasource --filter=@@repo/ui --filter=@@repo/models --filter=web
             bun run test:convex
         runAs: 0:0
         useTTY: false
@@ -111,7 +111,7 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bunx wrangler@4 pages deploy apps/mobile/dist --project-name=onerep-mobile --branch=main
+            bunx wrangler@@4 pages deploy apps/mobile/dist --project-name=onerep-mobile --branch=main
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
@@ -130,7 +130,7 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bunx wrangler@4 pages deploy apps/web/dist --project-name=onerep-web --branch=main
+            bunx wrangler@@4 pages deploy apps/web/dist --project-name=onerep-web --branch=main
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
