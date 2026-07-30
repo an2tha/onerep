@@ -67,6 +67,8 @@ describe("@repo/ui package boundary", () => {
       "mobile-sheet.tsx",
       "offline-sync-indicator.tsx",
       "tooltips.tsx",
+      // Renders null; syncs Convex data into the iOS widget extension.
+      "widget-data-sync.tsx",
     ])
     const unexpected = sourceFiles(mobileComponents)
       .map((path) => relative(mobileComponents, path))

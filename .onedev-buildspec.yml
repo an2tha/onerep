@@ -26,6 +26,52 @@ jobs:
         condition: SUCCESSFUL
         optional: false
       - type: CommandStep
+        name: Run tests
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bun run prompts:check
+          bun run turbo run typecheck
+          # apps/mobile is deliberately excluded: it has 11 pre-existing
+          # UI-contract failures (Coach tabs, onboarding steps, dashboard
+          # copy) that predate this job. Add --filter=mobile here once those
+          # are fixed, so the gate covers the whole repo.
+          bun run turbo run test \
+            --filter=datasource \
+            --filter=@repo/ui \
+            --filter=@repo/models \
+            --filter=web
+          bun run test:convex
+        runAs: 0:0
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      # Backend first: the static build below talks to these functions, so
+      # shipping the frontend against an older backend would break the app.
+      - type: CommandStep
+        name: Deploy Convex functions
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+        commands: |
+          set -eu
+          bunx convex deploy --yes
+        runAs: 0:0
+        envVars:
+          # Deploy key for the deployment that actually serves the live app.
+          # See the note on CONVEX_DEPLOYMENT below.
+          - name: CONVEX_DEPLOY_KEY
+            value: "@secret:CONVEX_DEPLOY_KEY@"
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      - type: CommandStep
         name: Build static sites
         runInContainer: true
         image: oven/bun:1.3.4
@@ -34,13 +80,17 @@ jobs:
           shell: sh
         commands: |
           set -eu
-          bun run turbo run build --filter=mobile --filter=web -- --mode development
+          bun run turbo run build --filter=mobile --filter=web
         runAs: 0:0
         envVars:
           - name: TURBO_TOKEN
             value: "@secret:TURBO_TOKEN@"
           - name: TURBO_TEAM
             value: "@secret:TURBO_TEAM@"
+          # NOTE: the DEV_* prefix is historical. These point at the Convex
+          # deployment that serves production traffic and holds all real user
+          # data. The deployment literally named "prod" is empty. Do not
+          # "correct" these to a prod deployment without migrating data first.
           - name: CONVEX_DEPLOYMENT
             value: "@secret:DEV_CONVEX_DEPLOYMENT@"
           - name: VITE_CONVEX_URL
@@ -49,6 +99,10 @@ jobs:
             value: "@secret:DEV_VITE_CONVEX_SITE_URL@"
           - name: VITE_APP_URL
             value: https://app.onerep.life
+          - name: VITE_PUBLIC_POSTHOG_PROJECT_TOKEN
+            value: "@secret:VITE_PUBLIC_POSTHOG_PROJECT_TOKEN@"
+          - name: VITE_PUBLIC_POSTHOG_HOST
+            value: "@secret:VITE_PUBLIC_POSTHOG_HOST@"
         useTTY: false
         condition: SUCCESSFUL
         optional: false
@@ -100,6 +154,4 @@ jobs:
         userMatch: anyone
     sequentialGroup: "@project_path@:cloudflare-pages-production"
     retryCondition: never
-    maxRetries: 3
-    retryDelay: 30
     timeout: 3600
