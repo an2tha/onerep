@@ -82,8 +82,12 @@ function foodByBarcode(barcode: string): Response {
   const db = foodDb.get();
   if (!db) return notImported("usda");
 
+  // A barcode of all zeros or punctuation is a bad scan, not a bad request:
+  // report it as a miss so the client shows "not found" instead of an error.
   const key = barcodeKey(barcode);
-  if (!key) return Response.json({ error: "invalid_barcode" }, { status: 400 });
+  if (!key) {
+    return Response.json({ status: 0, product: null, attribution: "usda" }, { status: 404 });
+  }
 
   // Prefer a row that actually carries nutrition data: USDA sometimes lists the
   // same GTIN several times, including discontinued entries with no nutrients.

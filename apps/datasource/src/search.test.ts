@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { nameKey, searchParams, toMatchExpression } from "./search.ts";
+import { barcodeKey, nameKey, searchParams, toMatchExpression } from "./search.ts";
 
 test("builds an AND query with a prefix on the last token", () => {
   expect(toMatchExpression("chicken breast")).toBe('"chicken" AND "breast"*');
@@ -32,4 +32,12 @@ test("strips LIKE wildcards from the prefix bonus", () => {
 
 test("returns null params when nothing is searchable", () => {
   expect(searchParams("  ", 10)).toBeNull();
+});
+
+test("canonicalises barcodes and rejects unmatchable ones", () => {
+  expect(barcodeKey("019022128593")).toBe("19022128593");
+  expect(barcodeKey("0-19022-12859-3")).toBe("19022128593");
+  // A bad scan has no canonical form; the caller reports it as a miss.
+  expect(barcodeKey("00000000000000")).toBeNull();
+  expect(barcodeKey("---")).toBeNull();
 });
