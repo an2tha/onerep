@@ -317,7 +317,7 @@ async function searchOpenFoodFacts(
   query: string,
   language?: string,
 ): Promise<FoodResult[]> {
-  const data = (await ctx.runAction(api.food.fatSecret.proxy, {
+  const data = (await ctx.runAction(api.food.datasource.proxy, {
     operation: "search",
     value: query,
     limit: MAX_CANDIDATES_PER_DETECTION,

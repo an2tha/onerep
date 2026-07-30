@@ -47,13 +47,13 @@ export function __clearOpenFoodFactsCacheForTests() {
   detailCache.clear()
 }
 
-async function fatSecretFetch<T>(args: {
+async function datasourceFetch<T>(args: {
   operation: "search" | "detail" | "barcode"
   value: string
   limit?: number
   language?: string
 }): Promise<T> {
-  const result = (await convexClient.action(api.food.fatSecret.proxy, {
+  const result = (await convexClient.action(api.food.datasource.proxy, {
     ...args,
   })) as T
 
@@ -61,7 +61,7 @@ async function fatSecretFetch<T>(args: {
     throw new Error("Food database temporarily unavailable. Try again shortly.")
   }
 
-  logDevDebug("FatSecret food API response", {
+  logDevDebug("Datasource food API response", {
     operation: args.operation,
     response: result,
   })
@@ -585,7 +585,7 @@ export async function searchFoods(
   })
 
   return cached(searchCache, cacheKey, SEARCH_CACHE_TTL_MS, async () => {
-    const data = await fatSecretFetch<OpenFoodFactsSearchResponse>({
+    const data = await datasourceFetch<OpenFoodFactsSearchResponse>({
       operation: "search",
       value: trimmed,
       limit: pageSize,
@@ -603,7 +603,7 @@ export async function searchFoods(
 async function loadFoodDetail(id: string): Promise<FoodDetail | null> {
   let data: OpenFoodFactsProductResponse
   try {
-    data = await fatSecretFetch<OpenFoodFactsProductResponse>({
+    data = await datasourceFetch<OpenFoodFactsProductResponse>({
       operation: "detail",
       value: id,
     })
@@ -635,7 +635,7 @@ export async function searchFoodsAccurate(
 export async function getFoodByBarcode(
   code: string
 ): Promise<FoodResult | null> {
-  const data = await fatSecretFetch<OpenFoodFactsProductResponse>({
+  const data = await datasourceFetch<OpenFoodFactsProductResponse>({
     operation: "barcode",
     value: code.trim(),
   })
