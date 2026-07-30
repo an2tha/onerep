@@ -370,9 +370,9 @@ const unauthenticatedWriteCases: PublicWriteCase[] = [
     args: { date: "2026-06-25", slot: 1 },
   },
   {
-    name: "food.fatSecret.proxy",
+    name: "food.datasource.proxy",
     kind: "action",
-    fn: api.food.fatSecret.proxy,
+    fn: api.food.datasource.proxy,
     args: { operation: "search", value: "toast" },
   },
   {

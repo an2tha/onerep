@@ -30,7 +30,7 @@ function lastActionArgs() {
   return calls.at(-1)![1]
 }
 
-describe("FatSecret food client", () => {
+describe("Datasource food client", () => {
   beforeEach(() => {
     actionMock.mockReset()
     __clearOpenFoodFactsCacheForTests()

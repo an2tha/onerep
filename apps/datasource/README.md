@@ -1,22 +1,30 @@
 # OneRep datasource
 
-A small Bun HTTP service providing locally indexed USDA foods and Open Food
-Facts barcode products. Drizzle uses Bun's native SQLite driver. DuckDB only
-projects wide OFF Parquet exports into the compact product schema.
+A small Bun HTTP service that replaces FatSecret. It serves USDA FoodData
+Central foods and the wger exercise catalog out of local SQLite databases,
+using FTS5 for search. `bun:sqlite` is the only storage dependency; there is no
+ORM, no DuckDB and no Open Food Facts import.
+
+Responses use the Open Food Facts-shaped payload the mobile client already
+consumes, so Convex only has to forward requests.
 
 ## Run
 
 ```bash
-ADMIN_TOKEN=change-me bun run dev
+API_TOKEN=$(openssl rand -hex 32) bun run dev
 ```
 
 Environment variables:
 
+- `HOST` — defaults to `127.0.0.1`. Widen it only as far as the Cloudflare
+  tunnel host requires, and pair it with a firewall rule scoped to that host;
+  never expose the port to the public internet
 - `PORT` — defaults to `3100`
 - `DATA_DIR` — SQLite location, defaults to `apps/datasource/data`
-- `CACHE_DIR` — downloaded archives and intermediate files
-- `ADMIN_TOKEN` — required for every `/admin/*` endpoint
-- `CORS_ORIGIN` — defaults to `*`
+- `API_TOKEN` — required for every `/v1/*` endpoint (min 32 chars)
+
+Only `/health` is unauthenticated. There are no CORS headers: this service is
+called server-side from Convex only, never from a browser.
 
 ## Read API
 
@@ -24,94 +32,97 @@ Environment variables:
 GET /health
 GET /v1/stats
 GET /v1/foods/search?q=greek+yogurt&limit=20
-GET /v1/foods/:fdcId
-GET /v1/barcodes/:barcode
-GET /v1/products/search?q=hazelnut&limit=20
+GET /v1/foods/:fdcId            # accepts "usda:123456" or a bare FDC id
+GET /v1/barcodes/:barcode       # UPC-A, EAN-13 and separator forms all resolve
+GET /v1/exercises/search?q=bench+press&limit=20
+GET /v1/exercises/:id           # numeric wger id or uuid
 ```
 
-OFF product-name search only contains data when `withSearch` is enabled during
-the import. Exact barcode lookup is always available.
+## Imports
 
-## Download source datasets
-
-Use the standalone downloader before starting an import. It downloads the USDA
-archives concurrently and splits large files into parallel HTTP byte ranges
-(default: 8). Completed files are published atomically and completed range
-parts can be reused after an interrupted run.
+Imports run from the shell, not over HTTP. The service is reachable from the
+internet through a Cloudflare tunnel, and no remote caller has any reason to
+trigger or roll back a rebuild — so there are no `/admin/*` routes to attack.
 
 ```bash
-bun run download all --concurrency 12
-# or individually:
-bun run download usda
-bun run download off
+# USDA: download and unzip a release first
+curl -O https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_csv_2025-12-18.zip
+unzip -q FoodData_Central_csv_2025-12-18.zip -d usda
+
+DATA_DIR=./data bun src/cli.ts import usda --csv-dir usda/FoodData_Central_csv_2025-12-18
+DATA_DIR=./data bun src/cli.ts import wger
+DATA_DIR=./data bun src/cli.ts rollback usda
 ```
 
-Files are written to `data/cache` by default. Use `--output DIR`, `--legacy`,
-or `--off-url URL` to override this. Open Food Facts defaults to the official
-Hugging Face `food.parquet` export. Set `DOWNLOAD_CONCURRENCY` to configure
-server-triggered downloads too. `USDA_API_KEY` is not needed by FoodData
-Central's public bulk archives and is deliberately not stored in this app.
+The USDA release ships ~3.1 GB of CSV, so every file is streamed rather than
+loaded. A full import takes roughly 3.5 minutes and produces a ~1.2 GB database
+holding about 455,000 distinct products, cleaned down from 2,007,635 parsed
+rows.
 
-## Build/update USDA
+### Cleanup passes
 
-The server discovers the newest official USDA JSON downloads. Foundation and
-Survey/FNDDS are imported by default; SR Legacy is optional because it is much
-larger in memory while unpacking. The source archives are downloaded in
-parallel when they are not already available.
+After loading, the importer runs three passes:
 
-```bash
-curl -X POST http://localhost:3100/admin/sync/usda \
-  -H 'Authorization: Bearer change-me' \
-  -H 'Content-Type: application/json' \
-  -d '{"datasets":["foundation","survey"]}'
-```
+1. **Energy derivation.** USDA omits nutrient 1008 on many branded records that
+   still carry complete macros, so energy is computed with the Atwater factors
+   (4/4/9). This recovers about 30,000 foods.
+2. **De-duplication.** USDA republishes a GTIN on every release, so the branded
+   set holds roughly four rows per physical product. Rows are grouped by GTIN,
+   or by name and source when there is no GTIN, and the most complete row wins.
+   This collapses about 1.55M rows.
+3. **Dropping empty foods.** Anything left with neither energy nor macros is
+   removed — it cannot be logged, and it otherwise appears in search as a
+   convincing zero-calorie entry.
 
-## Build/update Open Food Facts
+The passes run in that order on purpose: de-duplicating first means an empty
+row that repeats a populated one is aliased onto it instead of being discarded,
+which is why only a few hundred foods are actually dropped.
 
-The production database retains only barcode identity, display fields, core
-nutrition and a few optional nutrients. Country filtering happens in DuckDB
-before data reaches SQLite.
+Every retired `fdc_id` is recorded in the `aliases` table, and `GET
+/v1/foods/:id` falls back through it. A food logged before an import still
+resolves afterwards rather than 404ing.
 
-```bash
-curl -X POST http://localhost:3100/admin/sync/openfoodfacts \
-  -H 'Authorization: Bearer change-me' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "input":"/imports/openfoodfacts.parquet",
-    "countries":["germany","austria","switzerland"],
-    "withSearch":false
-  }'
-```
+### Ranking
 
-Alternatively pass a downloadable Parquet `url`. If you ran `bun run download
-off`, omit both `input` and `url`; the importer automatically reads
-`data/cache/openfoodfacts.parquet`. The response is a job object; poll
-`GET /admin/jobs/:id` until it completes.
+Search is FTS5 BM25 over name and brand, adjusted by a data-type prior:
+Foundation, then SR Legacy, then Survey/FNDDS, then Branded. The prior is
+deliberately stronger than the exact-name bonus, because thousands of branded
+products are named exactly "CHICKEN BREAST" and would otherwise bury the
+generic ingredient. Only foods matching every query token are candidates, so
+the prior decides between comparable matches rather than suppressing better
+ones. Weights live at the top of `src/search.ts`.
+
+Names are additionally stored as a punctuation-free `name_key`, so USDA's
+comma-inverted "Chicken, breast, raw" still prefix-matches what a user types.
+
+### Two USDA gotchas worth remembering
+
+`food_nutrient.nutrient_id` joins on `nutrient.id` (protein = 1003), **not** on
+`nutrient_nbr`, which holds the legacy SR numbering (protein = 203). Getting
+this wrong imports every food with zero macros and still looks like a
+successful build, so the importer aborts when fewer nutrient ids match than
+expected.
+
+`fdc_id` is declared `INTEGER PRIMARY KEY` so it aliases the rowid. The branded
+and nutrient passes issue millions of `UPDATE ... WHERE fdc_id = ?` statements;
+without the rowid alias each one scans two million rows.
 
 ## Safe database promotion
 
-Sync jobs never clear or modify the database currently serving requests. Each
-job builds a uniquely named `*.next.sqlite`, runs `PRAGMA integrity_check`,
-requires a non-empty result, checkpoints WAL, and closes the staged database.
-It then promotes the file with filesystem renames and keeps the former database
-as `usda.previous.sqlite` or `off.previous.sqlite`.
+Imports never modify the database currently serving requests. Each run builds
+`<source>.next.sqlite`, runs `PRAGMA integrity_check`, refuses to promote an
+empty result, then swaps it into place with filesystem renames and keeps the
+outgoing file as `<source>.previous.sqlite`. A failed build leaves the live
+database untouched.
 
-If a build or validation fails, the staged files are deleted and the live
-database remains open and unchanged. If the process is interrupted between the
-rename operations, startup restores the previous database when the live path is
-missing.
+The server notices a promotion by re-checking the live file's inode at most
+once every ten seconds, so a swapped database is picked up without a restart.
 
-Manual rollback is available through authenticated endpoints:
+Keep the database directory and staging files on the same filesystem so the
+renames stay atomic.
 
-```text
-POST /admin/rollback/usda
-POST /admin/rollback/openfoodfacts
-```
+## Attribution
 
-`GET /v1/stats` reports whether each source is currently building and whether
-a rollback database is available. Keep the database directory and staging files
-on the same mounted filesystem so renames remain atomic.
-
-Imports are maintenance operations. Run them when the service can tolerate
-reduced responsiveness, then retain the source SQLite files as deployable
-artifacts/backups.
+USDA FoodData Central is public domain. The wger catalog is CC-BY-SA 4.0: the
+`license` and `licenseAuthor` fields come back on every exercise and must be
+displayed wherever an image or description is shown.
