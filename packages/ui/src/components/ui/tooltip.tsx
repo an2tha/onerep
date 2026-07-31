@@ -1,10 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { createPortal } from "react-dom"
 import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "../../lib/utils"
+import { SpotlightOverlay, useSpotlightRect } from "./spotlight"
 
 type GuidedTooltipId = string | number
 
@@ -16,23 +16,34 @@ type GuidedTooltipEntry = {
   mountedAt: number
 }
 
-type GuidedTooltipRect = {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}
-
 const guidedTooltipEntries = new Map<string, GuidedTooltipEntry>()
 const guidedTooltipListeners = new Set<() => void>()
 let guidedTooltipActiveId: string | null = null
 let guidedTooltipMountCounter = 0
+let guidedTooltipsSuppressed = false
 
 function emitGuidedTooltipChange() {
   guidedTooltipListeners.forEach((listener) => listener())
 }
 
+/**
+ * Lets a higher-priority flow (the guided walkthrough) hold the overlay layer
+ * exclusively. While suppressed no ambient tooltip can elect itself, so the two
+ * systems can never dim the screen at the same time.
+ */
+function setGuidedTooltipsSuppressed(next: boolean) {
+  if (guidedTooltipsSuppressed === next) return
+
+  guidedTooltipsSuppressed = next
+  if (next) guidedTooltipActiveId = null
+
+  syncGuidedTooltipActive()
+  emitGuidedTooltipChange()
+}
+
 function getNextGuidedTooltipId() {
+  if (guidedTooltipsSuppressed) return undefined
+
   return [...guidedTooltipEntries.values()]
     .filter((entry) => entry.visible && !entry.completed)
     .sort(
@@ -44,9 +55,10 @@ function getNextGuidedTooltipId() {
 }
 
 function syncGuidedTooltipActive() {
-  const activeEntry = guidedTooltipActiveId
-    ? guidedTooltipEntries.get(guidedTooltipActiveId)
-    : null
+  const activeEntry =
+    guidedTooltipActiveId && !guidedTooltipsSuppressed
+      ? guidedTooltipEntries.get(guidedTooltipActiveId)
+      : null
 
   if (activeEntry?.visible && !activeEntry.completed) return
 
@@ -216,15 +228,7 @@ function GuidedTooltip({
   const wasOpenRef = React.useRef(false)
   const [isVisible, setIsVisible] = React.useState(false)
   const [locallyCompleted, setLocallyCompleted] = React.useState(false)
-  const [portalNode, setPortalNode] = React.useState<HTMLElement | null>(null)
-  const [targetRect, setTargetRect] = React.useState<GuidedTooltipRect | null>(
-    null
-  )
   const isCompleted = completed || locallyCompleted
-
-  React.useEffect(() => {
-    setPortalNode(document.body)
-  }, [])
 
   React.useEffect(() => {
     const target = targetRef.current
@@ -270,37 +274,10 @@ function GuidedTooltip({
   const open =
     enabled && isVisible && !isCompleted && guidedTooltipActiveId === key
 
-  React.useEffect(() => {
-    if (!open) {
-      setTargetRect(null)
-      return
-    }
-
-    function updateTargetRect() {
-      const target = targetRef.current
-      if (!target) return
-
-      const rect = target.getBoundingClientRect()
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-
-      setTargetRect({
-        top: Math.max(0, rect.top - spotlightPadding),
-        right: Math.min(viewportWidth, rect.right + spotlightPadding),
-        bottom: Math.min(viewportHeight, rect.bottom + spotlightPadding),
-        left: Math.max(0, rect.left - spotlightPadding),
-      })
-    }
-
-    updateTargetRect()
-    window.addEventListener("resize", updateTargetRect)
-    document.addEventListener("scroll", updateTargetRect, true)
-
-    return () => {
-      window.removeEventListener("resize", updateTargetRect)
-      document.removeEventListener("scroll", updateTargetRect, true)
-    }
-  }, [open, spotlightPadding])
+  // State, not the ref, so the rect recomputes on the render that mounts the
+  // target rather than silently measuring null on first open.
+  const [targetEl, setTargetEl] = React.useState<HTMLSpanElement | null>(null)
+  const targetRect = useSpotlightRect(targetEl, open, spotlightPadding)
 
   const complete = React.useCallback(() => {
     if (completionStartedRef.current) return
@@ -342,64 +319,24 @@ function GuidedTooltip({
     window.setTimeout(complete, 0)
   }
 
-  const overlayPieces = targetRect
-    ? [
-        {
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: targetRect.top,
-        },
-        {
-          top: targetRect.bottom,
-          left: 0,
-          width: "100%",
-          height: `calc(100dvh - ${targetRect.bottom}px)`,
-        },
-        {
-          top: targetRect.top,
-          left: 0,
-          width: targetRect.left,
-          height: Math.max(0, targetRect.bottom - targetRect.top),
-        },
-        {
-          top: targetRect.top,
-          left: targetRect.right,
-          width: `calc(100vw - ${targetRect.right}px)`,
-          height: Math.max(0, targetRect.bottom - targetRect.top),
-        },
-      ]
-    : []
-
   return (
     <>
-      {open &&
-        portalNode &&
-        targetRect &&
-        createPortal(
-          <div className="pointer-events-none fixed inset-0 z-40">
-            {overlayPieces.map((style, index) => (
-              <button
-                key={index}
-                type="button"
-                tabIndex={-1}
-                aria-label="Dismiss tooltip"
-                className={cn(
-                  "pointer-events-auto absolute cursor-default bg-black/32 backdrop-brightness-75",
-                  overlayClassName
-                )}
-                style={style}
-                onClick={complete}
-              />
-            ))}
-          </div>,
-          portalNode
-        )}
+      {open && (
+        <SpotlightOverlay
+          rect={targetRect}
+          onDismiss={complete}
+          dismissLabel="Dismiss tooltip"
+          className={overlayClassName}
+        />
+      )}
       <TooltipPrimitive.Provider delayDuration={0}>
         <TooltipPrimitive.Root open={open}>
           <TooltipPrimitive.Trigger asChild>
             <span
-              ref={targetRef}
+              ref={(node) => {
+                targetRef.current = node
+                setTargetEl(node)
+              }}
               className={cn(
                 "relative inline-flex w-fit",
                 open && "isolate z-[60]",
@@ -434,6 +371,7 @@ function GuidedTooltip({
 
 export {
   GuidedTooltip,
+  setGuidedTooltipsSuppressed,
   Tooltip,
   TooltipContent,
   TooltipProvider,

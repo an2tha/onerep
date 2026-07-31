@@ -30,9 +30,9 @@ export const markTooltipCompleted = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
-    if (!data) {
-      throw new Error("Onboarding profile not found");
-    }
+    // A missing profile is not an error: the tooltip is cosmetic, and throwing
+    // here left it unpersisted so it re-showed every session.
+    if (!data) return { recorded: false };
 
     const shownTooltips = data.shownTooltips ?? [];
 
@@ -41,6 +41,8 @@ export const markTooltipCompleted = mutation({
         shownTooltips: [...shownTooltips, args.tooltipId],
       });
     }
+
+    return { recorded: true };
   },
 });
 

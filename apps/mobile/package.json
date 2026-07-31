@@ -35,8 +35,6 @@
     "@posthog/react": "^1.9.1",
     "@repo/models": "*",
     "@repo/ui": "*",
-    "@revenuecat/purchases-capacitor": "13.2.1",
-    "@revenuecat/purchases-capacitor-ui": "13.2.1",
     "@tailwindcss/vite": "^4.2.1",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",

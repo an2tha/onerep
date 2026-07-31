@@ -69,6 +69,9 @@ export type EffectiveGoalsResult = {
   isTrainingDay: boolean
   macroCyclingEnabled: boolean
   workoutAdjustmentEnabled: boolean
+  mealTargetsEnabled: boolean
+  /** Always resolved, even when disabled, so the Settings preview can render. */
+  mealTargets: { meal: string; percent: number; calories: number }[]
 }
 
 export type NutritionPlan = {

@@ -24,6 +24,7 @@ import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
+import { MealCategorySync } from "@/components/meal-category-sync"
 
 import "./index.css"
 
@@ -59,6 +60,15 @@ import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import FoodReview from "./pages/FoodReview.tsx"
 import Nutrition from "./pages/Nutrition.tsx"
+import MealPrep from "./pages/MealPrep.tsx"
+import NutritionReport from "./pages/NutritionReport.tsx"
+import Fasting from "./pages/Fasting.tsx"
+import GroceryLists, { GroceryListDetail } from "./pages/GroceryList.tsx"
+import SharedDiary, {
+  SharedAccept,
+  SharedDiaryDay,
+} from "./pages/SharedDiary.tsx"
+import CustomFoods from "./pages/CustomFoods.tsx"
 import RecipesHub from "./pages/RecipesHub.tsx"
 import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
@@ -83,10 +93,15 @@ import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
 import {
   clearRouteMotion,
   getRouteMotion,
+  isTaskRoute,
   prefersReducedMotion,
+  PRIMARY_TAB_ORDER,
+  ROUTE_TRANSITION_MS,
+  shouldShowBottomBar,
   useSmoothNavigate,
   type RouteMotion,
 } from "./lib/navigation"
+import { TourProvider } from "./components/walkthrough/tour-provider"
 
 initializePwaInstallTracking()
 
@@ -113,7 +128,8 @@ function PwaLifecycle() {
 
     void registerAppServiceWorker({
       onUpdate: showUpdate,
-      onError: (error) => console.warn("Service worker registration failed", error),
+      onError: (error) =>
+        console.warn("Service worker registration failed", error),
     }).then((nextRegistration) => {
       if (disposed || !nextRegistration) return
       registration = nextRegistration
@@ -121,9 +137,11 @@ function PwaLifecycle() {
 
     const checkForUpdate = () => {
       if (document.visibilityState === "hidden") return
-      void registration?.update?.().catch((error) =>
-        console.warn("Service worker update check failed", error)
-      )
+      void registration
+        ?.update?.()
+        .catch((error) =>
+          console.warn("Service worker update check failed", error)
+        )
     }
     const handleVisibilityChange = () => checkForUpdate()
     window.addEventListener("online", checkForUpdate)
@@ -140,45 +158,6 @@ function PwaLifecycle() {
   }, [])
 
   return null
-}
-
-function shouldShowBottomBar(pathname: string) {
-  return (
-    pathname === "/" ||
-    pathname === "/nutrition" ||
-    pathname === "/recipes" ||
-    pathname === "/workouts" ||
-    pathname === "/progress" ||
-    pathname === "/supplements" ||
-    pathname === "/coach" ||
-    pathname === "/exercises" ||
-    pathname === "/settings"
-  )
-}
-
-const ROUTE_TRANSITION_MS = 900
-
-const PRIMARY_TAB_ORDER = [
-  "/",
-  "/workouts",
-  "/nutrition",
-  "/progress",
-  "/coach",
-]
-const TASK_ROUTE_PREFIXES = [
-  "/workouts/new",
-  "/workouts/edit/",
-  "/workout/active",
-  "/camera",
-  "/foods/search",
-  "/foods/review/",
-  "/foods/recipe/new",
-]
-
-function isTaskRoute(pathname: string) {
-  return TASK_ROUTE_PREFIXES.some(
-    (route) => pathname === route || pathname.startsWith(route)
-  )
 }
 
 type RouteTransitionKind =
@@ -522,50 +501,52 @@ function NavSync() {
     : undefined
   return (
     <BottomBarActionProvider onActionChange={setBottomBarAction}>
-      <div
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className="app-route-shell"
-      >
-        <div className="app-route-stack">
-          {routeTransition?.from && (
+      <TourProvider>
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="app-route-shell"
+        >
+          <div className="app-route-stack">
+            {routeTransition?.from && (
+              <div
+                key={`from-${routeTransition.fromKey}`}
+                className="app-route-frame app-route-frame-previous"
+                data-route-path={routeTransition.fromPathname}
+                data-route-ready={routeTransition.ready ? "true" : undefined}
+                data-route-kind={routeTransition.kind}
+                data-route-direction={routeTransition.direction}
+                aria-hidden="true"
+                // aria-hidden alone leaves the outgoing screen focusable and
+                // tappable for the length of the transition.
+                inert
+              >
+                {routeTransition.from}
+              </div>
+            )}
             <div
-              key={`from-${routeTransition.fromKey}`}
-              className="app-route-frame app-route-frame-previous"
-              data-route-path={routeTransition.fromPathname}
-              data-route-ready={routeTransition.ready ? "true" : undefined}
-              data-route-kind={routeTransition.kind}
-              data-route-direction={routeTransition.direction}
-              aria-hidden="true"
-              // aria-hidden alone leaves the outgoing screen focusable and
-              // tappable for the length of the transition.
-              inert
+              key={location.key}
+              ref={activeRouteFrameRef}
+              className="app-route-frame app-route-frame-current"
+              data-route-path={location.pathname}
+              data-route-kind={routeTransition?.kind}
+              data-route-direction={routeTransition?.direction}
+              data-route-loading={
+                routeTransition && !routeTransition.ready ? "true" : undefined
+              }
+              data-route-ready={routeTransition?.ready ? "true" : undefined}
             >
-              {routeTransition.from}
+              {outlet}
             </div>
-          )}
-          <div
-            key={location.key}
-            ref={activeRouteFrameRef}
-            className="app-route-frame app-route-frame-current"
-            data-route-path={location.pathname}
-            data-route-kind={routeTransition?.kind}
-            data-route-direction={routeTransition?.direction}
-            data-route-loading={
-              routeTransition && !routeTransition.ready ? "true" : undefined
-            }
-            data-route-ready={routeTransition?.ready ? "true" : undefined}
-          >
-            {outlet}
           </div>
         </div>
-      </div>
-      {showBottomBar && (
-        <BottomBar
-          pathname={location.pathname}
-          chromeState={currentChromeState}
-        />
-      )}
+        {showBottomBar && (
+          <BottomBar
+            pathname={location.pathname}
+            chromeState={currentChromeState}
+          />
+        )}
+      </TourProvider>
     </BottomBarActionProvider>
   )
 }
@@ -725,6 +706,97 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/nutrition/meal-prep",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Meal prep">
+              <MealPrep />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/nutrition/report",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Nutrition report">
+              <NutritionReport />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/nutrition/fasting",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Fasting">
+              <Fasting />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/nutrition/groceries",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Grocery list">
+              <GroceryLists />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/nutrition/groceries/:id",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Grocery list">
+              <GroceryListDetail />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/shared",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Shared diary">
+              <SharedDiary />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        // Declared before "/shared/:ownerUserId" so "accept" is not read as an id.
+        path: "/shared/accept",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Shared diary">
+              <SharedAccept />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/shared/:ownerUserId",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Shared diary">
+              <SharedDiaryDay />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/foods/custom",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Custom foods">
+              <CustomFoods />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/recipes",
         element: (
           <AuthGuard>
@@ -852,6 +924,7 @@ createRoot(document.getElementById("root")!).render(
           <ErrorBoundary label="the app">
             <OfflineSyncIndicator />
             <WidgetDataSync />
+            <MealCategorySync />
             <RouterProvider router={router} />
             <Toaster
               position="top-center"

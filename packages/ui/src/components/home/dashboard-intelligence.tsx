@@ -1,8 +1,7 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowRight,
   ForkKnife,
-  Gauge,
   ShareNetwork,
   TrendUp,
 } from "@phosphor-icons/react"
@@ -18,10 +17,69 @@ export type DashboardWeeklyStory = {
   records?: Array<{ label: string; detail: string }>
 }
 
+export type DashboardReadinessComponent = {
+  id: string
+  label: string
+  score: number | null
+  weight: number
+  detail: string
+}
+
 export type DashboardReadiness = {
   score: number
   label: "Ready" | "Steady" | "Recover"
-  detail: string
+  advice: string
+  components: DashboardReadinessComponent[]
+}
+
+const READINESS_TONES: Record<DashboardReadiness["label"], string> = {
+  Ready: "var(--status-success)",
+  Steady: "var(--status-caution)",
+  Recover: "var(--status-danger)",
+}
+
+function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
+  const [drawn, setDrawn] = useState(false)
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setDrawn(true))
+    return () => cancelAnimationFrame(frame)
+  }, [])
+  const radius = 30
+  const circumference = 2 * Math.PI * radius
+  const swept = circumference * (Math.max(0, Math.min(100, score)) / 100)
+
+  return (
+    <div className="relative size-[76px] shrink-0" aria-hidden="true">
+      <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
+        <circle
+          cx="38"
+          cy="38"
+          r={radius}
+          fill="none"
+          strokeWidth="6"
+          className="stroke-foreground/[0.08]"
+        />
+        <circle
+          cx="38"
+          cy="38"
+          r={radius}
+          fill="none"
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={drawn ? circumference - swept : circumference}
+          style={{
+            stroke: tone,
+            transition:
+              "stroke-dashoffset 700ms var(--motion-ease-out, ease-out)",
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">
+        <span className="text-[21px] font-bold tabular-nums">{score}</span>
+      </div>
+    </div>
+  )
 }
 
 export function DashboardIntelligence({
@@ -184,18 +242,59 @@ export function DashboardIntelligence({
           ) : (
             <>
               <div className="flex items-center gap-4">
-                <div className="relative grid size-16 shrink-0 place-items-center rounded-full border border-border">
-                  <Gauge size={22} className="text-muted-foreground" />
-                  <span className="absolute -right-1 -bottom-1 rounded-full bg-foreground px-1.5 py-0.5 text-[9px] font-bold text-background tabular-nums">
-                    {readiness.score}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-[16px] font-semibold">{readiness.label}</p>
-                  <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-                    {readiness.detail}
+                <ReadinessGauge
+                  score={readiness.score}
+                  tone={READINESS_TONES[readiness.label]}
+                />
+                <div className="min-w-0">
+                  <p
+                    className="text-[17px] font-bold tracking-tight"
+                    style={{ color: READINESS_TONES[readiness.label] }}
+                  >
+                    {readiness.label}
+                  </p>
+                  <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+                    {readiness.advice}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-4 space-y-3.5 border-t border-border/60 pt-4">
+                {readiness.components.map((component, index) => (
+                  <div
+                    key={component.id}
+                    className="dashboard-record-in"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-[13px] font-semibold">
+                        {component.label}
+                        {component.score !== null && component.weight > 0 && (
+                          <span className="ml-1.5 text-[11px] font-medium text-muted-foreground tabular-nums">
+                            {Math.round(component.weight * 100)}% of score
+                          </span>
+                        )}
+                      </p>
+                      <p className="shrink-0 text-[13px] font-semibold tabular-nums">
+                        {component.score === null
+                          ? "—"
+                          : Math.round(component.score)}
+                      </p>
+                    </div>
+                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-500 ease-out"
+                        style={{
+                          width: `${component.score ?? 0}%`,
+                          backgroundColor: READINESS_TONES[readiness.label],
+                        }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[12px] leading-4 text-muted-foreground">
+                      {component.detail}
+                    </p>
+                  </div>
+                ))}
               </div>
               <button
                 type="button"
@@ -211,28 +310,28 @@ export function DashboardIntelligence({
             </>
           )}
         </div>
-      </div>
 
-      {recentMeals.length > 0 && (
-        <div
-          className="mt-3 flex items-center gap-2 overflow-x-auto pb-1"
-          aria-label="Smart repeat meals"
-        >
-          <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-            <ForkKnife size={13} /> Repeat
-          </span>
-          {recentMeals.slice(0, 3).map((meal) => (
-            <button
-              key={meal}
-              type="button"
-              onClick={() => onRepeatMeal(meal)}
-              className="motion-tactile min-h-9 shrink-0 rounded-full border border-border px-3 text-[10px] font-medium active:bg-muted"
-            >
-              {meal}
-            </button>
-          ))}
-        </div>
-      )}
+        {recentMeals.length > 0 && (
+          <div
+            className="flex items-center gap-2 overflow-x-auto border-t border-border px-4 py-3"
+            aria-label="Smart repeat meals"
+          >
+            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+              <ForkKnife size={13} /> Repeat
+            </span>
+            {recentMeals.slice(0, 3).map((meal) => (
+              <button
+                key={meal}
+                type="button"
+                onClick={() => onRepeatMeal(meal)}
+                className="motion-tactile min-h-9 shrink-0 rounded-full border border-border px-3 text-[11px] font-medium active:bg-muted"
+              >
+                {meal}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   )
 }

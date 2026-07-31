@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
+import {
+  AUTH_CARD_CLASS,
+  AuthLayout,
+  AuthMark,
+  AuthModeCard,
+} from "@/components/auth-shell"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
 import { Eye, EyeSlash } from "@phosphor-icons/react"
@@ -48,9 +54,9 @@ async function withAuthActionTimeout<T>(label: string, action: Promise<T>) {
 
 function AuthRedirectFallback() {
   return (
-    <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center bg-background px-6 py-10">
-      <section aria-labelledby="auth-redirect-title">
-        <div className="mb-5 h-5 w-5 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
+    <AuthLayout>
+      <section aria-labelledby="auth-redirect-title" className="text-center">
+        <div className="mx-auto mb-6 h-6 w-6 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
         <h1 id="auth-redirect-title" className="native-large-title">
           Opening OneRep
         </h1>
@@ -58,7 +64,36 @@ function AuthRedirectFallback() {
           Your sign-in is ready. Sending you back to where you left off.
         </p>
       </section>
-    </main>
+    </AuthLayout>
+  )
+}
+
+function ModeTab({
+  active,
+  disabled,
+  onSelect,
+  children,
+}: {
+  active: boolean
+  disabled: boolean
+  onSelect: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      disabled={disabled}
+      onClick={onSelect}
+      className={`min-h-10 flex-1 rounded-[0.55rem] text-[14px] font-semibold transition-[background,color,box-shadow] disabled:opacity-50 ${
+        active
+          ? "bg-[var(--surface-raised)] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.14)]"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -72,6 +107,9 @@ export default function Login() {
     searchParams.get("mode") === "signup" ? "signup" : "signin"
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
   const [mode, setMode] = useState<LoginMode>(requestedMode)
+  const [modeDirection, setModeDirection] = useState<"forward" | "back">(
+    "forward"
+  )
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -103,7 +141,9 @@ export default function Login() {
   }
 
   function switchMode(nextMode: LoginMode) {
+    if (nextMode === mode) return
     hapticSelection()
+    setModeDirection(nextMode === "signup" ? "forward" : "back")
     setMode(nextMode)
     setError(undefined)
     setMessage(undefined)
@@ -134,7 +174,7 @@ export default function Login() {
       return
     }
     if (mode === "signup" && !legalAccepted) {
-      setError("Confirm that you are at least 16 and accept the Terms")
+      setError("Confirm that you are at least 13 and accept the Terms")
       return
     }
     if (authActionRef.current || submitting) return
@@ -200,51 +240,57 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground lg:grid lg:grid-cols-[minmax(20rem,0.78fr)_minmax(32rem,1.22fr)]">
-      <aside className="relative hidden min-h-svh flex-col justify-between overflow-hidden border-r border-border bg-[var(--surface-panel)] px-12 py-10 lg:flex xl:px-16 xl:py-14">
-        <div className="flex items-center gap-3">
-          <img src="/app-icon.svg" alt="" className="size-9" />
-          <span className="text-[17px] font-semibold tracking-[-0.02em]">
-            OneRep
-          </span>
-        </div>
-
-        <div className="max-w-md pb-[8vh]">
-          <span className="mb-6 block h-px w-12 bg-foreground" />
-          <p className="text-[clamp(2rem,3.25vw,3.75rem)] leading-[1.02] font-semibold tracking-[-0.055em] text-balance">
-            Training.
-            <br />
-            Nutrition.
-            <br />
-            Progress.
+    <AuthLayout>
+      <header className="mb-7 text-center">
+        <AuthMark />
+        <div
+          key={mode}
+          data-transition-direction={modeDirection}
+          className="auth-mode-panel"
+        >
+          <h1 className="mt-5 text-[1.9rem] leading-[1.1] font-semibold tracking-[-0.04em]">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="mt-2 text-[15px] leading-6 text-balance text-muted-foreground">
+            {mode === "signin"
+              ? "Pick up where you left off."
+              : "Training. Nutrition. Progress. All in one place."}
           </p>
         </div>
+      </header>
 
-        <span className="h-px w-full bg-border" />
-      </aside>
+      <section
+        aria-label={mode === "signin" ? "Sign in" : "Create account"}
+        className={AUTH_CARD_CLASS}
+      >
+        <div
+          role="tablist"
+          aria-label="Authentication mode"
+          className="mb-6 flex gap-1 rounded-[0.7rem] border border-border bg-[var(--surface-subtle)] p-1"
+        >
+          <ModeTab
+            active={mode === "signin"}
+            disabled={submitting}
+            onSelect={() => switchMode("signin")}
+          >
+            Sign in
+          </ModeTab>
+          <ModeTab
+            active={mode === "signup"}
+            disabled={submitting}
+            onSelect={() => switchMode("signup")}
+          >
+            Create account
+          </ModeTab>
+        </div>
 
-      <main className="mx-auto flex min-h-svh w-full max-w-[31rem] flex-col px-6 pt-[calc(var(--app-safe-top)+1.5rem)] pb-[var(--app-safe-bottom-lg)] sm:px-10 lg:justify-center lg:py-16">
-        <header className="mb-10">
-          <div className="flex items-center gap-2.5 lg:hidden">
-            <img src="/app-icon.svg" alt="" className="size-8" />
-            <span className="text-[16px] font-semibold tracking-[-0.02em]">
-              OneRep
-            </span>
-          </div>
-          <div className="mt-[clamp(3.5rem,13vh,7.5rem)] lg:mt-0">
-            <h1 className="text-[2.25rem] leading-[1.05] font-semibold tracking-[-0.045em] sm:text-[2.6rem]">
-              {mode === "signin" ? "Sign in to OneRep" : "Create your account"}
-            </h1>
-            <p className="mt-3 text-[15px] leading-6 text-muted-foreground">
-              {mode === "signin"
-                ? "Pick up where you left off."
-                : "It only takes a minute to get set up."}
-            </p>
-          </div>
-        </header>
-
-        <section aria-label={mode === "signin" ? "Sign in" : "Create account"}>
-          <form onSubmit={handleSubmit} className="space-y-5">
+        <AuthModeCard>
+          <form
+            key={mode}
+            data-transition-direction={modeDirection}
+            onSubmit={handleSubmit}
+            className="auth-mode-panel space-y-5"
+          >
             {mode === "signup" ? (
               <label className={FIELD_CLASS}>
                 <span className={LABEL_CLASS}>Name</span>
@@ -278,7 +324,19 @@ export default function Login() {
             </label>
 
             <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Password</span>
+              <span className="flex items-baseline justify-between gap-3">
+                <span className={LABEL_CLASS}>Password</span>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={handlePasswordReset}
+                    disabled={submitting}
+                    className="text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </span>
               <span className="relative block">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -325,7 +383,7 @@ export default function Login() {
                   className="mt-0.5 size-4 shrink-0 accent-foreground"
                 />
                 <span>
-                  I confirm that I am at least 16 and agree to the{" "}
+                  I confirm that I am at least 13 and agree to the{" "}
                   <a
                     href="https://onerep.life/terms"
                     target="_blank"
@@ -346,19 +404,6 @@ export default function Login() {
                   .
                 </span>
               </label>
-            )}
-
-            {mode === "signin" && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handlePasswordReset}
-                  disabled={submitting}
-                  className="-my-2 flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
-                >
-                  Forgot password?
-                </button>
-              </div>
             )}
 
             {error && (
@@ -394,22 +439,26 @@ export default function Login() {
                   : "Create account"}
             </button>
           </form>
+        </AuthModeCard>
+      </section>
 
-          <p className="mt-8 text-center text-[14px] text-muted-foreground">
-            {mode === "signin" ? "New here?" : "Have an account?"}{" "}
+      <p className="mt-6 text-center text-[13px] leading-5 text-muted-foreground">
+        {mode === "signin" ? (
+          <>
+            New here?{" "}
             <button
               type="button"
-              onClick={() =>
-                switchMode(mode === "signin" ? "signup" : "signin")
-              }
+              onClick={() => switchMode("signup")}
               disabled={submitting}
-              className="inline-flex min-h-10 items-center px-1 font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground active:opacity-60 disabled:opacity-50"
+              className="font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground active:opacity-60 disabled:opacity-50"
             >
-              {mode === "signin" ? "Sign up" : "Sign in"}
+              Create an account
             </button>
-          </p>
-        </section>
-      </main>
-    </div>
+          </>
+        ) : (
+          "Your data stays private and is never sold."
+        )}
+      </p>
+    </AuthLayout>
   )
 }

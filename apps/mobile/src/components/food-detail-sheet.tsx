@@ -23,6 +23,7 @@ import {
   gramsFromFoodPortion,
   logMicrosFromFoodDetail,
   readAllMealCategories,
+  readCustomCategories,
   addMealCategory,
   removeMealCategory,
   type FoodPortion,
@@ -30,6 +31,8 @@ import {
   type MealCategory,
   type LogMicros,
 } from "@/lib/food-log"
+import { api } from "../../../../convex/_generated/api"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import type { FoodResult, FoodDetail } from "@repo/models"
 import { getFoodDetail } from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
@@ -281,6 +284,17 @@ function MealPicker({
   const [categories, setCategories] = useState<MealCategory[]>(() =>
     readAllMealCategories()
   )
+  // Custom categories are mirrored to the server so per-meal calorie targets
+  // can be normalised against the same id set. See useMealCategorySync.
+  const syncCategories = useOfflineMutation(
+    api.users.users.setCustomMealCategories,
+    "users.users.setCustomMealCategories"
+  )
+  const pushCategories = () => {
+    void syncCategories({ categories: readCustomCategories() }).catch(() => {
+      // The local copy is already updated; the offline queue owns the retry.
+    })
+  }
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [newLabel, setNewLabel] = useState("")
@@ -303,6 +317,7 @@ function MealPicker({
 
   function handleDelete(id: string) {
     removeMealCategory(id)
+    pushCategories()
     const next = readAllMealCategories()
     setCategories(next)
     setPendingDelete(null)
@@ -317,6 +332,7 @@ function MealPicker({
       return
     }
     addMealCategory(label)
+    pushCategories()
     const next = readAllMealCategories()
     const created = next[next.length - 1]
     setCategories(next)

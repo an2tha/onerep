@@ -36,18 +36,22 @@ describe("authentication interface cleanup", () => {
 })
 
 describe("onboarding interface cleanup", () => {
-  test("groups setup into six task-oriented steps", () => {
+  test("runs setup as a scripted chat with progress", () => {
     for (const id of [
-      "goals",
+      "intro",
+      "goal",
+      "experience",
       "coach",
-      "baseline",
+      "sex",
+      "measurements",
       "activity",
       "safety",
+      "assistant",
       "review",
     ]) {
       assert.match(ONBOARDING, new RegExp(`id: "${id}"`))
     }
-    assert.match(ONBOARDING, /\{step \+ 1\} \/ \{steps\.length\}/)
+    assert.match(ONBOARDING, /aria-valuenow=\{stage \+ 1\}/)
     assert.match(ONBOARDING, /role="progressbar"/)
   })
 
@@ -71,16 +75,12 @@ describe("onboarding interface cleanup", () => {
     )
   })
 
-  test("uses immediate directional step choreography", () => {
+  test("uses lightweight chat choreography", () => {
     assert.doesNotMatch(ONBOARDING, /framer-motion|AnimatePresence/)
     assert.doesNotMatch(ONBOARDING, /startViewTransition/)
-    assert.match(ONBOARDING, /key=\{step\}/)
-    assert.match(
-      ONBOARDING,
-      /data-transition-direction=\{transitionDirection\}/
-    )
-    assert.match(CSS, /\.onboarding-step\[data-transition-direction="back"\]/)
-    assert.match(CSS, /animation: onboarding-step-in-forward/)
+    assert.match(ONBOARDING, /onboarding-chat-stage/)
+    assert.match(CSS, /animation: onboarding-bubble-in/)
+    assert.match(CSS, /@keyframes onboarding-typing-dot/)
   })
 
   test("the unused duplicate onboarding implementation is no longer imported", () => {

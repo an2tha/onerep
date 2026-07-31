@@ -25,7 +25,7 @@ describe("Coach goals on Today", () => {
       HOME_SOURCE,
       /data-layout=\{goals\.length === 1 \? "wide" : "compact"\}/
     )
-    assert.match(HOME_SOURCE, /Pinned from your Coach conversations/)
+    assert.match(HOME_SOURCE, /Coach goals/)
     assert.match(HOME_SOURCE, /onToggleTask/)
     assert.match(HOME_SOURCE, /aria-pressed=\{task\.completed\}/)
     assert.doesNotMatch(

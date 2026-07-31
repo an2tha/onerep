@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router"
 import {
-  ArrowLeft,
   ArrowRight,
   Barbell,
   Check,
@@ -9,13 +8,15 @@ import {
   GenderMale,
   Heart,
   Lightning,
+  PaperPlaneTilt,
+  PencilSimple,
   PersonSimpleRun,
   ShieldCheck,
   Trophy,
   TrendDown,
   type Icon,
 } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
   ACTIVITY_LEVELS,
@@ -29,8 +30,36 @@ import {
   isOnboardingGoal,
   mapOnboardingGoalToCalorieGoal,
 } from "@/lib/health-goals"
+import { useCoachContext } from "@/lib/coach-context"
+import {
+  CoachArtifacts,
+  CoachAttachButton,
+  CoachAttachmentInput,
+  CoachAttachmentPreview,
+  CoachOperationResults,
+  CoachProposal,
+  CoachUiBlocks,
+  ThinkingIndicator,
+  useCoachAttachment,
+  normalizeCoachArtifacts,
+  normalizeCoachOperations,
+  normalizeCoachUiBlocks,
+  recipeTotals,
+  validateCoachOperations,
+  type CoachMessage,
+  type CoachOperation,
+  type CoachOperationResult,
+  type CoachUiAction,
+} from "@/lib/coach-chat"
+import { currentDateKey, detectTimeZone } from "@/lib/food-log"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { safeLocalStorageRemove, safeLocalStorageSet } from "@/lib/utils"
+import {
+  createClientId,
+  safeLocalStorageRemove,
+  safeLocalStorageSet,
+} from "@/lib/utils"
+import { toast } from "@repo/ui"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   hapticHeavy,
   hapticMedium,
@@ -46,6 +75,7 @@ const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
 const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
+const WALKTHROUGH_WELCOME_PENDING_KEY = "onerep:walkthrough-welcome-pending"
 
 const activities = [
   ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
@@ -119,97 +149,6 @@ const safetyOptions = [
   ["compulsive_tracking", "Compulsive tracking"],
 ] satisfies [string, string][]
 
-const weightTrends = [
-  ["stable", "Stable"],
-  ["losing", "Trending down"],
-  ["gaining", "Trending up"],
-  ["unknown", "Not sure"],
-] satisfies [WeightTrend, string][]
-
-const occupationActivities = [
-  ["desk", "Mostly seated"],
-  ["mixed", "Mixed day"],
-  ["on_feet", "On my feet"],
-  ["manual", "Physical work"],
-] satisfies [OccupationActivity, string][]
-
-const dietTypes = [
-  ["omnivore", "Omnivore"],
-  ["vegetarian", "Vegetarian"],
-  ["vegan", "Vegan"],
-  ["pescatarian", "Pescatarian"],
-  ["halal", "Halal"],
-  ["kosher", "Kosher"],
-  ["other", "Other"],
-] satisfies [DietType, string][]
-
-const cookingSkills = [
-  ["beginner", "Keep it simple"],
-  ["intermediate", "I can cook"],
-  ["advanced", "I like recipes"],
-] satisfies [CookingSkill, string][]
-
-const budgets = [
-  ["low", "Budget"],
-  ["moderate", "Moderate"],
-  ["flexible", "Flexible"],
-] satisfies [Budget, string][]
-
-const trackingModes = [
-  ["full", "Calories + macros"],
-  ["protein_calories", "Protein + calories"],
-  ["photo_portion", "Photo / portion logging"],
-  ["habit", "Habit tracking"],
-  ["recovery", "Non-numeric recovery"],
-] satisfies [TrackingMode, string][]
-
-const firstNutritionActions = [
-  ["log_first_meal", "Log first meal"],
-  ["build_template", "Build a meal template"],
-  ["tomorrow_plan", "Plan tomorrow"],
-  ["import_yesterday", "Import yesterday"],
-  ["skip_habit", "Start habit mode"],
-] satisfies [FirstNutritionAction, string][]
-
-const steps = [
-  {
-    id: "goals",
-    label: "Goals",
-    title: "What are you working toward?",
-    body: "Choose a goal and the amount of guidance you want.",
-  },
-  {
-    id: "coach",
-    label: "Coach",
-    title: "Coach builds with you",
-    body: "Turn a conversation into interactive tools, compact dashboard widgets, and useful follow-ups.",
-  },
-  {
-    id: "baseline",
-    label: "Baseline",
-    title: "Add your baseline",
-    body: "These measurements are used to estimate your starting energy needs.",
-  },
-  {
-    id: "activity",
-    label: "Activity",
-    title: "Describe a typical week",
-    body: "Choose the option that best reflects your usual activity, not your best week.",
-  },
-  {
-    id: "safety",
-    label: "Health",
-    title: "Health considerations",
-    body: "Optional. This helps OneRep avoid unsuitable calorie recommendations.",
-  },
-  {
-    id: "review",
-    label: "Review",
-    title: "Review your starting targets",
-    body: "These are estimates, not medical advice. You can change them in Settings.",
-  },
-] as const
-
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max))
 }
@@ -220,10 +159,6 @@ function kgToLbs(kg: number) {
 
 function lbsToKg(lbs: number) {
   return Math.round((lbs / 2.20462) * 10) / 10
-}
-
-function selectedActivityLabel(activity: ActivityLevel) {
-  return activities.find(([id]) => id === activity)?.[1] ?? "Moderate"
 }
 
 function selectedLabel<T extends string>(
@@ -256,34 +191,6 @@ function isNutritionGoal(value: unknown): value is NutritionGoal {
 
 function isExperienceLevel(value: unknown): value is ExperienceLevel {
   return experienceLevels.some(([id]) => id === value)
-}
-
-function isWeightTrend(value: unknown): value is WeightTrend {
-  return weightTrends.some(([id]) => id === value)
-}
-
-function isOccupationActivity(value: unknown): value is OccupationActivity {
-  return occupationActivities.some(([id]) => id === value)
-}
-
-function isDietType(value: unknown): value is DietType {
-  return dietTypes.some(([id]) => id === value)
-}
-
-function isCookingSkill(value: unknown): value is CookingSkill {
-  return cookingSkills.some(([id]) => id === value)
-}
-
-function isBudget(value: unknown): value is Budget {
-  return budgets.some(([id]) => id === value)
-}
-
-function isTrackingMode(value: unknown): value is TrackingMode {
-  return trackingModes.some(([id]) => id === value)
-}
-
-function isFirstNutritionAction(value: unknown): value is FirstNutritionAction {
-  return firstNutritionActions.some(([id]) => id === value)
 }
 
 function deriveSafetyMode(
@@ -323,12 +230,7 @@ function deriveSafetyMode(
   return "standard"
 }
 
-import {
-  MultiSelectList,
-  NumberQuestion,
-  OptionList,
-  PillToggle,
-} from "@repo/ui"
+import { MultiSelectList, NumberQuestion } from "@repo/ui"
 
 function CoachFeatureMockups() {
   return (
@@ -539,12 +441,151 @@ function CoachFeatureMockups() {
   )
 }
 
+type StageId =
+  | "intro"
+  | "goal"
+  | "experience"
+  | "coach"
+  | "sex"
+  | "measurements"
+  | "activity"
+  | "safety"
+  | "assistant"
+  | "review"
+
+const stages = [
+  { id: "intro", label: "Welcome" },
+  { id: "goal", label: "Goals" },
+  { id: "experience", label: "Experience" },
+  { id: "coach", label: "Coach" },
+  { id: "sex", label: "Baseline" },
+  { id: "measurements", label: "Baseline" },
+  { id: "activity", label: "Activity" },
+  { id: "safety", label: "Health" },
+  { id: "assistant", label: "Coach setup" },
+  { id: "review", label: "Review" },
+] as const satisfies readonly { id: StageId; label: string }[]
+
+const SETUP_MESSAGE_LIMIT = 5
+
+const SETUP_STARTERS = [
+  "Build me a 3-day full-body routine and put it on my week",
+  "Set up a 6-day push/pull/legs split",
+  "Give me a high-protein dinner recipe I can repeat",
+  "Set me a 4-week goal I can actually hit",
+  "Add a daily water tracker to Progress",
+] as const
+
+const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
+  open_nutrition: "/nutrition",
+  log_food: "/nutrition",
+  open_workouts: "/workouts",
+  open_workout_builder: "/workouts",
+  open_progress: "/progress",
+  open_recipe_builder: "/foods/recipes",
+  open_settings: "/settings",
+}
+
+const SETUP_DESTINATION_LABELS: Record<CoachUiAction, string> = {
+  open_nutrition: "Nutrition",
+  log_food: "Nutrition",
+  open_workouts: "Workouts",
+  open_workout_builder: "Workouts",
+  open_progress: "Progress",
+  open_recipe_builder: "Recipes",
+  open_settings: "Settings",
+}
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  )
+}
+
+function TypewriterText({
+  text,
+  onDone,
+}: {
+  text: string
+  onDone: () => void
+}) {
+  const [visibleChars, setVisibleChars] = useState(0)
+  const onDoneRef = useRef(onDone)
+  onDoneRef.current = onDone
+
+  useEffect(() => {
+    setVisibleChars(0)
+    if (prefersReducedMotion()) {
+      setVisibleChars(text.length)
+      return
+    }
+    const timer = window.setInterval(() => {
+      setVisibleChars((current) => {
+        const next = current + 2
+        if (next >= text.length) {
+          window.clearInterval(timer)
+          return text.length
+        }
+        return next
+      })
+    }, 18)
+    return () => window.clearInterval(timer)
+  }, [text])
+
+  useEffect(() => {
+    if (visibleChars >= text.length) onDoneRef.current()
+  }, [text.length, visibleChars])
+
+  return <span aria-label={text}>{text.slice(0, visibleChars)}</span>
+}
+
+function QuickReplies<T extends string>({
+  options,
+  value,
+  onChoose,
+}: {
+  options: readonly { value: T; label: string; icon?: Icon; hint?: string }[]
+  value?: T | null
+  onChoose: (value: T) => void
+}) {
+  return (
+    <div className="onboarding-chat-replies" role="group">
+      {options.map((option) => {
+        const selected = value === option.value
+        const OptionIcon = option.icon
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={selected}
+            data-selected={selected}
+            className="onboarding-chat-chip"
+            onClick={() => {
+              hapticSelection()
+              onChoose(option.value)
+            }}
+          >
+            {OptionIcon && <OptionIcon size={17} weight="regular" />}
+            <span>
+              {option.label}
+              {option.hint && (
+                <span className="onboarding-chat-chip-hint">{option.hint}</span>
+              )}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 export function OnboardingMobile() {
   const navigate = useSmoothNavigate()
   const location = useLocation()
   const coachReplay =
     new URLSearchParams(location.search).get("replay") === "coach"
-  const coachStepIndex = steps.findIndex((item) => item.id === "coach")
+  const coachStageIndex = stages.findIndex((item) => item.id === "coach")
   const saveOnboarding = useMutation(api.users.onboarding.save)
   const saveHealthProfile = useMutation(api.logs.calories.setProfile)
   const saveWeightUnit = useMutation(api.users.users.setWeightUnit)
@@ -555,9 +596,22 @@ export function OnboardingMobile() {
   const onboardingProfile = useQuery(api.users.onboarding.get, {})
   const healthProfile = useQuery(api.logs.calories.getProfile, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
+  const generateChat = useAction(
+    api.ai.metricGeneration.generateCoachChatMessage
+  )
+  const applyCoachOperations = useAction(api.ai.coachOperations.applyApproved)
+  const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
+  const recordCoachAction = useMutation(api.ai.coachState.recordAction)
+  const undoCoachAction = useMutation(api.ai.coachState.undoAction)
+  const saveCoachGoal = useMutation(api.ai.coachGoals.save)
+  const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
+  const setDashboardWidgetPinned = useMutation(api.dashboardWidgets.setPinned)
+  const { context: coachContext } = useCoachContext()
 
   const [initialized, setInitialized] = useState(false)
-  const [step, setStep] = useState(() => (coachReplay ? coachStepIndex : 0))
+  const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
+  const [typing, setTyping] = useState(true)
+  const [typedCount, setTypedCount] = useState(0)
   const [draft, setDraft] = useState<OnboardingDraft>({
     age: 25,
     heightCm: 170,
@@ -577,35 +631,46 @@ export function OnboardingMobile() {
     foodLogging: true,
     wearableIntegrations: false,
   })
-  const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal>("maintain")
+  const [nutritionGoal, setNutritionGoal] = useState<NutritionGoal | null>(null)
   const [experienceLevel, setExperienceLevel] =
     useState<ExperienceLevel | null>(null)
   const [safetyFlags, setSafetyFlags] = useState<string[]>(["none"])
-  const [weightTrend, setWeightTrend] = useState<WeightTrend>("stable")
-  const [occupationActivity, setOccupationActivity] =
-    useState<OccupationActivity>("mixed")
-  const [dietType, setDietType] = useState<DietType>("omnivore")
-  const [allergies, setAllergies] = useState<string[]>(["none"])
-  const [cookingSkill, setCookingSkill] = useState<CookingSkill>("intermediate")
-  const [budget, setBudget] = useState<Budget>("moderate")
-  const [mealFrequency, setMealFrequency] = useState(3)
-  const [trackingMode, setTrackingMode] = useState<TrackingMode>("full")
-  const [loggingFeatures, setLoggingFeatures] = useState<string[]>([
-    "barcode",
-    "saved_meals",
-  ])
-  const [firstNutritionAction, setFirstNutritionAction] =
+  const [weightTrend] = useState<WeightTrend>("stable")
+  const [occupationActivity] = useState<OccupationActivity>("mixed")
+  const [dietType] = useState<DietType>("omnivore")
+  const [allergies] = useState<string[]>(["none"])
+  const [cookingSkill] = useState<CookingSkill>("intermediate")
+  const [budget] = useState<Budget>("moderate")
+  const [mealFrequency] = useState(3)
+  const [trackingMode] = useState<TrackingMode>("full")
+  const [loggingFeatures] = useState<string[]>(["barcode", "saved_meals"])
+  const [firstNutritionAction] =
     useState<FirstNutritionAction>("log_first_meal")
   const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg")
   const [waterGoalMl, setWaterGoalMl] = useState(2500)
-  const [transitionDirection, setTransitionDirection] = useState<
-    "forward" | "back"
-  >("forward")
   const [saving, setSaving] = useState(false)
   const [complete, setComplete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [setupMessages, setSetupMessages] = useState<CoachMessage[]>([])
+  const [setupInput, setSetupInput] = useState("")
+  const [setupBusy, setSetupBusy] = useState(false)
+  const [setupUsed, setSetupUsed] = useState(0)
+  const [applyingMessageIndex, setApplyingMessageIndex] = useState<
+    number | null
+  >(null)
+  const [setupDestination, setSetupDestination] = useState<string | null>(null)
+  const {
+    attachment: setupAttachment,
+    attachmentRef: setupAttachmentRef,
+    fileInputRef: setupFileInputRef,
+    attachImage: attachSetupImage,
+    clearAttachment: clearSetupAttachment,
+    openImagePicker: openSetupImagePicker,
+  } = useCoachAttachment()
   const savingRef = useRef(false)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
 
+  const effectiveNutritionGoal = nutritionGoal ?? "maintain"
   const calorieGoal = draft.goal
     ? mapOnboardingGoalToCalorieGoal(draft.goal)
     : profile.goal
@@ -620,8 +685,12 @@ export function OnboardingMobile() {
           heightCm: profile.heightCm,
           activityLevel: profile.activityLevel,
           goal: calorieGoal,
-          nutritionGoal,
-          safetyMode: deriveSafetyMode(profile.age, nutritionGoal, safetyFlags),
+          nutritionGoal: effectiveNutritionGoal,
+          safetyMode: deriveSafetyMode(
+            profile.age,
+            effectiveNutritionGoal,
+            safetyFlags
+          ),
           weightTrend,
           occupationActivity,
           trackingMode,
@@ -666,20 +735,6 @@ export function OnboardingMobile() {
       preferences?.weightUnit === "lbs" || preferences?.weightUnit === "kg"
         ? preferences.weightUnit
         : "kg"
-    const nextNutritionGoal = isNutritionGoal(onboardingProfile?.nutritionGoal)
-      ? onboardingProfile.nutritionGoal
-      : nextGoal
-        ? nextGoal === "lose"
-          ? "lose_fat"
-          : nextGoal === "build"
-            ? "gain_muscle"
-            : "maintain"
-        : "maintain"
-    const nextSafetyFlags =
-      Array.isArray(onboardingProfile?.safetyFlags) &&
-      onboardingProfile.safetyFlags.length > 0
-        ? onboardingProfile.safetyFlags
-        : ["none"]
 
     setDraft({ age: nextAge, heightCm: nextHeight, goal: nextGoal })
     setProfile({
@@ -701,64 +756,21 @@ export function OnboardingMobile() {
         wearableIntegrations: false,
       }
     )
-    setNutritionGoal(nextNutritionGoal)
+    setNutritionGoal(
+      isNutritionGoal(onboardingProfile?.nutritionGoal)
+        ? onboardingProfile.nutritionGoal
+        : null
+    )
     setExperienceLevel(
       isExperienceLevel(onboardingProfile?.experienceLevel)
         ? onboardingProfile.experienceLevel
         : null
     )
-    setSafetyFlags(nextSafetyFlags)
-    setWeightTrend(
-      isWeightTrend(onboardingProfile?.weightTrend)
-        ? onboardingProfile.weightTrend
-        : "stable"
-    )
-    setOccupationActivity(
-      isOccupationActivity(onboardingProfile?.occupationActivity)
-        ? onboardingProfile.occupationActivity
-        : "mixed"
-    )
-    setDietType(
-      isDietType(onboardingProfile?.dietType)
-        ? onboardingProfile.dietType
-        : "omnivore"
-    )
-    setAllergies(
-      Array.isArray(onboardingProfile?.allergies) &&
-        onboardingProfile.allergies.length > 0
-        ? onboardingProfile.allergies
+    setSafetyFlags(
+      Array.isArray(onboardingProfile?.safetyFlags) &&
+        onboardingProfile.safetyFlags.length > 0
+        ? onboardingProfile.safetyFlags
         : ["none"]
-    )
-    setCookingSkill(
-      isCookingSkill(onboardingProfile?.cookingSkill)
-        ? onboardingProfile.cookingSkill
-        : "intermediate"
-    )
-    setBudget(
-      isBudget(onboardingProfile?.budget)
-        ? onboardingProfile.budget
-        : "moderate"
-    )
-    setMealFrequency(
-      typeof onboardingProfile?.mealFrequency === "number"
-        ? clamp(onboardingProfile.mealFrequency, 2, 6)
-        : 3
-    )
-    setTrackingMode(
-      isTrackingMode(onboardingProfile?.trackingMode)
-        ? onboardingProfile.trackingMode
-        : "full"
-    )
-    setLoggingFeatures(
-      Array.isArray(onboardingProfile?.loggingFeatures) &&
-        onboardingProfile.loggingFeatures.length > 0
-        ? onboardingProfile.loggingFeatures
-        : ["barcode", "saved_meals"]
-    )
-    setFirstNutritionAction(
-      isFirstNutritionAction(onboardingProfile?.firstNutritionAction)
-        ? onboardingProfile.firstNutritionAction
-        : "log_first_meal"
     )
     setWeightUnit(nextUnit)
     setWaterGoalMl(preferences?.waterGoalMl ?? 2500)
@@ -777,45 +789,424 @@ export function OnboardingMobile() {
     setProfile((current) => ({ ...current, goal: calorieGoal }))
   }, [calorieGoal])
 
-  const stepReady = useMemo(() => {
-    const stepId = steps[step].id
-    if (stepId === "goals")
-      return draft.goal !== null && experienceLevel !== null
-    if (stepId === "baseline") return profile.sex !== null
-    if (stepId === "review")
-      return (
-        draft.goal !== null &&
-        experienceLevel !== null &&
-        profile.sex !== null &&
-        consent.dataUse
-      )
-    return true
-  }, [consent.dataUse, draft.goal, experienceLevel, profile.sex, step])
+  useEffect(() => {
+    setTyping(true)
+    setTypedCount(0)
+    const timer = window.setTimeout(() => setTyping(false), 520)
+    return () => window.clearTimeout(timer)
+  }, [stage])
 
-  function transitionToStep(nextStep: number, direction: "forward" | "back") {
-    setTransitionDirection(direction)
-    setStep(nextStep)
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [
+    stage,
+    typing,
+    typedCount,
+    error,
+    preview?.targetCalories,
+    setupMessages.length,
+    setupBusy,
+  ])
+
+  const todayKey = currentDateKey(detectTimeZone())
+
+  // The profile is not persisted until the review stage, so the Coach setup
+  // stage runs against the in-progress draft rather than an empty account.
+  const setupCoachContext = useMemo(
+    () => ({
+      ...coachContext,
+      goal: preview?.calorieStrategy ?? calorieGoal,
+      experienceLevel,
+      safetyMode: deriveSafetyMode(
+        profile.age,
+        effectiveNutritionGoal,
+        safetyFlags
+      ),
+      safetyFlags: safetyFlags.filter((flag) => flag !== "none"),
+      nutritionGuidance: preview?.guidance ?? coachContext.nutritionGuidance,
+      calorieTarget: preview?.targetCalories ?? coachContext.calorieTarget,
+      proteinTarget: preview?.protein ?? coachContext.proteinTarget,
+    }),
+    [
+      calorieGoal,
+      coachContext,
+      effectiveNutritionGoal,
+      experienceLevel,
+      preview,
+      profile.age,
+      safetyFlags,
+    ]
+  )
+
+  const weightValue =
+    weightUnit === "kg"
+      ? Math.round(profile.weightKg)
+      : kgToLbs(profile.weightKg)
+  const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
+  const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
+
+  const coachMessages = [
+    "One more thing before your numbers — meet Coach, the part of OneRep you talk to.",
+    "Coach turns a conversation into interactive cards, compact dashboard widgets, and useful follow-ups. Nothing gets added silently.",
+  ]
+
+  const stageMessages: Record<StageId, string[]> = {
+    intro: [
+      "Hi, I'm your OneRep coach.",
+      "I'll set up your training and nutrition targets in about a minute — just a quick chat, no forms.",
+    ],
+    goal: ["First things first: what are you working toward?"],
+    experience: [
+      "Good choice. How much experience do you have with training and tracking?",
+    ],
+    coach: coachMessages,
+    sex: [
+      "Now let's estimate your energy needs.",
+      "Which option suits you best?",
+    ],
+    measurements: [
+      "And your measurements — I use these to calculate your starting calorie budget.",
+    ],
+    activity: [
+      "How active is a typical week for you? Pick your usual, not your best week.",
+    ],
+    safety: [
+      "Almost done. Do any of these health considerations apply to you?",
+      "This is optional — it helps me avoid unsuitable calorie recommendations.",
+    ],
+    assistant: [
+      "Want a head start? I can build it now — routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
+      "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first.",
+    ],
+    review: [
+      "That's everything I need. Here are your starting daily targets — estimates, not medical advice. You can change them any time in Settings.",
+    ],
   }
 
-  async function goNext() {
+  const stageAnswers: Partial<Record<StageId, string>> = {
+    intro: "Let's go",
+    goal: nutritionGoal
+      ? selectedLabel(nutritionGoals, nutritionGoal)
+      : undefined,
+    experience: experienceLevel
+      ? selectedLabel(experienceLevels, experienceLevel)
+      : undefined,
+    coach: "Sounds good",
+    sex: profile.sex ? (profile.sex === "male" ? "Male" : "Female") : undefined,
+    measurements: `${profile.age} yrs · ${profile.heightCm} cm · ${weightValue} ${weightUnit}`,
+    activity: selectedLabel(activities, profile.activityLevel),
+    safety: safetyFlags.includes("none")
+      ? "None of these"
+      : safetyFlags
+          .map((flag) => selectedLabel(safetyOptions, flag))
+          .join(", ") || "None of these",
+    assistant: setupUsed > 0 ? "That's all for now" : "Skip for now",
+  }
+
+  function advance(fromStage: number) {
     setError(null)
     hapticMedium()
-    if (coachReplay) {
-      safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
-      navigate("/coach", { replace: true })
-      return
+    setStage(Math.min(fromStage + 1, stages.length - 1))
+  }
+
+  function rewindTo(index: number) {
+    hapticTap()
+    setError(null)
+    setStage(index)
+  }
+
+  async function executeSetupOperations(operations: CoachOperation[]) {
+    const validationErrors = validateCoachOperations(operations)
+    if (validationErrors.length > 0) throw new Error(validationErrors[0])
+    const signature = JSON.stringify(operations)
+    let hash = 2166136261
+    for (let index = 0; index < signature.length; index += 1) {
+      hash ^= signature.charCodeAt(index)
+      hash = Math.imul(hash, 16777619)
     }
-    if (!stepReady) {
+    return (await applyCoachOperations({
+      requestId: `onboarding-${(hash >>> 0).toString(36)}`,
+      operations,
+    })) as CoachOperationResult[]
+  }
+
+  async function sendSetupMessage() {
+    const rawPrompt = setupInput.trim().slice(0, 1200)
+    const selectedAttachment = setupAttachmentRef.current
+    if ((!rawPrompt && !selectedAttachment) || setupBusy) return
+    if (setupUsed >= SETUP_MESSAGE_LIMIT) return
+    if (selectedAttachment && selectedAttachment.status !== "ready") {
       hapticHeavy()
-      setError(
-        steps[step].id === "baseline"
-          ? "Choose the body profile used for your estimate."
-          : "Complete the required choices to continue."
+      toast.error(
+        selectedAttachment.status === "error"
+          ? (selectedAttachment.error ?? "That image could not be attached.")
+          : "Wait for the image to finish uploading."
       )
       return
     }
-    if (step < steps.length - 1) {
-      transitionToStep(Math.min(step + 1, steps.length - 1), "forward")
+    const prompt =
+      rawPrompt || "Analyze this image in the context of my goals and setup."
+    hapticMedium()
+    setSetupInput("")
+    setSetupUsed((current) => current + 1)
+    const history = setupMessages
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }))
+    const nextMessages: CoachMessage[] = [
+      ...setupMessages,
+      {
+        role: "user",
+        content: selectedAttachment
+          ? `${rawPrompt || "Take a look at this image."}\n\n📷 ${selectedAttachment.fileName}`
+          : prompt,
+      },
+    ]
+    setSetupMessages(nextMessages)
+    setSetupBusy(true)
+    try {
+      const response = (await generateChat({
+        context: setupCoachContext,
+        message: prompt,
+        coachMode: "chat",
+        today: todayKey,
+        ...(selectedAttachment?.id
+          ? { attachmentId: selectedAttachment.id }
+          : {}),
+        history,
+      })) as {
+        reply: string
+        uiBlocks?: unknown
+        operations?: unknown
+        artifacts?: unknown
+      }
+      const operations = normalizeCoachOperations(response.operations)
+      if (selectedAttachment) clearSetupAttachment()
+      const needsConfirmation = operations.some(
+        (operation) =>
+          operation.type === "save_recipe" ||
+          operation.confirmation === "confirm" ||
+          operation.warnings.length > 0
+      )
+      const operationResults =
+        operations.length > 0 && !needsConfirmation
+          ? await executeSetupOperations(operations)
+          : []
+      setSetupMessages([
+        ...nextMessages,
+        {
+          role: "assistant",
+          content: response.reply,
+          uiBlocks: normalizeCoachUiBlocks(response.uiBlocks),
+          operationResults,
+          pendingOperations: needsConfirmation ? operations : undefined,
+          artifacts: normalizeCoachArtifacts(response.artifacts),
+        },
+      ])
+      hapticTap()
+    } catch (caught) {
+      hapticHeavy()
+      setSetupMessages([
+        ...nextMessages,
+        {
+          role: "assistant",
+          content:
+            caught instanceof Error && caught.message
+              ? caught.message
+              : "I couldn't reach Coach just now. Try again, or finish setup and chat with Coach afterwards.",
+          error: true,
+        },
+      ])
+    } finally {
+      setSetupBusy(false)
+    }
+  }
+
+  async function applyPendingSetupOperations(messageIndex: number) {
+    const operations = setupMessages[messageIndex]?.pendingOperations
+    if (!operations?.length || applyingMessageIndex !== null) return
+    hapticMedium()
+    setApplyingMessageIndex(messageIndex)
+    try {
+      const operationResults = await executeSetupOperations(operations)
+      setSetupMessages((current) =>
+        current.map((message, index) =>
+          index === messageIndex
+            ? { ...message, pendingOperations: undefined, operationResults }
+            : message
+        )
+      )
+      hapticTap()
+      toast.success("Coach applied your changes")
+    } catch (caught) {
+      hapticHeavy()
+      toast.error(
+        caught instanceof Error
+          ? caught.message
+          : "Could not apply Coach changes"
+      )
+    } finally {
+      setApplyingMessageIndex(null)
+    }
+  }
+
+  function dismissPendingSetupOperations(messageIndex: number) {
+    hapticSelection()
+    setSetupMessages((current) =>
+      current.map((message, index) =>
+        index === messageIndex
+          ? { ...message, pendingOperations: undefined }
+          : message
+      )
+    )
+  }
+
+  async function undoSetupAction(id: string) {
+    try {
+      await undoCoachAction({ id: id as Id<"coachActionEvents"> })
+      hapticTap()
+      toast.success("Coach change undone")
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error ? caught.message : "Could not undo change"
+      )
+    }
+  }
+
+  async function pinSetupGoal(goalId: string) {
+    try {
+      await setCoachGoalPinned({
+        id: goalId as Id<"coachGoals">,
+        pinned: true,
+      })
+      hapticTap()
+      toast.success("Goal pinned to Today")
+    } catch (caught) {
+      hapticHeavy()
+      toast.error(
+        caught instanceof Error ? caught.message : "Could not pin this goal"
+      )
+      throw caught
+    }
+  }
+
+  async function pinSetupGoalDraft(goal: {
+    title: string
+    detail: string
+    durationDays: number
+    tasks: Array<{ title: string; detail?: string; completed?: boolean }>
+  }) {
+    try {
+      await saveCoachGoal({
+        title: goal.title,
+        description: goal.detail,
+        startDate: todayKey,
+        durationDays: goal.durationDays,
+        pinned: true,
+        sourceMode: "chat",
+        tasks: goal.tasks,
+      })
+      hapticTap()
+      toast.success("Goal pinned to Today")
+    } catch (caught) {
+      hapticHeavy()
+      toast.error(
+        caught instanceof Error ? caught.message : "Could not pin this goal"
+      )
+      throw caught
+    }
+  }
+
+  async function pinSetupWidget(widgetId: string) {
+    try {
+      await setDashboardWidgetPinned({
+        widgetId: widgetId as Id<"dashboardWidgets">,
+        pinned: true,
+      })
+      hapticTap()
+      toast.success("Added to your dashboard")
+    } catch (caught) {
+      hapticHeavy()
+      toast.error(
+        caught instanceof Error ? caught.message : "Could not add that widget"
+      )
+      throw caught
+    }
+  }
+
+  function createSetupWidgetFollowUp(
+    widget: Extract<CoachOperationResult, { type: "save_dashboard_widget" }>
+  ) {
+    if (!widget.followUpTitle) return
+    setSetupInput(
+      `Implement the ${widget.followUpTitle} dashboard widget following dashboard widget ${widget.widgetId}`
+    )
+  }
+
+  async function logSetupRecipe(
+    result: Extract<CoachOperationResult, { type: "save_recipe" }>
+  ) {
+    const totals = recipeTotals(result.ingredients, result.servings)
+    const entryId = createClientId()
+    try {
+      await addFoodEntry({
+        date: todayKey,
+        entry: {
+          id: entryId,
+          name: result.name,
+          meal: "Meal",
+          loggedAt: new Date().toISOString(),
+          calories: totals.calories,
+          protein: totals.protein,
+          carbs: totals.carbs,
+          fat: totals.fat,
+          recipeId: result.recipeId,
+        },
+      })
+      await recordCoachAction({
+        kind: "log_recipe",
+        summary: `Logged one serving of ${result.name}`,
+        targetType: "nutrition",
+        targetId: entryId,
+        undoPayload: { kind: "remove_food_entry", date: todayKey, entryId },
+      })
+      toast.success(`${result.name} logged`)
+    } catch (caught) {
+      toast.error(
+        caught instanceof Error ? caught.message : "Could not log recipe"
+      )
+    }
+  }
+
+  async function submitSetupInteractive(
+    operation: Extract<CoachOperation, { type: "log_nutrition" }>
+  ) {
+    try {
+      await executeSetupOperations([
+        { ...operation, date: operation.date ?? todayKey },
+      ])
+      hapticTap()
+      toast.success(`${operation.name} logged`)
+    } catch (caught) {
+      hapticHeavy()
+      toast.error(caught instanceof Error ? caught.message : "Could not log it")
+    }
+  }
+
+  // Onboarding cannot navigate away mid-flow, so a Coach destination is
+  // remembered and opened once setup finishes instead of being dropped.
+  function handleSetupUiAction(action: CoachUiAction) {
+    hapticTap()
+    setSetupDestination(SETUP_DESTINATIONS[action])
+    toast.success(
+      `${SETUP_DESTINATION_LABELS[action]} will open when setup is done`
+    )
+  }
+
+  async function finish() {
+    setError(null)
+    if (!consent.dataUse) {
+      hapticHeavy()
+      setError("Tick the consent box above so I can save your plan.")
       return
     }
     if (
@@ -837,10 +1228,14 @@ export function OnboardingMobile() {
           heightCm: profile.heightCm,
           goal: draft.goal,
           experienceLevel,
-          nutritionGoal,
+          nutritionGoal: effectiveNutritionGoal,
           consent,
           safetyFlags: safetyFlags.filter((flag) => flag !== "none"),
-          safetyMode: deriveSafetyMode(profile.age, nutritionGoal, safetyFlags),
+          safetyMode: deriveSafetyMode(
+            profile.age,
+            effectiveNutritionGoal,
+            safetyFlags
+          ),
           weightTrend,
           occupationActivity,
           dietType,
@@ -869,12 +1264,17 @@ export function OnboardingMobile() {
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
+      // Arms the walkthrough welcome sheet. Local so it shows immediately,
+      // without waiting on a Convex round trip.
+      safeLocalStorageSet(WALKTHROUGH_WELCOME_PENDING_KEY, "true")
       setComplete(true)
       hapticMedium()
       await new Promise((resolve) => window.setTimeout(resolve, 720))
-      navigate(experienceLevel === "beginner" ? "/coach?setup=beginner" : "/", {
-        replace: true,
-      })
+      navigate(
+        setupDestination ??
+          (experienceLevel === "beginner" ? "/coach?setup=beginner" : "/coach"),
+        { replace: true }
+      )
     } catch (saveError) {
       setError(
         saveError instanceof Error
@@ -886,27 +1286,435 @@ export function OnboardingMobile() {
     }
   }
 
-  function goBack() {
-    hapticTap()
-    setError(null)
-    if (coachReplay) {
-      navigate("/settings", { replace: true })
-      return
+  function renderInput(stageId: StageId, stageIndex: number) {
+    if (stageId === "intro") {
+      return (
+        <QuickReplies
+          options={[{ value: "go", label: "Let's go", icon: ArrowRight }]}
+          onChoose={() => advance(stageIndex)}
+        />
+      )
     }
-    transitionToStep(Math.max(step - 1, 0), "back")
+    if (stageId === "goal") {
+      return (
+        <QuickReplies
+          value={nutritionGoal}
+          options={nutritionGoals.map(([value, label, hint, icon]) => ({
+            value,
+            label,
+            hint,
+            icon,
+          }))}
+          onChoose={(goal) => {
+            setNutritionGoal(goal)
+            setDraft((current) => ({
+              ...current,
+              goal: nutritionGoalToOnboardingGoal(goal),
+            }))
+            advance(stageIndex)
+          }}
+        />
+      )
+    }
+    if (stageId === "experience") {
+      return (
+        <QuickReplies
+          value={experienceLevel}
+          options={experienceLevels.map(([value, label, hint, icon]) => ({
+            value,
+            label,
+            hint,
+            icon,
+          }))}
+          onChoose={(level) => {
+            setExperienceLevel(level)
+            advance(stageIndex)
+          }}
+        />
+      )
+    }
+    if (stageId === "coach") {
+      return (
+        <>
+          <div className="onboarding-chat-card onboarding-chat-card-flush">
+            <CoachFeatureMockups />
+          </div>
+          <QuickReplies
+            options={[
+              {
+                value: "continue",
+                label: coachReplay ? "Open Coach" : "Sounds good",
+                icon: ArrowRight,
+              },
+            ]}
+            onChoose={() => {
+              if (coachReplay) {
+                safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
+                navigate("/coach", { replace: true })
+                return
+              }
+              advance(stageIndex)
+            }}
+          />
+        </>
+      )
+    }
+    if (stageId === "sex") {
+      return (
+        <QuickReplies
+          value={profile.sex}
+          options={[
+            { value: "female", label: "Female", icon: GenderFemale },
+            { value: "male", label: "Male", icon: GenderMale },
+          ]}
+          onChoose={(sex: Sex) => {
+            setProfile((current) => ({ ...current, sex }))
+            advance(stageIndex)
+          }}
+        />
+      )
+    }
+    if (stageId === "measurements") {
+      return (
+        <div className="onboarding-chat-card">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <span className="onboarding-question-title mb-0">Measurements</span>
+            <button
+              type="button"
+              onClick={() => {
+                hapticSelection()
+                setWeightUnit((current) => (current === "kg" ? "lbs" : "kg"))
+              }}
+              className="onboarding-unit-button"
+              aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
+            >
+              {weightUnit === "kg" ? "kg" : "lb"}
+            </button>
+          </div>
+          <div className="onboarding-number-list">
+            <NumberQuestion
+              onInteract={hapticSelection}
+              label="Age"
+              value={profile.age}
+              display={`${profile.age} years`}
+              min={AGE_MIN}
+              max={AGE_MAX}
+              onChange={(age) => setProfile((current) => ({ ...current, age }))}
+            />
+            <NumberQuestion
+              onInteract={hapticSelection}
+              label="Height (cm)"
+              value={profile.heightCm}
+              display={`${profile.heightCm} cm`}
+              min={HEIGHT_MIN}
+              max={HEIGHT_MAX}
+              onChange={(heightCm) =>
+                setProfile((current) => ({ ...current, heightCm }))
+              }
+            />
+            <NumberQuestion
+              onInteract={hapticSelection}
+              label={`Weight (${weightUnit})`}
+              value={weightValue}
+              display={`${weightValue} ${weightUnit}`}
+              min={weightMin}
+              max={weightMax}
+              onChange={(value) =>
+                setProfile((current) => ({
+                  ...current,
+                  weightKg: weightUnit === "kg" ? value : lbsToKg(value),
+                }))
+              }
+            />
+          </div>
+          <button
+            type="button"
+            className="onboarding-primary-button mt-4 w-full"
+            onClick={() => advance(stageIndex)}
+          >
+            That's right
+            <Check size={16} weight="bold" />
+          </button>
+        </div>
+      )
+    }
+    if (stageId === "activity") {
+      return (
+        <QuickReplies
+          value={profile.activityLevel}
+          options={activities.map(([value, label, hint]) => ({
+            value,
+            label,
+            hint,
+          }))}
+          onChoose={(activityLevel) => {
+            setProfile((current) => ({ ...current, activityLevel }))
+            advance(stageIndex)
+          }}
+        />
+      )
+    }
+    if (stageId === "assistant") {
+      const remaining = SETUP_MESSAGE_LIMIT - setupUsed
+      return (
+        <div className="onboarding-setup-chat">
+          {setupMessages.map((message, messageIndex) =>
+            message.role === "user" ? (
+              <div
+                key={messageIndex}
+                className="onboarding-chat-bubble onboarding-chat-bubble-user onboarding-chat-bubble-static"
+              >
+                <span>{message.content}</span>
+              </div>
+            ) : (
+              <div key={messageIndex} className="onboarding-setup-response">
+                <div
+                  className={
+                    message.error
+                      ? "onboarding-chat-bubble onboarding-chat-bubble-coach onboarding-chat-bubble-error"
+                      : "onboarding-chat-bubble onboarding-chat-bubble-coach"
+                  }
+                >
+                  <span>{message.content}</span>
+                </div>
+                <CoachUiBlocks
+                  blocks={message.uiBlocks}
+                  onAction={handleSetupUiAction}
+                  onPinGoal={pinSetupGoalDraft}
+                  onSubmitInteractive={submitSetupInteractive}
+                />
+                <CoachArtifacts artifacts={message.artifacts} />
+                <CoachProposal
+                  operations={message.pendingOperations}
+                  applying={applyingMessageIndex === messageIndex}
+                  onApply={() => void applyPendingSetupOperations(messageIndex)}
+                  onDismiss={() => dismissPendingSetupOperations(messageIndex)}
+                />
+                <CoachOperationResults
+                  results={message.operationResults}
+                  onOpenRecipe={() =>
+                    handleSetupUiAction("open_recipe_builder")
+                  }
+                  onOpenWorkouts={() => handleSetupUiAction("open_workouts")}
+                  onOpenNutrition={() => handleSetupUiAction("open_nutrition")}
+                  onOpenProgress={() => handleSetupUiAction("open_progress")}
+                  onUndo={(id) => void undoSetupAction(id)}
+                  onLogRecipe={(result) => void logSetupRecipe(result)}
+                  onPinGoal={pinSetupGoal}
+                  onPinWidget={pinSetupWidget}
+                  onCreateWidgetFollowUp={createSetupWidgetFollowUp}
+                />
+              </div>
+            )
+          )}
+          {setupBusy && <ThinkingIndicator />}
+          {setupMessages.length === 0 && !setupBusy && (
+            <div className="onboarding-setup-starters">
+              {SETUP_STARTERS.map((starter) => (
+                <button
+                  key={starter}
+                  type="button"
+                  onClick={() => {
+                    hapticSelection()
+                    setSetupInput(starter)
+                  }}
+                >
+                  {starter}
+                </button>
+              ))}
+            </div>
+          )}
+          {remaining > 0 && (
+            <form
+              className="onboarding-chat-composer-shell"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void sendSetupMessage()
+              }}
+            >
+              <CoachAttachmentInput
+                inputRef={setupFileInputRef}
+                onSelect={(file) => void attachSetupImage(file)}
+              />
+              <CoachAttachmentPreview
+                attachment={setupAttachment}
+                onRemove={() => clearSetupAttachment()}
+              />
+              <div className="onboarding-chat-composer">
+                <CoachAttachButton
+                  onClick={openSetupImagePicker}
+                  disabled={setupBusy}
+                  className="onboarding-chat-attach"
+                />
+                <input
+                  type="text"
+                  value={setupInput}
+                  onChange={(event) => setSetupInput(event.target.value)}
+                  placeholder="Ask Coach to build something…"
+                  aria-label="Message Coach"
+                  disabled={setupBusy}
+                />
+                <button
+                  type="submit"
+                  disabled={
+                    setupBusy ||
+                    (setupInput.trim().length === 0 && !setupAttachment)
+                  }
+                  aria-label="Send"
+                >
+                  <PaperPlaneTilt size={17} weight="fill" />
+                </button>
+              </div>
+            </form>
+          )}
+          <p className="onboarding-setup-quota" aria-live="polite">
+            {remaining > 0
+              ? `${remaining} of ${SETUP_MESSAGE_LIMIT} messages left`
+              : "Message limit reached — you can keep chatting in Coach later."}
+          </p>
+          <QuickReplies
+            options={[
+              {
+                value: "continue",
+                label: setupUsed > 0 ? "That's all for now" : "Skip for now",
+                icon: ArrowRight,
+              },
+            ]}
+            onChoose={() => advance(stageIndex)}
+          />
+        </div>
+      )
+    }
+    if (stageId === "safety") {
+      return (
+        <div className="onboarding-chat-card">
+          <MultiSelectList
+            onInteract={hapticSelection}
+            values={safetyFlags}
+            options={[["none", "None"], ...safetyOptions]}
+            onChange={setSafetyFlags}
+            icon={ShieldCheck}
+          />
+          <button
+            type="button"
+            className="onboarding-primary-button mt-4 w-full"
+            onClick={() => advance(stageIndex)}
+          >
+            {safetyFlags.includes("none") || safetyFlags.length === 0
+              ? "None of these"
+              : "That's everything"}
+            <ArrowRight size={16} weight="bold" />
+          </button>
+        </div>
+      )
+    }
+    return (
+      <div className="onboarding-chat-review">
+        <div className="onboarding-review-card">
+          <div className="onboarding-review-hero">
+            <p className="native-supporting">Calories</p>
+            <p className="native-summary-value mt-1 tabular-nums">
+              {preview?.targetCalories?.toLocaleString() ?? "Calculating…"}
+              {preview?.targetCalories != null ? " kcal" : ""}
+            </p>
+            <p className="native-row-detail mt-2">
+              {preview?.calorieStrategy ??
+                "Calculating your starting budget from our chat."}
+            </p>
+          </div>
+          {[
+            [
+              "Maintenance estimate",
+              preview ? `${preview.tdee.toLocaleString()} kcal` : "—",
+            ],
+            ["Protein", preview ? `${preview.protein} g` : "—"],
+            ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
+            ["Fat", preview ? `${preview.fat} g` : "—"],
+          ].map(([label, value]) => (
+            <div
+              key={label}
+              className="flex min-h-12 items-center justify-between gap-4 border-t border-border py-2"
+            >
+              <span className="native-row-title">{label}</span>
+              <span className="native-row-value text-right">{value}</span>
+            </div>
+          ))}
+        </div>
+        <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] border border-border bg-[var(--surface-panel)] p-4 text-[13px] leading-5 text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={consent.dataUse}
+            onChange={(event) => {
+              hapticSelection()
+              setConsent((current) => ({
+                ...current,
+                dataUse: event.target.checked,
+              }))
+            }}
+            className="mt-0.5 size-4 shrink-0 accent-foreground"
+          />
+          <span>
+            I explicitly consent to OneRep processing the fitness, nutrition,
+            body, recovery, and related information I provide to deliver
+            personalized tracking and Coach features. Some of this information
+            may qualify as health data. I can withdraw consent with future
+            effect by deleting affected data or my account, or by contacting{" "}
+            <a
+              href="mailto:support@onerep.life"
+              className="font-semibold text-foreground underline decoration-border underline-offset-4"
+            >
+              support@onerep.life
+            </a>
+            . See the{" "}
+            <a
+              href="https://onerep.life/privacy"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-foreground underline decoration-border underline-offset-4"
+            >
+              Privacy Policy
+            </a>
+            .
+          </span>
+        </label>
+        {error && (
+          <p
+            role="alert"
+            className="border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
+          >
+            {error}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={finish}
+          disabled={saving}
+          aria-busy={saving}
+          className="onboarding-primary-button w-full"
+        >
+          {saving ? (
+            "Saving..."
+          ) : (
+            <>
+              Start training
+              <Check size={16} weight="bold" />
+            </>
+          )}
+        </button>
+      </div>
+    )
   }
 
-  const meta = steps[step]
-  const weightValue =
-    weightUnit === "kg"
-      ? Math.round(profile.weightKg)
-      : kgToLbs(profile.weightKg)
-  const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
-  const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
+  const visibleStages = coachReplay
+    ? stages.filter((item) => item.id === "coach")
+    : stages.slice(0, stage + 1)
+  const coachStage =
+    stages[stage].id === "coach" || stages[stage].id === "assistant"
+
   return (
     <main
-      className="onboarding-shell min-h-svh bg-background text-foreground"
-      data-onboarding-step={step}
+      className="onboarding-shell auth-light-only relative isolate min-h-svh bg-background text-foreground"
+      data-coach-stage={coachStage}
     >
       {complete && (
         <div
@@ -920,7 +1728,11 @@ export function OnboardingMobile() {
           <p>Your plan is ready</p>
         </div>
       )}
-      <div className="onboarding-atmosphere" aria-hidden="true" />
+      {coachStage && (
+        <div className="coach-background-layer" aria-hidden="true">
+          <div className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile" />
+        </div>
+      )}
       <section className="onboarding-frame">
         <header className="onboarding-header">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -929,9 +1741,7 @@ export function OnboardingMobile() {
               <span className="onboarding-brand-name">OneRep</span>
             </div>
             <span className="onboarding-step-count tabular-nums">
-              {coachReplay
-                ? "Coach onboarding preview"
-                : `${step + 1} / ${steps.length} · ${meta.label}`}
+              {coachReplay ? "Coach onboarding preview" : stages[stage].label}
             </span>
           </div>
           {!coachReplay && (
@@ -940,380 +1750,99 @@ export function OnboardingMobile() {
               role="progressbar"
               aria-label="Profile setup progress"
               aria-valuemin={1}
-              aria-valuemax={steps.length}
-              aria-valuenow={step + 1}
+              aria-valuemax={stages.length}
+              aria-valuenow={stage + 1}
             >
-              {steps.map((item, index) => (
+              {stages.map((item, index) => (
                 <span
-                  key={item.id}
+                  key={`${item.id}-${index}`}
                   className="onboarding-progress-segment"
-                  data-complete={index <= step}
+                  data-complete={index <= stage}
                 />
               ))}
             </div>
           )}
+          {coachReplay && (
+            <button
+              type="button"
+              onClick={() => navigate("/settings", { replace: true })}
+              className="onboarding-back-button mt-3"
+            >
+              Exit
+            </button>
+          )}
         </header>
 
-        <div className="onboarding-stage">
-          <div
-            key={step}
-            className="onboarding-step"
-            data-transition-direction={transitionDirection}
-          >
-            <div className="onboarding-step-intro">
-              <h1 className="onboarding-step-title">{meta.title}</h1>
-              <p className="onboarding-step-copy">{meta.body}</p>
+        <div
+          className="onboarding-chat"
+          role="log"
+          aria-label="Setup conversation"
+        >
+          {visibleStages.map((item, index) => {
+            const stageIndex = coachReplay ? coachStageIndex : index
+            const isCurrent = stageIndex === stage
+            const hidden = isCurrent && typing
+            const answer = stageAnswers[item.id]
+            const messages = stageMessages[item.id]
+            const shownMessages = isCurrent
+              ? messages.slice(0, typedCount + 1)
+              : messages
+            return (
+              <div
+                key={`${item.id}-${stageIndex}`}
+                className="onboarding-chat-stage"
+                data-stage={item.id}
+              >
+                {!hidden &&
+                  shownMessages.map((message, messageIndex) => (
+                    <div
+                      key={messageIndex}
+                      className="onboarding-chat-bubble onboarding-chat-bubble-coach"
+                    >
+                      {isCurrent && messageIndex === typedCount ? (
+                        <TypewriterText
+                          text={message}
+                          onDone={() => {
+                            hapticTap()
+                            setTypedCount((current) => current + 1)
+                          }}
+                        />
+                      ) : (
+                        message
+                      )}
+                    </div>
+                  ))}
+                {isCurrent && !hidden && typedCount >= messages.length && (
+                  <div className="onboarding-chat-input">
+                    {renderInput(item.id, stageIndex)}
+                  </div>
+                )}
+                {!isCurrent && answer && !coachReplay && (
+                  <button
+                    type="button"
+                    className="onboarding-chat-bubble onboarding-chat-bubble-user"
+                    onClick={() => rewindTo(stageIndex)}
+                    aria-label={`Edit answer: ${answer}`}
+                  >
+                    <span>{answer}</span>
+                    <PencilSimple size={13} weight="bold" aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )
+          })}
+          {typing && (
+            <div
+              className="onboarding-chat-bubble onboarding-chat-bubble-coach onboarding-chat-typing"
+              aria-label="Coach is typing"
+            >
+              <span />
+              <span />
+              <span />
             </div>
-
-            <div className="onboarding-step-form">
-              {meta.id === "goals" && (
-                <div className="onboarding-form-stack">
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="goal-heading"
-                  >
-                    <h2 id="goal-heading" className="onboarding-question-title">
-                      Primary goal
-                    </h2>
-                    <OptionList
-                      onInteract={hapticSelection}
-                      value={nutritionGoal}
-                      options={nutritionGoals}
-                      onChange={(goal) => {
-                        setNutritionGoal(goal)
-                        setDraft((current) => ({
-                          ...current,
-                          goal: nutritionGoalToOnboardingGoal(goal),
-                        }))
-                      }}
-                    />
-                  </section>
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="experience-heading"
-                  >
-                    <h2
-                      id="experience-heading"
-                      className="onboarding-question-title"
-                    >
-                      Training experience
-                    </h2>
-                    <OptionList<ExperienceLevel>
-                      onInteract={hapticSelection}
-                      value={experienceLevel}
-                      options={experienceLevels}
-                      onChange={setExperienceLevel}
-                    />
-                  </section>
-                </div>
-              )}
-
-              {meta.id === "coach" && <CoachFeatureMockups />}
-
-              {meta.id === "baseline" && (
-                <div className="onboarding-form-stack">
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="body-profile-heading"
-                  >
-                    <h2
-                      id="body-profile-heading"
-                      className="onboarding-question-title"
-                    >
-                      Body profile used for the estimate
-                    </h2>
-                    <PillToggle
-                      onInteract={hapticSelection}
-                      value={profile.sex}
-                      options={[
-                        {
-                          value: "female",
-                          label: "Female",
-                          icon: GenderFemale,
-                        },
-                        { value: "male", label: "Male", icon: GenderMale },
-                      ]}
-                      onChange={(sex: Sex) =>
-                        setProfile((current) => ({ ...current, sex }))
-                      }
-                    />
-                  </section>
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="measurements-heading"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <h2
-                        id="measurements-heading"
-                        className="onboarding-question-title mb-0"
-                      >
-                        Measurements
-                      </h2>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setWeightUnit((current) =>
-                            current === "kg" ? "lbs" : "kg"
-                          )
-                        }
-                        className="onboarding-unit-button"
-                        aria-label={`Use ${weightUnit === "kg" ? "pounds" : "kilograms"}`}
-                      >
-                        {weightUnit === "kg" ? "kg" : "lb"}
-                      </button>
-                    </div>
-                    <div className="onboarding-number-list">
-                      <NumberQuestion
-                        onInteract={hapticSelection}
-                        label="Age"
-                        value={profile.age}
-                        display={`${profile.age} years`}
-                        min={AGE_MIN}
-                        max={AGE_MAX}
-                        onChange={(age) =>
-                          setProfile((current) => ({ ...current, age }))
-                        }
-                      />
-                      <NumberQuestion
-                        onInteract={hapticSelection}
-                        label="Height (cm)"
-                        value={profile.heightCm}
-                        display={`${profile.heightCm} cm`}
-                        min={HEIGHT_MIN}
-                        max={HEIGHT_MAX}
-                        onChange={(heightCm) =>
-                          setProfile((current) => ({ ...current, heightCm }))
-                        }
-                      />
-                      <NumberQuestion
-                        onInteract={hapticSelection}
-                        label={`Weight (${weightUnit})`}
-                        value={weightValue}
-                        display={`${weightValue} ${weightUnit}`}
-                        min={weightMin}
-                        max={weightMax}
-                        onChange={(value) =>
-                          setProfile((current) => ({
-                            ...current,
-                            weightKg:
-                              weightUnit === "kg" ? value : lbsToKg(value),
-                          }))
-                        }
-                      />
-                    </div>
-                  </section>
-                </div>
-              )}
-
-              {meta.id === "safety" && (
-                <MultiSelectList
-                  onInteract={hapticSelection}
-                  values={safetyFlags}
-                  options={[["none", "None"], ...safetyOptions]}
-                  onChange={setSafetyFlags}
-                  icon={ShieldCheck}
-                />
-              )}
-
-              {meta.id === "activity" && (
-                <OptionList
-                  onInteract={hapticSelection}
-                  value={profile.activityLevel}
-                  options={activities}
-                  onChange={(activityLevel) =>
-                    setProfile((current) => ({ ...current, activityLevel }))
-                  }
-                />
-              )}
-
-              {meta.id === "review" && (
-                <div className="onboarding-form-stack">
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="starting-targets-heading"
-                  >
-                    <h2
-                      id="starting-targets-heading"
-                      className="onboarding-question-title"
-                    >
-                      Starting daily targets
-                    </h2>
-                    <div className="onboarding-review-card">
-                      <div className="onboarding-review-hero">
-                        <p className="native-supporting">Calories</p>
-                        <p className="native-summary-value mt-1 tabular-nums">
-                          {preview?.targetCalories?.toLocaleString() ??
-                            "Calculating…"}
-                          {preview?.targetCalories != null ? " kcal" : ""}
-                        </p>
-                        <p className="native-row-detail mt-2">
-                          {preview?.calorieStrategy ??
-                            "Calculating your starting budget from the information above."}
-                        </p>
-                      </div>
-                      {[
-                        [
-                          "Maintenance estimate",
-                          preview
-                            ? `${preview.tdee.toLocaleString()} kcal`
-                            : "—",
-                        ],
-                        ["Protein", preview ? `${preview.protein} g` : "—"],
-                        ["Carbohydrates", preview ? `${preview.carbs} g` : "—"],
-                        ["Fat", preview ? `${preview.fat} g` : "—"],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex min-h-12 items-center justify-between gap-4 border-t border-border py-2"
-                        >
-                          <span className="native-row-title">{label}</span>
-                          <span className="native-row-value text-right">
-                            {value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="estimate-inputs-heading"
-                  >
-                    <h2
-                      id="estimate-inputs-heading"
-                      className="onboarding-question-title"
-                    >
-                      Estimate inputs
-                    </h2>
-                    <dl className="onboarding-review-card divide-y divide-border">
-                      {[
-                        ["Goal", selectedLabel(nutritionGoals, nutritionGoal)],
-                        [
-                          "Experience",
-                          experienceLevel
-                            ? selectedLabel(experienceLevels, experienceLevel)
-                            : "Not selected",
-                        ],
-                        [
-                          "Activity",
-                          selectedActivityLabel(profile.activityLevel),
-                        ],
-                        [
-                          "Body",
-                          `${profile.age} years, ${Math.round(profile.weightKg)} kg`,
-                        ],
-                      ].map(([label, value]) => (
-                        <div
-                          key={label}
-                          className="flex min-h-12 items-center justify-between gap-4 py-2"
-                        >
-                          <dt className="native-row-title">{label}</dt>
-                          <dd className="native-row-value text-right">
-                            {value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </section>
-                  <section
-                    className="onboarding-question"
-                    aria-labelledby="health-data-consent-heading"
-                  >
-                    <h2
-                      id="health-data-consent-heading"
-                      className="onboarding-question-title"
-                    >
-                      Your data choice
-                    </h2>
-                    <label className="flex cursor-pointer items-start gap-3 rounded-[var(--radius-card)] border border-border bg-[var(--surface-panel)] p-4 text-[13px] leading-5 text-muted-foreground">
-                      <input
-                        type="checkbox"
-                        checked={consent.dataUse}
-                        onChange={(event) =>
-                          setConsent((current) => ({
-                            ...current,
-                            dataUse: event.target.checked,
-                          }))
-                        }
-                        className="mt-0.5 size-4 shrink-0 accent-foreground"
-                      />
-                      <span>
-                        I explicitly consent to OneRep processing the fitness,
-                        nutrition, body, recovery, and related information I
-                        provide to deliver personalized tracking and Coach
-                        features. Some of this information may qualify as health
-                        data. I can withdraw consent with future effect by
-                        deleting affected data or my account, or by contacting{" "}
-                        <a
-                          href="mailto:support@onerep.life"
-                          className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                        >
-                          support@onerep.life
-                        </a>
-                        . See the{" "}
-                        <a
-                          href="https://onerep.life/privacy"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                        >
-                          Privacy Policy
-                        </a>
-                        .
-                      </span>
-                    </label>
-                  </section>
-                </div>
-              )}
-
-              {error && (
-                <p
-                  role="alert"
-                  className="mt-5 border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
-                >
-                  {error}
-                </p>
-              )}
-            </div>
-          </div>
+          )}
+          <div ref={chatEndRef} aria-hidden="true" />
         </div>
-
-        <footer className="onboarding-footer">
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={(!coachReplay && step === 0) || saving}
-            className="onboarding-back-button"
-          >
-            <ArrowLeft size={15} weight="bold" />
-            {coachReplay ? "Exit" : "Back"}
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={saving}
-            aria-busy={saving}
-            className="onboarding-primary-button"
-          >
-            {saving ? (
-              "Saving..."
-            ) : coachReplay ? (
-              <>
-                Open Coach
-                <ArrowRight size={16} weight="bold" />
-              </>
-            ) : step === steps.length - 1 ? (
-              <>
-                Finish
-                <Check size={16} weight="bold" />
-              </>
-            ) : (
-              <>
-                Continue
-                <ArrowRight size={16} weight="bold" />
-              </>
-            )}
-          </button>
-        </footer>
       </section>
     </main>
   )

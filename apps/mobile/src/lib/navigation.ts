@@ -23,6 +23,53 @@ const ROUTE_MOTIONS = new Set<RouteMotion>([
   "switch",
 ])
 
+export const ROUTE_TRANSITION_MS = 900
+
+export const PRIMARY_TAB_ORDER = [
+  "/",
+  "/workouts",
+  "/nutrition",
+  "/progress",
+  "/coach",
+]
+
+/** Modal-style routes that animate up and hide the tab bar. */
+export const TASK_ROUTE_PREFIXES = [
+  "/workouts/new",
+  "/workouts/edit/",
+  "/workout/active",
+  "/camera",
+  "/foods/search",
+  "/foods/review/",
+  "/foods/recipe/new",
+  "/foods/custom",
+  "/nutrition/meal-prep",
+  "/nutrition/report",
+  "/nutrition/fasting",
+  "/nutrition/groceries",
+  "/shared",
+]
+
+export function isTaskRoute(pathname: string) {
+  return TASK_ROUTE_PREFIXES.some(
+    (route) => pathname === route || pathname.startsWith(route)
+  )
+}
+
+export function shouldShowBottomBar(pathname: string) {
+  return (
+    pathname === "/" ||
+    pathname === "/nutrition" ||
+    pathname === "/recipes" ||
+    pathname === "/workouts" ||
+    pathname === "/progress" ||
+    pathname === "/supplements" ||
+    pathname === "/coach" ||
+    pathname === "/exercises" ||
+    pathname === "/settings"
+  )
+}
+
 export function prefersReducedMotion() {
   return (
     typeof window !== "undefined" &&
@@ -82,9 +129,7 @@ export function useSmoothNavigate(): SmoothNavigateFunction {
     ) => {
       if (typeof to === "number") {
         if (!prefersReducedMotion()) {
-          setRouteMotion(
-            options?.motion ?? (to < 0 ? "back" : "forward")
-          )
+          setRouteMotion(options?.motion ?? (to < 0 ? "back" : "forward"))
         } else {
           clearRouteMotion()
         }

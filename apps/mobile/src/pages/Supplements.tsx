@@ -19,7 +19,6 @@ import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SlideToDeleteRow } from "@repo/ui"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
@@ -622,8 +621,8 @@ function ImportNotice({ imported }: { imported: boolean }) {
     <div className="mb-3 flex items-start gap-2 border-y border-border py-3 text-[13px] leading-5 text-muted-foreground">
       <Barcode size={13} weight="bold" className="mt-0.5 shrink-0" />
       <span>
-        Data from USDA FoodData Central. Nutrients are read-only and scale from the serving
-        size you enter.
+        Data from USDA FoodData Central. Nutrients are read-only and scale from
+        the serving size you enter.
       </span>
     </div>
   )
@@ -916,9 +915,7 @@ function ItemSheet({
                 type="button"
                 onClick={submit}
                 disabled={
-                  saving ||
-                  !draft.name.trim() ||
-                  !draft.servingLabel.trim()
+                  saving || !draft.name.trim() || !draft.servingLabel.trim()
                 }
                 aria-busy={saving}
                 className="app-button app-button-primary min-h-11 w-full"
@@ -2118,25 +2115,17 @@ export default function Supplements() {
                             : `Take ${remainingScheduledCount}`}
                         </button>
                       )}
-                      <AppTooltip
-                        id={APP_TOOLTIP_IDS.supplementsCreate}
-                        content="Add supplements here, then schedule them by training day, rest day, or every day."
-                        targetClassName="inline-flex"
-                        side="bottom"
-                        align="end"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTab("catalog")
+                          setSheet({ kind: "edit" })
+                        }}
+                        className="app-button app-button-secondary motion-tactile"
                       >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTab("catalog")
-                            setSheet({ kind: "edit" })
-                          }}
-                          className="app-button app-button-secondary motion-tactile"
-                        >
-                          <Plus size={11} weight="bold" />
-                          Add
-                        </button>
-                      </AppTooltip>
+                        <Plus size={11} weight="bold" />
+                        Add
+                      </button>
                     </div>
                   }
                 />

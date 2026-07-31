@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useMemo, useRef } from "react"
 import {
+  Compass,
   ArrowLeft,
   ArrowsClockwise,
   Barbell,
@@ -19,6 +20,12 @@ import {
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import { useTour } from "@/components/walkthrough/tour-context"
+import { WELCOME_PENDING_KEY } from "@/components/walkthrough/tour-provider"
+import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
+import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
+import type { TourChapter } from "@/lib/walkthrough/types"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   cn,
   safeLocalStorageGet,
@@ -67,6 +74,20 @@ import {
   offlineSyncStatusCopy,
 } from "@/lib/offline-sync-status"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { mealLabel } from "@/lib/food-log"
+import {
+  isValidInviteEmail,
+  normalizeInviteEmail,
+  shareScopeLabel,
+  type DiaryShare,
+} from "@/lib/shared-diary"
+import {
+  DEFAULT_MEAL_IDS,
+  DEFAULT_MEAL_SHARES,
+  normalizeMealShares,
+  resolveMealCalorieTargets,
+  type MealShare,
+} from "@/lib/meal-targets"
 import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
 import {
   formatReminderLabel,
@@ -81,11 +102,8 @@ import {
   takePwaInstallPrompt,
   type PwaBeforeInstallPromptEvent,
 } from "@/lib/pwa-install"
-import {
-  hasOneRepPro,
-  revenueCatErrorMessage,
-  useRevenueCat,
-} from "@/lib/revenuecat"
+import { billingErrorMessage, hasOneRepPro, useBilling } from "@/lib/billing"
+import { useAiFeatureGate } from "@/lib/ai-access"
 import {
   CompactSwitch,
   AiUsageProgress,
@@ -94,6 +112,7 @@ import {
   ListRow,
   NavigationBar,
   NumberStepper,
+  PrimaryButton,
   SectionSaveButton,
   SegmentedControl,
   SettingsRow,
@@ -121,10 +140,19 @@ type SettingsView =
   | "reminders"
   | "privacy"
   | "data"
+  | "walkthrough"
   | "developer"
 
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
+
+function clearCheckoutResultHash() {
+  window.history.replaceState(
+    window.history.state,
+    "",
+    `${window.location.pathname}${window.location.search}`
+  )
+}
 
 const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   overview: "Settings",
@@ -136,6 +164,7 @@ const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   reminders: "Reminders",
   privacy: "Privacy & sync",
   data: "Data & account",
+  walkthrough: "App walkthrough",
   developer: "Developer",
 }
 
@@ -152,7 +181,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const navigate = useSmoothNavigate()
   const { theme, setTheme } = useTheme()
   const { user } = useAppAuth()
-  const revenueCat = useRevenueCat({
+  const billing = useBilling({
     userId: user?.id,
     email: user?.email,
     name: user?.name,
@@ -161,6 +190,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {})
   const onboarding = useQuery(api.users.onboarding.get)
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
+  const { showAiPaywall, aiAccessModal } = useAiFeatureGate()
 
   const setDashboardSettings = useOfflineMutation(
     api.users.users.setDashboardSettings,
@@ -186,6 +216,24 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     api.users.users.setMacroCycling,
     "users.users.setMacroCycling"
   )
+  const outgoingSharesQuery = useQuery(api.sharing.diaryShares.listOutgoing, {})
+  const outgoingShares = (outgoingSharesQuery ?? []) as DiaryShare[]
+  const inviteToDiary = useOfflineMutation(
+    api.sharing.diaryShares.invite,
+    "sharing.diaryShares.invite"
+  )
+  const revokeShare = useOfflineMutation(
+    api.sharing.diaryShares.revoke,
+    "sharing.diaryShares.revoke"
+  )
+  const setNetCarbsEnabled = useOfflineMutation(
+    api.users.users.setNetCarbsEnabled,
+    "users.users.setNetCarbsEnabled"
+  )
+  const setMealCalorieTargets = useOfflineMutation(
+    api.users.users.setMealCalorieTargets,
+    "users.users.setMealCalorieTargets"
+  )
   const setWorkoutAdjustment = useOfflineMutation(
     api.users.users.setWorkoutAdjustment,
     "users.users.setWorkoutAdjustment"
@@ -200,6 +248,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   )
   const clearOnboarding = useMutation(api.users.onboarding.clear)
   const resetShownTooltips = useMutation(api.users.tooltips.resetShownTooltips)
+  const tour = useTour()
   const deleteMyDataBatch = useMutation(api.users.users.deleteMyDataBatch)
 
   const [workoutFocus, setWorkoutFocus] = useState<WorkoutFocus>(
@@ -243,6 +292,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   })
   const [workoutAdjustmentEnabled, setWorkoutAdjustmentEnabled] =
     useState(false)
+  const [netCarbsEnabled, setNetCarbsEnabledState] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviting, setInviting] = useState(false)
+  const [mealTargetsEnabled, setMealTargetsEnabledState] = useState(false)
+  const [mealShares, setMealShares] = useState<MealShare[]>(DEFAULT_MEAL_SHARES)
   const [pushReminders, setPushRemindersState] = useState<ReminderSettings>(
     mergeReminderSettings(null)
   )
@@ -261,6 +315,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [checkoutFailed, setCheckoutFailed] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -303,6 +358,39 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           ? "Sync"
           : "Synced"
 
+  useEffect(() => {
+    function handleCheckoutResult() {
+      const checkoutResult = window.location.hash.slice(1).toLowerCase()
+
+      if (checkoutResult === "success") {
+        // Clear first so React Strict Mode cannot celebrate the same redirect
+        // twice when it remounts effects during development.
+        clearCheckoutResultHash()
+        celebrateSubscription()
+        toast.success("Welcome to OneRep Pro")
+      } else if (checkoutResult === "failed") {
+        setCheckoutFailed(true)
+      }
+    }
+
+    handleCheckoutResult()
+    window.addEventListener("hashchange", handleCheckoutResult)
+    return () => window.removeEventListener("hashchange", handleCheckoutResult)
+  }, [])
+
+  useEffect(() => {
+    if (!checkoutFailed) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return
+      setCheckoutFailed(false)
+      clearCheckoutResultHash()
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [checkoutFailed])
+
   useEffect(
     () =>
       subscribePwaInstallState((state) => {
@@ -331,6 +419,22 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     if (preferences?.workoutAdjustmentEnabled !== undefined) {
       setWorkoutAdjustmentEnabled(preferences.workoutAdjustmentEnabled)
     }
+    if (preferences?.netCarbsEnabled !== undefined) {
+      setNetCarbsEnabledState(preferences.netCarbsEnabled)
+    }
+    if (preferences?.mealCalorieTargets) {
+      setMealTargetsEnabledState(preferences.mealCalorieTargets.enabled)
+    }
+    // Normalising against the live category list means a category added or
+    // removed since the last save shows up in the editor straight away.
+    setMealShares(
+      normalizeMealShares(preferences?.mealCalorieTargets?.shares, [
+        ...DEFAULT_MEAL_IDS,
+        ...(preferences?.customMealCategories ?? []).map(
+          (category) => category.id
+        ),
+      ])
+    )
     if (preferences?.pushReminders || preferences?.bodyReminder) {
       setPushRemindersState(
         mergeReminderSettings({
@@ -440,6 +544,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     }, "Targets saved")
   }
 
+  const mealSharesTotal = mealShares.reduce(
+    (total, share) => total + share.percent,
+    0
+  )
+  // Preview the calorie split live, using the same normalisation the server
+  // applies on save, so the numbers shown are the numbers stored.
+  const resolvedMealCalories = useMemo(() => {
+    const resolved = resolveMealCalorieTargets(
+      normalizeMealShares(
+        mealShares,
+        mealShares.map((share) => share.meal)
+      ),
+      effectiveGoals?.effective.calories ?? 2000
+    )
+    return new Map(resolved.map((item) => [item.meal, item.calories]))
+  }, [mealShares, effectiveGoals?.effective.calories])
+
   async function handleSaveNutritionLogic() {
     await runSectionSave(async () => {
       await setMacroCycling({
@@ -449,6 +570,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           : undefined,
       })
       await setWorkoutAdjustment({ enabled: workoutAdjustmentEnabled })
+      await setNetCarbsEnabled({ enabled: netCarbsEnabled })
+      await setMealCalorieTargets({
+        enabled: mealTargetsEnabled,
+        shares: mealShares.map(({ meal, percent }) => ({ meal, percent })),
+      })
+      if (mealTargetsEnabled && Math.abs(mealSharesTotal - 100) > 0.5) {
+        toast.info("Meal split normalised to 100%")
+      }
     }, "Nutrition logic saved")
   }
 
@@ -528,6 +657,32 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       )
     } finally {
       setRefreshingTooltips(false)
+    }
+  }
+
+  /**
+   * Clears the chapter, then navigates to where it lives. Letting the normal
+   * trigger path start it keeps one code path and respects the route settle.
+   */
+  async function handleReplayChapter(chapter: TourChapter) {
+    hapticTap()
+    try {
+      await tour.resetChapter(chapter.id)
+      navigate(chapter.route, { motion: "switch" })
+    } catch {
+      toast.error("Could not restart that walkthrough")
+    }
+  }
+
+  async function handleReplayEverything() {
+    hapticTap()
+    try {
+      await tour.resetChapter()
+      safeLocalStorageSet(WELCOME_PENDING_KEY, "true")
+      toast.success("Walkthrough reset")
+      navigate("/", { motion: "switch" })
+    } catch {
+      toast.error("Could not reset the walkthrough")
     }
   }
 
@@ -788,8 +943,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   </span>
                   <span className="flex shrink-0 items-center gap-2">
                     <StatusPill
-                      label={revenueCat.hasOneRepPro ? "Pro" : "Free"}
-                      strong={revenueCat.hasOneRepPro}
+                      label={billing.hasOneRepPro ? "Pro" : "Free"}
+                      strong={billing.hasOneRepPro}
                     />
                     <CaretRight size={18} className="text-muted-foreground" />
                   </span>
@@ -871,6 +1026,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     leading={<Database size={20} weight="regular" />}
                     onClick={() => showView("data")}
                   />
+                  <DisclosureRow
+                    title="App walkthrough"
+                    detail="Replay the guided tour of each area"
+                    leading={<Compass size={20} weight="regular" />}
+                    onClick={() => showView("walkthrough")}
+                  />
                   {SHOW_DEV_SETTINGS && (
                     <DisclosureRow
                       title="Developer"
@@ -924,7 +1085,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     title={user?.name || "OneRep user"}
                     detail={user?.email || "Signed in"}
                     leading={<UserCircle size={22} weight="regular" />}
-                    value={revenueCat.hasOneRepPro ? "Pro" : "Free"}
+                    value={billing.hasOneRepPro ? "Pro" : "Free"}
                   />
                 </GroupedList>
                 <SettingsSectionLabel title="AI usage" />
@@ -936,7 +1097,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   label="OneRep Pro subscription"
                   className="profile-pro-group"
                 >
-                  <RevenueCatSubscriptionPanel revenueCat={revenueCat} />
+                  <BillingSubscriptionPanel billing={billing} />
                 </GroupedList>
                 <SettingsSectionLabel title="Session" />
                 <GroupedList label="Session actions">
@@ -1177,7 +1338,90 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       label="Workout adjustment"
                     />
                   </SettingsRow>
+                  <SettingsRow
+                    label="Show net carbs"
+                    detail="Display carbs minus fiber. Entry forms still take total carbs."
+                  >
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={netCarbsEnabled}
+                      onChange={setNetCarbsEnabledState}
+                      label="Show net carbs"
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label="Calories by meal"
+                    detail="Budget your daily calories across each meal"
+                  >
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={mealTargetsEnabled}
+                      onChange={setMealTargetsEnabledState}
+                      label="Calories by meal"
+                    />
+                  </SettingsRow>
                 </GroupedList>
+
+                {mealTargetsEnabled && (
+                  <>
+                    <SettingsSectionLabel
+                      title="Meal split"
+                      detail={`Shares of your ${Math.round(
+                        effectiveGoals?.effective.calories ?? 2000
+                      )} kcal budget`}
+                    />
+                    <GroupedList label="Meal calorie split">
+                      {mealShares.map((share) => (
+                        <SettingsRow
+                          key={share.meal}
+                          label={mealLabel(share.meal)}
+                          detail={`${resolvedMealCalories.get(share.meal) ?? 0} kcal`}
+                        >
+                          <NumberStepper
+                            onInteract={hapticTap}
+                            value={Math.round(share.percent)}
+                            onChange={(value) =>
+                              setMealShares((current) =>
+                                current.map((item) =>
+                                  item.meal === share.meal
+                                    ? { ...item, percent: value }
+                                    : item
+                                )
+                              )
+                            }
+                            suffix="%"
+                            min={0}
+                            max={100}
+                            step={5}
+                            label={`${mealLabel(share.meal)} share`}
+                          />
+                        </SettingsRow>
+                      ))}
+                    </GroupedList>
+                    <SettingsSectionIntro>
+                      Total: {Math.round(mealSharesTotal)}%
+                      {Math.abs(mealSharesTotal - 100) > 0.5
+                        ? " — saving will rescale these to 100%."
+                        : ""}
+                    </SettingsSectionIntro>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticTap()
+                        setMealShares(
+                          normalizeMealShares(
+                            DEFAULT_MEAL_SHARES,
+                            mealShares.map((share) => share.meal)
+                          )
+                        )
+                      }}
+                      className="native-toolbar-button mt-2 h-11 px-3"
+                      aria-label="Reset meal split to default"
+                    >
+                      Reset to default split
+                    </button>
+                  </>
+                )}
 
                 {macroCyclingEnabled && (
                   <>
@@ -1343,6 +1587,103 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     />
                   </SettingsRow>
                 </GroupedList>
+
+                <SettingsSectionLabel
+                  title="Sharing"
+                  detail="Give a coach or partner read-only access to your food diary"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="off"
+                    placeholder="coach@example.com"
+                    value={inviteEmail}
+                    aria-label="Invite by email"
+                    onChange={(event) => setInviteEmail(event.target.value)}
+                    className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
+                  />
+                  <PrimaryButton
+                    aria-label="Send diary invitation"
+                    disabled={inviting || !isValidInviteEmail(inviteEmail)}
+                    onClick={async () => {
+                      setInviting(true)
+                      try {
+                        await inviteToDiary({
+                          email: normalizeInviteEmail(inviteEmail),
+                          // Read plus comment: the coach use case this exists for.
+                          scope: { diary: true, report: true, comments: true },
+                        })
+                        setInviteEmail("")
+                        toast.success("Invitation sent")
+                      } catch (error) {
+                        toast.error(
+                          error instanceof Error
+                            ? error.message
+                            : "Could not send this invitation"
+                        )
+                      } finally {
+                        setInviting(false)
+                      }
+                    }}
+                  >
+                    Invite
+                  </PrimaryButton>
+                </div>
+                <GroupedList label="People I share with">
+                  {outgoingShares.length === 0 ? (
+                    <ListRow
+                      title="Not shared with anyone"
+                      detail="Invite someone above to give read-only access"
+                    />
+                  ) : (
+                    outgoingShares.map((share) => (
+                      <div
+                        key={share.id ?? share._id}
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="native-row-title truncate">
+                            {share.inviteeName ?? share.inviteeEmail}
+                          </p>
+                          <p className="native-row-detail mt-0.5">
+                            {share.status === "pending"
+                              ? "Invite sent"
+                              : "Active"}{" "}
+                            · {shareScopeLabel(share.scope)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await revokeShare({
+                                id: (share.id ??
+                                  share._id) as Id<"diaryShares">,
+                              })
+                              toast.success("Access revoked")
+                            } catch {
+                              toast.error("Could not revoke access")
+                            }
+                          }}
+                          aria-label={`Revoke access for ${share.inviteeEmail}`}
+                          className="native-toolbar-button h-11 px-3 text-destructive"
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </GroupedList>
+                <ListRow
+                  title="Shared diaries"
+                  detail="Diaries other people shared with you"
+                  onClick={() => navigate("/shared")}
+                  trailing={
+                    <CaretRight size={18} className="text-muted-foreground" />
+                  }
+                />
+
                 <SettingsSectionLabel title="Legal" />
                 <GroupedList label="Legal documents">
                   <ListRow
@@ -1500,6 +1841,39 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               </>
             )}
 
+            {activeView === "walkthrough" && (
+              <>
+                <SettingsSectionIntro>
+                  A short guided tour runs the first time you open each area.
+                  Replay any of them here.
+                </SettingsSectionIntro>
+                <GroupedList label="Walkthrough chapters">
+                  {WALKTHROUGH_CHAPTERS.map((chapter) => (
+                    <ListRow
+                      key={chapter.id}
+                      title={chapter.title}
+                      detail={walkthroughStatusLabel(
+                        tour.progress[chapter.id],
+                        chapter,
+                        tour.featureContext
+                      )}
+                      value={tour.progress[chapter.id] ? "Replay" : "Start"}
+                      onClick={() => void handleReplayChapter(chapter)}
+                    />
+                  ))}
+                </GroupedList>
+                <div className="px-[var(--app-page-x)] pt-4">
+                  <button
+                    type="button"
+                    onClick={() => void handleReplayEverything()}
+                    className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
+                  >
+                    Replay everything
+                  </button>
+                </div>
+              </>
+            )}
+
             {activeView === "developer" && SHOW_DEV_SETTINGS && (
               <>
                 <SettingsSectionIntro>
@@ -1530,12 +1904,67 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     disabled={testingNotification}
                     onClick={() => void handleTestNotification()}
                   />
+                  <ListRow
+                    title="Show paywall"
+                    detail="Preview the Pro paywall without spending an AI request"
+                    onClick={() => {
+                      hapticSelection()
+                      showAiPaywall()
+                    }}
+                  />
                 </GroupedList>
               </>
             )}
           </div>
         )}
       </main>
+      {aiAccessModal}
+      {checkoutFailed && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 px-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="checkout-failed-title"
+          aria-describedby="checkout-failed-description"
+          onClick={() => {
+            setCheckoutFailed(false)
+            clearCheckoutResultHash()
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-[0.75rem] border border-border bg-card p-5 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span
+              className="mb-4 flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive"
+              aria-hidden
+            >
+              <Warning size={24} weight="fill" />
+            </span>
+            <h2 id="checkout-failed-title" className="native-section-title">
+              Checkout didn’t complete
+            </h2>
+            <p
+              id="checkout-failed-description"
+              className="native-row-detail mt-2"
+            >
+              Your plan hasn’t changed. You can try again from Account whenever
+              you’re ready.
+            </p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => {
+                setCheckoutFailed(false)
+                clearCheckoutResultHash()
+              }}
+              className="mt-5 min-h-11 w-full rounded-[0.65rem] bg-foreground px-3 text-[15px] font-semibold text-background"
+            >
+              Return to settings
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1583,28 +2012,32 @@ function ReminderRow({
   )
 }
 
-function RevenueCatSubscriptionPanel({
-  revenueCat,
+function BillingSubscriptionPanel({
+  billing,
 }: {
-  revenueCat: ReturnType<typeof useRevenueCat>
+  billing: ReturnType<typeof useBilling>
 }) {
   const [action, setAction] = useState<
     "purchase" | "restore" | "refresh" | "cancel" | null
   >(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
-  const active = revenueCat.hasOneRepPro
+  const active = billing.hasOneRepPro
+  const complimentary =
+    active &&
+    billing.customerInfo?.source === "manual" &&
+    billing.customerInfo.hasActiveSubscription === false
   const canceling = action === "cancel"
-  const opensSubscriptionManagement = revenueCat.cancelOpensManagement
-  const requiresWebCancellation = revenueCat.requiresWebCancellation
-  const loading = revenueCat.status === "loading"
-  const unsupported = revenueCat.status === "unsupported"
-  const monthlyPrice = revenueCat.monthlyPrice ?? "Monthly"
-  const subscriptionDiagnostic = revenueCat.subscriptionDiagnostic
+  const opensSubscriptionManagement = billing.cancelOpensManagement
+  const requiresWebCancellation = billing.requiresWebCancellation
+  const loading = billing.status === "loading"
+  const unsupported = billing.status === "unsupported"
+  const monthlyPrice = billing.monthlyPrice ?? "Monthly"
+  const subscriptionDiagnostic = billing.subscriptionDiagnostic
   const disabled = unsupported || loading || action !== null
-  const purchaseDisabled = revenueCat.isNative
-    ? disabled || !revenueCat.canPurchase
-    : action !== null || !revenueCat.canPurchase
+  const purchaseDisabled = billing.isNative
+    ? disabled || !billing.canPurchase
+    : action !== null || !billing.canPurchase
   const refreshLabel =
     action === "refresh"
       ? "Checking..."
@@ -1626,7 +2059,7 @@ function RevenueCatSubscriptionPanel({
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [canceling, confirmCancel])
 
-  async function runRevenueCatAction(
+  async function runBillingAction(
     nextAction: Exclude<typeof action, null>,
     task: () => Promise<unknown>,
     successMessage?: string
@@ -1636,16 +2069,14 @@ function RevenueCatSubscriptionPanel({
     setAction(nextAction)
     try {
       const result = await task()
+      // Billing actions resolve to the verdict the server just gave, so this
+      // reflects the purchase that was actually made rather than the reactive
+      // query's not-yet-updated value.
       const customerInfo =
-        result && typeof result === "object" && "entitlements" in result
-          ? (result as {
-              entitlements: { active: Record<string, unknown> }
-            })
+        result && typeof result === "object" && "isActive" in result
+          ? (result as Parameters<typeof hasOneRepPro>[0])
           : null
-      if (
-        nextAction !== "cancel" &&
-        hasOneRepPro(customerInfo as Parameters<typeof hasOneRepPro>[0])
-      ) {
+      if (nextAction !== "cancel" && hasOneRepPro(customerInfo)) {
         celebrateSubscription()
         if (successMessage) toast.success(successMessage)
       } else if (nextAction === "restore") {
@@ -1654,10 +2085,7 @@ function RevenueCatSubscriptionPanel({
         toast.success(successMessage)
       }
     } catch (error) {
-      const message = revenueCatErrorMessage(
-        error,
-        "Subscription action failed"
-      )
+      const message = billingErrorMessage(error, "Subscription action failed")
       if (message !== "Purchase canceled") {
         toast.error(message)
       }
@@ -1691,9 +2119,13 @@ function RevenueCatSubscriptionPanel({
           <div className="profile-pro-plan">
             <span>
               <span className="profile-pro-plan-label">Plan</span>
-              <span className="profile-pro-plan-name">Monthly</span>
+              <span className="profile-pro-plan-name">
+                {complimentary ? "Complimentary" : "Monthly"}
+              </span>
             </span>
-            <span className="profile-pro-price">{monthlyPrice}</span>
+            <span className="profile-pro-price">
+              {complimentary ? "Included" : monthlyPrice}
+            </span>
           </div>
 
           <div
@@ -1740,17 +2172,20 @@ function RevenueCatSubscriptionPanel({
             <button
               type="button"
               disabled={
-                active ? disabled || requiresWebCancellation : purchaseDisabled
+                active
+                  ? complimentary || disabled || requiresWebCancellation
+                  : purchaseDisabled
               }
               aria-busy={active ? action === "cancel" : action === "purchase"}
               onClick={() => {
                 if (active) {
+                  if (complimentary) return
                   if (requiresWebCancellation) return
                   hapticTap()
                   setConfirmCancel(true)
                   return
                 }
-                void runRevenueCatAction("purchase", revenueCat.purchaseMonthly)
+                void runBillingAction("purchase", billing.purchaseMonthly)
               }}
               className={cn(
                 "profile-pro-primary-action",
@@ -1760,14 +2195,16 @@ function RevenueCatSubscriptionPanel({
               {action === "purchase"
                 ? "Starting checkout..."
                 : active
-                  ? requiresWebCancellation
-                    ? "Manage on the web"
-                    : action === "cancel"
-                      ? "Canceling..."
-                      : opensSubscriptionManagement
-                        ? "Manage subscription"
-                        : "Cancel renewal"
-                  : revenueCat.canPurchase
+                  ? complimentary
+                    ? "Pro included"
+                    : requiresWebCancellation
+                      ? "Manage on the web"
+                      : action === "cancel"
+                        ? "Canceling..."
+                        : opensSubscriptionManagement
+                          ? "Manage subscription"
+                          : "Cancel renewal"
+                  : billing.canPurchase
                     ? "Upgrade to Pro"
                     : "Products unavailable"}
             </button>
@@ -1785,9 +2222,9 @@ function RevenueCatSubscriptionPanel({
                   disabled={disabled}
                   aria-busy={action === "restore"}
                   onClick={() =>
-                    void runRevenueCatAction(
+                    void runBillingAction(
                       "restore",
-                      revenueCat.restorePurchases,
+                      billing.restorePurchases,
                       "Purchases restored"
                     )
                   }
@@ -1806,9 +2243,9 @@ function RevenueCatSubscriptionPanel({
                     : "Refresh subscription status"
                 }
                 onClick={() =>
-                  void runRevenueCatAction(
+                  void runBillingAction(
                     "refresh",
-                    revenueCat.refresh,
+                    billing.refresh,
                     "Subscription refreshed"
                   )
                 }
@@ -1860,10 +2297,10 @@ function RevenueCatSubscriptionPanel({
                 disabled={canceling}
                 aria-busy={canceling}
                 onClick={() =>
-                  void runRevenueCatAction(
+                  void runBillingAction(
                     "cancel",
                     async () => {
-                      const result = await revenueCat.cancelSubscription()
+                      const result = await billing.cancelSubscription()
                       setConfirmCancel(false)
                       return result
                     },

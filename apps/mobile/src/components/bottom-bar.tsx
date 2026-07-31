@@ -18,7 +18,7 @@ import {
 import { AppNavigationChrome } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
-import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
+import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 
 type BottomBarAction = () => void
 type BottomBarActionSetter = (action?: BottomBarAction) => void
@@ -117,6 +117,7 @@ export function BottomBar({
     chromeState !== "previous" && chromeState !== "previous-ready"
   const settingsActive = isActive(pathname, "/settings")
   const coachActive = isActive(pathname, "/coach")
+  const primaryNavRef = useTourAnchor("bottom-bar")
 
   const tabs = TABS.map(({ path, Icon, label }) => {
     const active = isActive(pathname, path)
@@ -145,6 +146,7 @@ export function BottomBar({
 
   return (
     <AppNavigationChrome
+      primaryNavRef={primaryNavRef}
       tabs={tabs}
       desktopTabs={desktopTabs}
       coachActive={coachActive}
@@ -154,13 +156,7 @@ export function BottomBar({
         if (pathname !== "/") navigate("/", { motion: "switch" })
       }}
       profile={
-        <AppTooltip
-          id={APP_TOOLTIP_IDS.profileDesktop}
-          content="Open your profile, goals, preferences, developer tools, and account settings."
-          targetClassName="w-full"
-          side="right"
-          align="end"
-        >
+        <TourAnchor anchor="today-profile" className="block w-full">
           <button
             type="button"
             onClick={() => {
@@ -181,7 +177,7 @@ export function BottomBar({
             />
             Profile & settings
           </button>
-        </AppTooltip>
+        </TourAnchor>
       }
     />
   )

@@ -19,7 +19,10 @@ describe("Today dashboard discoverability", () => {
   })
 
   test("provides guidance and explicit activity controls", () => {
-    expect(home).toContain("Your first-week guide")
+    // The guided walkthrough replaced the unused first-week card.
+    expect(home).not.toContain("FirstWeekGuide")
+    expect(app).toContain('anchor="today-log-meal"')
+    expect(app).toContain('anchor="today-ledger"')
     expect(home).toContain("View all activity")
     expect(home).toContain("Edit ${event.title}")
   })
@@ -28,10 +31,10 @@ describe("Today dashboard discoverability", () => {
     expect(app).toContain("settings.simpleMode")
   })
 
-  test("keeps the energy summary compact", () => {
-    expect(home).toContain("grid-cols-3")
-    expect(home).toContain("Protein")
-    expect(home).toContain("Water")
+  test("keeps the energy summary compact without duplicating macro facts", () => {
+    expect(home).toContain("CalorieRing")
+    expect(home).toContain("macros.map")
+    expect(home).not.toContain("proteinLeft")
     expect(home).not.toContain('open ? "Hide breakdown" : "Show breakdown"')
   })
 

@@ -20,6 +20,7 @@ import {
   PintGlass,
   Play,
   Plus,
+  SlidersHorizontal,
   Sparkle,
   Trash,
   UserCircle,
@@ -28,6 +29,7 @@ import {
 import { useAppAuth } from "@/lib/auth-client"
 import { useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { computeReadiness } from "@/lib/readiness"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
 import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
@@ -42,13 +44,13 @@ import {
   TodayHeader,
   TrainingWeekCard,
   TodayTimeline,
-  FirstWeekGuide,
   type PinnedCoachGoal,
   type TimelineEvent,
 } from "@repo/ui"
 import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { TourAnchor } from "@/components/walkthrough/tour-anchor"
 import { SwipeToStart } from "@repo/ui"
 import { SlideToDeleteRow } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
@@ -70,6 +72,7 @@ import {
   dateForOffset,
   defaultMeal,
   detectTimeZone,
+  nutritionDetailTotals,
   offsetDateKey,
   stripUndefined,
   type FoodLogEntry,
@@ -77,6 +80,12 @@ import {
   type RecipeIngredient,
   DEFAULT_MEAL_CATEGORIES,
 } from "@/lib/food-log"
+import {
+  carbLabel,
+  displayCarbGoal,
+  netCarbs,
+  type CarbDisplayMode,
+} from "@/lib/carb-display"
 import {
   filledWaterGlassCount,
   waterAmountNeededForGlass,
@@ -763,6 +772,17 @@ function WorkoutCard({
   useEffect(() => {
     setSlide(0)
   }, [workoutLogs.length])
+
+  if (isRestDay && workoutLogs.length === 0) {
+    return (
+      <Card style={{ viewTransitionName: "active-workout" }}>
+        <div className="flex min-h-12 items-center justify-between gap-3 px-4 py-2.5">
+          <CardTitle className="text-sm font-semibold">{title}</CardTitle>
+          <p className="text-[13px] text-muted-foreground">Rest day</p>
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card style={{ viewTransitionName: "active-workout" }}>
@@ -2572,11 +2592,6 @@ export default function App() {
     DashboardWidgetLayoutItem[]
   >(DEFAULT_DASHBOARD_WIDGETS)
   const [snapOffline, setSnapOffline] = useState(false)
-  const [showFirstWeekGuide, setShowFirstWeekGuide] = useState(() =>
-    typeof window === "undefined"
-      ? false
-      : safeLocalStorageGet("onerep:first-week-guide-dismissed") !== "1"
-  )
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setHomeAddOpen(true))
 
@@ -2647,6 +2662,22 @@ export default function App() {
   }
 
   const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
+  const carbMode: CarbDisplayMode = preferences?.netCarbsEnabled
+    ? "net"
+    : "total"
+  // Only computed when net mode is on — nutritionDetailTotals walks every
+  // micronutrient for every entry, which is wasted work in total mode.
+  const foodFiberTotal = useMemo(
+    () =>
+      carbMode === "net" ? (nutritionDetailTotals(foodEntries).fiber ?? 0) : 0,
+    [carbMode, foodEntries]
+  )
+  const fiberGoal = effectiveGoals?.health?.fiber
+  // Someone commenting on your diary is the one sharing event worth surfacing
+  // on Today. Dismissal is per-session — no push in v1.
+  const unreadComments =
+    useQuery(api.sharing.diaryComments.unreadCount, {}) ?? 0
+  const [commentsDismissed, setCommentsDismissed] = useState(false)
   const waterGoalMl = preferences?.waterGoalMl ?? 2500
   const waterTotalMl = waterEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
@@ -2699,15 +2730,6 @@ export default function App() {
       : 100
   const waterProgress =
     waterGoalMl > 0 ? Math.min(100, (waterTotalMl / waterGoalMl) * 100) : 0
-  const mealSlots = useMemo(
-    () =>
-      DEFAULT_MEAL_CATEGORIES.map((meal) => ({
-        id: meal.id,
-        label: meal.label,
-        logged: foodEntries.some((entry) => entry.meal === meal.id),
-      })),
-    [foodEntries]
-  )
   const heroMacros = useMemo(
     () => [
       {
@@ -2718,10 +2740,16 @@ export default function App() {
         color: MACRO_COLORS.protein,
       },
       {
-        label: "Carbs",
+        label: carbLabel(carbMode),
         shortLabel: "C",
-        value: Math.round(foodTotals.carbs),
-        target: Math.round(calorieInfo?.carbs ?? 220),
+        value: Math.round(
+          carbMode === "net"
+            ? netCarbs({ carbs: foodTotals.carbs, fiber: foodFiberTotal })
+            : foodTotals.carbs
+        ),
+        target: Math.round(
+          displayCarbGoal(calorieInfo?.carbs ?? 220, fiberGoal, carbMode)
+        ),
         color: MACRO_COLORS.carbs,
       },
       {
@@ -2736,25 +2764,21 @@ export default function App() {
       calorieInfo?.carbs,
       calorieInfo?.fat,
       calorieInfo?.protein,
+      carbMode,
+      fiberGoal,
+      foodFiberTotal,
       foodTotals.carbs,
       foodTotals.fat,
       foodTotals.protein,
     ]
   )
 
-  const recovery =
-    isTodaySelected && hasCompletedWorkout
-      ? {
-          score: (proteinProgress + waterProgress) / 2,
-          proteinPercent: proteinProgress,
-          waterPercent: waterProgress,
-        }
-      : null
   // Mon–Sun set volume for the "Training this week" strip. Today's scheduled
   // (but not yet completed) session renders as the hatched, planned bar.
   const trainingWeek = useMemo(() => {
-    const logs = ((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[])
-      .filter((log) => Boolean(log.date))
+    const logs = (
+      (workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[]
+    ).filter((log) => Boolean(log.date))
     const todayKeyLocal = currentDateKey(activeTimezone)
     const todayDow = dateKeyToCalendarDate(todayKeyLocal).getDay()
     const daysFromMonday = todayDow === 0 ? 6 : todayDow - 1
@@ -2812,18 +2836,8 @@ export default function App() {
         0
       ),
       plannedSets,
-      caption:
-        scheduledWorkout && plannedSets > 0
-          ? `Hatched bar is ${isTodaySelected ? "tonight’s" : "today’s"} ${scheduledWorkout.name} — ${plannedSets} sets planned.`
-          : undefined,
     }
-  }, [
-    activeTimezone,
-    isTodaySelected,
-    scheduledWorkout,
-    serverPresets,
-    workoutHistoryQuery,
-  ])
+  }, [activeTimezone, scheduledWorkout, serverPresets, workoutHistoryQuery])
 
   // 28-day consistency grid. A day counts as "full" when it was genuinely
   // tracked (2+ meals logged), "partial" when there was some activity that day
@@ -2849,7 +2863,11 @@ export default function App() {
       const mealCount = foodDays.get(dateKey) ?? 0
       const trained = workoutDays.has(dateKey)
       const level: "full" | "partial" | "none" =
-        mealCount >= 2 ? "full" : mealCount === 1 || trained ? "partial" : "none"
+        mealCount >= 2
+          ? "full"
+          : mealCount === 1 || trained
+            ? "partial"
+            : "none"
       return { date: dateKey, level }
     })
 
@@ -2943,49 +2961,16 @@ export default function App() {
     workoutHistoryQuery,
   ])
 
-  const dashboardReadiness = useMemo(() => {
-    const checkIn = latestCheckIns?.[0]
-    const fuelScore = (proteinProgress + waterProgress) / 2
-    const selfReportScore = checkIn
-      ? ((checkIn.energy + checkIn.sleepQuality + (6 - checkIn.soreness)) /
-          15) *
-        100
-      : fuelScore
-    const recoveringMuscles = muscleRecovery.filter(
-      (muscle) => muscle.status === "trained" || muscle.status === "recovering"
-    ).length
-    const muscleScore =
-      muscleRecovery.length > 0
-        ? Math.max(20, 100 - (recoveringMuscles / muscleRecovery.length) * 65)
-        : selfReportScore
-    const recoveryScore = Math.round(
-      fuelScore * 0.3 + selfReportScore * 0.45 + muscleScore * 0.25
-    )
-    const context = checkIn
-      ? `Sleep ${checkIn.sleepQuality}/5 · energy ${checkIn.energy}/5 · soreness ${checkIn.soreness}/5.`
-      : "Add a Coach check-in to include sleep, energy, and soreness."
-    const muscleContext =
-      recoveringMuscles > 0
-        ? ` ${recoveringMuscles} muscle group${recoveringMuscles === 1 ? " is" : "s are"} still recovering.`
-        : " Muscle recovery is clear."
-    if (recoveryScore >= 75)
-      return {
-        score: recoveryScore,
-        label: "Ready" as const,
-        detail: `Training as planned is supported. ${context}${muscleContext}`,
-      }
-    if (recoveryScore >= 45)
-      return {
-        score: recoveryScore,
-        label: "Steady" as const,
-        detail: `Keep one or two reps in reserve. ${context}${muscleContext}`,
-      }
-    return {
-      score: recoveryScore,
-      label: "Recover" as const,
-      detail: `Reduce volume and prioritize recovery. ${context}${muscleContext}`,
-    }
-  }, [latestCheckIns, muscleRecovery, proteinProgress, waterProgress])
+  const dashboardReadiness = useMemo(
+    () =>
+      computeReadiness({
+        checkIn: latestCheckIns?.[0] ?? null,
+        proteinProgress,
+        waterProgress,
+        muscleGroups: muscleRecovery,
+      }),
+    [latestCheckIns, muscleRecovery, proteinProgress, waterProgress]
+  )
 
   const recentMealNames = useMemo(
     () =>
@@ -3033,11 +3018,6 @@ export default function App() {
       return
     }
     navigate(`/nutrition?date=${selectedDate}`, { motion: "switch" })
-  }
-
-  function dismissFirstWeekGuide() {
-    safeLocalStorageSet("onerep:first-week-guide-dismissed", "1")
-    setShowFirstWeekGuide(false)
   }
 
   function openRecipePreview(recipe: StarterRecipe) {
@@ -3259,6 +3239,12 @@ export default function App() {
   function renderDashboardWidget(widget: DashboardWidgetLayoutItem) {
     const compactClass = widget.size === "small" ? "md:max-w-xl" : undefined
     if (widget.id === "intelligence") {
+      // Nothing to narrate yet — the widget earns its place with data.
+      if (
+        dashboardWeeklyStory.workouts === 0 &&
+        dashboardWeeklyStory.nutritionDays === 0
+      )
+        return null
       return (
         <div key={widget.id} className={compactClass}>
           <DashboardIntelligence
@@ -3317,6 +3303,7 @@ export default function App() {
       )
     }
     if (widget.id === "progress") {
+      if ((bodyMeasurements ?? []).length === 0) return null
       return (
         <div key={widget.id} className={compactClass}>
           <DashboardProgressPanels
@@ -3398,14 +3385,16 @@ export default function App() {
                 timeZone={activeTimezone}
                 onChange={setDayOffset}
               />
-              <button
-                type="button"
-                aria-label="Add food, water, workout, or supplement"
-                onClick={() => setHomeAddOpen(true)}
-                className="native-toolbar-button px-0"
-              >
-                <Plus size={22} weight="bold" />
-              </button>
+              <TourAnchor anchor="today-log-meal">
+                <button
+                  type="button"
+                  aria-label="Add food, water, workout, or supplement"
+                  onClick={() => setHomeAddOpen(true)}
+                  className="native-toolbar-button px-0"
+                >
+                  <Plus size={22} weight="bold" />
+                </button>
+              </TourAnchor>
               <button
                 type="button"
                 aria-label="Open profile and settings"
@@ -3420,39 +3409,58 @@ export default function App() {
 
         {homeBodyReady ? (
           <>
-            <DailyLedgerHero
-              caloriesLeft={caloriesLeft}
-              caloriesTarget={caloriesTarget}
-              macros={heroMacros}
-              waterMl={waterTotalMl}
-              waterGoalMl={waterGoalMl}
-              onAddWater={addQuickWater}
-              workoutState={workoutState}
-              workoutProgress={activeWorkoutProgress}
-              mealSlots={mealSlots}
-              onMealSlotClick={() => setHomeAddOpen(true)}
-              recovery={recovery}
-              onRecoveryClick={() =>
-                navigate(`/nutrition?date=${selectedDate}`, {
-                  motion: "switch",
-                })
-              }
-              briefing={dashboardBriefing}
-              onBriefingAction={runDashboardBriefingAction}
-              onBriefingDismiss={() => {
-                const key = `${selectedDate}:${dashboardBriefing.action}`
-                safeLocalStorageSet("onerep:dismissed-dashboard-briefing", key)
-                setDismissedBriefingKey(key)
-                hapticSelection()
-              }}
-              showBriefingAction={
-                dismissedBriefingKey !==
-                `${selectedDate}:${dashboardBriefing.action}`
-              }
-              proteinLeft={proteinLeft}
-            />
+            {unreadComments > 0 && !commentsDismissed && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-border px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => navigate("/shared")}
+                  aria-label={`${unreadComments} new comment${
+                    unreadComments === 1 ? "" : "s"
+                  } on your diary — open shared diaries`}
+                  className="min-w-0 flex-1 text-left active:opacity-70"
+                >
+                  <span className="native-row-title block">
+                    {unreadComments} new comment
+                    {unreadComments === 1 ? "" : "s"} on your diary
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCommentsDismissed(true)}
+                  aria-label="Dismiss diary comment notice"
+                  className="native-toolbar-button h-9 w-9 px-0 text-muted-foreground"
+                >
+                  <X size={15} weight="bold" />
+                </button>
+              </div>
+            )}
+            <TourAnchor anchor="today-ledger" className="block">
+              <DailyLedgerHero
+                caloriesLeft={caloriesLeft}
+                caloriesTarget={caloriesTarget}
+                macros={heroMacros}
+                briefing={dashboardBriefing}
+                onBriefingAction={runDashboardBriefingAction}
+                onBriefingDismiss={() => {
+                  const key = `${selectedDate}:${dashboardBriefing.action}`
+                  safeLocalStorageSet(
+                    "onerep:dismissed-dashboard-briefing",
+                    key
+                  )
+                  setDismissedBriefingKey(key)
+                  hapticSelection()
+                }}
+                showBriefingAction={
+                  dismissedBriefingKey !==
+                  `${selectedDate}:${dashboardBriefing.action}`
+                }
+              />
+            </TourAnchor>
 
-            <div className="dashboard-workout-stage mx-[var(--app-page-x)] mt-4 md:mx-8">
+            <TourAnchor
+              anchor="today-workout"
+              className="dashboard-workout-stage mx-[var(--app-page-x)] mt-4 block md:mx-8"
+            >
               <WorkoutCard
                 settings={settings}
                 dayOffset={dayOffset}
@@ -3465,31 +3473,25 @@ export default function App() {
                 }
                 onDeleteSlot={setConfirmDeleteSlot}
               />
-            </div>
+            </TourAnchor>
 
-            <TrainingWeekCard
-              sessions={trainingWeek.sessions}
-              sets={trainingWeek.sets}
-              records={dashboardWeeklyStory.records.length}
-              days={trainingWeek.days}
-              {...(trainingWeek.caption
-                ? { caption: trainingWeek.caption }
-                : {})}
-              consistency={consistency}
-              onOpen={() => navigate("/workouts", { motion: "switch" })}
-            />
+            {(trainingWeek.sessions > 0 || trainingWeek.sets > 0) && (
+              <TrainingWeekCard
+                sessions={trainingWeek.sessions}
+                sets={trainingWeek.sets}
+                records={dashboardWeeklyStory.records.length}
+                days={trainingWeek.days}
+                consistency={consistency}
+                onOpen={() => navigate("/workouts", { motion: "switch" })}
+              />
+            )}
 
             <section
               className="dashboard-meals-stage mt-5"
               aria-label="Suggested meals"
             >
               <div className="mx-[var(--app-page-x)] mb-3 flex items-end justify-between gap-4 md:mx-8">
-                <div>
-                  <p className="app-section-title">Suggested meals</p>
-                  <p className="native-row-detail mt-0.5">
-                    OneRep recipes matched to recent ingredients
-                  </p>
-                </div>
+                <p className="app-section-title">Suggested meals</p>
                 <button
                   type="button"
                   onClick={() =>
@@ -3511,7 +3513,7 @@ export default function App() {
                       },
                     })
                   }
-                  className="min-h-11 shrink-0 text-[13px] font-semibold text-[var(--accent-food)] active:opacity-60"
+                  className="min-h-11 shrink-0 text-[12px] font-semibold text-muted-foreground active:text-foreground"
                 >
                   Ask Coach
                 </button>
@@ -3535,7 +3537,7 @@ export default function App() {
                           openRecipePreview(recipe)
                         }
                       }}
-                      className="flex h-36 w-[17rem] shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card text-left transition-transform active:scale-[0.985] md:h-40 md:w-[22rem]"
+                      className="flex h-[6.75rem] w-[16rem] shrink-0 snap-start overflow-hidden rounded-xl border border-border bg-card text-left transition-transform active:scale-[0.985] md:h-32 md:w-[20rem]"
                     >
                       {meal.photoUrl ? (
                         <img
@@ -3550,16 +3552,10 @@ export default function App() {
                         </span>
                       )}
                       <span className="flex min-w-0 flex-1 flex-col p-3 md:p-3.5">
-                        <span className="text-[9px] font-semibold text-muted-foreground md:text-[10px]">
-                          OneRep recipe
-                        </span>
-                        <span className="mt-1 line-clamp-2 shrink-0 text-[14px] leading-tight font-bold tracking-tight md:text-[16px]">
+                        <span className="line-clamp-2 shrink-0 text-[14px] leading-tight font-bold tracking-tight md:text-[15px]">
                           {meal.name}
                         </span>
-                        <span className="mt-1.5 line-clamp-1 min-h-0 text-[10px] leading-4 text-muted-foreground md:text-[11px]">
-                          {meal.description}
-                        </span>
-                        <span className="mt-auto flex shrink-0 items-center gap-1.5 text-[9px] font-medium whitespace-nowrap text-muted-foreground tabular-nums md:text-[10px]">
+                        <span className="mt-auto flex shrink-0 items-center gap-1.5 text-[11px] font-medium whitespace-nowrap text-muted-foreground tabular-nums">
                           <span className="inline-flex items-center gap-1">
                             <Clock size={11} /> {meal.prepMinutes} min
                           </span>
@@ -3598,13 +3594,8 @@ export default function App() {
                     className="flex min-h-20 w-full items-center gap-3 rounded-xl border border-dashed border-border px-4 text-left"
                   >
                     <ForkKnife size={21} className="text-muted-foreground" />
-                    <span>
-                      <span className="block text-[13px] font-semibold">
-                        Ask Coach for a meal idea
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        Your saved recipes will appear here.
-                      </span>
+                    <span className="text-[13px] font-semibold">
+                      Ask Coach for a meal idea
                     </span>
                   </button>
                 </div>
@@ -3617,36 +3608,19 @@ export default function App() {
                     hapticSelection()
                     navigate("/recipes", { motion: "forward" })
                   }}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-[13px] font-semibold transition-colors active:bg-muted/60"
+                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
                 >
-                  <ForkKnife size={17} weight="bold" />
-                  Discover more recipes
-                  <CaretRight size={16} className="text-muted-foreground" />
+                  More recipes
+                  <CaretRight size={14} />
                 </button>
               </div>
             </section>
-
-            {isTodaySelected && showFirstWeekGuide && (
-              <FirstWeekGuide onDismiss={dismissFirstWeekGuide} />
-            )}
 
             {isTodaySelected && !settings.simpleMode && (
               <section
                 className="dashboard-widgets-stage mt-5"
                 aria-label="Custom dashboard widgets"
               >
-                <div className="mx-[var(--app-page-x)] mb-1 flex items-center justify-end md:mx-8">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hapticSelection()
-                      setDashboardCustomizeOpen(true)
-                    }}
-                    className="motion-tactile min-h-11 text-[11px] font-semibold text-muted-foreground active:text-foreground"
-                  >
-                    Customize dashboard
-                  </button>
-                </div>
                 <CoachDashboardWidgets
                   widgets={(coachDashboardWidgets ?? []).map((widget) => ({
                     ...widget,
@@ -3676,6 +3650,19 @@ export default function App() {
                   )
                   .filter((widget) => !widget.hidden)
                   .map(renderDashboardWidget)}
+                <div className="mx-[var(--app-page-x)] mt-1 md:mx-8">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticSelection()
+                      setDashboardCustomizeOpen(true)
+                    }}
+                    className="flex min-h-11 w-full items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+                  >
+                    <SlidersHorizontal size={15} />
+                    Customize dashboard
+                  </button>
+                </div>
               </section>
             )}
 

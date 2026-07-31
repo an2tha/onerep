@@ -110,7 +110,7 @@ export function formatProgressDate(date: string | null) {
 }
 
 function signed(value: number, suffix = "") {
-  return `${value > 0 ? "+" : ""}${value.toLocaleString()}${suffix}`
+  return `${value > 0 ? "+" : ""}${value.toLocaleString("en-US")}${suffix}`
 }
 
 function comparisonText(value: number, noun: string) {
@@ -303,7 +303,10 @@ function InsightRow({
 
 function Interpretation({ children }: { children: ReactNode }) {
   return (
-    <section className="border-y border-border bg-muted/25 px-4 py-4">
+    <section
+      className="progress-tab-enter border-y border-border bg-muted/25 px-4 py-4"
+      style={{ animationDelay: "120ms" }}
+    >
       <div className="flex gap-3">
         <CheckCircle
           size={20}
@@ -336,6 +339,32 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
             aria-label={`${values.length} body-weight check-ins from ${summary.body.weightPoints[0]?.date} to ${summary.body.weightPoints.at(-1)?.date}`}
             className="h-full w-full overflow-visible"
           >
+            <defs>
+              <linearGradient
+                id="progress-weight-fill"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+                <stop
+                  offset="0"
+                  stopColor="var(--accent-progress)"
+                  stopOpacity="0.22"
+                />
+                <stop
+                  offset="1"
+                  stopColor="var(--accent-progress)"
+                  stopOpacity="0"
+                />
+              </linearGradient>
+            </defs>
+            <polygon
+              points={`${points} 320,92 0,92`}
+              fill="url(#progress-weight-fill)"
+              className="progress-chart-area"
+              aria-hidden="true"
+            />
             <polyline
               points={points}
               fill="none"
@@ -347,20 +376,34 @@ function WeightChart({ summary }: { summary: ProgressSummaryView }) {
               pathLength="1"
               className="progress-chart-line"
             />
-            {points.split(" ").map((point, index) => {
+            {points.split(" ").map((point, index, all) => {
               const [x, y] = point.split(",")
+              const isLatest = index === all.length - 1
               return (
-                <circle
-                  key={point}
-                  cx={x}
-                  cy={y}
-                  r="3.5"
-                  fill="var(--background)"
-                  stroke="var(--accent-progress)"
-                  strokeWidth="2.5"
-                  className="progress-chart-point"
-                  style={{ animationDelay: `${240 + index * 70}ms` }}
-                />
+                <g key={point}>
+                  {isLatest && (
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r="5"
+                      fill="none"
+                      stroke="var(--accent-progress)"
+                      strokeWidth="1.5"
+                      className="progress-chart-pulse"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r={isLatest ? 4 : 3.5}
+                    fill="var(--background)"
+                    stroke="var(--accent-progress)"
+                    strokeWidth="2.5"
+                    className="progress-chart-point"
+                    style={{ animationDelay: `${240 + index * 70}ms` }}
+                  />
+                </g>
               )
             })}
           </svg>
@@ -420,7 +463,10 @@ export function BodyProgress({
 
   return (
     <div className="grid gap-5">
-      <section className="app-surface px-4 py-4" aria-label="Body progress">
+      <section
+        className="progress-tab-enter app-surface px-4 py-4"
+        aria-label="Body progress"
+      >
         <MetricHeading
           icon={<Scales size={20} />}
           title="Weight trend"
@@ -437,7 +483,11 @@ export function BodyProgress({
         <WeightChart summary={summary} />
       </section>
 
-      <section aria-label="Body insights">
+      <section
+        className="progress-tab-enter"
+        style={{ animationDelay: "60ms" }}
+        aria-label="Body insights"
+      >
         <h2 className="native-section-title mb-1">Body insights</h2>
         <div className="border-y border-border">
           <InsightRow
@@ -489,7 +539,11 @@ export function BodyProgress({
       </PrimaryButton>
 
       {recentMeasurements.length > 0 && (
-        <section aria-label="Recent body check-ins">
+        <section
+        className="progress-tab-enter"
+        style={{ animationDelay: "160ms" }}
+        aria-label="Recent body check-ins"
+      >
           <h2 className="native-section-title mb-1">Recent check-ins</h2>
           <div className="border-y border-border">
             {recentMeasurements.map((measurement) => (
@@ -543,7 +597,7 @@ export function NutritionProgress({
   return (
     <div className="grid gap-5">
       <section
-        className="app-surface px-4 py-4"
+        className="progress-tab-enter app-surface px-4 py-4"
         aria-label="Nutrition progress"
       >
         <MetricHeading
@@ -553,18 +607,22 @@ export function NutritionProgress({
         />
         <p className="mt-4 text-[2rem] leading-none font-bold tracking-tight tabular-nums">
           {logged > 0
-            ? `${summary.nutrition.averageCalories.toLocaleString()} kcal`
+            ? `${summary.nutrition.averageCalories.toLocaleString("en-US")} kcal`
             : "No data"}
         </p>
         <p className="mt-2 text-[14px] text-muted-foreground">
           {summary.nutrition.calorieDeltaFromTarget == null
-            ? `Daily target ${calorieTarget.toLocaleString()} kcal`
+            ? `Daily target ${calorieTarget.toLocaleString("en-US")} kcal`
             : `${signed(summary.nutrition.calorieDeltaFromTarget, " kcal")} versus target on logged days`}
         </p>
         <NutritionWeekBars days={summary.days} />
       </section>
 
-      <section aria-label="Nutrition insights">
+      <section
+        className="progress-tab-enter"
+        style={{ animationDelay: "60ms" }}
+        aria-label="Nutrition insights"
+      >
         <h2 className="native-section-title mb-1">Nutrition insights</h2>
         <div className="border-y border-border">
           <InsightRow
@@ -604,7 +662,7 @@ export function NutritionProgress({
             detail={
               summary.nutrition.previousAverageCalories == null
                 ? "No food was logged in the prior 7 days"
-                : `Prior average ${summary.nutrition.previousAverageCalories.toLocaleString()} kcal across ${summary.nutrition.previousLoggedDays} logged days`
+                : `Prior average ${summary.nutrition.previousAverageCalories.toLocaleString("en-US")} kcal across ${summary.nutrition.previousLoggedDays} logged days`
             }
             tooltip="This compares average calories per logged day. Large changes can reflect different logging coverage, so check the day counts before interpreting it."
           />
@@ -637,7 +695,10 @@ export function TrainingProgress({
 
   return (
     <div className="grid gap-5">
-      <section className="app-surface px-4 py-4" aria-label="Training progress">
+      <section
+        className="progress-tab-enter app-surface px-4 py-4"
+        aria-label="Training progress"
+      >
         <MetricHeading
           icon={<Barbell size={20} />}
           title="Completed-set volume"
@@ -652,7 +713,11 @@ export function TrainingProgress({
         <TrainingWeekBars days={summary.days} />
       </section>
 
-      <section aria-label="Training insights">
+      <section
+        className="progress-tab-enter"
+        style={{ animationDelay: "60ms" }}
+        aria-label="Training insights"
+      >
         <h2 className="native-section-title mb-1">Training insights</h2>
         <div className="border-y border-border">
           <InsightRow

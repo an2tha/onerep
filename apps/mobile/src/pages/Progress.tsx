@@ -36,7 +36,7 @@ import {
 import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
-import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
+import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 
 import {
   BodyProgress,
@@ -49,6 +49,8 @@ import {
 
 export default function Progress() {
   const navigate = useSmoothNavigate()
+  const progressHeaderRef = useTourAnchor("progress-header")
+  const progressTabsRef = useTourAnchor("progress-tabs")
   const [searchParams] = useSearchParams()
   const [metric, setMetric] = useState<"body" | "nutrition" | "training">(
     "body"
@@ -368,11 +370,8 @@ export default function Progress() {
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page pb-28">
-        <header className="app-header">
-          <div>
-            <p className="app-eyebrow">Last 7 days</p>
-            <h1 className="app-title">Progress</h1>
-          </div>
+        <header className="app-header" ref={progressHeaderRef}>
+          <h1 className="app-title">Progress</h1>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -386,12 +385,7 @@ export default function Progress() {
             >
               <Sparkle size={20} weight="bold" />
             </button>
-            <AppTooltip
-              id={APP_TOOLTIP_IDS.progressCheckIn}
-              content="Add a consistent body check-in here. Two or more measurements reveal direction; one measurement is only a baseline."
-              side="bottom"
-              align="end"
-            >
+            <TourAnchor anchor="progress-check-in">
               <button
                 type="button"
                 onClick={openEntry}
@@ -400,11 +394,12 @@ export default function Progress() {
               >
                 <Plus size={22} weight="bold" />
               </button>
-            </AppTooltip>
+            </TourAnchor>
           </div>
         </header>
 
         <div
+          ref={progressTabsRef}
           className="app-segmented mb-5 grid grid-cols-3"
           aria-label="Progress metric"
         >
@@ -454,17 +449,20 @@ export default function Progress() {
             {customMetrics.length > 0 && (
               <section aria-label={`Custom ${metric} metrics`}>
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="native-section-title">Made with Coach</p>
+                  <p className="native-section-title">Your metrics</p>
                   <button
                     type="button"
-                    onClick={() => setMetricBuilderOpen(true)}
-                    className="min-h-11 text-[11px] font-semibold text-muted-foreground"
+                    onClick={() => {
+                      hapticSelection()
+                      setMetricBuilderOpen(true)
+                    }}
+                    className="motion-tactile min-h-11 px-2 text-[12px] font-semibold text-muted-foreground"
                   >
-                    Create another
+                    Add metric
                   </button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {customMetrics.map((customMetric) => {
+                  {customMetrics.map((customMetric, metricIndex) => {
                     const todayEntry = customMetric.entries.find(
                       (entry) => entry.date === today
                     )
@@ -490,13 +488,14 @@ export default function Progress() {
                       <article
                         key={customMetric._id}
                         className="custom-metric-card overflow-hidden rounded-xl border border-border bg-card p-4"
+                        style={{ animationDelay: `${metricIndex * 60}ms` }}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div>
+                          <div className="min-w-0">
                             <p className="text-[15px] font-semibold">
                               {customMetric.title}
                             </p>
-                            <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+                            <p className="mt-0.5 text-[12px] leading-4 text-muted-foreground">
                               {customMetric.description}
                             </p>
                           </div>
@@ -511,9 +510,9 @@ export default function Progress() {
                                 })
                             }}
                             aria-label={`Remove ${customMetric.title}`}
-                            className="motion-tactile flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                            className="motion-tactile -mt-1 -mr-1 flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground/70 active:bg-muted"
                           >
-                            <Trash size={14} />
+                            <Trash size={15} />
                           </button>
                         </div>
 
@@ -572,19 +571,22 @@ export default function Progress() {
                             role="img"
                             aria-label={`${customMetric.title} recent trend`}
                           >
-                            {ordered.map((entry) => (
+                            {ordered.map((entry, entryIndex) => (
                               <span
                                 key={entry._id}
-                                className="custom-metric-bar min-h-1 flex-1 rounded-t-sm bg-[var(--accent-progress)]"
+                                className={`custom-metric-bar min-h-1 flex-1 rounded-t-sm bg-[var(--accent-progress)] ${
+                                  entry.date === today ? "" : "opacity-55"
+                                }`}
                                 style={{
                                   height: `${Math.max(8, (entry.value / maxValue) * 100)}%`,
+                                  animationDelay: `${entryIndex * 30}ms`,
                                 }}
                               />
                             ))}
                           </div>
                         )}
                         {customMetric.target != null && (
-                          <p className="mt-2 text-[9px] text-muted-foreground tabular-nums">
+                          <p className="mt-2 text-[11px] text-muted-foreground tabular-nums">
                             Daily guide: {customMetric.target}{" "}
                             {customMetric.unit}
                           </p>
@@ -630,12 +632,9 @@ export default function Progress() {
             className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="app-eyebrow">Coach metric builder</p>
-                <h2 className="mt-1 text-[20px] font-bold">
-                  What should appear in {metric}?
-                </h2>
-              </div>
+              <h2 className="text-[20px] font-bold">
+                Track something new in {metric}
+              </h2>
               <button
                 type="button"
                 disabled={generatingMetric}

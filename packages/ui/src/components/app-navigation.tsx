@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ReactNode, Ref } from "react"
 
 import { cn } from "../lib/utils"
 
@@ -20,6 +20,7 @@ export function AppNavigationChrome({
   profile,
   appIconSrc = "/app-icon.svg",
   appName = "OneRep",
+  primaryNavRef,
 }: {
   tabs: NavigationTabView[]
   desktopTabs?: NavigationTabView[]
@@ -30,6 +31,8 @@ export function AppNavigationChrome({
   profile?: ReactNode
   appIconSrc?: string
   appName?: string
+  /** Lets the host highlight the tab bar; it is fixed, so it cannot be wrapped. */
+  primaryNavRef?: Ref<HTMLElement>
 }) {
   return (
     <>
@@ -43,6 +46,7 @@ export function AppNavigationChrome({
         data-route-chrome={chromeState}
       >
         <nav
+          ref={primaryNavRef}
           aria-label="Primary"
           className="mx-auto grid h-[4.25rem] max-w-xl grid-cols-5 px-1"
         >

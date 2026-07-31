@@ -9,9 +9,11 @@ async function deleteFromUserIndex(
   userId: string,
   batchSize: number,
   indexName = "by_userId",
+  // Sharing tables key on ownerUserId / inviteeUserId rather than userId.
+  field = "userId",
 ) {
   const docs = await (ctx.db.query as any)(table)
-    .withIndex(indexName, (q: any) => q.eq("userId", userId))
+    .withIndex(indexName, (q: any) => q.eq(field, userId))
     .take(batchSize);
 
   for (const doc of docs) {
@@ -45,6 +47,17 @@ export async function deleteUserDataBatch(
   const tableSpecs = [
     ["userPreferences", "by_userId"],
     ["recipes", "by_userId"],
+    ["customFoods", "by_userId"],
+    ["mealPrepBatches", "by_userId"],
+    ["fastingSessions", "by_userId"],
+    ["groceryLists", "by_userId"],
+    // Sharing: the account is both an owner and possibly an invitee, and the
+    // comments they wrote on other people's diaries must go too.
+    ["diaryShares", "by_ownerUserId", "ownerUserId"],
+    ["diaryShares", "by_inviteeUserId_and_status", "inviteeUserId"],
+    ["diaryComments", "by_ownerUserId_and_createdAt", "ownerUserId"],
+    ["diaryComments", "by_authorUserId", "authorUserId"],
+    ["diaryCommentReads", "by_userId_and_ownerUserId", "userId"],
     ["recipeRatings", "by_userId_recipeId"],
     ["mealPresets", "by_userId"],
     ["onboardingProfiles", "by_userId"],
@@ -70,13 +83,19 @@ export async function deleteUserDataBatch(
     ["snapUsage", "by_userId_date"],
     ["activeWorkouts", "by_userId"],
     ["exercises", "by_userId"],
+    // Billing records. The store subscription itself lives with Apple, Google,
+    // or Stripe and is unaffected; this only drops our local mirror of it.
+    ["subscriptionStates", "by_userId"],
+    ["billingSubscriptions", "by_userId"],
+    ["billingCheckouts", "by_userId"],
+    ["billingIdentities", "by_userId"],
   ] as const;
 
   let budget = Math.max(1, Math.min(batchSize, 200));
   let deleted = 0;
   let remaining = false;
 
-  for (const [table, indexName] of tableSpecs) {
+  for (const [table, indexName, field] of tableSpecs) {
     if (budget <= 0) {
       remaining = true;
       break;
@@ -89,6 +108,7 @@ export async function deleteUserDataBatch(
       userId,
       limit,
       indexName,
+      field ?? "userId",
     );
     deleted += result.deleted;
     budget -= result.deleted;

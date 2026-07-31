@@ -4,22 +4,12 @@ import { GuidedTooltip } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { hapticMedium } from "@/lib/haptics"
 
+/**
+ * One-off contextual hints that are not part of the guided walkthrough.
+ * Everything else moved into `@/lib/walkthrough/chapters`; kept as an object so
+ * adding another one-off does not reshape the call sites.
+ */
 export const APP_TOOLTIP_IDS = {
-  dashboardLogMeal: 1,
-  dashboardWater: 2,
-  dashboardWorkout: 3,
-  dashboardGoals: 4,
-  profileMobile: 5,
-  profileDesktop: 6,
-  foodsSearch: 20,
-  nutritionAdd: 30,
-  waterQuickAdd: 40,
-  workoutsStart: 50,
-  supplementsCreate: 60,
-  progressCheckIn: 70,
-  coachMessage: 80,
-  coachStarters: 81,
-  coachNewChat: 82,
   settingsTargets: 90,
 } as const
 
@@ -61,7 +51,9 @@ export function AppTooltip({
       side={side}
       align={align}
       onOpenHaptic={hapticMedium}
-      onComplete={() => markCompleted({ tooltipId: id })}
+      onComplete={async () => {
+        await markCompleted({ tooltipId: id })
+      }}
     >
       {children}
     </GuidedTooltip>

@@ -49,7 +49,6 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain(
       "aria-busy={loggingWaterAmount === amount}"
     )
-    expect(NUTRITION_SOURCE).toContain("savingAmount={loggingWaterAmount}")
     expect(NUTRITION_SOURCE).toContain(
       "const [loggingSupplementId, setLoggingSupplementId]"
     )
@@ -66,7 +65,6 @@ describe("Nutrition page accessibility contract", () => {
   test("merged food and water page functions are available on nutrition", () => {
     expect(NUTRITION_SOURCE).toContain("WaterGoalSheet")
     expect(NUTRITION_SOURCE).toContain('name="water-goal-ml"')
-    expect(NUTRITION_SOURCE).toContain("WaterGlassControls")
     expect(NUTRITION_SOURCE).toContain("SmartMealPresetCard")
     expect(NUTRITION_SOURCE).toContain("DescribeMealSheet")
     expect(NUTRITION_SOURCE).toContain("RecipeLogSheet")

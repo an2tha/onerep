@@ -22,9 +22,3 @@ project(':capacitor-share').projectDir = new File('../../../node_modules/.bun/@c
 
 include ':capgo-capacitor-speech-recognition'
 project(':capgo-capacitor-speech-recognition').projectDir = new File('../../../node_modules/.bun/@capgo+capacitor-speech-recognition@8.1.10+767ac80cbab8ae50/node_modules/@capgo/capacitor-speech-recognition/android')
-
-include ':revenuecat-purchases-capacitor'
-project(':revenuecat-purchases-capacitor').projectDir = new File('../../../node_modules/.bun/@revenuecat+purchases-capacitor@13.2.1+767ac80cbab8ae50/node_modules/@revenuecat/purchases-capacitor/android')
-
-include ':revenuecat-purchases-capacitor-ui'
-project(':revenuecat-purchases-capacitor-ui').projectDir = new File('../../../node_modules/.bun/@revenuecat+purchases-capacitor-ui@13.2.1+d6e569917ebbfeaa/node_modules/@revenuecat/purchases-capacitor-ui/android')

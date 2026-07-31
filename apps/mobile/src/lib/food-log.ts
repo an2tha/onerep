@@ -1076,17 +1076,48 @@ export const CUSTOM_CATEGORY_COLORS: Array<{ color: string; bg: string }> =
 
 const CUSTOM_CATEGORIES_KEY = "onerep_custom_meal_categories"
 
-function readCustomCategories(): MealCategory[] {
+export function readCustomCategories(): MealCategory[] {
   try {
     const raw = safeLocalStorageGet(CUSTOM_CATEGORIES_KEY)
-    return raw ? (JSON.parse(raw) as MealCategory[]) : []
+    const parsed = raw ? (JSON.parse(raw) as MealCategory[]) : []
+    return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
   }
 }
 
-function writeCustomCategories(cats: MealCategory[]): void {
+export function writeCustomCategories(cats: MealCategory[]): void {
   safeLocalStorageSet(CUSTOM_CATEGORIES_KEY, JSON.stringify(cats))
+}
+
+/**
+ * Reconciles the local (localStorage) and server (`userPreferences`) copies of
+ * the user's custom meal categories.
+ *
+ * The server copy is authoritative because per-meal calorie targets are
+ * normalised server-side against it — a category the server cannot see would
+ * have its share silently dropped. Local-only categories are kept and pushed
+ * up so nothing a user created before this sync existed is lost.
+ */
+export function mergeCustomMealCategories(
+  local: MealCategory[],
+  server: MealCategory[] | undefined | null
+): { merged: MealCategory[]; needsPush: boolean } {
+  const safeLocal = Array.isArray(local) ? local : []
+  const safeServer = Array.isArray(server) ? server : []
+
+  const merged: MealCategory[] = []
+  const seen = new Set<string>()
+  for (const category of [...safeServer, ...safeLocal]) {
+    if (!category?.id || seen.has(category.id)) continue
+    seen.add(category.id)
+    merged.push(category)
+  }
+
+  const serverIds = new Set(safeServer.map((category) => category.id))
+  const needsPush = merged.some((category) => !serverIds.has(category.id))
+
+  return { merged, needsPush }
 }
 
 export function readAllMealCategories(): MealCategory[] {
