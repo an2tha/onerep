@@ -46,10 +46,23 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
-      # Backend first: the static build below talks to these functions, so
-      # shipping the frontend against an older backend would break the app.
+      # WARNING: this deploys to a Convex PREVIEW deployment, not to the
+      # backend the app actually talks to.
+      #
+      # CONVEX_DEPLOY_KEY is a preview key, and `convex deploy` can only target
+      # prod or preview deployments -- never a dev deployment. The live app
+      # runs on the dev deployment hallowed-llama-854, so nothing here reaches
+      # it. Treat this step as a build-time check that the functions bundle,
+      # typecheck and push cleanly.
+      #
+      # Real backend changes still have to be shipped by hand:
+      #   bunx convex dev --once
+      #
+      # To make this step actually deploy the live backend, the app has to move
+      # to the prod deployment (chatty-panda-144) and use a production deploy
+      # key -- that means migrating user data and the Better Auth tables.
       - type: CommandStep
-        name: Deploy Convex functions
+        name: Verify Convex functions (preview deploy)
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
@@ -57,7 +70,7 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bunx convex deploy --yes
+            bunx convex deploy --yes --preview-name main
         runAs: 0:0
         envVars:
           # Deploy key for the deployment that actually serves the live app.
