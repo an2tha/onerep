@@ -2,8 +2,16 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, query, type ActionCtx } from "../_generated/server";
 import { safeGetAuthUser } from "../lib/auth";
+import { hasActiveProEntitlement } from "../billing/entitlement";
 
-export const AI_MONTHLY_REQUEST_LIMIT = 150;
+/** Monthly AI requests included without a OneRep Pro subscription. */
+export const AI_FREE_MONTHLY_REQUEST_LIMIT = 10;
+/** Monthly AI requests included with OneRep Pro. */
+export const AI_PRO_MONTHLY_REQUEST_LIMIT = 500;
+
+export function aiMonthlyRequestLimit(isPro: boolean) {
+  return isPro ? AI_PRO_MONTHLY_REQUEST_LIMIT : AI_FREE_MONTHLY_REQUEST_LIMIT;
+}
 
 const AI_USAGE_SOURCES = [
   "progress_metrics",
@@ -19,6 +27,9 @@ export type AiUsageQuota = {
   remaining: number;
   limit: number;
   month: string;
+  isPro: boolean;
+  /** Advertised so clients can show the upgrade value without hardcoding it. */
+  proLimit: number;
 };
 
 function utcMonthKey(date = new Date()) {
@@ -33,25 +44,33 @@ export const getMonthlyUsage = query({
     if (!user) {
       return {
         count: 0,
-        remaining: AI_MONTHLY_REQUEST_LIMIT,
-        limit: AI_MONTHLY_REQUEST_LIMIT,
+        remaining: AI_FREE_MONTHLY_REQUEST_LIMIT,
+        limit: AI_FREE_MONTHLY_REQUEST_LIMIT,
         month,
+        isPro: false,
+        proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
       };
     }
 
-    const existing = await ctx.db
-      .query("aiUsage")
-      .withIndex("by_userId_month", (q) =>
-        q.eq("userId", user._id).eq("month", month),
-      )
-      .unique();
+    const [existing, isPro] = await Promise.all([
+      ctx.db
+        .query("aiUsage")
+        .withIndex("by_userId_month", (q) =>
+          q.eq("userId", user._id).eq("month", month),
+        )
+        .unique(),
+      hasActiveProEntitlement(ctx, user._id),
+    ]);
     const count = existing?.count ?? 0;
+    const limit = aiMonthlyRequestLimit(isPro);
 
     return {
       count,
-      remaining: Math.max(0, AI_MONTHLY_REQUEST_LIMIT - count),
-      limit: AI_MONTHLY_REQUEST_LIMIT,
+      remaining: Math.max(0, limit - count),
+      limit,
       month,
+      isPro,
+      proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
     };
   },
 });
@@ -67,20 +86,26 @@ export const consumeMonthlyQuota = internalMutation({
   },
   handler: async (ctx, args): Promise<AiUsageQuota> => {
     const month = utcMonthKey();
-    const existing = await ctx.db
-      .query("aiUsage")
-      .withIndex("by_userId_month", (q) =>
-        q.eq("userId", args.userId).eq("month", month),
-      )
-      .unique();
+    const [existing, isPro] = await Promise.all([
+      ctx.db
+        .query("aiUsage")
+        .withIndex("by_userId_month", (q) =>
+          q.eq("userId", args.userId).eq("month", month),
+        )
+        .unique(),
+      hasActiveProEntitlement(ctx, args.userId),
+    ]);
+    const limit = aiMonthlyRequestLimit(isPro);
 
-    if (existing && existing.count >= AI_MONTHLY_REQUEST_LIMIT) {
+    if (existing && existing.count >= limit) {
       return {
         allowed: false,
         count: existing.count,
         remaining: 0,
-        limit: AI_MONTHLY_REQUEST_LIMIT,
+        limit,
         month,
+        isPro,
+        proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
       };
     }
 
@@ -105,10 +130,77 @@ export const consumeMonthlyQuota = internalMutation({
     return {
       allowed: true,
       count: nextCount,
-      remaining: Math.max(0, AI_MONTHLY_REQUEST_LIMIT - nextCount),
-      limit: AI_MONTHLY_REQUEST_LIMIT,
+      remaining: Math.max(0, limit - nextCount),
+      limit,
       month,
+      isPro,
+      proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
     };
+  },
+});
+
+const USAGE_RESET_MIGRATION = "aiUsage:reset-for-tiered-limits";
+const USAGE_RESET_BATCH_SIZE = 100;
+
+/**
+ * Clears every account's current AI usage counter exactly once.
+ *
+ * The monthly limit moved from a flat 150 to 10 free / 500 Pro. Without this,
+ * a free user who had already spent more than 10 requests this month would be
+ * locked out the moment the new limits deployed, through no action of theirs.
+ *
+ * Guarded by a marker row, so re-running it is a no-op rather than a way to
+ * hand everyone a fresh allowance mid-month.
+ */
+export const resetMonthlyUsageOnce = internalMutation({
+  args: {
+    force: v.optional(v.boolean()),
+    clearedSoFar: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const marker = await ctx.db
+      .query("migrationRuns")
+      .withIndex("by_name", (q) => q.eq("name", USAGE_RESET_MIGRATION))
+      .unique();
+
+    if (marker && !args.force) {
+      return {
+        alreadyRan: true,
+        ranAt: marker.ranAt,
+        cleared: 0,
+      };
+    }
+
+    const rows = await ctx.db.query("aiUsage").take(USAGE_RESET_BATCH_SIZE);
+    for (const row of rows) await ctx.db.delete(row._id);
+
+    const cleared = (args.clearedSoFar ?? 0) + rows.length;
+    if (rows.length === USAGE_RESET_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.ai.usage.resetMonthlyUsageOnce, {
+        force: args.force,
+        clearedSoFar: cleared,
+      });
+      return {
+        alreadyRan: false,
+        ranAt: null,
+        cleared,
+        continuing: true,
+      };
+    }
+
+    const ranAt = Date.now();
+    const detail = `Cleared ${cleared} aiUsage rows`;
+    if (marker) {
+      await ctx.db.patch(marker._id, { ranAt, detail });
+    } else {
+      await ctx.db.insert("migrationRuns", {
+        name: USAGE_RESET_MIGRATION,
+        ranAt,
+        detail,
+      });
+    }
+
+    return { alreadyRan: false, ranAt, cleared, continuing: false };
   },
 });
 
@@ -124,7 +216,9 @@ export async function consumeAiUsageOrThrow(
 
   if (!quota.allowed) {
     throw new Error(
-      `Monthly AI request limit reached (${quota.limit}/month). Try again next month.`,
+      quota.isPro
+        ? `Monthly AI request limit reached (${quota.limit}/month). Try again next month.`
+        : `Monthly AI request limit reached (${quota.limit}/month on the free plan). Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, or try again next month.`,
     );
   }
 

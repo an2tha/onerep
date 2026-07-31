@@ -46,11 +46,11 @@
     "better-auth": "1.6.23",
     "cli-progress": "^3.12.0",
     "convex": "^1.39.1",
-    "convex-revenuecat": "^0.3.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "helmet": "^8.1.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "stripe": "^22.4.0"
   },
   "overrides": {
     "@protobufjs/utf8": "^1.1.1",

@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const coach = readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8")
+const coach = [
+  readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../lib/coach-chat.tsx", import.meta.url), "utf8"),
+].join("\n")
 
 describe("Coach thinking feedback", () => {
   test("cycles through varied progress messages", () => {

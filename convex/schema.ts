@@ -1,5 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { billingPlatform, billingState } from "./billing/types";
+import { nutrientProfileValidator } from "./lib/nutritionValues";
 
 export default defineSchema({
   // ── User preferences (settings) ───────────────────────────────────────────
@@ -43,12 +45,32 @@ export default defineSchema({
     weightUnit: v.optional(v.string()), // "kg" | "lbs"
     foodSearchLanguage: v.optional(v.string()), // Open Food Facts language code, e.g. "en"
     waterGoalMl: v.optional(v.number()),
+    /** Display carbs as net (carbs − fiber) everywhere. Purely presentational. */
+    netCarbsEnabled: v.optional(v.boolean()),
     customGoals: v.optional(
       v.object({
         calories: v.optional(v.number()),
         protein: v.optional(v.number()),
         carbs: v.optional(v.number()),
         fat: v.optional(v.number()),
+      }),
+    ),
+    /**
+     * Per-meal calorie budget as percentages of the day's effective calories.
+     * Keyed by meal-category id, so an array rather than a fixed-key object.
+     */
+    mealCalorieTargets: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        shares: v.array(
+          v.object({
+            meal: v.string(),
+            percent: v.number(),
+            // Reserved for a future absolute per-meal override.
+            calories: v.optional(v.number()),
+          }),
+        ),
+        updatedAt: v.number(),
       }),
     ),
     macroCyclingEnabled: v.optional(v.boolean()),
@@ -207,6 +229,171 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_meal_and_signature", ["userId", "meal", "signature"]),
+
+  // ── Custom foods (user-authored food catalog, independent of any log) ─────
+  customFoods: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    brand: v.optional(v.string()),
+    servingLabel: v.string(), // e.g. "1 scoop", "100 g"
+    servingGrams: v.optional(v.number()),
+    barcode: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    favorite: v.optional(v.boolean()),
+    nutrientsPerServing: nutrientProfileValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_name", ["userId", "name"])
+    .index("by_userId_and_barcode", ["userId", "barcode"]),
+
+  // ── Meal prep batches (cook once, log servings across the week) ───────────
+  mealPrepBatches: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    meal: v.optional(v.string()), // default meal slot when logging a serving
+    notes: v.optional(v.string()),
+    preppedOn: v.string(), // YYYY-MM-DD
+    useByOn: v.optional(v.string()), // YYYY-MM-DD
+    storage: v.optional(
+      v.union(v.literal("fridge"), v.literal("freezer"), v.literal("pantry")),
+    ),
+    servingsTotal: v.number(),
+    servingsLogged: v.number(),
+    nutrientsPerServing: nutrientProfileValidator,
+    sourceRecipeId: v.optional(v.string()),
+    archivedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_preppedOn", ["userId", "preppedOn"]),
+
+  // ── Intermittent fasting ───────────────────────────────────────────────────
+  fastingSessions: defineTable({
+    userId: v.string(),
+    startedAt: v.number(), // epoch ms
+    endedAt: v.optional(v.number()), // absent => the fast is still running
+    targetMinutes: v.number(),
+    protocol: v.string(), // "16:8" | "18:6" | "20:4" | "omad" | "custom"
+    startDate: v.string(), // local YYYY-MM-DD, for calendar grouping
+    endDate: v.optional(v.string()),
+    note: v.optional(v.string()),
+    endedEarly: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_startedAt", ["userId", "startedAt"])
+    // Lets the active-fast lookup be a single indexed read on endedAt === undefined.
+    .index("by_userId_endedAt", ["userId", "endedAt"]),
+
+  // ── Grocery lists ──────────────────────────────────────────────────────────
+  groceryLists: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    sourceRecipeIds: v.optional(v.array(v.string())),
+    sourceBatchIds: v.optional(v.array(v.string())),
+    // Embedded like foodLogs.entries: a list is always read whole, and a
+    // checkbox toggle stays a single patch.
+    items: v.array(
+      v.object({
+        id: v.string(), // client-generated, retry-safe
+        name: v.string(),
+        key: v.string(), // normalized merge key
+        grams: v.optional(v.number()),
+        displayAmount: v.optional(v.number()),
+        displayUnit: v.optional(v.string()),
+        category: v.optional(v.string()), // aisle
+        checked: v.boolean(),
+        manual: v.optional(v.boolean()),
+        sources: v.optional(v.array(v.string())),
+      }),
+    ),
+    archivedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_updatedAt", ["userId", "updatedAt"]),
+
+  // ── Diary sharing ──────────────────────────────────────────────────────────
+  diaryShares: defineTable({
+    ownerUserId: v.string(),
+    ownerEmail: v.optional(v.string()),
+    ownerName: v.optional(v.string()),
+    inviteeEmail: v.string(), // lowercased + trimmed at write time
+    inviteeUserId: v.optional(v.string()), // filled in on accept
+    inviteeName: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("revoked"),
+      v.literal("declined"),
+    ),
+    scope: v.object({
+      diary: v.boolean(),
+      report: v.boolean(),
+      comments: v.boolean(),
+    }),
+    startDate: v.optional(v.string()), // absent = unbounded
+    endDate: v.optional(v.string()),
+    token: v.string(), // opaque invite token
+    invitedAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  })
+    .index("by_ownerUserId", ["ownerUserId"])
+    .index("by_inviteeEmail_and_status", ["inviteeEmail", "status"])
+    .index("by_inviteeUserId_and_status", ["inviteeUserId", "status"])
+    .index("by_token", ["token"]),
+
+  diaryComments: defineTable({
+    ownerUserId: v.string(),
+    // Optional so the diary owner can reply without granting themselves a share.
+    shareId: v.optional(v.id("diaryShares")),
+    authorUserId: v.string(),
+    authorName: v.optional(v.string()),
+    authorRole: v.union(v.literal("owner"), v.literal("viewer")),
+    date: v.string(), // YYYY-MM-DD
+    entryId: v.optional(v.string()), // set when commenting on one food entry
+    body: v.string(),
+    editedAt: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_ownerUserId_and_date", ["ownerUserId", "date"])
+    .index("by_ownerUserId_and_createdAt", ["ownerUserId", "createdAt"])
+    .index("by_authorUserId", ["authorUserId"]),
+
+  diaryCommentReads: defineTable({
+    userId: v.string(),
+    ownerUserId: v.string(),
+    lastReadAt: v.number(),
+  }).index("by_userId_and_ownerUserId", ["userId", "ownerUserId"]),
+
+  // ── Guided walkthrough progress ────────────────────────────────────────────
+  // One row per (user, chapter). Kept off onboardingProfiles deliberately: the
+  // walkthrough must work for users who have no profile row yet, and per-chapter
+  // rows keep two chapters from contending on the same document.
+  walkthroughProgress: defineTable({
+    userId: v.string(),
+    chapterId: v.string(),
+    status: v.union(
+      v.literal("in_progress"),
+      v.literal("completed"),
+      v.literal("skipped"),
+    ),
+    stepIndex: v.number(), // last shown step, 0-based
+    version: v.number(), // chapter.version at write time
+    startedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_chapter", ["userId", "chapterId"]),
 
   // ── Onboarding profile (lightweight initial setup) ─────────────────────────
   onboardingProfiles: defineTable({
@@ -782,6 +969,13 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_month", ["userId", "month"]),
 
+  // ── One-time maintenance markers, so a backfill cannot run twice ──────────
+  migrationRuns: defineTable({
+    name: v.string(),
+    ranAt: v.number(),
+    detail: v.optional(v.string()),
+  }).index("by_name", ["name"]),
+
   // ── Food photo analysis quota ─────────────────────────────────────────────
   snapUsage: defineTable({
     userId: v.string(),
@@ -790,7 +984,9 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_date", ["userId", "date"]),
 
-  // ── Subscription status (server-owned RevenueCat cache) ──────────────────
+  // ── Subscription status (server-owned per-user entitlement rollup) ───────
+  // Derived from `billingSubscriptions`. Legacy source variants remain in the
+  // validator so existing production documents continue to validate.
   subscriptionStates: defineTable({
     userId: v.string(),
     appUserId: v.string(),
@@ -807,10 +1003,106 @@ export default defineSchema({
       v.literal("revenuecat_api"),
       v.literal("revenuecat_webhook"),
       v.literal("manual"),
+      v.literal("apple_api"),
+      v.literal("apple_notification"),
+      v.literal("google_api"),
+      v.literal("google_rtdn"),
+      v.literal("stripe_api"),
+      v.literal("stripe_webhook"),
     ),
+    platform: v.optional(billingPlatform),
+    // Richer than `isActive`, which stays derived from it.
+    state: v.optional(billingState),
+    autoRenew: v.optional(v.boolean()),
+    gracePeriodExpiresAt: v.optional(v.number()),
+    revalidateAfter: v.optional(v.number()),
     fetchedAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_userId", ["userId"]),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_revalidateAfter", ["revalidateAfter"]),
+
+  // ── Platform subscriptions (one row per store subscription identity) ─────
+  // Intentionally 1:N per user: the same person can hold an Apple sub and a
+  // Stripe sub, which is what makes cross-platform linking fall out for free.
+  billingSubscriptions: defineTable({
+    userId: v.string(),
+    platform: billingPlatform,
+    // Apple `originalTransactionId` / Google `purchaseToken` / Stripe `sub_…`.
+    platformSubscriptionId: v.string(),
+    platformCustomerId: v.optional(v.string()),
+    productId: v.string(),
+    state: billingState,
+    autoRenew: v.boolean(),
+    expiresAt: v.number(),
+    gracePeriodExpiresAt: v.optional(v.number()),
+    environment: v.union(v.literal("production"), v.literal("sandbox")),
+    // Retained on rows imported from the previous provider.
+    originRevenueCat: v.optional(v.boolean()),
+    grandfatheredUntil: v.optional(v.number()),
+    // Monotonicity guard: the platform's own timestamp for the latest state we
+    // stored, so out-of-order webhook delivery can be ignored.
+    sourceUpdatedAt: v.optional(v.number()),
+    revalidateAfter: v.optional(v.number()),
+    latestRaw: v.optional(v.any()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_platform_and_platformSubscriptionId", [
+      "platform",
+      "platformSubscriptionId",
+    ])
+    .index("by_userId", ["userId"])
+    .index("by_platform_and_platformCustomerId", [
+      "platform",
+      "platformCustomerId",
+    ])
+    .index("by_revalidateAfter", ["revalidateAfter"]),
+
+  // ── Inbound store notifications (idempotency + audit trail) ──────────────
+  billingEvents: defineTable({
+    platform: v.string(),
+    // Apple `notificationUUID` / Pub/Sub `messageId` / Stripe `evt_…`.
+    eventId: v.string(),
+    eventType: v.string(),
+    platformSubscriptionId: v.optional(v.string()),
+    signedAt: v.optional(v.number()),
+    processedAt: v.number(),
+    status: v.union(
+      v.literal("received"),
+      v.literal("processed"),
+      v.literal("ignored"),
+      v.literal("failed"),
+    ),
+    error: v.optional(v.string()),
+    raw: v.optional(v.any()),
+  })
+    .index("by_platform_and_eventId", ["platform", "eventId"])
+    .index("by_processedAt", ["processedAt"]),
+
+  // ── Store-facing account identifiers ─────────────────────────────────────
+  // StoreKit's `appAccountToken` must be a UUID, so we mint a stable one per
+  // user and keep the reverse mapping here. Play's `obfuscatedAccountId` and
+  // Stripe's `client_reference_id` reuse the same value for consistency.
+  billingIdentities: defineTable({
+    userId: v.string(),
+    appAccountToken: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_appAccountToken", ["appAccountToken"]),
+
+  // ── Stripe Checkout sessions (session → user attribution) ────────────────
+  billingCheckouts: defineTable({
+    userId: v.string(),
+    sessionId: v.string(),
+    stripeCustomerId: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_userId", ["userId"])
+    .index("by_stripeCustomerId", ["stripeCustomerId"]),
 
   // ── Active workout (persisted during workout to prevent data loss on mobile) ──
   activeWorkouts: defineTable({

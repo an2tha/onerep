@@ -52,6 +52,9 @@ const MUTATION_REGISTRY = {
   "users.users.setFoodSearchLanguage": api.users.users.setFoodSearchLanguage,
   "users.users.setDashboardSettings": api.users.users.setDashboardSettings,
   "users.users.setCustomGoals": api.users.users.setCustomGoals,
+  "users.users.setNetCarbsEnabled": api.users.users.setNetCarbsEnabled,
+  "users.users.setMealCalorieTargets": api.users.users.setMealCalorieTargets,
+  "users.users.setCustomMealCategories": api.users.users.setCustomMealCategories,
   "users.users.setMacroCycling": api.users.users.setMacroCycling,
   "users.users.setWorkoutAdjustment": api.users.users.setWorkoutAdjustment,
   "users.users.setWidgetLayout": api.users.users.setWidgetLayout,
@@ -62,6 +65,35 @@ const MUTATION_REGISTRY = {
   "logs.presets.remove": api.logs.presets.remove,
   "logs.mealPresets.create": api.logs.mealPresets.create,
   "logs.mealPresets.remove": api.logs.mealPresets.remove,
+  "logs.customFoods.save": api.logs.customFoods.save,
+  "logs.customFoods.remove": api.logs.customFoods.remove,
+  "logs.customFoods.markUsed": api.logs.customFoods.markUsed,
+  "sharing.diaryShares.invite": api.sharing.diaryShares.invite,
+  "sharing.diaryShares.updateScope": api.sharing.diaryShares.updateScope,
+  "sharing.diaryShares.revoke": api.sharing.diaryShares.revoke,
+  "sharing.diaryShares.acceptInvite": api.sharing.diaryShares.acceptInvite,
+  "sharing.diaryShares.declineInvite": api.sharing.diaryShares.declineInvite,
+  "sharing.diaryShares.leaveShare": api.sharing.diaryShares.leaveShare,
+  "sharing.diaryComments.add": api.sharing.diaryComments.add,
+  "sharing.diaryComments.edit": api.sharing.diaryComments.edit,
+  "sharing.diaryComments.remove": api.sharing.diaryComments.remove,
+  "sharing.diaryComments.markRead": api.sharing.diaryComments.markRead,
+  "logs.groceryLists.save": api.logs.groceryLists.save,
+  "logs.groceryLists.setItemChecked": api.logs.groceryLists.setItemChecked,
+  "logs.groceryLists.setAllChecked": api.logs.groceryLists.setAllChecked,
+  "logs.groceryLists.addItem": api.logs.groceryLists.addItem,
+  "logs.groceryLists.removeItem": api.logs.groceryLists.removeItem,
+  "logs.groceryLists.clearChecked": api.logs.groceryLists.clearChecked,
+  "logs.groceryLists.setArchived": api.logs.groceryLists.setArchived,
+  "logs.groceryLists.remove": api.logs.groceryLists.remove,
+  "logs.fasting.start": api.logs.fasting.start,
+  "logs.fasting.stop": api.logs.fasting.stop,
+  "logs.fasting.update": api.logs.fasting.update,
+  "logs.fasting.remove": api.logs.fasting.remove,
+  "logs.mealPrep.save": api.logs.mealPrep.save,
+  "logs.mealPrep.consume": api.logs.mealPrep.consume,
+  "logs.mealPrep.setArchived": api.logs.mealPrep.setArchived,
+  "logs.mealPrep.remove": api.logs.mealPrep.remove,
   "logs.recipes.save": api.logs.recipes.save,
   "logs.recipes.remove": api.logs.recipes.remove,
 } as const
@@ -75,6 +107,9 @@ const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([
   "users.users.setFoodSearchLanguage",
   "users.users.setDashboardSettings",
   "users.users.setCustomGoals",
+  "users.users.setNetCarbsEnabled",
+  "users.users.setMealCalorieTargets",
+  "users.users.setCustomMealCategories",
   "users.users.setMacroCycling",
   "users.users.setWorkoutAdjustment",
   "users.users.setWidgetLayout",
@@ -230,6 +265,20 @@ export function isOfflineLikeError(error: unknown) {
   )
 }
 
+/**
+ * Errors a retry can never fix.
+ *
+ * A queued comment can flush after the diary share was revoked, and a queued
+ * edit can flush after the row was deleted. Retrying either forever would jam
+ * every later job behind it, so these are dropped instead.
+ */
+export function isNonRetryableError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error)
+  return /no access to this diary|not found or access denied|access denied/i.test(
+    message
+  )
+}
+
 export async function flushOfflineQueue() {
   if (flushing || !hasStorage())
     return { flushed: 0, remaining: readOfflineQueue().length }
@@ -260,6 +309,13 @@ export async function flushOfflineQueue() {
         await convexClient.mutation(mutation, job.args as never)
         flushed += 1
       } catch (error) {
+        // A permission that has since been revoked will never succeed on a
+        // retry. Keeping the job would leave the queue jammed forever.
+        if (isNonRetryableError(error)) {
+          flushed += 1
+          continue
+        }
+
         remaining.push({
           ...job,
           attempts: job.attempts + 1,

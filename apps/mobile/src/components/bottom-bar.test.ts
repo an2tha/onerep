@@ -82,7 +82,8 @@ describe("bottom bar accessibility contract", () => {
   test("settings stays out of the primary tabs and remains in the desktop profile area", () => {
     expect(SOURCE).not.toContain('{ path: "/settings", Icon:')
     expect(SOURCE).toContain('aria-label="Open profile and settings"')
-    expect(SOURCE).toContain("APP_TOOLTIP_IDS.profileDesktop")
+    // The walkthrough points here instead of a standalone tooltip.
+    expect(SOURCE).toContain('anchor="today-profile"')
     expect(SOURCE).toContain("Profile & settings")
   })
 })

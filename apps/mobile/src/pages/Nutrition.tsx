@@ -5,6 +5,7 @@ import {
   Aperture,
   Barcode,
   BookBookmark,
+  BowlFood,
   CaretDown,
   CaretRight,
   CheckCircle,
@@ -14,7 +15,10 @@ import {
   Pill,
   PintGlass,
   Plus,
+  Printer,
+  ShoppingCart,
   Sparkle,
+  Timer,
   Trash,
   X,
 } from "@phosphor-icons/react"
@@ -24,10 +28,9 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { StatRow, SummaryBlock } from "@repo/ui"
-import { AppTooltip, APP_TOOLTIP_IDS } from "@/components/tooltips"
+import { SummaryBlock } from "@repo/ui"
+import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
-import { AnimatedAccordion } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -38,6 +41,7 @@ import {
   defaultMeal,
   findSmartMealPresetSuggestion,
   foodLogEntriesFromMealPreset,
+  mealLabel,
   nutritionDetailTotals,
   offsetDateKey,
   stripUndefined,
@@ -51,17 +55,20 @@ import {
 } from "@/lib/food-log"
 import type { NutritionPlan } from "@/lib/health-goals"
 import {
+  carbLabel,
+  displayCarbGoal,
+  netCarbs,
+  type CarbDisplayMode,
+} from "@/lib/carb-display"
+import { mealTargetProgress } from "@/lib/meal-targets"
+import { formatFastDuration } from "@/lib/fasting"
+import { useFastTimer } from "@/lib/use-fast-timer"
+import {
   buildSupplementDayPlan,
   type SupplementDayPlanItem,
   type SupplementIntakeLog,
   type SupplementItem,
 } from "@/lib/supplements"
-import {
-  filledWaterGlassCount,
-  waterAmountNeededForGlass,
-  WATER_GLASS_COUNT,
-  waterGlassTargetMl,
-} from "@/lib/water-glasses"
 import { APP_ACCENT_COLORS, MACRO_COLORS, MICRO_COLORS } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
@@ -101,7 +108,7 @@ type GoalOverride = {
 
 type GoalField = keyof GoalOverride
 
-const QUICK_WATER = [250, 500, 750]
+const QUICK_WATER = [250]
 const GOAL_FIELDS: {
   key: GoalField
   label: string
@@ -317,6 +324,7 @@ function ProgressLine({
   target,
   suffix,
   color,
+  format,
   animateChanges = false,
   rainKey = 0,
 }: {
@@ -325,9 +333,11 @@ function ProgressLine({
   target: number
   suffix: string
   color: string
+  format?: (n: number) => string
   animateChanges?: boolean
   rainKey?: number
 }) {
+  const display = (n: number) => (format ? format(n) : fmt(n))
   return (
     <div className="relative overflow-hidden">
       {rainKey > 0 && (
@@ -353,13 +363,18 @@ function ProgressLine({
             animateChanges && "motion-number-refresh"
           )}
         >
-          {fmt(value)} / {fmt(target)} {suffix}
+          {display(value)}
+          <span className="font-medium text-muted-foreground">
+            {" "}
+            / {display(target)}
+            {format ? "" : ` ${suffix}`}
+          </span>
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
         <div
           className={cn(
-            "h-full rounded-full",
+            "h-full rounded-full transition-[width] duration-500 ease-out",
             animateChanges && "water-progress-refresh"
           )}
           style={{ width: `${pct(value, target)}%`, backgroundColor: color }}
@@ -401,16 +416,7 @@ function MicroBreakdown({
         className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={open}
       >
-        <span className="min-w-0">
-          <span className="block text-[15px] font-semibold">
-            Micronutrients
-          </span>
-          <span className="mt-0.5 block truncate text-[13px] text-muted-foreground">
-            {loggedCount > 0
-              ? `${loggedCount} nutrients with logged detail`
-              : "No micronutrients logged yet"}
-          </span>
-        </span>
+        <span className="text-[15px] font-semibold">Micronutrients</span>
         <span className="flex items-center gap-2">
           {highlights.length > 0 && (
             <span className="hidden max-w-[11rem] truncate text-[13px] font-medium text-muted-foreground tabular-nums min-[390px]:block">
@@ -441,7 +447,7 @@ function MicroBreakdown({
         <div className="overflow-hidden">
           {loggedCount === 0 ? (
             <p className="border-t border-border py-3 text-[14px] leading-5 text-muted-foreground">
-              Micros appear when logged foods include nutrition details.
+              Nothing logged yet.
             </p>
           ) : (
             <div className="divide-y divide-border border-t border-border">
@@ -468,23 +474,24 @@ function MicroBreakdown({
                       </span>
                       <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                         {fmtMicro(row.value, row.unit)}
+                        {row.target && (
+                          <span className="font-medium text-muted-foreground">
+                            {" "}
+                            / {fmtMicro(row.target, row.unit)}
+                          </span>
+                        )}
                       </span>
                     </div>
                     {row.target && (
-                      <>
-                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
-                          <div
-                            className="h-full rounded-full"
-                            style={{
-                              width: `${progress}%`,
-                              backgroundColor: row.color,
-                            }}
-                          />
-                        </div>
-                        <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
-                          target {fmtMicro(row.target, row.unit)}
-                        </p>
-                      </>
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
+                        <div
+                          className="h-full rounded-full transition-[width] duration-500 ease-out"
+                          style={{
+                            width: `${progress}%`,
+                            backgroundColor: row.color,
+                          }}
+                        />
+                      </div>
                     )}
                   </div>
                 )
@@ -523,9 +530,6 @@ function CustomWaterSheet({
     >
       <div className="px-5 pt-1 pb-4">
         <p className="text-[17px] font-bold">Custom water</p>
-        <p className="mt-1 text-[13px] text-muted-foreground">
-          Save any amount to today’s hydration log.
-        </p>
         <div className="mt-4 flex items-center justify-between rounded-[1rem] bg-muted/35 p-1">
           <button
             type="button"
@@ -673,85 +677,80 @@ function WaterGoalSheet({
   )
 }
 
-function WaterGlassControls({
-  totalMl,
-  goalMl,
+/**
+ * Per-meal calorie budget.
+ *
+ * The food list on this page is flat rather than grouped into meal sections,
+ * so the budget renders as its own panel instead of as per-section headers.
+ */
+function MealBudgetPanel({
   entries,
-  onAdd,
-  onRemoveLast,
-  savingAmount,
+  targets,
 }: {
-  totalMl: number
-  goalMl: number
-  entries: WaterLogEntry[]
-  onAdd: (amountMl: number) => void
-  onRemoveLast: () => void
-  savingAmount: number | null
+  entries: FoodLogEntry[]
+  targets: { meal: string; percent: number; calories: number }[]
 }) {
-  const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
-  const filledCount = filledWaterGlassCount(totalMl, goalMl)
-  const previousFilledCount = useRef(filledCount)
-  const newlyFilledFrom = previousFilledCount.current
+  const consumedByMeal = useMemo(() => {
+    const totals = new Map<string, number>()
+    for (const entry of entries) {
+      const meal = entry.meal || "other"
+      const calories =
+        Number.isFinite(entry.calories) && entry.calories > 0
+          ? entry.calories
+          : 0
+      totals.set(meal, (totals.get(meal) ?? 0) + calories)
+    }
+    return totals
+  }, [entries])
 
-  useEffect(() => {
-    previousFilledCount.current = filledCount
-  }, [filledCount])
-  const previewFilledCount =
-    hoveredGlass === null
-      ? filledCount
-      : Math.max(filledCount, hoveredGlass + 1)
-
-  function fillToGlass(index: number) {
-    onAdd(waterAmountNeededForGlass(totalMl, goalMl, index + 1))
-  }
+  // A meal with neither a budget nor anything logged is noise; hide it.
+  const rows = targets.filter(
+    (target) =>
+      target.calories > 0 || (consumedByMeal.get(target.meal) ?? 0) > 0
+  )
+  if (rows.length === 0) return null
 
   return (
-    <div
-      className="mt-4 grid grid-cols-4 gap-2 short-phone:gap-1.5"
-      onPointerLeave={() => setHoveredGlass(null)}
-    >
-      {Array.from({ length: WATER_GLASS_COUNT }, (_, index) => {
-        const filled = index < filledCount
-        const previewFilled = index < previewFilledCount
-        return (
-          <button
-            key={index}
-            type="button"
-            disabled={savingAmount !== null}
-            onClick={
-              filled && entries.length > 0
-                ? onRemoveLast
-                : () => fillToGlass(index)
-            }
-            onPointerEnter={() => setHoveredGlass(index)}
-            onFocus={() => setHoveredGlass(index)}
-            onBlur={() => setHoveredGlass(null)}
-            className={cn(
-              "motion-tactile flex items-center justify-center rounded-[10px] py-2.5 transition-all disabled:opacity-50 short-phone:py-2",
-              previewFilled ? "" : "bg-muted/25",
-              filled && index >= newlyFilledFrom && "water-glass-filled-in"
-            )}
-            style={
-              previewFilled
-                ? { backgroundColor: APP_ACCENT_COLORS.water }
-                : undefined
-            }
-            aria-label={
-              filled
-                ? "Remove last water entry"
-                : `Fill to ${fmtWater(waterGlassTargetMl(goalMl, index + 1))}`
-            }
-          >
-            <PintGlass
-              size={22}
-              weight={previewFilled ? "fill" : "regular"}
-              className={
-                previewFilled ? "text-background" : "text-muted-foreground/20"
-              }
-            />
-          </button>
-        )
-      })}
+    <div>
+      <p className="app-section-title mb-2">Calories by meal</p>
+      <div
+        className="divide-y divide-border border-y border-border"
+        aria-label="Calories by meal"
+      >
+        {rows.map((target) => {
+          const consumed = Math.round(consumedByMeal.get(target.meal) ?? 0)
+          const { ratio, state } = mealTargetProgress(consumed, target.calories)
+          return (
+            <div key={target.meal} className="px-1 py-2.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="native-row-title">
+                  {mealLabel(target.meal)}
+                </span>
+                <span
+                  className="native-row-detail tabular-nums"
+                  aria-label={`${mealLabel(target.meal)}: ${consumed} of ${
+                    target.calories
+                  } kcal`}
+                >
+                  {consumed} / {target.calories} kcal
+                </span>
+              </div>
+              <div
+                className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted"
+                role="presentation"
+              >
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-[width] duration-300",
+                    state === "over" ? "bg-destructive" : "bg-foreground"
+                  )}
+                  style={{ width: `${Math.min(100, ratio * 100)}%` }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -760,10 +759,12 @@ function GoalsCardWrapper({
   goals,
   apiGoals,
   onSave,
+  carbMode,
 }: {
   goals: GoalOverride
   apiGoals: GoalOverride | null
   onSave: (goals: GoalOverride) => void | Promise<void>
+  carbMode: CarbDisplayMode
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<GoalOverride>(goals)
@@ -788,13 +789,15 @@ function GoalsCardWrapper({
         className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={editing}
       >
-        <span>
-          <span className="block text-[15px] font-semibold">Daily goals</span>
-          <span className="mt-0.5 block text-[13px] text-muted-foreground">
-            Edit persistent calorie and macro targets.
-          </span>
-        </span>
-        <PencilSimple size={16} className="text-muted-foreground" />
+        <span className="text-[15px] font-semibold">Daily goals</span>
+        <CaretDown
+          size={13}
+          weight="bold"
+          className={cn(
+            "text-muted-foreground transition-transform",
+            editing && "rotate-180"
+          )}
+        />
       </button>
 
       <div
@@ -855,6 +858,12 @@ function GoalsCardWrapper({
               </div>
             ))}
           </div>
+          {carbMode === "net" && (
+            <p className="mt-2 text-[12px] text-muted-foreground">
+              Carbs is your total-carb goal. Net carbs display subtracts your
+              fiber target from it.
+            </p>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
@@ -1452,6 +1461,7 @@ function SupplementRow({
 
 export default function Nutrition() {
   const navigate = useSmoothNavigate()
+  const nutritionHeaderRef = useTourAnchor("nutrition-header")
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
   const [microsOpen, setMicrosOpen] = useState(false)
@@ -1491,6 +1501,11 @@ export default function Nutrition() {
   useBottomBarAction(() => setAddOpen(true))
 
   const preferences = useQuery(api.users.users.getPreferences, {})
+  // Derived from the preferences we already subscribe to, rather than
+  // useCarbDisplayMode(), to avoid a second subscription on this page.
+  const carbMode: CarbDisplayMode = preferences?.netCarbsEnabled
+    ? "net"
+    : "total"
   const timeZone = preferences?.lastActiveTimezone || "UTC"
   const todayKey = currentDateKey(timeZone)
   const [dateKey, setDateKey] = useState(todayKey)
@@ -1643,6 +1658,26 @@ export default function Nutrition() {
     () =>
       combineMicronutrientTotals(foodMicroTotals, supplementNutritionTotals),
     [foodMicroTotals, supplementNutritionTotals]
+  )
+  // Net carbs are derived at the day level: max(0, total carbs − total fiber).
+  // The goal loses the fiber target to match, so both sides of the ratio are net.
+  const displayedCarbs =
+    carbMode === "net"
+      ? netCarbs({ carbs: intakeTotals.carbs, fiber: microTotals.fiber })
+      : intakeTotals.carbs
+  const displayedCarbGoal = displayCarbGoal(
+    macroTargets.carbs,
+    effectiveGoals?.health?.fiber,
+    carbMode
+  )
+  // A running fast gets a live pill in the header; the full timer lives on
+  // /nutrition/fasting.
+  const activeFast = useQuery(api.logs.fasting.getActive, {})
+  const fastElapsed = useFastTimer(activeFast?.startedAt ?? null)
+  const mealTargetsEnabled = effectiveGoals?.mealTargetsEnabled ?? false
+  const mealTargets = useMemo(
+    () => effectiveGoals?.mealTargets ?? [],
+    [effectiveGoals]
   )
   const waterTotal = waterEntries.reduce(
     (sum, entry) => sum + entry.amountMl,
@@ -1875,15 +1910,6 @@ export default function Nutrition() {
     }
   }
 
-  function removeLastWaterEntry() {
-    const sorted = [...waterEntries].sort((a, b) =>
-      b.loggedAt.localeCompare(a.loggedAt)
-    )
-    const [latest] = sorted
-    if (!latest) return
-    removeWaterEntry(latest.id)
-  }
-
   function openSnapCamera() {
     if (!requireAiAccess()) return
     setAddOpen(false)
@@ -2060,16 +2086,6 @@ export default function Nutrition() {
     }
   }
 
-  function openSupplements() {
-    hapticSelection()
-    navigate("/supplements", { motion: "forward" })
-  }
-
-  function openRecipes() {
-    hapticSelection()
-    navigate("/recipes", { motion: "forward" })
-  }
-
   function openFoodSearch() {
     navigate(isToday ? "/foods/search" : `/foods/search?date=${dateKey}`)
   }
@@ -2104,7 +2120,7 @@ export default function Nutrition() {
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page">
-        <header className="app-header">
+        <header className="app-header" ref={nutritionHeaderRef}>
           <div className={cn("min-w-0")}>
             <h1 className="app-title">Nutrition</h1>
           </div>
@@ -2123,12 +2139,9 @@ export default function Nutrition() {
             />
             {isToday && (
               <>
-                <AppTooltip
-                  id={APP_TOOLTIP_IDS.nutritionAdd}
-                  content="Use add to log food, water, supplements, or a saved recipe from one place."
-                  targetClassName="inline-flex md:hidden"
-                  side="bottom"
-                  align="end"
+                <TourAnchor
+                  anchor="nutrition-add"
+                  className="inline-flex md:hidden"
                 >
                   <button
                     type="button"
@@ -2139,7 +2152,7 @@ export default function Nutrition() {
                     <Plus weight="bold" />
                     <span>Add</span>
                   </button>
-                </AppTooltip>
+                </TourAnchor>
                 <button
                   type="button"
                   onClick={() => setAddOpen(true)}
@@ -2155,10 +2168,10 @@ export default function Nutrition() {
         </header>
 
         {!isToday && (
-          <section className="border-y border-border py-4">
+          <section className="progress-tab-enter border-y border-border py-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="app-eyebrow">{dateLabel}</p>
+                <p className="native-supporting">{dateLabel}</p>
                 <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
                   {fmt(intakeTotals.calories)} kcal
                 </p>
@@ -2178,7 +2191,38 @@ export default function Nutrition() {
               </button>
             </div>
 
-            <div className="mt-4 divide-y divide-border border-y border-border">
+            {activeFast && (
+              <TourAnchor anchor="nutrition-fasting-pill" className="block">
+                <button
+                  type="button"
+                  onClick={() => navigate("/nutrition/fasting")}
+                  aria-label={`Fasting for ${formatFastDuration(
+                    fastElapsed
+                  )} — open the fasting timer`}
+                  className="mt-3 flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2 text-left active:opacity-70"
+                >
+                  <Timer
+                    size={17}
+                    weight="bold"
+                    className="text-[var(--accent-food)]"
+                  />
+                  <span
+                    className="native-row-title tabular-nums"
+                    aria-live="polite"
+                  >
+                    {formatFastDuration(fastElapsed)}
+                  </span>
+                  <span className="native-row-detail ml-auto">
+                    {activeFast.protocol} fast
+                  </span>
+                </button>
+              </TourAnchor>
+            )}
+
+            <TourAnchor
+              anchor="nutrition-macros"
+              className="mt-4 block divide-y divide-border border-y border-border"
+            >
               <GoalTile
                 label="Protein"
                 value={`${fmt(intakeTotals.protein)}g`}
@@ -2186,10 +2230,10 @@ export default function Nutrition() {
                 complete={intakeTotals.protein >= macroTargets.protein}
               />
               <GoalTile
-                label="Carbs"
-                value={`${fmt(intakeTotals.carbs)}g`}
-                detail={`${pct(intakeTotals.carbs, macroTargets.carbs)}%`}
-                complete={intakeTotals.carbs >= macroTargets.carbs}
+                label={carbLabel(carbMode)}
+                value={`${fmt(displayedCarbs)}g`}
+                detail={`${pct(displayedCarbs, displayedCarbGoal)}%`}
+                complete={displayedCarbs >= displayedCarbGoal}
               />
               <GoalTile
                 label="Fat"
@@ -2197,9 +2241,14 @@ export default function Nutrition() {
                 detail={`${pct(intakeTotals.fat, macroTargets.fat)}%`}
                 complete={intakeTotals.fat >= macroTargets.fat}
               />
-            </div>
+            </TourAnchor>
 
             <div className="mt-4 space-y-4 border-t border-border/35 pt-4">
+              {mealTargetsEnabled && (
+                <TourAnchor anchor="nutrition-meal-budget" className="block">
+                  <MealBudgetPanel entries={entries} targets={mealTargets} />
+                </TourAnchor>
+              )}
               <div>
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="app-section-title">Food</p>
@@ -2378,6 +2427,7 @@ export default function Nutrition() {
         {!isToday ? null : (
           <>
             <SummaryBlock
+              className="progress-tab-enter"
               title={
                 visibleMetrics.calories ? "Energy remaining" : "Meals logged"
               }
@@ -2401,32 +2451,37 @@ export default function Nutrition() {
               }
               tone="food"
             >
-              <StatRow
-                label="Water"
-                value={
-                  <span
-                    key={`water-${waterTotal}`}
-                    className="motion-number-refresh"
-                  >
-                    {fmtWater(waterTotal)} / {fmtWater(waterGoal)}
-                  </span>
-                }
-                detail={
-                  <span
-                    key={`water-pct-${waterTotal}`}
-                    className="motion-number-refresh"
-                  >
-                    {pct(waterTotal, waterGoal)}%
-                  </span>
-                }
-                color="var(--accent-water)"
-              />
-              <StatRow
-                label="Supplements"
-                value={`${supplementDone} / ${supplementTarget || 0}`}
-                detail={supplementTarget > 0 ? "taken today" : "none planned"}
-                color="var(--accent-supplement)"
-              />
+              <div className="space-y-2.5">
+                {(Object.keys(macroTargets) as MacroKey[])
+                  .filter((key) =>
+                    visibleMetrics.macros
+                      ? true
+                      : key === "protein" && visibleMetrics.protein
+                  )
+                  .map((key) => (
+                    <ProgressLine
+                      key={key}
+                      label={key[0].toUpperCase() + key.slice(1)}
+                      value={intakeTotals[key]}
+                      target={macroTargets[key]}
+                      suffix="g"
+                      color={MACRO_COLORS[key]}
+                      animateChanges={true}
+                      rainKey={
+                        key === "protein"
+                          ? nutrientRainKeys.protein
+                          : key === "carbs"
+                            ? nutrientRainKeys.carbs
+                            : nutrientRainKeys.fat
+                      }
+                    />
+                  ))}
+                {!visibleMetrics.macros && !visibleMetrics.protein && (
+                  <p className="text-[14px] leading-5 text-muted-foreground">
+                    Non-numeric mode — log meals and focus on consistency.
+                  </p>
+                )}
+              </div>
 
               {isTrainingDay && visibleMetrics.calories && (
                 <button
@@ -2439,10 +2494,10 @@ export default function Nutrition() {
                     <p className="text-[14px] font-semibold">
                       Training-day target
                     </p>
-                    <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+                    <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
-                        ? `Today’s target includes about ${fmt(workoutCalories)} kcal for training.`
-                        : `Training is logged. Your ${fmt(calorieTarget)} kcal target stays fixed because workout adjustment is off.`}
+                        ? `+${fmt(workoutCalories)} kcal for training`
+                        : "Fixed target — workout adjustment off"}
                     </p>
                   </div>
                   <CaretRight
@@ -2453,69 +2508,6 @@ export default function Nutrition() {
                 </button>
               )}
             </SummaryBlock>
-
-            <nav
-              className="mt-5 grid grid-cols-2 gap-5"
-              aria-label="Nutrition libraries"
-            >
-              <button
-                type="button"
-                onClick={openRecipes}
-                className="group min-h-16 border-t border-border px-1 pt-3 pb-2 text-left transition-[background-color,transform] active:translate-y-0.5 active:bg-muted/25"
-              >
-                <span className="flex items-center gap-2.5">
-                  <BookBookmark
-                    size={18}
-                    weight="regular"
-                    className="shrink-0 text-muted-foreground transition-colors group-active:text-foreground"
-                    aria-hidden
-                  />
-                  <span className="truncate text-[15px] font-semibold tracking-tight">
-                    Recipes
-                  </span>
-                </span>
-                <span className="mt-1 block pl-[1.75rem] text-[12px] text-muted-foreground tabular-nums">
-                  {recipes.length} saved
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={openSupplements}
-                className="group min-h-16 border-t border-border px-1 pt-3 pb-2 text-left transition-[background-color,transform] active:translate-y-0.5 active:bg-muted/25"
-              >
-                <span className="flex items-center gap-2.5">
-                  <Pill
-                    size={18}
-                    weight="regular"
-                    className="shrink-0 text-muted-foreground transition-colors group-active:text-foreground"
-                    aria-hidden
-                  />
-                  <span className="truncate text-[15px] font-semibold tracking-tight">
-                    Supplements
-                  </span>
-                </span>
-                <span className="mt-1 block pl-[1.75rem] text-[12px] text-muted-foreground tabular-nums">
-                  {scheduledSupplements.length} scheduled
-                </span>
-              </button>
-            </nav>
-
-            <AnimatedAccordion
-              summary="Saved recipes"
-              className="mt-4 border-y border-border"
-              triggerClassName="min-h-14 text-[15px] font-semibold"
-              contentClassName="pb-4"
-            >
-              <RecipeManagementBox
-                recipes={recipes}
-                deletingRecipeId={deletingRecipeId}
-                onCreate={createRecipe}
-                onEdit={editRecipe}
-                onDelete={(recipe) => void deleteRecipe(recipe)}
-                embedded
-              />
-            </AnimatedAccordion>
 
             {smartMealSuggestion && (
               <div className="mt-3">
@@ -2532,52 +2524,12 @@ export default function Nutrition() {
             )}
 
             <section className="mt-5 grid gap-6 md:grid-cols-[1fr_0.82fr]">
-              <div className="border-y border-border py-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <p className="app-section-title">Intake</p>
-                  <button
-                    type="button"
-                    onClick={openFoodSearch}
-                    className="native-toolbar-button border border-border bg-card"
-                    aria-label="Log food"
-                  >
-                    <ForkKnife size={17} weight="bold" />
-                    Log food
-                  </button>
-                </div>
-                <div className="space-y-2.5">
-                  {(Object.keys(macroTargets) as MacroKey[])
-                    .filter((key) =>
-                      visibleMetrics.macros
-                        ? true
-                        : key === "protein" && visibleMetrics.protein
-                    )
-                    .map((key) => (
-                      <ProgressLine
-                        key={key}
-                        label={key[0].toUpperCase() + key.slice(1)}
-                        value={intakeTotals[key]}
-                        target={macroTargets[key]}
-                        suffix="g"
-                        color={MACRO_COLORS[key]}
-                        animateChanges={true}
-                        rainKey={
-                          key === "protein"
-                            ? nutrientRainKeys.protein
-                            : key === "carbs"
-                              ? nutrientRainKeys.carbs
-                              : nutrientRainKeys.fat
-                        }
-                      />
-                    ))}
-                  {!visibleMetrics.macros && !visibleMetrics.protein && (
-                    <p className="text-[14px] leading-5 text-muted-foreground">
-                      This mode keeps nutrition feedback non-numeric. Log meals
-                      when useful and focus on consistency.
-                    </p>
-                  )}
-                </div>
-                <div className="mt-4 border-t border-border/35 pt-3">
+              <div
+                className="progress-tab-enter border-y border-border py-4"
+                style={{ animationDelay: "120ms" }}
+              >
+                <p className="app-section-title mb-3">Intake</p>
+                <div>
                   {recentFood.length > 0 ? (
                     <div className="space-y-2">
                       {recentFood.map((entry) => (
@@ -2610,9 +2562,14 @@ export default function Nutrition() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[14px] leading-5 text-muted-foreground">
-                      No food logged yet. Search, scan, or snap a meal.
-                    </p>
+                    <button
+                      type="button"
+                      onClick={openFoodSearch}
+                      className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background active:opacity-85"
+                    >
+                      <Plus size={17} weight="bold" />
+                      Log your first meal
+                    </button>
                   )}
                 </div>
 
@@ -2632,12 +2589,16 @@ export default function Nutrition() {
                     onSave={async (nextGoals) => {
                       await saveCustomGoals(nextGoals)
                     }}
+                    carbMode={carbMode}
                   />
                 )}
               </div>
 
               <div className="grid content-start gap-6 self-start">
-                <div className="relative overflow-hidden border-y border-border py-4">
+                <div
+                  className="progress-tab-enter relative overflow-hidden border-y border-border py-4"
+                  style={{ animationDelay: "160ms" }}
+                >
                   {waterRainKey > 0 && (
                     <span
                       key={waterRainKey}
@@ -2654,11 +2615,10 @@ export default function Nutrition() {
                     <button
                       type="button"
                       onClick={() => setWaterGoalOpen(true)}
-                      className="native-toolbar-button border border-border bg-card"
+                      className="native-toolbar-button px-0 text-muted-foreground"
                       aria-label="Edit water goal"
                     >
                       <PencilSimple size={17} weight="bold" />
-                      Edit goal
                     </button>
                   </div>
                   <ProgressLine
@@ -2666,18 +2626,11 @@ export default function Nutrition() {
                     value={waterTotal}
                     target={waterGoal}
                     suffix="ml"
+                    format={fmtWater}
                     color={APP_ACCENT_COLORS.water}
                     animateChanges
                   />
-                  <WaterGlassControls
-                    totalMl={waterTotal}
-                    goalMl={waterGoal}
-                    entries={waterEntries}
-                    onAdd={(amountMl) => void addWater(amountMl)}
-                    onRemoveLast={removeLastWaterEntry}
-                    savingAmount={loggingWaterAmount}
-                  />
-                  <div className="mt-4 grid grid-cols-2 gap-2.5 min-[430px]:grid-cols-4">
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
                     {QUICK_WATER.map((amount) => (
                       <button
                         key={amount}
@@ -2703,7 +2656,10 @@ export default function Nutrition() {
                   </div>
                 </div>
 
-                <div className="relative overflow-hidden border-y border-border py-4">
+                <div
+                  className="progress-tab-enter relative overflow-hidden border-y border-border py-4"
+                  style={{ animationDelay: "200ms" }}
+                >
                   {supplementRainKey > 0 && (
                     <span
                       key={supplementRainKey}
@@ -2725,11 +2681,10 @@ export default function Nutrition() {
                     <button
                       type="button"
                       onClick={() => navigate("/supplements")}
-                      className="native-toolbar-button border border-border bg-card"
+                      className="native-toolbar-button px-0 text-muted-foreground"
                       aria-label="Manage supplements"
                     >
-                      <Pill size={17} weight="bold" />
-                      Manage
+                      <CaretRight size={16} weight="bold" />
                     </button>
                   </div>
                   {visibleSupplements.length > 0 ? (
@@ -2745,7 +2700,7 @@ export default function Nutrition() {
                     </div>
                   ) : (
                     <p className="mt-2 text-[14px] leading-5 text-muted-foreground">
-                      No active supplement plan. Add one when you need it.
+                      No supplements planned.
                     </p>
                   )}
                 </div>
@@ -2913,12 +2868,7 @@ export default function Nutrition() {
         >
           <div className="px-5 pt-4 pb-4">
             <div className="mb-5 flex items-start justify-between gap-4">
-              <div>
-                <p className="native-supporting">Nutrition</p>
-                <h2 className="mt-0.5 text-[21px] font-semibold">
-                  Add to diary
-                </h2>
-              </div>
+              <h2 className="text-[21px] font-semibold">Add to diary</h2>
               <button
                 type="button"
                 onClick={() => setAddOpen(false)}
@@ -3007,6 +2957,35 @@ export default function Nutrition() {
                   action: openDescribeMeal,
                 },
                 {
+                  label: "Meal prep",
+                  detail: "Log a serving from a batch you cooked",
+                  Icon: BowlFood,
+                  // Date-independent tool: keep it reachable from past days too.
+                  supportsHistory: true,
+                  action: () => navigate("/nutrition/meal-prep"),
+                },
+                {
+                  label: "My foods",
+                  detail: "Foods you entered yourself",
+                  Icon: ForkKnife,
+                  supportsHistory: true,
+                  action: () => navigate("/foods/custom"),
+                },
+                {
+                  label: "Fasting timer",
+                  detail: "Track an intermittent fast",
+                  Icon: Timer,
+                  supportsHistory: true,
+                  action: () => navigate("/nutrition/fasting"),
+                },
+                {
+                  label: "Grocery list",
+                  detail: "Build a shopping list from recipes",
+                  Icon: ShoppingCart,
+                  supportsHistory: true,
+                  action: () => navigate("/nutrition/groceries"),
+                },
+                {
                   label: "Add 250 ml water",
                   detail: "Quick hydration",
                   Icon: PintGlass,
@@ -3018,6 +2997,13 @@ export default function Nutrition() {
                   detail: "Plan and log doses",
                   Icon: Pill,
                   action: () => navigate("/supplements"),
+                },
+                {
+                  label: "Nutrition report",
+                  detail: "Printable summary to share",
+                  Icon: Printer,
+                  supportsHistory: true,
+                  action: () => navigate("/nutrition/report"),
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)

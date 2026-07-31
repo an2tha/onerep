@@ -9,16 +9,14 @@ import {
   Lightning,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
+  PencilSimple,
   Pill,
   PintGlass,
-  Plus,
   PushPin,
-  Sparkle,
-  Question,
   X,
 } from "@phosphor-icons/react"
 import { cn } from "../../lib/utils"
-import { GroupedList, SectionHeader, SummaryBlock } from "../mobile-ui"
+import { GroupedList, SectionHeader } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
 
 export * from "./dashboard-intelligence"
@@ -240,30 +238,6 @@ export function TodayChecklist({ items }: { items: TodayChecklistItem[] }) {
   )
 }
 
-export function FirstWeekGuide({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <aside className="mx-[var(--app-page-x)] mt-4 rounded-2xl border border-border bg-card p-4 md:mx-8">
-      <div className="flex items-start gap-3">
-        <span className="native-row-leading shrink-0">
-          <Question size={18} weight="bold" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="native-row-title">Your first-week guide</p>
-          <p className="native-row-detail mt-1">Use + to log your day.</p>
-        </div>
-        <button
-          type="button"
-          onClick={onDismiss}
-          aria-label="Dismiss first-week guide"
-          className="native-toolbar-button -mt-2 -mr-2 px-0"
-        >
-          <X size={15} weight="bold" />
-        </button>
-      </div>
-    </aside>
-  )
-}
-
 export function WorkoutWeekStrip({
   days,
   onClick,
@@ -348,20 +322,7 @@ export function CoachGoalCards({
 
   return (
     <section className="mx-[var(--app-page-x)] mt-5 md:mx-8 md:mt-6">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div>
-          <p className="native-section-title">Coach goals</p>
-          <p className="native-row-detail mt-0.5">
-            Pinned from your Coach conversations
-          </p>
-        </div>
-        <Sparkle
-          size={17}
-          weight="fill"
-          className="text-violet-500/70"
-          aria-hidden
-        />
-      </div>
+      <p className="native-section-title mb-2">Coach goals</p>
       <div className={cn("grid gap-3", goals.length > 1 && "md:grid-cols-2")}>
         {goals.map((goal) => {
           const completed = goal.tasks.filter((task) => task.completed).length
@@ -404,17 +365,17 @@ export function CoachGoalCards({
                     </button>
                   </div>
                   {goal.description ? (
-                    <p className="mt-2 text-[11px] leading-relaxed text-white/60">
+                    <p className="mt-2 text-[12px] leading-relaxed text-white/60">
                       {goal.description}
                     </p>
                   ) : null}
                   <div className="mt-4 flex items-end justify-between gap-3">
                     <div>
-                      <p className="text-[11px] font-semibold text-white/88">
+                      <p className="text-[12px] font-semibold text-white/88">
                         {completed} of {goal.tasks.length} done
                       </p>
-                      <p className="mt-0.5 text-[9px] text-white/45">
-                        {timing} · {goal.durationDays}-day plan
+                      <p className="mt-0.5 text-[11px] text-white/45">
+                        {timing}
                       </p>
                     </div>
                     <span className="text-[16px] font-bold text-white tabular-nums">
@@ -452,14 +413,14 @@ export function CoachGoalCards({
                       <span className="min-w-0">
                         <span
                           className={cn(
-                            "block text-[11px] leading-snug font-semibold text-white/88",
+                            "block text-[13px] leading-snug font-semibold text-white/88",
                             task.completed && "text-white/45 line-through"
                           )}
                         >
                           {task.title}
                         </span>
                         {task.detail ? (
-                          <span className="mt-0.5 block text-[9.5px] leading-snug text-white/44">
+                          <span className="mt-0.5 block text-[11px] leading-snug text-white/44">
                             {task.detail}
                           </span>
                         ) : null}
@@ -475,8 +436,6 @@ export function CoachGoalCards({
     </section>
   )
 }
-
-const WATER_SEGMENTS = 8
 
 function CalorieRing({
   caloriesLeft,
@@ -519,7 +478,8 @@ function CalorieRing({
             stroke: overTarget
               ? "var(--status-danger)"
               : "color-mix(in srgb, var(--foreground) 52%, transparent)",
-            transition: "stroke-dashoffset var(--motion-medium, 320ms) ease-out",
+            transition:
+              "stroke-dashoffset var(--motion-medium, 320ms) ease-out",
           }}
         />
       </svg>
@@ -539,11 +499,6 @@ export function DailyLedgerHero({
   caloriesLeft,
   caloriesTarget,
   macros = [],
-  waterMl,
-  waterGoalMl,
-  onAddWater,
-  mealSlots = [],
-  onMealSlotClick,
   briefing,
   onBriefingAction,
   onBriefingDismiss,
@@ -553,42 +508,15 @@ export function DailyLedgerHero({
   caloriesLeft: number
   caloriesTarget: number
   macros?: MacroProgress[]
-  waterMl: number
-  waterGoalMl: number
-  onAddWater?: () => void
-  workoutState?: string
-  workoutProgress?: {
-    completedSets: number
-    totalSets: number
-    elapsedMinutes: number
-  } | null
-  mealSlots?: MealCadenceSlot[]
-  onMealSlotClick?: (slot: MealCadenceSlot) => void
-  recovery?: RecoveryProgress | null
-  onRecoveryClick?: () => void
   briefing: DashboardBriefingView
   onBriefingAction: () => void
   onBriefingDismiss?: () => void
   showBriefingAction?: boolean
-  proteinLeft?: number
   className?: string
 }) {
-  const [waterRainKey, setWaterRainKey] = useState(0)
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
   const caloriesPct = pct(consumed, caloriesTarget)
   const overTarget = caloriesLeft < 0
-
-  const filledSegments =
-    waterGoalMl > 0
-      ? Math.max(
-          0,
-          Math.min(
-            WATER_SEGMENTS,
-            Math.floor((waterMl / waterGoalMl) * WATER_SEGMENTS)
-          )
-        )
-      : 0
-  const openSlots = mealSlots.filter((slot) => !slot.logged).length
 
   return (
     <div className={cn("mx-[var(--app-page-x)] md:mx-8", className)}>
@@ -606,12 +534,16 @@ export function DailyLedgerHero({
               return (
                 <div key={macro.label} className="min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[13px] font-medium">
-                      {macro.label}
+                    <span className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                      {macro.shortLabel}
                     </span>
                     <span className="text-[13px] font-semibold tabular-nums">
-                      {fmt(macro.value)} / {fmt(macro.target)}
-                      {macro.unit ?? "g"}
+                      {fmt(macro.value)}
+                      <span className="font-medium text-muted-foreground">
+                        {" "}
+                        / {fmt(macro.target)}
+                        {macro.unit ?? "g"}
+                      </span>
                     </span>
                   </div>
                   <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-foreground/[0.08]">
@@ -630,144 +562,37 @@ export function DailyLedgerHero({
             })}
           </div>
         </div>
-
-        {/* Meals */}
-        {mealSlots.length > 0 && (
-          <div className="mt-5 border-t border-border/70 pt-4">
-            <div className="flex items-baseline justify-between">
-              <p className="text-[13px] font-medium text-muted-foreground">
-                Meals
-              </p>
-              <p className="text-[13px] text-muted-foreground tabular-nums">
-                {openSlots === 0
-                  ? "All logged"
-                  : `${openSlots} slot${openSlots === 1 ? "" : "s"} open`}
-              </p>
-            </div>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {mealSlots.map((slot) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  onClick={() => onMealSlotClick?.(slot)}
-                  aria-label={
-                    slot.logged
-                      ? `${slot.label} logged`
-                      : `Log ${slot.label.toLowerCase()}`
-                  }
-                  className={cn(
-                    "flex min-h-[4.25rem] flex-col justify-between rounded-2xl px-2.5 py-2.5 text-left transition-transform active:scale-[0.98]",
-                    slot.logged
-                      ? "bg-muted/50"
-                      : "border border-dashed border-border"
-                  )}
-                >
-                  {slot.logged ? (
-                    <CheckCircle
-                      size={16}
-                      weight="fill"
-                      className="text-[var(--accent-food)]"
-                    />
-                  ) : (
-                    <Plus size={16} className="text-muted-foreground/60" />
-                  )}
-                  <span
-                    className={cn(
-                      "truncate text-[13px] font-semibold",
-                      !slot.logged && "text-muted-foreground"
-                    )}
-                  >
-                    {slot.label}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Water */}
-        <div className="relative mt-4 flex items-center gap-3 overflow-hidden border-t border-border/70 pt-4">
-          {waterRainKey > 0 && (
-            <span key={waterRainKey} className="water-rain" aria-hidden>
-              {Array.from({ length: 7 }, (_, index) => (
-                <span key={index} />
-              ))}
-            </span>
-          )}
-          <PintGlass
-            size={17}
-            weight="fill"
-            className="relative z-10 shrink-0 text-muted-foreground/70"
-          />
-          <div
-            className="relative z-10 flex min-w-0 flex-1 items-center gap-1.5"
-            role="img"
-            aria-label={`${filledSegments} of ${WATER_SEGMENTS} glasses`}
-          >
-            {Array.from({ length: WATER_SEGMENTS }, (_, index) => (
-              <span
-                key={index}
-                className={cn(
-                  "h-6 min-w-0 flex-1 rounded-[5px]",
-                  index < filledSegments
-                    ? "bg-foreground/55"
-                    : "bg-foreground/[0.09]"
-                )}
-              />
-            ))}
-          </div>
-          <span className="relative z-10 shrink-0 text-[14px] font-semibold tabular-nums">
-            {(waterMl / 1000).toFixed(2).replace(/\.?0+$/, "") || "0"} L
-          </span>
-          {onAddWater && (
-            <button
-              type="button"
-              onClick={() => {
-                setWaterRainKey((value) => value + 1)
-                onAddWater()
-              }}
-              aria-label="Add water"
-              className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground transition-transform active:scale-95"
-            >
-              <Plus size={15} weight="bold" />
-            </button>
-          )}
-        </div>
       </section>
 
       {/* Briefing banner */}
       {showBriefingAction && (
-        <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-foreground px-4 py-3.5">
+        <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-foreground py-2.5 pr-2.5 pl-4">
           <Lightning
-            size={17}
+            size={16}
             weight="fill"
-            className="shrink-0 text-background"
+            className="shrink-0 text-background/80"
           />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold text-background">
-              {briefing.title}
-            </p>
-            <p className="mt-0.5 truncate text-[12px] text-background/60">
-              {briefing.detail}
-            </p>
-          </div>
+          <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-background">
+            {briefing.title}
+          </p>
           <button
             type="button"
             onClick={onBriefingAction}
-            className="shrink-0 rounded-full bg-background px-4 py-2 text-[13px] font-semibold text-foreground transition-transform active:scale-95"
+            className="shrink-0 rounded-full bg-background px-3.5 py-2 text-[12px] font-semibold text-foreground transition-transform active:scale-95"
           >
             {briefing.actionLabel}
           </button>
+          {onBriefingDismiss && (
+            <button
+              type="button"
+              onClick={onBriefingDismiss}
+              aria-label="Dismiss suggestion"
+              className="grid size-9 shrink-0 place-items-center rounded-full text-background/50 active:text-background"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          )}
         </div>
-      )}
-      {showBriefingAction && onBriefingDismiss && (
-        <button
-          type="button"
-          onClick={onBriefingDismiss}
-          className="mt-1 min-h-9 text-[10px] font-medium text-muted-foreground active:text-foreground"
-        >
-          Not now
-        </button>
       )}
     </div>
   )
@@ -790,7 +615,6 @@ export function TrainingWeekCard({
   sets,
   records,
   days,
-  caption,
   consistency,
   onOpen,
 }: {
@@ -798,7 +622,6 @@ export function TrainingWeekCard({
   sets: number
   records: number
   days: TrainingWeekDay[]
-  caption?: string
   consistency?: {
     days: ConsistencyDay[]
     fullCount: number
@@ -828,10 +651,15 @@ export function TrainingWeekCard({
               </span>
             </p>
           ) : (
-            <p className="native-row-detail mt-1 tabular-nums">
-              {sessions} session{sessions === 1 ? "" : "s"} · {sets} set
-              {sets === 1 ? "" : "s"} · {records} record
-              {records === 1 ? "" : "s"}
+            <p className="mt-1 text-[15px] tabular-nums">
+              <span className="text-[1.5rem] leading-none font-bold tracking-tight">
+                {sessions}
+              </span>{" "}
+              <span className="font-medium text-muted-foreground">
+                session{sessions === 1 ? "" : "s"} · {sets} set
+                {sets === 1 ? "" : "s"}
+                {records > 0 && ` · ${records} PR${records === 1 ? "" : "s"}`}
+              </span>
             </p>
           )}
         </div>
@@ -916,7 +744,6 @@ export function TrainingWeekCard({
                 )
               })}
             </div>
-            {caption && <p className="native-row-detail mt-4">{caption}</p>}
           </div>
         </div>
 
@@ -1098,10 +925,10 @@ export function TodayTimeline({
                     <button
                       type="button"
                       onClick={() => onEditEvent(event)}
-                      className="native-toolbar-button h-10 px-2 text-[12px]"
+                      className="native-toolbar-button h-10 px-2 text-muted-foreground"
                       aria-label={`Edit ${event.title}`}
                     >
-                      Edit
+                      <PencilSimple size={15} />
                     </button>
                   )}
                 </span>
@@ -1139,56 +966,25 @@ export function TodayTimeline({
             )
           })
         ) : (
-          <div className="px-4 py-4">
-            <div className="flex items-start gap-3">
-              <Fire
-                size={18}
-                className="mt-0.5 shrink-0 text-muted-foreground"
-              />
-              <div className="min-w-0">
-                <p className="native-row-title">Nothing logged yet</p>
-              </div>
-            </div>
-            <div
-              className={cn(
-                "mt-4 grid border-t border-border pl-[1.875rem]",
-                onLogWater ? "grid-cols-2" : "grid-cols-1"
-              )}
-            >
+          <div className="flex min-h-14 items-center justify-between gap-3 px-4 py-2">
+            <span className="flex min-w-0 items-center gap-3">
+              <Fire size={18} className="shrink-0 text-muted-foreground" />
+              <p className="native-row-title">Nothing logged yet</p>
+            </span>
+            {onLogWater && (
               <button
                 type="button"
-                onClick={onLogFood}
-                className="group flex min-h-12 items-center gap-2.5 pr-3 text-left text-[12px] font-semibold transition-colors active:text-muted-foreground"
+                onClick={onLogWater}
+                className="group flex min-h-11 shrink-0 items-center gap-1.5 text-[12px] font-semibold text-muted-foreground transition-colors active:text-foreground"
               >
-                <ForkKnife
+                <PintGlass
                   size={15}
                   weight="bold"
-                  className="text-[var(--accent-food)] transition-transform group-active:scale-90"
+                  className="text-[var(--accent-water)] transition-transform group-active:scale-90"
                 />
-                <span>Log food</span>
-                <ArrowRight
-                  size={13}
-                  className="ml-auto text-muted-foreground transition-transform group-active:translate-x-0.5"
-                />
+                Add 250 ml
               </button>
-              {onLogWater && (
-                <button
-                  type="button"
-                  onClick={onLogWater}
-                  className="group flex min-h-12 items-center gap-2.5 border-l border-border px-3 text-left text-[12px] font-semibold transition-colors active:text-muted-foreground"
-                >
-                  <PintGlass
-                    size={15}
-                    weight="bold"
-                    className="text-[var(--accent-water)] transition-transform group-active:scale-90"
-                  />
-                  <span>Add water</span>
-                  <span className="ml-auto text-[10px] font-medium text-muted-foreground tabular-nums">
-                    250 ml
-                  </span>
-                </button>
-              )}
-            </div>
+            )}
           </div>
         )}
       </GroupedList>

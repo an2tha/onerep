@@ -181,6 +181,38 @@ export const getRecent = query({
   },
 });
 
+// ── getRange ─────────────────────────────────────────────────────────────────
+
+/** Inclusive date range, ascending. Backs the printable nutrition report. */
+export const getRange = query({
+  args: {
+    start: v.string(),
+    end: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+
+    const [start, end] =
+      args.start <= args.end ? [args.start, args.end] : [args.end, args.start];
+
+    const docs = await ctx.db
+      .query("foodLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", user._id).gte("date", start).lte("date", end),
+      )
+      .take(400);
+
+    return docs
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((doc) => ({
+        date: doc.date,
+        entries: doc.entries,
+        updatedAt: doc.updatedAt,
+      }));
+  },
+});
+
 // ── setDay ────────────────────────────────────────────────────────────────────
 
 export const setDay = mutation({

@@ -494,7 +494,7 @@
 
 .onboarding-progress {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(10, minmax(0, 1fr));
   gap: 0.35rem;
   margin-top: 0.85rem;
 }
@@ -535,6 +535,31 @@
 
 .onboarding-step-intro {
   margin-bottom: 1.75rem;
+}
+
+/* Sign in <-> create account mode changes, matching the onboarding step feel. */
+.auth-mode-panel {
+  will-change: transform, opacity;
+  animation: onboarding-step-in-forward 320ms cubic-bezier(0.22, 1, 0.36, 1)
+    both;
+}
+
+.auth-mode-panel[data-transition-direction="back"] {
+  animation-name: onboarding-step-in-back;
+}
+
+.auth-mode-card {
+  transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-mode-panel {
+    animation: none;
+  }
+
+  .auth-mode-card {
+    transition: none;
+  }
 }
 
 .onboarding-step-title {
@@ -1182,11 +1207,390 @@
   }
 }
 
+/* Chat-scripted onboarding: coach bubbles, user replies, quick-reply chips. */
+.onboarding-chat {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem calc(var(--app-safe-bottom) + 2rem);
+  overscroll-behavior: contain;
+}
+
+.onboarding-chat-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.onboarding-chat-bubble {
+  max-width: min(85%, 30rem);
+  border-radius: 1.15rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  will-change: transform, opacity;
+  animation: onboarding-bubble-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.onboarding-chat-bubble-coach {
+  align-self: flex-start;
+  border: 1px solid var(--divider);
+  border-bottom-left-radius: 0.35rem;
+  background: var(--surface-panel);
+  color: var(--foreground);
+  box-shadow: var(--shadow-surface);
+}
+
+.onboarding-chat-bubble-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: flex-end;
+  margin-top: 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--foreground) 84%, transparent);
+  border-bottom-right-radius: 0.35rem;
+  background: var(--foreground);
+  color: var(--background);
+  text-align: left;
+  font-weight: 640;
+  transition: transform 150ms var(--motion-ease-standard);
+}
+
+.onboarding-chat-bubble-user:active {
+  transform: scale(0.97);
+}
+
+.onboarding-chat-bubble-user svg {
+  flex-shrink: 0;
+  opacity: 0.55;
+}
+
+.onboarding-chat-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.4rem;
+}
+
+.onboarding-chat-typing span {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 55%, transparent);
+  animation: onboarding-typing-dot 1.1s ease-in-out infinite;
+}
+
+.onboarding-chat-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.onboarding-chat-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.onboarding-chat-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.65rem;
+  animation: onboarding-bubble-in 320ms cubic-bezier(0.22, 1, 0.36, 1) 180ms
+    both;
+}
+
+.onboarding-chat-replies {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.onboarding-chat-chip {
+  display: inline-flex;
+  min-height: 2.85rem;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--divider-strong);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 660;
+  transition:
+    transform 150ms var(--motion-ease-standard),
+    background-color 180ms var(--motion-ease-standard),
+    color 180ms var(--motion-ease-standard);
+}
+
+.onboarding-chat-chip:active {
+  transform: scale(0.96);
+}
+
+.onboarding-chat-chip[data-selected="true"] {
+  border-color: color-mix(in srgb, var(--foreground) 84%, transparent);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.onboarding-chat-chip:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--foreground) 78%, transparent);
+  outline-offset: 3px;
+}
+
+.onboarding-chat-chip-hint {
+  display: block;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  font-weight: 520;
+  opacity: 0.65;
+}
+
+.onboarding-chat-card {
+  border: 1px solid var(--divider);
+  border-radius: 1.15rem;
+  padding: 1rem;
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-surface);
+}
+
+.onboarding-chat-card-flush {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.onboarding-chat-review {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+/* The setup chat stays light; the Coach demo and Coach setup stages dip into
+   the light Coach atmosphere (mirrors `:root:not(.dark) .coach-swoosh-surface`
+   above — keep the two palettes in sync), then hand back. */
+.onboarding-shell {
+  transition:
+    background-color 750ms var(--motion-ease-standard),
+    color 750ms var(--motion-ease-standard);
+}
+
+.onboarding-shell[data-coach-stage="true"] {
+  --surface-app: #f7f5ef;
+  --surface-panel: rgba(255, 255, 252, 0.88);
+  --surface-raised: #ffffff;
+  --background: #f7f5ef;
+  --foreground: #1c211d;
+  --muted-foreground: rgba(28, 33, 29, 0.6);
+  --divider: rgba(28, 33, 29, 0.13);
+  --divider-strong: rgba(28, 33, 29, 0.2);
+  --border: rgba(28, 33, 29, 0.13);
+  --input: rgba(28, 33, 29, 0.16);
+  --coach-flow-top: #eef0ff;
+  --coach-flow-mid: #f3efff;
+  --coach-flow-bottom: #f7f5ef;
+  --coach-core-start: rgba(112, 131, 224, 0.34);
+  --coach-core-mid: rgba(137, 112, 217, 0.22);
+  --coach-core-end: rgba(112, 86, 190, 0.08);
+  --coach-core-soft: rgba(156, 166, 231, 0.24);
+  --coach-core-fade: rgba(134, 114, 214, 0.12);
+  --coach-mode-glow: rgba(112, 86, 190, 0.14);
+  --coach-band-dark-one: rgba(118, 126, 180, 0.055);
+  --coach-band-dark-two: rgba(112, 91, 164, 0.045);
+  --coach-band-one: rgba(125, 145, 225, 0.12);
+  --coach-band-two: rgba(171, 132, 220, 0.1);
+  --coach-flow-angle: 125deg;
+  --coach-band-blur: 12px;
+  --coach-flow-duration: 15s;
+  --coach-glow-duration: 8s;
+}
+
+.onboarding-shell .coach-swoosh-backdrop::after {
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+.onboarding-chat-bubble-static {
+  cursor: default;
+}
+
+.onboarding-setup-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* One assistant turn: prose bubble plus any Coach blocks, proposals, and
+   applied-operation results rendered by the shared Coach chat components. */
+.onboarding-setup-response {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.onboarding-setup-response .coach-generated-content {
+  margin-inline: 0.15rem;
+}
+
+.onboarding-setup-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.onboarding-setup-starters button {
+  border: 1px solid var(--divider-strong);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.onboarding-setup-starters button:active {
+  background: var(--surface-sunken, var(--surface-raised));
+}
+
+.onboarding-chat-bubble-error {
+  border-color: color-mix(in srgb, var(--destructive) 45%, transparent);
+  color: var(--destructive);
+}
+
+.onboarding-chat-composer {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+
+.onboarding-chat-composer input {
+  min-height: 2.85rem;
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--divider-strong);
+  border-radius: 999px;
+  background: var(--surface-raised);
+  padding-inline: 1rem;
+  color: var(--foreground);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.onboarding-chat-composer input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--foreground) 78%, transparent);
+  outline-offset: 2px;
+}
+
+.onboarding-chat-composer button {
+  display: inline-flex;
+  width: 2.85rem;
+  height: 2.85rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.onboarding-chat-composer button:disabled {
+  opacity: 0.38;
+}
+
+/* Wraps the attachment preview above the composer row. */
+.onboarding-chat-composer-shell {
+  display: block;
+  min-width: 0;
+}
+
+/* The attach control shares the send button's footprint but stays quiet, so it
+   does not read as a second primary action next to Send. */
+.onboarding-chat-composer .onboarding-chat-attach {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.onboarding-chat-composer .onboarding-chat-attach:active:not(:disabled) {
+  background: var(--surface-raised);
+}
+
+.onboarding-setup-quota {
+  margin-top: 0.35rem;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+@keyframes onboarding-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.55rem) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes t {
+  90%,
+  100% {
+    width: 100%;
+  }
+}
+
+@keyframes c {
+  0%,
+  100% {
+    box-shadow: 5px 0 0 #0000;
+  }
+  50% {
+    box-shadow: 5px 0 0 #ffffff;
+  }
+}
+
+@keyframes onboarding-typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-0.18rem);
+  }
+}
+
+@media (min-width: 768px) {
+  .onboarding-chat {
+    width: 100%;
+    max-width: 42rem;
+    align-self: center;
+    padding: 2rem 1.75rem 3rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .onboarding-atmosphere::before,
   .onboarding-atmosphere::after,
   .onboarding-atmosphere,
   .onboarding-step,
+  .onboarding-chat-bubble,
+  .onboarding-chat-input,
+  .onboarding-chat-typing span,
   .onboarding-complete,
   .onboarding-complete-mark,
   .onboarding-coach-glass,
@@ -1898,6 +2302,30 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   }
 
   .native-primary-button:disabled {
+    opacity: 0.42;
+  }
+
+  .native-secondary-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.7rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    padding-inline: 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    font-weight: 620;
+    color: var(--foreground);
+  }
+
+  .native-secondary-button:active {
+    background: var(--surface-pressed);
+  }
+
+  .native-secondary-button:disabled {
     opacity: 0.42;
   }
 
@@ -4633,6 +5061,36 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: progress-point-pop 260ms var(--motion-ease-out) forwards;
 }
 
+.progress-chart-area {
+  opacity: 0;
+  animation: progress-area-fade 620ms var(--motion-ease-out) 260ms forwards;
+}
+
+@keyframes progress-area-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+.progress-chart-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: progress-latest-pulse 2400ms ease-out 900ms infinite;
+}
+
+@keyframes progress-latest-pulse {
+  0% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+
 .progress-checkin-celebration {
   position: fixed;
   top: calc(var(--app-safe-top) + 1rem);
@@ -4726,6 +5184,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   .progress-chart-bar,
   .progress-chart-line,
   .progress-chart-point,
+  .progress-chart-area,
+  .progress-chart-pulse,
   .progress-checkin-celebration,
   .progress-checkin-rings,
   .workout-achievement-pill,
@@ -4737,8 +5197,13 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     stroke-dashoffset: 0;
   }
 
-  .progress-chart-point {
+  .progress-chart-point,
+  .progress-chart-area {
     opacity: 1;
+  }
+
+  .progress-chart-pulse {
+    opacity: 0;
   }
 }
 
@@ -4757,18 +5222,19 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   isolation: isolate;
   overflow: hidden;
   color: #f8f9ff;
-  border: 1px solid rgba(194, 201, 230, 0.2);
-  border-radius: 1.1rem;
+  border: 1px solid rgba(194, 201, 230, 0.16);
+  border-radius: 1.4rem;
   background:
     radial-gradient(
-      ellipse at 72% -18%,
-      rgba(154, 169, 224, 0.22),
-      transparent 58%
+      circle at 90% 0%,
+      rgba(118, 95, 231, 0.35),
+      transparent 35%
     ),
-    #0b1022;
+    linear-gradient(145deg, #131c4e, #060a1f 65%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 16px 36px -30px rgba(7, 10, 25, 0.9);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 24px 48px -32px rgba(4, 7, 20, 0.95);
 }
 
 .profile-pro-card::before,
@@ -4779,89 +5245,70 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   pointer-events: none;
 }
 
-.profile-pro-card::before {
-  inset: -62% -28%;
-  background: repeating-linear-gradient(
-    128deg,
-    transparent 0% 14%,
-    rgba(68, 59, 173, 0.2) 17% 26%,
-    rgba(147, 111, 255, 0.2) 29% 33%,
-    rgba(4, 8, 31, 0.34) 37% 49%,
-    transparent 52% 65%
-  );
-  filter: blur(18px);
-  opacity: 0.24;
-  animation: coach-dashboard-wave 20s ease-in-out infinite alternate;
-}
-
-.profile-pro-card::after {
-  top: -42%;
-  left: 28%;
-  width: 52%;
-  height: 82%;
-  border-radius: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(202, 209, 255, 0.28),
-    transparent 70%
-  );
-  filter: blur(24px);
-  opacity: 0.76;
-}
-
 .profile-pro-card[data-subscription-state="free"] {
-  border-color: rgba(166, 172, 244, 0.18);
-  filter: saturate(0.86);
+  border-color: rgba(166, 172, 244, 0.14);
+  filter: saturate(0.8);
 }
 
 .profile-pro-content {
   position: relative;
   z-index: 1;
-  padding: 1.1rem;
+  padding: 1.3rem;
 }
 
 .profile-pro-title {
   color: #ffffff;
-  font-size: clamp(1.65rem, 4vw, 2rem);
-  line-height: 1;
-  font-weight: 750;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.35rem, 3vw, 1.6rem);
+  line-height: 1.05;
+  font-weight: 720;
+  letter-spacing: -0.032em;
 }
 
 .profile-pro-description {
-  max-width: 40rem;
-  margin-top: 0.7rem;
-  color: rgba(230, 233, 249, 0.75);
+  max-width: 34rem;
+  margin-top: 0.45rem;
+  color: rgba(230, 233, 249, 0.68);
   font-size: 0.875rem;
   line-height: 1.5;
+  text-wrap: pretty;
 }
 
 .profile-pro-status {
   display: inline-flex;
-  min-height: 1.9rem;
+  min-height: 1.75rem;
   flex-shrink: 0;
   align-items: center;
-  gap: 0.35rem;
-  border: 1px solid rgba(229, 232, 255, 0.2);
+  gap: 0.3rem;
+  border: 1px solid rgba(229, 232, 255, 0.16);
   border-radius: 999px;
-  padding: 0.35rem 0.65rem;
-  background: rgba(238, 240, 255, 0.09);
-  color: rgba(247, 248, 255, 0.92);
-  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  background: rgba(238, 240, 255, 0.07);
+  color: rgba(247, 248, 255, 0.88);
+  font-size: 0.7rem;
   line-height: 1;
-  font-weight: 680;
-  letter-spacing: 0.02em;
+  font-weight: 660;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
+/* Hairlines that fade toward the card edges instead of hard full-bleed rules. */
 .profile-pro-plan {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin-top: 1.35rem;
-  padding: 1rem 0;
-  border-top: 1px solid rgba(229, 232, 255, 0.13);
-  border-bottom: 1px solid rgba(229, 232, 255, 0.13);
+  margin-top: 1.15rem;
+  padding: 0.95rem 0;
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-image: linear-gradient(
+      to right,
+      transparent,
+      rgba(229, 232, 255, 0.18) 12%,
+      rgba(229, 232, 255, 0.18) 88%,
+      transparent
+    )
+    1;
 }
 
 .profile-pro-plan-label,
@@ -4888,35 +5335,41 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 .profile-pro-price {
   color: #ffffff;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   line-height: 1.2;
-  font-weight: 720;
-  letter-spacing: -0.025em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .profile-pro-diagnostic {
   display: flex;
   align-items: flex-start;
-  gap: 0.55rem;
-  margin-top: 1rem;
-  color: rgba(218, 222, 241, 0.68);
+  gap: 0.5rem;
+  margin-top: 0.95rem;
+  border-radius: 0.7rem;
+  padding: 0.6rem 0.7rem;
+  background: rgba(226, 231, 255, 0.05);
+  color: rgba(218, 222, 241, 0.72);
   font-size: 0.8rem;
   line-height: 1.45;
 }
 
 .profile-pro-diagnostic[data-tone="success"] {
-  color: rgba(224, 239, 236, 0.8);
+  background: rgba(150, 235, 205, 0.07);
+  color: rgba(224, 239, 236, 0.82);
 }
 
 .profile-pro-diagnostic[data-tone="attention"] {
+  background: rgba(255, 138, 138, 0.09);
   color: #ffc3c3;
 }
 
 .profile-pro-actions {
   display: grid;
-  gap: 0.75rem;
-  margin-top: 1.35rem;
+  gap: 0.5rem;
+  margin-top: 1.15rem;
 }
 
 .profile-pro-primary-action,
@@ -4929,11 +5382,11 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 .profile-pro-primary-action {
-  min-height: 3.25rem;
+  min-height: 3rem;
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 0.85rem;
-  padding: 0.75rem 1rem;
+  border-radius: 0.95rem;
+  padding: 0.7rem 1rem;
   background: #f8f9ff;
   color: #091026;
   font-size: 0.94rem;
@@ -4943,34 +5396,39 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   box-shadow: 0 10px 28px -20px rgba(230, 235, 255, 0.9);
 }
 
+/* Managing an existing plan is a low-frequency action; keep it recessive so it
+   does not compete with the plan details above it. */
 .profile-pro-management-action {
-  border-color: rgba(232, 235, 255, 0.2);
-  background: rgba(236, 239, 255, 0.08);
-  color: rgba(247, 248, 255, 0.92);
+  min-height: 2.75rem;
+  border-color: rgba(232, 235, 255, 0.16);
+  background: transparent;
+  color: rgba(247, 248, 255, 0.82);
+  font-size: 0.88rem;
+  font-weight: 660;
   box-shadow: none;
 }
 
 .profile-pro-secondary-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.35rem;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
 .profile-pro-secondary-action {
   display: inline-flex;
-  min-height: 2.75rem;
+  min-height: 2.5rem;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
   border: 0;
   border-radius: 0.65rem;
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.75rem;
   background: transparent;
-  color: rgba(218, 222, 241, 0.7);
-  font-size: 0.82rem;
+  color: rgba(218, 222, 241, 0.6);
+  font-size: 0.8rem;
   line-height: 1.2;
-  font-weight: 630;
+  font-weight: 620;
 }
 
 .profile-pro-primary-action:active,
@@ -5008,7 +5466,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 @media (min-width: 768px) {
   .profile-pro-content {
-    padding: 1.5rem;
+    padding: 1.6rem;
   }
 }
 
@@ -6329,10 +6787,10 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 .dashboard-ledger-card {
   background-color: var(--card);
-  background-image: repeating-linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--foreground) 3%, transparent) 0 1px,
-    transparent 1px 7px
+  background-image: radial-gradient(
+    120% 90% at 10% 0%,
+    color-mix(in srgb, var(--foreground) 4%, transparent),
+    transparent 62%
   );
 }
 
@@ -6347,7 +6805,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 .dashboard-zoom-pane {
   transition:
-    grid-template-rows 380ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
+    grid-template-rows 380ms
+      var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)),
     opacity 260ms var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
@@ -6370,6 +6829,404 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 @media (prefers-reduced-motion: reduce) {
   .dashboard-zoom-pane,
   .dashboard-zoom-pane > * > * {
+    transition: none !important;
+  }
+}
+
+/* ── Printable report ───────────────────────────────────────────────────────
+   The nutrition report is a normal page on screen and a clean document on
+   paper: app chrome disappears, colours flatten to black on white, and
+   sections are kept off page breaks. */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-hidden,
+  .app-bottom-bar,
+  .native-navigation-bar,
+  [data-offline-indicator],
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .print-sheet {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    min-height: 0 !important;
+  }
+
+  .print-sheet * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .print-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5pt;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #999 !important;
+    padding: 4px 6px;
+    text-align: left;
+  }
+
+  .print-table thead {
+    display: table-header-group;
+  }
+}
+
+/* ── Pro paywall ──────────────────────────────────────────────────────────
+   Full-screen purchase surface: hero mark, benefits, the single monthly
+   plan, then a pinned call to action with the legal and restore row. */
+.paywall-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Keeps the surface from reading as a flat sheet without adding decoration. */
+.paywall-glow {
+  position: absolute;
+  top: -28%;
+  left: 50%;
+  width: min(34rem, 130%);
+  height: 26rem;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 12%, transparent) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
+}
+
+/* Sits on the hero photo in both themes, so it is deliberately theme-agnostic
+   rather than tinted from --foreground, which vanished on the light canvas. */
+.paywall-close {
+  position: absolute;
+  top: calc(var(--app-safe-top) + 0.5rem);
+  left: 0.85rem;
+  z-index: 2;
+  display: flex;
+  width: 2.35rem;
+  height: 2.35rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(10, 12, 20, 0.5);
+  color: #fff;
+}
+
+.paywall-close:active {
+  background: rgba(10, 12, 20, 0.72);
+}
+
+.paywall-scroll {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  overflow-y: auto;
+  padding: calc(var(--app-safe-top) + 4rem) 1.5rem 1.5rem;
+  text-align: center;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The hero sits above the scrim, so the close control needs to clear it. */
+.paywall-close {
+  backdrop-filter: blur(8px);
+}
+
+/* Full-bleed hero photo, faded into the page so the title reads over it.
+   The image is decorative: if it fails to load the scrim alone still works. */
+.paywall-hero {
+  position: relative;
+  margin: calc(var(--app-safe-top) * -1 - 4rem) -1.5rem 1.25rem;
+  height: 17rem;
+  overflow: hidden;
+}
+
+.paywall-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  filter: grayscale(0.35) contrast(1.05);
+}
+
+.paywall-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--background) 10%, transparent) 0%,
+    color-mix(in srgb, var(--background) 4%, transparent) 40%,
+    color-mix(in srgb, var(--background) 80%, transparent) 76%,
+    var(--background) 100%
+  );
+}
+
+.paywall-title {
+  margin-top: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.paywall-subtitle {
+  margin: 0.55rem auto 0;
+  max-width: 20rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.paywall-benefits {
+  display: grid;
+  gap: 0.85rem;
+  margin: 2rem auto 0;
+  max-width: 21rem;
+  text-align: left;
+}
+
+.paywall-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.paywall-benefits svg {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  color: var(--foreground);
+}
+
+.paywall-plan {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 2rem auto 0;
+  max-width: 21rem;
+  border: 1.5px solid var(--foreground);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  padding: 0.9rem 1rem;
+  text-align: left;
+}
+
+.paywall-plan-check {
+  display: flex;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.paywall-plan-body {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.1rem;
+}
+
+.paywall-plan-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.paywall-plan-detail {
+  font-size: 0.72rem;
+  color: var(--muted-foreground);
+}
+
+.paywall-plan-price {
+  flex-shrink: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.paywall-error {
+  margin: 1rem auto 0;
+  max-width: 21rem;
+  border: 1px solid color-mix(in srgb, var(--destructive) 25%, transparent);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--destructive) 8%, transparent);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--destructive);
+}
+
+.paywall-footer {
+  position: relative;
+  z-index: 1;
+  border-top: 1px solid var(--divider);
+  background: var(--background);
+  padding: 0.9rem 1.5rem calc(var(--app-safe-bottom) + 0.9rem);
+}
+
+.paywall-cta {
+  display: flex;
+  width: 100%;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.paywall-cta:active:not(:disabled) {
+  opacity: 0.85;
+}
+
+.paywall-cta:disabled {
+  opacity: 0.5;
+}
+
+.paywall-secure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.65rem;
+  font-size: 0.7rem;
+  color: var(--muted-foreground);
+}
+
+.paywall-legal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.65rem;
+  font-size: 0.7rem;
+  color: color-mix(in srgb, var(--muted-foreground) 80%, transparent);
+}
+
+.paywall-legal a,
+.paywall-legal button {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.paywall-legal button:disabled {
+  opacity: 0.5;
+  text-decoration: none;
+}
+
+/* The desktop sidebar is a fixed 16rem rail, so the paywall starts after it
+   rather than covering the app's primary navigation. Inside that space the
+   content becomes a centred column instead of a stretched full-bleed banner. */
+@media (min-width: 1024px) {
+  .paywall-screen {
+    left: 16rem;
+  }
+
+  .paywall-scroll {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 2rem 1.5rem 1rem;
+  }
+
+  .paywall-scroll > * {
+    width: 100%;
+    max-width: 24rem;
+    margin-inline: auto;
+  }
+
+  .paywall-hero {
+    margin: 0 auto 1.5rem;
+    height: 12rem;
+    border-radius: 1.25rem;
+  }
+
+  .paywall-hero-scrim {
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 55%,
+      color-mix(in srgb, var(--background) 55%, transparent) 100%
+    );
+  }
+
+  .paywall-benefits,
+  .paywall-plan {
+    margin-top: 1.5rem;
+  }
+
+  .paywall-footer {
+    padding: 1rem 1.5rem 1.5rem;
+  }
+
+  .paywall-footer > * {
+    width: 100%;
+    max-width: 24rem;
+    margin-inline: auto;
+  }
+
+  .paywall-close {
+    top: 1rem;
+    left: 1rem;
+    background: color-mix(in srgb, var(--foreground) 8%, transparent);
+    color: var(--muted-foreground);
+  }
+
+  .paywall-close:active {
+    background: color-mix(in srgb, var(--foreground) 15%, transparent);
+    color: var(--foreground);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paywall-cta,
+  .paywall-close {
     transition: none !important;
   }
 }

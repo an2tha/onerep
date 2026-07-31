@@ -171,6 +171,7 @@ export function DashboardProgressPanels({
   weightUnit: "kg" | "lbs"
 }) {
   const selected = METRICS.find((item) => item.id === metric) ?? METRICS[0]
+  const checkInCount = Math.min(14, measurements.length)
   const weightValues = measurements.flatMap((entry) =>
     typeof entry.weightKg === "number"
       ? [weightUnit === "lbs" ? entry.weightKg * 2.20462 : entry.weightKg]
@@ -194,23 +195,25 @@ export function DashboardProgressPanels({
       <p className="sr-only">
         Daily target is maintenance minus the planned deficit.
       </p>
+      <div className="mb-2 flex items-end justify-between gap-4">
+        <div>
+          <p className="app-section-title">Progress snapshot</p>
+          {checkInCount > 0 && (
+            <p className="native-row-detail mt-0.5">
+              Last {checkInCount} check-in{checkInCount === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+        <div className="text-right">
+          <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
+            {calorieTarget.toLocaleString("en-US")} kcal
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}
+          </p>
+        </div>
+      </div>
       <Card className="overflow-hidden p-0">
-        <header className="flex items-center justify-between gap-4 border-b border-border px-4 py-3.5">
-          <div>
-            <p className="app-eyebrow">Progress snapshot</p>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              Last 14 check-ins
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="rounded-full bg-muted px-2 py-1 text-[12px] font-bold tabular-nums">
-              {calorieTarget.toLocaleString()} kcal
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              daily target{deficit > 0 ? ` · ${deficit} deficit` : ""}
-            </p>
-          </div>
-        </header>
 
         <div className="grid divide-border md:grid-cols-2 md:divide-x md:divide-y-0">
           <div className="border-b border-border px-4 pt-4 pb-2 md:border-b-0">
@@ -225,10 +228,7 @@ export function DashboardProgressPanels({
           </div>
 
           <div className="px-4 pt-3 pb-2 md:pt-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-semibold text-muted-foreground">
-                {selected.label}
-              </p>
+            <div className="flex items-center justify-end gap-3">
               <label>
                 <span className="sr-only">Choose dashboard metric</span>
                 <select

@@ -111,6 +111,8 @@ export type AiUsageView = {
   remaining: number
   limit: number
   month: string
+  isPro?: boolean
+  proLimit?: number
 }
 
 function formatUsageMonth(month: string) {
@@ -124,16 +126,20 @@ function formatUsageMonth(month: string) {
 }
 
 export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
-  const limit = usage?.limit ?? 150
+  const limit = usage?.limit ?? 10
   const count = usage?.count ?? 0
   const remaining = usage?.remaining ?? limit
   const percent =
     limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : 0
+  // Proportional so the warning is meaningful on both the free and Pro tiers.
+  const runningLow = limit > 0 && remaining <= Math.max(1, limit * 0.1)
   return (
     <div className="px-[var(--app-page-x)] py-4">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
-          <p className="native-row-title">Monthly requests</p>
+          <p className="native-row-title">
+            Monthly requests{usage?.isPro ? " · Pro" : " · Free"}
+          </p>
           <p className="native-row-detail mt-0.5">
             {formatUsageMonth(usage?.month ?? "")} · {remaining} request
             {remaining === 1 ? "" : "s"} left
@@ -156,12 +162,15 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
           style={{
             width: `${percent}%`,
             backgroundColor:
-              remaining <= 15 ? "var(--status-danger)" : "var(--foreground)",
+              runningLow ? "var(--status-danger)" : "var(--foreground)",
           }}
         />
       </div>
       <p className="native-row-detail mt-2">
         Shared across AI metrics, workout generation, and food photo analysis.
+        {usage && !usage.isPro && usage.proLimit
+          ? ` OneRep Pro raises this to ${usage.proLimit} a month.`
+          : ""}
       </p>
     </div>
   )

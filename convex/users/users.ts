@@ -7,6 +7,12 @@ import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 import { buildNutritionPlan } from "../lib/nutritionPlan";
+import {
+  DEFAULT_MEAL_IDS,
+  DEFAULT_MEAL_SHARES,
+  normalizeMealShares,
+  resolveMealCalorieTargets,
+} from "../lib/mealTargets";
 
 // ── Auth helper ───────────────────────────────────────────────────────────────
 
@@ -112,8 +118,23 @@ export const setCustomMealCategories = mutation({
       .unique();
 
     if (existing) {
+      // Category ids only ever change here, so this is the one place a stored
+      // per-meal budget can go stale. Re-normalise it against the new id set.
+      const existingTargets = existing.mealCalorieTargets;
+      const mealCalorieTargets = existingTargets
+        ? {
+            ...existingTargets,
+            shares: normalizeMealShares(existingTargets.shares, [
+              ...DEFAULT_MEAL_IDS,
+              ...args.categories.map((category) => category.id),
+            ]),
+            updatedAt: Date.now(),
+          }
+        : undefined;
+
       await ctx.db.patch(existing._id, {
         customMealCategories: args.categories,
+        ...(mealCalorieTargets ? { mealCalorieTargets } : {}),
         updatedAt: Date.now(),
       });
     } else {
@@ -364,6 +385,83 @@ export const setCustomGoals = mutation({
   },
 });
 
+export const setMealCalorieTargets = mutation({
+  args: {
+    enabled: v.boolean(),
+    shares: v.optional(
+      v.array(
+        v.object({
+          meal: v.string(),
+          percent: v.number(),
+        }),
+      ),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const knownMeals = [
+      ...DEFAULT_MEAL_IDS,
+      ...(existing?.customMealCategories ?? []).map((category) => category.id),
+    ];
+    // Normalise on write so a client that sends 87% (or a stale category) can
+    // never persist a budget that does not add up.
+    const shares = normalizeMealShares(
+      args.shares ?? existing?.mealCalorieTargets?.shares ?? DEFAULT_MEAL_SHARES,
+      knownMeals,
+    );
+
+    const mealCalorieTargets = {
+      enabled: args.enabled,
+      shares,
+      updatedAt: Date.now(),
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        mealCalorieTargets,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        mealCalorieTargets,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
+export const setNetCarbsEnabled = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        netCarbsEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        netCarbsEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setMacroCycling = mutation({
   args: {
     enabled: v.boolean(),
@@ -536,6 +634,12 @@ export const exportMyData = query({
       snapUsage,
       activeWorkouts,
       customExercises,
+      customFoods,
+      mealPrepBatches,
+      fastingSessions,
+      groceryLists,
+      diaryShares,
+      diaryComments,
     ] = await Promise.all([
       ctx.db
         .query("userPreferences")
@@ -641,6 +745,33 @@ export const exportMyData = query({
         .query("exercises")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
+      ctx.db
+        .query("customFoods")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("mealPrepBatches")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("fastingSessions")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("groceryLists")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      // Shares this account granted, and comments left on its diary.
+      ctx.db
+        .query("diaryShares")
+        .withIndex("by_ownerUserId", (q) => q.eq("ownerUserId", user._id))
+        .collect(),
+      ctx.db
+        .query("diaryComments")
+        .withIndex("by_ownerUserId_and_createdAt", (q) =>
+          q.eq("ownerUserId", user._id),
+        )
+        .collect(),
     ]);
 
     return {
@@ -677,6 +808,12 @@ export const exportMyData = query({
         snapUsage,
         activeWorkouts,
         customExercises,
+        customFoods,
+        mealPrepBatches,
+        fastingSessions,
+        groceryLists,
+        diaryShares,
+        diaryComments,
       },
     };
   },
@@ -806,6 +943,17 @@ export const getEffectiveGoals = query({
       }
     }
 
+    // 3. Per-meal calorie budget, resolved against the *final* calorie number
+    // so it inherits macro cycling and the workout adjustment for free.
+    const knownMeals = [
+      ...DEFAULT_MEAL_IDS,
+      ...(prefs?.customMealCategories ?? []).map((category) => category.id),
+    ];
+    const mealShares = normalizeMealShares(
+      prefs?.mealCalorieTargets?.shares,
+      knownMeals,
+    );
+
     return {
       custom: customGoals ?? null,
       health: healthGoals,
@@ -814,6 +962,8 @@ export const getEffectiveGoals = query({
       isTrainingDay,
       macroCyclingEnabled: !!prefs?.macroCyclingEnabled,
       workoutAdjustmentEnabled: !!prefs?.workoutAdjustmentEnabled,
+      mealTargetsEnabled: !!prefs?.mealCalorieTargets?.enabled,
+      mealTargets: resolveMealCalorieTargets(mealShares, effective.calories),
     };
   },
 });

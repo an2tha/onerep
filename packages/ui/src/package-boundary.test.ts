@@ -61,12 +61,20 @@ describe("@repo/ui package boundary", () => {
     )
     const allowedModules = new Set([
       "auth-guard.tsx",
+      "auth-shell.tsx",
       "bottom-bar.tsx",
       "error-boundary.tsx",
       "food-detail-sheet.tsx",
+      "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       "offline-sync-indicator.tsx",
       "tooltips.tsx",
+      // Walkthrough: Convex persistence, router, and haptics bound to the
+      // presentational spotlight primitives in @repo/ui.
+      "walkthrough/tour-anchor.tsx",
+      "walkthrough/tour-context.tsx",
+      "walkthrough/tour-provider.tsx",
+      "walkthrough/welcome-sheet.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
     ])

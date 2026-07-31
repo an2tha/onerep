@@ -25,21 +25,31 @@ import type { DataModel } from "./dataModel.js";
  * Typesafe environment variables declared in `convex.config.ts`.
  */
 type Env = {
+  readonly APPLE_BUNDLE_ID: string | undefined;
+  readonly APPLE_ENVIRONMENT: string | undefined;
+  readonly APPLE_ISSUER_ID: string | undefined;
+  readonly APPLE_KEY_ID: string | undefined;
+  readonly APPLE_PRIVATE_KEY: string | undefined;
+  readonly APPLE_ROOT_CA_G3: string | undefined;
   readonly AUTH_EMAIL_FROM: string | undefined;
   readonly AUTH_EMAIL_LOGO_URL: string | undefined;
+  readonly BILLING_CHECKOUT_CANCEL_URL: string | undefined;
+  readonly BILLING_CHECKOUT_SUCCESS_URL: string | undefined;
+  readonly BILLING_COMP_ALL_USERS: string | undefined;
+  readonly BILLING_MONTHLY_PRICE_LABEL: string | undefined;
   readonly DATASOURCE_API_TOKEN: string | undefined;
   readonly DATASOURCE_URL: string | undefined;
+  readonly GOOGLE_PACKAGE_NAME: string | undefined;
+  readonly GOOGLE_PUBSUB_AUDIENCE: string | undefined;
+  readonly GOOGLE_PUBSUB_SERVICE_ACCOUNT: string | undefined;
+  readonly GOOGLE_SERVICE_ACCOUNT_JSON: string | undefined;
   readonly OPENAI_API_KEY: string | undefined;
   readonly OPENAI_MODEL: string | undefined;
   readonly RESEND_API_KEY: string | undefined;
-  readonly REVENUECAT_API_V2_SECRET_KEY: string | undefined;
-  readonly REVENUECAT_MONTHLY_PRICE_LABEL: string | undefined;
-  readonly REVENUECAT_PROJECT_ID: string | undefined;
   readonly REVENUECAT_PUBLIC_SDK_KEY: string | undefined;
-  readonly REVENUECAT_SECRET_KEY: string | undefined;
-  readonly REVENUECAT_WEBHOOK_AUTH: string | undefined;
-  readonly REVENUECAT_WEB_CHECKOUT_URL: string | undefined;
+  readonly STRIPE_PRICE_ID_MONTHLY: string | undefined;
   readonly STRIPE_SECRET_KEY: string | undefined;
+  readonly STRIPE_WEBHOOK_SECRET: string | undefined;
 };
 
 /**

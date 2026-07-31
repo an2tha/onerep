@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const coachSource = readFileSync(
-  new URL("./Coach.tsx", import.meta.url),
-  "utf8"
-)
+const coachSource = [
+  readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../lib/coach-chat.tsx", import.meta.url), "utf8"),
+].join("\n")
 const widgetSource = readFileSync(
   new URL(
     "../../../../packages/ui/src/components/home/coach-dashboard-widgets.tsx",

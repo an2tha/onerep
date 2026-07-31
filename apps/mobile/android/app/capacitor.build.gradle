@@ -16,8 +16,6 @@ dependencies {
     implementation project(':capacitor-preferences')
     implementation project(':capacitor-share')
     implementation project(':capgo-capacitor-speech-recognition')
-    implementation project(':revenuecat-purchases-capacitor')
-    implementation project(':revenuecat-purchases-capacitor-ui')
 
 }
 

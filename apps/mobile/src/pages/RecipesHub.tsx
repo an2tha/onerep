@@ -15,6 +15,7 @@ import {
   Plus,
   SealCheck,
   ShareNetwork,
+  ShoppingCart,
   SlidersHorizontal,
   Star,
   X,
@@ -1369,6 +1370,22 @@ export default function RecipesHub() {
                                   ? "recipes-heart-saved text-rose-500"
                                   : "text-muted-foreground"
                               }
+                            />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              hapticSelection()
+                              navigate(
+                                `/nutrition/groceries?recipe=${recipe.id}`
+                              )
+                            }}
+                            aria-label={`Add ${recipe.name} to grocery list`}
+                            className="motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted/55 transition-transform active:scale-90"
+                          >
+                            <ShoppingCart
+                              size={18}
+                              className="text-muted-foreground"
                             />
                           </button>
                         </div>

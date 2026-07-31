@@ -1,8 +1,9 @@
 import { useRef, useState, type FormEvent } from "react"
 import { useSearchParams } from "react-router"
-import { Eye, EyeSlash } from "@phosphor-icons/react"
+import { CaretLeft, Eye, EyeSlash } from "@phosphor-icons/react"
 import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { AUTH_CARD_CLASS, AuthLayout, AuthMark } from "@/components/auth-shell"
 import { getAuthCallbackUrl } from "@/lib/auth-redirects"
 
 const FIELD_CLASS = "native-field"
@@ -31,7 +32,7 @@ function PasswordInput({
   return (
     <label className={FIELD_CLASS}>
       <span className={LABEL_CLASS}>{label}</span>
-      <span className="flex items-center gap-2">
+      <span className="relative block">
         <input
           type={visible ? "text" : "password"}
           name={name}
@@ -42,13 +43,13 @@ function PasswordInput({
           minLength={8}
           autoComplete="new-password"
           disabled={disabled}
-          className={INPUT_CLASS}
+          className={`${INPUT_CLASS} pr-12`}
         />
         <button
           type="button"
           onClick={onToggleVisible}
           disabled={disabled}
-          className="native-toolbar-button h-11 w-11 shrink-0 border border-border text-muted-foreground disabled:opacity-40"
+          className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
           aria-label={visible ? `Hide ${label}` : `Show ${label}`}
           aria-pressed={visible}
         >
@@ -77,6 +78,14 @@ export default function ResetPassword() {
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const resetActionRef = useRef(false)
+
+  /**
+   * Always resolves to the sign-in route rather than history.back(), since this
+   * page is also reached cold from the emailed reset link.
+   */
+  function backToSignIn() {
+    navigate("/login", { replace: true, motion: "back" })
+  }
 
   async function sendCode(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
@@ -162,132 +171,143 @@ export default function ResetPassword() {
   const passwordChanged = message === PASSWORD_CHANGED_MESSAGE
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <main className="mx-auto flex min-h-svh w-full max-w-md flex-col justify-center px-6 py-10">
-        <header className="mb-8 flex items-center gap-2.5">
-          <img src="/app-icon.svg" alt="" className="size-8" />
-          <span className="native-row-title font-semibold">OneRep</span>
-        </header>
-
-        <section aria-labelledby="reset-password-title">
-          <p className="native-supporting">Account security</p>
-          <h1 id="reset-password-title" className="native-large-title mt-2">
-            {codeSent ? "Choose a new password" : "Reset your password"}
-          </h1>
-          <p className="native-body mt-3 text-muted-foreground">
-            {codeSent
-              ? "Use the link from your email and enter a new password below."
-              : "Enter your account email. We’ll send you a secure reset link."}
-          </p>
-
-          <form
-            onSubmit={codeSent ? changePassword : sendCode}
-            className="mt-7 space-y-4"
+    <AuthLayout>
+      <header className="mb-7 text-center">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={backToSignIn}
+            className="native-toolbar-button -ml-2.5 pl-1.5 text-muted-foreground transition-colors hover:text-foreground active:opacity-60"
           >
-            {!codeSent && (
-              <label className={FIELD_CLASS}>
-                <span className={LABEL_CLASS}>Email</span>
-                <input
-                  type="email"
-                  name="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@example.com"
-                  required
-                  autoComplete="email"
-                  disabled={loading || Boolean(message)}
-                  className={INPUT_CLASS}
-                />
-              </label>
-            )}
+            <CaretLeft size={18} weight="bold" />
+            Sign in
+          </button>
+        </div>
+        <AuthMark />
+        <h1
+          id="reset-password-title"
+          className="mt-5 text-[1.9rem] leading-[1.1] font-semibold tracking-[-0.04em]"
+        >
+          {codeSent ? "Choose a new password" : "Reset your password"}
+        </h1>
+        <p className="mt-2 text-[15px] leading-6 text-balance text-muted-foreground">
+          {codeSent
+            ? "Use the link from your email and enter a new password below."
+            : "Enter your account email. We’ll send you a secure reset link."}
+        </p>
+      </header>
 
-            {codeSent && !passwordChanged && (
-              <>
-                <PasswordInput
-                  label="New password"
-                  name="new-password"
-                  value={newPassword}
-                  onChange={setNewPassword}
-                  visible={showNewPassword}
-                  onToggleVisible={() =>
-                    setShowNewPassword((visible) => !visible)
-                  }
-                  disabled={loading}
-                />
+      <section
+        aria-labelledby="reset-password-title"
+        className={AUTH_CARD_CLASS}
+      >
+        <form
+          onSubmit={codeSent ? changePassword : sendCode}
+          className="space-y-5"
+        >
+          {!codeSent && (
+            <label className={FIELD_CLASS}>
+              <span className={LABEL_CLASS}>Email</span>
+              <input
+                type="email"
+                name="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                required
+                autoComplete="email"
+                disabled={loading || Boolean(message)}
+                className={INPUT_CLASS}
+              />
+            </label>
+          )}
 
-                <PasswordInput
-                  label="Confirm password"
-                  name="confirm-password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  visible={showConfirmPassword}
-                  onToggleVisible={() =>
-                    setShowConfirmPassword((visible) => !visible)
-                  }
-                  disabled={loading}
-                />
-              </>
-            )}
-
-            {error && (
-              <p
-                role="alert"
-                className="border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
-              >
-                {error}
-              </p>
-            )}
-
-            {message && (
-              <p
-                role="status"
-                className="border-l-2 border-border py-2 pl-3 text-[14px] font-medium text-muted-foreground"
-              >
-                {message}
-              </p>
-            )}
-
-            {passwordChanged ? (
-              <button
-                type="button"
-                onClick={() => navigate("/login", { replace: true })}
-                className="native-primary-button min-h-12 w-full"
-              >
-                Back to sign in
-              </button>
-            ) : (
-              <button
-                type="submit"
+          {codeSent && !passwordChanged && (
+            <>
+              <PasswordInput
+                label="New password"
+                name="new-password"
+                value={newPassword}
+                onChange={setNewPassword}
+                visible={showNewPassword}
+                onToggleVisible={() =>
+                  setShowNewPassword((visible) => !visible)
+                }
                 disabled={loading}
-                aria-busy={loading}
-                className="native-primary-button min-h-12 w-full disabled:opacity-50"
-              >
-                {loading
-                  ? codeSent
-                    ? "Changing…"
-                    : "Sending…"
-                  : codeSent
-                    ? "Change password"
-                    : "Send link"}
-              </button>
-            )}
-          </form>
+              />
 
-          {/* Without an email in scope the resend would only ever error, and
-              the email field is hidden once codeSent is true. */}
-          {codeSent && !passwordChanged && email.trim() !== "" && (
+              <PasswordInput
+                label="Confirm password"
+                name="confirm-password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                visible={showConfirmPassword}
+                onToggleVisible={() =>
+                  setShowConfirmPassword((visible) => !visible)
+                }
+                disabled={loading}
+              />
+            </>
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="border-l-2 border-destructive py-1.5 pl-3 text-[14px] leading-5 font-medium text-destructive"
+            >
+              {error}
+            </p>
+          )}
+
+          {message && (
+            <p
+              role="status"
+              className="border-l-2 border-border py-1.5 pl-3 text-[14px] leading-5 font-medium text-muted-foreground"
+            >
+              {message}
+            </p>
+          )}
+
+          {passwordChanged ? (
             <button
               type="button"
-              onClick={() => void sendCode()}
+              onClick={backToSignIn}
+              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+            >
+              Back to sign in
+            </button>
+          ) : (
+            <button
+              type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="native-toolbar-button mt-3 min-h-12 w-full border border-border text-muted-foreground disabled:opacity-50"
+              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99] disabled:opacity-50"
             >
-              Resend link
+              {loading
+                ? codeSent
+                  ? "Changing…"
+                  : "Sending…"
+                : codeSent
+                  ? "Change password"
+                  : "Send link"}
             </button>
           )}
-        </section>
-      </main>
-    </div>
+        </form>
+
+        {/* Without an email in scope the resend would only ever error, and
+              the email field is hidden once codeSent is true. */}
+        {codeSent && !passwordChanged && email.trim() !== "" && (
+          <button
+            type="button"
+            onClick={() => void sendCode()}
+            disabled={loading}
+            aria-busy={loading}
+            className="native-secondary-button mt-3 min-h-12 w-full rounded-[0.8rem] text-muted-foreground disabled:opacity-50"
+          >
+            Resend link
+          </button>
+        )}
+      </section>
+    </AuthLayout>
   )
 }

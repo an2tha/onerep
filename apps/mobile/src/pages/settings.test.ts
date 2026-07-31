@@ -209,14 +209,23 @@ describe("Settings destructive actions", () => {
 })
 
 describe("OneRep Pro membership surface", () => {
+  test("handles checkout result hashes with celebration and an accessible failure dialog", () => {
+    assert.match(SETTINGS_SOURCE, /checkoutResult === "success"/)
+    assert.match(SETTINGS_SOURCE, /celebrateSubscription\(\)/)
+    assert.match(SETTINGS_SOURCE, /checkoutResult === "failed"/)
+    assert.match(SETTINGS_SOURCE, /Checkout didn’t complete/)
+    assert.match(SETTINGS_SOURCE, /aria-labelledby="checkout-failed-title"/)
+    assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
+  })
+
   test("uses the Coach-derived premium surface without changing billing actions", () => {
     assert.match(SETTINGS_SOURCE, /className="profile-pro-card"/)
     assert.match(SETTINGS_SOURCE, /"profile-pro-primary-action"/)
     assert.doesNotMatch(SETTINGS_SOURCE, /OneRep membership/)
-    assert.match(SETTINGS_SOURCE, /revenueCat\.purchaseMonthly/)
-    assert.match(SETTINGS_SOURCE, /revenueCat\.restorePurchases/)
-    assert.match(SETTINGS_SOURCE, /revenueCat\.refresh/)
-    assert.match(SETTINGS_SOURCE, /revenueCat\.cancelSubscription/)
+    assert.match(SETTINGS_SOURCE, /billing\.purchaseMonthly/)
+    assert.match(SETTINGS_SOURCE, /billing\.restorePurchases/)
+    assert.match(SETTINGS_SOURCE, /billing\.refresh/)
+    assert.match(SETTINGS_SOURCE, /billing\.cancelSubscription/)
   })
 
   test("keeps cancellation confirmed and adds tactile feedback at entry", () => {
@@ -639,5 +648,129 @@ describe("SettingsRow – label rendering", () => {
     for (const label of expectedLabels) {
       assert.ok(label.length > 0, `label "${label}" should be non-empty`)
     }
+  })
+})
+
+const AI_ACCESS_SOURCE = readFileSync(
+  new URL("../lib/ai-access.tsx", import.meta.url),
+  "utf8"
+)
+const PAYWALL_STYLES = readFileSync(
+  new URL("../../../../packages/ui/src/index.css", import.meta.url),
+  "utf8"
+)
+
+describe("AI paywall", () => {
+  test("free accounts spend their allowance before the paywall appears", () => {
+    // The gate must not block a non-Pro user who still has free requests.
+    assert.match(AI_ACCESS_SOURCE, /if \(freeRequestsLeft > 0\) return true/)
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /const freeRequestsLeft = usage && !usage\.isPro \? usage\.remaining : 0/
+    )
+    // Usage must be loaded before deciding, or a free user gets a false paywall.
+    assert.match(AI_ACCESS_SOURCE, /usage === undefined/)
+  })
+
+  test("the paywall contrasts the free and Pro allowances from server values", () => {
+    assert.match(AI_ACCESS_SOURCE, /const free = freeLimit \?\? 10/)
+    assert.match(AI_ACCESS_SOURCE, /const pro = proLimit \?\? 500/)
+    assert.match(AI_ACCESS_SOURCE, /freeLimit=\{usage && !usage\.isPro/)
+    assert.match(AI_ACCESS_SOURCE, /proLimit=\{usage\?\.proLimit/)
+    assert.match(AI_ACCESS_SOURCE, /usedCount=\{usage\?\.count/)
+  })
+
+  test("the paywall adapts when the allowance is already spent", () => {
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /const spentAllowance = usedCount != null && usedCount >= free/
+    )
+    assert.match(AI_ACCESS_SOURCE, /You're out of AI this month/)
+    assert.match(AI_ACCESS_SOURCE, /Unlock OneRep Pro/)
+  })
+
+  test("the paywall is a full-screen surface with the standard anatomy", () => {
+    // Close, hero, title, benefits, plan, CTA, then legal + restore.
+    for (const className of [
+      "paywall-screen",
+      "paywall-close",
+      "paywall-hero",
+      "paywall-title",
+      "paywall-benefits",
+      "paywall-plan",
+      "paywall-cta",
+      "paywall-legal",
+    ]) {
+      assert.ok(
+        AI_ACCESS_SOURCE.includes(className),
+        `paywall is missing ${className}`
+      )
+    }
+    assert.match(PAYWALL_STYLES, /\.paywall-screen \{[\s\S]*position: fixed/)
+    assert.match(
+      PAYWALL_STYLES,
+      /\.paywall-footer \{[\s\S]*var\(--app-safe-bottom\)/
+    )
+    assert.match(
+      PAYWALL_STYLES,
+      /\.paywall-close \{[\s\S]*var\(--app-safe-top\)/
+    )
+  })
+
+  test("the paywall uses a hero image that degrades gracefully", () => {
+    assert.match(AI_ACCESS_SOURCE, /const PAYWALL_HERO_IMAGE =/)
+    assert.match(AI_ACCESS_SOURCE, /https:\/\/images\.unsplash\.com\/photo-/)
+    // Decorative, so it must not be announced.
+    assert.match(AI_ACCESS_SOURCE, /alt=""/)
+    // Offline the image simply drops out rather than leaving a broken frame.
+    assert.match(AI_ACCESS_SOURCE, /onError=\{\(event\) => \{/)
+    assert.match(
+      PAYWALL_STYLES,
+      /\.paywall-hero-scrim \{[\s\S]*linear-gradient/
+    )
+    // The close control sits on the photo, so it cannot be theme-tinted.
+    assert.match(
+      PAYWALL_STYLES,
+      /\.paywall-close \{[\s\S]*rgba\(10, 12, 20, 0\.5\)/
+    )
+  })
+
+  test("the paywall clears the desktop sidebar instead of covering it", () => {
+    // The sidebar is a fixed 16rem rail at the lg breakpoint.
+    assert.match(
+      PAYWALL_STYLES,
+      /@media \(min-width: 1024px\) \{[\s\S]*\.paywall-screen \{[\s\S]*left: 16rem/
+    )
+  })
+
+  test("the paywall carries no decorative eyebrow or sparkle mark", () => {
+    assert.ok(!AI_ACCESS_SOURCE.includes("paywall-eyebrow"))
+    assert.ok(!AI_ACCESS_SOURCE.includes("paywall-hero-mark"))
+    assert.ok(!AI_ACCESS_SOURCE.includes("Sparkle"))
+    assert.ok(!PAYWALL_STYLES.includes(".paywall-eyebrow"))
+    assert.ok(!PAYWALL_STYLES.includes(".paywall-hero-mark"))
+  })
+
+  test("the paywall links out to real legal pages and restore", () => {
+    assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/privacy/)
+    assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/terms/)
+    assert.match(AI_ACCESS_SOURCE, /Restore Purchases/)
+    // External links must not leak the opener.
+    assert.match(AI_ACCESS_SOURCE, /rel="noreferrer"/)
+  })
+
+  test("the paywall stays an accessible dialog", () => {
+    assert.match(AI_ACCESS_SOURCE, /role="dialog"/)
+    assert.match(AI_ACCESS_SOURCE, /aria-modal="true"/)
+    assert.match(AI_ACCESS_SOURCE, /aria-labelledby="ai-access-required-title"/)
+    assert.match(AI_ACCESS_SOURCE, /aria-label="Close paywall"/)
+  })
+
+  test("developer settings can preview the paywall", () => {
+    assert.match(AI_ACCESS_SOURCE, /const showAiPaywall = useCallback/)
+    assert.match(SETTINGS_SOURCE, /title="Show paywall"/)
+    assert.match(SETTINGS_SOURCE, /showAiPaywall\(\)/)
+    // The modal has to actually be mounted on the Settings page.
+    assert.match(SETTINGS_SOURCE, /\{aiAccessModal\}/)
   })
 })

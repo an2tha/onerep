@@ -19,6 +19,7 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { SwipeToStart, toast } from "@repo/ui"
+import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useMutation, useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -571,6 +572,8 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
 
 export default function Workouts() {
   const navigate = useSmoothNavigate()
+  const trainingHeaderRef = useTourAnchor("training-header")
+  const trainingStartRef = useTourAnchor("training-start")
   const todayKey = todayIso()
   const [dateKey, setDateKey] = useState(todayKey)
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false)
@@ -1139,7 +1142,7 @@ export default function Workouts() {
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page">
-        <header className="app-header">
+        <header className="app-header" ref={trainingHeaderRef}>
           <div className="min-w-0">
             <h1 className="app-title">Training</h1>
             <button
@@ -1574,17 +1577,19 @@ export default function Workouts() {
                         Your reusable training sessions
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        hapticSelection()
-                        navigate("/workouts/new")
-                      }}
-                      className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
-                    >
-                      <Plus size={14} weight="bold" />
-                      New preset
-                    </button>
+                    <TourAnchor anchor="training-build" className="shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          hapticSelection()
+                          navigate("/workouts/new")
+                        }}
+                        className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-2 text-[13px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+                      >
+                        <Plus size={14} weight="bold" />
+                        New preset
+                      </button>
+                    </TourAnchor>
                     <button
                       type="button"
                       onClick={() => setPresetsOpen((open) => !open)}
@@ -1616,6 +1621,7 @@ export default function Workouts() {
                   >
                     <div className="min-h-0 overflow-hidden">
                       <div
+                        ref={trainingStartRef}
                         id="workout-presets-list"
                         className="divide-y divide-border/70 border-y border-border/70"
                       >

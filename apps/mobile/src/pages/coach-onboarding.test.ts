@@ -2,10 +2,12 @@ import { describe, test } from "node:test"
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"
 
-const COACH_SOURCE = readFileSync(
-  new URL("./Coach.tsx", import.meta.url),
-  "utf8"
-)
+// The Coach surface spans the page and the shared chat module it renders with
+// (also consumed by the onboarding Coach setup stage).
+const COACH_SOURCE = [
+  readFileSync(new URL("./Coach.tsx", import.meta.url), "utf8"),
+  readFileSync(new URL("../lib/coach-chat.tsx", import.meta.url), "utf8"),
+].join("\n")
 const SETTINGS_SOURCE = readFileSync(
   new URL("./Settings.tsx", import.meta.url),
   "utf8"
@@ -118,8 +120,10 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).not.toContain('title: "Make something"')
     expect(COACH_SOURCE).not.toContain('title: "Plan my week"')
     expect(COACH_SOURCE).toContain("New chat")
-    expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachStarters")
-    expect(COACH_SOURCE).toContain("APP_TOOLTIP_IDS.coachNewChat")
+    // The walkthrough's Coach chapter owns this guidance now.
+    expect(COACH_SOURCE).toContain('anchor="coach-new-chat"')
+    expect(COACH_SOURCE).toContain('anchor="coach-composer"')
+    expect(COACH_SOURCE).toContain("startNewChat")
   })
 
   test("lets developers replay the Coach capabilities onboarding", () => {

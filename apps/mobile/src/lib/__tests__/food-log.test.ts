@@ -22,6 +22,7 @@ import {
   readAllMealCategories,
   addMealCategory,
   removeMealCategory,
+  mergeCustomMealCategories,
   type FoodLogEntry,
   type MealPreset,
 } from "../food-log"
@@ -713,5 +714,50 @@ describe("meal category localStorage helpers", () => {
     const customCats = cats.filter((c) => !c.isDefault)
     // Color at index numColors should wrap around to index 0
     expect(customCats[numColors].color).toBe(CUSTOM_CATEGORY_COLORS[0].color)
+  })
+})
+
+describe("mergeCustomMealCategories", () => {
+  const local = { id: "pre_workout_1", label: "Pre-workout", color: "c1", bg: "b1" }
+  const server = { id: "second_dinner_2", label: "Second dinner", color: "c2", bg: "b2" }
+
+  test("server categories come first and local-only ones are kept", () => {
+    const { merged, needsPush } = mergeCustomMealCategories([local], [server])
+    expect(merged.map((c) => c.id)).toEqual(["second_dinner_2", "pre_workout_1"])
+    // The local-only category is not on the server yet, so it must be pushed.
+    expect(needsPush).toBe(true)
+  })
+
+  test("no push is needed once the server already has everything", () => {
+    const { merged, needsPush } = mergeCustomMealCategories([server], [server])
+    expect(merged).toEqual([server])
+    expect(needsPush).toBe(false)
+  })
+
+  test("a category present on both sides is not duplicated", () => {
+    const { merged } = mergeCustomMealCategories([server, local], [server])
+    expect(merged).toHaveLength(2)
+  })
+
+  test("the server copy wins on label conflicts for the same id", () => {
+    const renamedLocally = { ...server, label: "Stale local name" }
+    const { merged } = mergeCustomMealCategories([renamedLocally], [server])
+    expect(merged[0].label).toBe("Second dinner")
+  })
+
+  test("missing or malformed inputs do not throw", () => {
+    expect(mergeCustomMealCategories([], undefined).merged).toEqual([])
+    expect(mergeCustomMealCategories([], null).needsPush).toBe(false)
+    expect(
+      mergeCustomMealCategories(undefined as never, undefined).merged
+    ).toEqual([])
+  })
+
+  test("entries without an id are dropped rather than crashing", () => {
+    const { merged } = mergeCustomMealCategories(
+      [{ id: "", label: "broken", color: "", bg: "" }, local],
+      []
+    )
+    expect(merged).toEqual([local])
   })
 })
