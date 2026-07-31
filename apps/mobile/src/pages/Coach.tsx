@@ -1,6 +1,13 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { useLocation } from "react-router"
-import { flushSync } from "react-dom"
+import { createPortal, flushSync } from "react-dom"
 import { useAction, useMutation, useQuery } from "convex/react"
 import {
   ArrowRight,
@@ -284,25 +291,69 @@ function CoachSheet({
   title,
   open,
   onClose,
+  mode,
   children,
 }: {
   title: string
   open: boolean
   onClose: () => void
+  mode: CoachMode
   children: ReactNode
 }) {
-  if (!open) return null
-  return (
+  const titleId = useId()
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    const focusFrame = window.requestAnimationFrame(() =>
+      closeButtonRef.current?.focus()
+    )
+
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.body.style.overflow = previousOverflow
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    return () => document.removeEventListener("keydown", closeOnEscape)
+  }, [onClose, open])
+
+  if (!open || typeof document === "undefined") return null
+  return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-end bg-black/35"
+      className="fixed inset-0 z-[100] flex items-end bg-black/45 lg:items-center lg:p-6"
       role="dialog"
       aria-modal="true"
-      aria-label={title}
+      aria-labelledby={titleId}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
     >
-      <div className="max-h-[82svh] w-full overflow-y-auto rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[17px] font-black">{title}</h2>
+      <div
+        className="coach-swoosh-surface max-h-[82svh] w-full overflow-y-auto overscroll-contain rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl lg:rounded-[26px] lg:pb-5"
+        data-coach-mode={mode}
+      >
+        <div className="flex items-center justify-between gap-4">
+          <h2 id={titleId} className="text-[17px] font-black">
+            {title}
+          </h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label={`Close ${title}`}
@@ -313,7 +364,8 @@ function CoachSheet({
         </div>
         <div className="mt-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -2234,6 +2286,7 @@ export default function Coach() {
         title="Coach activity"
         open={showHistory}
         onClose={() => setShowHistory(false)}
+        mode={activeMode}
       >
         <input
           value={historySearch}
@@ -2294,13 +2347,14 @@ export default function Coach() {
         title="Coach memory"
         open={showMemory}
         onClose={() => setShowMemory(false)}
+        mode={activeMode}
       >
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           Coach uses these durable preferences when creating meals, workouts,
           and weekly plans. Say “remember…” in chat to add one.
         </p>
         <div className="mt-4 rounded-2xl border border-border/60 bg-card p-3">
-          <div className="flex gap-2">
+          <div className="grid gap-2 sm:grid-cols-[9rem_minmax(0,1fr)]">
             <select
               value={newMemoryCategory}
               onChange={(event) => setNewMemoryCategory(event.target.value)}
@@ -2318,7 +2372,9 @@ export default function Coach() {
               value={newMemoryValue}
               onChange={(event) => setNewMemoryValue(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter") void addManualMemory()
+                if (event.key !== "Enter") return
+                event.preventDefault()
+                void addManualMemory()
               }}
               maxLength={240}
               placeholder="What should Coach remember?"
@@ -2348,7 +2404,7 @@ export default function Coach() {
                   <p className="text-[10px] font-black capitalize">
                     {memory.category.replaceAll("_", " ")}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-foreground/70">
+                  <p className="mt-0.5 text-[11px] break-words text-foreground/70">
                     {memory.value}
                   </p>
                 </div>
