@@ -46,23 +46,19 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
-      # WARNING: this deploys to a Convex PREVIEW deployment, not to the
-      # backend the app actually talks to.
+      # Ships the backend to the deployment the app actually talks to.
       #
-      # CONVEX_DEPLOY_KEY is a preview key, and `convex deploy` can only target
-      # prod or preview deployments -- never a dev deployment. The live app
-      # runs on the dev deployment hallowed-llama-854, so nothing here reaches
-      # it. Treat this step as a build-time check that the functions bundle,
-      # typecheck and push cleanly.
+      # `convex deploy` cannot target a dev deployment (it only reaches prod or
+      # preview deployments), and the live app runs on the dev deployment
+      # hallowed-llama-854 -- so this uses `convex dev --once`, which pushes
+      # code and stops instead of watching for changes.
       #
-      # Real backend changes still have to be shipped by hand:
-      #   bunx convex dev --once
-      #
-      # To make this step actually deploy the live backend, the app has to move
-      # to the prod deployment (chatty-panda-144) and use a production deploy
-      # key -- that means migrating user data and the Better Auth tables.
+      # CONVEX_ACCESS_TOKEN is a personal Convex account token, not a
+      # deployment-scoped deploy key: it can reach every project on the
+      # account. Narrow this to a production deploy key if the app is ever
+      # migrated onto the prod deployment.
       - type: CommandStep
-        name: Verify Convex functions (preview deploy)
+        name: Deploy Convex functions
         runInContainer: true
         image: oven/bun:1.3.4
         interpreter:
@@ -70,13 +66,13 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bunx convex deploy --yes --preview-name main
+            bunx convex dev --once
         runAs: 0:0
         envVars:
-          # Deploy key for the deployment that actually serves the live app.
-          # See the note on CONVEX_DEPLOYMENT below.
-          - name: CONVEX_DEPLOY_KEY
-            value: "@secret:CONVEX_DEPLOY_KEY@"
+          - name: CONVEX_DEPLOYMENT
+            value: "@secret:DEV_CONVEX_DEPLOYMENT@"
+          - name: CONVEX_OVERRIDE_ACCESS_TOKEN
+            value: "@secret:CONVEX_ACCESS_TOKEN@"
         useTTY: false
         condition: SUCCESSFUL
         optional: false
