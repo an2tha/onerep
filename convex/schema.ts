@@ -737,43 +737,6 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_userId_and_pinned", ["userId", "pinned"]),
 
-  // ── Legacy imported food catalog ──────────────────────────────────────────
-  foodfacts: defineTable({
-    code: v.string(), // barcode / product id
-    name: v.string(), // English name (denormalized for search)
-    brand: v.optional(v.string()),
-    serving: v.string(), // e.g. "100 g" or "1 bar (40g)"
-    calories: v.number(), // kcal per serving
-    protein: v.number(), // g per serving
-    carbs: v.number(), // g per serving
-    fat: v.number(), // g per serving
-    popularityKey: v.optional(v.number()),
-    servingGrams: v.optional(v.number()), // grams in one serving (for scaling)
-    nutriscoreGrade: v.optional(v.string()),
-    novaGroup: v.optional(v.number()),
-    nutrients: v.array(
-      v.object({
-        // core nutrition label rows
-        name: v.string(),
-        value: v.string(),
-        unit: v.string(),
-      }),
-    ),
-    extraNutrients: v.array(
-      v.object({
-        // vitamins, minerals, etc.
-        name: v.string(),
-        value: v.string(),
-        unit: v.string(),
-      }),
-    ),
-  })
-    .index("by_code", ["code"])
-    .searchIndex("search_name", {
-      searchField: "name",
-      filterFields: ["popularityKey"],
-    }),
-
   // Datasource API response cache. Entries are hard-expired and replaced;
   // this holds no user data.
   foodSourceCache: defineTable({
@@ -805,37 +768,6 @@ export default defineSchema({
     .searchIndex("search_name", {
       searchField: "name",
       filterFields: ["userId", "category"],
-    }),
-
-  // ── Food detail cache (USDA per-food nutrient lookup) ────────────────────────
-  foodDetailCache: defineTable({
-    fdcId: v.string(),
-    detail: v.any(), // FoodDetail shape
-    createdAt: v.number(),
-  }).index("by_fdcId", ["fdcId"]),
-
-  // --- Search Cache
-  searchCache: defineTable({
-    query: v.string(),
-    results: v.array(
-      v.object({
-        id: v.string(),
-        name: v.string(),
-        brand: v.optional(v.string()),
-        serving: v.string(),
-        calories: v.string(),
-        protein: v.string(),
-        carbs: v.string(),
-        fat: v.string(),
-      }),
-    ),
-    createdAt: v.number(),
-    updatedAt: v.optional(v.number()),
-  })
-    .index("by_query", ["query"])
-    .searchIndex("search_results", {
-      searchField: "results",
-      filterFields: ["createdAt"],
     }),
 
   dailyCheckIns: defineTable({

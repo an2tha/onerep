@@ -650,7 +650,7 @@ export default function Workouts() {
 
   const presets: WorkoutPresetCard[] = useMemo(() => {
     if (!serverPresets) return DEFAULT_PRESETS
-    const byId = new Map(
+    const byId = new Map<string, WorkoutPresetCard>(
       serverPresets.map((p) => [
         p._id as string,
         normalizePresetCard({
@@ -660,7 +660,7 @@ export default function Workouts() {
           duration: p.duration,
           steps: p.steps,
         }),
-      ])
+      ] as const)
     )
     const result: WorkoutPresetCard[] = []
     for (const id of localOrder) {
@@ -766,9 +766,9 @@ export default function Workouts() {
     })
   }, [serverPresets, syncing, todayPreset, todayPreset2])
 
-  const workoutDates = useMemo(() => {
+  const workoutDates = useMemo<Set<string>>(() => {
     if (!workoutHistory) return new Set<string>()
-    return new Set(workoutHistory.map((log) => log.date as string))
+    return new Set<string>(workoutHistory.map((log) => log.date as string))
   }, [workoutHistory])
 
   // ── Muscle analytics ─────────────────────────────────────────────────────

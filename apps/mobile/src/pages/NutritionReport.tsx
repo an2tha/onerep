@@ -104,12 +104,12 @@ export default function NutritionReport() {
 
   const mealTargetByMeal = useMemo(
     () =>
-      new Map(
+      new Map<string, number>(
         goals?.mealTargetsEnabled
           ? (goals.mealTargets ?? []).map((target) => [
               target.meal,
               target.calories,
-            ])
+            ] as const)
           : []
       ),
     [goals]
