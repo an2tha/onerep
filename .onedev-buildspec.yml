@@ -85,7 +85,13 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bun run turbo run build --filter=mobile --filter=web
+            # --mode development is required, not an oversight: apps/mobile
+            # vite.config.ts refuses a production-mode build when
+            # CONVEX_DEPLOYMENT starts with "dev:", and the live app runs on
+            # the dev deployment hallowed-llama-854. The shipped bundle
+            # therefore keeps import.meta.env.DEV true. Drop this flag only
+            # once the app moves to the prod deployment.
+            bun run turbo run build --filter=mobile --filter=web -- --mode development
         runAs: 0:0
         envVars:
           # NOTE: the DEV_* prefix is historical. These point at the Convex
