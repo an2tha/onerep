@@ -11,14 +11,26 @@ import {
   Database,
   ForkKnife,
   GearFine,
+  Heartbeat,
   Moon,
   ShieldCheck,
   SlidersHorizontal,
   Sun,
   UserCircle,
   Warning,
+  X,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
+import {
+  getRecentAppleHealthWorkouts,
+  isAppleHealthSupportedPlatform,
+  requestAppleHealthAuthorization,
+} from "@/lib/apple-health"
+import {
+  APPLE_HEALTH_SYNC_DAYS_BACK,
+  APPLE_HEALTH_SYNC_LIMIT,
+  appleHealthWorkoutToImport,
+} from "@/lib/apple-health-sync"
 import { api } from "../../../../convex/_generated/api"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WELCOME_PENDING_KEY } from "@/components/walkthrough/tour-provider"
@@ -139,6 +151,7 @@ type SettingsView =
   | "nutrition"
   | "reminders"
   | "privacy"
+  | "health"
   | "data"
   | "walkthrough"
   | "developer"
@@ -163,6 +176,7 @@ const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   nutrition: "Nutrition strategy",
   reminders: "Reminders",
   privacy: "Privacy & sync",
+  health: "Health & wearables",
   data: "Data & account",
   walkthrough: "App walkthrough",
   developer: "Developer",
@@ -191,6 +205,32 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const onboarding = useQuery(api.users.onboarding.get)
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
   const { showAiPaywall, aiAccessModal } = useAiFeatureGate()
+
+  const healthSync = preferences?.healthSync
+  const wearableConsent =
+    (onboarding as { consent?: { wearableIntegrations?: boolean } } | null)
+      ?.consent?.wearableIntegrations === true
+  const healthWorkouts = useQuery(
+    api.logs.healthWorkouts.list,
+    isAppleHealthSupportedPlatform() ? { limit: 10 } : "skip"
+  )
+  const setConsent = useOfflineMutation(
+    api.users.onboarding.setConsent,
+    "users.onboarding.setConsent"
+  )
+  const setHealthSync = useOfflineMutation(
+    api.users.users.setHealthSync,
+    "users.users.setHealthSync"
+  )
+  const importHealthWorkouts = useMutation(
+    api.logs.healthWorkouts.importFromAppleHealth
+  )
+  const linkHealthWorkout = useMutation(
+    api.logs.healthWorkouts.linkToTrainingLog
+  )
+  const dismissHealthWorkout = useMutation(api.logs.healthWorkouts.dismiss)
+  const [healthBusy, setHealthBusy] = useState(false)
+  const [healthError, setHealthError] = useState<string | null>(null)
 
   const setDashboardSettings = useOfflineMutation(
     api.users.users.setDashboardSettings,
@@ -1020,6 +1060,19 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     leading={<ShieldCheck size={20} weight="regular" />}
                     onClick={() => showView("privacy")}
                   />
+                  {/* An Apple Health row on Android or the web is dead UI. */}
+                  {isAppleHealthSupportedPlatform() && (
+                    <DisclosureRow
+                      title="Health & wearables"
+                      detail={
+                        healthSync?.appleHealthEnabled
+                          ? "Importing workouts from Apple Health"
+                          : "Import workouts from Apple Health"
+                      }
+                      leading={<Heartbeat size={20} weight="regular" />}
+                      onClick={() => showView("health")}
+                    />
+                  )}
                   <DisclosureRow
                     title="Data & account"
                     detail="Export, reset, or delete your data"
@@ -1553,6 +1606,244 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                   saving={saving}
                   onClick={handleSaveNotifications}
                 />
+              </>
+            )}
+
+            {activeView === "health" && (
+              <>
+                <SettingsSectionIntro>
+                  OneRep can read completed workouts from Apple Health. Nothing
+                  is written back, and imported sessions only join your training
+                  log when you add them.
+                </SettingsSectionIntro>
+
+                {onboarding === null ? (
+                  <GroupedList label="Health sync">
+                    <ListRow
+                      title="Finish onboarding first"
+                      detail="Health sync needs the consent step from your profile setup."
+                    />
+                  </GroupedList>
+                ) : (
+                  <>
+                    <SettingsSectionLabel title="Consent" />
+                    <GroupedList label="Health consent">
+                      <SettingsRow
+                        label="Wearable data"
+                        detail="Allow OneRep to read health and wearable data"
+                      >
+                        <CompactSwitch
+                          onInteract={hapticSelection}
+                          checked={wearableConsent}
+                          onChange={(next) => {
+                            void setConsent({ wearableIntegrations: next })
+                              .then(() => {
+                                if (!next) {
+                                  return setHealthSync({
+                                    appleHealthEnabled: false,
+                                  })
+                                }
+                              })
+                              .catch(() =>
+                                toast.error("Could not update consent")
+                              )
+                          }}
+                          label="Wearable data"
+                        />
+                      </SettingsRow>
+                    </GroupedList>
+
+                    <SettingsSectionLabel
+                      title="Apple Health"
+                      detail={
+                        healthSync?.lastSyncedAt
+                          ? `Last synced ${new Date(healthSync.lastSyncedAt).toLocaleString()}`
+                          : "Not synced yet"
+                      }
+                    />
+                    <GroupedList label="Apple Health sync">
+                      <SettingsRow
+                        label="Import workouts"
+                        detail={
+                          wearableConsent
+                            ? "Read completed workouts from Apple Health"
+                            : "Turn on wearable consent first"
+                        }
+                      >
+                        <CompactSwitch
+                          disabled={!wearableConsent}
+                          onInteract={hapticSelection}
+                          checked={healthSync?.appleHealthEnabled ?? false}
+                          onChange={(next) => {
+                            setHealthError(null)
+                            if (!next) {
+                              void setHealthSync({ appleHealthEnabled: false })
+                              return
+                            }
+                            void requestAppleHealthAuthorization()
+                              .then((authorization) => {
+                                if (!authorization.available) {
+                                  setHealthError(
+                                    "Apple Health is not available on this device."
+                                  )
+                                  return
+                                }
+                                if (!authorization.granted) {
+                                  setHealthError(
+                                    "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
+                                  )
+                                  return
+                                }
+                                return setHealthSync({
+                                  appleHealthEnabled: true,
+                                })
+                              })
+                              .catch(() =>
+                                setHealthError(
+                                  "Could not reach Apple Health on this device."
+                                )
+                              )
+                          }}
+                          label="Import workouts"
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Sync on open"
+                        detail="Check for new workouts when you open the app"
+                      >
+                        <CompactSwitch
+                          disabled={!healthSync?.appleHealthEnabled}
+                          onInteract={hapticSelection}
+                          checked={healthSync?.autoSyncOnForeground ?? true}
+                          onChange={(next) => {
+                            void setHealthSync({ autoSyncOnForeground: next })
+                          }}
+                          label="Sync on open"
+                        />
+                      </SettingsRow>
+                    </GroupedList>
+
+                    {(healthError || healthSync?.lastSyncError) && (
+                      <p className="native-row-detail px-[var(--app-page-x)] text-destructive">
+                        {healthError ?? healthSync?.lastSyncError}
+                      </p>
+                    )}
+
+                    <PrimaryButton
+                      disabled={
+                        healthBusy || !healthSync?.appleHealthEnabled
+                      }
+                      onClick={async () => {
+                        setHealthBusy(true)
+                        setHealthError(null)
+                        try {
+                          const authorization =
+                            await requestAppleHealthAuthorization()
+                          if (!authorization.granted) {
+                            setHealthError("Permission was denied.")
+                            return
+                          }
+                          const workouts =
+                            await getRecentAppleHealthWorkouts({
+                              daysBack: APPLE_HEALTH_SYNC_DAYS_BACK,
+                              limit: APPLE_HEALTH_SYNC_LIMIT,
+                            })
+                          const result = await importHealthWorkouts({
+                            workouts: workouts.map((workout) =>
+                              appleHealthWorkoutToImport(
+                                workout,
+                                preferences?.lastActiveTimezone || "UTC"
+                              )
+                            ),
+                          })
+                          toast.success(
+                            result.imported > 0
+                              ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
+                              : "Already up to date"
+                          )
+                        } catch (error) {
+                          setHealthError(
+                            error instanceof Error
+                              ? error.message
+                              : "Sync failed"
+                          )
+                        } finally {
+                          setHealthBusy(false)
+                        }
+                      }}
+                    >
+                      {healthBusy ? "Syncing…" : "Sync now"}
+                    </PrimaryButton>
+
+                    <SettingsSectionLabel
+                      title="Recent imports"
+                      detail="Add a session to your training log, or hide it"
+                    />
+                    <GroupedList label="Imported workouts">
+                      {(healthWorkouts ?? []).length === 0 ? (
+                        <ListRow
+                          title="Nothing imported yet"
+                          detail="Completed Apple Health workouts will appear here."
+                        />
+                      ) : (
+                        (healthWorkouts ?? []).map((workout) => (
+                          <div
+                            key={String(workout._id)}
+                            className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="native-row-title truncate">
+                                {workout.activityName}
+                              </p>
+                              <p className="native-row-detail mt-0.5">
+                                {workout.date} ·{" "}
+                                {Math.round(workout.durationSeconds / 60)} min
+                                {workout.sourceName
+                                  ? ` · ${workout.sourceName}`
+                                  : ""}
+                              </p>
+                            </div>
+                            {workout.linked ? (
+                              <span className="native-row-detail shrink-0">
+                                Added
+                              </span>
+                            ) : workout.linkable ? (
+                              <button
+                                type="button"
+                                className="native-secondary-button min-h-10 shrink-0 px-3"
+                                onClick={() => {
+                                  void linkHealthWorkout({ id: workout._id })
+                                    .then(() =>
+                                      toast.success("Added to training log")
+                                    )
+                                    .catch((error) =>
+                                      toast.error(
+                                        error instanceof Error
+                                          ? error.message
+                                          : "Could not add this workout"
+                                      )
+                                    )
+                                }}
+                              >
+                                Add
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              aria-label={`Hide ${workout.activityName}`}
+                              className="native-toolbar-button h-11 w-11 shrink-0 px-0"
+                              onClick={() => {
+                                void dismissHealthWorkout({ id: workout._id })
+                              }}
+                            >
+                              <X size={16} weight="bold" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </GroupedList>
+                  </>
+                )}
               </>
             )}
 

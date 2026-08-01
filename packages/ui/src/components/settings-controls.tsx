@@ -30,17 +30,21 @@ export function CompactSwitch({
   onChange,
   onInteract,
   label,
+  disabled = false,
 }: {
   checked: boolean
   onChange?: (checked: boolean) => void
   onInteract?: () => void
   label?: string
+  /** For a toggle that depends on another setting being on first. */
+  disabled?: boolean
 }) {
   const track = (
     <span
       className={cn(
         "pointer-events-none relative block h-8 w-[3.25rem] rounded-full transition-colors",
-        checked ? "bg-foreground" : "bg-muted"
+        checked ? "bg-foreground" : "bg-muted",
+        disabled && "opacity-40"
       )}
     >
       <span
@@ -69,7 +73,8 @@ export function CompactSwitch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-[0.65rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+      disabled={disabled}
+      className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-[0.65rem] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-not-allowed"
       onClick={() => {
         onInteract?.()
         onChange(!checked)

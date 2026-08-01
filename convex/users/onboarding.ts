@@ -136,3 +136,41 @@ export const clear = mutation({
     }
   },
 });
+
+/**
+ * Updates individual consent flags without replaying the whole intake form.
+ *
+ * `consent.wearableIntegrations` was collected at onboarding and read by
+ * nothing; Health sync is the first feature that depends on it, and it needs a
+ * way to be granted after the fact.
+ */
+export const setConsent = mutation({
+  args: {
+    dataUse: v.optional(v.boolean()),
+    weightData: v.optional(v.boolean()),
+    foodLogging: v.optional(v.boolean()),
+    wearableIntegrations: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const profile = await getLatestOnboardingProfile(ctx, user._id);
+    if (!profile) throw new Error("Complete onboarding first");
+
+    const current = profile.consent ?? {
+      dataUse: false,
+      weightData: false,
+      foodLogging: false,
+      wearableIntegrations: false,
+    };
+    const consent = {
+      dataUse: args.dataUse ?? current.dataUse,
+      weightData: args.weightData ?? current.weightData,
+      foodLogging: args.foodLogging ?? current.foodLogging,
+      wearableIntegrations:
+        args.wearableIntegrations ?? current.wearableIntegrations,
+    };
+
+    await ctx.db.patch(profile._id, { consent, updatedAt: Date.now() });
+    return consent;
+  },
+});
