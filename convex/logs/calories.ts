@@ -4,6 +4,7 @@ import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { calculateCalories, type CaloricGoals } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
+import { getHealthProfile } from "../lib/healthProfiles";
 
 const healthProfileArgs = {
   sex: v.union(v.literal("male"), v.literal("female")),
@@ -28,10 +29,7 @@ export const getGoals = query({
     const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
-    const profile = await ctx.db
-      .query("healthProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const profile = await getHealthProfile(ctx, user._id);
 
     const onboarding = await getLatestOnboardingProfile(ctx, user._id);
 
@@ -48,10 +46,7 @@ export const getProfile = query({
     const user = await safeGetAuthUser(ctx);
     if (!user) return null;
 
-    return await ctx.db
-      .query("healthProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    return await getHealthProfile(ctx, user._id);
   },
 });
 
@@ -63,10 +58,7 @@ export const setProfile = mutation({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    const existing = await ctx.db
-      .query("healthProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const existing = await getHealthProfile(ctx, user._id);
 
     const now = Date.now();
     if (existing) {

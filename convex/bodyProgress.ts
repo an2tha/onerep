@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUser, safeGetAuthUser } from "./lib/auth";
+import { listBodyMeasurements } from "./lib/bodyMeasurements";
 
 // ── list ──────────────────────────────────────────────────────────────────────
 
@@ -10,10 +11,10 @@ export const list = query({
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
 
-    const docs = await ctx.db
-      .query("bodyMeasurements")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .collect();
+    // Bounded read, then sorted ascending for the charts. 400 covers well over
+    // a year of weekly check-ins; the previous unbounded `.collect()` grew
+    // without limit.
+    const docs = await listBodyMeasurements(ctx, user._id, 400);
 
     const sorted = docs.sort((a, b) => {
       const byDate = a.loggedAt.localeCompare(b.loggedAt);

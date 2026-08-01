@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import { listRecentFastingSessions } from "../lib/fastingSessions";
 
 const MAX_HISTORY = 200;
 const DEFAULT_HISTORY_LIMIT = 30;
@@ -101,11 +102,7 @@ export const getRecent = query({
       Math.max(1, Math.round(args.limit ?? DEFAULT_HISTORY_LIMIT)),
     );
 
-    const docs = await ctx.db
-      .query("fastingSessions")
-      .withIndex("by_userId_startedAt", (q) => q.eq("userId", user._id))
-      .order("desc")
-      .take(limit);
+    const docs = await listRecentFastingSessions(ctx, user._id, limit);
 
     return docs.map((doc) => ({ ...doc, id: doc._id }));
   },
@@ -118,11 +115,7 @@ export const getRange = query({
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
 
-    const docs = await ctx.db
-      .query("fastingSessions")
-      .withIndex("by_userId_startedAt", (q) => q.eq("userId", user._id))
-      .order("desc")
-      .take(MAX_HISTORY);
+    const docs = await listRecentFastingSessions(ctx, user._id, MAX_HISTORY);
 
     return docs
       .filter((doc) => doc.startDate >= args.start && doc.startDate <= args.end)
