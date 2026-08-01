@@ -65,9 +65,18 @@ describe("@repo/ui package boundary", () => {
       "bottom-bar.tsx",
       "error-boundary.tsx",
       "food-detail-sheet.tsx",
+      // Form coach: camera and MediaRecorder capture, Convex reads and
+      // writes, haptics, and router navigation bound to the presentational
+      // primitives in @repo/ui.
+      "form-coach-card.tsx",
+      "form-coach-pose-confirm.tsx",
+      "form-coach-recorder.tsx",
+      "form-coach-review-sheet.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       "offline-sync-indicator.tsx",
+      // Imperative three.js renderer driving a WebGL canvas and OrbitControls.
+      "pose-viewer.tsx",
       "tooltips.tsx",
       // Walkthrough: Convex persistence, router, and haptics bound to the
       // presentational spotlight primitives in @repo/ui.
