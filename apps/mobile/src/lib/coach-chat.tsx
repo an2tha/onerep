@@ -2289,7 +2289,11 @@ export function CoachUiBlocks({
 
         if (block.type === "checklist") {
           const goalKey = `${index}-${block.title}`
-          const pinned = pinnedGoalKeys.has(goalKey)
+          // A checklist can be pinned for today or for the week. Both write the
+          // same tasks, so pinning either one closes off the other.
+          const todayKey = `${goalKey}:today`
+          const weekKey = `${goalKey}:7d`
+          const pinned = pinnedGoalKeys.has(todayKey) || pinnedGoalKeys.has(weekKey)
           return (
             <div key={`${block.type}-${index}`} className="py-4">
               <p className="text-[12px] font-bold text-foreground">
@@ -2345,33 +2349,57 @@ export function CoachUiBlocks({
                   )
                 })}
               </div>
-              <button
-                type="button"
-                disabled={pinned || pinningGoalKey !== null}
-                onClick={() =>
-                  void pinGoal(goalKey, {
-                    title: block.title,
-                    detail: `Complete this Coach plan consistently for the next 7 days.`,
-                    durationDays: 7,
-                    tasks: block.items.map((item) => ({
-                      title: item.label,
-                      ...(item.detail ? { detail: item.detail } : {}),
-                      completed: Boolean(
-                        item.done ||
-                        completedItems.has(`${index}-${item.label}`)
-                      ),
-                    })),
-                  })
-                }
-                className="motion-tactile mt-3 inline-flex min-h-10 items-center gap-1.5 border-b border-foreground/30 text-[11px] font-semibold disabled:opacity-50"
-              >
-                <PushPin size={13} weight={pinned ? "fill" : "bold"} />
-                {pinned
-                  ? "Pinned to Today"
-                  : pinningGoalKey === goalKey
-                    ? "Pinning…"
-                    : "Pin as a 7-day goal"}
-              </button>
+              {pinned ? (
+                <p className="mt-3 inline-flex min-h-10 items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                  <PushPin size={13} weight="fill" />
+                  Pinned to Today
+                </p>
+              ) : (
+                <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1">
+                  {[
+                    {
+                      key: todayKey,
+                      label: "Pin for today",
+                      detail: "Complete this Coach plan today.",
+                      durationDays: 1,
+                    },
+                    {
+                      key: weekKey,
+                      label: "Pin as a 7-day goal",
+                      detail:
+                        "Complete this Coach plan consistently for the next 7 days.",
+                      durationDays: 7,
+                    },
+                  ].map((variant) => (
+                    <button
+                      key={variant.key}
+                      type="button"
+                      disabled={pinningGoalKey !== null}
+                      onClick={() =>
+                        void pinGoal(variant.key, {
+                          title: block.title,
+                          detail: variant.detail,
+                          durationDays: variant.durationDays,
+                          tasks: block.items.map((item) => ({
+                            title: item.label,
+                            ...(item.detail ? { detail: item.detail } : {}),
+                            completed: Boolean(
+                              item.done ||
+                                completedItems.has(`${index}-${item.label}`)
+                            ),
+                          })),
+                        })
+                      }
+                      className="motion-tactile inline-flex min-h-10 items-center gap-1.5 border-b border-foreground/30 text-[11px] font-semibold disabled:opacity-50"
+                    >
+                      <PushPin size={13} weight="bold" />
+                      {pinningGoalKey === variant.key
+                        ? "Pinning…"
+                        : variant.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )
         }
