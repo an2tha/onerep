@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { safeGetAuthUser, getAuthUser } from "./lib/auth";
+import { listCustomMetricsWithEntries } from "./lib/customProgressMetrics";
 
 const tabValidator = v.union(
   v.literal("body"),
@@ -24,27 +25,11 @@ export const list = query({
   handler: async (ctx, args) => {
     const user = await safeGetAuthUser(ctx);
     if (!user) return [];
-    const metrics = await ctx.db
-      .query("customProgressMetrics")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .order("desc")
-      .take(24);
-    const visible = args.tab
+    const days = Math.max(7, Math.min(args.days ?? 30, 90));
+    const metrics = await listCustomMetricsWithEntries(ctx, user._id, days);
+    return args.tab
       ? metrics.filter((metric) => metric.tab === args.tab)
       : metrics;
-    const days = Math.max(7, Math.min(args.days ?? 30, 90));
-    return await Promise.all(
-      visible.map(async (metric) => ({
-        ...metric,
-        entries: await ctx.db
-          .query("customProgressMetricEntries")
-          .withIndex("by_userId_and_metricId", (q) =>
-            q.eq("userId", user._id).eq("metricId", metric._id),
-          )
-          .order("desc")
-          .take(days),
-      })),
-    );
   },
 });
 

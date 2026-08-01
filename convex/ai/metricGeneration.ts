@@ -5,6 +5,7 @@ import { getAuthUser } from "../lib/auth";
 import { hasOpenAiApiKey, requestOpenAiJson } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
+import type { CoachWorkspace } from "./coachWorkspace";
 import {
   COACH_SUPPLEMENT_CATEGORIES,
   COACH_SUPPLEMENT_FORMS,
@@ -397,7 +398,14 @@ type CoachArtifact = {
   nextSteps: string[];
 };
 
-type CoachWorkspace = {
+/**
+ * The workspace shape older installed clients still send.
+ *
+ * Kept only so their calls validate — the client-supplied workspace is never
+ * forwarded to the model. `buildCoachWorkspace` on the server is the single
+ * source of context; see `legacyWorkspace` below.
+ */
+type LegacyClientWorkspace = {
   today?: string;
   presets: Array<{
     name: string;
@@ -2148,6 +2156,7 @@ async function generateCoachChatWithOpenAi({
   coachMode: "chat" | "chef" | "personal_trainer";
   history: CoachChatMessage[];
   focusInsight?: CoachAdvice;
+  /** Always the server-built workspace — see `LegacyClientWorkspace`. */
   workspace?: CoachWorkspace;
   imageUrl?: string;
 }) {
@@ -3043,10 +3052,10 @@ export const generateCoachChatMessage = action({
     const today =
       normalizeDate(args.today ?? args.workspace?.today ?? "") ??
       new Date().toISOString().slice(0, 10);
-    const workspace = (await ctx.runQuery(
+    const workspace = await ctx.runQuery(
       internal.ai.coachWorkspace.loadForModel,
       { userId: user._id, today },
-    )) as unknown as CoachWorkspace;
+    );
     if (legacyWorkspace && legacyWorkspace.today !== today) {
       console.warn("Ignoring stale client Coach workspace", {
         clientToday: legacyWorkspace.today,
