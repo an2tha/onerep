@@ -1,6 +1,10 @@
 import { v } from "convex/values";
 import { tool, type ToolSet } from "ai";
-import { z } from "zod";
+// Namespace import, not `import { z }`: zod v4 exposes `z` as a
+// self-referential `export * as z`, which Bun does not materialise, so the
+// named form is undefined at runtime under `bun` (as in CI, where the
+// oven/bun image has no node and vitest therefore runs on Bun).
+import * as z from "zod";
 import {
   action,
   internalMutation,

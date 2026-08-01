@@ -1,6 +1,8 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateText, Output, stepCountIs, type ToolSet } from "ai";
-import { z } from "zod";
+// See the note in formCoachAgent.ts: the named `z` export is undefined under
+// the Bun runtime, so import the namespace instead.
+import * as z from "zod";
 import { env } from "../_generated/server";
 
 export const OPENAI_BASE_URL = "https://openrouter.ai/api/v1";
