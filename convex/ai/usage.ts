@@ -17,6 +17,7 @@ const AI_USAGE_SOURCES = [
   "progress_metrics",
   "workout_preset",
   "food_snap",
+  "form_coach",
 ] as const;
 
 export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
@@ -82,6 +83,7 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("progress_metrics"),
       v.literal("workout_preset"),
       v.literal("food_snap"),
+      v.literal("form_coach"),
     ),
   },
   handler: async (ctx, args): Promise<AiUsageQuota> => {

@@ -7,6 +7,7 @@ const app = defineApp({
   env: {
     OPENAI_API_KEY: v.optional(v.string()),
     OPENAI_MODEL: v.optional(v.string()),
+    OPENROUTER_API_KEY: v.optional(v.string()),
     // Temporary compatibility for installed app versions that still bootstrap
     // the old native purchase SDK. Remove after those versions are retired.
     REVENUECAT_PUBLIC_SDK_KEY: v.optional(v.string()),

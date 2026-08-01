@@ -10,38 +10,53 @@ import {
 } from "./provider";
 import { promptTemplates, renderSystemPrompt } from "./prompts.generated";
 
-const originalApiKey = process.env.OPENAI_API_KEY;
-const originalModel = process.env.OPENAI_MODEL;
+type EnvName = "OPENAI_API_KEY" | "OPENAI_MODEL" | "OPENROUTER_API_KEY";
+
+const originalEnv: Record<EnvName, string | undefined> = {
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  OPENAI_MODEL: process.env.OPENAI_MODEL,
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+};
 const aiDirectory = dirname(fileURLToPath(import.meta.url));
 
-function restoreEnv(name: "OPENAI_API_KEY" | "OPENAI_MODEL", value?: string) {
+function restoreEnv(name: EnvName, value?: string) {
   if (value === undefined) delete process.env[name];
   else process.env[name] = value;
 }
 
 afterEach(() => {
-  restoreEnv("OPENAI_API_KEY", originalApiKey);
-  restoreEnv("OPENAI_MODEL", originalModel);
+  for (const name of Object.keys(originalEnv) as EnvName[]) {
+    restoreEnv(name, originalEnv[name]);
+  }
 });
 
-describe("direct OpenAI provider", () => {
-  test("uses the direct OpenAI API and a hot-swappable model", () => {
-    process.env.OPENAI_API_KEY = "  openai-secret  ";
-    process.env.OPENAI_MODEL = "gpt-5.4-mini";
+describe("OpenRouter provider", () => {
+  test("routes through OpenRouter with a hot-swappable model", () => {
+    process.env.OPENROUTER_API_KEY = "  openrouter-secret  ";
 
     expect(hasOpenAiApiKey()).toBe(true);
-    expect(OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
-    expect(DEFAULT_OPENAI_MODEL).toBe("gpt-5.4-mini");
+    expect(OPENAI_BASE_URL).toBe("https://openrouter.ai/api/v1");
+    // OpenRouter model ids carry a `provider/` prefix that is part of the id
+    // and must not be stripped.
+    expect(DEFAULT_OPENAI_MODEL).toContain("/");
+  });
+
+  // Keeps an existing deployment working while the variable is switched over.
+  test("falls back to a direct OpenAI key", () => {
+    delete process.env.OPENROUTER_API_KEY;
+    process.env.OPENAI_API_KEY = "openai-secret";
+    expect(hasOpenAiApiKey()).toBe(true);
   });
 
   test("rejects missing credentials and invalid generation settings", async () => {
+    process.env.OPENROUTER_API_KEY = "   ";
     process.env.OPENAI_API_KEY = "   ";
     expect(hasOpenAiApiKey()).toBe(false);
     await expect(
       requestOpenAiJson({ system: "s", user: "u", maxTokens: 1 }),
-    ).rejects.toThrow("OpenAI is not configured");
+    ).rejects.toThrow("not configured");
 
-    process.env.OPENAI_API_KEY = "openai-secret";
+    process.env.OPENROUTER_API_KEY = "openrouter-secret";
     await expect(
       requestOpenAiJson({ system: "s", user: "u", maxTokens: 0 }),
     ).rejects.toThrow("positive integer");
@@ -62,6 +77,7 @@ describe("AI prompt bundle", () => {
       "coach_advice",
       "coach_chat",
       "food_match",
+      "form_coach",
       "meal_description",
       "meal_image",
       "metric_selection",

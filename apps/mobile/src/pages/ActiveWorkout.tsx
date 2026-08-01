@@ -34,6 +34,7 @@ import {
   Plus,
   Sparkle,
   TrendUp,
+  VideoCamera,
   Warning,
   X,
 } from "@phosphor-icons/react"
@@ -68,7 +69,13 @@ import {
   type RecentExerciseSearch,
 } from "@/lib/exercise-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
-import { hapticMedium, hapticSelection } from "@/lib/haptics"
+import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
+import { useFormCoachSupport } from "@/lib/form-coach"
+import { startFormCoachDraft } from "@/lib/form-coach-clips"
+import { FormCoachRecorder } from "@/components/form-coach-recorder"
+import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
+import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
+import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   celebrateAchievement,
   playRestCompletion,
@@ -2408,6 +2415,8 @@ function ActiveExerciseCard({
   isNextCardio?: boolean
   reorderControls?: React.ReactNode
 }) {
+  const formCoachMovement = useFormCoachSupport(exercise.name)
+
   function addSet() {
     onUpdate({ ...data, sets: [...data.sets, makeSet()] })
   }
@@ -2570,6 +2579,23 @@ function ActiveExerciseCard({
             collapsed ? "hidden" : "flex"
           )}
         >
+          {!isCardio && formCoachMovement && (
+            <button
+              type="button"
+              onClick={() => {
+                void hapticTap()
+                startFormCoachDraft({
+                  exerciseId: exercise.id,
+                  exerciseName: exercise.name,
+                  slug: formCoachMovement.slug,
+                })
+              }}
+              className="motion-pressable mr-auto flex min-h-10 items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3.5 text-[13px] font-semibold text-primary active:bg-primary/20"
+            >
+              <VideoCamera size={15} weight="fill" />
+              Coach me on my form
+            </button>
+          )}
           {!isCardio && (
             <button
               onClick={onShowHistory}
@@ -5757,6 +5783,10 @@ export default function ActiveWorkout() {
           onClose={() => setHistorySheet(null)}
         />
       )}
+
+      <FormCoachRecorder />
+      <FormCoachReviewSheet />
+      <FormCoachPoseConfirm />
 
       {aiAccessModal}
     </div>

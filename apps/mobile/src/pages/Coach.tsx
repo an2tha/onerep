@@ -17,6 +17,7 @@ import {
   Carrot,
   ChartLineUp,
   ChatCircleDots,
+  ArrowLeft,
   CheckCircle,
   Circle,
   ClockCounterClockwise,
@@ -72,6 +73,7 @@ import {
   validateCoachOperations as validateSharedCoachOperations,
 } from "@repo/models"
 import {
+  COACH_CONVERSATION_KEY,
   CoachArtifacts,
   CoachAttachButton,
   CoachAttachmentInput,
@@ -94,7 +96,6 @@ import {
   type RecipeCustomization,
 } from "@/lib/coach-chat"
 
-const COACH_CONVERSATION_KEY = "onerep:coach-conversation:v1"
 const DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 type CoachMode = "chat" | "chef" | "personal_trainer"
 
@@ -373,6 +374,8 @@ export default function Coach() {
   const { context, loading } = useCoachContext()
   const navigate = useSmoothNavigate()
   const coachHeaderRef = useTourAnchor("coach-header")
+  const activeWorkouts = useQuery(api.logs.activeWorkout.getAllActive, {})
+  const hasActiveWorkout = (activeWorkouts?.length ?? 0) > 0
   const coachModesRef = useTourAnchor("coach-modes")
   const location = useLocation()
   const todayKey = currentDateKey(detectTimeZone())
@@ -1762,9 +1765,26 @@ export default function Coach() {
             ref={coachHeaderRef}
             className="coach-chrome-enter z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/55 bg-transparent"
           >
-            <h1 className="text-[18px] leading-tight font-bold tracking-tight">
-              Coach
-            </h1>
+            <div className="flex min-w-0 items-center gap-1">
+              {/* Form advice arrives here mid-set, so getting back to the
+                  workout should not mean hunting through the tab bar. */}
+              {hasActiveWorkout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticSelection()
+                    navigate("/workout/active", { motion: "back" })
+                  }}
+                  aria-label="Back to your workout"
+                  className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                >
+                  <ArrowLeft size={16} weight="bold" />
+                </button>
+              )}
+              <h1 className="truncate text-[18px] leading-tight font-bold tracking-tight">
+                Coach
+              </h1>
+            </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
