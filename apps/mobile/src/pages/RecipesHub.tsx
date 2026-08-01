@@ -861,7 +861,7 @@ export default function RecipesHub() {
         placeholderImage: "starter-kitchen",
         tags: recipe.tags,
         steps: recipe.steps,
-        photoStorageIds: [],
+        photoUploadIds: [],
         ingredients: recipe.ingredients.map((label, index) => {
           const parsedAmount = Number(label.match(/[\d.]+/)?.[0] ?? 100)
           const grams = /\bg\b/i.test(label) ? parsedAmount : 100

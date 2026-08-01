@@ -162,6 +162,15 @@ export const createCheckoutSession = internalAction({
       cancel_url: args.cancelUrl,
       client_reference_id: args.userId,
       customer_email: args.email,
+      // Stripe acts as merchant of record: it handles indirect tax compliance
+      // across 80+ countries, fraud, disputes, and transaction support, so
+      // OneRep does not need a local entity per country. The trade is that the
+      // buyer sees Link as the merchant ("Sold through Link"), not OneRep.
+      //
+      // Requires accepting the Managed Payments terms in the Stripe dashboard;
+      // without that, session creation fails outright. Only applies to new
+      // subscriptions — existing ones cannot be moved onto it.
+      managed_payments: { enabled: true },
       // Carry the identity onto the subscription itself so webhooks can
       // attribute it without a session lookup.
       subscription_data: { metadata: { onerepUserId: args.userId } },

@@ -17,6 +17,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
 import { FoodDetailSheet } from "@/components/food-detail-sheet"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import {
   currentDateKey,
   detectTimeZone,
@@ -266,11 +267,8 @@ export default function SearchFoods() {
 
       await addFoodEntry({ date, entry })
 
-      posthog.capture("food_logged", {
-        food_name: item.name,
-        calories: macros.calories,
-        grams,
-        meal,
+      captureFeatureUsage(posthog, "food_logged", {
+        item_count: 1,
         source: "search",
       })
 

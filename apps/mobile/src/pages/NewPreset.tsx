@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react"
 import { useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import { useAction, useQuery } from "convex/react"
 import {
   ExerciseSuggestionGroups,
@@ -1356,10 +1357,9 @@ export default function NewPreset() {
       } else {
         await createPreset(input)
       }
-      posthog.capture("workout_preset_saved", {
-        preset_name: input.name,
+      captureFeatureUsage(posthog, "workout_preset_saved", {
         is_edit: Boolean(presetId),
-        exercise_count: items.length,
+        item_count: items.length,
       })
       navigate(-1)
     } catch (error) {
@@ -1455,7 +1455,7 @@ export default function NewPreset() {
         setPresetName(nextName)
       }
 
-      posthog.capture("workout_preset_text_imported", {
+      captureFeatureUsage(posthog, "workout_preset_text_imported", {
         mode,
         matched_count: nextItems.length,
         unmatched_count: unmatched.length,

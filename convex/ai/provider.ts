@@ -5,8 +5,8 @@ import { generateText, Output, stepCountIs, type ToolSet } from "ai";
 import * as z from "zod";
 import { env } from "../_generated/server";
 
-export const OPENAI_BASE_URL = "https://openrouter.ai/api/v1";
-export const DEFAULT_OPENAI_MODEL = "openai/gpt-5.6-luna";
+export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.6-luna";
 
 type AiImage = {
   url: string;
@@ -21,23 +21,31 @@ type AiJsonRequest = {
   temperature?: number;
 };
 
-function resolveApiKey() {
-  // OpenRouter first, falling back to a direct OpenAI key so an existing
-  // deployment keeps working while the variable is being switched over.
-  return env.OPENROUTER_API_KEY?.trim() || env.OPENAI_API_KEY?.trim() || "";
+function resolveOpenRouterConfig() {
+  const apiKey = env.OPENROUTER_API_KEY?.trim() ?? "";
+  // OPENAI_MODEL is accepted for one widened-schema release only. Credentials
+  // never receive a corresponding fallback: an OpenAI key must not be sent to
+  // the OpenRouter endpoint.
+  const model =
+    env.OPENROUTER_MODEL?.trim() ||
+    env.OPENAI_MODEL?.trim() ||
+    DEFAULT_OPENROUTER_MODEL;
+  if (
+    env.AI_PROCESSOR_APPROVED?.trim().toLowerCase() !== "true" ||
+    !apiKey ||
+    !model.includes("/")
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    apiKey,
+    model,
+    baseURL: OPENROUTER_BASE_URL,
+  });
 }
 
 export function hasOpenAiApiKey() {
-  return Boolean(resolveApiKey());
-}
-
-/**
- * OpenRouter identifies models as `provider/name`, so the prefix is part of the
- * id and must survive. Stripping it — as this did when talking to OpenAI
- * directly — leaves a model OpenRouter cannot resolve.
- */
-function resolveModelId() {
-  return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
+  return resolveOpenRouterConfig() !== null;
 }
 
 /**
@@ -108,21 +116,24 @@ export async function runOpenAiAgent<T>({
   maxSteps: number;
   maxTokens: number;
 }): Promise<AgentResult<T>> {
-  const apiKey = resolveApiKey();
-  if (!apiKey) throw new Error("OpenRouter is not configured");
+  const config = resolveOpenRouterConfig();
+  if (!config) throw new Error("AI is not configured");
 
   if (!Number.isInteger(maxTokens) || maxTokens < 1) {
-    throw new Error("OpenAI maxTokens must be a positive integer");
+    throw new Error("AI maxTokens must be a positive integer");
   }
   if (!Number.isInteger(maxSteps) || maxSteps < 1) {
-    throw new Error("OpenAI maxSteps must be a positive integer");
+    throw new Error("AI maxSteps must be a positive integer");
   }
 
-  const openai = createOpenAI({ apiKey, baseURL: OPENAI_BASE_URL });
+  const openai = createOpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  });
 
   try {
     const result = await generateText({
-      model: openai(resolveModelId()),
+      model: openai(config.model),
       system,
       prompt: user,
       tools,
@@ -162,23 +173,26 @@ export async function requestOpenAiJson({
   maxTokens,
   temperature,
 }: AiJsonRequest) {
-  const apiKey = env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new Error("OpenAI is not configured");
+  const config = resolveOpenRouterConfig();
+  if (!config) throw new Error("AI is not configured");
 
   if (!Number.isInteger(maxTokens) || maxTokens < 1) {
-    throw new Error("OpenAI maxTokens must be a positive integer");
+    throw new Error("AI maxTokens must be a positive integer");
   }
   if (
     temperature !== undefined &&
     (!Number.isFinite(temperature) || temperature < 0 || temperature > 2)
   ) {
-    throw new Error("OpenAI temperature must be between 0 and 2");
+    throw new Error("AI temperature must be between 0 and 2");
   }
 
-  const modelId = resolveModelId();
+  const modelId = config.model;
   // Matches with or without an OpenRouter `provider/` prefix.
   const isGpt5 = /(?:^|\/)gpt-5(?:[.-]|$)/i.test(modelId);
-  const openai = createOpenAI({ apiKey, baseURL: OPENAI_BASE_URL });
+  const openai = createOpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  });
 
   try {
     const result = await generateText({
@@ -207,7 +221,7 @@ export async function requestOpenAiJson({
     });
 
     if (!result.output || typeof result.output !== "object") {
-      throw new Error("OpenAI returned invalid JSON");
+      throw new Error("AI provider returned invalid JSON");
     }
     return JSON.stringify(result.output);
   } catch (error) {

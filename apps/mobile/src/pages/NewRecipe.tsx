@@ -40,6 +40,7 @@ import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import type { FoodDetail, FoodResult } from "@repo/models"
 import { APP_ACCENT_COLORS, MACRO_COLORS, MICRO_COLORS } from "@repo/ui"
+import { uploadOwnedFile } from "@/lib/owned-upload"
 
 type SearchState = "idle" | "loading" | "done" | "error"
 type RecipeRouteState = {
@@ -59,7 +60,7 @@ type DraftPhoto = {
   id: string
   file?: File
   url: string
-  storageId?: Id<"_storage">
+  uploadId?: Id<"fileUploads">
   placeholder?: boolean
 }
 
@@ -933,7 +934,6 @@ export default function NewRecipe() {
     api.logs.recipes.save,
     "logs.recipes.save"
   )
-  const generateUploadUrl = useMutation(api.logs.recipes.generateUploadUrl)
   const setFoodDay = useOfflineMutation(
     api.logs.foodLogs.setDay,
     "logs.foodLogs.setDay"
@@ -982,10 +982,10 @@ export default function NewRecipe() {
       setPlaceholderImage(initial.placeholderImage ?? "")
       setTags(initial.tags?.join(", ") ?? "")
       setSteps(initial.steps?.length ? initial.steps : [""])
-      const storedPhotos: DraftPhoto[] = (initial.photoStorageIds ?? [])
-        .map((storageId, index) => ({
-          id: String(storageId),
-          storageId,
+      const storedPhotos: DraftPhoto[] = (initial.photoUploadIds ?? [])
+        .map((uploadId, index) => ({
+          id: String(uploadId),
+          uploadId,
           url: initial.photoUrls?.[index] ?? "",
         }))
         .filter((photo) => Boolean(photo.url))
@@ -1025,23 +1025,17 @@ export default function NewRecipe() {
     try {
       const recipeName = name.trim() || "My Recipe"
       const cleanedIngredients = stripUndefined(ingredients)
-      const photoStorageIds = await Promise.all(
+      const photoUploadIds = await Promise.all(
         photos
           .filter((photo) => !photo.placeholder)
           .map(async (photo) => {
-            if (photo.storageId) return photo.storageId
+            if (photo.uploadId) return photo.uploadId
             if (!photo.file) throw new Error("Photo file is unavailable")
-            const uploadUrl = await generateUploadUrl({})
-            const response = await fetch(uploadUrl, {
-              method: "POST",
-              headers: { "Content-Type": photo.file.type || "image/jpeg" },
-              body: photo.file,
-            })
-            if (!response.ok) throw new Error("Photo upload failed")
-            const result = (await response.json()) as {
-              storageId: Id<"_storage">
-            }
-            return result.storageId
+            return await uploadOwnedFile(
+              photo.file,
+              "recipe_photo",
+              photo.file.name
+            )
           })
       )
       const savedRecipeId = await saveRecipeMutation({
@@ -1063,7 +1057,7 @@ export default function NewRecipe() {
           recipeType === "detailed"
             ? steps.map((step) => step.trim()).filter(Boolean)
             : undefined,
-        photoStorageIds,
+        photoUploadIds,
         ingredients: cleanedIngredients,
       })
       const nextRecipeId =
@@ -1108,7 +1102,7 @@ export default function NewRecipe() {
   function handlePhotoSelection(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []).slice(
       0,
-      6 - photos.length
+      5 - photos.length
     )
     if (!files.length) return
     setPlaceholderImage("")

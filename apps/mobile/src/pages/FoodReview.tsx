@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Warning } from "@phosphor-icons/react"
 import { useLocation, useParams } from "react-router"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import { useQuery } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { api } from "../../../../convex/_generated/api"
@@ -118,11 +119,8 @@ export default function FoodReview() {
 
     try {
       await addFoodEntry({ date, entry })
-      posthog.capture("food_logged", {
-        food_name: food.name,
-        calories: macros.calories,
-        grams,
-        meal,
+      captureFeatureUsage(posthog, "food_logged", {
+        item_count: 1,
         source: "search_review_page",
       })
 

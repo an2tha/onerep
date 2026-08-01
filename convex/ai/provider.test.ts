@@ -3,19 +3,26 @@ import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  DEFAULT_OPENAI_MODEL,
+  DEFAULT_OPENROUTER_MODEL,
   hasOpenAiApiKey,
-  OPENAI_BASE_URL,
+  OPENROUTER_BASE_URL,
   requestOpenAiJson,
 } from "./provider";
 import { promptTemplates, renderSystemPrompt } from "./prompts.generated";
 
-type EnvName = "OPENAI_API_KEY" | "OPENAI_MODEL" | "OPENROUTER_API_KEY";
+type EnvName =
+  | "OPENAI_API_KEY"
+  | "OPENAI_MODEL"
+  | "OPENROUTER_API_KEY"
+  | "OPENROUTER_MODEL"
+  | "AI_PROCESSOR_APPROVED";
 
 const originalEnv: Record<EnvName, string | undefined> = {
   OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   OPENAI_MODEL: process.env.OPENAI_MODEL,
   OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
+  AI_PROCESSOR_APPROVED: process.env.AI_PROCESSOR_APPROVED,
 };
 const aiDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -33,30 +40,33 @@ afterEach(() => {
 describe("OpenRouter provider", () => {
   test("routes through OpenRouter with a hot-swappable model", () => {
     process.env.OPENROUTER_API_KEY = "  openrouter-secret  ";
+    process.env.AI_PROCESSOR_APPROVED = "true";
 
     expect(hasOpenAiApiKey()).toBe(true);
-    expect(OPENAI_BASE_URL).toBe("https://openrouter.ai/api/v1");
+    expect(OPENROUTER_BASE_URL).toBe("https://openrouter.ai/api/v1");
     // OpenRouter model ids carry a `provider/` prefix that is part of the id
     // and must not be stripped.
-    expect(DEFAULT_OPENAI_MODEL).toContain("/");
+    expect(DEFAULT_OPENROUTER_MODEL).toContain("/");
   });
 
-  // Keeps an existing deployment working while the variable is switched over.
-  test("falls back to a direct OpenAI key", () => {
+  test("never accepts a direct OpenAI key for OpenRouter", () => {
     delete process.env.OPENROUTER_API_KEY;
     process.env.OPENAI_API_KEY = "openai-secret";
-    expect(hasOpenAiApiKey()).toBe(true);
+    process.env.AI_PROCESSOR_APPROVED = "true";
+    expect(hasOpenAiApiKey()).toBe(false);
   });
 
   test("rejects missing credentials and invalid generation settings", async () => {
     process.env.OPENROUTER_API_KEY = "   ";
     process.env.OPENAI_API_KEY = "   ";
+    process.env.AI_PROCESSOR_APPROVED = "true";
     expect(hasOpenAiApiKey()).toBe(false);
     await expect(
       requestOpenAiJson({ system: "s", user: "u", maxTokens: 1 }),
     ).rejects.toThrow("not configured");
 
     process.env.OPENROUTER_API_KEY = "openrouter-secret";
+    process.env.AI_PROCESSOR_APPROVED = "true";
     await expect(
       requestOpenAiJson({ system: "s", user: "u", maxTokens: 0 }),
     ).rejects.toThrow("positive integer");

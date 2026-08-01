@@ -14,9 +14,8 @@ export type BodyMeasurementEntry = {
   calvesCm?: number
   neckCm?: number
   notes?: string
-  photoStorageId?: string
+  photoUploadId?: string
   photoUrl?: string | null
-  photoDataUrl?: string // legacy base64 image
   photoTakenAt?: number // timestamp when photo was taken
 }
 

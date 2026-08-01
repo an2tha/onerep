@@ -37,6 +37,7 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import { convexClient } from "@/lib/convex"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import { toast } from "@repo/ui"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import type { FoodResult } from "@repo/models"
@@ -259,9 +260,8 @@ export default function SnapAndLog() {
         setBarcodeScanning(false)
         const food = await getFoodByBarcode(code)
         if (food) {
-          posthog.capture("food_barcode_scanned", {
-            food_name: food.name,
-            barcode: code,
+          captureFeatureUsage(posthog, "food_barcode_scanned", {
+            success: true,
           })
           setBarcodeResult(food)
         } else {
@@ -390,7 +390,7 @@ export default function SnapAndLog() {
       }
       const blob = await fetch(photo.webPath).then((res) => res.blob())
       if (mode === "snap") {
-        posthog.capture("food_snap_captured")
+        captureFeatureUsage(posthog, "food_snap_captured")
         await processSnapBlob(blob)
       } else {
         setBarcodeScanning(true)
@@ -434,7 +434,7 @@ export default function SnapAndLog() {
     canvas.height = video.videoHeight
     canvas.getContext("2d")?.drawImage(video, 0, 0)
 
-    posthog.capture("food_snap_captured")
+    captureFeatureUsage(posthog, "food_snap_captured")
     canvas.toBlob(
       async (blob) => {
         if (!blob) {
@@ -475,10 +475,8 @@ export default function SnapAndLog() {
       const existingEntries = foodLogs ?? []
       await setDay({ date, entries: [...existingEntries, entry] })
 
-      posthog.capture("food_logged_from_camera", {
-        food_name: item.name,
-        calories: item.calories,
-        meal,
+      captureFeatureUsage(posthog, "food_logged_from_camera", {
+        item_count: 1,
         source: mode,
       })
       setAdded(item.id)
@@ -508,10 +506,9 @@ export default function SnapAndLog() {
       const existingEntries = foodLogs ?? []
       await setDay({ date, entries: [...existingEntries, ...entries] })
 
-      posthog.capture("food_logged_from_camera", {
-        food_count: entries.length,
+      captureFeatureUsage(posthog, "food_logged_from_camera", {
+        item_count: entries.length,
         detected_count: snapReviewItems.length,
-        meal,
         source: "snap_review",
       })
 

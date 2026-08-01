@@ -153,6 +153,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     placeholderImage: v.optional(v.string()),
     photoStorageIds: v.optional(v.array(v.id("_storage"))),
+    photoUploadIds: v.optional(v.array(v.id("fileUploads"))),
     originCountry: v.optional(v.string()),
     isCommunityShared: v.optional(v.boolean()),
     communityAuthorName: v.optional(v.string()),
@@ -709,6 +710,7 @@ export default defineSchema({
     neckCm: v.optional(v.number()),
     notes: v.optional(v.string()),
     photoStorageId: v.optional(v.id("_storage")),
+    photoUploadId: v.optional(v.id("fileUploads")),
     photoDataUrl: v.optional(v.string()), // legacy base64 image; new photos use storage
     photoTakenAt: v.optional(v.number()), // timestamp when photo was taken
     createdAt: v.number(),
@@ -940,7 +942,54 @@ export default defineSchema({
     expiresAt: v.number(),
   })
     .index("by_userId", ["userId"])
+    .index("by_storageId", ["storageId"])
     .index("by_userId_and_storageId", ["userId", "storageId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  // Every newly uploaded blob is registered here before any feature can use
+  // it. Application records reference this ownership row, never raw storage
+  // IDs supplied by clients.
+  fileUploads: defineTable({
+    userId: v.string(),
+    purpose: v.union(
+      v.literal("recipe_photo"),
+      v.literal("body_progress_photo"),
+      v.literal("form_coach_landmarks"),
+      v.literal("coach_image"),
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("ready"),
+      v.literal("attached"),
+      v.literal("failed"),
+    ),
+    storageId: v.optional(v.id("_storage")),
+    expectedMimeType: v.string(),
+    expectedSize: v.number(),
+    actualMimeType: v.optional(v.string()),
+    actualSize: v.optional(v.number()),
+    fileName: v.optional(v.string()),
+    attachedTable: v.optional(
+      v.union(
+        v.literal("recipes"),
+        v.literal("bodyMeasurements"),
+        v.literal("formCoachSessions"),
+        v.literal("coachMessages"),
+      ),
+    ),
+    attachedDocumentId: v.optional(v.string()),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    attachedAt: v.optional(v.number()),
+  })
+    .index("by_storageId", ["storageId"])
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_status", ["userId", "status"])
+    .index("by_userId_and_purpose_and_status", [
+      "userId",
+      "purpose",
+      "status",
+    ])
     .index("by_expiresAt", ["expiresAt"]),
 
   // ── AI usage quotas ──────────────────────────────────────────────────────
@@ -951,6 +1000,18 @@ export default defineSchema({
     lastSource: v.optional(v.string()),
     updatedAt: v.number(),
   }).index("by_userId_month", ["userId", "month"]),
+
+  rateLimitBuckets: defineTable({
+    key: v.string(),
+    userId: v.string(),
+    action: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_key", ["key"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   // ── One-time maintenance markers, so a backfill cannot run twice ──────────
   migrationRuns: defineTable({
@@ -1117,7 +1178,8 @@ export default defineSchema({
     slug: v.string(),
     date: v.string(), // YYYY-MM-DD
     capturedAt: v.number(),
-    landmarksStorageId: v.id("_storage"),
+    landmarksStorageId: v.optional(v.id("_storage")),
+    landmarksUploadId: v.optional(v.id("fileUploads")),
     repCount: v.number(),
     angles: v.array(
       v.object({

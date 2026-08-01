@@ -1247,7 +1247,7 @@ export type Recipe = {
   ratingTotal?: number
   tags?: string[]
   steps?: string[]
-  photoStorageIds?: string[]
+  photoUploadIds?: string[]
   photoUrls?: Array<string | null>
   ingredients: RecipeIngredient[]
 }

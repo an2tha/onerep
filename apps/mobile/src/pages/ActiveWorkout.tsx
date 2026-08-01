@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
 import { useAction, useQuery, useMutation } from "convex/react"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import {
@@ -4634,7 +4635,9 @@ export default function ActiveWorkout() {
 
   useEffect(() => {
     if (isInitialized) {
-      posthog.capture("workout_started", { preset_id: presetId ?? null })
+      captureFeatureUsage(posthog, "workout_started", {
+        has_preset: Boolean(presetId),
+      })
     }
   }, [isInitialized, presetId, posthog])
 
@@ -4805,10 +4808,10 @@ export default function ActiveWorkout() {
         throw new Error("Coach couldn't turn that into a usable exercise plan.")
       }
 
-      posthog.capture("active_workout_coach_asked", {
+      captureFeatureUsage(posthog, "active_workout_coach_asked", {
         exercise_count: draft.exercises.length,
         has_active_workout: uniqueExerciseIds.length > 0,
-        source_exercise: aiSheetTarget?.exerciseName ?? null,
+        has_source_exercise: Boolean(aiSheetTarget?.exerciseName),
       })
 
       return {
@@ -4883,7 +4886,7 @@ export default function ActiveWorkout() {
           return next
         })
 
-        posthog.capture("active_workout_ai_changed", {
+        captureFeatureUsage(posthog, "active_workout_ai_changed", {
           mode,
           matched_count: 1,
           unmatched_count: resolved.length - 1,
@@ -4973,7 +4976,7 @@ export default function ActiveWorkout() {
         setExerciseLookup((prev) => ({ ...prev, ...nextExerciseLookup }))
       }
 
-      posthog.capture("active_workout_ai_changed", {
+      captureFeatureUsage(posthog, "active_workout_ai_changed", {
         mode,
         matched_count: nextItems.length,
         unmatched_count: unmatched.length,
@@ -5211,15 +5214,10 @@ export default function ActiveWorkout() {
         exercises,
         durationSeconds: elapsed,
       })
-      posthog.capture("workout_completed", {
-        preset_id: presetId ?? null,
-        duration_seconds: elapsed,
-        exercise_count: exercises.length,
-        total_sets: exercises.reduce(
-          (sum, ex) => sum + ex.sets.filter((s) => s.completed).length,
-          0
-        ),
-        cardio_count: exercises.filter((ex) => Boolean(ex.cardio)).length,
+      captureFeatureUsage(posthog, "workout_completed", {
+        has_preset: Boolean(presetId),
+        duration_bucket: durationBucket(elapsed),
+        item_count: exercises.length,
       })
       clearActiveWorkoutDraft(slot)
       void endWorkoutLiveActivity(liveActivityState)

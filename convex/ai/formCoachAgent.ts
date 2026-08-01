@@ -8,10 +8,12 @@ import * as z from "zod";
 import {
   action,
   internalMutation,
+  internalQuery,
   mutation,
   query,
 } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { getAuthUser } from "../lib/auth";
 import {
   hasOpenAiApiKey,
@@ -21,6 +23,12 @@ import {
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
 import { matchFormCoachExercise } from "./formCoach";
+import { claimRateLimit } from "../lib/rateLimits";
+import {
+  APP_UPDATE_REQUIRED,
+  attachUpload,
+  requireReadyUpload,
+} from "../lib/uploads";
 import {
   JOINTS,
   PHASES,
@@ -404,7 +412,33 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
-    return await ctx.storage.generateUploadUrl();
+    throw new Error(APP_UPDATE_REQUIRED);
+  },
+});
+
+export const resolveLandmarksUpload = internalQuery({
+  args: { userId: v.string(), uploadId: v.id("fileUploads") },
+  handler: async (ctx, args) => {
+    const upload = await ctx.db.get(args.uploadId);
+    if (
+      !upload ||
+      upload.userId !== args.userId ||
+      upload.purpose !== "form_coach_landmarks" ||
+      upload.status !== "ready" ||
+      upload.expiresAt <= Date.now() ||
+      !upload.storageId
+    ) {
+      return null;
+    }
+    return { storageId: upload.storageId };
+  },
+});
+
+export const claimFormAnalysis = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    await claimRateLimit(ctx, args.userId, "form_analysis", 5, 60 * 60 * 1000);
+    return null;
   },
 });
 
@@ -415,15 +449,29 @@ export const recordSession = internalMutation({
     exerciseName: v.string(),
     slug: v.string(),
     date: v.string(),
-    landmarksStorageId: v.id("_storage"),
+    landmarksUploadId: v.id("fileUploads"),
     repCount: v.number(),
     angles: v.array(angleMetaValidator),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert("formCoachSessions", {
+    await requireReadyUpload(ctx, {
+      uploadId: args.landmarksUploadId,
+      userId: args.userId,
+      purpose: "form_coach_landmarks",
+    });
+    const sessionId = await ctx.db.insert("formCoachSessions", {
       ...args,
       capturedAt: Date.now(),
     });
+    await attachUpload(
+      ctx,
+      args.landmarksUploadId,
+      args.userId,
+      "form_coach_landmarks",
+      "formCoachSessions",
+      String(sessionId),
+    );
+    return sessionId;
   },
 });
 
@@ -608,6 +656,55 @@ function toStoredToolCalls(calls: AgentToolCall[]) {
   }));
 }
 
+function assertCaptureLimits(
+  capture: FormCoachCapture,
+  angles: Array<{ index: number }>,
+  pose: Array<{ worldLandmarks: unknown[] }> | undefined,
+) {
+  if (
+    !capture ||
+    !Array.isArray(capture.reps) ||
+    capture.reps.length === 0 ||
+    capture.reps.length > 200 ||
+    !Number.isInteger(capture.repCount) ||
+    capture.repCount < 1 ||
+    capture.repCount > 200
+  ) {
+    throw new Error("Movement capture exceeds the 200-rep limit");
+  }
+  if (
+    !Array.isArray(capture.angles) ||
+    capture.angles.length > 8 ||
+    angles.length > 8
+  ) {
+    throw new Error("Movement capture exceeds the 8-angle limit");
+  }
+
+  const frames = [
+    ...(Array.isArray(capture.canonical) ? capture.canonical : []),
+    ...capture.reps.flatMap((rep) =>
+      Array.isArray(rep.frames) ? rep.frames : [],
+    ),
+  ];
+  if (frames.length > 1_200 || (pose?.length ?? 0) > 1_200) {
+    throw new Error("Movement capture exceeds the 1,200-frame limit");
+  }
+  for (const frame of frames) {
+    if (
+      !frame ||
+      !Array.isArray(frame.worldLandmarks) ||
+      frame.worldLandmarks.length > 33
+    ) {
+      throw new Error("Movement frames may contain at most 33 landmarks");
+    }
+  }
+  for (const frame of pose ?? []) {
+    if (frame.worldLandmarks.length > 33) {
+      throw new Error("Movement frames may contain at most 33 landmarks");
+    }
+  }
+}
+
 // ── The action ───────────────────────────────────────────────────────────────
 
 export const analyse = action({
@@ -616,7 +713,8 @@ export const analyse = action({
     exerciseName: v.string(),
     slug: v.string(),
     date: v.string(),
-    landmarksStorageId: v.id("_storage"),
+    landmarksStorageId: v.optional(v.id("_storage")),
+    landmarksUploadId: v.optional(v.id("fileUploads")),
     angles: v.array(angleMetaValidator),
     /** The canonical rep, kept with the report so a pinned card can render it. */
     pose: v.optional(v.array(poseFrameValidator)),
@@ -625,6 +723,9 @@ export const analyse = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
     if (!hasOpenAiApiKey()) throw new Error("Form analysis is not configured");
+    if (args.landmarksStorageId !== undefined || !args.landmarksUploadId) {
+      throw new Error(APP_UPDATE_REQUIRED);
+    }
 
     if (!matchFormCoachExercise(args.exerciseName)) {
       throw new Error(
@@ -632,10 +733,24 @@ export const analyse = action({
       );
     }
 
-    const blob = await ctx.storage.get(args.landmarksStorageId);
+    const resolved: { storageId: Id<"_storage"> } | null = await ctx.runQuery(
+      internal.ai.formCoachAgent.resolveLandmarksUpload,
+      { userId: user._id, uploadId: args.landmarksUploadId },
+    );
+    if (!resolved) throw new Error("Upload not found or access denied");
+    const blob = await ctx.storage.get(resolved.storageId);
     if (!blob) throw new Error("The recorded movement could not be read");
-    const capture = JSON.parse(await blob.text()) as FormCoachCapture;
-    if (!capture?.reps?.length) throw new Error("No reps were captured");
+    let capture: FormCoachCapture;
+    try {
+      capture = JSON.parse(await blob.text()) as FormCoachCapture;
+    } catch {
+      throw new Error("The movement capture is not valid JSON");
+    }
+    assertCaptureLimits(capture, args.angles, args.pose);
+
+    await ctx.runMutation(internal.ai.formCoachAgent.claimFormAnalysis, {
+      userId: user._id,
+    });
 
     // One app-level credit covers the whole tool loop, matching how the photo
     // snap action counts one credit for its two provider calls.
@@ -659,7 +774,7 @@ export const analyse = action({
         exerciseName: args.exerciseName,
         slug: args.slug,
         date: args.date,
-        landmarksStorageId: args.landmarksStorageId,
+        landmarksUploadId: args.landmarksUploadId,
         repCount: capture.repCount,
         angles: args.angles,
       },

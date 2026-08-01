@@ -8,14 +8,11 @@ import {
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import { APP_UPDATE_REQUIRED } from "../lib/uploads";
 
 const MAX_HISTORY = 40;
 const MAX_MEMORIES = 50;
 const MAX_CHECK_INS = 30;
-const MAX_COACH_IMAGE_BYTES = 5 * 1024 * 1024;
-const COACH_UPLOAD_TTL_MS = 24 * 60 * 60 * 1000;
-const COACH_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
 function clampLimit(value: number | undefined, fallback: number, max: number) {
   if (!Number.isFinite(value ?? 0)) return fallback;
   return Math.max(1, Math.min(max, Math.floor(value ?? fallback)));
@@ -70,7 +67,7 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     await getAuthUser(ctx);
-    return await ctx.storage.generateUploadUrl();
+    throw new Error(APP_UPDATE_REQUIRED);
   },
 });
 
@@ -82,73 +79,42 @@ export const registerUpload = mutation({
     size: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await getAuthUser(ctx);
-    const mimeType = clampText(args.mimeType, 64).toLowerCase();
-    if (!COACH_IMAGE_TYPES.has(mimeType))
-      throw new Error("Unsupported image type");
-    const metadata = await ctx.db.system.get("_storage", args.storageId);
-    if (!metadata) throw new Error("Uploaded image not found");
-    if (
-      metadata.size <= 0 ||
-      metadata.size > MAX_COACH_IMAGE_BYTES ||
-      args.size !== metadata.size
-    ) {
-      await ctx.storage.delete(args.storageId);
-      throw new Error("Image is too large or incomplete");
-    }
-    if (metadata.contentType && metadata.contentType !== mimeType) {
-      await ctx.storage.delete(args.storageId);
-      throw new Error("Image content type does not match");
-    }
-    const existing = await ctx.db
-      .query("coachUploads")
-      .withIndex("by_userId_and_storageId", (q) =>
-        q.eq("userId", user._id).eq("storageId", args.storageId),
-      )
-      .unique();
-    if (existing) return { id: existing._id };
-    const createdAt = Date.now();
-    const id = await ctx.db.insert("coachUploads", {
-      userId: user._id,
-      storageId: args.storageId,
-      mimeType,
-      fileName: clampText(args.fileName, 120) || "coach-image",
-      size: metadata.size,
-      createdAt,
-      expiresAt: createdAt + COACH_UPLOAD_TTL_MS,
-    });
-    return { id };
+    await getAuthUser(ctx);
+    void args;
+    throw new Error(APP_UPDATE_REQUIRED);
   },
 });
 
 export const removeUpload = mutation({
   args: { id: v.id("coachUploads") },
   handler: async (ctx, args) => {
-    const user = await getAuthUser(ctx);
-    const upload = await ctx.db.get(args.id);
-    if (!upload || upload.userId !== user._id) {
-      throw new Error("Image not found or access denied");
-    }
-    await ctx.storage.delete(upload.storageId);
-    await ctx.db.delete(upload._id);
-    return null;
+    await getAuthUser(ctx);
+    void args;
+    throw new Error(APP_UPDATE_REQUIRED);
   },
 });
 
 export const resolveUploadForModel = internalQuery({
-  args: { id: v.id("coachUploads"), userId: v.string() },
+  args: { id: v.id("fileUploads"), userId: v.string() },
   handler: async (ctx, args) => {
     const upload = await ctx.db.get(args.id);
     if (
       !upload ||
       upload.userId !== args.userId ||
+      upload.purpose !== "coach_image" ||
+      (upload.status !== "ready" && upload.status !== "attached") ||
+      !upload.storageId ||
       upload.expiresAt <= Date.now()
     ) {
       return null;
     }
     const url = await ctx.storage.getUrl(upload.storageId);
     return url
-      ? { url, mimeType: upload.mimeType, fileName: upload.fileName }
+      ? {
+          url,
+          mimeType: upload.actualMimeType ?? upload.expectedMimeType,
+          fileName: upload.fileName ?? "coach-image",
+        }
       : null;
   },
 });

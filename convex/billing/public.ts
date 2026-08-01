@@ -31,6 +31,38 @@ function monthlyPriceLabel() {
   );
 }
 
+const APPROVED_CHECKOUT_ORIGIN = "https://app.onerep.life";
+
+function checkoutReturnUrl(
+  name: "BILLING_CHECKOUT_SUCCESS_URL" | "BILLING_CHECKOUT_CANCEL_URL",
+  expectedHash: "#success" | "#failed",
+) {
+  const raw =
+    name === "BILLING_CHECKOUT_SUCCESS_URL"
+      ? nonEmptyString(env.BILLING_CHECKOUT_SUCCESS_URL)
+      : nonEmptyString(env.BILLING_CHECKOUT_CANCEL_URL);
+  if (!raw) throw new Error(`${name} is not configured in Convex`);
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`${name} is invalid`);
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.origin !== APPROVED_CHECKOUT_ORIGIN ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.pathname !== "/settings" ||
+    parsed.search ||
+    parsed.hash !== expectedHash
+  ) {
+    throw new Error(`${name} is not an approved settings URL`);
+  }
+  return parsed.toString();
+}
+
 /** Serve product ids from the server so pricing changes don't need a release. */
 function offering() {
   return {
@@ -164,25 +196,23 @@ export const getPurchaseContext = action({
 
 /** Start a Stripe Checkout Session for web purchases. */
 export const createCheckout = action({
-  args: {
-    successUrl: v.optional(v.string()),
-    cancelUrl: v.optional(v.string()),
-  },
-  handler: async (ctx, args): Promise<{ url: string }> => {
+  args: {},
+  handler: async (ctx): Promise<{ url: string }> => {
     const user = await getAuthUser(ctx);
-    const successUrl =
-      args.successUrl ??
-      nonEmptyString(env.BILLING_CHECKOUT_SUCCESS_URL) ??
-      undefined;
-    const cancelUrl =
-      args.cancelUrl ??
-      nonEmptyString(env.BILLING_CHECKOUT_CANCEL_URL) ??
-      undefined;
-    if (!successUrl || !cancelUrl) {
-      throw new Error(
-        "Checkout return URLs are not configured (BILLING_CHECKOUT_SUCCESS_URL / BILLING_CHECKOUT_CANCEL_URL)",
-      );
-    }
+    await ctx.runMutation(internal.security.claim, {
+      userId: user._id,
+      action: "checkout",
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    const successUrl = checkoutReturnUrl(
+      "BILLING_CHECKOUT_SUCCESS_URL",
+      "#success",
+    );
+    const cancelUrl = checkoutReturnUrl(
+      "BILLING_CHECKOUT_CANCEL_URL",
+      "#failed",
+    );
 
     const session: { url: string } = await ctx.runAction(
       internal.billing.stripe.createCheckoutSession,
@@ -221,6 +251,9 @@ export const redeemPurchase = action({
     error?: string;
   }> => {
     const user = await getAuthUser(ctx);
+    if (args.receipt.length === 0 || args.receipt.length > 4_096) {
+      throw new Error("Receipt must be between 1 and 4096 characters");
+    }
     if (args.platform === "apple") {
       return await ctx.runAction(internal.billing.apple.redeemTransaction, {
         userId: user._id,
@@ -353,10 +386,29 @@ export const restorePurchases = action({
     args,
   ): Promise<{ restored: number; conflicts: number }> => {
     const user = await getAuthUser(ctx);
+    await ctx.runMutation(internal.security.claim, {
+      userId: user._id,
+      action: "purchase_restore",
+      limit: 2,
+      windowMs: 60 * 60 * 1000,
+    });
+    const deduplicated = Array.from(
+      new Map(args.receipts.map((item) => [item.receipt, item])).values(),
+    );
+    if (deduplicated.length > 20) {
+      throw new Error("A restore batch can contain at most 20 unique receipts");
+    }
+    if (
+      deduplicated.some(
+        (item) => item.receipt.length === 0 || item.receipt.length > 4_096,
+      )
+    ) {
+      throw new Error("Receipt must be between 1 and 4096 characters");
+    }
     let restored = 0;
     let conflicts = 0;
 
-    for (const item of args.receipts) {
+    for (const item of deduplicated) {
       const result: { granted: boolean; error?: string } =
         args.platform === "apple"
           ? await ctx.runAction(internal.billing.apple.redeemTransaction, {

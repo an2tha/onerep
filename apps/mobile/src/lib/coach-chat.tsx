@@ -38,6 +38,7 @@ import type { Day } from "@/lib/workout-sync"
 import type { Exercise } from "@/lib/exercise-catalog"
 import { SUPPLEMENT_SCHEDULES } from "@/lib/supplements"
 import { prepareCoachImage } from "@/lib/coach-media"
+import { uploadOwnedFile } from "@/lib/owned-upload"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
   normalizeCoachOperations as normalizeSharedCoachOperations,
@@ -84,7 +85,7 @@ export type RecipeCustomization = {
 }
 
 export type CoachAttachment = {
-  id?: Id<"coachUploads">
+  id?: Id<"fileUploads">
   fileName: string
   previewUrl: string
   status: "preparing" | "uploading" | "ready" | "error"
@@ -2543,11 +2544,7 @@ export function ThinkingIndicator() {
  * attachment synchronously without waiting for a re-render.
  */
 export function useCoachAttachment() {
-  const generateCoachUploadUrl = useMutation(
-    api.ai.coachState.generateUploadUrl
-  )
-  const registerCoachUpload = useMutation(api.ai.coachState.registerUpload)
-  const removeCoachUpload = useMutation(api.ai.coachState.removeUpload)
+  const discardCoachUpload = useMutation(api.uploads.discard)
   const [attachment, setAttachment] = useState<CoachAttachment | null>(null)
   const attachmentRef = useRef<CoachAttachment | null>(null)
   const uploadRequestRef = useRef(0)
@@ -2577,7 +2574,7 @@ export function useCoachAttachment() {
     setActiveAttachment(null)
     URL.revokeObjectURL(current.previewUrl)
     if (removeRemote && current.id) {
-      void removeCoachUpload({ id: current.id }).catch(() => undefined)
+      void discardCoachUpload({ uploadId: current.id }).catch(() => undefined)
     }
   }
 
@@ -2598,27 +2595,17 @@ export function useCoachAttachment() {
         previewUrl,
         status: "uploading",
       })
-      const uploadUrl = await generateCoachUploadUrl({})
-      const uploadResponse = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": prepared.type },
-        body: prepared,
-      })
-      if (!uploadResponse.ok) throw new Error("Image upload failed. Try again.")
-      const payload = (await uploadResponse.json()) as { storageId?: string }
-      if (!payload.storageId) throw new Error("Image upload was incomplete.")
-      const registered = await registerCoachUpload({
-        storageId: payload.storageId as Id<"_storage">,
-        mimeType: prepared.type,
-        fileName: prepared.name,
-        size: prepared.size,
-      })
+      const uploadId = await uploadOwnedFile(
+        prepared,
+        "coach_image",
+        prepared.name
+      )
       if (requestId !== uploadRequestRef.current) {
-        await removeCoachUpload({ id: registered.id }).catch(() => undefined)
+        await discardCoachUpload({ uploadId }).catch(() => undefined)
         return
       }
       setActiveAttachment({
-        id: registered.id,
+        id: uploadId,
         fileName: prepared.name,
         previewUrl,
         status: "ready",

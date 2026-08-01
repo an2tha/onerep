@@ -24,6 +24,10 @@ export type DiaryAccess = {
 
 export const NO_ACCESS_MESSAGE = "No access to this diary";
 
+export function canReadComments(access: DiaryAccess) {
+  return access.isOwner || access.canReadDiary || access.canComment;
+}
+
 function ownAccess(userId: string): DiaryAccess {
   return {
     ownerUserId: userId,

@@ -1857,7 +1857,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="Privacy controls">
                   <SettingsRow
                     label="Analytics"
-                    detail="Share anonymous product usage"
+                    detail="Share anonymous feature-usage counts. Meal, workout, body, and Coach contents are never included."
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
