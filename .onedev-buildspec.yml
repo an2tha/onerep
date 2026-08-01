@@ -46,17 +46,18 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
-      # Ships the backend to the deployment the app actually talks to.
+      # Ships the backend to the production deployment chatty-panda-144.
       #
-      # `convex deploy` cannot target a dev deployment (it only reaches prod or
-      # preview deployments), and the live app runs on the dev deployment
-      # hallowed-llama-854 -- so this uses `convex dev --once`, which pushes
-      # code and stops instead of watching for changes.
+      # `convex deploy` is the real deploy path: it typechecks, pushes
+      # functions, and applies the schema in one transactional step. It only
+      # reaches prod and preview deployments, which is why this job previously
+      # used `convex dev --once` against a dev deployment.
       #
-      # CONVEX_ACCESS_TOKEN is a personal Convex account token, not a
-      # deployment-scoped deploy key: it can reach every project on the
-      # account. Narrow this to a production deploy key if the app is ever
-      # migrated onto the prod deployment.
+      # CONVEX_DEPLOY_KEY is deployment-scoped (`prod:chatty-panda-144|...`) and
+      # is the only credential this step needs -- do not also set
+      # CONVEX_DEPLOYMENT here, the two conflict. It replaces the account-wide
+      # personal CONVEX_ACCESS_TOKEN, which could reach every project on the
+      # account.
       - type: CommandStep
         name: Deploy Convex functions
         runInContainer: true
@@ -66,13 +67,11 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            bunx convex dev --once
+            bunx convex deploy --yes
         runAs: 0:0
         envVars:
-          - name: CONVEX_DEPLOYMENT
-            value: "@secret:DEV_CONVEX_DEPLOYMENT@"
-          - name: CONVEX_OVERRIDE_ACCESS_TOKEN
-            value: "@secret:CONVEX_ACCESS_TOKEN@"
+          - name: CONVEX_DEPLOY_KEY
+            value: "@secret:CONVEX_DEPLOY_KEY@"
         useTTY: false
         condition: SUCCESSFUL
         optional: false
@@ -85,25 +84,26 @@ jobs:
           shell: sh
           commands: |
             set -eu
-            # --mode development is required, not an oversight: apps/mobile
-            # vite.config.ts refuses a production-mode build when
-            # CONVEX_DEPLOYMENT starts with "dev:", and the live app runs on
-            # the dev deployment hallowed-llama-854. The shipped bundle
-            # therefore keeps import.meta.env.DEV true. Drop this flag only
-            # once the app moves to the prod deployment.
-            bun run turbo run build --filter=mobile --filter=web -- --mode development
+            # A real production build: minified, import.meta.env.DEV === false,
+            # dev-only code paths compiled out. This is only possible because
+            # CONVEX_DEPLOYMENT below is a prod deployment -- apps/mobile
+            # vite.config.ts throws on a production build against a "dev:" one.
+            bun run turbo run build --filter=mobile --filter=web
         runAs: 0:0
         envVars:
-          # NOTE: the DEV_* prefix is historical. These point at the Convex
-          # deployment that serves production traffic and holds all real user
-          # data. The deployment literally named "prod" is empty. Do not
-          # "correct" these to a prod deployment without migrating data first.
+          # Points the client at production, chatty-panda-144. These must stay
+          # in step with the deployment the "Deploy Convex functions" step
+          # pushes to -- a mismatch ships a frontend talking to one backend
+          # while the functions land in another.
+          #
+          # Hardcoded rather than stored as secrets: every VITE_* value is
+          # inlined into the shipped JS bundle, so none of them are secret.
           - name: CONVEX_DEPLOYMENT
-            value: "@secret:DEV_CONVEX_DEPLOYMENT@"
+            value: prod:chatty-panda-144
           - name: VITE_CONVEX_URL
-            value: "@secret:DEV_VITE_CONVEX_URL@"
+            value: https://chatty-panda-144.convex.cloud
           - name: VITE_CONVEX_SITE_URL
-            value: "@secret:DEV_VITE_CONVEX_SITE_URL@"
+            value: https://chatty-panda-144.convex.site
           - name: VITE_APP_URL
             value: https://app.onerep.life
         useTTY: false
