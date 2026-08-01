@@ -185,7 +185,7 @@ export const EXERCISES: Exercise[] = [
     category: "core",
     muscle: "Core · Shoulders · Glutes",
     description:
-      "The foundation of core training. Maintain a rigid body position from head to heels — no sagging hips. Squeeze everything.",
+      "The foundation of core training. Maintain a rigid body position from head to heels, with no sagging hips. Squeeze everything.",
     sets: "3 × 60 s",
     color: EXERCISE_CATEGORY_COLORS.core,
   },
@@ -215,7 +215,7 @@ export const EXERCISES: Exercise[] = [
     category: "core",
     muscle: "Lower Abs · Hip Flexors",
     description:
-      "Hanging core exercise targeting the lower abdominals. Avoid swinging — initiate by posteriorly tilting the pelvis, then raise the legs.",
+      "Hanging core exercise targeting the lower abdominals. Avoid swinging. Initiate by posteriorly tilting the pelvis, then raise the legs.",
     sets: "3 × 12 reps",
     color: EXERCISE_CATEGORY_COLORS.core,
   },

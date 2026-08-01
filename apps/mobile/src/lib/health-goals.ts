@@ -1,5 +1,3 @@
-import type { CalibrationStatus } from "@repo/ui"
-
 export const ONBOARDING_GOALS = [
   "lose",
   "build",
@@ -109,18 +107,6 @@ export type NutritionPlan = {
     label: string
     path: string
     detail?: string
-  }
-  calibration: {
-    status: CalibrationStatus
-    title: string
-    detail: string
-    canApply: boolean
-    targets?: {
-      calories: number
-      protein: number
-      carbs: number
-      fat: number
-    }
   }
   mealSuggestions: Array<{
     id: string

@@ -291,7 +291,7 @@ export function MobileSheet({
             type="button"
             onPointerDown={handlePointerDown}
             className="flex h-11 w-full shrink-0 touch-none items-center justify-center md:hidden"
-            aria-label="Drag down to close or up to resize sheet"
+            aria-label="Drag down to close or up to expand this panel"
           >
             <div className={cn("app-sheet-handle", notchClassName)} />
           </button>

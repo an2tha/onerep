@@ -138,10 +138,10 @@ export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>
           <p className="native-row-title">
-            Monthly requests{usage?.isPro ? " · Pro" : " · Free"}
+            Monthly coach questions{usage?.isPro ? " · Pro" : " · Free"}
           </p>
           <p className="native-row-detail mt-0.5">
-            {formatUsageMonth(usage?.month ?? "")} · {remaining} request
+            {formatUsageMonth(usage?.month ?? "")} · {remaining} question
             {remaining === 1 ? "" : "s"} left
           </p>
         </div>

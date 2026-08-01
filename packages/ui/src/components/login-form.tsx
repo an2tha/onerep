@@ -83,7 +83,8 @@ export function LoginForm({
 
         {error && (
           <p className="rounded-xl border border-destructive/20 bg-destructive/8 px-3.5 py-2.5 text-[12.5px] font-medium text-destructive">
-            {error}
+            {error.trim() ||
+              "We could not complete that request. Please try again."}
           </p>
         )}
 

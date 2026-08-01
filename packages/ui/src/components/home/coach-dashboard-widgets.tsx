@@ -103,7 +103,7 @@ export function CoachDashboardWidgets({
         "mx-[var(--app-page-x)] grid gap-2 md:mx-8 md:grid-cols-2",
         className
       )}
-      aria-label="Coach widgets"
+      aria-label="Coach highlights"
     >
       {widgets.map((widget) => {
         const current = widget.entries[0]?.value ?? 0

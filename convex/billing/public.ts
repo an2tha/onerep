@@ -319,6 +319,81 @@ export const refreshStatus = action({
  * Apple and Google only allow the account holder to cancel, through their own
  * UI, so those return the management URL for the client to open instead.
  */
+/**
+ * Hands subscription management to Stripe's Customer Portal.
+ *
+ * Preferred over `cancelSubscription`: the portal covers cancelling, resuming,
+ * swapping payment methods, and downloading invoices, and it stays correct as
+ * Stripe changes its own billing rules. Under Managed Payments the buyer also
+ * has Link's own order page, but the portal is the surface we can link to
+ * directly from Settings.
+ *
+ * Store subscriptions are not Stripe's to manage, so those still return the
+ * platform's own deep link.
+ */
+export const createManagementSession = action({
+  args: {},
+  handler: async (
+    ctx,
+    _args,
+  ): Promise<
+    | { kind: "portal"; url: string }
+    | { kind: "store"; url: string }
+    | { kind: "none"; reason: string }
+  > => {
+    const user = await getAuthUser(ctx);
+    const subscriptions: Doc<"billingSubscriptions">[] = await ctx.runQuery(
+      internal.billing.store.listSubscriptionsForUser,
+      { userId: user._id },
+    );
+
+    const stripeSubscription = subscriptions.find(
+      (subscription) =>
+        subscription.platform === "stripe" &&
+        subscription.state !== "expired" &&
+        subscription.state !== "refunded",
+    );
+    if (stripeSubscription?.platformCustomerId) {
+      const { url }: { url: string } = await ctx.runAction(
+        internal.billing.stripe.createPortalSession,
+        {
+          customerId: stripeSubscription.platformCustomerId,
+          // Reuses the vetted checkout return URL, which is already pinned to
+          // the approved origin.
+          returnUrl: checkoutReturnUrl(
+            "BILLING_CHECKOUT_SUCCESS_URL",
+            "#success",
+          ),
+        },
+      );
+      return { kind: "portal", url };
+    }
+
+    const native = subscriptions.find(
+      (subscription) =>
+        subscription.platform !== "stripe" &&
+        subscription.state !== "expired" &&
+        subscription.state !== "refunded",
+    );
+    if (native) {
+      return {
+        kind: "store",
+        url:
+          native.platform === "google"
+            ? "https://play.google.com/store/account/subscriptions"
+            : "https://apps.apple.com/account/subscriptions",
+      };
+    }
+
+    return {
+      kind: "none",
+      reason: stripeSubscription
+        ? "This subscription has no Stripe customer on record yet. Try again in a moment."
+        : "No active subscription to manage.",
+    };
+  },
+});
+
 export const cancelSubscription = action({
   args: {},
   handler: async (

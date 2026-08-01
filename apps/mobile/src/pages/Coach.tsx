@@ -953,7 +953,7 @@ export default function Coach() {
         )
         if (matched.length !== operation.exercises.length) {
           throw new Error(
-            "Coach couldn't match every exercise to the catalog. Revise the plan before saving."
+            "Coach couldn't recognise every exercise in this plan. Revise it before saving."
           )
         }
         const seen = new Set<string>()
@@ -1908,10 +1908,7 @@ export default function Coach() {
                       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_18px_50px_color-mix(in_srgb,black_7%,transparent)]">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">
-                              Guided request
-                            </p>
-                            <h2 className="mt-2 text-[24px] leading-tight font-semibold tracking-[-0.025em]">
+                            <h2 className="text-[24px] leading-tight font-semibold tracking-[-0.025em]">
                               {guidedIntent.title}
                             </h2>
                             <p className="mt-2 max-w-lg text-[13px] leading-5 text-muted-foreground">

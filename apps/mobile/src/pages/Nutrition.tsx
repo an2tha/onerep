@@ -27,7 +27,7 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { NutritionCalibrationCard, SummaryBlock } from "@repo/ui"
+import { SummaryBlock } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -1536,10 +1536,6 @@ export default function Nutrition() {
     api.users.users.setCustomGoals,
     "users.users.setCustomGoals"
   )
-  const applyCalibration = useOfflineMutation(
-    api.users.users.applyNutritionCalibration,
-    "users.users.applyNutritionCalibration"
-  )
   const createMealPresetMutation = useOfflineMutation(
     api.logs.mealPresets.create,
     "logs.mealPresets.create"
@@ -1589,20 +1585,6 @@ export default function Nutrition() {
 
   const goals = effectiveGoals?.effective
   const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
-  const calibration = nutritionPlan?.calibration
-  // Keyed on date + status so a new recommendation, or the same one tomorrow,
-  // surfaces again — but re-dismissing today's is respected.
-  const calibrationDismissKey = calibration
-    ? `onerep:dismissed-calibration:${todayKey}:${calibration.status}`
-    : null
-  const [calibrationDismissed, setCalibrationDismissed] = useState(false)
-  const [applyingCalibration, setApplyingCalibration] = useState(false)
-  useEffect(() => {
-    if (!calibrationDismissKey) return
-    setCalibrationDismissed(
-      safeLocalStorageGet(calibrationDismissKey) === "1"
-    )
-  }, [calibrationDismissKey])
   const visibleMetrics = nutritionPlan?.visibleMetrics ?? {
     calories: true,
     macros: true,
@@ -1942,7 +1924,9 @@ export default function Nutrition() {
       setLoggingRecipe(recipe)
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Could not parse meal"
+        error instanceof Error
+          ? error.message
+          : "Couldn't read that description. Try adding more detail."
       )
     } finally {
       setDescribeBusy(false)
@@ -2191,7 +2175,7 @@ export default function Nutrition() {
           activeFast
             ? `Fasting for ${formatFastDuration(
                 fastElapsed
-              )} — open the fasting timer`
+              )}, open the fasting timer`
             : "Start a fast"
         }
         className="mt-2 flex w-full items-center gap-4 text-left active:opacity-70"
@@ -2598,43 +2582,6 @@ export default function Nutrition() {
 
         {!isToday ? null : (
           <>
-            {calibration && !calibrationDismissed && (
-              <NutritionCalibrationCard
-                className="progress-tab-enter"
-                status={calibration.status}
-                title={calibration.title}
-                detail={calibration.detail}
-                current={customGoalTargets}
-                proposed={
-                  calibration.canApply ? calibration.targets : undefined
-                }
-                applying={applyingCalibration}
-                onApply={
-                  calibration.canApply && calibration.targets
-                    ? () => {
-                        const targets = calibration.targets
-                        if (!targets) return
-                        setApplyingCalibration(true)
-                        void applyCalibration(targets)
-                          .then(() => {
-                            hapticMedium()
-                            toast.success("Targets updated")
-                          })
-                          .catch(() => {
-                            toast.error("Could not update targets")
-                          })
-                          .finally(() => setApplyingCalibration(false))
-                      }
-                    : undefined
-                }
-                onDismiss={() => {
-                  setCalibrationDismissed(true)
-                  if (calibrationDismissKey) {
-                    safeLocalStorageSet(calibrationDismissKey, "1")
-                  }
-                }}
-              />
-            )}
             <SummaryBlock
               className="progress-tab-enter"
               title={
@@ -2687,7 +2634,7 @@ export default function Nutrition() {
                   ))}
                 {!visibleMetrics.macros && !visibleMetrics.protein && (
                   <p className="text-[14px] leading-5 text-muted-foreground">
-                    Non-numeric mode — log meals and focus on consistency.
+                    Non-numeric mode: log meals and focus on consistency.
                   </p>
                 )}
               </div>
@@ -2706,7 +2653,7 @@ export default function Nutrition() {
                     <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
                         ? `+${fmt(workoutCalories)} kcal for training`
-                        : "Fixed target — workout adjustment off"}
+                        : "Fixed target, workout adjustment off"}
                     </p>
                   </div>
                   <CaretRight
@@ -2774,7 +2721,7 @@ export default function Nutrition() {
                     </div>
                   ) : (
                     <p className="text-[14px] leading-5 text-muted-foreground">
-                      Nothing logged yet — pick a way to log above.
+                      Nothing logged yet. Pick a way to log above.
                     </p>
                   )}
                 </div>

@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react"
-import {
-  ArrowRight,
-  ForkKnife,
-  ShareNetwork,
-  TrendUp,
-} from "@phosphor-icons/react"
+import { ArrowRight, ForkKnife, ShareNetwork } from "@phosphor-icons/react"
 import { cn } from "../../lib/utils"
 
 export type DashboardWeeklyStory = {
@@ -82,6 +77,39 @@ function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
   )
 }
 
+function WeekMetric({
+  value,
+  suffix,
+  label,
+  muted,
+}: {
+  value: string
+  suffix?: string
+  label: string
+  muted?: boolean
+}) {
+  return (
+    <div className="min-w-0">
+      <p
+        className={cn(
+          "text-[22px] leading-none font-bold tracking-tight tabular-nums",
+          muted && "text-muted-foreground"
+        )}
+      >
+        {value}
+        {suffix && (
+          <span className="ml-0.5 text-[13px] font-semibold text-muted-foreground">
+            {suffix}
+          </span>
+        )}
+      </p>
+      <p className="mt-1.5 truncate text-[11px] font-medium text-muted-foreground">
+        {label}
+      </p>
+    </div>
+  )
+}
+
 export function DashboardIntelligence({
   story,
   readiness,
@@ -103,9 +131,13 @@ export function DashboardIntelligence({
 }) {
   const [active, setActive] = useState<"week" | "readiness">("week")
   const storyLine =
-    story.workouts > 0
-      ? `${story.workouts} session${story.workouts === 1 ? "" : "s"} and ${story.completedSets} completed sets.`
-      : "No completed sessions yet. One repeatable workout is enough to start the week."
+    story.workouts === 0
+      ? "No sessions yet. One repeatable workout is enough to start the week."
+      : story.nutritionDays < 3
+        ? "Training is on the board. A few more logged days would make the next block easier to tune."
+        : story.proteinAdherence < 80
+          ? "Training is holding steady; protein is the piece lagging behind."
+          : "Training and nutrition are both on pace this week."
 
   async function shareWeeklyStory() {
     const summary = `${story.workouts} workouts · ${story.completedSets} sets · ${story.nutritionDays}/7 nutrition days · ${Math.round(story.proteinAdherence)}% protein`
@@ -132,15 +164,10 @@ export function DashboardIntelligence({
         "dashboard-intelligence mx-[var(--app-page-x)] mt-5 md:mx-8",
         className
       )}
-      aria-label="Weekly intelligence"
+      aria-label="Your week"
     >
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="app-section-title">Your week</p>
-          <p className="native-row-detail mt-0.5">
-            A useful signal, not another scorecard
-          </p>
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="app-section-title">Your week</p>
         <button
           type="button"
           onClick={onAskCoach}
@@ -150,9 +177,9 @@ export function DashboardIntelligence({
         </button>
       </div>
 
-      <div className="mt-3 overflow-hidden rounded-xl border border-border bg-card">
+      <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
         <div
-          className="grid grid-cols-2 border-b border-border"
+          className="m-4 mb-0 inline-flex max-w-full gap-0.5 rounded-full bg-foreground/[0.06] p-0.5"
           role="tablist"
           aria-label="Weekly insight"
         >
@@ -164,11 +191,11 @@ export function DashboardIntelligence({
               aria-selected={active === item}
               onClick={() => setActive(item)}
               className={cn(
-                "dashboard-intelligence-tab relative min-h-11 text-[11px] font-semibold text-muted-foreground capitalize",
-                active === item && "text-foreground"
+                "motion-tactile-subtle min-h-9 rounded-full px-3.5 text-[12px] font-semibold text-muted-foreground transition-colors",
+                active === item && "bg-foreground text-background"
               )}
             >
-              {item === "week" ? "Weekly story" : "Readiness"}
+              {item === "week" ? "Story" : "Readiness"}
             </button>
           ))}
         </div>
@@ -176,51 +203,62 @@ export function DashboardIntelligence({
         <div key={active} className="dashboard-intelligence-panel p-4">
           {active === "week" ? (
             <>
-              <div className="flex items-start gap-3">
-                <TrendUp
-                  size={19}
-                  weight="bold"
-                  className="mt-0.5 shrink-0 text-[var(--accent-progress)]"
+              <div className="grid grid-cols-4 gap-3">
+                <WeekMetric
+                  value={String(story.workouts)}
+                  label="Sessions"
+                  muted={story.workouts === 0}
                 />
-                <div>
-                  <p className="text-[15px] font-semibold">{storyLine}</p>
-                  <p className="mt-1 text-[12px] leading-5 text-muted-foreground">
-                    Nutrition was logged on {story.nutritionDays} day
-                    {story.nutritionDays === 1 ? "" : "s"}; protein averaged{" "}
-                    {Math.round(story.proteinAdherence)}% of target.
-                    {story.weightChange == null
-                      ? ""
-                      : ` Weight moved ${story.weightChange > 0 ? "+" : ""}${story.weightChange.toFixed(1)} ${story.weightUnit}.`}
-                  </p>
-                </div>
+                <WeekMetric
+                  value={String(story.completedSets)}
+                  label="Sets"
+                  muted={story.completedSets === 0}
+                />
+                <WeekMetric
+                  value={String(story.nutritionDays)}
+                  suffix="/7"
+                  label="Logged"
+                  muted={story.nutritionDays === 0}
+                />
+                <WeekMetric
+                  value={String(Math.round(story.proteinAdherence))}
+                  suffix="%"
+                  label="Protein"
+                  muted={story.proteinAdherence === 0}
+                />
               </div>
+              <p className="mt-4 text-[13px] leading-5">
+                {storyLine}
+                {story.weightChange != null && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    Weight moved {story.weightChange > 0 ? "+" : ""}
+                    {story.weightChange.toFixed(1)} {story.weightUnit}.
+                  </span>
+                )}
+              </p>
               {story.records && story.records.length > 0 && (
-                <div className="mt-4 border-t border-border/60 pt-3">
-                  <p className="text-[9px] font-bold tracking-[0.1em] text-muted-foreground uppercase">
-                    Recent records
-                  </p>
-                  <div className="mt-2 space-y-2">
-                    {story.records.map((record, index) => (
-                      <div
-                        key={`${record.label}-${index}`}
-                        className="dashboard-record-in flex items-center gap-2 text-[11px]"
-                        style={{ animationDelay: `${index * 55}ms` }}
-                      >
-                        <span className="size-1.5 rounded-full bg-[var(--accent-progress)]" />
-                        <span className="font-semibold">{record.label}</span>
-                        <span className="text-muted-foreground">
-                          {record.detail}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="mt-3.5 space-y-2 border-t border-border/60 pt-3.5">
+                  {story.records.map((record, index) => (
+                    <div
+                      key={`${record.label}-${index}`}
+                      className="dashboard-record-in flex items-baseline gap-2 text-[12px]"
+                      style={{ animationDelay: `${index * 55}ms` }}
+                    >
+                      <span className="size-1.5 shrink-0 self-center rounded-full bg-[var(--accent-progress)]" />
+                      <span className="font-semibold">{record.label}</span>
+                      <span className="truncate text-muted-foreground">
+                        {record.detail}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
               <div className="mt-4 flex items-center gap-4">
                 <button
                   type="button"
                   onClick={onOpenProgress}
-                  className="group inline-flex min-h-10 items-center gap-1.5 text-[11px] font-semibold"
+                  className="group inline-flex min-h-10 items-center gap-1.5 text-[12px] font-semibold"
                 >
                   See full progress{" "}
                   <ArrowRight
@@ -232,7 +270,7 @@ export function DashboardIntelligence({
                   <button
                     type="button"
                     onClick={() => void shareWeeklyStory()}
-                    className="motion-tactile inline-flex min-h-10 items-center gap-1.5 text-[11px] font-medium text-muted-foreground active:text-foreground"
+                    className="motion-tactile inline-flex min-h-10 items-center gap-1.5 text-[12px] font-medium text-muted-foreground active:text-foreground"
                   >
                     <ShareNetwork size={13} /> Share
                   </button>
@@ -299,7 +337,7 @@ export function DashboardIntelligence({
               <button
                 type="button"
                 onClick={onOpenTraining}
-                className="group mt-4 inline-flex min-h-10 items-center gap-1.5 text-[11px] font-semibold"
+                className="group mt-4 inline-flex min-h-10 items-center gap-1.5 text-[12px] font-semibold"
               >
                 Adjust today’s training{" "}
                 <ArrowRight
@@ -316,15 +354,15 @@ export function DashboardIntelligence({
             className="flex items-center gap-2 overflow-x-auto border-t border-border px-4 py-3"
             aria-label="Smart repeat meals"
           >
-            <span className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-              <ForkKnife size={13} /> Repeat
+            <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-muted-foreground">
+              <ForkKnife size={14} /> Repeat
             </span>
             {recentMeals.slice(0, 3).map((meal) => (
               <button
                 key={meal}
                 type="button"
                 onClick={() => onRepeatMeal(meal)}
-                className="motion-tactile min-h-9 shrink-0 rounded-full border border-border px-3 text-[11px] font-medium active:bg-muted"
+                className="motion-tactile min-h-9 shrink-0 rounded-full border border-border px-3 text-[12px] font-medium active:bg-muted"
               >
                 {meal}
               </button>

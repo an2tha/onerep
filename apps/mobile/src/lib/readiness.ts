@@ -67,7 +67,7 @@ export function computeReadiness({
       weight: BASE_WEIGHTS.checkIn,
       detail: checkIn
         ? `Sleep ${checkIn.sleepQuality}/5 · energy ${checkIn.energy}/5 · soreness ${checkIn.soreness}/5`
-        : "No recent check-in — ask Coach for one",
+        : "No recent check-in. Ask Coach for one",
     },
     {
       id: "fuel",

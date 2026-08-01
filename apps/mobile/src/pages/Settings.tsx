@@ -616,7 +616,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         shares: mealShares.map(({ meal, percent }) => ({ meal, percent })),
       })
       if (mealTargetsEnabled && Math.abs(mealSharesTotal - 100) > 0.5) {
-        toast.info("Meal split normalised to 100%")
+        toast.info("Meal split adjusted to total 100%")
       }
     }, "Nutrition logic saved")
   }
@@ -843,7 +843,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     safeLocalStorageRemove("onerep:analytics-enabled")
     setTheme("system")
     setOfflineQueueTotal(0)
-    toast.success("Local cached settings cleared")
+    toast.success("Data on this device cleared")
   }
 
   async function handleExportData() {
@@ -865,8 +865,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       if (delivery !== "cancelled") {
         toast.success(
           delivery === "shared"
-            ? "Export shared with checksum"
-            : "Export downloaded with checksum"
+            ? "Export shared with a verification code"
+            : "Export downloaded with a verification code"
         )
       }
     } catch (error) {
@@ -1454,7 +1454,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     <SettingsSectionIntro>
                       Total: {Math.round(mealSharesTotal)}%
                       {Math.abs(mealSharesTotal - 100) > 0.5
-                        ? " — saving will rescale these to 100%."
+                        ? ". Saving will rescale these to 100%."
                         : ""}
                     </SettingsSectionIntro>
                     <button
@@ -2048,7 +2048,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="Data tools">
                   <ListRow
                     title={exporting ? "Preparing export…" : "Export my data"}
-                    detail="Download a portable JSON copy with a checksum"
+                    detail="Download a complete copy of your data you can verify"
                     disabled={exporting}
                     busy={exporting}
                     onClick={() => void handleExportData()}
@@ -2077,14 +2077,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     }
                   />
                   <ListRow
-                    title="Clear local cache"
+                    title="Clear data on this device"
                     detail="Remove offline changes and device-only preferences"
                     onClick={handleClearLocalData}
                   />
                 </GroupedList>
 
                 <SettingsSectionLabel
-                  title="Danger zone"
+                  title="Permanent actions"
                   detail="These changes cannot be undone"
                   danger
                 />
@@ -2099,8 +2099,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     Delete account
                   </h2>
                   <p className="native-row-detail mt-1 max-w-xl">
-                    Permanently removes your logs, settings, offline queue, and
-                    OneRep account data.
+                    Permanently removes your logs, settings, any changes still waiting
+                    to be saved, and OneRep account data.
                   </p>
                   <label className="native-field mt-4">
                     <span className="native-field-label">
@@ -2333,7 +2333,7 @@ function BillingSubscriptionPanel({
     action === "refresh"
       ? "Checking..."
       : subscriptionDiagnostic.canRetry
-        ? "Retry status"
+        ? "Try again"
         : "Refresh"
 
   useEffect(() => {
@@ -2491,13 +2491,11 @@ function BillingSubscriptionPanel({
                     : requiresWebCancellation
                       ? "Manage on the web"
                       : action === "cancel"
-                        ? "Canceling..."
-                        : opensSubscriptionManagement
-                          ? "Manage subscription"
-                          : "Cancel renewal"
+                        ? "Opening..."
+                        : "Manage subscription"
                   : billing.canPurchase
                     ? "Upgrade to Pro"
-                    : "Products unavailable"}
+                    : "Upgrade unavailable"}
             </button>
             {active && requiresWebCancellation && (
               <p className="text-[13px] leading-5 text-white/65">
@@ -2530,7 +2528,7 @@ function BillingSubscriptionPanel({
                 aria-busy={action === "refresh"}
                 aria-label={
                   subscriptionDiagnostic.canRetry
-                    ? "Retry subscription status"
+                    ? "Check subscription status again"
                     : "Refresh subscription status"
                 }
                 onClick={() =>
@@ -2571,7 +2569,7 @@ function BillingSubscriptionPanel({
             onClick={(event) => event.stopPropagation()}
           >
             <h3 id="cancel-subscription-title" className="native-section-title">
-              Cancel OneRep Pro?
+              Manage your subscription
             </h3>
             <p
               id="cancel-subscription-description"
@@ -2579,7 +2577,7 @@ function BillingSubscriptionPanel({
             >
               {opensSubscriptionManagement
                 ? "We’ll open the secure subscription page for the store where you purchased OneRep Pro."
-                : "Your subscription will stop renewing. Pro access usually remains available until the end of your current billing period."}
+                : "We’ll open Stripe, where you can change your plan, update your payment method, download invoices, or cancel."}
             </p>
             <div className="mt-4 grid gap-2">
               <button
@@ -2591,22 +2589,20 @@ function BillingSubscriptionPanel({
                   void runBillingAction(
                     "cancel",
                     async () => {
-                      const result = await billing.cancelSubscription()
+                      const result = await billing.openBillingManagement()
                       setConfirmCancel(false)
                       return result
                     },
-                    opensSubscriptionManagement
-                      ? undefined
-                      : "Subscription canceled"
+                    undefined
                   )
                 }
-                className="text-destructive-foreground min-h-11 rounded-[0.65rem] bg-destructive px-3 text-[15px] font-semibold disabled:opacity-50"
+                className="min-h-11 rounded-[0.65rem] bg-foreground px-3 text-[15px] font-semibold text-background disabled:opacity-50"
               >
                 {canceling
-                  ? "Canceling..."
+                  ? "Opening..."
                   : opensSubscriptionManagement
                     ? "Continue to manage"
-                    : "Confirm cancellation"}
+                    : "Continue to Stripe"}
               </button>
               <button
                 type="button"
@@ -2614,7 +2610,7 @@ function BillingSubscriptionPanel({
                 onClick={() => setConfirmCancel(false)}
                 className="min-h-11 rounded-[0.65rem] bg-muted px-3 text-[15px] font-semibold text-foreground"
               >
-                Keep OneRep Pro
+                Not now
               </button>
             </div>
           </div>

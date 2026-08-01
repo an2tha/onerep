@@ -12,10 +12,20 @@ function pluralChanges(total: number) {
   return `${total} change${total === 1 ? "" : "s"}`
 }
 
-function shortError(message: string) {
-  const trimmed = message.trim()
-  if (trimmed.length <= 72) return trimmed
-  return `${trimmed.slice(0, 69)}...`
+/**
+ * Written copy for a failed sync. The underlying message is a thrown
+ * `Error.message` from the network or backend, so it is used only to tell a
+ * connection problem apart from everything else and is never shown verbatim.
+ */
+function syncErrorBody(message: string) {
+  if (
+    /network|fetch|offline|disconnected|websocket|timed out|timeout/i.test(
+      message
+    )
+  ) {
+    return "We couldn’t reach OneRep. Check your connection, then retry."
+  }
+  return "Your changes are safe on this device. Retry to back them up."
 }
 
 export function offlineSyncErrorText(error: unknown) {
@@ -25,7 +35,7 @@ export function offlineSyncErrorText(error: unknown) {
   if (typeof error === "string" && error.trim()) {
     return error
   }
-  return "Sync failed. Try again."
+  return "Your changes are still on this device and not backed up yet."
 }
 
 export function offlineSyncStatusCopy({
@@ -69,7 +79,7 @@ export function offlineSyncStatusCopy({
     return {
       title: "Sync needs attention",
       body: canSync
-        ? `Last error: ${shortError(lastError)}`
+        ? syncErrorBody(lastError)
         : "Sign in again to retry syncing local changes.",
       tone: "error",
       canRetry: canSync,

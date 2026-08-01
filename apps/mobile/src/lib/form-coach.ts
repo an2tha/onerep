@@ -14,31 +14,51 @@ import type { FormCoachReport } from "@/lib/form-coach-message"
 import { currentDateKey } from "@/lib/food-log"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { uploadOwnedFile } from "@/lib/owned-upload"
+/**
+ * Monthly AI requests one analysis spends. Mirrors `AI_USAGE_COST.form_coach`
+ * in `convex/ai/usage.ts`, which is what actually enforces it; this copy only
+ * decides when to show the paywall before the user films anything.
+ */
+export const FORM_COACH_AI_COST = 2
+
 /** One movement the form coach can analyse, as returned by the backend. */
 export type FormCoachExercise = {
   slug: string
   label: string
   keywords: string[]
   setup: string
+  /** Set on the single entry that covers everything the others do not name. */
+  fallback?: boolean
 }
 
+/**
+ * Picks the movement to film an exercise as.
+ *
+ * A named match wins; anything else falls back to the generic entry, which is
+ * relabelled with the exercise's own name so the camera screen says "Cable
+ * Fly" rather than "Form check". Null only while the catalog is still loading.
+ */
 export function matchFormCoachExercise(
   exerciseName: string,
   supported: FormCoachExercise[] | undefined
 ): FormCoachExercise | null {
   if (!supported) return null
   const name = exerciseName.toLowerCase()
-  return (
-    supported.find((exercise) =>
+  const named = supported.find(
+    (exercise) =>
+      !exercise.fallback &&
       exercise.keywords.some((keyword) => name.includes(keyword))
-    ) ?? null
   )
+  if (named) return named
+
+  const fallback = supported.find((exercise) => exercise.fallback)
+  return fallback ? { ...fallback, label: exerciseName } : null
 }
 
 /**
  * Returns the form-coach movement for an exercise, or null while the catalog is
- * loading or when the exercise is not supported yet. Every caller shares one
- * subscription because the underlying query takes no arguments.
+ * still loading. Every caller shares one subscription because the underlying
+ * query takes no arguments.
  */
 export function useFormCoachSupport(
   exerciseName: string
@@ -426,6 +446,7 @@ export function buildFormCoachCapture(
       repCount: angle.repCount,
       trackingRate: angle.trackingRate,
       durationMs: angle.durationMs,
+      repSignal: angle.repSignal,
     })),
   }
 }

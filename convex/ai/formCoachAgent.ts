@@ -22,7 +22,6 @@ import {
 } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
-import { matchFormCoachExercise } from "./formCoach";
 import { claimRateLimit } from "../lib/rateLimits";
 import {
   APP_UPDATE_REQUIRED,
@@ -345,6 +344,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
           trackingRate: round(angle.trackingRate, 2),
           reps: angle.repCount,
           durationMs: angle.durationMs,
+          repSignal: angle.repSignal ?? null,
         })),
         totalReps: capture.repCount,
       }),
@@ -363,6 +363,10 @@ export function buildDigest(capture: FormCoachCapture) {
       kneeRight: round(jointAngle(frame, "knee", "right")),
       hipLeft: round(jointAngle(frame, "hip", "left")),
       hipRight: round(jointAngle(frame, "hip", "right")),
+      elbowLeft: round(jointAngle(frame, "elbow", "left")),
+      elbowRight: round(jointAngle(frame, "elbow", "right")),
+      shoulderLeft: round(jointAngle(frame, "shoulder", "left")),
+      shoulderRight: round(jointAngle(frame, "shoulder", "right")),
       torsoFromVertical: round(segmentFromVertical(frame, "torso", "left")),
     };
   };
@@ -376,6 +380,9 @@ export function buildDigest(capture: FormCoachCapture) {
       view: angle.view,
       trackingRate: round(angle.trackingRate, 2),
       reps: angle.repCount,
+      // Says which part of the body defined the rep, which for an exercise the
+      // coach knows nothing else about is the strongest hint at what it was.
+      repSignal: angle.repSignal ?? null,
     })),
     tempo: tempo(canonical),
     // A coarse orientation so the model can tell at a glance what kind of
@@ -405,6 +412,8 @@ const angleMetaValidator = v.object({
   repCount: v.number(),
   trackingRate: v.number(),
   durationMs: v.number(),
+  /** Absent from clients built before the detector went beyond squats. */
+  repSignal: v.optional(v.string()),
 });
 
 export const generateUploadUrl = mutation({
@@ -725,12 +734,6 @@ export const analyse = action({
     if (!hasOpenAiApiKey()) throw new Error("Form analysis is not configured");
     if (args.landmarksStorageId !== undefined || !args.landmarksUploadId) {
       throw new Error(APP_UPDATE_REQUIRED);
-    }
-
-    if (!matchFormCoachExercise(args.exerciseName)) {
-      throw new Error(
-        `${args.exerciseName} is not supported by the form coach`,
-      );
     }
 
     const resolved: { storageId: Id<"_storage"> } | null = await ctx.runQuery(

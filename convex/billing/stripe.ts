@@ -191,6 +191,26 @@ export const createCheckoutSession = internalAction({
   },
 });
 
+/**
+ * A Customer Portal session: Stripe hosts cancellation, plan changes, payment
+ * method updates, and invoice history.
+ *
+ * Preferred over the in-app cancel path — it keeps every billing surface on
+ * Stripe, so tax receipts and dunning stay consistent with what Stripe already
+ * owns as merchant of record.
+ */
+export const createPortalSession = internalAction({
+  args: { customerId: v.string(), returnUrl: v.string() },
+  handler: async (_ctx, args) => {
+    const stripe = stripeClient();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: args.customerId,
+      return_url: args.returnUrl,
+    });
+    return { url: session.url };
+  },
+});
+
 /** Cancel at period end, so the customer keeps what they already paid for. */
 export const cancelSubscription = internalAction({
   args: { userId: v.string(), platformSubscriptionId: v.string() },

@@ -985,11 +985,7 @@ export default defineSchema({
     .index("by_storageId", ["storageId"])
     .index("by_userId", ["userId"])
     .index("by_userId_and_status", ["userId", "status"])
-    .index("by_userId_and_purpose_and_status", [
-      "userId",
-      "purpose",
-      "status",
-    ])
+    .index("by_userId_and_purpose_and_status", ["userId", "purpose", "status"])
     .index("by_expiresAt", ["expiresAt"]),
 
   // ── AI usage quotas ──────────────────────────────────────────────────────
@@ -1189,6 +1185,9 @@ export default defineSchema({
         repCount: v.number(),
         trackingRate: v.number(),
         durationMs: v.number(),
+        // Which body distance the reps were read from. Optional because
+        // captures recorded before the detector went beyond squats have none.
+        repSignal: v.optional(v.string()),
       }),
     ),
   })

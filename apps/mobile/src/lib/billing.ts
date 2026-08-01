@@ -104,12 +104,10 @@ export function billingErrorMessage(error: unknown, fallback: string) {
   return fallback
 }
 
-function shortSubscriptionError(message: string) {
-  const compact = message.replace(/\s+/g, " ").trim()
-  if (compact.length <= 88) return compact
-  return `${compact.slice(0, 85)}...`
-}
-
+/**
+ * The incoming message is raw store or SDK error text, so it is only ever
+ * matched against, never shown. Every branch returns written product copy.
+ */
 function subscriptionDiagnosticError(message: string) {
   if (/network|fetch|offline|disconnected|websocket|timed out/i.test(message)) {
     return "Couldn’t reach purchases. Check your connection and retry."
@@ -117,7 +115,7 @@ function subscriptionDiagnosticError(message: string) {
   if (/not configured|unauthorized|forbidden|unavailable/i.test(message)) {
     return "Purchases are temporarily unavailable. Try again later."
   }
-  return shortSubscriptionError(message)
+  return "We couldn’t confirm your subscription. Retry, and contact support if it keeps happening."
 }
 
 function subscriptionStoreLabel(store: string | null | undefined) {
@@ -132,15 +130,14 @@ function subscriptionStoreLabel(store: string | null | undefined) {
   if (normalized === "rc_billing" || normalized.includes("stripe")) {
     return "Web checkout"
   }
-  return "Purchase store"
+  return "your store"
 }
 
 function subscriptionSourceLabel(source: string | undefined) {
   if (source?.startsWith("apple")) return "App Store"
   if (source?.startsWith("google")) return "Google Play"
   if (source?.startsWith("stripe")) return "Stripe"
-  if (source === "manual") return "account record"
-  return "your account"
+  return "your OneRep account"
 }
 
 /**
@@ -224,7 +221,7 @@ export function subscriptionDiagnosticCopy({
       detail:
         customerInfo?.state === "canceled"
           ? "Pro stays active until the end of your current period."
-          : `Status confirmed via ${origin}.`,
+          : `Your subscription is confirmed with ${origin}.`,
       tone: "success",
       canRetry: false,
     }
@@ -241,7 +238,7 @@ export function subscriptionDiagnosticCopy({
 
   return {
     title: "Free plan",
-    detail: `Status checked via ${origin}.`,
+    detail: `No active subscription found with ${origin}.`,
     tone: "muted",
     canRetry: false,
   }
@@ -276,6 +273,7 @@ export function useBilling({ userId }: UseBillingOptions) {
   const refreshStatus = useAction(api.billing.public.refreshStatus)
   const restoreAction = useAction(api.billing.public.restorePurchases)
   const cancelAction = useAction(api.billing.public.cancelSubscription)
+  const manageAction = useAction(api.billing.public.createManagementSession)
   const createCheckout = useAction(api.billing.public.createCheckout)
 
   const [monthlyProduct, setMonthlyProduct] = useState<BillingProduct | null>(
@@ -355,7 +353,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       BillingPlugin.getProducts({
         productIds: [offering.monthlyProductId],
       }),
-      "Loading products"
+      "Loading subscription options"
     )
       .then(({ products }) => {
         if (cancelled || !mounted.current) return
@@ -363,7 +361,9 @@ export function useBilling({ userId }: UseBillingOptions) {
       })
       .catch((cause) => {
         if (cancelled || !mounted.current) return
-        setError(billingErrorMessage(cause, "Could not load products"))
+        setError(
+          billingErrorMessage(cause, "Could not load subscription options")
+        )
       })
 
     return () => {
@@ -501,6 +501,45 @@ export function useBilling({ userId }: UseBillingOptions) {
     }
   }, [grantedStatus, isNative, refreshStatus, restoreAction, serverStatus])
 
+  /**
+   * Hands the user to Stripe's Customer Portal, where cancelling, resuming,
+   * swapping payment method, and invoices all live.
+   *
+   * Preferred over `cancelSubscription`: it keeps every billing surface on
+   * Stripe rather than reimplementing a subset in-app. Store subscriptions are
+   * not Stripe's to manage, so the action returns the platform deep link and
+   * native builds open it through the plugin instead.
+   */
+  const openBillingManagement = useCallback(async () => {
+    setError(null)
+    setIsBusy(true)
+    try {
+      const result = await manageAction({})
+      if (result.kind === "none") {
+        setError(result.reason)
+        return false
+      }
+      if (result.kind === "store" && isNative) {
+        await BillingPlugin.openManagementUrl({
+          productId: serverStatus?.productIdentifier ?? undefined,
+        }).catch(() => undefined)
+        return true
+      }
+      const opened = window.open(result.url, "_blank", "noopener,noreferrer")
+      if (!opened) window.location.assign(result.url)
+      return true
+    } catch (cause) {
+      if (mounted.current) {
+        setError(
+          billingErrorMessage(cause, "Could not open subscription management")
+        )
+      }
+      return false
+    } finally {
+      if (mounted.current) setIsBusy(false)
+    }
+  }, [isNative, manageAction, serverStatus])
+
   const cancelSubscription = useCallback(async () => {
     setError(null)
     setIsBusy(true)
@@ -567,6 +606,7 @@ export function useBilling({ userId }: UseBillingOptions) {
       status,
       cancelOpensManagement,
       cancelSubscription,
+      openBillingManagement,
       requiresWebCancellation,
       canPurchase: isNative
         ? status !== "loading" &&
@@ -595,6 +635,7 @@ export function useBilling({ userId }: UseBillingOptions) {
     [
       cancelOpensManagement,
       cancelSubscription,
+      openBillingManagement,
       customerInfo,
       error,
       isConfigured,

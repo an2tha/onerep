@@ -19,15 +19,22 @@ const setRow = readFileSync(
 )
 
 test("active workout communicates time, progress, and next action", () => {
-  assert.match(activeWorkout, /Workout time/)
-  assert.match(activeWorkout, /Rest remaining/)
+  // One header timer that switches between counting the session and counting
+  // rest, rather than two separately labelled readouts.
+  assert.match(activeWorkout, /rest\.remaining !== null \? "Rest" : "Elapsed"/)
+  assert.match(activeWorkout, /formatElapsed\(rest\.remaining \?\? elapsed\)/)
   assert.match(activeWorkout, /role="progressbar"/)
+  assert.match(activeWorkout, /aria-label="Workout completion"/)
   assert.match(activeWorkout, /Complete set/)
   assert.match(activeWorkout, /Build this workout/)
 })
 
 test("training and preset creation use task-oriented hierarchy", () => {
-  assert.match(workouts, /Four-week consistency/)
+  // Consistency is reported as this week's sessions and the current streak.
+  assert.match(workouts, /This week/)
+  assert.match(workouts, /Streak/)
+  assert.match(workouts, /calcStreak/)
+  assert.match(workouts, /calcWorkoutsThisWeek/)
   assert.match(workouts, /Edit routine/)
   assert.match(workouts, /New preset/)
   assert.match(newPreset, /Workout name/)

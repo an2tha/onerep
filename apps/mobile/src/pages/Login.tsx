@@ -229,7 +229,12 @@ export default function Login() {
         return
       }
     } catch (error) {
-      setError(betterAuthErrorMessage(error, "Authentication failed"))
+      setError(
+        betterAuthErrorMessage(
+          error,
+          "Something went wrong. Check your details and try again."
+        )
+      )
     } finally {
       authActionRef.current = false
       setLoading(false)
@@ -266,7 +271,7 @@ export default function Login() {
       >
         <div
           role="tablist"
-          aria-label="Authentication mode"
+          aria-label="Sign in or create account"
           className="mb-6 flex gap-1 rounded-[0.7rem] border border-border bg-[var(--surface-subtle)] p-1"
         >
           <ModeTab

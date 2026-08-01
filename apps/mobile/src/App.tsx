@@ -32,7 +32,7 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { computeReadiness } from "@/lib/readiness"
 import { api } from "../../../convex/_generated/api"
 import type { Id } from "../../../convex/_generated/dataModel"
-import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
+import { cn, safeLocalStorageSet } from "@/lib/utils"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
@@ -50,7 +50,6 @@ import {
   type WeeklyPlanDayView,
 } from "@repo/ui"
 import { weekStart } from "@/lib/muscle-volume"
-import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { TourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -2351,9 +2350,6 @@ export default function App() {
   const { user } = useAppAuth()
   const [dayOffset, setDayOffset] = useState(0)
   const quickWaterBurst = useReplayKey(1300)
-  const [dismissedBriefingKey, setDismissedBriefingKey] = useState(
-    () => safeLocalStorageGet("onerep:dismissed-dashboard-briefing") ?? ""
-  )
   const [dashboardTrendMetric, setDashboardTrendMetricState] =
     useState<TrendMetric>("waistCm")
   // Preferences arrive after first paint, so seed once and then let the user's
@@ -2777,7 +2773,6 @@ export default function App() {
     DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
     "food"
   const proteinTarget = calorieInfo?.protein ?? 140
-  const proteinLeft = Math.max(0, proteinTarget - intakeTotals.protein)
   const proteinProgress =
     proteinTarget > 0
       ? Math.min(100, (intakeTotals.protein / proteinTarget) * 100)
@@ -3038,42 +3033,6 @@ export default function App() {
     [recentFoodLogs]
   )
 
-  const dashboardBriefing = buildDashboardBriefing({
-    activeWorkout: activeWorkout !== null,
-    completedWorkout: hasCompletedWorkout,
-    scheduledWorkout: scheduledWorkout !== null,
-    isToday: isTodaySelected,
-    foodLogCount: foodEntries.length,
-    proteinLeft,
-    waterProgress,
-    burnedCalories: calorieInfo?.burnedCalories ?? 0,
-    caloriesLeft,
-    scheduledWorkoutName: scheduledWorkout?.name,
-    currentMealLabel,
-  })
-
-  function runDashboardBriefingAction() {
-    if (
-      dashboardBriefing.action === "resume_workout" ||
-      dashboardBriefing.action === "start_workout"
-    ) {
-      openWorkoutAction()
-      return
-    }
-    if (dashboardBriefing.action === "add_water") {
-      addQuickWater()
-      return
-    }
-    if (
-      dashboardBriefing.action === "log_meal" ||
-      dashboardBriefing.action === "log_recovery_food"
-    ) {
-      setHomeAddOpen(true)
-      return
-    }
-    navigate(`/nutrition?date=${selectedDate}`, { motion: "switch" })
-  }
-
   function openRecipePreview(recipe: StarterRecipe) {
     const transitionDocument = document as Document & {
       startViewTransition?: (update: () => void) => { finished: Promise<void> }
@@ -3272,22 +3231,6 @@ export default function App() {
     if (event.kind === "workout" && event.deleteSlot) {
       setConfirmDeleteSlot(event.deleteSlot)
     }
-  }
-
-  function openWorkoutAction() {
-    if (activeWorkout) {
-      navigate(`/workout/active?slot=${activeWorkout.slot}`)
-      return
-    }
-    if (hasCompletedWorkout) {
-      navigate("/workouts")
-      return
-    }
-    if (scheduledWorkout) {
-      navigate(`/workout/active/${scheduledWorkout.id}`)
-      return
-    }
-    navigate("/workout/active")
   }
 
   function renderDashboardWidget(widget: DashboardWidgetLayoutItem) {
@@ -3510,7 +3453,7 @@ export default function App() {
                   onClick={() => navigate("/shared")}
                   aria-label={`${unreadComments} new comment${
                     unreadComments === 1 ? "" : "s"
-                  } on your diary — open shared diaries`}
+                  } on your diary. Open shared diaries`}
                   className="min-w-0 flex-1 text-left active:opacity-70"
                 >
                   <span className="native-row-title block">
@@ -3534,21 +3477,6 @@ export default function App() {
                 caloriesTarget={caloriesTarget}
                 macros={heroMacros}
                 supplementCalories={supplementCalories}
-                briefing={dashboardBriefing}
-                onBriefingAction={runDashboardBriefingAction}
-                onBriefingDismiss={() => {
-                  const key = `${selectedDate}:${dashboardBriefing.action}`
-                  safeLocalStorageSet(
-                    "onerep:dismissed-dashboard-briefing",
-                    key
-                  )
-                  setDismissedBriefingKey(key)
-                  hapticSelection()
-                }}
-                showBriefingAction={
-                  dismissedBriefingKey !==
-                  `${selectedDate}:${dashboardBriefing.action}`
-                }
               />
             </TourAnchor>
 
@@ -3615,7 +3543,7 @@ export default function App() {
               </div>
 
               {suggestedMeals.length > 0 ? (
-                <div className="flex snap-x snap-mandatory scroll-pl-[var(--app-page-x)] gap-2.5 overflow-x-auto px-[var(--app-page-x)] pb-2 md:scroll-pl-8 md:px-8">
+                <div className="app-scroll-strip flex snap-x snap-mandatory scroll-pl-[var(--app-page-x)] gap-2.5 overflow-x-auto overscroll-x-contain px-[var(--app-page-x)] pb-1 md:scroll-pl-8 md:px-8">
                   {suggestedMeals.map((meal) => (
                     <button
                       key={meal.id}

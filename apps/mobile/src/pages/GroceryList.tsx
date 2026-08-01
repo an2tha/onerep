@@ -366,7 +366,7 @@ export default function GroceryLists() {
                         <span className="native-row-detail block">
                           {shoppable
                             ? `${batch.servingsTotal} servings`
-                            : "No ingredient data — built without a recipe"}
+                            : "No ingredient data: built without a recipe"}
                         </span>
                       </span>
                     </button>
@@ -391,7 +391,7 @@ export default function GroceryLists() {
               }
               detail={
                 preview.skippedBatches.length > 0
-                  ? `Skipped: ${preview.skippedBatches.join(", ")} — no ingredient data.`
+                  ? `Skipped: ${preview.skippedBatches.join(", ")}. No ingredient data.`
                   : "Ingredients naming the same food were combined."
               }
             />

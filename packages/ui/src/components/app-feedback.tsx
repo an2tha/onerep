@@ -125,8 +125,8 @@ export function OfflineSyncStatus({
             aria-busy={syncing}
             aria-label={
               status.tone === "error"
-                ? "Retry offline sync"
-                : "Sync saved changes"
+                ? "Try saving your changes again"
+                : "Save your changes now"
             }
             className="min-h-11 rounded-[8px] bg-foreground px-3 text-[13px] font-semibold text-background"
           >
@@ -134,7 +134,11 @@ export function OfflineSyncStatus({
               {syncing && (
                 <ArrowsClockwise size={11} className="animate-spin" />
               )}
-              {syncing ? "Syncing" : status.tone === "error" ? "Retry" : "Sync"}
+              {syncing
+                ? "Saving"
+                : status.tone === "error"
+                  ? "Try again"
+                  : "Save now"}
             </span>
           </button>
         )}
@@ -142,7 +146,7 @@ export function OfflineSyncStatus({
           type="button"
           onClick={onDismiss}
           disabled={syncing}
-          aria-label="Dismiss offline sync status"
+          aria-label="Dismiss the unsaved changes message"
           className="flex h-11 w-11 items-center justify-center rounded-[8px] text-muted-foreground transition-colors active:bg-muted disabled:opacity-40"
         >
           <X size={12} weight="bold" />

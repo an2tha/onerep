@@ -225,26 +225,33 @@ describe("OneRep Pro membership surface", () => {
     assert.match(SETTINGS_SOURCE, /billing\.purchaseMonthly/)
     assert.match(SETTINGS_SOURCE, /billing\.restorePurchases/)
     assert.match(SETTINGS_SOURCE, /billing\.refresh/)
-    assert.match(SETTINGS_SOURCE, /billing\.cancelSubscription/)
+    // Subscription management is Stripe's Customer Portal, not an in-app cancel.
+    assert.match(SETTINGS_SOURCE, /billing\.openBillingManagement/)
   })
 
-  test("keeps cancellation confirmed and adds tactile feedback at entry", () => {
+  test("warns before handing off to Stripe, with tactile feedback at entry", () => {
     assert.match(
       SETTINGS_SOURCE,
       /if \(active\) \{[\s\S]*?hapticTap\(\)\s+setConfirmCancel\(true\)/
     )
     assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
-    assert.match(SETTINGS_SOURCE, /Keep OneRep Pro/)
+    // The sheet exists to say the user is leaving the app, not to deflect a
+    // cancellation — Stripe owns the cancel flow now.
+    assert.match(SETTINGS_SOURCE, /Continue to Stripe/)
+    assert.match(SETTINGS_SOURCE, /Not now/)
+    assert.doesNotMatch(SETTINGS_SOURCE, /Confirm cancellation/)
   })
 
-  test("shares Coach wave motion and respects reduced-motion preferences", () => {
+  // The wave lives on the Coach goal card; the Pro card keeps its pseudo
+  // elements but no longer animates them.
+  test("Coach wave motion respects reduced-motion preferences", () => {
     assert.match(
       APP_STYLES_SOURCE,
-      /\.profile-pro-card::before[\s\S]*animation: coach-dashboard-wave/
+      /\.coach-goal-card::before \{[\s\S]*?animation: coach-dashboard-wave/
     )
     assert.match(
       APP_STYLES_SOURCE,
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.profile-pro-card::before,[\s\S]*animation: none !important/
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.coach-goal-card::before,[\s\S]*animation: none !important/
     )
   })
 })
@@ -374,7 +381,7 @@ describe("Settings – production feature visibility", () => {
     assert.match(SETTINGS_SOURCE, /SettingsRow label="Haptic feedback"/)
     assert.match(SETTINGS_SOURCE, /handleHapticsChange/)
     assert.match(SETTINGS_SOURCE, /oneRepExportDocument/)
-    assert.match(SETTINGS_SOURCE, /Export downloaded with checksum/)
+    assert.match(SETTINGS_SOURCE, /Export downloaded with a verification code/)
     assert.doesNotMatch(SETTINGS_SOURCE, /AccordionItem/)
   })
 
@@ -662,8 +669,11 @@ const PAYWALL_STYLES = readFileSync(
 
 describe("AI paywall", () => {
   test("free accounts spend their allowance before the paywall appears", () => {
-    // The gate must not block a non-Pro user who still has free requests.
-    assert.match(AI_ACCESS_SOURCE, /if \(freeRequestsLeft > 0\) return true/)
+    // The gate must not block a non-Pro user who can still afford the request.
+    // `cost` defaults to 1, so this is the old "any left" check for every
+    // feature except form analysis, which spends more than one.
+    assert.match(AI_ACCESS_SOURCE, /\(cost = 1\)/)
+    assert.match(AI_ACCESS_SOURCE, /if \(freeRequestsLeft >= cost\) return true/)
     assert.match(
       AI_ACCESS_SOURCE,
       /const freeRequestsLeft = usage && !usage\.isPro \? usage\.remaining : 0/
@@ -763,7 +773,7 @@ describe("AI paywall", () => {
     assert.match(AI_ACCESS_SOURCE, /role="dialog"/)
     assert.match(AI_ACCESS_SOURCE, /aria-modal="true"/)
     assert.match(AI_ACCESS_SOURCE, /aria-labelledby="ai-access-required-title"/)
-    assert.match(AI_ACCESS_SOURCE, /aria-label="Close paywall"/)
+    assert.match(AI_ACCESS_SOURCE, /aria-label="Close"/)
   })
 
   test("developer settings can preview the paywall", () => {

@@ -30,6 +30,11 @@ export type KinematicAngle = {
   repCount: number;
   trackingRate: number;
   durationMs: number;
+  /**
+   * The body distance the client counted reps in — "hip_to_ankle",
+   * "wrist_to_shoulder" or "wrist_to_hip". Absent from older captures.
+   */
+  repSignal?: string;
 };
 
 /** The whole capture, as it arrives from the client. */

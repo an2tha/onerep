@@ -28,7 +28,7 @@ describe("per-meal calorie targets", () => {
 
   test("settings offers a reset and warns before rescaling", () => {
     expect(SETTINGS_SOURCE).toContain('aria-label="Reset meal split to default"')
-    expect(SETTINGS_SOURCE).toContain("saving will rescale these to 100%")
+    expect(SETTINGS_SOURCE).toContain("Saving will rescale these to 100%")
   })
 
   test("the settings preview uses the same normalisation as the server", () => {

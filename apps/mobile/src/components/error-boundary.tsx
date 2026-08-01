@@ -125,7 +125,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
             className="flex min-h-11 items-center gap-2 rounded-[10px] border border-border bg-background px-4 text-[14px] font-semibold transition-colors active:bg-muted"
           >
             <Copy size={13} weight="bold" />
-            Copy diagnostics
+            Copy error details
           </button>
         </div>
         {this.state.diagnosticsStatus && (
@@ -134,7 +134,7 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
             className="max-w-xs text-[13px] leading-5 text-muted-foreground"
           >
             {this.state.diagnosticsStatus === "copied"
-              ? "Diagnostics copied. Send them with your bug report."
+              ? "Copied. Paste the details in an email to support@onerep.life."
               : "Clipboard is unavailable. Take a screenshot of this screen."}
           </p>
         )}

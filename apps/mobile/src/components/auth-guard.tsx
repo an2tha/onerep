@@ -90,7 +90,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!authServiceConfigured || authLoadTimedOut || handoffTimedOut) {
     const handoffError = handoffTimedOut
-      ? "Your account signed in, but the secure data connection did not finish. Retry before signing in again."
+      ? "You’re signed in, but OneRep couldn’t finish loading your account. Retry before signing in again."
       : authServiceError
 
     return (

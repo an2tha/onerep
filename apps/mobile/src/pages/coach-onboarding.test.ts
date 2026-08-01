@@ -54,44 +54,47 @@ const PRESET_PROMPT_SOURCE = readFileSync(
 
 describe("Coach first-open experience", () => {
   test("separates general, food, and training coaching into focused tabs", () => {
-    expect(COACH_SOURCE).toContain('label: "Chat"')
-    expect(COACH_SOURCE).toContain('label: "Chef Coach"')
-    expect(COACH_SOURCE).toContain('label: "Personal Trainer"')
+    expect(COACH_SOURCE).toContain('label: "Briefing"')
+    expect(COACH_SOURCE).toContain('label: "Nutrition"')
+    expect(COACH_SOURCE).toContain('label: "Training"')
     expect(COACH_SOURCE).toContain('role="tablist"')
     expect(COACH_SOURCE).toContain('aria-label="Coach modes"')
     expect(COACH_SOURCE).toContain("switchCoachMode")
     expect(COACH_SOURCE).toContain("hapticSelection()")
     expect(COACH_SOURCE).toContain("coachConversationKey(activeMode)")
     expect(COACH_SOURCE).toContain("coachMode: activeMode")
-    expect(COACH_SOURCE).toContain("centerArt: ChatCircleDots")
-    expect(COACH_SOURCE).toContain("centerArt: ChefHat")
-    expect(COACH_SOURCE).toContain("leftArt: SneakerMove")
-    expect(COACH_SOURCE).toContain("rightArt: Timer")
     expect(COACH_SOURCE).toContain("coach-swoosh-backdrop")
     expect(COACH_SOURCE).toContain("coach-swoosh-surface")
     expect(COACH_SOURCE).toContain("coach-mobile-immersive")
+    // Coach renders one backdrop, and it is the mobile variant.
     expect(COACH_SOURCE).toContain("coach-swoosh-backdrop--mobile")
-    expect(COACH_SOURCE).toContain("coach-swoosh-backdrop--panel")
     expect(COACH_SOURCE).toContain("data-coach-mode={activeMode}")
     expect(APP_CSS).toContain("@keyframes coach-swoosh-drift")
     expect(APP_CSS).toContain("@keyframes coach-swoosh-glow")
     expect(APP_CSS).toContain("--coach-flow-top: #7b3218")
     expect(APP_CSS).toContain("--coach-flow-angle: 137deg")
     expect(APP_CSS).toContain("--coach-flow-duration: 10s")
-    expect(APP_CSS).toContain("@keyframes coach-mode-stage-enter")
+    // Switching mode is a view transition on `.coach-page-slide` rather than an
+    // entrance animation on the stage.
+    expect(COACH_SOURCE).toContain("coach-mode-stage")
+    expect(COACH_SOURCE).toContain("coach-page-slide")
+    expect(APP_CSS).toContain("@keyframes coach-page-new-forward")
+    expect(APP_CSS).toContain("@keyframes coach-page-old-back")
     expect(APP_CSS).toContain("@keyframes coach-route-enter")
     expect(APP_CSS).toContain("@keyframes coach-route-exit")
     expect(APP_CSS).toContain("repeating-linear-gradient")
     expect(APP_CSS).toContain("prefers-reduced-motion: reduce")
     expect(COACH_SOURCE).toContain("timeGreeting()")
-    expect(COACH_SOURCE).toContain("snap-x")
-    expect(COACH_SOURCE).toContain("w-[9.25rem]")
-    expect(COACH_SOURCE).toContain("mode.cardClass")
-    expect(COACH_SOURCE).toContain('whitespace-nowrap">{item.label}')
-    expect(COACH_SOURCE).toContain(
-      'className="flex min-w-0 items-end gap-1 sm:gap-2"'
-    )
-    expect(COACH_SOURCE).toContain("min-h-11 min-w-0 flex-1")
+    // The modes are a real tablist driving one panel, three abreast, with tap
+    // targets that clear 44px. Pinning the semantics rather than the utility
+    // classes, which have already been reworked once under these assertions.
+    expect(COACH_SOURCE).toContain("grid-cols-3")
+    expect(COACH_SOURCE).toContain('role="tab"')
+    expect(COACH_SOURCE).toContain("aria-selected={active}")
+    expect(COACH_SOURCE).toContain('aria-controls="coach-workspace"')
+    expect(COACH_SOURCE).toContain('role="tabpanel"')
+    expect(COACH_SOURCE).toContain("min-h-11 min-w-0")
+    expect(COACH_SOURCE).toContain("{item.label}")
     expect(COACH_SOURCE).toContain("pt-[var(--app-safe-top)]")
     expect(COACH_SOURCE).toContain("lg:pt-0")
     expect(COACH_SOURCE).not.toContain("/onboarding/")
@@ -102,7 +105,10 @@ describe("Coach first-open experience", () => {
   })
 
   test("opens directly to useful conversation content without a promotional tour", () => {
-    expect(COACH_SOURCE).toContain("What do you want to work on?")
+    // The empty state is the user's own week read back to them plus one action,
+    // not a prompt asking them what they want.
+    expect(COACH_SOURCE).toContain("timeGreeting()")
+    expect(COACH_SOURCE).toContain("See what I’d do")
     expect(COACH_SOURCE).not.toContain("coachBrief(context)")
     expect(COACH_SOURCE).not.toContain("CoachContextPanel")
     expect(COACH_SOURCE).not.toContain("FOLLOW_UP_PROMPTS")
@@ -152,7 +158,9 @@ describe("Coach first-open experience", () => {
     expect(COACH_SOURCE).not.toContain("COACH_VISUALS_KEY")
     expect(COACH_SOURCE).toContain("h-svh overflow-hidden")
     expect(COACH_SOURCE).toContain("min-h-0 flex-1 flex-col overflow-y-auto")
-    expect(COACH_PROMPT_SOURCE).toContain("Return uiBlocks=[] for greetings")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "Return uiBlocks=[] only for greetings"
+    )
     expect(COACH_PROMPT_SOURCE).toContain(
       "create exactly three reusable presets"
     )
@@ -231,8 +239,11 @@ describe("Coach first-open experience", () => {
 
   test("Coach supports user-managed memory, pictures, and streaming voice input", () => {
     expect(COACH_SOURCE).toContain("Add memory")
-    expect(COACH_SOURCE).toContain("generateCoachUploadUrl")
-    expect(COACH_SOURCE).toContain("registerCoachUpload")
+    // Pictures go through the shared owned-upload helper, which is what ties an
+    // upload to its owner and lets an abandoned one be discarded.
+    expect(COACH_SOURCE).toContain("uploadOwnedFile(")
+    expect(COACH_SOURCE).toContain('"coach_image"')
+    expect(COACH_SOURCE).toContain("api.uploads.discard")
     expect(COACH_SOURCE).toContain("attachmentId")
     expect(COACH_SOURCE).toContain("useCoachDictation")
     expect(COACH_SOURCE).toContain('aria-label="Attach a picture"')

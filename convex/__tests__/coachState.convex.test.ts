@@ -164,28 +164,49 @@ describe("coachState Convex functions", () => {
     ).resolves.toEqual([]);
   });
 
-  test("registers, resolves, and deletes user-owned Coach image uploads", async () => {
+  test("legacy Coach upload endpoints tell the client to update", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|legacy-upload" });
+
+    await expect(
+      user.mutation(api.ai.coachState.generateUploadUrl, {}),
+    ).rejects.toThrow("APP_UPDATE_REQUIRED");
+    await expect(
+      t.mutation(api.ai.coachState.generateUploadUrl, {}),
+    ).rejects.toThrow();
+  });
+
+  test("resolves and deletes Coach image uploads owned through convex/uploads", async () => {
     const t = convexTest(schema, modules);
     const ownerId = "test|upload-owner";
     const owner = t.withIdentity({ tokenIdentifier: ownerId });
     const other = t.withIdentity({ tokenIdentifier: "test|upload-other" });
     const image = new Blob(["coach-image"], { type: "image/jpeg" });
-    const storageId = await t.run(
-      async (ctx) => await ctx.storage.store(image),
-    );
 
-    await expect(
-      owner.mutation(api.ai.coachState.generateUploadUrl, {}),
-    ).resolves.toEqual(expect.any(String));
-    const registered = await owner.mutation(api.ai.coachState.registerUpload, {
-      storageId,
-      mimeType: image.type,
+    const intent = await owner.mutation(api.uploads.createIntent, {
+      purpose: "coach_image",
       fileName: "meal.jpg",
+      mimeType: "image/jpeg",
       size: image.size,
     });
+    // convex-test's storage metadata has no contentType, so uploads.finalize
+    // can never match the intent's MIME type here. Land the same "ready" row it
+    // would have written and test the parts that do run in this harness.
+    const storageId = await t.run(async (ctx) => {
+      const id = await ctx.storage.store(image);
+      await ctx.db.patch(intent.uploadId, {
+        storageId: id,
+        status: "ready",
+        actualMimeType: "image/jpeg",
+        actualSize: image.size,
+        expiresAt: Date.now() + 60_000,
+      });
+      return id;
+    });
+
     await expect(
       t.query(internal.ai.coachState.resolveUploadForModel, {
-        id: registered.id,
+        id: intent.uploadId,
         userId: ownerId,
       }),
     ).resolves.toMatchObject({
@@ -195,16 +216,16 @@ describe("coachState Convex functions", () => {
     });
     await expect(
       t.query(internal.ai.coachState.resolveUploadForModel, {
-        id: registered.id,
+        id: intent.uploadId,
         userId: "test|upload-other",
       }),
     ).resolves.toBeNull();
     await expect(
-      other.mutation(api.ai.coachState.removeUpload, { id: registered.id }),
-    ).rejects.toThrow("Image not found or access denied");
+      other.mutation(api.uploads.discard, { uploadId: intent.uploadId }),
+    ).rejects.toThrow("Upload not found or access denied");
     await expect(
-      owner.mutation(api.ai.coachState.removeUpload, { id: registered.id }),
-    ).resolves.toBeNull();
+      owner.mutation(api.uploads.discard, { uploadId: intent.uploadId }),
+    ).resolves.toEqual({ ok: true });
     await expect(
       t.run(async (ctx) => await ctx.storage.getUrl(storageId)),
     ).resolves.toBeNull();

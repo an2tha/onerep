@@ -66,9 +66,11 @@ describe("grocery list accessibility", () => {
 })
 
 describe("grocery list discoverability", () => {
-  test("nutrition links to grocery lists from the add sheet", () => {
+  // The entry point is the food library grid on the nutrition page, alongside
+  // My foods and Meal prep, rather than the add sheet it once lived in.
+  test("nutrition links to grocery lists from the food library", () => {
     expect(NUTRITION_SOURCE).toContain('navigate("/nutrition/groceries")')
-    expect(NUTRITION_SOURCE).toContain('label: "Grocery list"')
+    expect(NUTRITION_SOURCE).toContain('label: "Groceries"')
   })
 
   test("a recipe card can start a list for that recipe", () => {

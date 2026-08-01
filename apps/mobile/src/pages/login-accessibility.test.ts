@@ -40,7 +40,7 @@ describe("auth form mobile accessibility and autofill", () => {
     expect(LOGIN_SOURCE).toContain("is taking too long")
     expect(LOGIN_SOURCE).toContain("betterAuthErrorMessage")
     expect(LOGIN_SOURCE).toContain(
-      'setError(betterAuthErrorMessage(error, "Authentication failed"))'
+      '"Something went wrong. Check your details and try again."'
     )
   })
 

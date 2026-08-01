@@ -85,7 +85,7 @@ export function useAppAuth() {
     authLoadTimedOut: loadTimedOut,
     authServiceConfigured,
     authServiceError: !authServiceConfigured
-      ? "Authentication is not configured for this build."
+      ? "Sign-in is unavailable right now. Your data on this device is safe. Try again shortly, and contact support if it continues."
       : loadTimedOut
         ? "Authentication is taking too long to respond. Check your connection and try again."
         : null,

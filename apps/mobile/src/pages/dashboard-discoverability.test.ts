@@ -11,8 +11,9 @@ const home = readFileSync(
 )
 
 describe("Today dashboard discoverability", () => {
-  test("keeps one contextual action without duplicate dashboard controls", () => {
-    expect(app).toContain("showBriefingAction")
+  test("keeps the dashboard free of duplicate prompting controls", () => {
+    expect(app).not.toContain("showBriefingAction")
+    expect(home).not.toContain("Briefing banner")
     expect(app).not.toContain("<NextStepCard")
     expect(app).not.toContain("<DashboardQuickActions")
     expect(app).not.toContain("<TodayChecklist")

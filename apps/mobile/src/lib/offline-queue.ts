@@ -56,8 +56,6 @@ const MUTATION_REGISTRY = {
   "users.users.setHealthSync": api.users.users.setHealthSync,
   "users.onboarding.setConsent": api.users.onboarding.setConsent,
   "users.users.setCustomGoals": api.users.users.setCustomGoals,
-  "users.users.applyNutritionCalibration":
-    api.users.users.applyNutritionCalibration,
   "users.users.setNetCarbsEnabled": api.users.users.setNetCarbsEnabled,
   "users.users.setMealCalorieTargets": api.users.users.setMealCalorieTargets,
   "users.users.setCustomMealCategories": api.users.users.setCustomMealCategories,
@@ -116,10 +114,6 @@ const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([
   "users.users.setHealthSync",
   "users.onboarding.setConsent",
   "users.users.setCustomGoals",
-  // Last-write-wins whole-object write into `customGoals`, same as
-  // setCustomGoals — replaying stale target sets on reconnect would undo the
-  // user's most recent choice.
-  "users.users.applyNutritionCalibration",
   "users.users.setNetCarbsEnabled",
   "users.users.setMealCalorieTargets",
   "users.users.setCustomMealCategories",
