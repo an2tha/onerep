@@ -1,11 +1,12 @@
 import type { GenericMutationCtx } from "convex/server";
 import type { DataModel } from "../_generated/dataModel";
+import type { TableNamesInDataModel } from "convex/server";
 
 type DeleteCtx = GenericMutationCtx<DataModel>;
 
 async function deleteFromUserIndex(
   ctx: DeleteCtx,
-  table: string,
+  table: TableNamesInDataModel<DataModel>,
   userId: string,
   batchSize: number,
   indexName = "by_userId",
@@ -17,10 +18,12 @@ async function deleteFromUserIndex(
     .take(batchSize);
 
   for (const doc of docs) {
-    if (table === "bodyMeasurements" && doc.photoStorageId) {
-      await ctx.storage.delete(doc.photoStorageId);
-    }
-    if (table === "coachUploads" && doc.storageId) {
+    // Storage deletion is allowed only after reaching the blob through an
+    // ownership row selected by the authenticated user's index.
+    if (
+      (table === "fileUploads" || table === "coachUploads") &&
+      doc.storageId
+    ) {
       await ctx.storage.delete(doc.storageId);
     }
     await ctx.db.delete(doc._id);
@@ -30,6 +33,47 @@ async function deleteFromUserIndex(
     deleted: docs.length,
     mayHaveMore: docs.length === batchSize,
   };
+}
+
+async function deleteOwnedRecipes(
+  ctx: DeleteCtx,
+  userId: string,
+  limit: number,
+) {
+  const recipes = await ctx.db
+    .query("recipes")
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
+    .take(1);
+  const recipe = recipes[0];
+  if (!recipe) return { deleted: 0, mayHaveMore: false };
+
+  const ratings = await ctx.db
+    .query("recipeRatings")
+    .withIndex("by_recipeId", (q) => q.eq("recipeId", recipe._id))
+    .take(limit);
+  if (ratings.length > 0) {
+    for (const child of ratings) await ctx.db.delete(child._id);
+    return { deleted: ratings.length, mayHaveMore: true };
+  }
+  const reports = await ctx.db
+    .query("recipeReports")
+    .withIndex("by_recipeId", (q) => q.eq("recipeId", recipe._id))
+    .take(limit);
+  if (reports.length > 0) {
+    for (const child of reports) await ctx.db.delete(child._id);
+    return { deleted: reports.length, mayHaveMore: true };
+  }
+  const shares = await ctx.db
+    .query("recipeCommunityShareEvents")
+    .withIndex("by_userId_sharedAt", (q) => q.eq("userId", userId))
+    .filter((q) => q.eq(q.field("recipeId"), recipe._id))
+    .take(limit);
+  if (shares.length > 0) {
+    for (const child of shares) await ctx.db.delete(child._id);
+    return { deleted: shares.length, mayHaveMore: true };
+  }
+  await ctx.db.delete(recipe._id);
+  return { deleted: 1, mayHaveMore: true };
 }
 
 /**
@@ -45,46 +89,61 @@ export async function deleteUserDataBatch(
   batchSize = 100,
 ) {
   const tableSpecs = [
-    ["userPreferences", "by_userId"],
-    ["recipes", "by_userId"],
-    ["customFoods", "by_userId"],
-    ["mealPrepBatches", "by_userId"],
-    ["fastingSessions", "by_userId"],
-    ["groceryLists", "by_userId"],
+    // Owned files first. No feature record can cause deletion by raw ID.
+    ["fileUploads", "by_userId"],
+    ["coachUploads", "by_userId"],
+    // Child records before their parent content.
+    ["formCoachPins", "by_userId"],
+    ["formCoachReports", "by_userId"],
+    ["formCoachSessions", "by_userId"],
+    ["dashboardWidgets", "by_userId"],
+    ["customProgressMetricEntries", "by_userId_and_metricId"],
+    ["customProgressMetrics", "by_userId"],
+    ["recipeRatings", "by_userId_recipeId"],
+    ["recipeReports", "by_reporterId_recipeId", "reporterId"],
+    ["recipeCommunityShareEvents", "by_userId_sharedAt"],
     // Sharing: the account is both an owner and possibly an invitee, and the
     // comments they wrote on other people's diaries must go too.
-    ["diaryShares", "by_ownerUserId", "ownerUserId"],
-    ["diaryShares", "by_inviteeUserId_and_status", "inviteeUserId"],
-    ["diaryComments", "by_ownerUserId_and_createdAt", "ownerUserId"],
     ["diaryComments", "by_authorUserId", "authorUserId"],
+    ["diaryComments", "by_ownerUserId_and_createdAt", "ownerUserId"],
     ["diaryCommentReads", "by_userId_and_ownerUserId", "userId"],
-    ["recipeRatings", "by_userId_recipeId"],
-    ["mealPresets", "by_userId"],
-    ["onboardingProfiles", "by_userId"],
+    ["diaryShares", "by_inviteeUserId_and_status", "inviteeUserId"],
+    ["diaryShares", "by_ownerUserId", "ownerUserId"],
+    // Health, nutrition, training, Coach, and onboarding state.
+    ["healthWorkouts", "by_userId_and_externalId"],
     ["healthProfiles", "by_userId"],
-    ["presets", "by_userId"],
-    ["schedules", "by_userId"],
-    ["workoutLogs", "by_userId_date"],
+    ["bodyMeasurements", "by_userId"],
+    ["dailyCheckIns", "by_userId"],
     ["foodLogs", "by_userId_date"],
     ["waterLogs", "by_userId_date"],
     ["supplementLogs", "by_userId_date"],
     ["supplementItems", "by_userId"],
     ["supplementIntakeLogs", "by_userId_and_date"],
-    ["bodyMeasurements", "by_userId"],
-    ["dailyCheckIns", "by_userId"],
+    ["customFoods", "by_userId"],
+    ["mealPresets", "by_userId"],
+    ["mealPrepBatches", "by_userId"],
+    ["fastingSessions", "by_userId"],
+    ["groceryLists", "by_userId"],
+    ["workoutLogs", "by_userId_date"],
+    ["presets", "by_userId"],
+    ["schedules", "by_userId"],
+    ["activeWorkouts", "by_userId"],
+    ["exercises", "by_userId"],
     ["coachMemories", "by_userId"],
     ["coachCheckIns", "by_userId"],
     ["coachActionEvents", "by_userId"],
+    ["coachOperationRuns", "by_userId"],
     ["coachWeeklyPlans", "by_userId"],
     ["coachGoalTasks", "by_userId"],
     ["coachGoals", "by_userId"],
-    ["coachUploads", "by_userId"],
+    ["walkthroughProgress", "by_userId"],
+    ["onboardingProfiles", "by_userId"],
+    ["userPreferences", "by_userId"],
     ["aiUsage", "by_userId_month"],
+    ["rateLimitBuckets", "by_userId"],
     ["snapUsage", "by_userId_date"],
-    ["activeWorkouts", "by_userId"],
-    ["exercises", "by_userId"],
-    // Billing records. The store subscription itself lives with Apple, Google,
-    // or Stripe and is unaffected; this only drops our local mirror of it.
+    // Local billing mirrors and application identities are removed. The
+    // platform/audit event ledger follows the existing legal retention policy.
     ["subscriptionStates", "by_userId"],
     ["billingSubscriptions", "by_userId"],
     ["billingCheckouts", "by_userId"],
@@ -113,6 +172,19 @@ export async function deleteUserDataBatch(
     deleted += result.deleted;
     budget -= result.deleted;
     if (result.mayHaveMore) remaining = true;
+  }
+
+  if (budget > 0) {
+    const result = await deleteOwnedRecipes(
+      ctx,
+      userId,
+      Math.min(10, budget),
+    );
+    deleted += result.deleted;
+    budget -= result.deleted;
+    if (result.mayHaveMore) remaining = true;
+  } else {
+    remaining = true;
   }
 
   return { deleted, remaining };

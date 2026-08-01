@@ -11,7 +11,7 @@ The production app lives at [app.onerep.life](https://app.onerep.life). The mark
 - **Nutrition:** self-hosted USDA food search and nutrition details, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water, and supplement schedules.
 - **Progress:** body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, and user-defined metrics.
 - **Coach:** text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Generated changes are reviewed before they are applied when confirmation is required.
-- **Photo logging:** food detection with OpenAI, followed by a review step that matches detections to food records before logging them.
+- **Photo logging:** food detection through OpenRouter and its selected model provider, followed by a review step that matches detections to food records before logging them.
 - **Cross-platform support:** PWA updates, an offline mutation queue for common logging actions, Capacitor camera/haptics/notifications, RevenueCat subscriptions, and iOS widgets and Live Activities.
 - **Accounts and privacy:** Better Auth email/password accounts, email verification and password reset through Resend, analytics opt-in, data export, and account deletion.
 
@@ -33,7 +33,7 @@ AI, food lookup, email, analytics, and subscriptions depend on their correspondi
 └── docs/             # Feature and UI implementation notes
 ```
 
-The mobile app talks directly to Convex. Datasource, OpenAI, Resend, and RevenueCat secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
+The mobile app talks directly to Convex. Datasource, OpenRouter, Resend, and billing secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
 
 `@repo/ui` is the presentation boundary: it owns primitives and reusable presenters, while `apps/mobile` owns routing, Convex calls, authentication, platform APIs, storage, and feature state. See [`packages/ui/README.md`](packages/ui/README.md) before adding shared UI.
 
@@ -135,9 +135,15 @@ Food search, details, and barcode requests pass through `convex/food/datasource.
 ### AI Coach and photo logging
 
 ```env
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.4-mini
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openai/gpt-5.6-luna
 ```
+
+OneRep sends AI requests to OpenRouter, which routes them to the provider named
+by the provider-prefixed model ID (currently OpenAI). AI fails closed when the
+OpenRouter key is absent; a direct OpenAI key is never accepted as a fallback.
+Production also requires `AI_PROCESSOR_APPROVED=true`; leave it unset until the
+updated disclosure is published and processor-contract approval is complete.
 
 Prompts are source-controlled YAML files under `convex/ai/prompts/`. After editing one, regenerate the TypeScript bundle:
 

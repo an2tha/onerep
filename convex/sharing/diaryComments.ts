@@ -3,6 +3,7 @@ import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import {
   assertDateInScope,
+  canReadComments,
   NO_ACCESS_MESSAGE,
   resolveDiaryOwner,
   safeResolveDiaryOwner,
@@ -26,7 +27,8 @@ export const listForDay = query({
       ownerUserId: args.ownerUserId,
     });
     if (!access) return [];
-    if (!access.isOwner && !access.canReadDiary) return [];
+    if (!canReadComments(access)) return [];
+    assertDateInScope(access, args.date);
 
     const docs = await ctx.db
       .query("diaryComments")
@@ -49,22 +51,38 @@ export const listRecent = query({
       ownerUserId: args.ownerUserId,
     });
     if (!access) return [];
+    if (!canReadComments(access)) return [];
 
     const limit = Math.min(
       MAX_COMMENTS,
       Math.max(1, Math.round(args.limit ?? 20)),
     );
 
-    const docs = await ctx.db
-      .query("diaryComments")
-      .withIndex("by_ownerUserId_and_createdAt", (q) =>
-        q.eq("ownerUserId", access.ownerUserId),
-      )
-      .order("desc")
-      .take(limit);
+    const comments = ctx.db.query("diaryComments");
+    const scoped = access.startDate
+      ? access.endDate
+        ? comments.withIndex("by_ownerUserId_and_date", (q) =>
+            q
+              .eq("ownerUserId", access.ownerUserId)
+              .gte("date", access.startDate!)
+              .lte("date", access.endDate!),
+          )
+        : comments.withIndex("by_ownerUserId_and_date", (q) =>
+            q.eq("ownerUserId", access.ownerUserId).gte("date", access.startDate!),
+          )
+      : access.endDate
+        ? comments.withIndex("by_ownerUserId_and_date", (q) =>
+            q.eq("ownerUserId", access.ownerUserId).lte("date", access.endDate!),
+          )
+        : comments.withIndex("by_ownerUserId_and_date", (q) =>
+            q.eq("ownerUserId", access.ownerUserId),
+          );
+    const docs = await scoped.take(MAX_COMMENTS);
 
     return docs
       .filter((doc) => !doc.deletedAt)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
       .map((doc) => ({ ...doc, id: doc._id }));
   },
 });
@@ -179,7 +197,11 @@ export const markRead = mutation({
   args: { ownerUserId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
-    const ownerUserId = args.ownerUserId ?? user._id;
+    const access = await resolveDiaryOwner(ctx, {
+      ownerUserId: args.ownerUserId,
+    });
+    if (!canReadComments(access)) throw new Error(NO_ACCESS_MESSAGE);
+    const ownerUserId = access.ownerUserId;
 
     const existing = await ctx.db
       .query("diaryCommentReads")

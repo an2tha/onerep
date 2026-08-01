@@ -1662,7 +1662,11 @@ export function OnboardingMobile() {
             I explicitly consent to OneRep processing the fitness, nutrition,
             body, recovery, and related information I provide to deliver
             personalized tracking and Coach features. Some of this information
-            may qualify as health data. I can withdraw consent with future
+            may qualify as health data. When I choose an AI feature, prompts,
+            selected account context, and submitted images are sent to
+            OpenRouter, which routes them to the selected model provider,
+            currently OpenAI; both may process the request. AI is optional and
+            core tracking remains available without it. I can withdraw consent with future
             effect by deleting affected data or my account, or by contacting{" "}
             <a
               href="mailto:support@onerep.life"

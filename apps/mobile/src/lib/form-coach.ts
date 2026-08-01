@@ -13,6 +13,7 @@ import { convexClient } from "@/lib/convex"
 import type { FormCoachReport } from "@/lib/form-coach-message"
 import { currentDateKey } from "@/lib/food-log"
 import type { Id } from "../../../../convex/_generated/dataModel"
+import { uploadOwnedFile } from "@/lib/owned-upload"
 /** One movement the form coach can analyse, as returned by the backend. */
 export type FormCoachExercise = {
   slug: string
@@ -458,24 +459,18 @@ export async function submitFormCoachClips(
 
   const { capture, angles } = buildFormCoachCapture(submission, fused)
 
-  const uploadUrl = await convexClient.mutation(
-    api.ai.formCoachAgent.generateUploadUrl,
-    {}
+  const landmarksUploadId = await uploadOwnedFile(
+    new Blob([JSON.stringify(capture)], { type: "application/json" }),
+    "form_coach_landmarks",
+    `${submission.slug}-${Date.now()}.json`
   )
-  const upload = await fetch(uploadUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(capture),
-  })
-  if (!upload.ok) throw new Error("Could not upload the movement data")
-  const { storageId } = (await upload.json()) as { storageId: string }
 
   const result = await convexClient.action(api.ai.formCoachAgent.analyse, {
     exerciseId: submission.exerciseId,
     exerciseName: submission.exerciseName,
     slug: submission.slug,
     date: currentDateKey(),
-    landmarksStorageId: storageId as Id<"_storage">,
+    landmarksUploadId,
     angles,
     // Stored with the report so a pinned card still has a body to draw long
     // after the landmark blob stops being interesting.

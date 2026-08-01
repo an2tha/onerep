@@ -72,6 +72,9 @@ export const googleRtdn = httpAction(async (ctx, request) => {
     token,
     payload: body,
   });
+  if ("unconfigured" in result && result.unconfigured) {
+    return new Response("Google billing is not configured", { status: 503 });
+  }
   if (!result.verified) {
     return new Response("Invalid token", { status: 401 });
   }

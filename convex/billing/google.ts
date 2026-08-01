@@ -25,6 +25,33 @@ const REQUEST_TIMEOUT_MS = 8_000;
 
 type ServiceAccount = { client_email: string; private_key: string };
 
+type RtdnConfig = {
+  audience: string;
+  serviceAccountEmail: string;
+  packageName: string;
+};
+
+function rtdnConfig(): RtdnConfig | null {
+  const audience = nonEmptyString(env.GOOGLE_PUBSUB_AUDIENCE);
+  const serviceAccountEmail = nonEmptyString(
+    env.GOOGLE_PUBSUB_SERVICE_ACCOUNT,
+  );
+  const packageName = nonEmptyString(env.GOOGLE_PACKAGE_NAME);
+  if (!audience || !serviceAccountEmail || !packageName) return null;
+  try {
+    const account = serviceAccount();
+    if (
+      account.client_email !== serviceAccountEmail ||
+      !account.private_key.includes("PRIVATE KEY")
+    ) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+  return { audience, serviceAccountEmail, packageName };
+}
+
 type PlaySubscriptionV2 = {
   subscriptionState?: string;
   latestOrderId?: string;
@@ -382,7 +409,45 @@ async function googleSigningKey(kid: string) {
  * This is the only thing standing between the RTDN route and the open
  * internet — the notification body itself carries no signature.
  */
-async function verifyPubSubToken(token: string) {
+export function validateGoogleOidcClaims(
+  claims: {
+    aud?: string;
+    email?: string;
+    email_verified?: boolean;
+    exp?: number;
+    iat?: number;
+    iss?: string;
+  },
+  config: RtdnConfig,
+  now = Math.floor(Date.now() / 1000),
+) {
+  if (
+    claims.iss !== "https://accounts.google.com" &&
+    claims.iss !== "accounts.google.com"
+  ) {
+    return false;
+  }
+  if (
+    claims.aud !== config.audience ||
+    claims.email !== config.serviceAccountEmail ||
+    claims.email_verified !== true
+  ) {
+    return false;
+  }
+  if (
+    !claims.iat ||
+    !claims.exp ||
+    claims.iat < now - 3_600 ||
+    claims.iat > now + 300 ||
+    claims.exp <= now ||
+    claims.exp > claims.iat + 3_900
+  ) {
+    return false;
+  }
+  return true;
+}
+
+async function verifyPubSubToken(token: string, config: RtdnConfig) {
   const [headerSegment, payloadSegment, signatureSegment] = token.split(".");
   if (!headerSegment || !payloadSegment || !signatureSegment) return false;
 
@@ -404,25 +469,15 @@ async function verifyPubSubToken(token: string) {
 
   const claims = JSON.parse(
     new TextDecoder().decode(base64UrlDecodeToBytes(payloadSegment)),
-  ) as { aud?: string; email?: string; exp?: number; iss?: string };
-
-  const now = Math.floor(Date.now() / 1000);
-  if (!claims.exp || claims.exp < now) return false;
-  if (
-    claims.iss !== "https://accounts.google.com" &&
-    claims.iss !== "accounts.google.com"
-  ) {
-    return false;
-  }
-
-  // Pin the audience and the pushing service account when configured, so a
-  // valid Google token minted for some other service is still rejected.
-  const expectedAudience = nonEmptyString(env.GOOGLE_PUBSUB_AUDIENCE);
-  if (expectedAudience && claims.aud !== expectedAudience) return false;
-  const expectedAccount = nonEmptyString(env.GOOGLE_PUBSUB_SERVICE_ACCOUNT);
-  if (expectedAccount && claims.email !== expectedAccount) return false;
-
-  return true;
+  ) as {
+    aud?: string;
+    email?: string;
+    email_verified?: boolean;
+    exp?: number;
+    iat?: number;
+    iss?: string;
+  };
+  return validateGoogleOidcClaims(claims, config);
 }
 
 type RtdnMessage = {
@@ -449,7 +504,11 @@ type RtdnPayload = {
 export const handleRtdn = internalAction({
   args: { token: v.string(), payload: v.string() },
   handler: async (ctx, args) => {
-    if (!(await verifyPubSubToken(args.token))) {
+    const config = rtdnConfig();
+    if (!config) {
+      return { verified: false as const, unconfigured: true as const };
+    }
+    if (args.token.length > 16_384 || !(await verifyPubSubToken(args.token, config))) {
       return { verified: false as const };
     }
 
@@ -477,31 +536,36 @@ export const handleRtdn = internalAction({
       return { verified: true as const, ignored: true as const };
     }
 
+    if (notification.packageName !== config.packageName) {
+      return { verified: false as const };
+    }
+
     const subscriptionNotification = notification.subscriptionNotification;
+    if (!subscriptionNotification) {
+      return { verified: true as const, ignored: true as const };
+    }
+    const purchaseToken = nonEmptyString(
+      subscriptionNotification.purchaseToken,
+    );
+    const subscriptionId = nonEmptyString(
+      subscriptionNotification.subscriptionId,
+    );
+    if (!purchaseToken || purchaseToken.length > 4_096 || !subscriptionId) {
+      return { verified: false as const };
+    }
     const claim = await ctx.runMutation(internal.billing.store.claimEvent, {
       platform: "google",
       eventId: messageId,
       eventType: String(
         subscriptionNotification?.notificationType ?? "unknown",
       ),
-      platformSubscriptionId: subscriptionNotification?.purchaseToken,
+      platformSubscriptionId: purchaseToken,
     });
     if (!claim.claimed) {
       return { verified: true as const, duplicate: true as const };
     }
 
     try {
-      const purchaseToken = nonEmptyString(
-        subscriptionNotification?.purchaseToken,
-      );
-      if (!purchaseToken) {
-        await ctx.runMutation(internal.billing.store.finishEvent, {
-          eventDocId: claim.eventDocId,
-          status: "ignored",
-        });
-        return { verified: true as const, ignored: true as const };
-      }
-
       const existing = await ctx.runQuery(
         internal.billing.store.getSubscriptionByPlatformId,
         { platform: "google", platformSubscriptionId: purchaseToken },
@@ -522,8 +586,7 @@ export const handleRtdn = internalAction({
       await syncFromGoogle(
         ctx,
         purchaseToken,
-        nonEmptyString(subscriptionNotification?.subscriptionId) ??
-          MONTHLY_PRODUCT_ID,
+        subscriptionId,
         userId,
       );
       await ctx.runMutation(internal.billing.store.finishEvent, {

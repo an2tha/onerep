@@ -2939,7 +2939,7 @@ export const generateCoachChatMessage = action({
         v.literal("personal_trainer"),
       ),
     ),
-    attachmentId: v.optional(v.id("coachUploads")),
+    attachmentId: v.optional(v.id("fileUploads")),
     today: v.optional(v.string()),
     workspace: v.optional(
       v.object({

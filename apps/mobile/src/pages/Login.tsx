@@ -18,6 +18,7 @@ import {
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import {
   getAuthCallbackUrl,
   getEmailVerificationCallbackUrl,
@@ -203,7 +204,7 @@ export default function Login() {
           return
         }
 
-        posthog.capture("user_signed_in", { method: "email" })
+        captureFeatureUsage(posthog, "user_signed_in", { method: "email" })
         setMessage("Sign-in accepted. Opening OneRep…")
         return
       } else {
@@ -222,7 +223,7 @@ export default function Login() {
           return
         }
 
-        posthog.capture("user_signed_up", { method: "email" })
+        captureFeatureUsage(posthog, "user_signed_up", { method: "email" })
         rememberPendingVerification(trimmedEmail, "/onboarding")
         navigate("/verify-email-required", { replace: true })
         return

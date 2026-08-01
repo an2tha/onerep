@@ -329,13 +329,10 @@ export default function Progress() {
         ...(todayMeasurement?.neckCm != null
           ? { neckCm: todayMeasurement.neckCm }
           : {}),
-        ...(todayMeasurement?.photoStorageId
+        ...(todayMeasurement?.photoUploadId
           ? {
-              photoStorageId: todayMeasurement.photoStorageId as Id<"_storage">,
+              photoUploadId: todayMeasurement.photoUploadId as Id<"fileUploads">,
             }
-          : {}),
-        ...(todayMeasurement?.photoDataUrl
-          ? { photoDataUrl: todayMeasurement.photoDataUrl }
           : {}),
         ...(todayMeasurement?.photoTakenAt != null
           ? { photoTakenAt: todayMeasurement.photoTakenAt }

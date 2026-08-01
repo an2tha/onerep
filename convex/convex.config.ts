@@ -2,12 +2,14 @@ import { defineApp } from "convex/server";
 import { v } from "convex/values";
 import crons from "@convex-dev/crons/convex.config.js";
 import betterAuth from "@convex-dev/better-auth/convex.config";
+import migrations from "@convex-dev/migrations/convex.config.js";
 
 const app = defineApp({
   env: {
-    OPENAI_API_KEY: v.optional(v.string()),
     OPENAI_MODEL: v.optional(v.string()),
     OPENROUTER_API_KEY: v.optional(v.string()),
+    OPENROUTER_MODEL: v.optional(v.string()),
+    AI_PROCESSOR_APPROVED: v.optional(v.string()),
     // Temporary compatibility for installed app versions that still bootstrap
     // the old native purchase SDK. Remove after those versions are retired.
     REVENUECAT_PUBLIC_SDK_KEY: v.optional(v.string()),
@@ -40,4 +42,5 @@ const app = defineApp({
 });
 app.use(crons);
 app.use(betterAuth);
+app.use(migrations);
 export default app;

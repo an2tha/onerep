@@ -2,6 +2,13 @@ import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
+import {
+  APP_UPDATE_REQUIRED,
+  attachUpload,
+  deleteOwnedUpload,
+  getUploadUrl,
+  requireReadyUpload,
+} from "../lib/uploads";
 
 async function requireUser(ctx: MutationCtx | QueryCtx) {
   const user = await getAuthUser(ctx);
@@ -50,16 +57,20 @@ export const list = query({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
     return await Promise.all(
-      recipes.map(async (recipe) => ({
-        ...recipe,
-        photoUrls: recipe.photoStorageIds
+      recipes.map(async ({ photoStorageIds, ...recipe }) => {
+        const urls = recipe.photoUploadIds?.length
           ? await Promise.all(
-              recipe.photoStorageIds.map((storageId) =>
-                ctx.storage.getUrl(storageId),
+              recipe.photoUploadIds.map((uploadId) =>
+                getUploadUrl(ctx, uploadId, user._id),
               ),
             )
-          : [],
-      })),
+          : await Promise.all(
+              (photoStorageIds ?? []).map((storageId) =>
+                ctx.storage.getUrl(storageId),
+              ),
+            );
+        return { ...recipe, photoUrls: urls.filter((url) => url !== null) };
+      }),
     );
   },
 });
@@ -153,7 +164,7 @@ export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
     await requireUser(ctx);
-    return await ctx.storage.generateUploadUrl();
+    throw new Error(APP_UPDATE_REQUIRED);
   },
 });
 
@@ -168,17 +179,24 @@ export const listCommunity = query({
       .order("desc")
       .take(Math.max(1, Math.min(args.limit ?? 60, 100)));
     return await Promise.all(
-      recipes.map(async ({ userId, ...recipe }) => ({
-        ...recipe,
-        isOwnedByViewer: userId === user._id,
-        photoUrls: recipe.photoStorageIds
-          ? await Promise.all(
-              recipe.photoStorageIds.map((storageId) =>
-                ctx.storage.getUrl(storageId),
-              ),
-            )
-          : [],
-      })),
+      recipes.map(
+        async ({ userId, photoStorageIds, photoUploadIds, ...recipe }) => {
+          const urls = photoUploadIds?.length
+            ? await Promise.all(
+                photoUploadIds.map((uploadId) => getUploadUrl(ctx, uploadId)),
+              )
+            : await Promise.all(
+                (photoStorageIds ?? []).map((storageId) =>
+                  ctx.storage.getUrl(storageId),
+                ),
+              );
+          return {
+            ...recipe,
+            isOwnedByViewer: userId === user._id,
+            photoUrls: urls.filter((url) => url !== null),
+          };
+        },
+      ),
     );
   },
 });
@@ -341,6 +359,7 @@ export const save = mutation({
     notes: v.optional(v.string()),
     placeholderImage: v.optional(v.string()),
     photoStorageIds: v.optional(v.array(v.id("_storage"))),
+    photoUploadIds: v.optional(v.array(v.id("fileUploads"))),
     originCountry: v.optional(v.string()),
     tags: v.optional(v.array(v.string())),
     steps: v.optional(v.array(v.string())),
@@ -349,6 +368,30 @@ export const save = mutation({
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
     const now = Date.now();
+    if (args.photoStorageIds !== undefined) {
+      throw new Error(APP_UPDATE_REQUIRED);
+    }
+    const photoUploadIds = args.photoUploadIds;
+    if (photoUploadIds) {
+      if (photoUploadIds.length > 5 || new Set(photoUploadIds).size !== photoUploadIds.length) {
+        throw new Error("A recipe can have at most 5 unique photos");
+      }
+      for (const uploadId of photoUploadIds) {
+        await requireReadyUpload(ctx, {
+          uploadId,
+          userId: user._id,
+          purpose: "recipe_photo",
+          ...(args.id
+            ? {
+                attachment: {
+                  table: "recipes" as const,
+                  documentId: String(args.id),
+                },
+              }
+            : {}),
+        });
+      }
+    }
 
     if (args.id) {
       // Update existing recipe
@@ -376,8 +419,8 @@ export const save = mutation({
         ...(args.placeholderImage !== undefined
           ? { placeholderImage: args.placeholderImage }
           : {}),
-        ...(args.photoStorageIds !== undefined
-          ? { photoStorageIds: args.photoStorageIds }
+        ...(photoUploadIds !== undefined
+          ? { photoUploadIds }
           : {}),
         ...(args.originCountry !== undefined
           ? { originCountry: args.originCountry }
@@ -387,10 +430,31 @@ export const save = mutation({
         ingredients: args.ingredients,
         updatedAt: now,
       });
+      for (const uploadId of photoUploadIds ?? []) {
+        await attachUpload(
+          ctx,
+          uploadId,
+          user._id,
+          "recipe_photo",
+          "recipes",
+          String(args.id),
+        );
+      }
+      if (photoUploadIds !== undefined) {
+        const keep = new Set(photoUploadIds);
+        for (const uploadId of existing.photoUploadIds ?? []) {
+          if (!keep.has(uploadId)) {
+            await deleteOwnedUpload(ctx, uploadId, user._id, {
+              table: "recipes",
+              documentId: String(args.id),
+            });
+          }
+        }
+      }
       return args.id;
     } else {
       // Insert new recipe
-      return await ctx.db.insert("recipes", {
+      const recipeId = await ctx.db.insert("recipes", {
         userId: user._id,
         name: args.name,
         ...(args.recipeType !== undefined
@@ -411,8 +475,8 @@ export const save = mutation({
         ...(args.placeholderImage !== undefined
           ? { placeholderImage: args.placeholderImage }
           : {}),
-        ...(args.photoStorageIds !== undefined
-          ? { photoStorageIds: args.photoStorageIds }
+        ...(photoUploadIds !== undefined
+          ? { photoUploadIds }
           : {}),
         ...(args.originCountry !== undefined
           ? { originCountry: args.originCountry }
@@ -423,6 +487,17 @@ export const save = mutation({
         createdAt: now,
         updatedAt: now,
       });
+      for (const uploadId of photoUploadIds ?? []) {
+        await attachUpload(
+          ctx,
+          uploadId,
+          user._id,
+          "recipe_photo",
+          "recipes",
+          String(recipeId),
+        );
+      }
+      return recipeId;
     }
   },
 });
@@ -434,6 +509,12 @@ export const remove = mutation({
     const existing = await ctx.db.get(args.id);
     if (!existing || existing.userId !== user._id) {
       throw new Error("Recipe not found or access denied");
+    }
+    for (const uploadId of existing.photoUploadIds ?? []) {
+      await deleteOwnedUpload(ctx, uploadId, user._id, {
+        table: "recipes",
+        documentId: String(existing._id),
+      });
     }
     await ctx.db.delete(args.id);
   },
