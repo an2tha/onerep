@@ -490,6 +490,45 @@ export function supplementNutrientTotals(
   return cleanSupplementNutrients(totals)
 }
 
+/** Reads one nutrient off a sparse totals record, treating anything non-finite as 0. */
+export function nutrientTotal(
+  totals: Partial<Record<string, number>> | undefined,
+  key: string
+) {
+  const value = totals?.[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : 0
+}
+
+/**
+ * Adds supplement macros onto food macros.
+ *
+ * Distinct from `mergeNutritionTotals`, which rounds over the report-shaped
+ * `SUPPLEMENT_SUMMARY_NUTRIENT_KEYS`. This one is the raw day-total sum that
+ * the Today dashboard and Nutrition page both display.
+ */
+export function combineMacroTotals<
+  T extends { calories: number; protein: number; carbs: number; fat: number },
+>(food: T, supplements: Partial<Record<string, number>> | undefined) {
+  return {
+    calories: food.calories + nutrientTotal(supplements, "calories"),
+    protein: food.protein + nutrientTotal(supplements, "protein"),
+    carbs: food.carbs + nutrientTotal(supplements, "carbs"),
+    fat: food.fat + nutrientTotal(supplements, "fat"),
+  }
+}
+
+export function combineMicronutrientTotals(
+  food: Partial<Record<FoodMicronutrientKey, number>>,
+  supplements: Partial<Record<string, number>> | undefined
+) {
+  const totals: Partial<Record<FoodMicronutrientKey, number>> = {}
+  for (const key of FOOD_MICRONUTRIENT_KEYS) {
+    const value = (food[key] ?? 0) + nutrientTotal(supplements, key)
+    if (value > 0) totals[key] = value
+  }
+  return totals
+}
+
 export function mergeNutritionTotals(
   foodTotals: Partial<Record<FoodMicronutrientKey, number>>,
   supplementTotals: SupplementNutrients

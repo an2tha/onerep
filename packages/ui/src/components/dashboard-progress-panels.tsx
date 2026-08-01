@@ -5,9 +5,12 @@ export type DashboardBodyMeasurementView = {
   weightKg?: number
   bodyFatPct?: number
   waistCm?: number
+  hipsCm?: number
   chestCm?: number
   armsCm?: number
   thighsCm?: number
+  calvesCm?: number
+  neckCm?: number
 }
 
 function sparklinePoints(values: number[], width: number, height: number) {
@@ -26,15 +29,36 @@ function sparklinePoints(values: number[], width: number, height: number) {
 }
 
 export type TrendMetric =
-  "bodyFatPct" | "waistCm" | "chestCm" | "armsCm" | "thighsCm"
+  | "bodyFatPct"
+  | "waistCm"
+  | "hipsCm"
+  | "chestCm"
+  | "armsCm"
+  | "thighsCm"
+  | "calvesCm"
+  | "neckCm"
 
 const METRICS: Array<{ id: TrendMetric; label: string; unit: string }> = [
   { id: "bodyFatPct", label: "Body fat", unit: "%" },
   { id: "waistCm", label: "Waist", unit: "cm" },
+  { id: "hipsCm", label: "Hips", unit: "cm" },
   { id: "chestCm", label: "Chest", unit: "cm" },
   { id: "armsCm", label: "Arms", unit: "cm" },
   { id: "thighsCm", label: "Thighs", unit: "cm" },
+  { id: "calvesCm", label: "Calves", unit: "cm" },
+  { id: "neckCm", label: "Neck", unit: "cm" },
 ]
+
+/**
+ * Narrows a stored preference to a metric this build still renders.
+ *
+ * `dashboardSettings.trendMetric` is a bare string in the schema, so a value
+ * written by an older or newer build must degrade to the default rather than
+ * select a metric that produces a blank chart.
+ */
+export function isTrendMetric(value: string): value is TrendMetric {
+  return METRICS.some((metric) => metric.id === value)
+}
 
 function TrendChart({
   values,

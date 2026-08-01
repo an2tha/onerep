@@ -484,6 +484,145 @@ export function FormCoachCard({
  * Renders nothing at all when there is no advice, so the section never appears
  * as an empty shell on a page the user has not used the form coach from.
  */
+/**
+ * Every report the form coach has written, newest first.
+ *
+ * `listReports` returns projected rows only. The full report — pose frames and
+ * all — is fetched one at a time, on tap, by `FormCoachHistoryDetail`.
+ */
+function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
+  const reports = useQuery(api.ai.formCoachAgent.listReports, { limit: 30 })
+  const [openReportId, setOpenReportId] =
+    useState<Id<"formCoachReports"> | null>(null)
+
+  return (
+    <>
+      <div
+        className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
+        onClick={onClose}
+      >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Form Coach history"
+          className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+          style={{
+            paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex justify-center pt-3">
+            <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
+          </div>
+
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Form Coach history"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
+              style={{
+                color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
+              }}
+            >
+              <ArrowLeft size={14} weight="bold" />
+            </button>
+            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+              Form Coach history
+            </h2>
+          </div>
+
+          {reports === undefined ? (
+            <div className="space-y-2 px-5 pb-5">
+              {[0, 1, 2].map((row) => (
+                <div
+                  key={row}
+                  className="h-16 animate-pulse rounded-2xl bg-muted/40"
+                />
+              ))}
+            </div>
+          ) : reports.length === 0 ? (
+            <p className="px-5 pb-6 text-[14px] leading-5 text-muted-foreground">
+              Record a set with the form coach and every report will collect
+              here.
+            </p>
+          ) : (
+            <ul className="px-5 pb-5">
+              {reports.map((report) => (
+                <li key={report._id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap()
+                      setOpenReportId(report._id)
+                    }}
+                    className="flex w-full items-start gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-baseline gap-2">
+                        <span className="truncate text-[15px] font-semibold">
+                          {report.exerciseName}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                          {report.date}
+                        </span>
+                      </span>
+                      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-muted-foreground">
+                        {report.summary}
+                      </span>
+                      {report.findingCount > 0 && (
+                        <span className="mt-1 block text-[11px] text-muted-foreground">
+                          {report.findingCount} note
+                          {report.findingCount === 1 ? "" : "s"}
+                          {report.majorCount > 0 &&
+                            ` · ${report.majorCount} to fix`}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {openReportId && (
+        <FormCoachHistoryDetail
+          reportId={openReportId}
+          onClose={() => setOpenReportId(null)}
+        />
+      )}
+    </>
+  )
+}
+
+/** Hydrates one report on demand — never prefetched, the payload is heavy. */
+function FormCoachHistoryDetail({
+  reportId,
+  onClose,
+}: {
+  reportId: Id<"formCoachReports">
+  onClose: () => void
+}) {
+  const report = useQuery(api.ai.formCoachAgent.getReport, { reportId })
+  if (!report) return null
+  return (
+    <FormCoachDetailSheet
+      exerciseName={report.exerciseName}
+      summary={report.summary}
+      detail={{
+        findings: report.findings,
+        drills: report.drills,
+        notMeasured: report.notMeasured,
+      }}
+      pose={(report.pose ?? []) as FormCoachPose}
+      corrections={(report.corrections ?? []) as PoseCorrection[]}
+      onClose={onClose}
+    />
+  )
+}
+
 export function FormCoachPinnedCards({
   surface,
 }: {
@@ -491,17 +630,65 @@ export function FormCoachPinnedCards({
 }) {
   const cards = useQuery(api.ai.formCoachAgent.listPinned, { surface })
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [historyOpen, setHistoryOpen] = useState(false)
   const visible = (cards ?? []).filter((card) => !dismissed.has(card.pinId))
-  if (visible.length === 0) return null
+  // History is reachable even with nothing pinned — but only once there is
+  // something to look at, so this never renders as an empty shell.
+  const recent = useQuery(api.ai.formCoachAgent.listReports, { limit: 1 })
+  const hasHistory = (recent ?? []).length > 0
+  if (visible.length === 0 && !hasHistory) return null
+
+  if (visible.length === 0) {
+    return (
+      <section className="pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            hapticTap()
+            setHistoryOpen(true)
+          }}
+          className="flex min-h-12 w-full items-center justify-between gap-3 text-left"
+        >
+          <span>
+            <span className="app-section-title block">Form Coach</span>
+            <span className="app-section-subtitle block">
+              Review your past technique reports
+            </span>
+          </span>
+          <Eye size={16} className="shrink-0 text-muted-foreground" />
+        </button>
+        {historyOpen && (
+          <FormCoachHistorySheet onClose={() => setHistoryOpen(false)} />
+        )}
+      </section>
+    )
+  }
 
   return (
     <section className="pt-2">
-      <div className="pb-4">
-        <p className="app-section-title">Form Coach</p>
-        <p className="app-section-subtitle">
-          Technique notes you pinned from a recorded set
-        </p>
+      <div className="flex items-start justify-between gap-3 pb-4">
+        <div className="min-w-0">
+          <p className="app-section-title">Form Coach</p>
+          <p className="app-section-subtitle">
+            Technique notes you pinned from a recorded set
+          </p>
+        </div>
+        {hasHistory && (
+          <button
+            type="button"
+            onClick={() => {
+              hapticTap()
+              setHistoryOpen(true)
+            }}
+            className="min-h-10 shrink-0 text-[13px] font-semibold text-muted-foreground"
+          >
+            History
+          </button>
+        )}
       </div>
+      {historyOpen && (
+        <FormCoachHistorySheet onClose={() => setHistoryOpen(false)} />
+      )}
       <div className="flex flex-col gap-3">
         {visible.map((card) => (
           <FormCoachCard

@@ -44,9 +44,12 @@ import {
   TodayHeader,
   TrainingWeekCard,
   TodayTimeline,
+  WeeklyPlanCard,
   type PinnedCoachGoal,
   type TimelineEvent,
+  type WeeklyPlanDayView,
 } from "@repo/ui"
+import { weekStart } from "@/lib/muscle-volume"
 import { buildDashboardBriefing } from "@/lib/dashboard-briefing"
 import { getActiveWorkoutProgress } from "@/lib/dashboard-workout-progress"
 import { MobileSheet } from "@/components/mobile-sheet"
@@ -100,6 +103,8 @@ import {
   supplementEntryLabel,
   supplementTotals,
   buildSupplementDayPlan,
+  combineMacroTotals,
+  nutrientTotal,
   type SupplementIntakeLog,
   type SupplementItem,
   type SupplementKind,
@@ -117,7 +122,7 @@ import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { useStreakMilestone } from "@/lib/use-streak-milestone"
 import { useAnimatedNumber, useReplayKey } from "@repo/ui"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
-import type { TrendMetric } from "@repo/ui"
+import { isTrendMetric, type TrendMetric } from "@repo/ui"
 import { toast } from "@repo/ui"
 import { STARTER_RECIPES, type StarterRecipe } from "@/pages/RecipesHub"
 
@@ -130,7 +135,7 @@ type DashboardSettings = {
   simpleMode?: boolean
 }
 
-type DashboardWidgetId = "intelligence" | "progress" | "goals"
+type DashboardWidgetId = "intelligence" | "weekPlan" | "progress" | "goals"
 type DashboardWidgetLayoutItem = {
   id: DashboardWidgetId
   size: "full" | "small"
@@ -140,12 +145,14 @@ type DashboardWidgetLayoutItem = {
 
 const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetLayoutItem[] = [
   { id: "intelligence", size: "full", pinned: true },
+  { id: "weekPlan", size: "full" },
   { id: "progress", size: "full" },
   { id: "goals", size: "full" },
 ]
 
 const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
   intelligence: "Weekly intelligence",
+  weekPlan: "This week's plan",
   progress: "Progress snapshot",
   goals: "Coach goals",
 }
@@ -2166,6 +2173,9 @@ function FoodSmall({
     (c) => ({ cfg: c, entries: byMeal.get(c.id)! })
   )
 
+  // Food-only on purpose. This block itemizes the visible meal entries, so
+  // folding in supplement macros would make the on-screen arithmetic not add
+  // up. The day's true intake total lives on the hero.
   const macroTotals = entries.reduce(
     (acc, e) => ({
       p: acc.p + e.protein,
@@ -2344,8 +2354,11 @@ export default function App() {
   const [dismissedBriefingKey, setDismissedBriefingKey] = useState(
     () => safeLocalStorageGet("onerep:dismissed-dashboard-briefing") ?? ""
   )
-  const [dashboardTrendMetric, setDashboardTrendMetric] =
+  const [dashboardTrendMetric, setDashboardTrendMetricState] =
     useState<TrendMetric>("waistCm")
+  // Preferences arrive after first paint, so seed once and then let the user's
+  // own selection win — same guard pattern as `datePickedRef` in Nutrition.
+  const trendMetricSeededRef = useRef(false)
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -2357,6 +2370,25 @@ export default function App() {
   const selectedDate = useMemo(
     () => offsetDateKey(todayKey, dayOffset),
     [dayOffset, todayKey]
+  )
+
+  // Coach writes weekly plans but nothing read them back until now. `weekStart`
+  // is the shared Monday-anchored helper, matched by `mondayOf` on the server.
+  const weeklyPlanRaw = useQuery(api.ai.coachState.getWeeklyPlan, {
+    weekStart: weekStart(todayKey),
+  })
+  const weeklyPlan = weeklyPlanRaw as {
+    title: string
+    days: WeeklyPlanDayView[]
+    assumptions: string[]
+  } | null | undefined
+  const todayShortDay = useMemo(
+    () =>
+      new Date(`${todayKey}T12:00:00Z`).toLocaleDateString("en-US", {
+        weekday: "short",
+        timeZone: "UTC",
+      }),
+    [todayKey]
   )
 
   const effectiveGoals = useQuery(api.users.users.getEffectiveGoals, {
@@ -2429,6 +2461,10 @@ export default function App() {
     api.users.users.setWidgetLayout,
     "users.users.setWidgetLayout"
   )
+  const persistTrendMetric = useOfflineMutation(
+    api.users.users.setDashboardTrendMetric,
+    "users.users.setDashboardTrendMetric"
+  )
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setCoachDashboardWidgetPinned = useMutation(
     api.dashboardWidgets.setPinned
@@ -2449,6 +2485,21 @@ export default function App() {
       }
     )
   }, [preferences])
+
+  useEffect(() => {
+    if (trendMetricSeededRef.current) return
+    const stored = preferences?.dashboardSettings?.trendMetric
+    if (!stored) return
+    if (isTrendMetric(stored)) setDashboardTrendMetricState(stored)
+    trendMetricSeededRef.current = true
+  }, [preferences])
+
+  function setDashboardTrendMetric(metric: TrendMetric) {
+    // Optimistic: the chart redraws immediately, the write catches up.
+    trendMetricSeededRef.current = true
+    setDashboardTrendMetricState(metric)
+    void persistTrendMetric({ metric })
+  }
 
   useEffect(() => {
     const saved = preferences?.widgetLayout as
@@ -2654,7 +2705,17 @@ export default function App() {
     setHomeAddOpen(false)
   }
 
-  const foodTotals = useMemo(() => totalsForEntries(foodEntries), [foodEntries])
+  // Supplements carry real macros (protein powder, mass gainers, MCT oil), so
+  // the day's intake is food + supplements. The Nutrition page already does
+  // this; Today used to show food only and the two screens disagreed.
+  const supplementNutritionTotals = (
+    supplementOverview as { nutritionTotals?: Partial<Record<string, number>> } | undefined
+  )?.nutritionTotals
+  const intakeTotals = useMemo(
+    () => combineMacroTotals(totalsForEntries(foodEntries), supplementNutritionTotals),
+    [foodEntries, supplementNutritionTotals]
+  )
+  const supplementCalories = nutrientTotal(supplementNutritionTotals, "calories")
   const carbMode: CarbDisplayMode = preferences?.netCarbsEnabled
     ? "net"
     : "total"
@@ -2677,7 +2738,7 @@ export default function App() {
     0
   )
   const caloriesTarget = calorieInfo?.target ?? 2000
-  const caloriesLeft = Math.round(caloriesTarget - foodTotals.calories)
+  const caloriesLeft = Math.round(caloriesTarget - intakeTotals.calories)
   const isTodaySelected = dayOffset === 0
   const recentlyAbortedSlot = readRecentlyAbortedWorkoutSlot()
   const activeWorkout = isTodaySelected
@@ -2716,10 +2777,10 @@ export default function App() {
     DEFAULT_MEAL_CATEGORIES.find((meal) => meal.id === defaultMeal())?.label ??
     "food"
   const proteinTarget = calorieInfo?.protein ?? 140
-  const proteinLeft = Math.max(0, proteinTarget - foodTotals.protein)
+  const proteinLeft = Math.max(0, proteinTarget - intakeTotals.protein)
   const proteinProgress =
     proteinTarget > 0
-      ? Math.min(100, (foodTotals.protein / proteinTarget) * 100)
+      ? Math.min(100, (intakeTotals.protein / proteinTarget) * 100)
       : 100
   const waterProgress =
     waterGoalMl > 0 ? Math.min(100, (waterTotalMl / waterGoalMl) * 100) : 0
@@ -2728,7 +2789,7 @@ export default function App() {
       {
         label: "Protein",
         shortLabel: "P",
-        value: Math.round(foodTotals.protein),
+        value: Math.round(intakeTotals.protein),
         target: Math.round(calorieInfo?.protein ?? 140),
         color: MACRO_COLORS.protein,
       },
@@ -2737,8 +2798,8 @@ export default function App() {
         shortLabel: "C",
         value: Math.round(
           carbMode === "net"
-            ? netCarbs({ carbs: foodTotals.carbs, fiber: foodFiberTotal })
-            : foodTotals.carbs
+            ? netCarbs({ carbs: intakeTotals.carbs, fiber: foodFiberTotal })
+            : intakeTotals.carbs
         ),
         target: Math.round(
           displayCarbGoal(calorieInfo?.carbs ?? 220, fiberGoal, carbMode)
@@ -2748,7 +2809,7 @@ export default function App() {
       {
         label: "Fat",
         shortLabel: "F",
-        value: Math.round(foodTotals.fat),
+        value: Math.round(intakeTotals.fat),
         target: Math.round(calorieInfo?.fat ?? 70),
         color: MACRO_COLORS.fat,
       },
@@ -2760,9 +2821,9 @@ export default function App() {
       carbMode,
       fiberGoal,
       foodFiberTotal,
-      foodTotals.carbs,
-      foodTotals.fat,
-      foodTotals.protein,
+      intakeTotals.carbs,
+      intakeTotals.fat,
+      intakeTotals.protein,
     ]
   )
 
@@ -3295,6 +3356,46 @@ export default function App() {
         </div>
       )
     }
+    if (widget.id === "weekPlan") {
+      // An empty shell is worse than absence — the widget only appears once
+      // Coach has actually saved a plan for this week.
+      if (!weeklyPlan) return null
+      return (
+        <div key={widget.id} className={compactClass}>
+          <WeeklyPlanCard
+            title={weeklyPlan.title}
+            today={todayShortDay}
+            days={weeklyPlan.days}
+            assumptions={weeklyPlan.assumptions}
+            onOpenPreset={(presetId) =>
+              navigate(`/workout/active/${presetId}`, { motion: "forward" })
+            }
+            onOpenRecipe={(recipeId) =>
+              navigate(`/foods/recipe/${recipeId}`, { motion: "forward" })
+            }
+            onAskCoach={() =>
+              navigate("/coach", {
+                motion: "forward",
+                state: {
+                  coachMode: "chat",
+                  guidedIntent: {
+                    kind: "plan_week",
+                    title: "Adjust this week",
+                    detail:
+                      "Tell Coach what changed and it will rework the remaining days around it.",
+                    examples: [
+                      "I need to move Thursday's session",
+                      "Make the back half lighter",
+                      "Swap the dinners for something faster",
+                    ],
+                  },
+                },
+              })
+            }
+          />
+        </div>
+      )
+    }
     if (widget.id === "progress") {
       if ((bodyMeasurements ?? []).length === 0) return null
       return (
@@ -3432,6 +3533,7 @@ export default function App() {
                 caloriesLeft={caloriesLeft}
                 caloriesTarget={caloriesTarget}
                 macros={heroMacros}
+                supplementCalories={supplementCalories}
                 briefing={dashboardBriefing}
                 onBriefingAction={runDashboardBriefingAction}
                 onBriefingDismiss={() => {

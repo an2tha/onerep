@@ -1,3 +1,5 @@
+import type { CalibrationStatus } from "@repo/ui"
+
 export const ONBOARDING_GOALS = [
   "lose",
   "build",
@@ -109,7 +111,7 @@ export type NutritionPlan = {
     detail?: string
   }
   calibration: {
-    status: string
+    status: CalibrationStatus
     title: string
     detail: string
     canApply: boolean

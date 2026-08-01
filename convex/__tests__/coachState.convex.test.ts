@@ -373,6 +373,65 @@ describe("coachState Convex functions", () => {
     ).resolves.toBeNull();
   });
 
+  test("snaps a weekly plan to the Monday that starts its week", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|weekly-monday" });
+
+    // The model picks weekStart freely; readers anchor on Monday. A Sunday- or
+    // midweek-anchored plan must not become invisible to the dashboard.
+    for (const anchored of ["2026-07-15", "2026-07-19", "2026-07-13"]) {
+      await user.mutation(api.ai.coachState.saveWeeklyPlan, {
+        ...week,
+        weekStart: anchored,
+      });
+      const plan = await user.query(api.ai.coachState.getWeeklyPlan, {
+        weekStart: "2026-07-13",
+      });
+      expect(plan).toMatchObject({ weekStart: "2026-07-13" });
+    }
+
+    // All three writes collapsed onto the same week, so there is exactly one.
+    const plans = await t.run(async (ctx) =>
+      ctx.db
+        .query("coachWeeklyPlans")
+        .withIndex("by_userId", (q) => q.eq("userId", "test|weekly-monday"))
+        .collect(),
+    );
+    expect(plans).toHaveLength(1);
+  });
+
+  test("getWeeklyPlan treats an unusable weekStart as a miss, not an error", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|weekly-garbage" });
+    await user.mutation(api.ai.coachState.saveWeeklyPlan, week);
+
+    // These used to throw RangeError out of toISOString() on an Invalid Date,
+    // turning a lookup miss into a hard query failure.
+    for (const weekStart of ["garbage", "", "13/07/2026", "2026-13-45"]) {
+      await expect(
+        user.query(api.ai.coachState.getWeeklyPlan, { weekStart }),
+      ).resolves.toBeNull();
+    }
+
+    // A real week still resolves.
+    await expect(
+      user.query(api.ai.coachState.getWeeklyPlan, {
+        weekStart: week.weekStart,
+      }),
+    ).resolves.toMatchObject({ weekStart: week.weekStart });
+  });
+
+  test("saveWeeklyPlan still rejects an unusable weekStart", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|weekly-bad-write" });
+
+    for (const weekStart of ["garbage", "2026-13-45"]) {
+      await expect(
+        user.mutation(api.ai.coachState.saveWeeklyPlan, { ...week, weekStart }),
+      ).rejects.toThrow("Week start must use YYYY-MM-DD");
+    }
+  });
+
   test("replaces a weekly plan and undo restores its previous version", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|weekly-replace" });

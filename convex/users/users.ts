@@ -6,6 +6,7 @@ import { calculateCalories } from "../lib/calculateCalories";
 import { estimateOnboardingCalories } from "../lib/estimateOnboardingCalories";
 import { deleteUserDataBatch } from "../lib/deleteUserData";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
+import { getHealthProfile } from "../lib/healthProfiles";
 import { buildNutritionPlan } from "../lib/nutritionPlan";
 import {
   DEFAULT_MEAL_IDS,
@@ -182,12 +183,17 @@ export const setDashboardSettings = mutation({
 
 export const setDashboardTrendMetric = mutation({
   args: {
+    // Every measurable field on `bodyMeasurements`. Hips, calves, and neck were
+    // loggable long before they were trendable.
     metric: v.union(
       v.literal("bodyFatPct"),
       v.literal("waistCm"),
+      v.literal("hipsCm"),
       v.literal("chestCm"),
       v.literal("armsCm"),
       v.literal("thighsCm"),
+      v.literal("calvesCm"),
+      v.literal("neckCm"),
     ),
   },
   handler: async (ctx, args) => {
@@ -840,10 +846,7 @@ export const getEffectiveGoals = query({
 
     const customGoals = prefs?.customGoals;
 
-    const healthProfile = await ctx.db
-      .query("healthProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const healthProfile = await getHealthProfile(ctx, user._id);
 
     const onboarding = await getLatestOnboardingProfile(ctx, user._id);
 
@@ -981,10 +984,7 @@ export const getNutritionPlan = query({
       .unique();
 
     const customGoals = prefs?.customGoals;
-    const healthProfile = await ctx.db
-      .query("healthProfiles")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
+    const healthProfile = await getHealthProfile(ctx, user._id);
     const onboarding = await getLatestOnboardingProfile(ctx, user._id);
 
     let healthGoals: {
@@ -1132,5 +1132,44 @@ export const applyNutritionCalibration = mutation({
     }
 
     return customGoals;
+  },
+});
+
+export const setHealthSync = mutation({
+  args: {
+    appleHealthEnabled: v.optional(v.boolean()),
+    autoSyncOnForeground: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    const healthSync = {
+      appleHealthEnabled:
+        args.appleHealthEnabled ??
+        existing?.healthSync?.appleHealthEnabled ??
+        false,
+      autoSyncOnForeground:
+        args.autoSyncOnForeground ??
+        existing?.healthSync?.autoSyncOnForeground ??
+        true,
+      lastSyncedAt: existing?.healthSync?.lastSyncedAt,
+      lastSyncError: existing?.healthSync?.lastSyncError,
+    };
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { healthSync, updatedAt: Date.now() });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        healthSync,
+        updatedAt: Date.now(),
+      });
+    }
+    return healthSync;
   },
 });

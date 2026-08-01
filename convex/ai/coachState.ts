@@ -364,15 +364,43 @@ const weeklyPlanDayValidator = v.object({
   recoveryNote: v.optional(v.string()),
 });
 
+const WEEK_START_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Snaps a YYYY-MM-DD date to the Monday that starts its ISO week.
+ *
+ * The model picks `weekStart` freely, but every reader (the Today widget, and
+ * any future one) anchors weeks on Monday. Normalising on write means a
+ * Sunday-anchored plan can't become invisible.
+ *
+ * Returns null rather than throwing on unusable input: `toISOString()` raises a
+ * RangeError on an Invalid Date, which would turn a lookup miss into a hard
+ * query failure. Both the format and the resulting date are checked — a
+ * well-formed but impossible date like "2026-13-45" passes the pattern and
+ * still yields an Invalid Date.
+ */
+function mondayOf(dateIso: string): string | null {
+  if (!WEEK_START_PATTERN.test(dateIso)) return null;
+  const date = new Date(`${dateIso}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  const dayOfWeek = date.getUTCDay(); // 0 = Sunday
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  date.setUTCDate(date.getUTCDate() - daysFromMonday);
+  return date.toISOString().slice(0, 10);
+}
+
 export const getWeeklyPlan = query({
   args: { weekStart: v.string() },
   handler: async (ctx, args) => {
     const user = await safeGetAuthUser(ctx);
     if (!user) return null;
+    const weekStart = mondayOf(clampText(args.weekStart, 10));
+    // A lookup for an unusable week is a miss, not an error.
+    if (!weekStart) return null;
     return await ctx.db
       .query("coachWeeklyPlans")
       .withIndex("by_userId_and_weekStart", (q) =>
-        q.eq("userId", user._id).eq("weekStart", clampText(args.weekStart, 10)),
+        q.eq("userId", user._id).eq("weekStart", weekStart),
       )
       .unique();
   },
@@ -387,8 +415,10 @@ export const saveWeeklyPlan = mutation({
   },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
-    const weekStart = clampText(args.weekStart, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(weekStart)) {
+    // Writes still reject bad input loudly — a plan saved under a week the
+    // reader can't compute would be invisible from the moment it was written.
+    const weekStart = mondayOf(clampText(args.weekStart, 10));
+    if (!weekStart) {
       throw new Error("Week start must use YYYY-MM-DD");
     }
     if (args.days.length === 0 || args.days.length > 7) {

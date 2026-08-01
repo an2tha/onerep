@@ -51,4 +51,19 @@ describe("Today and nutrition UX contract", () => {
     assert.match(SNAP_SOURCE, /name="snap-food-grams"/)
     assert.doesNotMatch(SNAP_SOURCE, /text-\[(?:8|9|10|11)(?:\.\d+)?px\]/)
   })
+
+  test("Today folds logged supplements into the day's intake totals", () => {
+    const APP_SOURCE = source("../App.tsx")
+    // The Nutrition page always counted supplement macros; Today used to show
+    // food only, so the same day read differently on the two screens.
+    assert.match(APP_SOURCE, /combineMacroTotals\(/)
+    assert.match(APP_SOURCE, /supplementNutritionTotals/)
+    assert.match(APP_SOURCE, /supplementCalories=\{supplementCalories\}/)
+    assert.match(HOME_SOURCE, /kcal from supplements/)
+  })
+
+  test("Nutrition surfaces the adaptive target recommendation", () => {
+    assert.match(NUTRITION_SOURCE, /NutritionCalibrationCard/)
+    assert.match(NUTRITION_SOURCE, /applyNutritionCalibration/)
+  })
 })
