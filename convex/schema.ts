@@ -128,6 +128,15 @@ export default defineSchema({
         personalizedInsightsEnabled: v.boolean(),
       }),
     ),
+    healthSync: v.optional(
+      v.object({
+        appleHealthEnabled: v.boolean(),
+        autoSyncOnForeground: v.boolean(),
+        lastSyncedAt: v.optional(v.number()),
+        /** Surfaced in Settings; a background sync must never toast. */
+        lastSyncError: v.optional(v.string()),
+      }),
+    ),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -474,6 +483,45 @@ export default defineSchema({
     .index("by_userId_date", ["userId", "date"])
     .index("by_userId_and_date_and_sessionId", ["userId", "date", "sessionId"]),
 
+  /**
+   * Workouts read out of Apple Health.
+   *
+   * Kept separate from `workoutLogs` on purpose: importing is not the same as
+   * training-logging. A day has only two workout slots, so a silent auto-write
+   * could displace a session the user logged by hand. Promotion into the
+   * training log is an explicit action (`linkToTrainingLog`).
+   */
+  healthWorkouts: defineTable({
+    userId: v.string(),
+    provider: v.literal("apple_health"),
+    /** The HealthKit UUID — the dedupe key. */
+    externalId: v.string(),
+    activityType: v.string(),
+    activityName: v.string(),
+    /** Local calendar date, computed client-side from the user's timezone. */
+    date: v.string(),
+    startedAt: v.number(),
+    endedAt: v.number(),
+    durationSeconds: v.number(),
+    totalDistanceMeters: v.optional(v.number()),
+    avgHeartRateBpm: v.optional(v.number()),
+    maxHeartRateBpm: v.optional(v.number()),
+    activeEnergyKcal: v.optional(v.number()),
+    sourceName: v.optional(v.string()),
+    sourceBundleId: v.optional(v.string()),
+    hasRoute: v.optional(v.boolean()),
+    routeName: v.optional(v.string()),
+    /** Set once the user promotes this into their training log. */
+    linkedSessionId: v.optional(v.string()),
+    linkedDate: v.optional(v.string()),
+    dismissedAt: v.optional(v.number()),
+    importedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId_and_externalId", ["userId", "externalId"])
+    .index("by_userId_and_startedAt", ["userId", "startedAt"])
+    .index("by_userId_and_date", ["userId", "date"]),
+
   // ── Food logs (one doc per user+date, stores all entries) ─────────────────
   foodLogs: defineTable({
     userId: v.string(),
@@ -667,7 +715,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_userId", ["userId"])
-    .index("by_userId_clientId", ["userId", "clientId"]),
+    .index("by_userId_clientId", ["userId", "clientId"])
+    // Ordered by check-in date rather than `_creationTime` because backfilled
+    // check-ins are common — someone logs Monday's weigh-in on Wednesday.
+    .index("by_userId_and_loggedAt", ["userId", "loggedAt"]),
 
   customProgressMetrics: defineTable({
     userId: v.string(),
