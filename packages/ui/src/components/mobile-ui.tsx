@@ -2,6 +2,7 @@ import { CaretRight } from "@phosphor-icons/react"
 import type {
   ButtonHTMLAttributes,
   ComponentType,
+  CSSProperties,
   InputHTMLAttributes,
   ReactNode,
 } from "react"
@@ -96,16 +97,34 @@ export function GroupedList({
   children,
   className,
   label,
+  stagger = false,
 }: {
   children: ReactNode
   className?: string
   label?: string
+  /** Opt-in, and only worth it for short lists — see `MOTION_STAGGER_CAP`. */
+  stagger?: boolean
 }) {
   return (
-    <section className={cn("native-group", className)} aria-label={label}>
+    <section
+      className={cn("native-group", stagger && "motion-stagger", className)}
+      aria-label={label}
+    >
       {children}
     </section>
   )
+}
+
+/**
+ * Past roughly this many rows a stagger stops reading as polish and starts
+ * being a wait before you can read your own list, so callers clamp the index.
+ */
+export const MOTION_STAGGER_CAP = 8
+
+export function staggerIndex(index: number) {
+  return {
+    "--motion-index": Math.min(index, MOTION_STAGGER_CAP),
+  } as CSSProperties
 }
 
 export type ListRowProps = {
@@ -355,7 +374,7 @@ export function EmptyState({
     <div
       role="status"
       className={cn(
-        "flex items-start gap-3 border-y border-border px-[var(--app-page-x)] py-5 text-left",
+        "motion-empty-state flex items-start gap-3 border-y border-border px-[var(--app-page-x)] py-5 text-left",
         toneVars[tone],
         className
       )}

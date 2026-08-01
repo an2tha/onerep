@@ -483,6 +483,7 @@ const SETUP_DESTINATIONS: Record<CoachUiAction, string> = {
   open_workout_builder: "/workouts",
   open_progress: "/progress",
   open_recipe_builder: "/foods/recipes",
+  open_supplements: "/supplements",
   open_settings: "/settings",
 }
 
@@ -493,6 +494,7 @@ const SETUP_DESTINATION_LABELS: Record<CoachUiAction, string> = {
   open_workout_builder: "Workouts",
   open_progress: "Progress",
   open_recipe_builder: "Recipes",
+  open_supplements: "Supplements",
   open_settings: "Settings",
 }
 
@@ -1498,6 +1500,9 @@ export function OnboardingMobile() {
                   onOpenWorkouts={() => handleSetupUiAction("open_workouts")}
                   onOpenNutrition={() => handleSetupUiAction("open_nutrition")}
                   onOpenProgress={() => handleSetupUiAction("open_progress")}
+                  onOpenSupplements={() =>
+                    handleSetupUiAction("open_supplements")
+                  }
                   onUndo={(id) => void undoSetupAction(id)}
                   onLogRecipe={(result) => void logSetupRecipe(result)}
                   onPinGoal={pinSetupGoal}

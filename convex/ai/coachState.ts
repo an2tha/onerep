@@ -547,6 +547,53 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
     return;
   }
 
+  if (
+    payload.kind === "delete_supplement_item" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("supplementItems", payload.id);
+    const item = id ? await ctx.db.get(id) : null;
+    if (item && item.userId === userId) await ctx.db.delete(item._id);
+    return;
+  }
+
+  if (
+    payload.kind === "restore_supplement_item" &&
+    typeof payload.id === "string" &&
+    isRecord(payload.body)
+  ) {
+    const id = ctx.db.normalizeId("supplementItems", payload.id);
+    const item = id ? await ctx.db.get(id) : null;
+    if (!item || item.userId !== userId)
+      throw new Error("Supplement not found");
+    const body = payload.body as Doc<"supplementItems">;
+    if (
+      typeof body.name !== "string" ||
+      typeof body.servingLabel !== "string" ||
+      typeof body.defaultServingQuantity !== "number" ||
+      !isRecord(body.schedule) ||
+      !isRecord(body.nutrientsPerServing)
+    ) {
+      throw new Error("Invalid supplement undo data");
+    }
+    await ctx.db.patch(item._id, {
+      name: body.name,
+      brand: body.brand,
+      category: body.category,
+      form: body.form,
+      servingLabel: body.servingLabel,
+      defaultServingQuantity: body.defaultServingQuantity,
+      barcode: body.barcode,
+      notes: body.notes,
+      active: body.active,
+      schedule: body.schedule,
+      nutrientsPerServing: body.nutrientsPerServing,
+      source: body.source,
+      updatedAt: Date.now(),
+    });
+    return;
+  }
+
   if (payload.kind === "delete_goal" && typeof payload.id === "string") {
     const id = ctx.db.normalizeId("coachGoals", payload.id);
     const goal = id ? await ctx.db.get(id) : null;

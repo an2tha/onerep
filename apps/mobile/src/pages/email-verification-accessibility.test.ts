@@ -23,7 +23,8 @@ describe("email verification mobile contract", () => {
   })
 
   test("verification-required page keeps a recovery action available", () => {
-    expect(VERIFY_REQUIRED_SOURCE).toContain("Verify your email first.")
+    // The heading carries this now; the eyebrow above it was removed.
+    expect(VERIFY_REQUIRED_SOURCE).toContain("Check your email")
     expect(VERIFY_REQUIRED_SOURCE).toContain(
       "navigate(hasPendingEmail ? \"/login?mode=signup\" : \"/login\"",
     )

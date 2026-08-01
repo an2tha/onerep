@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useSearchParams } from "react-router"
 import { TourAnchor } from "@/components/walkthrough/tour-anchor"
 import {
@@ -18,11 +18,13 @@ import {
   SectionHeader,
   SummaryBlock,
   ToolbarButton,
+  ParticleBurst,
+  useReplayKey,
   toast,
 } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
-import { hapticSelection, hapticTap } from "@/lib/haptics"
+import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -444,6 +446,21 @@ export function GroceryListDetail() {
     [stored?.items]
   )
 
+  // Clearing the list is worth marking, but you are standing in a shop — a
+  // full-screen takeover would block the thing you came here to read.
+  const clearedBurst = useReplayKey(1100)
+  const replayCleared = clearedBurst.replay
+  const everythingChecked =
+    items.length > 0 && items.every((item) => item.checked)
+  const previouslyCleared = useRef(everythingChecked)
+  useEffect(() => {
+    if (everythingChecked && !previouslyCleared.current) {
+      replayCleared()
+      hapticMedium()
+    }
+    previouslyCleared.current = everythingChecked
+  }, [everythingChecked, replayCleared])
+
   // Grouped by aisle so the list matches the walk around the shop.
   const grouped = useMemo(() => {
     const map = new Map<string, GroceryItem[]>()
@@ -511,7 +528,14 @@ export function GroceryListDetail() {
   const remaining = items.filter((item) => !item.checked).length
 
   return (
-    <div className="native-page print-sheet mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
+    <div className="native-page print-sheet relative mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
+      <ParticleBurst
+        replayKey={clearedBurst.active ? clearedBurst.key : 0}
+        variant="rise"
+        count={12}
+        color="var(--accent-food)"
+        className="print-hidden h-32"
+      />
       <NavigationBar
         className="print-hidden"
         title={stored?.name ?? "Grocery list"}
@@ -612,8 +636,9 @@ export function GroceryListDetail() {
                         className="flex min-w-0 flex-1 items-center gap-2 text-left active:opacity-70"
                       >
                         <span
+                          data-checked={item.checked}
                           className={cn(
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
+                            "motion-checkbox flex h-5 w-5 shrink-0 items-center justify-center rounded-md border",
                             item.checked
                               ? "border-foreground bg-foreground text-background"
                               : "border-border"
@@ -624,7 +649,7 @@ export function GroceryListDetail() {
                         <span className="min-w-0">
                           <span
                             className={cn(
-                              "native-row-title block truncate",
+                              "motion-row-checked native-row-title block truncate",
                               item.checked &&
                                 "text-muted-foreground line-through"
                             )}

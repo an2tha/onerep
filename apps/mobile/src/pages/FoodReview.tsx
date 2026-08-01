@@ -147,11 +147,11 @@ export default function FoodReview() {
                 <p className="mt-4 text-[15px] font-semibold">Loading food…</p>
               </>
             ) : (
-              <>
+              <div className="motion-content-in">
                 <Warning
                   size={24}
                   weight="bold"
-                  className="mx-auto text-muted-foreground/60"
+                  className="motion-pop mx-auto text-muted-foreground/60"
                 />
                 <p className="mt-4 text-[17px] font-semibold">
                   Couldn’t load this food.
@@ -167,7 +167,7 @@ export default function FoodReview() {
                 >
                   Back to search
                 </button>
-              </>
+              </div>
             )}
           </div>
         </section>

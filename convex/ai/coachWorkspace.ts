@@ -22,6 +22,7 @@ export const loadForModel = internalQuery({
       schedule,
       progressMetrics,
       dashboardWidgets,
+      supplements,
     ] = await Promise.all([
       ctx.db
         .query("presets")
@@ -81,6 +82,10 @@ export const loadForModel = internalQuery({
         .withIndex("by_userId", (q) => q.eq("userId", args.userId))
         .order("desc")
         .take(24),
+      ctx.db
+        .query("supplementItems")
+        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .take(40),
     ]);
     const presetNames = new Map(
       presets.map((preset) => [String(preset._id), preset.name]),
@@ -198,6 +203,16 @@ export const loadForModel = internalQuery({
         parentWidgetId: widget.parentWidgetId
           ? String(widget.parentWidgetId)
           : undefined,
+      })),
+      supplements: supplements.map((item) => ({
+        id: String(item._id),
+        name: item.name,
+        brand: item.brand,
+        category: item.category,
+        form: item.form,
+        servingLabel: item.servingLabel,
+        active: item.active,
+        schedule: item.schedule,
       })),
       routine: DAYS.map((day) => {
         const raw = primary[day];

@@ -51,9 +51,11 @@ export default function VerifyEmailRequired() {
           <span className="native-row-title font-semibold">OneRep</span>
         </header>
 
-        <section aria-labelledby="verify-email-title">
-          <p className="native-supporting">Verify your email first.</p>
-          <h1 id="verify-email-title" className="native-large-title mt-2">
+        <section
+          aria-labelledby="verify-email-title"
+          className="motion-content-in"
+        >
+          <h1 id="verify-email-title" className="native-large-title">
             Check your email
           </h1>
           <p className="native-body mt-3 text-muted-foreground">

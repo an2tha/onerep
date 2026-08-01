@@ -114,6 +114,8 @@ import {
   PopoverTrigger,
 } from "@repo/ui"
 import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
+import { useStreakMilestone } from "@/lib/use-streak-milestone"
+import { useAnimatedNumber, useReplayKey } from "@repo/ui"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import type { TrendMetric } from "@repo/ui"
 import { toast } from "@repo/ui"
@@ -1306,23 +1308,8 @@ function StreakCard({
   })
 
   const active = streak > 0
-  const [milestoneActive, setMilestoneActive] = useState(false)
-  const previousStreak = useRef(streak)
-
-  useEffect(() => {
-    const crossedMilestone =
-      streak > previousStreak.current && [1, 3, 7, 14, 30].includes(streak)
-    previousStreak.current = streak
-    if (!crossedMilestone) return
-
-    const key = `onerep:streak-milestone:${streak}`
-    if (safeLocalStorageGet(key)) return
-    safeLocalStorageSet(key, "seen")
-    setMilestoneActive(true)
-    hapticMedium()
-    const timer = window.setTimeout(() => setMilestoneActive(false), 1500)
-    return () => window.clearTimeout(timer)
-  }, [streak])
+  const milestoneActive = useStreakMilestone(streak)
+  const animatedStreak = useAnimatedNumber(streak)
 
   const fireColor = active
     ? FOOD_COLOR
@@ -1370,7 +1357,7 @@ function StreakCard({
                   : "color-mix(in srgb, var(--foreground) 30%, transparent)",
               }}
             >
-              {streak}
+              {animatedStreak}
             </span>
           </div>
 
@@ -2056,11 +2043,12 @@ function WorkoutSmall({
 function StreakSmall({ streak }: { streak: number }) {
   const navigate = useSmoothNavigate()
   const active = streak > 0
+  const milestoneActive = useStreakMilestone(streak)
   return (
     <Card className="h-full">
       <button
         onClick={() => navigate("/workouts")}
-        className="flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
+        className="motion-tactile-subtle flex h-full w-full flex-col justify-between px-3.5 py-3 text-left transition-colors active:bg-muted/20"
       >
         <div className="flex w-full items-start justify-between">
           <p className="text-[10px] font-semibold text-muted-foreground/50">
@@ -2068,7 +2056,12 @@ function StreakSmall({ streak }: { streak: number }) {
           </p>
           <CaretRight size={9} className="mt-0.5 text-muted-foreground/20" />
         </div>
-        <div className="flex items-end gap-2">
+        <div
+          className={cn(
+            "flex items-end gap-2",
+            milestoneActive && "streak-milestone"
+          )}
+        >
           <Fire
             size={22}
             weight={active ? "fill" : "regular"}
@@ -2347,7 +2340,7 @@ export default function App() {
   const navigate = useSmoothNavigate()
   const { user } = useAppAuth()
   const [dayOffset, setDayOffset] = useState(0)
-  const [quickWaterRainKey, setQuickWaterRainKey] = useState(0)
+  const quickWaterBurst = useReplayKey(1300)
   const [dismissedBriefingKey, setDismissedBriefingKey] = useState(
     () => safeLocalStorageGet("onerep:dismissed-dashboard-briefing") ?? ""
   )
@@ -3159,7 +3152,7 @@ export default function App() {
 
   function addQuickWater() {
     hapticMedium()
-    setQuickWaterRainKey((value) => value + 1)
+    quickWaterBurst.replay()
     const id = crypto.randomUUID()
     void addWaterEntry({
       date: selectedDate,
@@ -3355,9 +3348,9 @@ export default function App() {
 
   return (
     <div className="dashboard-home desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
-      {quickWaterRainKey > 0 && (
+      {quickWaterBurst.active && (
         <span
-          key={quickWaterRainKey}
+          key={quickWaterBurst.key}
           className="water-rain water-rain-home"
           aria-hidden
         >
@@ -3408,7 +3401,7 @@ export default function App() {
         />
 
         {homeBodyReady ? (
-          <>
+          <div className="motion-content-in flex min-w-0 flex-col">
             {unreadComments > 0 && !commentsDismissed && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-border px-3 py-2">
                 <button
@@ -3682,7 +3675,7 @@ export default function App() {
                   })
               }}
             />
-          </>
+          </div>
         ) : (
           <div
             role="status"

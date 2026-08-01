@@ -20,6 +20,7 @@ import {
   SectionHeader,
   SummaryBlock,
   ToolbarButton,
+  useTransientFlag,
   toast,
 } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
@@ -99,8 +100,17 @@ export default function MealPrep() {
     [batches, today]
   )
 
-  const activeBatches = batches.filter((batch) => !batchIsEmpty(batch))
-  const emptiedBatches = batches.filter(batchIsEmpty)
+  // A batch that just emptied is held in the active group for the length of
+  // the collapse, so it animates out instead of teleporting to "Finished".
+  const [collapsingId, setCollapsingId] = useState<string | null>(null)
+  const loggedFlag = useTransientFlag()
+
+  const activeBatches = batches.filter(
+    (batch) => !batchIsEmpty(batch) || (batch.id ?? batch._id) === collapsingId
+  )
+  const emptiedBatches = batches.filter(
+    (batch) => batchIsEmpty(batch) && (batch.id ?? batch._id) !== collapsingId
+  )
   const loading = batchesQuery === undefined
 
   async function handleLogServings(batch: MealPrepBatch, servings: number) {
@@ -125,6 +135,13 @@ export default function MealPrep() {
         })
       }
       await consumeBatch({ id: id as Id<"mealPrepBatches">, servings: amount })
+      if (amount > 0) {
+        loggedFlag.flag(id)
+        if (amount >= remaining) {
+          setCollapsingId(id)
+          window.setTimeout(() => setCollapsingId(null), 320)
+        }
+      }
       toast.success(
         amount > 0
           ? `Logged ${formatServings(amount)} serving${
@@ -299,16 +316,25 @@ export default function MealPrep() {
             }
           />
           <GroupedList label="Prepped batches">
-            {activeBatches.map((batch) => (
-              <BatchRow
-                key={batch.id ?? batch._id ?? batch.name}
-                batch={batch}
-                today={today}
-                busy={busyBatchId === (batch.id ?? batch._id)}
-                onLog={(servings) => void handleLogServings(batch, servings)}
-                onEdit={() => setEditorDraft(mealPrepDraftFromBatch(batch))}
-              />
-            ))}
+            {activeBatches.map((batch) => {
+              const batchId = batch.id ?? batch._id
+              return (
+                <BatchRow
+                  key={batchId ?? batch.name}
+                  batch={batch}
+                  today={today}
+                  busy={busyBatchId === batchId}
+                  className={cn(
+                    batchId &&
+                      loggedFlag.flagged(batchId) &&
+                      "motion-success-pop",
+                    batchId === collapsingId && "motion-collapse-out"
+                  )}
+                  onLog={(servings) => void handleLogServings(batch, servings)}
+                  onEdit={() => setEditorDraft(mealPrepDraftFromBatch(batch))}
+                />
+              )
+            })}
           </GroupedList>
         </>
       )}
@@ -435,12 +461,14 @@ function BatchRow({
   batch,
   today,
   busy,
+  className,
   onLog,
   onEdit,
 }: {
   batch: MealPrepBatch
   today: string
   busy: boolean
+  className?: string
   onLog: (servings: number) => void
   onEdit: () => void
 }) {
@@ -451,7 +479,9 @@ function BatchRow({
   const perServing = batch.nutrientsPerServing
 
   return (
-    <div className="native-list-row flex-col items-stretch gap-3">
+    <div
+      className={cn("native-list-row flex-col items-stretch gap-3", className)}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="native-row-title truncate">{batch.name}</p>
@@ -483,9 +513,7 @@ function BatchRow({
             <button
               type="button"
               onClick={() =>
-                navigate(
-                  `/nutrition/groceries?recipe=${batch.sourceRecipeId}`
-                )
+                navigate(`/nutrition/groceries?recipe=${batch.sourceRecipeId}`)
               }
               className="native-toolbar-button h-10 w-10 px-0 text-muted-foreground"
               aria-label={`Shop for ${batch.name}`}

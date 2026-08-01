@@ -10,12 +10,10 @@ import { useSmoothNavigate } from "@/lib/navigation"
 
 const STATUS_COPY = {
   success: {
-    eyebrow: "Email verified",
     title: "You're set.",
     body: "Your email is verified. Continue into OneRep and keep logging.",
   },
   error: {
-    eyebrow: "Verification failed",
     title: "This link did not work.",
     body: "The verification link may have expired. Sign in again and we will send a fresh one.",
   },
@@ -30,8 +28,7 @@ export default function EmailVerified() {
   const isVerificationLinkReturn = searchParams.get("source") === "email"
   const next = searchParams.get("next")
   const checkingAuth =
-    !hasError &&
-    (!isLoaded || (isSignedIn && !convexAuth.isAuthenticated))
+    !hasError && (!isLoaded || (isSignedIn && !convexAuth.isAuthenticated))
   const copy = hasError ? STATUS_COPY.error : STATUS_COPY.success
   const body = checkingAuth
     ? "Checking your sign-in state so we can send you to the right place."
@@ -80,12 +77,11 @@ export default function EmailVerified() {
           <span className="native-row-title font-semibold">OneRep</span>
         </header>
 
-        <section aria-labelledby="verification-result-title">
-          <p className="native-supporting">{copy.eyebrow}</p>
-          <h1
-            id="verification-result-title"
-            className="native-large-title mt-2"
-          >
+        <section
+          aria-labelledby="verification-result-title"
+          className="motion-content-in"
+        >
+          <h1 id="verification-result-title" className="native-large-title">
             {copy.title}
           </h1>
           <p className="native-body mt-3 text-muted-foreground">{body}</p>

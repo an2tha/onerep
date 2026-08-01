@@ -15,6 +15,7 @@ import {
   PushPin,
   X,
 } from "@phosphor-icons/react"
+import { useAnimatedNumber } from "../../hooks/use-animated-number"
 import { cn } from "../../lib/utils"
 import { GroupedList, SectionHeader } from "../mobile-ui"
 import { SlideToDeleteRow } from "../slide-to-delete-row"
@@ -449,6 +450,17 @@ function CalorieRing({
   const radius = 52
   const circumference = 2 * Math.PI * radius
   const swept = circumference * Math.min(1, caloriesPct / 100)
+  const animatedLeft = useAnimatedNumber(caloriesLeft)
+
+  // One pulse on the upward crossing only — Nutrition already owns the
+  // full-screen calorie takeover, so a second celebration here is duplication.
+  const reachedGoal = caloriesPct >= 100 && !overTarget
+  const previouslyReached = useRef(reachedGoal)
+  const [completePulse, setCompletePulse] = useState(false)
+  useEffect(() => {
+    if (reachedGoal && !previouslyReached.current) setCompletePulse(true)
+    previouslyReached.current = reachedGoal
+  }, [reachedGoal])
 
   return (
     <div className="relative h-[128px] w-[128px] shrink-0">
@@ -474,18 +486,21 @@ function CalorieRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference - swept}
+          className={cn(
+            "motion-ring-progress",
+            completePulse && "motion-ring-complete"
+          )}
+          onAnimationEnd={() => setCompletePulse(false)}
           style={{
             stroke: overTarget
               ? "var(--status-danger)"
               : "color-mix(in srgb, var(--foreground) 52%, transparent)",
-            transition:
-              "stroke-dashoffset var(--motion-medium, 320ms) ease-out",
           }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-[2rem] leading-none font-bold tracking-tight tabular-nums">
-          {fmt(Math.abs(caloriesLeft))}
+          {fmt(Math.abs(animatedLeft))}
         </span>
         <span className="mt-1 text-[11px] font-medium text-muted-foreground">
           kcal {overTarget ? "over" : "left"}
@@ -548,12 +563,10 @@ export function DailyLedgerHero({
                   </div>
                   <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-foreground/[0.08]">
                     <div
-                      className="h-full rounded-full"
+                      className="motion-bar-fill h-full w-full rounded-full"
                       style={{
-                        width: `${macroPct}%`,
+                        transform: `scaleX(${macroPct / 100})`,
                         backgroundColor: macro.color,
-                        transition:
-                          "width var(--motion-medium, 320ms) ease-out",
                       }}
                     />
                   </div>
