@@ -24,6 +24,7 @@ import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
+import { AppleHealthSync } from "@/components/apple-health-sync"
 import { MealCategorySync } from "@/components/meal-category-sync"
 
 import "./index.css"
@@ -924,6 +925,7 @@ createRoot(document.getElementById("root")!).render(
           <ErrorBoundary label="the app">
             <OfflineSyncIndicator />
             <WidgetDataSync />
+            <AppleHealthSync />
             <MealCategorySync />
             <RouterProvider router={router} />
             <Toaster

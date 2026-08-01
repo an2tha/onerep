@@ -60,6 +60,8 @@ describe("@repo/ui package boundary", () => {
       "../../../apps/mobile/src/components"
     )
     const allowedModules = new Set([
+      // Renders null; pulls HealthKit workouts into Convex on foreground.
+      "apple-health-sync.tsx",
       "auth-guard.tsx",
       "auth-shell.tsx",
       "bottom-bar.tsx",

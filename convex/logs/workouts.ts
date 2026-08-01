@@ -1,64 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
-
-const heartRateZonesValidator = v.object({
-  zone1Seconds: v.optional(v.number()),
-  zone2Seconds: v.optional(v.number()),
-  zone3Seconds: v.optional(v.number()),
-  zone4Seconds: v.optional(v.number()),
-  zone5Seconds: v.optional(v.number()),
-});
-
-const cardioDetailsValidator = v.object({
-  distanceMeters: v.optional(v.number()),
-  distanceUnit: v.optional(v.union(v.literal("km"), v.literal("mi"))),
-  durationSeconds: v.optional(v.number()),
-  paceSecondsPerKm: v.optional(v.number()),
-  avgHeartRateBpm: v.optional(v.number()),
-  maxHeartRateBpm: v.optional(v.number()),
-  heartRateZones: v.optional(heartRateZonesValidator),
-  route: v.optional(
-    v.object({
-      name: v.optional(v.string()),
-      url: v.optional(v.string()),
-    }),
-  ),
-  source: v.optional(
-    v.object({
-      provider: v.union(
-        v.literal("manual"),
-        v.literal("apple_health"),
-        v.literal("strava"),
-        v.literal("garmin"),
-        v.literal("fitbit"),
-        v.literal("gpx"),
-        v.literal("other"),
-      ),
-      name: v.optional(v.string()),
-      externalId: v.optional(v.string()),
-      importedAt: v.optional(v.string()),
-    }),
-  ),
-  notes: v.optional(v.string()),
-});
-
-const completedSetValidator = v.object({
-  type: v.string(), // "normal", "warmup", "dropset", "failure"
-  reps: v.number(),
-  weight: v.number(),
-  completed: v.boolean(),
-  rpe: v.optional(v.number()),
-  rir: v.optional(v.number()),
-});
-
-const completedExerciseValidator = v.object({
-  id: v.string(),
-  name: v.string(),
-  category: v.optional(v.string()),
-  sets: v.array(completedSetValidator),
-  cardio: v.optional(cardioDetailsValidator),
-});
+import { upsertWorkoutLog } from "../lib/workoutLogs";
+import {
+  cardioDetailsValidator,
+  completedExerciseValidator,
+  completedSetValidator,
+  heartRateZonesValidator,
+} from "../lib/workoutValidators";
 
 // ── logCompletion ─────────────────────────────────────────────────────────────
 
@@ -79,47 +28,14 @@ export const completion = mutation({
     // Old clients did not send a session ID. Keep their one-log-per-day
     // behavior intact, while new clients can safely create two daily sessions.
     const sessionId = args.sessionId ?? `legacy:${args.date}`;
-    const existing = args.sessionId
-      ? await ctx.db
-          .query("workoutLogs")
-          .withIndex("by_userId_and_date_and_sessionId", (q) =>
-            q
-              .eq("userId", user._id)
-              .eq("date", args.date)
-              .eq("sessionId", sessionId),
-          )
-          .unique()
-      : (
-          await ctx.db
-            .query("workoutLogs")
-            .withIndex("by_userId_date", (q) =>
-              q.eq("userId", user._id).eq("date", args.date),
-            )
-            .take(2)
-        ).find(
-          (log) => log.sessionId === undefined || log.sessionId === sessionId,
-        );
-
-    const now = Date.now();
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        sessionId,
-        ...(args.slot === undefined ? {} : { slot: args.slot }),
-        exercises: args.exercises,
-        durationSeconds: args.durationSeconds,
-        completedAt: now,
-      });
-    } else {
-      await ctx.db.insert("workoutLogs", {
-        userId: user._id,
-        date: args.date,
-        sessionId,
-        ...(args.slot === undefined ? {} : { slot: args.slot }),
-        exercises: args.exercises,
-        durationSeconds: args.durationSeconds,
-        completedAt: now,
-      });
-    }
+    await upsertWorkoutLog(ctx, user._id, {
+      date: args.date,
+      sessionId,
+      slot: args.slot,
+      exercises: args.exercises,
+      durationSeconds: args.durationSeconds,
+      hasExplicitSessionId: args.sessionId !== undefined,
+    });
 
     return { ok: true };
   },

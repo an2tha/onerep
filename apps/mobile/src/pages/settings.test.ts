@@ -773,4 +773,15 @@ describe("AI paywall", () => {
     // The modal has to actually be mounted on the Settings page.
     assert.match(SETTINGS_SOURCE, /\{aiAccessModal\}/)
   })
+
+  test("the Health section is gated on platform and consent", () => {
+    assert.match(SETTINGS_SOURCE, /activeView === "health"/)
+    // An Apple Health row on Android or the web is dead UI.
+    assert.match(SETTINGS_SOURCE, /isAppleHealthSupportedPlatform\(\)/)
+    // Consent is the gate; the import toggle stays disabled without it.
+    assert.match(SETTINGS_SOURCE, /wearableIntegrations/)
+    assert.match(SETTINGS_SOURCE, /disabled=\{!wearableConsent\}/)
+    // A denied HealthKit permission must produce readable copy, not a silent no-op.
+    assert.match(SETTINGS_SOURCE, /Permission was denied/)
+  })
 })
