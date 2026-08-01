@@ -848,14 +848,14 @@ export function OnboardingMobile() {
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
 
   const coachMessages = [
-    "One more thing before your numbers — meet Coach, the part of OneRep you talk to.",
+    "One more thing before your numbers. Meet Coach, the part of OneRep you talk to.",
     "Coach turns a conversation into interactive cards, compact dashboard widgets, and useful follow-ups. Nothing gets added silently.",
   ]
 
   const stageMessages: Record<StageId, string[]> = {
     intro: [
       "Hi, I'm your OneRep coach.",
-      "I'll set up your training and nutrition targets in about a minute — just a quick chat, no forms.",
+      "I'll set up your training and nutrition targets in about a minute, just a quick chat with no forms.",
     ],
     goal: ["First things first: what are you working toward?"],
     experience: [
@@ -867,21 +867,21 @@ export function OnboardingMobile() {
       "Which option suits you best?",
     ],
     measurements: [
-      "And your measurements — I use these to calculate your starting calorie budget.",
+      "And your measurements. I use these to calculate your starting calorie budget.",
     ],
     activity: [
       "How active is a typical week for you? Pick your usual, not your best week.",
     ],
     safety: [
       "Almost done. Do any of these health considerations apply to you?",
-      "This is optional — it helps me avoid unsuitable calorie recommendations.",
+      "This is optional, and it helps me avoid unsuitable calorie recommendations.",
     ],
     assistant: [
-      "Want a head start? I can build it now — routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
+      "Want a head start? I can build it now: routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
       "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first.",
     ],
     review: [
-      "That's everything I need. Here are your starting daily targets — estimates, not medical advice. You can change them any time in Settings.",
+      "That's everything I need. Here are your starting daily targets. These are estimates, not medical advice. You can change them any time in Settings.",
     ],
   }
 
@@ -1575,7 +1575,7 @@ export function OnboardingMobile() {
           <p className="onboarding-setup-quota" aria-live="polite">
             {remaining > 0
               ? `${remaining} of ${SETUP_MESSAGE_LIMIT} messages left`
-              : "Message limit reached — you can keep chatting in Coach later."}
+              : "Message limit reached. You can keep chatting in Coach later."}
           </p>
           <QuickReplies
             options={[

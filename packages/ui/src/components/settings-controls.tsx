@@ -120,7 +120,7 @@ export function SectionSaveButton({
           confirmed && "motion-save-confirm"
         )}
       >
-        {saving ? "Saving..." : confirmed ? "Saved" : label}
+        {saving ? "Saving…" : confirmed ? "Saved" : label}
       </button>
     </div>
   )

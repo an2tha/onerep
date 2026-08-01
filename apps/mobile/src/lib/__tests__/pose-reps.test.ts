@@ -3,6 +3,7 @@ import {
   MIN_REP_RANGE_M,
   applyOrientation,
   REP_PHASE_SAMPLES,
+  chooseRepSignal,
   classifyCameraView,
   detectReps,
   fuseReps,
@@ -68,6 +69,70 @@ function repClip(count: number, yaw = 0, index = 1): FormCoachAngleLandmarks {
     const phase = (i % perRep) / perRep
     const depth = (1 - Math.cos(phase * 2 * Math.PI)) / 2
     frames.push(frameFrom(pose(depth, yaw), i * 100))
+  }
+  return { index, frames }
+}
+
+/**
+ * The same lifter standing still from the waist down, with their wrists placed
+ * `metres` from their shoulders along `axis`. Stands in for every lift where the
+ * arms do the travelling and the hips barely move at all.
+ */
+function armPose(
+  metres: number,
+  axis: "forward" | "up" | "out",
+  yawRadians = 0
+): P[] {
+  const points = pose(0)
+  const offset = (sign: number) =>
+    axis === "forward"
+      ? { x: 0, y: 0, z: -metres }
+      : axis === "up"
+        ? { x: 0, y: -metres, z: 0 }
+        : { x: sign * metres, y: 0, z: 0 }
+
+  for (const [wrist, shoulder, sign] of [
+    [15, 11, -1],
+    [16, 12, 1],
+  ] as const) {
+    const from = points[shoulder]
+    const delta = offset(sign)
+    points[wrist] = {
+      x: from.x + delta.x,
+      y: from.y + delta.y,
+      z: from.z + delta.z,
+      visibility: 1,
+    }
+  }
+
+  if (yawRadians === 0) return points
+  const cos = Math.cos(yawRadians)
+  const sin = Math.sin(yawRadians)
+  return points.map((p) => ({
+    x: p.x * cos - p.z * sin,
+    y: p.y,
+    z: p.x * sin + p.z * cos,
+    visibility: p.visibility,
+  }))
+}
+
+/**
+ * `count` arm reps at 10fps. `near` is the wrist-to-shoulder distance at the
+ * turnaround and `far` the distance at each end, so swapping them is the
+ * difference between a bench press (starts locked out) and an overhead press
+ * (starts racked).
+ */
+function armClip(
+  count: number,
+  { near, far, axis }: { near: number; far: number; axis: "forward" | "up" },
+  index = 1
+): FormCoachAngleLandmarks {
+  const perRep = 20
+  const frames: FormCoachFrame[] = []
+  for (let i = 0; i < count * perRep; i += 1) {
+    const phase = (i % perRep) / perRep
+    const t = (1 - Math.cos(phase * 2 * Math.PI)) / 2
+    frames.push(frameFrom(armPose(far + (near - far) * t, axis), i * 100))
   }
   return { index, frames }
 }
@@ -174,6 +239,66 @@ describe("detectReps", () => {
   })
 })
 
+// The coach is offered on every exercise, so the detector cannot assume the
+// hips are what moved.
+describe("detectReps beyond the squat", () => {
+  it("reads a squat off the hips", () => {
+    expect(chooseRepSignal(repClip(3).frames).signal).toBe("hip_to_ankle")
+  })
+
+  it("counts a press that starts locked out and closes", () => {
+    const clip = armClip(3, { near: 0.15, far: 0.65, axis: "forward" })
+    const detected = chooseRepSignal(clip.frames)
+    expect(detected.reps).toHaveLength(3)
+    expect(detected.signal).toBe("wrist_to_shoulder")
+  })
+
+  // The rep is an opening rather than a closing here, which a detector that
+  // only looks for a dip would undercount by one.
+  it("counts a press that starts racked and opens", () => {
+    const clip = armClip(3, { near: 0.7, far: 0.12, axis: "up" })
+    expect(chooseRepSignal(clip.frames).reps).toHaveLength(3)
+  })
+
+  it("counts a raise where the elbow angle never changes", () => {
+    // A straight arm sweeping up from the hip: wrist-to-shoulder is fixed at
+    // 0.6 throughout, so only the wrist-to-hip distance carries the rep.
+    const perRep = 20
+    const frames: FormCoachFrame[] = []
+    for (let i = 0; i < 2 * perRep; i += 1) {
+      const phase = (i % perRep) / perRep
+      const lift = (1 - Math.cos(phase * 2 * Math.PI)) / 2
+      const theta = (lift * Math.PI) / 2
+      const points = pose(0)
+      for (const [wrist, shoulder, sign] of [
+        [15, 11, -1],
+        [16, 12, 1],
+      ] as const) {
+        const from = points[shoulder]
+        points[wrist] = {
+          x: from.x + sign * 0.6 * Math.sin(theta),
+          y: from.y + 0.6 * Math.cos(theta),
+          z: from.z,
+          visibility: 1,
+        }
+      }
+      frames.push(frameFrom(points, i * 100))
+    }
+
+    const detected = chooseRepSignal(frames)
+    expect(detected.reps).toHaveLength(2)
+    expect(detected.signal).toBe("wrist_to_hip")
+  })
+
+  it("ignores arms that barely move", () => {
+    const clip = armClip(3, { near: 0.55, far: 0.6, axis: "forward" })
+    expect(chooseRepSignal(clip.frames)).toMatchObject({
+      signal: null,
+      reps: [],
+    })
+  })
+})
+
 describe("fuseReps", () => {
   it("combines every rep from every angle", () => {
     const fused = fuseReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
@@ -228,6 +353,17 @@ describe("fuseReps", () => {
     }
     expect(fuseReps([still])).toBeNull()
     expect(fuseReps([])).toBeNull()
+  })
+
+  it("records which signal each angle's reps came from", () => {
+    const fused = fuseReps([
+      repClip(2, 0, 1),
+      armClip(3, { near: 0.15, far: 0.65, axis: "forward" }, 2),
+    ])!
+    expect(fused.angles.map((angle) => angle.repSignal)).toEqual([
+      "hip_to_ankle",
+      "wrist_to_shoulder",
+    ])
   })
 
   it("returns null for a still photo", () => {

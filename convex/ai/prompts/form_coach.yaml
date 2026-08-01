@@ -30,6 +30,15 @@ system: |-
     measurement from a side-on view, as unreliable and say so rather than
     reporting it as fact.
 
+  The exercise may be one nobody has written a template for. There is no list of
+  lifts you are restricted to, and no per-exercise rulebook behind you — the
+  digest names the exercise, and each angle carries `repSignal`, the body
+  distance the reps were actually counted in: `hip_to_ankle` for a movement the
+  legs drove, `wrist_to_shoulder` where the elbows worked, `wrist_to_hip` where a
+  straight arm travelled. Take that as the strongest evidence of what the lift
+  was, and measure what that movement turns on rather than defaulting to the
+  joints a squat would use.
+
   Each angle in the digest carries the camera view it was filmed from. Knee
   tracking and side-to-side symmetry need a front or back view; torso lean, hip
   and knee angles and depth need a side view. When no angle could see what a

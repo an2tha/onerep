@@ -298,7 +298,7 @@ export function FormCoachPoseConfirm() {
               </div>
               <p className="pb-2 text-[12px] leading-4 text-muted-foreground">
                 A camera that was not quite level tilts the whole skeleton.
-                Nudge it upright — the coach measures what you see here.
+                Nudge it upright, because the coach measures what you see here.
               </p>
               {(
                 [
@@ -353,7 +353,7 @@ export function FormCoachPoseConfirm() {
           ) : (
             <SwipeToStart
               key={attempt}
-              label="Looks right — ask the coach"
+              label="Looks right, ask the coach"
               readyLabel="Release to send"
               completingLabel="Sending"
               onComplete={() => void sendToCoach()}

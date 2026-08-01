@@ -258,7 +258,7 @@ export default function NutritionReport() {
               ))}
             </dl>
             <p className="native-row-detail mt-2">
-              Energy split — protein {report.macroSplit.protein}%, carbs{" "}
+              Energy split: protein {report.macroSplit.protein}%, carbs{" "}
               {report.macroSplit.carbs}%, fat {report.macroSplit.fat}%.
             </p>
           </section>
@@ -431,7 +431,7 @@ export default function NutritionReport() {
                 .map((day) => (
                   <div key={day.date} className="print-block mt-3">
                     <h3 className="native-row-title border-b border-border pb-1">
-                      {formatReportDate(day.date)} —{" "}
+                      {formatReportDate(day.date)}:{" "}
                       {Math.round(day.totals.calories)} kcal
                     </h3>
                     <ul className="mt-1 space-y-0.5">

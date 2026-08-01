@@ -5899,27 +5899,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: dashboard-intelligence-in 520ms var(--motion-ease-out) both;
 }
 
-.dashboard-intelligence-tab::after {
-  content: "";
-  position: absolute;
-  right: 34%;
-  bottom: -1px;
-  left: 34%;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--foreground);
-  opacity: 0;
-  transform: scaleX(0.4);
-  transition:
-    opacity 180ms ease,
-    transform 240ms var(--motion-ease-out);
-}
-
-.dashboard-intelligence-tab[aria-selected="true"]::after {
-  opacity: 0.8;
-  transform: scaleX(1);
-}
-
 .dashboard-intelligence-panel {
   animation: dashboard-intelligence-panel-in 300ms var(--motion-ease-out) both;
 }

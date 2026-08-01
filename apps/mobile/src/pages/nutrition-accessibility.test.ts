@@ -74,7 +74,7 @@ describe("Nutrition page accessibility contract", () => {
     expect(NUTRITION_SOURCE).toContain("api.logs.snap.describeText")
   })
 
-  test("nutrition page consumes plan metadata for tracking modes and calibration", () => {
+  test("nutrition page consumes plan metadata for tracking modes", () => {
     expect(NUTRITION_SOURCE).toContain("api.users.users.getNutritionPlan")
     expect(NUTRITION_SOURCE).toContain(
       "const visibleMetrics = nutritionPlan?.visibleMetrics"

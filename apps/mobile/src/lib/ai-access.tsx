@@ -76,7 +76,7 @@ export function AiAccessRequiredModal({
   const spentAllowance = usedCount != null && usedCount >= free
 
   const benefits = [
-    `${pro} AI requests a month, up from ${free}`,
+    `${pro} AI credits a month, up from ${free}`,
     "Coach builds routines, recipes, and goals",
     "Food photo analysis and workout generation",
     "Progress insights across your training data",
@@ -94,7 +94,7 @@ export function AiAccessRequiredModal({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Close paywall"
+        aria-label="Close"
         className="paywall-close"
       >
         <X size={17} weight="bold" />
@@ -120,7 +120,7 @@ export function AiAccessRequiredModal({
         </h2>
         <p className="paywall-subtitle">
           {spentAllowance
-            ? `You've used all ${free} free requests. They reset on the 1st.`
+            ? `You've used all ${free} free AI credits. They reset on the 1st.`
             : "Everything else stays free. Pro covers the AI."}
         </p>
 
@@ -213,17 +213,26 @@ export function useAiFeatureGate() {
   const [paywallBusy, setPaywallBusy] = useState(false)
   const navigate = useSmoothNavigate()
 
-  const requireAiAccess = useCallback(() => {
-    if (hasPro) return true
-    if (isLoading) {
-      toast.message("Checking AI Access…")
-      return false
-    }
-    if (freeRequestsLeft > 0) return true
+  /**
+   * `cost` is how many monthly requests the feature about to run will spend —
+   * form analysis costs more than one. Checking it here means a user short of
+   * the full price is stopped before doing the work, rather than by the server
+   * after they have already filmed and processed a clip.
+   */
+  const requireAiAccess = useCallback(
+    (cost = 1) => {
+      if (hasPro) return true
+      if (isLoading) {
+        toast.message("Checking your access…")
+        return false
+      }
+      if (freeRequestsLeft >= cost) return true
 
-    setModalOpen(true)
-    return false
-  }, [freeRequestsLeft, hasPro, isLoading])
+      setModalOpen(true)
+      return false
+    },
+    [freeRequestsLeft, hasPro, isLoading]
+  )
 
   // Lets Developer settings preview the paywall without spending an allowance.
   const showAiPaywall = useCallback(() => setModalOpen(true), [])
@@ -258,7 +267,7 @@ export function useAiFeatureGate() {
             const message =
               error instanceof Error && error.message
                 ? error.message
-                : "Could not open the paywall"
+                : "We couldn’t start your subscription. Try again."
             if (message !== "Purchase canceled") toast.error(message)
           } finally {
             setPaywallBusy(false)

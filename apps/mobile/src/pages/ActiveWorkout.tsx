@@ -71,8 +71,12 @@ import {
 } from "@/lib/exercise-search-recents"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
-import { useFormCoachSupport } from "@/lib/form-coach"
-import { startFormCoachDraft } from "@/lib/form-coach-clips"
+import { FORM_COACH_AI_COST, useFormCoachSupport } from "@/lib/form-coach"
+import {
+  clearFormCoachDraft,
+  startFormCoachDraft,
+  useFormCoachDraft,
+} from "@/lib/form-coach-clips"
 import { FormCoachRecorder } from "@/components/form-coach-recorder"
 import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
 import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
@@ -4146,9 +4150,20 @@ export default function ActiveWorkout() {
   const posthog = usePostHog()
   const [searchParams, setSearchParams] = useSearchParams()
   const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
-  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
+  const { requireAiAccess, aiAccessLoading, aiAccessModal } = useAiFeatureGate()
   const { context: coachContext, loading: coachContextLoading } =
     useCoachContext()
+
+  // A form analysis spends more than one AI request, so affordability is
+  // checked as the camera opens rather than at send time — being told the
+  // coach cannot be paid for after filming would waste the take.
+  const formCoachDraft = useFormCoachDraft()
+  const formCoachOpening =
+    formCoachDraft?.phase === "recording" && formCoachDraft.clips.length === 0
+  useEffect(() => {
+    if (!formCoachOpening || aiAccessLoading) return
+    if (!requireAiAccess(FORM_COACH_AI_COST)) clearFormCoachDraft()
+  }, [formCoachOpening, aiAccessLoading, requireAiAccess])
 
   const presets = useQuery(api.logs.presets.list, {})
   const logCompletion = useOfflineMutation(
@@ -4339,7 +4354,7 @@ export default function ActiveWorkout() {
         : workoutSyncStatus === "saved"
           ? "Workout saved"
           : workoutSyncStatus === "error"
-            ? "Sync failed"
+            ? "Workout not saved"
             : ""
 
   // Find the next set to highlight
@@ -4438,7 +4453,7 @@ export default function ActiveWorkout() {
           } catch (err) {
             logDevWarn("Failed to sync workout to Convex:", err)
             setWorkoutSyncError(
-              "Workout changes are not synced. Check your connection and retry."
+              "Your latest sets have not been saved yet. Check your connection and try again."
             )
             setWorkoutSyncStatus("error")
           } finally {
@@ -5438,7 +5453,7 @@ export default function ActiveWorkout() {
                   type="button"
                   onClick={() => syncToConvex({ immediate: true })}
                   className="motion-tactile min-h-11 shrink-0 rounded-[10px] border border-destructive/30 bg-destructive/10 px-3 text-[13px] font-extrabold text-destructive"
-                  aria-label="Retry active workout sync"
+                  aria-label="Save workout again"
                 >
                   Retry
                 </button>

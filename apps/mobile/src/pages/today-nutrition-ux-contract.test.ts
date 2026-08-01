@@ -62,8 +62,8 @@ describe("Today and nutrition UX contract", () => {
     assert.match(HOME_SOURCE, /kcal from supplements/)
   })
 
-  test("Nutrition surfaces the adaptive target recommendation", () => {
-    assert.match(NUTRITION_SOURCE, /NutritionCalibrationCard/)
-    assert.match(NUTRITION_SOURCE, /applyNutritionCalibration/)
+  test("Nutrition no longer pushes automatic target adjustments", () => {
+    assert.doesNotMatch(NUTRITION_SOURCE, /NutritionCalibrationCard/)
+    assert.doesNotMatch(NUTRITION_SOURCE, /applyNutritionCalibration/)
   })
 })

@@ -49,16 +49,18 @@ describe("fasting page accessibility", () => {
 })
 
 describe("fasting discoverability", () => {
-  test("nutrition links to the fasting timer from the add sheet", () => {
+  // Fasting has its own card on the nutrition page rather than a row in the
+  // add sheet, so the timer is reachable without opening anything first.
+  test("nutrition links to the fasting timer from its own card", () => {
     expect(NUTRITION_SOURCE).toContain('navigate("/nutrition/fasting")')
-    expect(NUTRITION_SOURCE).toContain('label: "Fasting timer"')
+    expect(NUTRITION_SOURCE).toContain('aria-label="Open the fasting timer"')
   })
 
   test("the fasting entry point stays available on past dates", () => {
-    const row = NUTRITION_SOURCE.slice(
-      NUTRITION_SOURCE.indexOf('label: "Fasting timer"')
-    ).slice(0, 260)
-    expect(row).toContain("supportsHistory: true")
+    const pastDates = NUTRITION_SOURCE.slice(
+      NUTRITION_SOURCE.lastIndexOf("{!isToday && (")
+    ).slice(0, 200)
+    expect(pastDates).toContain("{fastingCard}")
   })
 
   test("a running fast surfaces as a live pill in the nutrition header", () => {

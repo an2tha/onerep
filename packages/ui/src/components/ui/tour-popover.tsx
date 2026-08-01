@@ -165,8 +165,7 @@ export function TourPopover({
       <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
         {chapterTitle}
         <span className="sr-only">
-          {" "}
-          — step {stepNumber} of {stepCount}
+          {`, step ${stepNumber} of ${stepCount}`}
         </span>
         <span aria-hidden className="ml-1.5 normal-case">
           {stepNumber}/{stepCount}

@@ -59,7 +59,7 @@ export function WelcomeSheet({
         </ul>
 
         <p className="mt-4 text-[13px] leading-5 text-muted-foreground">
-          Each area has more inside — recipes, meal prep, fasting, grocery lists
+          Each area has more inside: recipes, meal prep, fasting, grocery lists
           and more. We'll show you where.
         </p>
 

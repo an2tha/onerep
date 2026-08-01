@@ -253,7 +253,7 @@ function FormCoachCamera({
       if (blob.size === 0) {
         setPhase("idle")
         setElapsed(0)
-        toast.error("Nothing was recorded — try again")
+        toast.error("Nothing was recorded. Try again")
         return
       }
       void hapticTap()
@@ -295,7 +295,7 @@ function FormCoachCamera({
       return
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      toast.error("That file is too large — keep it under 64 MB")
+      toast.error("That file is too large. Keep it under 64 MB")
       return
     }
 
@@ -309,7 +309,7 @@ function FormCoachCamera({
 
     const durationMs = await readVideoDuration(file)
     if (durationMs !== null && durationMs > MAX_UPLOAD_DURATION_MS) {
-      toast.error("That video is too long — 30 seconds or less")
+      toast.error("That video is too long. Keep it to 30 seconds or less")
       return
     }
     if (!mountedRef.current) return

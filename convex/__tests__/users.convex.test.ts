@@ -335,15 +335,10 @@ describe("users Convex functions", () => {
       expect(plan!.trackingMode).toBe("recovery");
       expect(plan!.visibleMetrics.calories).toBe(false);
       expect(plan!.visibleMetrics.streaks).toBe(false);
-      expect(plan!.calibration).toMatchObject({
-        status: "protected",
-        canApply: false,
-      });
-      expect(plan!.calibration.detail).not.toMatch(/deficit/i);
     });
   });
 
-  test("getNutritionPlan waits for enough data before calibration", async () => {
+  test("getNutritionPlan points sparse users at the missing input", async () => {
     const t = convexTest(schema, modules);
 
     await t.withIdentity({ name: "nutrition-plan-sparse-user" }, async () => {
@@ -360,157 +355,7 @@ describe("users Convex functions", () => {
         date: "2026-07-14",
       });
 
-      expect(plan!.calibration).toMatchObject({
-        status: "collect_more_data",
-        canApply: false,
-      });
       expect(plan!.nextBestAction.kind).toBe("add_check_in");
-    });
-  });
-
-  test("fat-loss calibration adjusts modestly after sufficient logs and body trend", async () => {
-    const t = convexTest(schema, modules);
-
-    await t.withIdentity({ name: "fat-loss-calibration-user" }, async () => {
-      await t.mutation(api.logs.calories.setProfile, {
-        sex: "female",
-        age: 28,
-        weightKg: 68,
-        heightCm: 166,
-        activityLevel: "lightly_active",
-        goal: "lose",
-      });
-      await t.mutation(api.users.onboarding.save, {
-        age: 28,
-        heightCm: 166,
-        goal: "lose",
-        nutritionGoal: "lose_fat",
-        safetyMode: "standard",
-        trackingMode: "full",
-      });
-
-      const user = await t.query(api.users.users.getCurrentUser, {});
-      const userId = user!._id;
-      await t.run(async (ctx) => {
-        for (let day = 1; day <= 8; day += 1) {
-          await ctx.db.insert("foodLogs", {
-            userId,
-            date: `2026-07-${String(day).padStart(2, "0")}`,
-            entries: [
-              {
-                name: "planned day",
-                calories: 1450,
-                protein: 122,
-                carbs: 140,
-                fat: 45,
-              },
-            ],
-            updatedAt: Date.now(),
-          });
-        }
-        await ctx.db.insert("bodyMeasurements", {
-          userId,
-          clientId: "start",
-          loggedAt: "2026-07-01",
-          weightKg: 68,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await ctx.db.insert("bodyMeasurements", {
-          userId,
-          clientId: "end",
-          loggedAt: "2026-07-14",
-          weightKg: 68.1,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      });
-
-      const plan = await t.query(api.users.users.getNutritionPlan, {
-        date: "2026-07-14",
-      });
-
-      expect(plan!.calibration.status).toBe("decrease_calories");
-      expect(plan!.calibration.canApply).toBe(true);
-      expect(plan!.calibration.targets!.calories).toBeLessThan(
-        plan!.targets.calories,
-      );
-      expect(plan!.targets.calories - plan!.calibration.targets!.calories).toBe(
-        120,
-      );
-    });
-  });
-
-  test("performance calibration prioritizes fueling when training data is thin", async () => {
-    const t = convexTest(schema, modules);
-
-    await t.withIdentity({ name: "performance-fueling-user" }, async () => {
-      await t.mutation(api.logs.calories.setProfile, {
-        sex: "male",
-        age: 31,
-        weightKg: 82,
-        heightCm: 182,
-        activityLevel: "moderately_active",
-        goal: "gain",
-      });
-      await t.mutation(api.users.onboarding.save, {
-        age: 31,
-        heightCm: 182,
-        goal: "performance",
-        nutritionGoal: "performance",
-        safetyMode: "standard",
-        trackingMode: "full",
-      });
-
-      const user = await t.query(api.users.users.getCurrentUser, {});
-      const userId = user!._id;
-      await t.run(async (ctx) => {
-        for (let day = 1; day <= 8; day += 1) {
-          await ctx.db.insert("foodLogs", {
-            userId,
-            date: `2026-07-${String(day).padStart(2, "0")}`,
-            entries: [
-              {
-                name: "training fuel",
-                calories: 3300,
-                protein: 190,
-                carbs: 390,
-                fat: 95,
-              },
-            ],
-            updatedAt: Date.now(),
-          });
-        }
-        await ctx.db.insert("bodyMeasurements", {
-          userId,
-          clientId: "start",
-          loggedAt: "2026-07-01",
-          weightKg: 82,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-        await ctx.db.insert("bodyMeasurements", {
-          userId,
-          clientId: "end",
-          loggedAt: "2026-07-14",
-          weightKg: 82,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        });
-      });
-
-      const plan = await t.query(api.users.users.getNutritionPlan, {
-        date: "2026-07-14",
-      });
-
-      expect(plan!.calibration.status).toBe("improve_fueling");
-      expect(plan!.calibration.canApply).toBe(true);
-      expect(plan!.calibration.targets!.calories).toBeGreaterThan(
-        plan!.targets.calories,
-      );
-      expect(plan!.calibration.targets!.carbs).toBeGreaterThan(
-        plan!.targets.carbs,
-      );
     });
   });
 
@@ -546,45 +391,6 @@ describe("users Convex functions", () => {
       expect(
         plan!.mealSuggestions.some((item) => item.action === "photo_log"),
       ).toBe(true);
-    });
-  });
-
-  test("applyNutritionCalibration updates custom goals and preserves health goals", async () => {
-    const t = convexTest(schema, modules);
-
-    await t.withIdentity({ name: "apply-calibration-user" }, async () => {
-      await t.mutation(api.logs.calories.setProfile, {
-        sex: "male",
-        age: 30,
-        weightKg: 80,
-        heightCm: 175,
-        activityLevel: "moderately_active",
-        goal: "maintain",
-      });
-
-      const applied = await t.mutation(
-        api.users.users.applyNutritionCalibration,
-        {
-          calories: 2400.4,
-          protein: 180.2,
-          carbs: 250.8,
-          fat: 76.1,
-        },
-      );
-      const goals = await t.query(api.users.users.getEffectiveGoals, {});
-
-      expect(applied).toEqual({
-        calories: 2400,
-        protein: 180,
-        carbs: 251,
-        fat: 76,
-      });
-      expect(goals!.custom).toEqual(applied);
-      expect(goals!.effective).toEqual(applied);
-      expect(goals!.health).toMatchObject({
-        calories: 2711,
-        source: "healthProfile",
-      });
     });
   });
 
@@ -648,31 +454,6 @@ describe("users Convex functions", () => {
         burnedCalories: 375,
         effective: { calories: 2375 },
       });
-    });
-  });
-
-  test("applyNutritionCalibration inserts preferences for a user that has none", async () => {
-    const t = convexTest(schema, modules);
-
-    await t.withIdentity({ name: "calibration-fresh-user" }, async () => {
-      await expect(
-        t.query(api.users.users.getPreferences, {}),
-      ).resolves.toBeNull();
-
-      const applied = await t.mutation(
-        api.users.users.applyNutritionCalibration,
-        { calories: 2150.6, protein: 165.4, carbs: 210.5, fat: 70.2 },
-      );
-
-      expect(applied).toEqual({
-        calories: 2151,
-        protein: 165,
-        carbs: 211,
-        fat: 70,
-      });
-      await expect(
-        t.query(api.users.users.getPreferences, {}),
-      ).resolves.toMatchObject({ customGoals: applied });
     });
   });
 

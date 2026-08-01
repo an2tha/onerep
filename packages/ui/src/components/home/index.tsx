@@ -6,14 +6,12 @@ import {
   Circle,
   Fire,
   ForkKnife,
-  Lightning,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   PencilSimple,
   Pill,
   PintGlass,
   PushPin,
-  X,
 } from "@phosphor-icons/react"
 import { useAnimatedNumber } from "../../hooks/use-animated-number"
 import { cn } from "../../lib/utils"
@@ -22,13 +20,6 @@ import { SlideToDeleteRow } from "../slide-to-delete-row"
 
 export * from "./dashboard-intelligence"
 export * from "./coach-dashboard-widgets"
-
-export type DashboardBriefingView = {
-  action: string
-  title: string
-  detail: string
-  actionLabel: string
-}
 
 export type MacroProgress = {
   label: string
@@ -515,10 +506,6 @@ export function DailyLedgerHero({
   caloriesTarget,
   macros = [],
   supplementCalories = 0,
-  briefing,
-  onBriefingAction,
-  onBriefingDismiss,
-  showBriefingAction = true,
   className,
 }: {
   caloriesLeft: number
@@ -526,10 +513,6 @@ export function DailyLedgerHero({
   macros?: MacroProgress[]
   /** Folded into the totals above; shown so the figures reconcile with the meal list. */
   supplementCalories?: number
-  briefing: DashboardBriefingView
-  onBriefingAction: () => void
-  onBriefingDismiss?: () => void
-  showBriefingAction?: boolean
   className?: string
 }) {
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
@@ -586,37 +569,6 @@ export function DailyLedgerHero({
           </p>
         )}
       </section>
-
-      {/* Briefing banner */}
-      {showBriefingAction && (
-        <div className="mt-3 flex items-center gap-3 rounded-[20px] bg-foreground py-2.5 pr-2.5 pl-4">
-          <Lightning
-            size={16}
-            weight="fill"
-            className="shrink-0 text-background/80"
-          />
-          <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-background">
-            {briefing.title}
-          </p>
-          <button
-            type="button"
-            onClick={onBriefingAction}
-            className="shrink-0 rounded-full bg-background px-3.5 py-2 text-[12px] font-semibold text-foreground transition-transform active:scale-95"
-          >
-            {briefing.actionLabel}
-          </button>
-          {onBriefingDismiss && (
-            <button
-              type="button"
-              onClick={onBriefingDismiss}
-              aria-label="Dismiss suggestion"
-              className="grid size-9 shrink-0 place-items-center rounded-full text-background/50 active:text-background"
-            >
-              <X size={14} weight="bold" />
-            </button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -863,8 +815,8 @@ export function TrainingWeekCard({
               aria-expanded={showConsistency}
               aria-label={
                 showConsistency
-                  ? "Zoom in to this week"
-                  : "Zoom out to last 28 days"
+                  ? "Show this week only"
+                  : "Show the last 28 days"
               }
               className="native-toolbar-button px-0 text-muted-foreground"
             >

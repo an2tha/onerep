@@ -93,7 +93,7 @@ export const WALKTHROUGH_CHAPTERS: readonly TourChapter[] = [
         body: (ctx) =>
           `Your daily targets. The middle tile shows ${carbLabelLower(
             ctx.netCarbsEnabled ? "net" : "total"
-          )} — you can switch that in Settings, under Nutrition strategy.`,
+          )}. You can switch that in Settings, under Nutrition strategy.`,
       },
       {
         id: "nutrition.mealBudget",

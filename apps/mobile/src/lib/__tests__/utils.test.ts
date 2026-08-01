@@ -165,8 +165,20 @@ describe("safe localStorage helpers", () => {
     }
   }
 
+  // Both paths have to be closed off, not just `window`: the helper falls back
+  // to `globalThis.localStorage`, and the runtime supplies one of its own —
+  // which is why stubbing `window` alone passes this file in isolation and
+  // fails once another test has already materialised the global.
   test("returns null when localStorage is unavailable", () => {
+    const originalGlobalStorage = Object.getOwnPropertyDescriptor(
+      globalThis,
+      "localStorage",
+    );
     Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(globalThis, "localStorage", {
       configurable: true,
       value: undefined,
     });
@@ -177,6 +189,15 @@ describe("safe localStorage helpers", () => {
       expect(safeLocalStorageSet("key", "value")).toBe(false);
       expect(safeLocalStorageRemove("key")).toBe(false);
     } finally {
+      if (originalGlobalStorage) {
+        Object.defineProperty(
+          globalThis,
+          "localStorage",
+          originalGlobalStorage,
+        );
+      } else {
+        Reflect.deleteProperty(globalThis, "localStorage");
+      }
       restoreWindow();
     }
   });

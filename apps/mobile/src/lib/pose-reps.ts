@@ -4,6 +4,8 @@ import { MIN_VISIBILITY, POSE_LANDMARK_COUNT } from "@/lib/pose-scene"
 const NOSE = 0
 const LEFT_SHOULDER = 11
 const RIGHT_SHOULDER = 12
+const LEFT_WRIST = 15
+const RIGHT_WRIST = 16
 const LEFT_HIP = 23
 const RIGHT_HIP = 24
 const LEFT_ANKLE = 27
@@ -140,13 +142,34 @@ export function applyOrientation(
   }))
 }
 
+/** Mean distance between the visible members of each landmark pair, in metres. */
+function meanPairDistance(
+  frame: FormCoachFrame,
+  pairs: ReadonlyArray<readonly [number, number]>
+): number | null {
+  const points = frame.worldLandmarks
+  if (points.length === 0) return null
+
+  let total = 0
+  let counted = 0
+  for (const [from, to] of pairs) {
+    const a = points[from]
+    const b = points[to]
+    if (!a || !b) continue
+    if ((a.visibility ?? 1) < MIN_VISIBILITY) continue
+    if ((b.visibility ?? 1) < MIN_VISIBILITY) continue
+    total += length(sub(a, b))
+    counted += 1
+  }
+  return counted === 0 ? null : total / counted
+}
+
 /**
  * How far the hips sit above the ankles, in metres.
  *
- * This is the rep signal. Hip *height* is useless here — world landmarks are
- * hip-centred, so the hips are pinned at the origin by definition — but the
- * hip-to-ankle distance shrinks as the lifter descends and is invariant to
- * which way the camera was pointing.
+ * Hip *height* is useless here — world landmarks are hip-centred, so the hips
+ * are pinned at the origin by definition — but the hip-to-ankle distance shrinks
+ * as the lifter descends and is invariant to which way the camera was pointing.
  */
 export function hipToAnkle(frame: FormCoachFrame): number | null {
   const points = frame.worldLandmarks
@@ -165,22 +188,59 @@ export function hipToAnkle(frame: FormCoachFrame): number | null {
   )
 }
 
+/** How far the wrists sit from the shoulders: presses, rows, curls, pull-ups. */
+export function wristToShoulder(frame: FormCoachFrame): number | null {
+  return meanPairDistance(frame, [
+    [LEFT_WRIST, LEFT_SHOULDER],
+    [RIGHT_WRIST, RIGHT_SHOULDER],
+  ])
+}
+
+/**
+ * How far the wrists sit from the hips: raises, pulldowns, shrugs, and anything
+ * else where the arm travels as a whole and the elbow barely changes angle.
+ */
+export function wristToHip(frame: FormCoachFrame): number | null {
+  return meanPairDistance(frame, [
+    [LEFT_WRIST, LEFT_HIP],
+    [RIGHT_WRIST, RIGHT_HIP],
+  ])
+}
+
+/**
+ * The distances a rep can show up in, all camera-invariant and in metres.
+ *
+ * A rep is a there-and-back excursion in *some* distance on the body, but which
+ * distance depends on the lift: the hips travel towards the floor in a squat,
+ * the wrists towards the shoulders in a curl or a bench press, and away from the
+ * hips in a lateral raise. Rather than keeping a table of exercise to signal —
+ * which would need an entry, and a guess, for every movement a user might log —
+ * all of them are measured and the one that actually moved is used. That is what
+ * lets a single detector serve every exercise.
+ */
+export const REP_SIGNALS = {
+  hip_to_ankle: hipToAnkle,
+  wrist_to_shoulder: wristToShoulder,
+  wrist_to_hip: wristToHip,
+} as const
+
+export type RepSignalName = keyof typeof REP_SIGNALS
+
 export type Rep = {
-  /** Frame indices: standing, deepest point, standing again. */
+  /** Frame indices: the start of the rep, its turnaround, and its end. */
   startIndex: number
   bottomIndex: number
   endIndex: number
 }
 
 /**
- * Finds reps as descend-and-return cycles in the hip-to-ankle signal.
+ * Finds cycles in one signal, taking a *fall* and return as the rep.
  *
  * Uses hysteresis rather than plain local minima: a lifter pausing or bouncing
- * at the bottom produces several minima within one rep, and thresholding on a
- * single midpoint would count each of them.
+ * at the turnaround produces several minima within one rep, and thresholding on
+ * a single midpoint would count each of them.
  */
-export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
-  const signal = frames.map(hipToAnkle)
+function detectCycles(signal: ReadonlyArray<number | null>): Rep[] {
   const tracked = signal.filter((value): value is number => value !== null)
   if (tracked.length < 4) return []
 
@@ -190,11 +250,11 @@ export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
   if (range < MIN_REP_RANGE_M) return []
 
   // Wide band so noise around either end cannot re-trigger the state machine.
-  const standing = bottom + range * 0.75
+  const extended = bottom + range * 0.75
   const deep = bottom + range * 0.35
 
   const reps: Rep[] = []
-  let phase: "standing" | "descending" = "standing"
+  let phase: "extended" | "working" = "extended"
   let startIndex = 0
   let bottomIndex = 0
   let bottomValue = Infinity
@@ -203,10 +263,10 @@ export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
     const value = signal[i]
     if (value === null) continue
 
-    if (phase === "standing") {
-      if (value >= standing) startIndex = i
+    if (phase === "extended") {
+      if (value >= extended) startIndex = i
       if (value <= deep) {
-        phase = "descending"
+        phase = "working"
         bottomIndex = i
         bottomValue = value
       }
@@ -217,15 +277,69 @@ export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
       bottomValue = value
       bottomIndex = i
     }
-    if (value >= standing) {
+    if (value >= extended) {
       reps.push({ startIndex, bottomIndex, endIndex: i })
-      phase = "standing"
+      phase = "extended"
       startIndex = i
       bottomValue = Infinity
     }
   }
 
   return reps
+}
+
+export type RepDetection = {
+  /** The signal the reps were read from, or null when none were found. */
+  signal: RepSignalName | null
+  reps: Rep[]
+}
+
+/**
+ * Reads reps out of whichever signal the movement actually lives in.
+ *
+ * Each candidate is tried in both directions, because a rep is not always a
+ * shortening: a bench press starts at lockout and closes the wrist-to-shoulder
+ * distance, while an overhead press starts racked and opens it. Whichever
+ * combination yields the most reps wins, with the larger excursion breaking
+ * ties — the signal that moved furthest is the one the lift was about.
+ */
+export function chooseRepSignal(
+  frames: readonly FormCoachFrame[]
+): RepDetection {
+  let best: RepDetection & { range: number } = {
+    signal: null,
+    reps: [],
+    range: 0,
+  }
+
+  for (const [name, extract] of Object.entries(REP_SIGNALS) as Array<
+    [RepSignalName, (frame: FormCoachFrame) => number | null]
+  >) {
+    const values = frames.map(extract)
+    const tracked = values.filter((value): value is number => value !== null)
+    if (tracked.length < 4) continue
+    const range = Math.max(...tracked) - Math.min(...tracked)
+    if (range < MIN_REP_RANGE_M) continue
+
+    for (const inverted of [false, true]) {
+      const reps = detectCycles(
+        inverted ? values.map((v) => (v === null ? null : -v)) : values
+      )
+      const better =
+        reps.length > best.reps.length ||
+        (reps.length === best.reps.length &&
+          reps.length > 0 &&
+          range > best.range)
+      if (better) best = { signal: name, reps, range }
+    }
+  }
+
+  return { signal: best.signal, reps: best.reps }
+}
+
+/** The reps in a clip, from whichever signal best describes the movement. */
+export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
+  return chooseRepSignal(frames).reps
 }
 
 function lerpPoint(a: Point, b: Point, t: number): Point {
@@ -297,6 +411,12 @@ export type AngleSummary = {
   /** Share of frames in which a pose was found, 0–1. */
   trackingRate: number
   durationMs: number
+  /**
+   * Which body distance the reps were counted in. Travels with the capture
+   * because it says what the movement was, which the coach otherwise has no way
+   * to know for an exercise it has never been told about.
+   */
+  repSignal: RepSignalName
 }
 
 export type FusedReps = {
@@ -419,8 +539,8 @@ export function fuseReps(
   const angleSummaries: AngleSummary[] = []
 
   for (const angle of angles) {
-    const reps = detectReps(angle.frames)
-    if (reps.length === 0) continue
+    const { signal, reps } = chooseRepSignal(angle.frames)
+    if (reps.length === 0 || signal === null) continue
     contributingAngles += 1
 
     const trackedCount = angle.frames.filter(
@@ -433,6 +553,7 @@ export function fuseReps(
       trackingRate:
         angle.frames.length === 0 ? 0 : trackedCount / angle.frames.length,
       durationMs: angle.frames.at(-1)?.timeMs ?? 0,
+      repSignal: signal,
     })
 
     const bodyFrames = angle.frames.map((frame) =>

@@ -1049,7 +1049,7 @@ export const getNutritionPlan = query({
       fat: customGoals?.fat ?? healthGoals?.fat ?? 65,
     };
 
-    const [foodLogs, bodyMeasurements, workoutLogs, recipes, mealPresets] =
+    const [foodLogs, bodyMeasurements, recipes, mealPresets] =
       await Promise.all([
         ctx.db
           .query("foodLogs")
@@ -1062,15 +1062,6 @@ export const getNutritionPlan = query({
           .query("bodyMeasurements")
           .withIndex("by_userId", (q) => q.eq("userId", user._id))
           .collect(),
-        ctx.db
-          .query("workoutLogs")
-          .withIndex("by_userId_date", (q) =>
-            q.eq("userId", user._id).lte("date", date),
-          )
-          .order("desc")
-          // Keep roughly three weeks of training-day context now that a day
-          // can contain two independently logged sessions.
-          .take(42),
         ctx.db
           .query("recipes")
           .withIndex("by_userId", (q) => q.eq("userId", user._id))
@@ -1089,49 +1080,9 @@ export const getNutritionPlan = query({
       onboarding,
       foodLogs,
       bodyMeasurements,
-      workoutLogs,
       recipes,
       mealPresets,
     });
-  },
-});
-
-export const applyNutritionCalibration = mutation({
-  args: {
-    calories: v.number(),
-    protein: v.number(),
-    carbs: v.number(),
-    fat: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
-    const existing = await ctx.db
-      .query("userPreferences")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .unique();
-
-    const customGoals = {
-      calories: Math.round(args.calories),
-      protein: Math.round(args.protein),
-      carbs: Math.round(args.carbs),
-      fat: Math.round(args.fat),
-    };
-
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        customGoals,
-        updatedAt: Date.now(),
-      });
-    } else {
-      await ctx.db.insert("userPreferences", {
-        userId: user._id,
-        lastActiveTimezone: "UTC",
-        customGoals,
-        updatedAt: Date.now(),
-      });
-    }
-
-    return customGoals;
   },
 });
 

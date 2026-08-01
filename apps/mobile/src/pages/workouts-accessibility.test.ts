@@ -15,9 +15,10 @@ describe("Workouts page production contract", () => {
       "onClick={deleting ? undefined : onCancel}",
     )
     expect(WORKOUTS_SOURCE).toContain("aria-busy={deleting}")
-    expect(WORKOUTS_SOURCE).toContain(
-      '{deleting ? "Deleting..." : "Delete preset"}',
-    )
+    // The sheet takes its labels as props now that workout logs reuse it.
+    expect(WORKOUTS_SOURCE).toContain("{deleting ? busyLabel : confirmLabel}")
+    expect(WORKOUTS_SOURCE).toContain('confirmLabel="Delete preset"')
+    expect(WORKOUTS_SOURCE).toContain('busyLabel="Deleting..."')
     expect(WORKOUTS_SOURCE).toContain(
       "await persist(nextPresets, nextRoutine, nextRoutine2)",
     )

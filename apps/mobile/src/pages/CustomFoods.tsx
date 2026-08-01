@@ -218,7 +218,7 @@ export default function CustomFoods() {
             title={foods.length === 0 ? "No custom foods yet" : "No matches"}
             detail={
               foods.length === 0
-                ? "Add the things the database gets wrong — your protein scoop, your usual takeaway, grandma's stew — once, then log them in a tap."
+                ? "Add the things the database gets wrong, such as your protein scoop, your usual takeaway, or grandma's stew. Save each one once, then log it in a tap."
                 : "Try a different search."
             }
             action={
@@ -536,8 +536,8 @@ function CustomFoodEditorSheet({
                 className="native-field-hint mt-2 flex items-center gap-1.5 text-[var(--accent-food)]"
               >
                 <Warning size={14} weight="bold" aria-hidden />
-                Macros add up to {caloriesFromMacros(nutrients)} kcal — double
-                check the numbers.
+                Macros add up to {caloriesFromMacros(nutrients)} kcal. Double check
+                the numbers.
               </p>
             )}
           </fieldset>

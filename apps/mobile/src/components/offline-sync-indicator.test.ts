@@ -23,16 +23,16 @@ describe("offline sync indicator production contract", () => {
     expect(SOURCE).toContain('aria-live="polite"')
     expect(SOURCE).toContain("disabled={syncing}")
     expect(SOURCE).toContain("aria-busy={syncing}")
-    expect(SOURCE).toContain(
-      '{syncing ? "Syncing" : status.tone === "error" ? "Retry" : "Sync"}'
-    )
-    expect(SOURCE).toContain('"Retry offline sync"')
-    expect(SOURCE).toContain('"Sync saved changes"')
+    expect(SOURCE).toContain('"Saving"')
+    expect(SOURCE).toContain('"Try again"')
+    expect(SOURCE).toContain('"Save now"')
+    expect(SOURCE).toContain('"Try saving your changes again"')
+    expect(SOURCE).toContain('"Save your changes now"')
   })
 
   test("does not allow dismissing the status while a sync is in progress", () => {
     expect(SOURCE).toContain("if (!syncing) setDismissed(true)")
-    expect(SOURCE).toContain('aria-label="Dismiss offline sync status"')
+    expect(SOURCE).toContain('aria-label="Dismiss the unsaved changes message"')
     expect(SOURCE).toContain("disabled:opacity-40")
   })
 })

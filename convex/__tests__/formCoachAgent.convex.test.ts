@@ -50,7 +50,16 @@ const capture: FormCoachCapture = {
   exerciseName: "Barbell Squat",
   repCount: 3,
   angles: [
-    { index: 1, view: "side", repCount: 2, trackingRate: 1, durationMs: 4000 },
+    {
+      index: 1,
+      view: "side",
+      repCount: 2,
+      trackingRate: 1,
+      durationMs: 4000,
+      repSignal: "hip_to_ankle",
+    },
+    // Deliberately without a repSignal: captures recorded before the detector
+    // went beyond squats still have to read.
     {
       index: 2,
       view: "front",
@@ -182,8 +191,22 @@ describe("form coach tools", () => {
     const result = await call(tools.get_capture_quality, {});
     expect(result.totalReps).toBe(3);
     expect(result.angles).toEqual([
-      { index: 1, view: "side", trackingRate: 1, reps: 2, durationMs: 4000 },
-      { index: 2, view: "front", trackingRate: 0.8, reps: 1, durationMs: 2000 },
+      {
+        index: 1,
+        view: "side",
+        trackingRate: 1,
+        reps: 2,
+        durationMs: 4000,
+        repSignal: "hip_to_ankle",
+      },
+      {
+        index: 2,
+        view: "front",
+        trackingRate: 0.8,
+        reps: 1,
+        durationMs: 2000,
+        repSignal: null,
+      },
     ]);
   });
 

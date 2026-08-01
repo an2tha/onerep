@@ -22,6 +22,25 @@ const AI_USAGE_SOURCES = [
 
 export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
 
+/**
+ * What one request of each kind spends from the monthly allowance.
+ *
+ * Not every request costs the same to serve. Form analysis runs a multi-step
+ * tool loop over a motion capture rather than a single completion, so it is
+ * priced at two, and the allowance keeps meaning roughly the same amount of
+ * inference regardless of which feature spends it.
+ */
+export const AI_USAGE_COST: Record<AiUsageSource, number> = {
+  progress_metrics: 1,
+  workout_preset: 1,
+  food_snap: 1,
+  form_coach: 2,
+};
+
+export function aiUsageCost(source: AiUsageSource) {
+  return AI_USAGE_COST[source] ?? 1;
+}
+
 export type AiUsageQuota = {
   allowed: boolean;
   count: number;
@@ -98,12 +117,17 @@ export const consumeMonthlyQuota = internalMutation({
       hasActiveProEntitlement(ctx, args.userId),
     ]);
     const limit = aiMonthlyRequestLimit(isPro);
+    const cost = aiUsageCost(args.source);
+    const count = existing?.count ?? 0;
 
-    if (existing && existing.count >= limit) {
+    // Rejected rather than clamped: a request that cannot be paid for in full
+    // must not run at all, or a user with one left would get a two-cost
+    // analysis for the price of one.
+    if (count + cost > limit) {
       return {
         allowed: false,
-        count: existing.count,
-        remaining: 0,
+        count,
+        remaining: Math.max(0, limit - count),
         limit,
         month,
         isPro,
@@ -111,7 +135,7 @@ export const consumeMonthlyQuota = internalMutation({
       };
     }
 
-    const nextCount = (existing?.count ?? 0) + 1;
+    const nextCount = count + cost;
     const updatedAt = Date.now();
     if (existing) {
       await ctx.db.patch(existing._id, {
@@ -217,10 +241,18 @@ export async function consumeAiUsageOrThrow(
   );
 
   if (!quota.allowed) {
+    const cost = aiUsageCost(source);
+    // Saying "limit reached" to someone staring at a remaining count above zero
+    // reads as a bug, so a request too expensive for what is left says so.
+    const reason =
+      quota.remaining > 0
+        ? `This one costs ${cost} of your monthly AI requests and you have ${quota.remaining} left`
+        : `Monthly AI request limit reached (${quota.limit}/month${quota.isPro ? "" : " on the free plan"})`;
+
     throw new Error(
       quota.isPro
-        ? `Monthly AI request limit reached (${quota.limit}/month). Try again next month.`
-        : `Monthly AI request limit reached (${quota.limit}/month on the free plan). Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, or try again next month.`,
+        ? `${reason}. Try again next month.`
+        : `${reason}. Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, or try again next month.`,
     );
   }
 

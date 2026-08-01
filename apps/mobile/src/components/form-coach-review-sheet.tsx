@@ -236,7 +236,7 @@ export function FormCoachReviewSheet() {
               <div className="flex items-baseline justify-between">
                 <span className="text-[14px] font-semibold">
                   {progress?.stage === "loading"
-                    ? "Loading the pose model…"
+                    ? "Preparing to read your form…"
                     : "Reading your form…"}
                 </span>
                 <span className="text-[12px] text-muted-foreground tabular-nums">

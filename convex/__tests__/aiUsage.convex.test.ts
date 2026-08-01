@@ -180,6 +180,52 @@ describe("AI monthly usage quota", () => {
     ).rejects.toThrow("(500/month). Try again next month.");
   });
 
+  test("a form analysis spends two requests, not one", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-quota-form-coach";
+
+    await expect(
+      t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId,
+        source: "form_coach",
+      }),
+    ).resolves.toMatchObject({ allowed: true, count: 2, remaining: 8 });
+
+    await expect(
+      t
+        .withIdentity({ tokenIdentifier: userId })
+        .query(api.ai.usage.getMonthlyUsage, {}),
+    ).resolves.toMatchObject({ count: 2, remaining: 8 });
+  });
+
+  test("a request that cannot be paid for in full is refused, not part-charged", async () => {
+    const t = convexTest(schema, modules);
+    const userId = "test|ai-quota-form-coach-short";
+
+    // Nine of ten spent, so a two-cost analysis no longer fits.
+    for (let i = 0; i < 9; i += 1) {
+      await t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId,
+        source: "progress_metrics",
+      });
+    }
+
+    await expect(
+      t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId,
+        source: "form_coach",
+      }),
+    ).resolves.toMatchObject({ allowed: false, count: 9, remaining: 1 });
+
+    // The one request that is left is still usable by a cheaper feature.
+    await expect(
+      t.mutation(internal.ai.usage.consumeMonthlyQuota, {
+        userId,
+        source: "food_snap",
+      }),
+    ).resolves.toMatchObject({ allowed: true, count: 10, remaining: 0 });
+  });
+
   test("public AI actions reject once the monthly quota is exhausted", async () => {
     const t = convexTest(schema, modules);
     const userId = "test|ai-action-quota-user";

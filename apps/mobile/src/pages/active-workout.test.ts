@@ -386,7 +386,7 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain('role="status"')
     expect(ACTIVE_WORKOUT_SOURCE).toContain('aria-live="polite"')
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      'aria-label="Retry active workout sync"'
+      'aria-label="Save workout again"'
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "onClick={() => syncToConvex({ immediate: true })}"
@@ -403,7 +403,7 @@ describe("active workout sync production safeguards", () => {
       "if (dirtyVersionRef.current === syncVersion)"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toMatch(
-      /setWorkoutSyncError\(\s*"Workout changes are not synced\. Check your connection and retry\."\s*\)/
+      /setWorkoutSyncError\(\s*"Your latest sets have not been saved yet\. Check your connection and try again\."\s*\)/
     )
   })
 

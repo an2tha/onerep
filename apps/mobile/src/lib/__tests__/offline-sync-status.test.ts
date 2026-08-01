@@ -97,19 +97,36 @@ describe("offline sync status copy", () => {
     })
   })
 
-  test("surfaces sync errors and truncates long messages", () => {
+  test("surfaces sync errors without leaking the raw message", () => {
+    const raw =
+      "validation failed because the saved payload was too old to apply safely"
     const copy = offlineSyncStatusCopy({
       online: true,
       canSync: true,
       total: 1,
-      lastError:
-        "validation failed because the saved payload was too old to apply safely",
+      lastError: raw,
     })
 
     expect(copy.title).toBe("Sync needs attention")
     expect(copy.tone).toBe("error")
     expect(copy.canRetry).toBe(true)
-    expect(copy.body.length).toBeLessThanOrEqual("Last error: ".length + 72)
+    expect(copy.body).not.toContain("validation failed")
+    expect(copy.body).toBe(
+      "Your changes are safe on this device. Retry to back them up."
+    )
+  })
+
+  test("names the connection when the failure looks like a network problem", () => {
+    const copy = offlineSyncStatusCopy({
+      online: true,
+      canSync: true,
+      total: 1,
+      lastError: "TypeError: Failed to fetch",
+    })
+
+    expect(copy.body).toBe(
+      "We couldn’t reach OneRep. Check your connection, then retry."
+    )
   })
 
   test("surfaces transient retry errors even when no queued count is available", () => {
@@ -122,7 +139,7 @@ describe("offline sync status copy", () => {
       })
     ).toEqual({
       title: "Sync needs attention",
-      body: "Last error: Storage could not be read",
+      body: "Your changes are safe on this device. Retry to back them up.",
       tone: "error",
       canRetry: true,
     })
@@ -135,6 +152,8 @@ describe("offline sync status copy", () => {
     expect(offlineSyncErrorText("Manual retry failed")).toBe(
       "Manual retry failed"
     )
-    expect(offlineSyncErrorText(null)).toBe("Sync failed. Try again.")
+    expect(offlineSyncErrorText(null)).toBe(
+      "Your changes are still on this device and not backed up yet."
+    )
   })
 })

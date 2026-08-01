@@ -2,7 +2,7 @@
 //  SceneDelegate.swift
 //  App
 //
-//  Created by Anantha Halmuttur on 13.07.26.
+//  Created on 13.07.26.
 //
 
 
