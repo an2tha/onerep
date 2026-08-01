@@ -650,4 +650,66 @@ describe("users Convex functions", () => {
       });
     });
   });
+
+  test("applyNutritionCalibration inserts preferences for a user that has none", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "calibration-fresh-user" }, async () => {
+      await expect(
+        t.query(api.users.users.getPreferences, {}),
+      ).resolves.toBeNull();
+
+      const applied = await t.mutation(
+        api.users.users.applyNutritionCalibration,
+        { calories: 2150.6, protein: 165.4, carbs: 210.5, fat: 70.2 },
+      );
+
+      expect(applied).toEqual({
+        calories: 2151,
+        protein: 165,
+        carbs: 211,
+        fat: 70,
+      });
+      await expect(
+        t.query(api.users.users.getPreferences, {}),
+      ).resolves.toMatchObject({ customGoals: applied });
+    });
+  });
+
+  test("setDashboardTrendMetric accepts the measurements that were previously untrendable", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "trend-metric-user" }, async () => {
+      for (const metric of ["neckCm", "hipsCm", "calvesCm"] as const) {
+        await t.mutation(api.users.users.setDashboardTrendMetric, { metric });
+        await expect(
+          t.query(api.users.users.getPreferences, {}),
+        ).resolves.toMatchObject({ dashboardSettings: { trendMetric: metric } });
+      }
+    });
+  });
+
+  test("setDashboardTrendMetric preserves workoutFocus and simpleMode", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.withIdentity({ name: "trend-metric-preserve-user" }, async () => {
+      await t.mutation(api.users.users.setDashboardSettings, {
+        workoutFocus: "cardio",
+        simpleMode: true,
+      });
+      await t.mutation(api.users.users.setDashboardTrendMetric, {
+        metric: "neckCm",
+      });
+
+      await expect(
+        t.query(api.users.users.getPreferences, {}),
+      ).resolves.toMatchObject({
+        dashboardSettings: {
+          workoutFocus: "cardio",
+          simpleMode: true,
+          trendMetric: "neckCm",
+        },
+      });
+    });
+  });
 });

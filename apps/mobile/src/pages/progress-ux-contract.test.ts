@@ -51,4 +51,18 @@ describe("progress UX contract", () => {
     )
     assert.match(app, /flex min-h-16 w-full items-center gap-3 px-1/)
   })
+
+  test("the trend picker offers every logged measurement and persists the choice", () => {
+    // hips, calves, and neck were loggable long before they were trendable.
+    for (const metric of ["hipsCm", "calvesCm", "neckCm"]) {
+      assert.ok(
+        dashboardInsights.includes(metric),
+        `${metric} should be a selectable trend metric`
+      )
+    }
+    assert.match(dashboardInsights, /export function isTrendMetric/)
+    // The selection used to live in useState and was lost on every reload.
+    assert.match(app, /setDashboardTrendMetric/)
+    assert.match(app, /trendMetricSeededRef/)
+  })
 })

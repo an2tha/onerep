@@ -505,7 +505,30 @@ export const listReports = query({
           .withIndex("by_userId", (q) => q.eq("userId", user._id))
           .order("desc")
           .take(limit);
-    return rows;
+    // Projected, never whole docs: reports carry `pose` (every landmark frame)
+    // and `toolCalls`, so a reactive subscription over 20 of them would ship
+    // megabytes to the client. `getReport` is the hydration path.
+    return rows.map((report) => {
+      const findings = report.findings ?? [];
+      const top = findings.find((finding) => finding.severity === "major");
+      return {
+        _id: report._id,
+        exerciseId: report.exerciseId,
+        exerciseName: report.exerciseName,
+        date: report.date,
+        createdAt: report.createdAt,
+        summary: report.summary,
+        findingCount: findings.length,
+        majorCount: findings.filter((finding) => finding.severity === "major")
+          .length,
+        drillCount: (report.drills ?? []).length,
+        hasPose: (report.pose ?? []).length > 0,
+        hasCorrections: (report.corrections ?? []).length > 0,
+        ...(top
+          ? { topFinding: { title: top.title, severity: top.severity } }
+          : {}),
+      };
+    });
   },
 });
 

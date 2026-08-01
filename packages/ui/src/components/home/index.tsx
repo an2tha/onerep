@@ -514,6 +514,7 @@ export function DailyLedgerHero({
   caloriesLeft,
   caloriesTarget,
   macros = [],
+  supplementCalories = 0,
   briefing,
   onBriefingAction,
   onBriefingDismiss,
@@ -523,6 +524,8 @@ export function DailyLedgerHero({
   caloriesLeft: number
   caloriesTarget: number
   macros?: MacroProgress[]
+  /** Folded into the totals above; shown so the figures reconcile with the meal list. */
+  supplementCalories?: number
   briefing: DashboardBriefingView
   onBriefingAction: () => void
   onBriefingDismiss?: () => void
@@ -575,6 +578,13 @@ export function DailyLedgerHero({
             })}
           </div>
         </div>
+        {/* Without this, the totals disagree with the sum of the visible meal
+            entries and read as a bug. */}
+        {supplementCalories > 0 && (
+          <p className="mt-3.5 border-t border-border/50 pt-2.5 text-[11px] text-muted-foreground tabular-nums">
+            Includes {fmt(Math.round(supplementCalories))} kcal from supplements
+          </p>
+        )}
       </section>
 
       {/* Briefing banner */}
@@ -608,6 +618,175 @@ export function DailyLedgerHero({
         </div>
       )}
     </div>
+  )
+}
+
+export type WeeklyPlanDayView = {
+  day: string
+  workoutPresetId?: string
+  workoutLabel?: string
+  meals: Array<{ label: string; recipeId?: string; note?: string }>
+  recoveryNote?: string
+}
+
+/**
+ * The Coach's weekly plan, as read back on Today.
+ *
+ * Today's row is expanded because that is the only day being acted on; the rest
+ * collapse to a single line so a seven-day plan doesn't dominate the dashboard.
+ */
+export function WeeklyPlanCard({
+  title,
+  today,
+  days,
+  assumptions,
+  onOpenPreset,
+  onOpenRecipe,
+  onAskCoach,
+  className,
+}: {
+  title: string
+  /** Three-letter day key for today, matching the `day` field on each row. */
+  today: string
+  days: WeeklyPlanDayView[]
+  assumptions: string[]
+  onOpenPreset?: (presetId: string) => void
+  onOpenRecipe?: (recipeId: string) => void
+  onAskCoach: () => void
+  className?: string
+}) {
+  const [assumptionsOpen, setAssumptionsOpen] = useState(false)
+  const todayKey = today.slice(0, 3).toLowerCase()
+
+  return (
+    <section className={cn("mx-[var(--app-page-x)] md:mx-8", className)}>
+      <SectionHeader title={title} className="px-0 pt-0 pb-2" />
+      <GroupedList>
+        {days.map((day, index) => {
+          const isToday = day.day.slice(0, 3).toLowerCase() === todayKey
+          const mealCount = day.meals.length
+
+          if (!isToday) {
+            return (
+              <div
+                key={`${day.day}-${index}`}
+                className={cn(
+                  "flex min-h-12 items-center gap-3 bg-card px-3.5",
+                  index > 0 && "border-t border-border/40"
+                )}
+              >
+                <span className="w-9 shrink-0 text-[12px] font-semibold text-muted-foreground uppercase">
+                  {day.day}
+                </span>
+                <span className="native-row-detail min-w-0 flex-1 truncate">
+                  {day.workoutLabel ?? "Rest"}
+                  {mealCount > 0 &&
+                    ` · ${mealCount} meal${mealCount === 1 ? "" : "s"}`}
+                </span>
+              </div>
+            )
+          }
+
+          return (
+            <div
+              key={`${day.day}-${index}`}
+              className={cn(
+                "bg-card px-3.5 py-3",
+                index > 0 && "border-t border-border/40"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-9 shrink-0 text-[12px] font-bold uppercase">
+                  {day.day}
+                </span>
+                {day.workoutPresetId && onOpenPreset ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenPreset(day.workoutPresetId!)}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  >
+                    <Barbell size={15} className="shrink-0" />
+                    <span className="native-row-title truncate">
+                      {day.workoutLabel ?? "Training"}
+                    </span>
+                    <ArrowRight
+                      size={14}
+                      className="shrink-0 text-muted-foreground"
+                    />
+                  </button>
+                ) : (
+                  <span className="native-row-title min-w-0 flex-1 truncate">
+                    {day.workoutLabel ?? "Rest day"}
+                  </span>
+                )}
+              </div>
+
+              {day.meals.length > 0 && (
+                <ul className="mt-2 ml-12 space-y-1">
+                  {day.meals.slice(0, 3).map((meal, mealIndex) => (
+                    <li key={`${meal.label}-${mealIndex}`}>
+                      {meal.recipeId && onOpenRecipe ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenRecipe(meal.recipeId!)}
+                          className="native-row-detail flex items-center gap-1.5 text-left"
+                        >
+                          <ForkKnife size={13} className="shrink-0" />
+                          <span className="truncate underline-offset-2">
+                            {meal.label}
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="native-row-detail flex items-center gap-1.5">
+                          <ForkKnife size={13} className="shrink-0" />
+                          <span className="truncate">{meal.label}</span>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {day.recoveryNote && (
+                <p className="native-row-detail mt-2 ml-12">
+                  {day.recoveryNote}
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </GroupedList>
+
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onAskCoach}
+          className="min-h-11 text-[13px] font-semibold"
+        >
+          Adjust with Coach
+        </button>
+        {assumptions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setAssumptionsOpen((open) => !open)}
+            aria-expanded={assumptionsOpen}
+            className="ml-auto min-h-11 text-[13px] text-muted-foreground"
+          >
+            {assumptionsOpen ? "Hide notes" : "Why this plan"}
+          </button>
+        )}
+      </div>
+
+      {assumptionsOpen && assumptions.length > 0 && (
+        <ul className="mt-1 list-disc space-y-1 pl-5">
+          {assumptions.map((assumption, index) => (
+            <li key={index} className="native-row-detail">
+              {assumption}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   )
 }
 

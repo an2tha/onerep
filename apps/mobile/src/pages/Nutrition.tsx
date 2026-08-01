@@ -27,13 +27,13 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { SummaryBlock } from "@repo/ui"
+import { NutritionCalibrationCard, SummaryBlock } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
-import { cn } from "@/lib/utils"
+import { cn, safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils"
 import {
   FOOD_MICRONUTRIENT_KEYS,
   currentDateKey,
@@ -64,6 +64,8 @@ import { formatFastDuration } from "@/lib/fasting"
 import { useFastTimer } from "@/lib/use-fast-timer"
 import {
   buildSupplementDayPlan,
+  combineMacroTotals,
+  combineMicronutrientTotals,
   type SupplementDayPlanItem,
   type SupplementIntakeLog,
   type SupplementItem,
@@ -264,14 +266,6 @@ function formatDateLabel(dateKey: string, todayKey: string) {
   })
 }
 
-function nutrientTotal(
-  totals: Partial<Record<string, number>> | undefined,
-  key: string
-) {
-  const value = totals?.[key]
-  return typeof value === "number" && Number.isFinite(value) ? value : 0
-}
-
 function totalFood(entries: FoodLogEntry[]) {
   return entries.reduce(
     (acc, entry) => ({
@@ -301,30 +295,6 @@ function totalsForRecipe(ingredients: RecipeIngredient[]) {
     }),
     { calories: 0, protein: 0, carbs: 0, fat: 0 }
   )
-}
-
-function combineMacroTotals(
-  food: ReturnType<typeof totalFood>,
-  supplements: Partial<Record<string, number>> | undefined
-) {
-  return {
-    calories: food.calories + nutrientTotal(supplements, "calories"),
-    protein: food.protein + nutrientTotal(supplements, "protein"),
-    carbs: food.carbs + nutrientTotal(supplements, "carbs"),
-    fat: food.fat + nutrientTotal(supplements, "fat"),
-  }
-}
-
-function combineMicronutrientTotals(
-  food: Partial<Record<FoodMicronutrientKey, number>>,
-  supplements: Partial<Record<string, number>> | undefined
-) {
-  const totals: Partial<Record<FoodMicronutrientKey, number>> = {}
-  for (const key of FOOD_MICRONUTRIENT_KEYS) {
-    const value = (food[key] ?? 0) + nutrientTotal(supplements, key)
-    if (value > 0) totals[key] = value
-  }
-  return totals
 }
 
 function ProgressLine({
@@ -1566,6 +1536,10 @@ export default function Nutrition() {
     api.users.users.setCustomGoals,
     "users.users.setCustomGoals"
   )
+  const applyCalibration = useOfflineMutation(
+    api.users.users.applyNutritionCalibration,
+    "users.users.applyNutritionCalibration"
+  )
   const createMealPresetMutation = useOfflineMutation(
     api.logs.mealPresets.create,
     "logs.mealPresets.create"
@@ -1615,6 +1589,20 @@ export default function Nutrition() {
 
   const goals = effectiveGoals?.effective
   const nutritionPlan = nutritionPlanRaw as NutritionPlan | null | undefined
+  const calibration = nutritionPlan?.calibration
+  // Keyed on date + status so a new recommendation, or the same one tomorrow,
+  // surfaces again — but re-dismissing today's is respected.
+  const calibrationDismissKey = calibration
+    ? `onerep:dismissed-calibration:${todayKey}:${calibration.status}`
+    : null
+  const [calibrationDismissed, setCalibrationDismissed] = useState(false)
+  const [applyingCalibration, setApplyingCalibration] = useState(false)
+  useEffect(() => {
+    if (!calibrationDismissKey) return
+    setCalibrationDismissed(
+      safeLocalStorageGet(calibrationDismissKey) === "1"
+    )
+  }, [calibrationDismissKey])
   const visibleMetrics = nutritionPlan?.visibleMetrics ?? {
     calories: true,
     macros: true,
@@ -2610,6 +2598,43 @@ export default function Nutrition() {
 
         {!isToday ? null : (
           <>
+            {calibration && !calibrationDismissed && (
+              <NutritionCalibrationCard
+                className="progress-tab-enter"
+                status={calibration.status}
+                title={calibration.title}
+                detail={calibration.detail}
+                current={customGoalTargets}
+                proposed={
+                  calibration.canApply ? calibration.targets : undefined
+                }
+                applying={applyingCalibration}
+                onApply={
+                  calibration.canApply && calibration.targets
+                    ? () => {
+                        const targets = calibration.targets
+                        if (!targets) return
+                        setApplyingCalibration(true)
+                        void applyCalibration(targets)
+                          .then(() => {
+                            hapticMedium()
+                            toast.success("Targets updated")
+                          })
+                          .catch(() => {
+                            toast.error("Could not update targets")
+                          })
+                          .finally(() => setApplyingCalibration(false))
+                      }
+                    : undefined
+                }
+                onDismiss={() => {
+                  setCalibrationDismissed(true)
+                  if (calibrationDismissKey) {
+                    safeLocalStorageSet(calibrationDismissKey, "1")
+                  }
+                }}
+              />
+            )}
             <SummaryBlock
               className="progress-tab-enter"
               title={

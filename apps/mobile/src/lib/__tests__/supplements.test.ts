@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import {
   buildSupplementDayPlan,
+  combineMacroTotals,
+  combineMicronutrientTotals,
   completedSupplementCount,
+  nutrientTotal,
   formatSupplementAmount,
   loggableSupplementPlanItems,
   mergeNutritionTotals,
@@ -317,5 +320,55 @@ describe("supplement helpers", () => {
         fat: 1.8,
       },
     })
+  })
+})
+
+describe("combining food and supplement totals", () => {
+  const food = { calories: 1800, protein: 120, carbs: 200, fat: 60 }
+
+  test("nutrientTotal treats missing and non-finite values as zero", () => {
+    expect(nutrientTotal(undefined, "calories")).toBe(0)
+    expect(nutrientTotal({}, "calories")).toBe(0)
+    expect(nutrientTotal({ calories: Number.NaN }, "calories")).toBe(0)
+    expect(nutrientTotal({ calories: 120 }, "calories")).toBe(120)
+  })
+
+  test("combineMacroTotals is the identity when there are no supplements", () => {
+    expect(combineMacroTotals(food, undefined)).toEqual(food)
+    expect(combineMacroTotals(food, {})).toEqual(food)
+  })
+
+  test("combineMacroTotals adds supplement macros onto food macros", () => {
+    expect(
+      combineMacroTotals(food, {
+        calories: 130,
+        protein: 25,
+        carbs: 3,
+        fat: 1.5,
+      })
+    ).toEqual({ calories: 1930, protein: 145, carbs: 203, fat: 61.5 })
+  })
+
+  test("combineMacroTotals tolerates a partial supplement record", () => {
+    expect(combineMacroTotals(food, { protein: 25 })).toEqual({
+      calories: 1800,
+      protein: 145,
+      carbs: 200,
+      fat: 60,
+    })
+  })
+
+  test("combineMicronutrientTotals sums and drops zeroes", () => {
+    const combined = combineMicronutrientTotals(
+      { fiber: 20, vitaminC: 0 },
+      { vitaminC: 500, fiber: 5 }
+    )
+    expect(combined.fiber).toBe(25)
+    expect(combined.vitaminC).toBe(500)
+    expect(combined.sodium).toBeUndefined()
+  })
+
+  test("combineMicronutrientTotals returns an empty record for empty inputs", () => {
+    expect(combineMicronutrientTotals({}, undefined)).toEqual({})
   })
 })
