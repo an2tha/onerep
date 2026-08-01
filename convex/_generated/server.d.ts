@@ -45,6 +45,7 @@ type Env = {
   readonly GOOGLE_SERVICE_ACCOUNT_JSON: string | undefined;
   readonly OPENAI_API_KEY: string | undefined;
   readonly OPENAI_MODEL: string | undefined;
+  readonly OPENROUTER_API_KEY: string | undefined;
   readonly RESEND_API_KEY: string | undefined;
   readonly REVENUECAT_PUBLIC_SDK_KEY: string | undefined;
   readonly STRIPE_PRICE_ID_MONTHLY: string | undefined;

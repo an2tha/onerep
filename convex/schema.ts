@@ -1049,4 +1049,126 @@ export default defineSchema({
   })
     .index("by_userId_slot", ["userId", "slot"])
     .index("by_userId", ["userId"]),
+
+  supportedExercises: defineTable({
+    exerciseId: v.id("exercises"),
+    createdAt: v.optional(v.number()),
+  }),
+
+  // ── Form coach ────────────────────────────────────────────────────────────
+  // One capture of a lifter's technique. The landmark payload lives in file
+  // storage rather than the document: it is a few hundred KB of numbers, only
+  // read when a report is generated, and never queried against.
+  formCoachSessions: defineTable({
+    userId: v.string(),
+    exerciseId: v.string(),
+    exerciseName: v.string(),
+    slug: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    capturedAt: v.number(),
+    landmarksStorageId: v.id("_storage"),
+    repCount: v.number(),
+    angles: v.array(
+      v.object({
+        index: v.number(),
+        kind: v.string(), // "video" | "image"
+        view: v.string(), // front | back | side | oblique
+        repCount: v.number(),
+        trackingRate: v.number(),
+        durationMs: v.number(),
+      }),
+    ),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_exerciseId", ["userId", "exerciseId"]),
+
+  formCoachReports: defineTable({
+    userId: v.string(),
+    sessionId: v.id("formCoachSessions"),
+    exerciseId: v.string(),
+    exerciseName: v.string(),
+    date: v.string(),
+    createdAt: v.number(),
+    summary: v.string(),
+    findings: v.array(
+      v.object({
+        title: v.string(),
+        detail: v.string(),
+        severity: v.string(), // strength | minor | major
+        confidence: v.string(), // low | medium | high
+        // What the model measured to reach this, so the report is auditable
+        // rather than merely plausible.
+        evidence: v.object({
+          measurement: v.string(),
+          value: v.string(),
+          phase: v.optional(v.string()),
+        }),
+        cue: v.optional(v.string()),
+      }),
+    ),
+    drills: v.array(v.object({ name: v.string(), reason: v.string() })),
+    /** What the capture could not answer, and why. */
+    notMeasured: v.array(v.string()),
+    /**
+     * Joint angles to aim for, rendered as a corrected pose in the app.
+     *
+     * Optional because reports written before corrections existed have no such
+     * field, and a required one makes every one of them fail validation on
+     * read. Absent means "no corrections", which is also what a report with
+     * nothing positional to fix returns.
+     */
+    corrections: v.optional(
+      v.array(
+        v.object({
+          joint: v.string(),
+          side: v.string(),
+          phase: v.string(),
+          targetDegrees: v.number(),
+          reason: v.string(),
+        }),
+      ),
+    ),
+    /**
+     * The canonical rep the report describes, compact enough to live in the
+     * document. Stored here rather than re-read from the landmark blob so a
+     * pinned card can render on its own weeks later.
+     */
+    pose: v.optional(
+      v.array(
+        v.object({
+          timeMs: v.number(),
+          worldLandmarks: v.array(
+            v.object({
+              x: v.number(),
+              y: v.number(),
+              z: v.number(),
+              visibility: v.number(),
+            }),
+          ),
+        }),
+      ),
+    ),
+    /** Every tool the agent called, for debugging and for showing our work. */
+    toolCalls: v.array(
+      v.object({
+        tool: v.string(),
+        input: v.string(),
+        output: v.string(),
+      }),
+    ),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_sessionId", ["sessionId"])
+    .index("by_userId_and_exerciseId", ["userId", "exerciseId"]),
+
+  /** Form cards the user chose to keep on the Workouts or Progress screen. */
+  formCoachPins: defineTable({
+    userId: v.string(),
+    reportId: v.id("formCoachReports"),
+    surface: v.string(), // "workouts" | "progress"
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_surface", ["userId", "surface"])
+    .index("by_userId_and_report", ["userId", "reportId"]),
 });

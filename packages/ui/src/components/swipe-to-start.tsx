@@ -9,11 +9,17 @@ const COMPLETE_THRESHOLD = 0.78
 export function SwipeToStart({
   onComplete,
   label = "Start workout",
+  readyLabel = "Release to start",
+  completingLabel = "Starting",
   variant = "default",
   onHaptic,
 }: {
   onComplete?: () => void
   label?: string
+  /** Shown once the thumb is past the completion threshold. */
+  readyLabel?: string
+  /** Announced to screen readers while the completion animation plays. */
+  completingLabel?: string
   variant?: "default" | "completed" | "danger"
   onHaptic?: (kind: "start" | "step" | "complete") => void
 }) {
@@ -173,7 +179,7 @@ export function SwipeToStart({
         style={{ opacity: ready && !completing ? 1 : 0 }}
         aria-hidden="true"
       >
-        Release to start
+        {readyLabel}
       </span>
 
       <span
@@ -202,9 +208,9 @@ export function SwipeToStart({
         aria-valuenow={Math.round(progress * 100)}
         aria-valuetext={
           completing
-            ? "Starting"
+            ? completingLabel
             : ready
-              ? "Release to start"
+              ? readyLabel
               : `${Math.round(progress * 100)} percent`
         }
         disabled={completing}

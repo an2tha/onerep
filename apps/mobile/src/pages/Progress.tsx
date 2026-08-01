@@ -37,6 +37,7 @@ import { MobileSheet } from "@/components/mobile-sheet"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
+import { FormCoachPinnedCards } from "@/components/form-coach-card"
 
 import {
   BodyProgress,
@@ -612,6 +613,10 @@ export default function Progress() {
                 onClick={() => navigate("/workouts", { motion: "switch" })}
               />
             </GroupedList>
+
+            {/* At the foot of the page, where it reads as a footnote rather
+                than competing with the metrics above. */}
+            <FormCoachPinnedCards surface="progress" />
           </div>
         )}
       </main>

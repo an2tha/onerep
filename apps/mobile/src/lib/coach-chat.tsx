@@ -6,7 +6,7 @@
  * Extracted from Coach.tsx so onboarding renders the same interactive cards,
  * proposals, and applied-operation summaries instead of plain text bubbles.
  */
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react"
 import {
   ArrowRight,
   Barbell,
@@ -31,6 +31,8 @@ import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { toast } from "@repo/ui"
 import { cn } from "@/lib/utils"
+import { FormCoachCard, FormCoachPoseScene } from "@/components/form-coach-card"
+import type { PoseCorrection } from "@/lib/pose-correction"
 import type { Day } from "@/lib/workout-sync"
 import type { Exercise } from "@/lib/exercise-catalog"
 import { prepareCoachImage } from "@/lib/coach-media"
@@ -404,6 +406,22 @@ export type CoachInteractiveElement =
       value: boolean
     }
 
+/**
+ * Where the coach keeps its conversation. Lives here rather than in the page so
+ * anything writing into the thread uses the same key the page reads.
+ */
+export const COACH_CONVERSATION_KEY = "onerep:coach-conversation:v1"
+
+export type CoachPoseFrame = {
+  timeMs: number
+  worldLandmarks: Array<{
+    x: number
+    y: number
+    z: number
+    visibility?: number
+  }>
+}
+
 export type CoachUiBlock =
   | {
       type: "card"
@@ -437,6 +455,43 @@ export type CoachUiBlock =
       type: "action_row"
       title: string
       actions: Array<{ label: string; action: CoachUiAction }>
+    }
+  | {
+      /**
+       * A 3D pose the coach captured, shown in the conversation.
+       *
+       * Carries the lifter's own body rather than a diagram, and optionally the
+       * same body in the position being asked for, so the correction is
+       * something you can look at instead of a sentence about degrees.
+       */
+      type: "pose"
+      title: string
+      detail?: string
+      /** Canonical rep, body-framed and phase-normalised. */
+      frames: CoachPoseFrame[]
+      /** Joint targets, applied to `frames` to draw the corrected body. */
+      corrections?: Array<{
+        joint: "knee" | "hip" | "ankle" | "elbow" | "shoulder"
+        side: "left" | "right" | "both"
+        phase: string
+        targetDegrees: number
+      }>
+      /** Set when the report was saved, which makes the card pinnable. */
+      reportId?: string
+      /** Everything else the coach said, shown when the card is expanded. */
+      notes?: {
+        findings: Array<{
+          title: string
+          detail: string
+          severity: string
+          confidence: string
+          evidence: { measurement: string; value: string; phase?: string }
+          cue?: string
+        }>
+        drills: Array<{ name: string; reason: string }>
+        notMeasured: string[]
+      }
+      caption?: string
     }
   | {
       type: "interactive_card"
@@ -473,6 +528,11 @@ export function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
     if (row.type === "stat_group") {
       return Boolean(
         row.title && Array.isArray(row.stats) && row.stats.length > 0
+      )
+    }
+    if (row.type === "pose") {
+      return Boolean(
+        row.title && Array.isArray(row.frames) && row.frames.length > 0
       )
     }
     if (row.type === "checklist") {
@@ -680,7 +740,10 @@ export function bestExerciseMatch(query: string, candidates: Exercise[]) {
   )
 }
 
-export function recipeTotals(ingredients: CoachRecipeIngredient[], servings: number) {
+export function recipeTotals(
+  ingredients: CoachRecipeIngredient[],
+  servings: number
+) {
   const total = ingredients.reduce(
     (sum, ingredient) => {
       const scale = ingredient.grams / 100
@@ -1979,6 +2042,58 @@ export function CoachInteractiveCard({
   )
 }
 
+function CoachPoseBlock({
+  block,
+}: {
+  block: Extract<CoachUiBlock, { type: "pose" }>
+}) {
+  const pose = block.frames.map((frame) => ({
+    timeMs: frame.timeMs,
+    worldLandmarks: frame.worldLandmarks.map((point) => ({
+      x: point.x,
+      y: point.y,
+      z: point.z,
+      visibility: point.visibility ?? 1,
+    })),
+  }))
+  const corrections = (block.corrections ?? []) as PoseCorrection[]
+
+  // Without a saved report there is nothing to pin to, so the scene stands on
+  // its own rather than offering an action that cannot work.
+  if (!block.reportId) {
+    return (
+      <div className="py-4">
+        <p className="text-[12px] font-bold text-foreground">{block.title}</p>
+        {block.detail && (
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground/75">
+            {block.detail}
+          </p>
+        )}
+        <div className="mt-3 overflow-hidden rounded-[18px] bg-[#0c0c0c]">
+          <FormCoachPoseScene
+            pose={pose}
+            corrections={corrections}
+            className="h-[220px] w-full"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="py-4">
+      <FormCoachCard
+        reportId={block.reportId as Id<"formCoachReports">}
+        exerciseName={block.title}
+        summary={block.detail ?? ""}
+        pose={pose}
+        corrections={corrections}
+        detail={block.notes}
+      />
+    </div>
+  )
+}
+
 export function CoachUiBlocks({
   blocks,
   onAction,
@@ -2024,6 +2139,10 @@ export function CoachUiBlocks({
   return (
     <div className="coach-generated-content mt-5 divide-y divide-border/45 border-y border-border/45">
       {blocks.map((block, index) => {
+        if (block.type === "pose") {
+          return <CoachPoseBlock key={`${block.type}-${index}`} block={block} />
+        }
+
         if (block.type === "card") {
           return (
             <div key={`${block.type}-${index}`} className="py-4">

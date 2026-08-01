@@ -109,16 +109,31 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
+      # Runs on Node, not Bun, and verifies the upload actually happened.
+      #
+      # `bunx wrangler pages deploy` executes wrangler on the Bun runtime
+      # (oven/bun ships no node). Under Bun the upload silently no-ops -- it
+      # prints the wrangler banner and nothing else -- and wrangler exits 0
+      # even on fatal errors, so `set -e` never fires and the step goes green
+      # while Cloudflare receives no deployment. Node + npx is the supported
+      # path. The grep is the backstop: if wrangler ever exits 0 without
+      # completing a deployment again, fail the job loudly.
       - type: CommandStep
         name: Deploy mobile app
         runInContainer: true
-        image: oven/bun:1.3.4
+        image: node:22-alpine
         interpreter:
           type: PosixInterpreter
           shell: sh
           commands: |
             set -eu
-            bunx wrangler@@4 pages deploy apps/mobile/dist --project-name=onerep-mobile --branch=main
+            npx --yes wrangler@@4 pages deploy apps/mobile/dist \
+              --project-name=onerep-mobile --branch=main --commit-dirty=true \
+              2>&1 | tee /tmp/deploy-mobile.log
+            grep -q "Deployment complete" /tmp/deploy-mobile.log || {
+              echo "wrangler exited without completing a deployment"
+              exit 1
+            }
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
@@ -128,16 +143,24 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
+      # See the note on "Deploy mobile app": Node, not Bun, plus a grep
+      # backstop against wrangler exiting 0 without uploading.
       - type: CommandStep
         name: Deploy marketing site
         runInContainer: true
-        image: oven/bun:1.3.4
+        image: node:22-alpine
         interpreter:
           type: PosixInterpreter
           shell: sh
           commands: |
             set -eu
-            bunx wrangler@@4 pages deploy apps/web/dist --project-name=onerep-web --branch=main
+            npx --yes wrangler@@4 pages deploy apps/web/dist \
+              --project-name=onerep-web --branch=main --commit-dirty=true \
+              2>&1 | tee /tmp/deploy-web.log
+            grep -q "Deployment complete" /tmp/deploy-web.log || {
+              echo "wrangler exited without completing a deployment"
+              exit 1
+            }
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN

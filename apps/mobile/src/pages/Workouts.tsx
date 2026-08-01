@@ -15,6 +15,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { MobileSheet } from "@/components/mobile-sheet"
@@ -651,16 +652,19 @@ export default function Workouts() {
   const presets: WorkoutPresetCard[] = useMemo(() => {
     if (!serverPresets) return DEFAULT_PRESETS
     const byId = new Map<string, WorkoutPresetCard>(
-      serverPresets.map((p) => [
-        p._id as string,
-        normalizePresetCard({
-          id: p._id as string,
-          name: p.name,
-          focus: p.focus,
-          duration: p.duration,
-          steps: p.steps,
-        }),
-      ] as const)
+      serverPresets.map(
+        (p) =>
+          [
+            p._id as string,
+            normalizePresetCard({
+              id: p._id as string,
+              name: p.name,
+              focus: p.focus,
+              duration: p.duration,
+              steps: p.steps,
+            }),
+          ] as const
+      )
     )
     const result: WorkoutPresetCard[] = []
     for (const id of localOrder) {
@@ -1800,6 +1804,10 @@ export default function Workouts() {
                 </section>
               </div>
             </section>
+
+            {/* Below the presets, where it reads as a footnote to the page
+                rather than competing with today's session. */}
+            <FormCoachPinnedCards surface="workouts" />
           </>
         )}
       </main>

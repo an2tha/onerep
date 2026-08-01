@@ -89,6 +89,9 @@ export default defineConfig(({ command, mode }) => {
               return "native"
             }
             if (id.includes("@zxing")) return "scanner"
+            // Kept out of "vendor" so the lazily-loaded pose viewer is the only
+            // thing that pulls three.js down.
+            if (/node_modules\/three\//.test(id)) return "three"
             if (id.includes("@phosphor-icons")) return "icons"
             if (id.includes("posthog")) return "analytics"
             return "vendor"
