@@ -12,11 +12,7 @@ import {
   type FoodLogEntry,
 } from "@/lib/food-log"
 import { CUSTOM_FOOD_NUTRIENT_LABELS } from "@/lib/custom-foods"
-import {
-  carbLabel,
-  carbLabelLower,
-  displayCarbGoal,
-} from "@/lib/carb-display"
+import { carbLabel, carbLabelLower, displayCarbGoal } from "@/lib/carb-display"
 import { useCarbDisplayMode } from "@/lib/use-carb-display"
 import {
   NUTRITION_REPORT_RANGES,
@@ -53,9 +49,7 @@ export default function NutritionReport() {
   )
   const sharedLogs = useQuery(
     api.sharing.sharedDiary.getSharedRange,
-    ownerUserId
-      ? { ownerUserId, start: bounds.start, end: bounds.end }
-      : "skip"
+    ownerUserId ? { ownerUserId, start: bounds.start, end: bounds.end } : "skip"
   )
   const logs = ownerUserId ? sharedLogs : ownLogs
 
@@ -106,10 +100,9 @@ export default function NutritionReport() {
     () =>
       new Map<string, number>(
         goals?.mealTargetsEnabled
-          ? (goals.mealTargets ?? []).map((target) => [
-              target.meal,
-              target.calories,
-            ] as const)
+          ? (goals.mealTargets ?? []).map(
+              (target) => [target.meal, target.calories] as const
+            )
           : []
       ),
     [goals]
@@ -226,7 +219,7 @@ export default function NutritionReport() {
           Building your report…
         </p>
       ) : (
-        <article className="px-[var(--app-page-x)] pb-8">
+        <article className="motion-content-in px-[var(--app-page-x)] pb-8">
           <header className="print-block border-b border-border pb-3">
             <h1 className="text-[22px] font-semibold">Nutrition report</h1>
             <p className="native-row-detail mt-1">
@@ -349,7 +342,9 @@ export default function NutritionReport() {
 
           {report.meals.length > 0 && (
             <section className="print-block pt-5" aria-label="Meal breakdown">
-              <h2 className="native-section-title">Where the calories came from</h2>
+              <h2 className="native-section-title">
+                Where the calories came from
+              </h2>
               <ul className="mt-2 space-y-1 tabular-nums">
                 {report.meals.map((meal) => (
                   <li
@@ -402,7 +397,10 @@ export default function NutritionReport() {
           )}
 
           {report.topFoods.length > 0 && (
-            <section className="print-block pt-5" aria-label="Most logged foods">
+            <section
+              className="print-block pt-5"
+              aria-label="Most logged foods"
+            >
               <h2 className="native-section-title">Most logged foods</h2>
               <ul className="mt-2 space-y-1 tabular-nums">
                 {report.topFoods.map((food) => (
@@ -444,7 +442,9 @@ export default function NutritionReport() {
                         >
                           <span className="min-w-0 truncate">
                             {entry.name}
-                            {entry.servingLabel ? ` (${entry.servingLabel})` : ""}
+                            {entry.servingLabel
+                              ? ` (${entry.servingLabel})`
+                              : ""}
                           </span>
                           <span className="native-row-detail shrink-0 tabular-nums">
                             {Math.round(entry.calories)} kcal

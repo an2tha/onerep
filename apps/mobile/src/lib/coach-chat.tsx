@@ -18,6 +18,7 @@ import {
   Heartbeat,
   ImageSquare,
   Minus,
+  Pill,
   Plus,
   PushPin,
   Sparkle,
@@ -35,11 +36,18 @@ import { FormCoachCard, FormCoachPoseScene } from "@/components/form-coach-card"
 import type { PoseCorrection } from "@/lib/pose-correction"
 import type { Day } from "@/lib/workout-sync"
 import type { Exercise } from "@/lib/exercise-catalog"
+import { SUPPLEMENT_SCHEDULES } from "@/lib/supplements"
 import { prepareCoachImage } from "@/lib/coach-media"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
   normalizeCoachOperations as normalizeSharedCoachOperations,
   validateCoachOperations as validateSharedCoachOperations,
+} from "@repo/models"
+import type {
+  SupplementCategory,
+  SupplementForm,
+  SupplementNutrients,
+  SupplementSchedule,
 } from "@repo/models"
 
 export type CoachMessage = {
@@ -240,6 +248,20 @@ export type CoachOperation = CoachOperationMeta &
         followUpKind?: "stat" | "counter" | "progress" | "sparkline" | "decay"
       }
     | {
+        type: "save_supplement"
+        supplementId?: string
+        name: string
+        brand?: string
+        category: SupplementCategory
+        form: SupplementForm
+        servingLabel: string
+        defaultServingQuantity: number
+        notes?: string
+        active: boolean
+        schedule: SupplementSchedule
+        nutrientsPerServing: SupplementNutrients
+      }
+    | {
         type: "undo_action"
         actionId: string
         actionSummary: string
@@ -304,6 +326,11 @@ export type CoachOperationResult =
       actionId?: string
     } & Extract<CoachOperation, { type: "save_progress_metric" }>)
   | ({
+      type: "save_supplement"
+      supplementId: string
+      actionId?: string
+    } & Extract<CoachOperation, { type: "save_supplement" }>)
+  | ({
       type: "save_dashboard_widget"
       widgetId: string
       pinned: boolean
@@ -327,6 +354,7 @@ export type CoachUiAction =
   | "open_settings"
   | "open_workout_builder"
   | "open_recipe_builder"
+  | "open_supplements"
   | "log_food"
 
 export type CoachInteractiveElement =
@@ -884,6 +912,7 @@ export function CoachOperationResults({
   onOpenWorkouts,
   onOpenNutrition,
   onOpenProgress,
+  onOpenSupplements,
   onUndo,
   onLogRecipe,
   onPinGoal,
@@ -895,6 +924,7 @@ export function CoachOperationResults({
   onOpenWorkouts: () => void
   onOpenNutrition: () => void
   onOpenProgress: () => void
+  onOpenSupplements: () => void
   onUndo: (id: string) => void
   onLogRecipe: (
     result: Extract<CoachOperationResult, { type: "save_recipe" }>
@@ -1116,6 +1146,60 @@ export function CoachOperationResults({
                 </button>
               ) : null}
             </article>
+          )
+        }
+
+        if (result.type === "save_supplement") {
+          const cadence =
+            SUPPLEMENT_SCHEDULES.find(
+              (option) => option.id === result.schedule.type
+            )?.label ?? "No schedule"
+          return (
+            <div
+              key={`${result.type}-${result.supplementId}`}
+              className="flex items-center gap-3 border-y border-border/50 py-3.5"
+            >
+              <Pill
+                size={18}
+                weight="bold"
+                className="shrink-0 text-muted-foreground"
+              />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-bold">
+                  {result.brand
+                    ? `${result.brand} ${result.name}`
+                    : result.name}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                  {result.defaultServingQuantity === 1
+                    ? result.servingLabel
+                    : `${result.defaultServingQuantity} × ${result.servingLabel}`}{" "}
+                  · {cadence}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={onOpenSupplements}
+                className="min-h-9 px-2 text-[10px] font-bold"
+              >
+                Open
+              </button>
+              {result.actionId ? (
+                <button
+                  type="button"
+                  onClick={() => onUndo(result.actionId!)}
+                  aria-label={`Undo ${result.name}`}
+                >
+                  <ClockCounterClockwise size={17} />
+                </button>
+              ) : (
+                <CheckCircle
+                  size={18}
+                  weight="fill"
+                  className="text-[var(--status-success)]"
+                />
+              )}
+            </div>
           )
         }
 

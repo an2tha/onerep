@@ -542,7 +542,7 @@ export function SharedAccept() {
         ) : invite === undefined ? (
           <EmptyState icon={Users} title="Loading invitation" />
         ) : (
-          <>
+          <div className="motion-content-in">
             <SummaryBlock
               tone="food"
               title={invite.ownerName ?? invite.ownerEmail ?? "A OneRep user"}
@@ -605,7 +605,7 @@ export function SharedAccept() {
                 Decline
               </button>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>

@@ -1,3 +1,65 @@
+import type {
+  SupplementCategory,
+  SupplementForm,
+  SupplementNutrients,
+  SupplementSchedule,
+} from "./supplements";
+
+export const COACH_SUPPLEMENT_CATEGORIES: readonly SupplementCategory[] = [
+  "protein",
+  "creatine",
+  "multivitamin",
+  "vitamin_mineral",
+  "electrolyte",
+  "caffeine_pre_workout",
+  "omega_3",
+  "fiber",
+  "other",
+];
+
+export const COACH_SUPPLEMENT_FORMS: readonly SupplementForm[] = [
+  "capsule",
+  "tablet",
+  "powder",
+  "liquid",
+  "gummy",
+  "softgel",
+  "other",
+];
+
+export const COACH_SUPPLEMENT_SCHEDULE_TYPES: readonly SupplementSchedule["type"][] =
+  ["none", "daily", "weekdays", "training_days", "rest_days"];
+
+export const COACH_SUPPLEMENT_NUTRIENT_KEYS: readonly (keyof SupplementNutrients)[] =
+  [
+    "calories",
+    "protein",
+    "carbs",
+    "fat",
+    "fiber",
+    "sugar",
+    "saturatedFat",
+    "transFat",
+    "cholesterol",
+    "sodium",
+    "potassium",
+    "calcium",
+    "iron",
+    "magnesium",
+    "phosphorus",
+    "zinc",
+    "vitaminA",
+    "vitaminC",
+    "vitaminD",
+    "vitaminB12",
+    "caffeine",
+    "alcohol",
+    "creatine",
+    "omega3",
+    "epa",
+    "dha",
+  ];
+
 export const COACH_DAYS = [
   "Mon",
   "Tue",
@@ -151,6 +213,20 @@ export type CoachOperation = CoachOperationMeta &
         followUpTitle?: string;
         followUpKind?: "stat" | "counter" | "progress" | "sparkline" | "decay";
       }
+    | {
+        type: "save_supplement";
+        supplementId?: string;
+        name: string;
+        brand?: string;
+        category: SupplementCategory;
+        form: SupplementForm;
+        servingLabel: string;
+        defaultServingQuantity: number;
+        notes?: string;
+        active: boolean;
+        schedule: SupplementSchedule;
+        nutrientsPerServing: SupplementNutrients;
+      }
     | { type: "undo_action"; actionId: string; actionSummary: string }
   );
 
@@ -215,6 +291,14 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
           typeof row.title === "string" &&
           typeof row.kind === "string" &&
           typeof row.sourceMetricTitle === "string"
+        );
+      case "save_supplement":
+        return (
+          typeof row.name === "string" &&
+          typeof row.servingLabel === "string" &&
+          typeof row.defaultServingQuantity === "number" &&
+          isRecord(row.schedule) &&
+          isRecord(row.nutrientsPerServing)
         );
       case "undo_action":
         return typeof row.actionId === "string";
@@ -293,6 +377,34 @@ export function validateCoachOperations(
           errors.push(
             `${operation.name} superset ${group} must contain 2 or 3 exercises.`,
           );
+    }
+    if (operation.type === "save_supplement") {
+      if (!operation.name.trim()) errors.push("The supplement needs a name.");
+      if (!operation.servingLabel.trim())
+        errors.push(`${operation.name} needs a serving size.`);
+      if (
+        !(operation.defaultServingQuantity > 0) ||
+        operation.defaultServingQuantity > 100
+      )
+        errors.push(`${operation.name} has an invalid serving quantity.`);
+      if (!COACH_SUPPLEMENT_CATEGORIES.includes(operation.category))
+        errors.push(`${operation.name} has an unsupported category.`);
+      if (!COACH_SUPPLEMENT_FORMS.includes(operation.form))
+        errors.push(`${operation.name} has an unsupported form.`);
+      if (!COACH_SUPPLEMENT_SCHEDULE_TYPES.includes(operation.schedule.type))
+        errors.push(`${operation.name} has an unsupported schedule.`);
+      if (
+        Object.entries(operation.nutrientsPerServing).some(
+          ([key, value]) =>
+            !COACH_SUPPLEMENT_NUTRIENT_KEYS.includes(
+              key as keyof SupplementNutrients,
+            ) ||
+            typeof value !== "number" ||
+            !Number.isFinite(value) ||
+            value < 0,
+        )
+      )
+        errors.push(`${operation.name} has invalid per-serving nutrients.`);
     }
     if (operation.type === "update_routine") {
       const days = operation.assignments.map((item) => item.day);

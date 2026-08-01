@@ -5,6 +5,18 @@ import { getAuthUser } from "../lib/auth";
 import { hasOpenAiApiKey, requestOpenAiJson } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
+import {
+  COACH_SUPPLEMENT_CATEGORIES,
+  COACH_SUPPLEMENT_FORMS,
+  COACH_SUPPLEMENT_NUTRIENT_KEYS,
+  COACH_SUPPLEMENT_SCHEDULE_TYPES,
+} from "../../packages/models/src/coach";
+import type {
+  SupplementCategory,
+  SupplementForm,
+  SupplementNutrients,
+  SupplementSchedule,
+} from "../../packages/models/src/supplements";
 
 const MAX_PROMPT_CHARS = 1_200;
 const MAX_METRICS = 80;
@@ -60,6 +72,7 @@ type CoachUiAction =
   | "open_settings"
   | "open_workout_builder"
   | "open_recipe_builder"
+  | "open_supplements"
   | "log_food";
 
 type CoachGoalTaskDraft = {
@@ -348,6 +361,20 @@ type CoachOperation = CoachOperationMeta &
         parentWidgetId?: string;
         followUpTitle?: string;
         followUpKind?: "stat" | "counter" | "progress" | "sparkline" | "decay";
+      }
+    | {
+        type: "save_supplement";
+        supplementId?: string;
+        name: string;
+        brand?: string;
+        category: SupplementCategory;
+        form: SupplementForm;
+        servingLabel: string;
+        defaultServingQuantity: number;
+        notes?: string;
+        active: boolean;
+        schedule: SupplementSchedule;
+        nutrientsPerServing: SupplementNutrients;
       }
     | {
         type: "undo_action";
@@ -996,6 +1023,7 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
           "open_settings",
           "open_workout_builder",
           "open_recipe_builder",
+          "open_supplements",
           "log_food",
         ]);
         const actions = (Array.isArray(row.actions) ? row.actions : [])
@@ -1033,6 +1061,7 @@ function normalizeCoachUiBlocks(value: unknown): CoachUiBlock[] {
           "open_settings",
           "open_workout_builder",
           "open_recipe_builder",
+          "open_supplements",
           "log_food",
         ]);
         const actions = rawActions
@@ -1063,6 +1092,10 @@ function clampNumber(value: unknown, min: number, max: number, fallback = 0) {
   const parsed = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(min, Math.min(max, parsed));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function normalizeOperationMeta(
@@ -1554,6 +1587,75 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
           followUpKind === "decay"
             ? { followUpKind }
             : {}),
+        };
+      }
+
+      if (type === "save_supplement") {
+        const name = clampText(row.name, 60);
+        const servingLabel = clampText(row.servingLabel, 40);
+        if (!name || !servingLabel) return null;
+        const category = clampText(row.category, 24) as SupplementCategory;
+        const form = clampText(row.form, 16) as SupplementForm;
+        const rawSchedule = isRecord(row.schedule) ? row.schedule : {};
+        const scheduleType = clampText(
+          rawSchedule.type,
+          16,
+        ) as SupplementSchedule["type"];
+        const weekdays = (
+          Array.isArray(rawSchedule.weekdays) ? rawSchedule.weekdays : []
+        )
+          .filter(
+            (day): day is number =>
+              typeof day === "number" &&
+              Number.isInteger(day) &&
+              day >= 0 &&
+              day <= 6,
+          )
+          .slice(0, 7);
+        const rawNutrients = isRecord(row.nutrientsPerServing)
+          ? row.nutrientsPerServing
+          : {};
+        const nutrientsPerServing: SupplementNutrients = {};
+        for (const key of COACH_SUPPLEMENT_NUTRIENT_KEYS) {
+          const value = rawNutrients[key];
+          if (typeof value !== "number" || !Number.isFinite(value)) continue;
+          nutrientsPerServing[key] = clampNumber(value, 0, 100_000, 0);
+        }
+        return {
+          ...meta,
+          type,
+          ...(clampText(row.supplementId, 100)
+            ? { supplementId: clampText(row.supplementId, 100) }
+            : {}),
+          name,
+          ...(clampText(row.brand, 60)
+            ? { brand: clampText(row.brand, 60) }
+            : {}),
+          category: COACH_SUPPLEMENT_CATEGORIES.includes(category)
+            ? category
+            : "other",
+          form: COACH_SUPPLEMENT_FORMS.includes(form) ? form : "other",
+          servingLabel,
+          defaultServingQuantity: clampNumber(
+            row.defaultServingQuantity,
+            0.01,
+            100,
+            1,
+          ),
+          ...(clampText(row.notes, 280)
+            ? { notes: clampText(row.notes, 280) }
+            : {}),
+          active: row.active !== false,
+          schedule: {
+            type: COACH_SUPPLEMENT_SCHEDULE_TYPES.includes(scheduleType)
+              ? scheduleType
+              : "none",
+            ...(weekdays.length ? { weekdays } : {}),
+            ...(/^\d{2}:\d{2}$/.test(String(rawSchedule.preferredTime ?? ""))
+              ? { preferredTime: String(rawSchedule.preferredTime) }
+              : {}),
+          },
+          nutrientsPerServing,
         };
       }
 
@@ -2255,7 +2357,7 @@ async function generateCoachChatWithOpenAi({
               {
                 label: "button label",
                 action:
-                  "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | log_food",
+                  "open_nutrition | open_workouts | open_progress | open_settings | open_workout_builder | open_recipe_builder | open_supplements | log_food",
               },
             ],
           },
@@ -2486,6 +2588,34 @@ async function generateCoachChatWithOpenAi({
             parentWidgetId: "optional exact existing dashboard widget id",
             followUpTitle: "optional useful compact follow-up",
             followUpKind: "stat | counter | progress | sparkline | decay",
+          },
+          {
+            type: "save_supplement",
+            confirmation: "auto | confirm",
+            summary: "supplement being added to the catalog",
+            assumptions: [],
+            warnings: [],
+            supplementId: "optional exact existing workspace supplement id",
+            name: "product name without the brand",
+            brand: "optional brand",
+            category:
+              "protein | creatine | multivitamin | vitamin_mineral | electrolyte | caffeine_pre_workout | omega_3 | fiber | other",
+            form: "capsule | tablet | powder | liquid | gummy | softgel | other",
+            servingLabel: "one serving such as 1 scoop (5 g) or 2 capsules",
+            defaultServingQuantity: 1,
+            notes: "optional short note",
+            active: true,
+            schedule: {
+              type: "none | daily | weekdays | training_days | rest_days",
+              weekdays: [1, 3, 5],
+              preferredTime: "optional HH:mm",
+            },
+            nutrientsPerServing: {
+              calories: 0,
+              protein: 0,
+              creatine: 5,
+              caffeine: 0,
+            },
           },
           {
             type: "delete_nutrition",

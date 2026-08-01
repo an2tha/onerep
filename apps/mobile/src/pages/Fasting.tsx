@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useState } from "react"
-import { ArrowLeft, PencilSimple, Timer, Trash } from "@phosphor-icons/react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
+import {
+  ArrowLeft,
+  CheckCircle,
+  PencilSimple,
+  Timer,
+  Trash,
+  X,
+} from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import {
   EmptyState,
@@ -14,7 +22,8 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { MobileSheet } from "@/components/mobile-sheet"
-import { hapticSelection, hapticTap } from "@/lib/haptics"
+import { celebrateOnce } from "@/lib/celebrations"
+import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
@@ -79,6 +88,7 @@ export default function Fasting() {
   )
 
   const [busy, setBusy] = useState(false)
+  const [fastCelebration, setFastCelebration] = useState(false)
   const [customHours, setCustomHours] = useState(16)
   const [editingStart, setEditingStart] = useState(false)
   const [startDraft, setStartDraft] = useState("")
@@ -144,6 +154,9 @@ export default function Fasting() {
   async function handleStop() {
     const id = active?.id ?? active?._id
     if (!id || busy) return
+    // Captured before the mutation clears the session: only a fast that ran to
+    // its target earns the celebration. Ending early gets the toast alone.
+    const completed = targetSeconds > 0 && elapsed >= targetSeconds
     setBusy(true)
     try {
       await stopFast({
@@ -152,8 +165,14 @@ export default function Fasting() {
         endDate: currentDateKey(),
       })
       writeCachedActiveFast(null)
-      hapticSelection()
-      toast.success("Fast ended")
+      if (completed) {
+        setFastCelebration(true)
+        celebrateOnce("fast-complete", String(id))
+        window.setTimeout(() => setFastCelebration(false), 2600)
+      } else {
+        hapticSelection()
+      }
+      toast.success(completed ? "Fast complete" : "Fast ended")
     } catch (error) {
       reportOfflineMutationError(error, "Could not end this fast")
     } finally {
@@ -206,6 +225,22 @@ export default function Fasting() {
     ? runningStartedAt + runningTarget * 60_000
     : null
 
+  // Beat one: the target passes while the fast is still running. Deliberately
+  // quieter than ending the fast — you have not finished yet.
+  const targetReached = runningStartedAt !== null && progress >= 1
+  const [targetPop, setTargetPop] = useState(false)
+  const previouslyReached = useRef(targetReached)
+  useEffect(() => {
+    if (targetReached && !previouslyReached.current) {
+      setTargetPop(true)
+      hapticMedium()
+      const timer = window.setTimeout(() => setTargetPop(false), 460)
+      previouslyReached.current = targetReached
+      return () => window.clearTimeout(timer)
+    }
+    previouslyReached.current = targetReached
+  }, [targetReached])
+
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <NavigationBar
@@ -227,6 +262,7 @@ export default function Fasting() {
           <>
             <SummaryBlock
               tone="food"
+              className={cn(targetPop && "motion-success-pop")}
               title={runningProtocol ? `${runningProtocol} fast` : "Fasting"}
               value={
                 <span
@@ -253,10 +289,12 @@ export default function Fasting() {
             >
               <div
                 className={cn(
-                  "h-full rounded-full transition-[width] duration-500",
+                  "motion-bar-fill h-full w-full rounded-full",
                   progress >= 1 ? "bg-[var(--accent-food)]" : "bg-foreground"
                 )}
-                style={{ width: `${Math.min(100, progress * 100)}%` }}
+                style={{
+                  transform: `scaleX(${Math.min(1, progress)})`,
+                }}
               />
             </div>
 
@@ -471,6 +509,49 @@ export default function Fasting() {
           </div>
         </MobileSheet>
       )}
+
+      {fastCelebration &&
+        createPortal(
+          <div
+            className="water-goal-celebration fast-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
+            role="status"
+            aria-live="assertive"
+            onClick={() => setFastCelebration(false)}
+          >
+            <button
+              type="button"
+              className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
+              aria-label="Dismiss fasting celebration"
+              onClick={() => setFastCelebration(false)}
+            >
+              <X size={20} weight="bold" />
+            </button>
+            <div className="water-goal-rain fast-goal-rain" aria-hidden>
+              {Array.from({ length: 32 }, (_, index) => (
+                <span
+                  key={index}
+                  style={{
+                    left: `${(index * 37) % 101}%`,
+                    animationDelay: `${(index * 73) % 640}ms`,
+                    animationDuration: `${1050 + ((index * 97) % 700)}ms`,
+                  }}
+                />
+              ))}
+            </div>
+            <div className="relative z-10 flex flex-col items-center gap-3 px-5 text-center">
+              <CheckCircle
+                size={42}
+                weight="fill"
+                className="water-goal-check text-[var(--accent-food)]"
+                aria-hidden
+              />
+              <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
+                Fast complete
+              </p>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

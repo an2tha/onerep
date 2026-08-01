@@ -288,6 +288,9 @@ function CoachLoadingState() {
   )
 }
 
+/** Matches the `sheet-panel-exit` animation duration in the shared CSS. */
+const COACH_SHEET_EXIT_MS = 320
+
 function CoachSheet({
   title,
   open,
@@ -303,9 +306,27 @@ function CoachSheet({
 }) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  // The sheet has to outlive `open` so the exit animation can play out.
+  const [rendered, setRendered] = useState(open)
+  const [closing, setClosing] = useState(false)
 
   useEffect(() => {
-    if (!open) return
+    if (open) {
+      setRendered(true)
+      setClosing(false)
+      return
+    }
+    if (!rendered) return
+    setClosing(true)
+    const exitTimer = window.setTimeout(() => {
+      setRendered(false)
+      setClosing(false)
+    }, COACH_SHEET_EXIT_MS)
+    return () => window.clearTimeout(exitTimer)
+  }, [open, rendered])
+
+  useEffect(() => {
+    if (!rendered) return
     const previouslyFocused =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
@@ -321,7 +342,7 @@ function CoachSheet({
       document.body.style.overflow = previousOverflow
       if (previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [open])
+  }, [rendered])
 
   useEffect(() => {
     if (!open) return
@@ -334,10 +355,13 @@ function CoachSheet({
     return () => document.removeEventListener("keydown", closeOnEscape)
   }, [onClose, open])
 
-  if (!open || typeof document === "undefined") return null
+  if (!rendered || typeof document === "undefined") return null
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-end bg-black/45 lg:items-center lg:p-6"
+      className={cn(
+        "fixed inset-0 z-[100] flex items-end bg-black/45 lg:items-center lg:p-6",
+        closing ? "sheet-backdrop-exit" : "sheet-backdrop-enter"
+      )}
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -346,7 +370,10 @@ function CoachSheet({
       }}
     >
       <div
-        className="coach-swoosh-surface max-h-[82svh] w-full overflow-y-auto overscroll-contain rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl lg:rounded-[26px] lg:pb-5"
+        className={cn(
+          "coach-swoosh-surface max-h-[82svh] w-full origin-bottom overflow-y-auto overscroll-contain rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl lg:rounded-[26px] lg:pb-5",
+          closing ? "sheet-panel-exit" : "sheet-panel-enter"
+        )}
         data-coach-mode={mode}
       >
         <div className="flex items-center justify-between gap-4">
@@ -1540,6 +1567,10 @@ export default function Coach() {
       navigate("/progress", { motion: "switch" })
       return
     }
+    if (action === "open_supplements") {
+      navigate("/supplements", { motion: "switch" })
+      return
+    }
     navigate("/settings", { motion: "switch" })
   }
 
@@ -1793,7 +1824,7 @@ export default function Coach() {
                   setShowMemory(true)
                 }}
                 aria-label="Coach memory"
-                className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                className="coach-header-action coach-header-action--memory flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <Brain size={16} weight="bold" />
               </button>
@@ -1804,7 +1835,7 @@ export default function Coach() {
                   setShowHistory(true)
                 }}
                 aria-label="Coach action history"
-                className="flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
+                className="coach-header-action coach-header-action--history flex size-10 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
               >
                 <ClockCounterClockwise size={16} weight="bold" />
               </button>
@@ -2111,6 +2142,11 @@ export default function Coach() {
                                   }
                                   onOpenProgress={() =>
                                     navigate("/progress", { motion: "switch" })
+                                  }
+                                  onOpenSupplements={() =>
+                                    navigate("/supplements", {
+                                      motion: "switch",
+                                    })
                                   }
                                   onUndo={(id) => void undoAction(id)}
                                   onLogRecipe={(result) =>

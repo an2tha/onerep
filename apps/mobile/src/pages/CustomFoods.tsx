@@ -231,7 +231,7 @@ export default function CustomFoods() {
           />
         </div>
       ) : (
-        <>
+        <div className="motion-content-in">
           <SectionHeader
             title={`${visibleFoods.length} food${
               visibleFoods.length === 1 ? "" : "s"
@@ -279,7 +279,7 @@ export default function CustomFoods() {
               </div>
             ))}
           </GroupedList>
-        </>
+        </div>
       )}
 
       {logTarget && (

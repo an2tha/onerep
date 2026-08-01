@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
 import { api } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -252,6 +253,101 @@ describe("supplementLogs Convex functions", () => {
       expect(overview.logs.every((log: any) => log.date === "2026-06-25")).toBe(
         true,
       );
+    });
+  });
+  test("Coach can create, edit, and undo a supplement", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity({ name: "coach-supplement-user" }, async () => {
+      const operation = {
+        type: "save_supplement",
+        confirmation: "auto",
+        summary: "Add creatine monohydrate",
+        assumptions: ["Five grams per scoop"],
+        warnings: [],
+        name: "Creatine Monohydrate",
+        brand: "Bulk",
+        category: "creatine",
+        form: "powder",
+        servingLabel: "1 scoop (5 g)",
+        defaultServingQuantity: 1,
+        active: true,
+        schedule: { type: "daily" },
+        nutrientsPerServing: { creatine: 5 },
+      };
+      const created = (await t.action(api.ai.coachOperations.applyApproved, {
+        requestId: "supplement-run-1",
+        operations: [operation],
+      })) as Array<{ supplementId: string; actionId: string }>;
+
+      let catalog = await t.query(api.logs.supplements.listCatalog, {});
+      expect(catalog).toHaveLength(1);
+      expect(catalog[0]).toMatchObject({
+        name: "Creatine Monohydrate",
+        brand: "Bulk",
+        category: "creatine",
+        form: "powder",
+        source: "manual",
+        nutrientsPerServing: { creatine: 5 },
+      });
+
+      const edited = (await t.action(api.ai.coachOperations.applyApproved, {
+        requestId: "supplement-run-2",
+        operations: [
+          {
+            ...operation,
+            supplementId: created[0].supplementId,
+            summary: "Raise creatine to two scoops",
+            defaultServingQuantity: 2,
+          },
+        ],
+      })) as Array<{ actionId: string }>;
+      catalog = await t.query(api.logs.supplements.listCatalog, {});
+      expect(catalog).toHaveLength(1);
+      expect(catalog[0].defaultServingQuantity).toBe(2);
+
+      await t.mutation(api.ai.coachState.undoAction, {
+        id: edited[0].actionId as Id<"coachActionEvents">,
+      });
+      catalog = await t.query(api.logs.supplements.listCatalog, {});
+      expect(catalog[0].defaultServingQuantity).toBe(1);
+
+      await t.mutation(api.ai.coachState.undoAction, {
+        id: created[0].actionId as Id<"coachActionEvents">,
+      });
+      await expect(
+        t.query(api.logs.supplements.listCatalog, {}),
+      ).resolves.toEqual([]);
+    });
+  });
+
+  test("Coach cannot save a supplement with an unsupported category", async () => {
+    const t = convexTest(schema, modules);
+    await t.withIdentity({ name: "coach-supplement-guard" }, async () => {
+      await expect(
+        t.action(api.ai.coachOperations.applyApproved, {
+          requestId: "supplement-run-3",
+          operations: [
+            {
+              type: "save_supplement",
+              confirmation: "auto",
+              summary: "Add an unsupported supplement",
+              assumptions: [],
+              warnings: [],
+              name: "Mystery Blend",
+              category: "nootropic",
+              form: "powder",
+              servingLabel: "1 scoop",
+              defaultServingQuantity: 1,
+              active: true,
+              schedule: { type: "daily" },
+              nutrientsPerServing: {},
+            },
+          ],
+        }),
+      ).rejects.toThrow(/unsupported category/);
+      await expect(
+        t.query(api.logs.supplements.listCatalog, {}),
+      ).resolves.toEqual([]);
     });
   });
 });

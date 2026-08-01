@@ -89,6 +89,20 @@ export function SectionSaveButton({
   saving: boolean
   onClick: () => void
 }) {
+  // Settings saves previously reported only through a toast, which lands away
+  // from the control you just used. The confirm keeps the answer in place.
+  const [confirmed, setConfirmed] = useState(false)
+  const wasSaving = useRef(saving)
+  useEffect(() => {
+    if (wasSaving.current && !saving) {
+      setConfirmed(true)
+      const timer = window.setTimeout(() => setConfirmed(false), 900)
+      wasSaving.current = saving
+      return () => window.clearTimeout(timer)
+    }
+    wasSaving.current = saving
+  }, [saving])
+
   return (
     <div className="px-[var(--app-page-x)] pt-5">
       <button
@@ -96,9 +110,12 @@ export function SectionSaveButton({
         onClick={onClick}
         disabled={saving}
         aria-busy={saving}
-        className="native-primary-button w-full disabled:opacity-50"
+        className={cn(
+          "native-primary-button w-full disabled:opacity-50",
+          confirmed && "motion-save-confirm"
+        )}
       >
-        {saving ? "Saving..." : label}
+        {saving ? "Saving..." : confirmed ? "Saved" : label}
       </button>
     </div>
   )

@@ -68,7 +68,7 @@ export function AppNavigationChrome({
                     : "text-muted-foreground active:text-foreground"
               )}
             >
-              {tab.icon}
+              <span className="motion-tab-icon">{tab.icon}</span>
               <span className="truncate">{tab.label}</span>
             </button>
           ))}

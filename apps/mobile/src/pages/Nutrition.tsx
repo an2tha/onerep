@@ -13,7 +13,6 @@ import {
   MagnifyingGlass,
   PencilSimple,
   Pill,
-  PintGlass,
   Plus,
   Printer,
   ShoppingCart,
@@ -109,6 +108,8 @@ type GoalOverride = {
 type GoalField = keyof GoalOverride
 
 const QUICK_WATER = [250]
+const FAST_RING_R = 33
+const FAST_RING_C = 2 * Math.PI * FAST_RING_R
 const GOAL_FIELDS: {
   key: GoalField
   label: string
@@ -221,6 +222,14 @@ function fmtWater(ml: number) {
     return `${liters % 1 === 0 ? liters : liters.toFixed(1)} L`
   }
   return `${Math.round(ml)} ml`
+}
+
+/** Coarse countdown for the fasting ring: "3h 47m", or "12m" under the hour. */
+function fmtFastRemaining(seconds: number) {
+  const minutes = Math.max(0, Math.round(seconds / 60))
+  const hours = Math.floor(minutes / 60)
+  if (hours === 0) return `${minutes}m`
+  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m`
 }
 
 function fmtMicro(value: number, unit: "g" | "mg" | "mcg") {
@@ -1670,10 +1679,16 @@ export default function Nutrition() {
     effectiveGoals?.health?.fiber,
     carbMode
   )
-  // A running fast gets a live pill in the header; the full timer lives on
-  // /nutrition/fasting.
+  // A running fast gets a live ring on the page; the full timer, streak and
+  // history live on /nutrition/fasting.
   const activeFast = useQuery(api.logs.fasting.getActive, {})
   const fastElapsed = useFastTimer(activeFast?.startedAt ?? null)
+  const fastTargetSeconds = Math.max(0, (activeFast?.targetMinutes ?? 0) * 60)
+  // A custom fast can have no target at all, in which case the ring stays a
+  // plain track rather than reading as instantly complete.
+  const fastProgress =
+    fastTargetSeconds > 0 ? Math.min(1, fastElapsed / fastTargetSeconds) : 0
+  const fastRemaining = Math.max(0, fastTargetSeconds - fastElapsed)
   const mealTargetsEnabled = effectiveGoals?.mealTargetsEnabled ?? false
   const mealTargets = useMemo(
     () => effectiveGoals?.mealTargets ?? [],
@@ -2117,6 +2132,198 @@ export default function Nutrition() {
     }
   }
 
+  // Logging methods, the fasting timer and the food library used to be buried in
+  // the "Add to diary" sheet. They live on the page now; these blocks keep the
+  // today and past-day branches rendering the same thing.
+  const logMethods = (
+    <section
+      className="progress-tab-enter mt-3 grid grid-cols-4 gap-2"
+      aria-label="Log a meal"
+    >
+      {[
+        {
+          label: "Search",
+          Icon: MagnifyingGlass,
+          action: openFoodSearch,
+        },
+        {
+          label: "Barcode",
+          Icon: Barcode,
+          action: () => navigate("/camera?mode=barcode"),
+        },
+        {
+          label: "Snap",
+          Icon: Aperture,
+          requiresAiAccess: true,
+          action: openSnapCamera,
+        },
+        {
+          label: "Describe",
+          Icon: Sparkle,
+          requiresAiAccess: true,
+          action: openDescribeMeal,
+        },
+      ].map(({ label, Icon, action, requiresAiAccess }) => (
+        <button
+          key={label}
+          type="button"
+          onClick={() => {
+            if (requiresAiAccess && !requireAiAccess()) return
+            action()
+          }}
+          className="app-button app-button-quiet min-h-18 flex-col gap-1.5 px-1"
+        >
+          <Icon size={20} weight="bold" />
+          <span>{label}</span>
+        </button>
+      ))}
+    </section>
+  )
+
+  const fastingCard = (
+    <TourAnchor
+      anchor="nutrition-fasting-pill"
+      className="progress-tab-enter block border-y border-border py-4"
+    >
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <p className="app-section-title">Fasting</p>
+        <button
+          type="button"
+          onClick={() => navigate("/nutrition/fasting")}
+          className="native-toolbar-button px-0 text-muted-foreground"
+          aria-label="Open the fasting timer"
+        >
+          <CaretRight size={16} weight="bold" />
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => navigate("/nutrition/fasting")}
+        aria-label={
+          activeFast
+            ? `Fasting for ${formatFastDuration(
+                fastElapsed
+              )} — open the fasting timer`
+            : "Start a fast"
+        }
+        className="mt-2 flex w-full items-center gap-4 text-left active:opacity-70"
+      >
+        <span className="relative size-19 shrink-0">
+          <svg viewBox="0 0 76 76" className="size-full -rotate-90" aria-hidden>
+            <circle
+              cx="38"
+              cy="38"
+              r={FAST_RING_R}
+              fill="none"
+              strokeWidth="5"
+              className="stroke-foreground/[0.09]"
+            />
+            {activeFast && (
+              <circle
+                cx="38"
+                cy="38"
+                r={FAST_RING_R}
+                fill="none"
+                strokeWidth="5"
+                strokeLinecap="round"
+                strokeDasharray={FAST_RING_C}
+                strokeDashoffset={FAST_RING_C * (1 - fastProgress)}
+                style={{
+                  stroke: "var(--accent-food)",
+                  transition:
+                    "stroke-dashoffset var(--motion-medium) var(--motion-ease-out)",
+                }}
+              />
+            )}
+          </svg>
+          <span className="absolute inset-0 grid place-items-center">
+            <Timer
+              size={20}
+              weight="bold"
+              className={
+                activeFast
+                  ? "text-[var(--accent-food)]"
+                  : "text-muted-foreground/50"
+              }
+            />
+          </span>
+        </span>
+
+        <span className="min-w-0 flex-1">
+          {activeFast ? (
+            <>
+              <span
+                className="block text-[1.35rem] leading-none font-bold tracking-tight tabular-nums"
+                aria-live="polite"
+              >
+                {formatFastDuration(fastElapsed)}
+              </span>
+              <span className="native-row-detail mt-1.5 block">
+                {fastTargetSeconds === 0
+                  ? "Open-ended"
+                  : fastRemaining > 0
+                    ? `${fmtFastRemaining(fastRemaining)} to go`
+                    : "Target reached"}
+              </span>
+              <span className="native-row-detail block">
+                {activeFast.protocol} fast
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="native-row-title block">Start a fast</span>
+              <span className="native-row-detail mt-1 block">
+                16:8, 18:6, or a window you set.
+              </span>
+            </>
+          )}
+        </span>
+      </button>
+    </TourAnchor>
+  )
+
+  const foodLibrary = (
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          {
+            label: "My foods",
+            Icon: ForkKnife,
+            action: () => navigate("/foods/custom"),
+          },
+          {
+            label: "Meal prep",
+            Icon: BowlFood,
+            action: () => navigate("/nutrition/meal-prep"),
+          },
+          {
+            label: "Groceries",
+            Icon: ShoppingCart,
+            action: () => navigate("/nutrition/groceries"),
+          },
+        ].map(({ label, Icon, action }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={action}
+            className="app-button app-button-quiet gap-1.5 px-2"
+          >
+            <Icon size={17} weight="bold" />
+            <span className="truncate">{label}</span>
+          </button>
+        ))}
+      </div>
+      <RecipeManagementBox
+        recipes={recipes}
+        deletingRecipeId={deletingRecipeId}
+        onCreate={createRecipe}
+        onEdit={editRecipe}
+        onDelete={(recipe) => void deleteRecipe(recipe)}
+        embedded
+      />
+    </div>
+  )
+
   return (
     <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
       <main className="app-page">
@@ -2137,6 +2344,14 @@ export default function Nutrition() {
               onOpenChange={setDateSelectorOpen}
               label="Nutrition date"
             />
+            <button
+              type="button"
+              onClick={() => navigate("/nutrition/report")}
+              className="app-header-icon-action"
+              aria-label="Nutrition report"
+            >
+              <Printer weight="bold" />
+            </button>
             {isToday && (
               <>
                 <TourAnchor
@@ -2190,34 +2405,6 @@ export default function Nutrition() {
                 <Plus weight="bold" />
               </button>
             </div>
-
-            {activeFast && (
-              <TourAnchor anchor="nutrition-fasting-pill" className="block">
-                <button
-                  type="button"
-                  onClick={() => navigate("/nutrition/fasting")}
-                  aria-label={`Fasting for ${formatFastDuration(
-                    fastElapsed
-                  )} — open the fasting timer`}
-                  className="mt-3 flex w-full items-center gap-2 rounded-xl border border-border px-3 py-2 text-left active:opacity-70"
-                >
-                  <Timer
-                    size={17}
-                    weight="bold"
-                    className="text-[var(--accent-food)]"
-                  />
-                  <span
-                    className="native-row-title tabular-nums"
-                    aria-live="polite"
-                  >
-                    {formatFastDuration(fastElapsed)}
-                  </span>
-                  <span className="native-row-detail ml-auto">
-                    {activeFast.protocol} fast
-                  </span>
-                </button>
-              </TourAnchor>
-            )}
 
             <TourAnchor
               anchor="nutrition-macros"
@@ -2415,13 +2602,10 @@ export default function Nutrition() {
         )}
 
         {!isToday && (
-          <RecipeManagementBox
-            recipes={recipes}
-            deletingRecipeId={deletingRecipeId}
-            onCreate={createRecipe}
-            onEdit={editRecipe}
-            onDelete={(recipe) => void deleteRecipe(recipe)}
-          />
+          <>
+            <div className="mt-4">{fastingCard}</div>
+            {foodLibrary}
+          </>
         )}
 
         {!isToday ? null : (
@@ -2509,6 +2693,8 @@ export default function Nutrition() {
               )}
             </SummaryBlock>
 
+            {logMethods}
+
             {smartMealSuggestion && (
               <div className="mt-3">
                 <SmartMealPresetCard
@@ -2562,14 +2748,9 @@ export default function Nutrition() {
                       ))}
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={openFoodSearch}
-                      className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background active:opacity-85"
-                    >
-                      <Plus size={17} weight="bold" />
-                      Log your first meal
-                    </button>
+                    <p className="text-[14px] leading-5 text-muted-foreground">
+                      Nothing logged yet — pick a way to log above.
+                    </p>
                   )}
                 </div>
 
@@ -2592,6 +2773,7 @@ export default function Nutrition() {
                     carbMode={carbMode}
                   />
                 )}
+                {foodLibrary}
               </div>
 
               <div className="grid content-start gap-6 self-start">
@@ -2704,6 +2886,8 @@ export default function Nutrition() {
                     </p>
                   )}
                 </div>
+
+                {fastingCard}
               </div>
             </section>
           </>
@@ -2955,55 +3139,6 @@ export default function Nutrition() {
                   Icon: Sparkle,
                   requiresAiAccess: true,
                   action: openDescribeMeal,
-                },
-                {
-                  label: "Meal prep",
-                  detail: "Log a serving from a batch you cooked",
-                  Icon: BowlFood,
-                  // Date-independent tool: keep it reachable from past days too.
-                  supportsHistory: true,
-                  action: () => navigate("/nutrition/meal-prep"),
-                },
-                {
-                  label: "My foods",
-                  detail: "Foods you entered yourself",
-                  Icon: ForkKnife,
-                  supportsHistory: true,
-                  action: () => navigate("/foods/custom"),
-                },
-                {
-                  label: "Fasting timer",
-                  detail: "Track an intermittent fast",
-                  Icon: Timer,
-                  supportsHistory: true,
-                  action: () => navigate("/nutrition/fasting"),
-                },
-                {
-                  label: "Grocery list",
-                  detail: "Build a shopping list from recipes",
-                  Icon: ShoppingCart,
-                  supportsHistory: true,
-                  action: () => navigate("/nutrition/groceries"),
-                },
-                {
-                  label: "Add 250 ml water",
-                  detail: "Quick hydration",
-                  Icon: PintGlass,
-                  supportsHistory: true,
-                  action: () => void addWater(250),
-                },
-                {
-                  label: "Manage supplements",
-                  detail: "Plan and log doses",
-                  Icon: Pill,
-                  action: () => navigate("/supplements"),
-                },
-                {
-                  label: "Nutrition report",
-                  detail: "Printable summary to share",
-                  Icon: Printer,
-                  supportsHistory: true,
-                  action: () => navigate("/nutrition/report"),
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)

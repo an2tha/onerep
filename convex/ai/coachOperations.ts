@@ -453,6 +453,57 @@ export const applyApproved = action({
             metricId: String(metricId),
             actionId: String(actionId),
           });
+        } else if (operation.type === "save_supplement") {
+          const catalog = operation.supplementId
+            ? await ctx.runQuery(api.logs.supplements.listCatalog, {
+                includeInactive: true,
+              })
+            : [];
+          const previous =
+            catalog.find(
+              (item) => String(item._id) === operation.supplementId,
+            ) ?? null;
+          if (operation.supplementId && !previous)
+            throw new Error("That supplement no longer exists.");
+          const saved = await ctx.runMutation(api.logs.supplements.saveItem, {
+            ...(operation.supplementId
+              ? { id: operation.supplementId as Id<"supplementItems"> }
+              : {}),
+            name: operation.name,
+            ...(operation.brand ? { brand: operation.brand } : {}),
+            category: operation.category,
+            form: operation.form,
+            servingLabel: operation.servingLabel,
+            defaultServingQuantity: operation.defaultServingQuantity,
+            ...(operation.notes ? { notes: operation.notes } : {}),
+            active: operation.active,
+            schedule: operation.schedule,
+            nutrientsPerServing: operation.nutrientsPerServing,
+            source: "manual",
+          });
+          const actionId = await ctx.runMutation(
+            api.ai.coachState.recordAction,
+            {
+              kind: operation.supplementId
+                ? "update_supplement"
+                : "save_supplement",
+              summary: operation.summary,
+              targetType: "supplement",
+              targetId: String(saved.id),
+              undoPayload: previous
+                ? {
+                    kind: "restore_supplement_item",
+                    id: String(saved.id),
+                    body: previous,
+                  }
+                : { kind: "delete_supplement_item", id: String(saved.id) },
+            },
+          );
+          results.push({
+            ...operation,
+            supplementId: String(saved.id),
+            actionId: String(actionId),
+          });
         } else if (operation.type === "save_dashboard_widget") {
           const saved = await ctx.runMutation(
             api.dashboardWidgets.saveFromCoach,

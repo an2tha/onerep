@@ -987,6 +987,22 @@
   flex-shrink: 0;
 }
 
+/* Steppers get tapped repeatedly; without this the only signal that a tap
+   registered is the number itself changing. */
+.onboarding-stepper-button,
+.onboarding-unit-button {
+  transition:
+    transform var(--motion-fast) var(--motion-ease-out),
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    opacity var(--motion-fast) var(--motion-ease-standard);
+}
+
+.onboarding-stepper-button:active:not(:disabled),
+.onboarding-unit-button:active {
+  transform: scale(0.92);
+  background: color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+
 .onboarding-stepper-button:disabled {
   opacity: 0.32;
 }
@@ -2087,6 +2103,29 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .motion-countdown-fill,
   .motion-set-complete,
   .motion-success-pop,
+  .motion-empty-state,
+  .motion-stagger,
+  .motion-stagger > *,
+  .motion-checkbox,
+  .motion-checkbox svg,
+  .motion-row-checked,
+  .motion-burst,
+  .motion-burst > span,
+  .motion-tab-icon,
+  [aria-current="page"] .motion-tab-icon,
+  .motion-ring-progress,
+  .motion-ring-complete,
+  .motion-bar-fill,
+  .motion-content-in,
+  .motion-collapse-out,
+  .motion-save-confirm,
+  .native-primary-button,
+  .native-secondary-button,
+  .native-toolbar-button,
+  button.native-list-row,
+  a.native-list-row,
+  .onboarding-stepper-button,
+  .onboarding-unit-button,
   .coach-chrome-enter,
   .coach-mode-tabs,
   .coach-empty-intro,
@@ -2105,6 +2144,8 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .coach-customization-state,
   .coach-customization-card img,
   .coach-customization-close svg,
+  .coach-header-action,
+  .coach-header-action svg,
   .coach-generated-content,
   .coach-generated-content > *,
   .coach-generated-content button,
@@ -2120,6 +2161,13 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .animate-pulse {
     animation: none !important;
     transition: none !important;
+  }
+
+  /* Stripping the animation alone would leave the particles parked on screen,
+     so the burst is removed outright. */
+  .motion-burst,
+  .water-rain {
+    display: none !important;
   }
 
   .app-route-frame-current[data-route-loading="true"] {
@@ -2224,6 +2272,20 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     border-top: 1px solid var(--divider);
   }
 
+  /* Scoped to `button` so rows you cannot tap do not respond to touch. */
+  button.native-list-row,
+  a.native-list-row {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  button.native-list-row:active,
+  a.native-list-row:active {
+    transform: scale(0.996);
+    background: var(--surface-pressed);
+  }
+
   button.native-list-row:active {
     background: var(--surface-pressed);
   }
@@ -2297,8 +2359,19 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     color: var(--background);
   }
 
+  /* Applied to the base class rather than via `motion-tactile` in TSX: most
+     call sites write these class strings directly instead of importing the
+     mobile-ui components, so this is what actually reaches every page. */
+  .native-primary-button {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
   .native-primary-button:active {
     opacity: 0.78;
+    transform: translateY(1px) scale(0.985);
   }
 
   .native-primary-button:disabled {
@@ -2321,8 +2394,16 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     color: var(--foreground);
   }
 
+  .native-secondary-button {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
   .native-secondary-button:active {
     background: var(--surface-pressed);
+    transform: scale(0.992);
   }
 
   .native-secondary-button:disabled {
@@ -2343,8 +2424,16 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
     color: var(--foreground);
   }
 
+  .native-toolbar-button {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-out),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      opacity var(--motion-fast) var(--motion-ease-standard);
+  }
+
   .native-toolbar-button:active {
     background: var(--surface-pressed);
+    transform: scale(0.92);
   }
 
   .native-field {
@@ -2770,6 +2859,84 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   to {
     opacity: 1;
     transform: scaleX(1);
+  }
+}
+
+@keyframes motion-rise-particle {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  22% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-34px) scale(1);
+  }
+}
+
+@keyframes motion-check-draw {
+  from {
+    stroke-dashoffset: 22;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes motion-tab-icon-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-ring-complete-pulse {
+  0% {
+    filter: drop-shadow(
+      0 0 0 color-mix(in srgb, var(--status-complete) 0%, transparent)
+    );
+  }
+  40% {
+    filter: drop-shadow(
+      0 0 7px color-mix(in srgb, var(--status-complete) 55%, transparent)
+    );
+  }
+  100% {
+    filter: drop-shadow(
+      0 0 0 color-mix(in srgb, var(--status-complete) 0%, transparent)
+    );
+  }
+}
+
+@keyframes motion-collapse-out {
+  from {
+    opacity: 1;
+    max-height: 24rem;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    transform: scale(0.97);
+  }
+}
+
+@keyframes motion-save-confirm {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
@@ -3827,6 +3994,135 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     animation: success-pop 420ms var(--motion-ease-emphasized) both;
   }
 
+  /* Empty states arrive slightly after the page settles so the two don't
+     compete for attention on the same frame. */
+  .motion-empty-state {
+    animation-name: motion-page-settle;
+    animation-duration: var(--motion-medium);
+    animation-timing-function: var(--motion-ease-out);
+    animation-delay: 60ms;
+    animation-fill-mode: both;
+  }
+
+  /* Opt-in only, and capped in the caller at ~8 rows — a long list cascading
+     in is just a delay before you can read it. */
+  .motion-stagger > * {
+    animation-name: motion-page-settle;
+    animation-duration: var(--motion-medium);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
+    animation-delay: calc(
+      var(--motion-stagger-step, 24ms) * var(--motion-index, 0)
+    );
+  }
+
+  .motion-checkbox {
+    transition:
+      transform var(--motion-fast) var(--motion-ease-emphasized),
+      background-color var(--motion-fast) var(--motion-ease-standard),
+      border-color var(--motion-fast) var(--motion-ease-standard);
+  }
+
+  .motion-checkbox[data-checked="true"] {
+    transform: scale(1.04);
+  }
+
+  .motion-checkbox svg {
+    animation: motion-check-draw 260ms var(--motion-ease-out) both;
+    stroke-dasharray: 22;
+  }
+
+  .motion-row-checked {
+    transition:
+      color var(--motion-medium) var(--motion-ease-standard),
+      opacity var(--motion-medium) var(--motion-ease-standard),
+      text-decoration-color var(--motion-medium) var(--motion-ease-standard);
+  }
+
+  .motion-burst {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 5;
+  }
+
+  .motion-burst > span {
+    position: absolute;
+    border-radius: 9999px;
+    background: var(--burst-color, var(--accent-water));
+    animation-fill-mode: both;
+    animation-timing-function: ease-in;
+  }
+
+  .motion-burst-rain > span {
+    top: 0;
+    width: 2px;
+    height: 9px;
+    transform: rotate(12deg);
+    animation-name: water-rain-drop;
+  }
+
+  .motion-burst-rise > span {
+    bottom: 0;
+    width: 5px;
+    height: 5px;
+    animation-name: motion-rise-particle;
+    animation-timing-function: var(--motion-ease-out);
+  }
+
+  .motion-burst-spark > span {
+    top: 50%;
+    width: 4px;
+    height: 4px;
+    animation-name: motion-rise-particle;
+    animation-timing-function: var(--motion-ease-emphasized);
+  }
+
+  .motion-tab-icon {
+    display: inline-flex;
+    transition: transform var(--motion-fast) var(--motion-ease-emphasized);
+  }
+
+  [aria-current="page"] .motion-tab-icon {
+    animation: motion-tab-icon-pop var(--motion-fast)
+      var(--motion-ease-emphasized) both;
+  }
+
+  /* Class-based so the reduced-motion block can actually reach it; an inline
+     style on an unclassed element cannot be listed there. */
+  .motion-ring-progress {
+    transition: stroke-dashoffset var(--motion-slow) var(--motion-ease-out);
+  }
+
+  .motion-ring-complete {
+    animation: motion-ring-complete-pulse 620ms var(--motion-ease-emphasized)
+      both;
+  }
+
+  /* scaleX rather than width: three bars animating width relayout every
+     frame, whereas transform stays on the compositor. */
+  .motion-bar-fill {
+    transform-origin: left center;
+    transition: transform var(--motion-slow) var(--motion-ease-out);
+  }
+
+  .motion-content-in {
+    animation-name: motion-page-settle;
+    animation-duration: var(--motion-medium);
+    animation-timing-function: var(--motion-ease-out);
+    animation-fill-mode: both;
+  }
+
+  .motion-collapse-out {
+    animation: motion-collapse-out 320ms var(--motion-ease-standard) both;
+    overflow: hidden;
+  }
+
+  .motion-save-confirm {
+    animation: motion-save-confirm 900ms var(--motion-ease-emphasized) both;
+  }
+
   @media (max-width: 767px) {
     .app-header {
       gap: 0.85rem;
@@ -4876,6 +5172,16 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent-food) 32%, transparent);
 }
 
+/* Same scaffold as the water/calorie takeovers, in the food tone. */
+.fast-goal-celebration {
+  background: rgba(24, 16, 6, 0.46);
+}
+
+.fast-goal-rain > span {
+  background: color-mix(in srgb, var(--accent-food) 82%, white);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-food) 30%, transparent);
+}
+
 .nutrient-micro-rain > span {
   background: var(--nutrient-rain-color);
   box-shadow: 0 0 7px
@@ -5734,6 +6040,46 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
   .coach-customization-close:hover svg {
     transform: rotate(90deg);
+  }
+}
+
+/* Header icon buttons: the tap needs to read on a 40px target, so the
+   button dips while the glyph does something specific to what it opens. */
+.coach-header-action {
+  transition:
+    transform 200ms var(--motion-ease-out),
+    background-color var(--motion-fast) var(--motion-ease-standard),
+    color var(--motion-fast) var(--motion-ease-standard);
+}
+
+.coach-header-action:active {
+  transform: scale(0.9);
+  color: var(--foreground);
+}
+
+.coach-header-action svg {
+  transition: transform 320ms var(--motion-ease-emphasized);
+}
+
+.coach-header-action--memory:active svg {
+  transform: scale(1.16);
+}
+
+.coach-header-action--history:active svg {
+  transform: rotate(-140deg);
+}
+
+@media (hover: hover) {
+  .coach-header-action:hover {
+    color: var(--foreground);
+  }
+
+  .coach-header-action--memory:hover svg {
+    transform: scale(1.08);
+  }
+
+  .coach-header-action--history:hover svg {
+    transform: rotate(-30deg);
   }
 }
 
