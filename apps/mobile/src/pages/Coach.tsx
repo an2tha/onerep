@@ -69,6 +69,9 @@ import {
 } from "@/lib/haptics"
 import { useCoachDictation } from "@/lib/use-coach-dictation"
 import {
+  COACH_MAX_MESSAGE_CHARS,
+  COACH_MAX_MESSAGE_WORDS,
+  countCoachMessageWords,
   normalizeCoachOperations as normalizeSharedCoachOperations,
   validateCoachOperations as validateSharedCoachOperations,
 } from "@repo/models"
@@ -422,6 +425,11 @@ export default function Coach() {
     limit: 30,
   })
   const [input, setInput] = useState("")
+  const inputWordCount = useMemo(() => countCoachMessageWords(input), [input])
+  // Surfaced once the message is long enough that the ceiling is worth knowing
+  // about, so the counter is absent for ordinary questions.
+  const showWordCount = inputWordCount >= COACH_MAX_MESSAGE_WORDS * 0.8
+  const overWordLimit = inputWordCount > COACH_MAX_MESSAGE_WORDS
   const [recipeCustomization, setRecipeCustomization] =
     useState<RecipeCustomization | null>(null)
   const [guidedIntent, setGuidedIntent] = useState<GuidedCoachIntent | null>(
@@ -1430,7 +1438,10 @@ export default function Coach() {
   }
 
   function updateComposer(value: string, element?: HTMLTextAreaElement) {
-    const nextValue = value.slice(0, 1200)
+    // Only the character ceiling is enforced while typing. Going over the word
+    // limit is surfaced by the counter and blocks sending, so a long paste is
+    // left intact for the user to trim rather than silently cut.
+    const nextValue = value.slice(0, COACH_MAX_MESSAGE_CHARS)
     setInput(nextValue)
     const textarea = element ?? composerRef.current
     if (!textarea) return
@@ -1442,8 +1453,14 @@ export default function Coach() {
     const dictatedInput =
       dictation.status === "listening" ? await dictation.stop() : input
     const selectedAttachment = attachmentRef.current
-    const rawPrompt = (promptOverride ?? dictatedInput).trim().slice(0, 1200)
+    const rawPrompt = (promptOverride ?? dictatedInput).trim()
     if (!rawPrompt && !selectedAttachment) return
+    if (countCoachMessageWords(rawPrompt) > COACH_MAX_MESSAGE_WORDS) {
+      toast.error(
+        `That message is too long. Keep it under ${COACH_MAX_MESSAGE_WORDS.toLocaleString()} words.`
+      )
+      return
+    }
     if (selectedAttachment && selectedAttachment.status !== "ready") {
       toast.error(
         selectedAttachment.status === "error"
@@ -2217,7 +2234,10 @@ export default function Coach() {
                     ref={composerRef}
                     value={input}
                     rows={1}
-                    maxLength={1200}
+                    aria-invalid={overWordLimit}
+                    aria-describedby={
+                      showWordCount ? "coach-word-count" : undefined
+                    }
                     onChange={(event) =>
                       updateComposer(event.target.value, event.currentTarget)
                     }
@@ -2277,6 +2297,7 @@ export default function Coach() {
                     disabled={
                       loading ||
                       busy ||
+                      overWordLimit ||
                       (input.trim().length === 0 &&
                         attachment?.status !== "ready")
                     }
@@ -2301,6 +2322,23 @@ export default function Coach() {
                     className="px-2.5 pt-1 text-[9px] font-medium text-destructive"
                   >
                     {dictation.error}
+                  </p>
+                ) : null}
+                {showWordCount ? (
+                  <p
+                    id="coach-word-count"
+                    role="status"
+                    aria-live="polite"
+                    className={cn(
+                      "px-2.5 pt-1 text-[9px] font-medium",
+                      overWordLimit
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {inputWordCount.toLocaleString()} of{" "}
+                    {COACH_MAX_MESSAGE_WORDS.toLocaleString()} words
+                    {overWordLimit ? " · shorten this to send" : null}
                   </p>
                 ) : null}
                 <div className="flex items-center justify-end px-2.5 pb-1">

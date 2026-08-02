@@ -5,6 +5,21 @@ import type {
   SupplementSchedule,
 } from "./supplements";
 
+/** Longest question a user may send Coach in one message. */
+export const COACH_MAX_MESSAGE_WORDS = 2_000;
+
+/**
+ * Words alone do not bound the payload, since a single "word" can be
+ * arbitrarily long. This ceiling is generous headroom over 2,000 ordinary
+ * words and exists only to stop a pathological paste reaching the model.
+ */
+export const COACH_MAX_MESSAGE_CHARS = 24_000;
+
+/** Whitespace-delimited word count, matching what the composer counter shows. */
+export function countCoachMessageWords(value: string): number {
+  return value.trim().match(/\S+/g)?.length ?? 0;
+}
+
 export const COACH_SUPPLEMENT_CATEGORIES: readonly SupplementCategory[] = [
   "protein",
   "creatine",
