@@ -18,6 +18,11 @@ import type {
   SupplementNutrients,
   SupplementSchedule,
 } from "../../packages/models/src/supplements";
+import {
+  COACH_MAX_MESSAGE_CHARS,
+  COACH_MAX_MESSAGE_WORDS,
+  countCoachMessageWords,
+} from "../../packages/models/src/coach";
 
 const MAX_PROMPT_CHARS = 1_200;
 const MAX_METRICS = 80;
@@ -2997,8 +3002,15 @@ export const generateCoachChatMessage = action({
     if (args.attachmentId && !attachment) {
       throw new Error("That image is unavailable or has expired.");
     }
+    // Reject rather than clamp: silently truncating a long question makes the
+    // coach answer something the user did not ask.
+    if (countCoachMessageWords(args.message) > COACH_MAX_MESSAGE_WORDS) {
+      throw new Error(
+        `That message is too long. Keep it under ${COACH_MAX_MESSAGE_WORDS.toLocaleString()} words.`,
+      );
+    }
     const message =
-      clampText(args.message, MAX_PROMPT_CHARS) ||
+      clampText(args.message, COACH_MAX_MESSAGE_CHARS) ||
       (attachment ? "Analyze this image in the context of my goals." : "");
     if (message.length < 2) throw new Error("Ask a coaching question.");
 
