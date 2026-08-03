@@ -5,7 +5,6 @@ import type {
   TourStep,
   WalkthroughProgress,
 } from "./types"
-import { WELCOME_CHAPTER_ID } from "./types"
 
 /**
  * Routes where an interruption would be actively hostile: an invited coach
@@ -66,14 +65,12 @@ export type ResolveInput = {
   ctx: TourContext
   /** Onboarding incomplete, Pro state loading, a sheet is open, mid-transition. */
   blocked: boolean
-  welcomeSeen: boolean
   /** At most one primer per session, so exploring does not chain popups. */
   primerShownThisSession: boolean
 }
 
 export type ResolveOutput =
   | { action: "none" }
-  | { action: "welcome" }
   | {
       action: "start"
       chapter: TourChapter
@@ -100,8 +97,6 @@ export function resolveTourAction(input: ResolveInput): ResolveOutput {
   if (input.blocked) return { action: "none" }
   if (isNeverInterruptRoute(input.pathname)) return { action: "none" }
 
-  if (!input.welcomeSeen) return { action: "welcome" }
-
   // Exact match: /nutrition/report must not trigger the Nutrition chapter.
   const chapter = input.chapters.find(
     (candidate) => candidate.route === input.pathname
@@ -118,16 +113,6 @@ export function resolveTourAction(input: ResolveInput): ResolveOutput {
   if (startIndex === null) return { action: "none" }
 
   return { action: "start", chapter, steps, startIndex }
-}
-
-export function isWelcomeSeen(
-  progress: WalkthroughProgress,
-  localFlagPending: boolean
-) {
-  if (progress[WELCOME_CHAPTER_ID]) return true
-  // No pending flag means this is not a freshly-onboarded user; never ambush
-  // an existing account with the welcome sheet.
-  return !localFlagPending
 }
 
 export function walkthroughStatusLabel(

@@ -1,24 +1,54 @@
 import type { FormCoachAngleLandmarks, FormCoachFrame } from "@/lib/form-coach"
-import { MIN_VISIBILITY, POSE_LANDMARK_COUNT } from "@/lib/pose-scene"
+import { MIN_VISIBILITY } from "@/lib/pose-scene"
 
 const NOSE = 0
 const LEFT_SHOULDER = 11
 const RIGHT_SHOULDER = 12
+const LEFT_ELBOW = 13
+const RIGHT_ELBOW = 14
 const LEFT_WRIST = 15
 const RIGHT_WRIST = 16
 const LEFT_HIP = 23
 const RIGHT_HIP = 24
+const LEFT_KNEE = 25
+const RIGHT_KNEE = 26
 const LEFT_ANKLE = 27
 const RIGHT_ANKLE = 28
 
-/** Samples in one canonical rep. 24 at ~2s a rep is roughly 12fps of playback. */
-export const REP_PHASE_SAMPLES = 24
+/**
+ * Frames a capture may carry in total, across every rep of every angle.
+ *
+ * Mirrors the server's own ceiling with headroom to spare. Reps are dropped
+ * whole rather than thinned, so what survives is still real footage.
+ */
+export const MAX_CAPTURE_FRAMES = 1000
+
+/** A rep with fewer tracked frames than this describes nothing worth measuring. */
+const MIN_REP_FRAMES = 4
 
 /**
- * Minimum hip-travel, in metres, before a dip counts as a rep rather than a
- * shuffle or a tracking wobble.
+ * Minimum travel in a distance signal, as a fraction of its own standing value,
+ * before a dip counts as a rep rather than a shuffle or a tracking wobble.
+ *
+ * Relative rather than absolute so it means the same thing on a tall lifter as a
+ * short one. Deliberately not loosened much: these chords are insensitive near
+ * full extension — hip-to-ankle is `2·L·sin(θ/2)` in the knee angle — so the
+ * fraction that would admit a quarter squat is indistinguishable from the one
+ * that admits a twitch. Shallow reps are caught by the angle signals instead,
+ * which is what they are for.
  */
-export const MIN_REP_RANGE_M = 0.12
+export const MIN_REP_RANGE_FRACTION = 0.1
+
+/** Absolute floor under the relative threshold, to reject tracking jitter. */
+export const MIN_REP_RANGE_M = 0.05
+
+/**
+ * Minimum swing in a joint-angle signal, in degrees.
+ *
+ * Angles are linear in flexion where the chords are not, which is what makes
+ * them the reliable signal for a partial rep.
+ */
+export const MIN_REP_RANGE_DEG = 22
 
 type Vec = { x: number; y: number; z: number }
 type Point = Vec & { visibility?: number }
@@ -207,24 +237,92 @@ export function wristToHip(frame: FormCoachFrame): number | null {
   ])
 }
 
+/** Interior angle at a joint, in degrees, averaged over the tracked sides. */
+function meanJointAngle(
+  frame: FormCoachFrame,
+  joints: ReadonlyArray<readonly [number, number, number]>
+): number | null {
+  const points = frame.worldLandmarks
+  if (points.length === 0) return null
+
+  let total = 0
+  let counted = 0
+  for (const [from, vertex, to] of joints) {
+    const a = points[from]
+    const b = points[vertex]
+    const c = points[to]
+    if (!a || !b || !c) continue
+    if ((a.visibility ?? 1) < MIN_VISIBILITY) continue
+    if ((b.visibility ?? 1) < MIN_VISIBILITY) continue
+    if ((c.visibility ?? 1) < MIN_VISIBILITY) continue
+    const u = sub(a, b)
+    const v = sub(c, b)
+    const lengths = length(u) * length(v)
+    if (lengths < 1e-9) continue
+    total +=
+      (Math.acos(Math.min(1, Math.max(-1, dot(u, v) / lengths))) * 180) /
+      Math.PI
+    counted += 1
+  }
+  return counted === 0 ? null : total / counted
+}
+
+/** Knee flexion, which a squat, lunge or step-up lives in. */
+export function kneeAngle(frame: FormCoachFrame) {
+  return meanJointAngle(frame, [
+    [LEFT_HIP, LEFT_KNEE, LEFT_ANKLE],
+    [RIGHT_HIP, RIGHT_KNEE, RIGHT_ANKLE],
+  ])
+}
+
+/** Elbow flexion, which a curl, press, row or pull-up lives in. */
+export function elbowAngle(frame: FormCoachFrame) {
+  return meanJointAngle(frame, [
+    [LEFT_SHOULDER, LEFT_ELBOW, LEFT_WRIST],
+    [RIGHT_SHOULDER, RIGHT_ELBOW, RIGHT_WRIST],
+  ])
+}
+
 /**
- * The distances a rep can show up in, all camera-invariant and in metres.
+ * The signals a rep can show up in, all camera-invariant.
  *
- * A rep is a there-and-back excursion in *some* distance on the body, but which
- * distance depends on the lift: the hips travel towards the floor in a squat,
+ * A rep is a there-and-back excursion in *something* on the body, but which
+ * something depends on the lift: the hips travel towards the floor in a squat,
  * the wrists towards the shoulders in a curl or a bench press, and away from the
  * hips in a lateral raise. Rather than keeping a table of exercise to signal —
  * which would need an entry, and a guess, for every movement a user might log —
  * all of them are measured and the one that actually moved is used. That is what
  * lets a single detector serve every exercise.
+ *
+ * Both distances and joint angles, because the two fail in opposite places. A
+ * chord between two landmarks is insensitive near full extension, where a
+ * partial rep happens; a joint angle is linear there but says nothing about a
+ * movement the joint does not bend in, like a shrug or a lateral raise. Between
+ * them there is no useful rep neither can see.
  */
 export const REP_SIGNALS = {
-  hip_to_ankle: hipToAnkle,
-  wrist_to_shoulder: wristToShoulder,
-  wrist_to_hip: wristToHip,
-} as const
+  hip_to_ankle: { read: hipToAnkle, unit: "m" },
+  wrist_to_shoulder: { read: wristToShoulder, unit: "m" },
+  wrist_to_hip: { read: wristToHip, unit: "m" },
+  knee_angle: { read: kneeAngle, unit: "deg" },
+  elbow_angle: { read: elbowAngle, unit: "deg" },
+} as const satisfies Record<
+  string,
+  { read: (frame: FormCoachFrame) => number | null; unit: "m" | "deg" }
+>
 
 export type RepSignalName = keyof typeof REP_SIGNALS
+
+/**
+ * The smallest excursion that counts as a rep in a given signal.
+ *
+ * Distances scale with the lifter, so their threshold is a fraction of the
+ * standing value; angles are already in comparable units and take a flat one.
+ */
+export function minRepRange(signal: RepSignalName, observedMax: number) {
+  if (REP_SIGNALS[signal].unit === "deg") return MIN_REP_RANGE_DEG
+  return Math.max(observedMax * MIN_REP_RANGE_FRACTION, MIN_REP_RANGE_M)
+}
 
 export type Rep = {
   /** Frame indices: the start of the rep, its turnaround, and its end. */
@@ -240,14 +338,17 @@ export type Rep = {
  * at the turnaround produces several minima within one rep, and thresholding on
  * a single midpoint would count each of them.
  */
-function detectCycles(signal: ReadonlyArray<number | null>): Rep[] {
+function detectCycles(
+  signal: ReadonlyArray<number | null>,
+  minRange: number
+): Rep[] {
   const tracked = signal.filter((value): value is number => value !== null)
   if (tracked.length < 4) return []
 
   const top = Math.max(...tracked)
   const bottom = Math.min(...tracked)
   const range = top - bottom
-  if (range < MIN_REP_RANGE_M) return []
+  if (range < minRange) return []
 
   // Wide band so noise around either end cannot re-trigger the state machine.
   const extended = bottom + range * 0.75
@@ -301,36 +402,39 @@ export type RepDetection = {
  * shortening: a bench press starts at lockout and closes the wrist-to-shoulder
  * distance, while an overhead press starts racked and opens it. Whichever
  * combination yields the most reps wins, with the larger excursion breaking
- * ties — the signal that moved furthest is the one the lift was about.
+ * ties — but measured against that signal's own threshold, since degrees and
+ * metres are not comparable and the raw number would simply pick whichever
+ * signal happened to have the bigger units.
  */
 export function chooseRepSignal(
   frames: readonly FormCoachFrame[]
 ): RepDetection {
-  let best: RepDetection & { range: number } = {
+  let best: RepDetection & { excess: number } = {
     signal: null,
     reps: [],
-    range: 0,
+    excess: 0,
   }
 
-  for (const [name, extract] of Object.entries(REP_SIGNALS) as Array<
-    [RepSignalName, (frame: FormCoachFrame) => number | null]
-  >) {
-    const values = frames.map(extract)
+  for (const name of Object.keys(REP_SIGNALS) as RepSignalName[]) {
+    const values = frames.map(REP_SIGNALS[name].read)
     const tracked = values.filter((value): value is number => value !== null)
     if (tracked.length < 4) continue
     const range = Math.max(...tracked) - Math.min(...tracked)
-    if (range < MIN_REP_RANGE_M) continue
+    const minRange = minRepRange(name, Math.max(...tracked))
+    if (range < minRange) continue
+    const excess = range / minRange
 
     for (const inverted of [false, true]) {
       const reps = detectCycles(
-        inverted ? values.map((v) => (v === null ? null : -v)) : values
+        inverted ? values.map((v) => (v === null ? null : -v)) : values,
+        minRange
       )
       const better =
         reps.length > best.reps.length ||
         (reps.length === best.reps.length &&
           reps.length > 0 &&
-          range > best.range)
-      if (better) best = { signal: name, reps, range }
+          excess > best.excess)
+      if (better) best = { signal: name, reps, excess }
     }
   }
 
@@ -342,45 +446,6 @@ export function detectReps(frames: readonly FormCoachFrame[]): Rep[] {
   return chooseRepSignal(frames).reps
 }
 
-function lerpPoint(a: Point, b: Point, t: number): Point {
-  return {
-    x: a.x + (b.x - a.x) * t,
-    y: a.y + (b.y - a.y) * t,
-    z: a.z + (b.z - a.z) * t,
-    visibility:
-      (a.visibility ?? 1) + ((b.visibility ?? 1) - (a.visibility ?? 1)) * t,
-  }
-}
-
-/**
- * One rep resampled onto a fixed phase grid, 0 = standing to 1 = standing.
- * Reps differ in duration, so they have to share an axis before they can be
- * averaged — otherwise a slow rep would dominate a fast one.
- */
-function resampleRep(
-  bodyFrames: ReadonlyArray<Point[] | null>,
-  rep: Rep,
-  samples: number
-): Array<Point[] | null> {
-  const span = rep.endIndex - rep.startIndex
-  if (span <= 0) return []
-
-  return Array.from({ length: samples }, (_, step) => {
-    const position = rep.startIndex + (span * step) / (samples - 1)
-    const low = Math.floor(position)
-    const high = Math.min(Math.ceil(position), rep.endIndex)
-    const t = position - low
-
-    const a = bodyFrames[low]
-    const b = bodyFrames[high]
-    if (!a || !b) return a ?? b ?? null
-    return a.map((point, index) => {
-      const next = b[index]
-      return next ? lerpPoint(point, next, t) : point
-    })
-  })
-}
-
 /**
  * Which way the camera was pointing relative to the lifter.
  *
@@ -390,17 +455,17 @@ function resampleRep(
  */
 export type CameraView = "front" | "back" | "side" | "oblique"
 
-/** One rep, resampled onto the canonical phase grid. */
-export type CanonicalRep = {
+/** One rep, as the frames it was actually filmed in. */
+export type CapturedRep = {
   /** 1-based index of the angle it came from. */
   angleIndex: number
   /** Order within that angle, 1-based. */
   repIndex: number
+  /** Where the rep began in its own clip, in milliseconds. */
+  startMs: number
+  /** Body-framed, at the sampling rate of the clip. `timeMs` is from rep start. */
   frames: FormCoachFrame[]
-  /**
-   * Real durations, in milliseconds. Phase-normalising the frames throws timing
-   * away, so it is carried alongside — without it there is no tempo to report.
-   */
+  /** Real durations, in milliseconds, measured before any frame was dropped. */
   timing: { totalMs: number; toTurnaroundMs: number }
 }
 
@@ -414,23 +479,33 @@ export type AngleSummary = {
   /**
    * Which body distance the reps were counted in. Travels with the capture
    * because it says what the movement was, which the coach otherwise has no way
-   * to know for an exercise it has never been told about.
+   * to know for an exercise it has never been told about. Null when no rep was
+   * recognised in this angle at all.
    */
-  repSignal: RepSignalName
+  repSignal: RepSignalName | null
 }
 
-export type FusedReps = {
-  /** A single canonical rep, as frames the viewer can play. */
-  angle: FormCoachAngleLandmarks
-  /** Every contributing rep on its own, for consistency and fatigue questions. */
-  reps: CanonicalRep[]
-  /** Per-angle capture metadata. */
+export type CollectedReps = {
+  /**
+   * What the viewer plays: the best-tracked real rep, chosen rather than
+   * synthesised. An averaged skeleton looked cleaner than any rep the lifter
+   * performed, which is exactly the problem — the fault worth seeing is the one
+   * averaging removes. Falls back to the best-tracked clip itself when no rep
+   * was recognised.
+   */
+  display: FormCoachAngleLandmarks
+  /** Every rep from every angle, in the order they were performed. Possibly none. */
+  reps: CapturedRep[]
+  /** Per-angle capture metadata, including angles that yielded no rep. */
   angles: AngleSummary[]
-  /** How many reps went into it. */
+  /** How many reps were kept. */
   repCount: number
   /** How many angles contributed at least one rep. */
   angleCount: number
 }
+
+/** Frames the fallback display keeps when there is no rep to show instead. */
+const MAX_DISPLAY_FRAMES = 60
 
 /** Within this many degrees of square-on counts as a front or back view. */
 const FRONTAL_TOLERANCE_DEG = 30
@@ -508,138 +583,276 @@ export function classifyCameraView(
   return "oblique"
 }
 
-/**
- * Averages every rep from every angle into one canonical rep.
- *
- * Combining angles is what makes this cleaner than any single view: a joint the
- * side camera lost behind the torso is usually plain to the front camera, and
- * averaging in the body frame cancels the independent estimation error in each.
- *
- * Returns null when no angle contained a recognisable rep — a still photo, or
- * footage where the lifter never actually descended.
- */
-export function fuseReps(
-  angles: readonly FormCoachAngleLandmarks[]
-): FusedReps | null {
-  // [phase][landmark] -> running visibility-weighted sum
-  const sums = Array.from({ length: REP_PHASE_SAMPLES }, () =>
-    Array.from({ length: POSE_LANDMARK_COUNT }, () => ({
-      x: 0,
-      y: 0,
-      z: 0,
-      weight: 0,
-      visibility: 0,
-      samples: 0,
-    }))
-  )
+/** One second of footage between point-cloud samples. */
+export const TIMELINE_SAMPLE_MS = 1000
 
-  let repCount = 0
-  let contributingAngles = 0
-  const canonicalReps: CanonicalRep[] = []
-  const angleSummaries: AngleSummary[] = []
+/**
+ * Sampling used when rep detection came back empty.
+ *
+ * The point cloud is a supplement while there are reps to measure, and the only
+ * evidence there is when there are not — a second apart cannot show a two-second
+ * rep, so it tightens to three samples a second and covers whatever length of
+ * footage the sample cap allows.
+ */
+export const TIMELINE_DENSE_SAMPLE_MS = 333
+
+/** Enough for a minute of footage across every angle. */
+export const MAX_TIMELINE_SAMPLES = 60
+
+/** A sample within this of a wanted second is close enough to stand for it. */
+const TIMELINE_TOLERANCE_MS = 500
+
+export type TimelineSample = {
+  angleIndex: number
+  /** Milliseconds into that angle's clip. */
+  timeMs: number
+  /** Body-framed, in metres. */
+  worldLandmarks: Point[]
+}
+
+/**
+ * The whole of every clip at one sample a second, body-framed.
+ *
+ * Rep frames answer "what happened during a rep"; this answers "what happened",
+ * full stop — including the setup, the walkout, the pause between reps and
+ * whatever the lifter did after racking it. Coarse on purpose: a second apart is
+ * too sparse to measure a fault from, and about right for seeing the shape of
+ * the set without shipping the clip.
+ *
+ * Angles are combined into one series rather than kept apart, each sample saying
+ * which clip it came from. Body framing is what makes that legitimate — it is
+ * the one piece of processing without which two clips shot from different sides
+ * are not in the same coordinate system at all.
+ */
+export function buildTimeline(
+  angles: readonly FormCoachAngleLandmarks[],
+  limit = MAX_TIMELINE_SAMPLES,
+  everyMs = TIMELINE_SAMPLE_MS
+): TimelineSample[] {
+  const samples: TimelineSample[] = []
+  const tolerance = Math.min(TIMELINE_TOLERANCE_MS, everyMs / 2)
 
   for (const angle of angles) {
-    const { signal, reps } = chooseRepSignal(angle.frames)
-    if (reps.length === 0 || signal === null) continue
-    contributingAngles += 1
-
-    const trackedCount = angle.frames.filter(
+    const tracked = angle.frames.filter(
       (frame) => frame.worldLandmarks.length > 0
-    ).length
-    angleSummaries.push({
-      index: angle.index,
-      view: classifyCameraView(angle.frames),
-      repCount: reps.length,
-      trackingRate:
-        angle.frames.length === 0 ? 0 : trackedCount / angle.frames.length,
-      durationMs: angle.frames.at(-1)?.timeMs ?? 0,
-      repSignal: signal,
-    })
+    )
+    if (tracked.length === 0) continue
+    const lastMs = tracked.at(-1)?.timeMs ?? 0
 
+    for (let wanted = 0; wanted <= lastMs; wanted += everyMs) {
+      const nearest = tracked.reduce((best, frame) =>
+        Math.abs(frame.timeMs - wanted) < Math.abs(best.timeMs - wanted)
+          ? frame
+          : best
+      )
+      if (Math.abs(nearest.timeMs - wanted) > tolerance) continue
+      const points = toBodyFrame(nearest.worldLandmarks)
+      if (!points) continue
+      samples.push({
+        angleIndex: angle.index,
+        timeMs: nearest.timeMs,
+        worldLandmarks: points,
+      })
+    }
+  }
+
+  if (samples.length <= limit) return samples
+  // Thin evenly rather than truncating, so a long clip still spans its own set.
+  const step = (samples.length - 1) / Math.max(limit - 1, 1)
+  return Array.from(
+    { length: limit },
+    (_, i) => samples[Math.round(i * step)]
+  ).filter((sample): sample is TimelineSample => sample !== undefined)
+}
+
+/** Mean landmark visibility across a rep, as a rough tracking score. */
+export function repQuality(rep: CapturedRep) {
+  let total = 0
+  let counted = 0
+  for (const frame of rep.frames) {
+    for (const point of frame.worldLandmarks) {
+      total += point.visibility ?? 1
+      counted += 1
+    }
+  }
+  if (counted === 0) return 0
+  // Length matters as well as clarity: a two-frame rep can be perfectly tracked
+  // and still show nothing.
+  return (total / counted) * Math.min(rep.frames.length / 12, 1)
+}
+
+/**
+ * Thins a capture down to the frame budget by dropping whole reps.
+ *
+ * Evenly spaced, so what survives still spans the set from first rep to last —
+ * fatigue across a long set is exactly the thing a naive "keep the first N"
+ * would throw away.
+ */
+export function fitToFrameBudget(
+  reps: readonly CapturedRep[],
+  budget = MAX_CAPTURE_FRAMES
+): CapturedRep[] {
+  const total = reps.reduce((sum, rep) => sum + rep.frames.length, 0)
+  if (total <= budget || reps.length <= 1) return reps as CapturedRep[]
+
+  const keep = Math.max(1, Math.floor((reps.length * budget) / total))
+  const step = (reps.length - 1) / Math.max(keep - 1, 1)
+  const indices = new Set(
+    Array.from({ length: keep }, (_, i) => Math.round(i * step))
+  )
+  return reps.filter((_, index) => indices.has(index))
+}
+
+/**
+ * Every rep from every angle, as filmed.
+ *
+ * Angles are combined in the sense that they all land in one capture — the
+ * measurements downstream read across the lot. What deliberately does *not*
+ * happen is any averaging between them: reps are kept whole, at the clip's own
+ * sampling rate, because a fault lives in the extremes of one rep and averaging
+ * five reps together is a low-pass filter over exactly that.
+ *
+ * Body framing stays, since without it two clips shot 90° apart cannot be
+ * compared at all.
+ *
+ * A capture with no recognisable rep is still returned. Rep detection is a
+ * guess — a hold, a partial, a movement whose signal lives somewhere this does
+ * not look, or simply a lifter who paused too long — and being unable to find a
+ * rep is not a reason to throw away footage the coach can still read. Only
+ * footage where nothing at all was tracked comes back null.
+ */
+export function collectReps(
+  angles: readonly FormCoachAngleLandmarks[]
+): CollectedReps | null {
+  const collected: CapturedRep[] = []
+  const angleSummaries: AngleSummary[] = []
+  let contributingAngles = 0
+
+  for (const angle of angles) {
     const bodyFrames = angle.frames.map((frame) =>
       frame.worldLandmarks.length === 0
         ? null
         : toBodyFrame(frame.worldLandmarks)
     )
+    const trackedCount = bodyFrames.filter((points) => points !== null).length
+    if (trackedCount === 0) continue
 
+    const summary: AngleSummary = {
+      index: angle.index,
+      view: classifyCameraView(angle.frames),
+      repCount: 0,
+      trackingRate:
+        angle.frames.length === 0 ? 0 : trackedCount / angle.frames.length,
+      durationMs: angle.frames.at(-1)?.timeMs ?? 0,
+      repSignal: null,
+    }
+    angleSummaries.push(summary)
+
+    const { signal, reps } = chooseRepSignal(angle.frames)
+    if (reps.length === 0 || signal === null) continue
+
+    const kept: CapturedRep[] = []
     for (const rep of reps) {
-      const resampled = resampleRep(bodyFrames, rep, REP_PHASE_SAMPLES)
-      if (resampled.length === 0) continue
-      repCount += 1
-
       const startMs = angle.frames[rep.startIndex]?.timeMs ?? 0
-      canonicalReps.push({
+      const frames: FormCoachFrame[] = []
+
+      for (let i = rep.startIndex; i <= rep.endIndex; i += 1) {
+        const points = bodyFrames[i]
+        // An untracked frame carries no measurement, and keeping it as an empty
+        // one only invites a reading of zero somewhere downstream. Real times
+        // are preserved on the frames that remain, so the gap stays visible.
+        if (!points) continue
+        const landmarks = points.map((point) => ({
+          x: point.x,
+          y: point.y,
+          z: point.z,
+          visibility: point.visibility ?? 1,
+        }))
+        frames.push({
+          timeMs: (angle.frames[i]?.timeMs ?? startMs) - startMs,
+          landmarks,
+          worldLandmarks: landmarks,
+        })
+      }
+
+      if (frames.length < MIN_REP_FRAMES) continue
+      kept.push({
         angleIndex: angle.index,
-        repIndex:
-          canonicalReps.filter((r) => r.angleIndex === angle.index).length + 1,
+        repIndex: kept.length + 1,
+        startMs,
         timing: {
           totalMs: (angle.frames[rep.endIndex]?.timeMs ?? startMs) - startMs,
           toTurnaroundMs:
             (angle.frames[rep.bottomIndex]?.timeMs ?? startMs) - startMs,
         },
-        frames: resampled.map((points, phase): FormCoachFrame => {
-          const landmarks = (points ?? []).map((point) => ({
-            x: point.x,
-            y: point.y,
-            z: point.z,
-            visibility: point.visibility ?? 1,
-          }))
-          return {
-            timeMs: Math.round((phase / (REP_PHASE_SAMPLES - 1)) * 2000),
-            landmarks,
-            worldLandmarks: landmarks,
-          }
-        }),
-      })
-
-      resampled.forEach((points, phase) => {
-        if (!points) return
-        points.forEach((point, landmark) => {
-          const slot = sums[phase]?.[landmark]
-          if (!slot) return
-          // Confidence-weighted: a joint one camera barely saw should not pull
-          // the average away from the camera that saw it clearly.
-          const visibility = point.visibility ?? 1
-          const weight = Math.max(visibility, 0.01)
-          slot.x += point.x * weight
-          slot.y += point.y * weight
-          slot.z += point.z * weight
-          slot.weight += weight
-          slot.visibility += visibility
-          slot.samples += 1
-        })
+        frames,
       })
     }
+
+    if (kept.length === 0) continue
+    contributingAngles += 1
+    collected.push(...kept)
+    summary.repCount = kept.length
+    summary.repSignal = signal
   }
 
-  if (repCount === 0) return null
+  if (angleSummaries.length === 0) return null
 
-  const frames: FormCoachFrame[] = sums.map((phaseSlots, phase) => {
-    const points = phaseSlots.map((slot) => {
-      if (slot.weight === 0) {
-        return { x: 0, y: 0, z: 0, visibility: 0 }
-      }
-      return {
-        x: slot.x / slot.weight,
-        y: slot.y / slot.weight,
-        z: slot.z / slot.weight,
-        visibility: slot.visibility / slot.samples,
-      }
-    })
-    return {
-      // Phase as milliseconds across a nominal 2s rep, so the existing scrubber
-      // and playback need no special case for fused frames.
-      timeMs: Math.round((phase / (REP_PHASE_SAMPLES - 1)) * 2000),
-      landmarks: points,
-      worldLandmarks: points,
-    }
-  })
+  const reps = fitToFrameBudget(collected)
+  const display =
+    reps.length > 0
+      ? reps.reduce((best, rep) =>
+          repQuality(rep) > repQuality(best) ? rep : best
+        )
+      : null
 
   return {
-    angle: { index: 0, frames },
-    reps: canonicalReps,
+    display: display
+      ? { index: display.angleIndex, frames: display.frames }
+      : bestTrackedClip(angles, angleSummaries),
+    reps,
     angles: angleSummaries,
-    repCount,
+    repCount: reps.length,
     angleCount: contributingAngles,
+  }
+}
+
+/**
+ * The clearest clip, body-framed and thinned, for when there is no rep to play.
+ *
+ * Shown rather than an empty box: the lifter still filmed something, and seeing
+ * it is how they work out why nothing was counted.
+ */
+function bestTrackedClip(
+  angles: readonly FormCoachAngleLandmarks[],
+  summaries: readonly AngleSummary[]
+): FormCoachAngleLandmarks {
+  const best = summaries.reduce((winner, summary) =>
+    summary.trackingRate > winner.trackingRate ? summary : winner
+  )
+  const source = angles.find((angle) => angle.index === best.index)
+
+  const frames: FormCoachFrame[] = []
+  for (const frame of source?.frames ?? []) {
+    if (frame.worldLandmarks.length === 0) continue
+    const points = toBodyFrame(frame.worldLandmarks)
+    if (!points) continue
+    const landmarks = points.map((point) => ({
+      x: point.x,
+      y: point.y,
+      z: point.z,
+      visibility: point.visibility ?? 1,
+    }))
+    frames.push({ timeMs: frame.timeMs, landmarks, worldLandmarks: landmarks })
+  }
+
+  if (frames.length <= MAX_DISPLAY_FRAMES) return { index: best.index, frames }
+  const step = (frames.length - 1) / (MAX_DISPLAY_FRAMES - 1)
+  return {
+    index: best.index,
+    frames: Array.from(
+      { length: MAX_DISPLAY_FRAMES },
+      (_, i) => frames[Math.round(i * step)]
+    ),
   }
 }

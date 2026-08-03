@@ -97,6 +97,34 @@ export function useAppAuth() {
   }
 }
 
+/**
+ * Which social providers the deployment has credentials for. Read over plain
+ * HTTP rather than a Convex query because the Convex client holds queries
+ * until a session exists, and the login screen has none.
+ */
+export function useSocialProviders() {
+  const [providers, setProviders] = useState<{ google: boolean } | null>(null)
+
+  useEffect(() => {
+    if (!convexSiteUrl) return
+
+    const controller = new AbortController()
+    fetch(`${convexSiteUrl}/auth-providers`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (data) setProviders({ google: data.google === true })
+      })
+      .catch(() => {
+        // Offline or unreachable: the social buttons stay hidden and email
+        // sign-in still works.
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  return providers
+}
+
 export async function signOutApp() {
   await authClient.signOut({})
 }

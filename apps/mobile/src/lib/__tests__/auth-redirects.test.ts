@@ -40,4 +40,20 @@ describe("auth redirect helpers", () => {
       "onerep://auth/sso-callback?next=/foods"
     )
   })
+
+  test("sends social sign-in returns through the sso-callback screen", async () => {
+    const { getSocialCallbackUrl } = await import("../auth-redirects")
+
+    expect(getSocialCallbackUrl("/foods")).toBe(
+      "https://app.onerep.life/sso-callback?next=%2Ffoods&method=google"
+    )
+  })
+
+  test("marks first-time social sign-ups so onboarding is reported once", async () => {
+    const { getSocialCallbackUrl } = await import("../auth-redirects")
+
+    expect(getSocialCallbackUrl("/onboarding", { isNewUser: true })).toBe(
+      "https://app.onerep.life/sso-callback?next=%2Fonboarding&method=google&new=1"
+    )
+  })
 })

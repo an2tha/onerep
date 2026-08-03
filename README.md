@@ -102,6 +102,15 @@ bunx convex env set AUTH_EMAIL_FROM "OneRep <you@your-domain.example>"
 
 `AUTH_EMAIL_LOGO_URL` is optional. Convex provides its deployment HTTP URL as `CONVEX_SITE_URL`; the client-facing value must match it.
 
+Google sign-in is optional. Create an OAuth client (type "Web application") in the Google Cloud console, add `https://your-deployment.convex.site/api/auth/callback/google` as an authorized redirect URI, then set:
+
+```bash
+bunx convex env set GOOGLE_CLIENT_ID your-client-id
+bunx convex env set GOOGLE_CLIENT_SECRET your-client-secret
+```
+
+The "Continue with Google" button only renders once both are set. A Google login on an address that already has a password account links to that account rather than creating a second one. The Capacitor builds still hide the button, because Google refuses OAuth inside an embedded webview.
+
 ### 4. Run the app
 
 Run every workspace development task:

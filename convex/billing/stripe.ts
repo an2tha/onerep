@@ -162,6 +162,9 @@ export const createCheckoutSession = internalAction({
       cancel_url: args.cancelUrl,
       client_reference_id: args.userId,
       customer_email: args.email,
+      // Renders the promo-code field so coupons created in the dashboard can be
+      // redeemed without a bespoke checkout path.
+      allow_promotion_codes: true,
       // Stripe acts as merchant of record: it handles indirect tax compliance
       // across 80+ countries, fraud, disputes, and transaction support, so
       // OneRep does not need a local entity per country. The trade is that the

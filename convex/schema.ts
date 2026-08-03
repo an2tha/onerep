@@ -1241,7 +1241,7 @@ export default defineSchema({
       ),
     ),
     /**
-     * The canonical rep the report describes, compact enough to live in the
+     * The rep the report describes, compact enough to live in the
      * document. Stored here rather than re-read from the landmark blob so a
      * pinned card can render on its own weeks later.
      */

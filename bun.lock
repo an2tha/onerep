@@ -146,6 +146,7 @@
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "@types/three": "^0.185.3",
+        "playwright": "^1.55.0",
         "tailwindcss": "^4.1.11",
       },
     },

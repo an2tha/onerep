@@ -31,7 +31,6 @@ function input(overrides: Partial<ResolveInput> = {}): ResolveInput {
     chapters: WALKTHROUGH_CHAPTERS,
     ctx: PRO,
     blocked: false,
-    welcomeSeen: true,
     primerShownThisSession: false,
     ...overrides,
   }
@@ -97,10 +96,8 @@ describe("walkthrough trigger resolution", () => {
     expect(result.startIndex).toBe(0)
   })
 
-  test("blocked outranks everything, including the welcome sheet", () => {
-    expect(
-      resolveTourAction(input({ blocked: true, welcomeSeen: false })).action
-    ).toBe("none")
+  test("blocked outranks everything", () => {
+    expect(resolveTourAction(input({ blocked: true })).action).toBe("none")
   })
 
   test("a sub-route does not trigger its parent hub chapter", () => {
@@ -155,11 +152,9 @@ describe("never-interrupt routes", () => {
     expect(isNeverInterruptRoute("/shared")).toBe(false)
   })
 
-  test("the welcome sheet does not ambush an accept link", () => {
+  test("no chapter ambushes an accept link", () => {
     expect(
-      resolveTourAction(
-        input({ pathname: "/shared/accept", welcomeSeen: false })
-      ).action
+      resolveTourAction(input({ pathname: "/shared/accept" })).action
     ).toBe("none")
   })
 })

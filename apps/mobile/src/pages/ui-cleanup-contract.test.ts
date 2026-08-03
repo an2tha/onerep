@@ -55,23 +55,23 @@ describe("onboarding interface cleanup", () => {
     assert.match(ONBOARDING, /role="progressbar"/)
   })
 
-  test("uses purposeful SVG product mockups without hard-coded page colors or tiny utility copy", () => {
+  test("previews Coach with a real exchange, not decorative mockups", () => {
     assert.doesNotMatch(ONBOARDING, /\/onboarding\/|OnboardingIllustration/)
     assert.doesNotMatch(ONBOARDING, /#[0-9a-fA-F]{3,8}|font-black|uppercase/)
     assert.doesNotMatch(ONBOARDING, /text-\[(?:9|10|11|12)(?:px|\.5px)/)
-    assert.match(ONBOARDING, /function CoachFeatureMockups/)
-    assert.match(ONBOARDING, /<svg/)
+    assert.match(ONBOARDING, /function CoachPreviewExchange/)
+    // The old showcase drew fake product screenshots in hand-rolled SVG, with
+    // an uppercase kicker over every panel. Both are gone for good.
+    assert.doesNotMatch(ONBOARDING, /<svg|onboarding-coach-kicker/)
+    assert.doesNotMatch(CSS, /onboarding-svg-|onboarding-coach-glass/)
+    assert.match(ONBOARDING, /onboarding-coach-preview-stats/)
   })
 
-  test("uses one responsive frosted frame and restrained glass feature panels", () => {
+  test("uses one responsive frosted frame", () => {
     assert.doesNotMatch(ONBOARDING, /onboarding-brand-mark/)
     assert.match(
       CSS,
       /\.onboarding-frame \{[\s\S]*backdrop-filter: blur\(26px\)/
-    )
-    assert.match(
-      CSS,
-      /\.onboarding-coach-glass \{[\s\S]*backdrop-filter: blur\(18px\)/
     )
   })
 

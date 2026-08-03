@@ -18,7 +18,8 @@ import {
 import { RouterProvider } from "react-router/dom"
 import { useConvexAuth } from "convex/react"
 import posthog from "posthog-js"
-import { PostHogProvider } from "@posthog/react"
+import { PostHogProvider, usePostHog } from "@posthog/react"
+import { captureFeatureUsage } from "@/lib/analytics"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
@@ -556,13 +557,34 @@ function AuthCallback() {
   const navigate = useSmoothNavigate()
   const [searchParams] = useSearchParams()
   const convexAuth = useConvexAuth()
+  const posthog = usePostHog()
   const nextPath = safeAuthRedirectPath(searchParams.get("next"))
+  const method = searchParams.get("method")
+  const isNewUser = searchParams.get("new") === "1"
+  const capturedRef = useRef(false)
 
   useEffect(() => {
-    if (convexAuth.isAuthenticated) {
-      navigate(nextPath, { replace: true })
+    if (!convexAuth.isAuthenticated) return
+
+    // Social sign-in only reaches here once the provider handoff succeeded, so
+    // this is the first point where the event is true rather than attempted.
+    if (method && !capturedRef.current) {
+      capturedRef.current = true
+      captureFeatureUsage(
+        posthog,
+        isNewUser ? "user_signed_up" : "user_signed_in",
+        { method }
+      )
     }
-  }, [convexAuth.isAuthenticated, navigate, nextPath])
+    navigate(nextPath, { replace: true })
+  }, [
+    convexAuth.isAuthenticated,
+    isNewUser,
+    method,
+    navigate,
+    nextPath,
+    posthog,
+  ])
 
   return (
     <div className="min-h-svh bg-background text-foreground">

@@ -85,7 +85,6 @@ describe("@repo/ui package boundary", () => {
       "walkthrough/tour-anchor.tsx",
       "walkthrough/tour-context.tsx",
       "walkthrough/tour-provider.tsx",
-      "walkthrough/welcome-sheet.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
     ])

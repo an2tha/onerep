@@ -1,12 +1,13 @@
 import { describe, expect, it } from "bun:test"
 import {
-  MIN_REP_RANGE_M,
+  MIN_REP_RANGE_FRACTION,
   applyOrientation,
-  REP_PHASE_SAMPLES,
   chooseRepSignal,
   classifyCameraView,
+  buildTimeline,
+  collectReps,
   detectReps,
-  fuseReps,
+  fitToFrameBudget,
   hipToAnkle,
   toBodyFrame,
 } from "@/lib/pose-reps"
@@ -216,13 +217,39 @@ describe("detectReps", () => {
     expect(detectReps(frames)).toEqual([])
   })
 
+  // The case that broke: five real quarter squats came back as zero reps. The
+  // hip-to-ankle chord is 2L*sin(theta/2), so it barely moves near lockout, and
+  // the old absolute threshold needed the knee past 120 degrees before it
+  // registered anything at all.
+  it("counts quarter squats", () => {
+    const perRep = 20
+    const frames: FormCoachFrame[] = []
+    for (let i = 0; i < 5 * perRep; i += 1) {
+      const phase = (i % perRep) / perRep
+      // Peaks at a knee angle of roughly 140 degrees: shallow, but a rep.
+      const depth = 0.22 * (1 - Math.cos(phase * 2 * Math.PI))
+      frames.push(frameFrom(pose(depth), i * 100))
+    }
+    expect(detectReps(frames)).toHaveLength(5)
+  })
+
+  it("reads a partial rep off the joint angle when the chord is too flat", () => {
+    const detection = chooseRepSignal(
+      Array.from({ length: 60 }, (_, i) => {
+        const phase = (i % 20) / 20
+        return frameFrom(pose(0.18 * (1 - Math.cos(phase * 2 * Math.PI))), i * 100)
+      })
+    )
+    expect(detection.reps).toHaveLength(3)
+    expect(detection.signal).not.toBeNull()
+  })
+
   it("ignores a dip too shallow to be a rep", () => {
-    // Well under MIN_REP_RANGE_M of hip travel.
+    // A sway of a centimetre or two, which is tracking noise rather than a rep.
     const frames = Array.from({ length: 40 }, (_, i) => {
-      const depth = 0.05 * (1 - Math.cos((i / 20) * 2 * Math.PI))
+      const depth = 0.012 * (1 - Math.cos((i / 20) * 2 * Math.PI))
       return frameFrom(pose(depth), i * 100)
     })
-    expect(MIN_REP_RANGE_M).toBeGreaterThan(0.05)
     expect(detectReps(frames)).toEqual([])
   })
 
@@ -299,41 +326,73 @@ describe("detectReps beyond the squat", () => {
   })
 })
 
-describe("fuseReps", () => {
-  it("combines every rep from every angle", () => {
-    const fused = fuseReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
-    expect(fused.repCount).toBe(5)
-    expect(fused.angleCount).toBe(2)
-    expect(fused.angle.frames).toHaveLength(REP_PHASE_SAMPLES)
+describe("collectReps", () => {
+  it("keeps every rep from every angle in one capture", () => {
+    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    expect(collected.repCount).toBe(5)
+    expect(collected.angleCount).toBe(2)
   })
 
-  // The whole point: two cameras 90° apart must reinforce, not cancel.
-  it("agrees with a single angle when both filmed the same movement", () => {
-    const alone = fuseReps([repClip(2, 0, 1)])!
-    const combined = fuseReps([repClip(2, 0, 1), repClip(2, Math.PI / 2, 2)])!
-    combined.angle.frames.forEach((frame, i) => {
-      frame.worldLandmarks.forEach((point, landmark) => {
-        const reference = alone.angle.frames[i].worldLandmarks[landmark]
-        expect(point.x).toBeCloseTo(reference.x, 4)
-        expect(point.y).toBeCloseTo(reference.y, 4)
-        expect(point.z).toBeCloseTo(reference.z, 4)
-      })
-    })
+  // The reason averaging went: a mean rep is shallower than the deepest rep and
+  // deeper than the shallowest, so the two reps worth talking about both vanish.
+  it("preserves the extremes rather than averaging them away", () => {
+    const deep = repClip(1, 0, 2)
+    // The first angle's lifter cuts every rep half as deep as the second's.
+    const shallow: FormCoachAngleLandmarks = {
+      index: 1,
+      frames: deep.frames.map((frame, i) => {
+        const phase = (i % 20) / 20
+        const depth = ((1 - Math.cos(phase * 2 * Math.PI)) / 2) * 0.5
+        return frameFrom(pose(depth), i * 100)
+      }),
+    }
+
+    const collected = collectReps([shallow, deep])!
+    const lowestOf = (angleIndex: number) =>
+      Math.min(
+        ...collected.reps
+          .filter((rep) => rep.angleIndex === angleIndex)
+          .flatMap((rep) => rep.frames.map((frame) => hipToAnkle(frame)!))
+      )
+    expect(lowestOf(2)).toBeLessThan(lowestOf(1) - 0.02)
+  })
+
+  it("plays a real rep rather than a synthesised one", () => {
+    const collected = collectReps([repClip(2)])!
+    const played = collected.display.frames
+    const match = collected.reps.find(
+      (rep) => rep.frames.length === played.length
+    )
+    expect(match).toBeDefined()
+    expect(played[0].worldLandmarks[27].y).toBeCloseTo(
+      match!.frames[0].worldLandmarks[27].y,
+      6
+    )
+  })
+
+  it("keeps the rep filmed at its own cadence", () => {
+    const collected = collectReps([repClip(2)])!
+    const rep = collected.reps[0]
+    // 20 frames of a 10fps clip make one 2s rep, give or take the hysteresis
+    // band the detector uses to close a cycle.
+    expect(rep.frames.length).toBeGreaterThan(10)
+    expect(rep.frames.at(-1)!.timeMs).toBeGreaterThan(1000)
+    expect(rep.frames[0].timeMs).toBe(0)
   })
 
   it("produces a rep that actually descends and comes back up", () => {
-    const fused = fuseReps([repClip(2)])!
-    const depths = fused.angle.frames.map((frame) => hipToAnkle(frame)!)
+    const collected = collectReps([repClip(2)])!
+    const depths = collected.display.frames.map((frame) => hipToAnkle(frame)!)
     const lowest = Math.min(...depths)
-    expect(depths[0] - lowest).toBeGreaterThan(MIN_REP_RANGE_M)
-    expect(depths.at(-1)! - lowest).toBeGreaterThan(MIN_REP_RANGE_M)
+    expect(depths[0] - lowest).toBeGreaterThan(MIN_REP_RANGE_FRACTION)
+    expect(depths.at(-1)! - lowest).toBeGreaterThan(MIN_REP_RANGE_FRACTION)
     // Deepest point sits in the middle of the cycle, not at either end.
     const bottom = depths.indexOf(lowest)
     expect(bottom).toBeGreaterThan(2)
-    expect(bottom).toBeLessThan(REP_PHASE_SAMPLES - 3)
+    expect(bottom).toBeLessThan(depths.length - 3)
   })
 
-  it("leans on the camera that saw a joint clearly", () => {
+  it("plays the better-tracked rep of the two", () => {
     const clear = repClip(1, 0, 1)
     const occluded = repClip(1, 0, 2)
     // One angle lost the left ankle and guessed it a metre off.
@@ -341,37 +400,160 @@ describe("fuseReps", () => {
       frame.worldLandmarks[27] = { x: 9, y: 9, z: 9, visibility: 0.02 }
       frame.landmarks[27] = frame.worldLandmarks[27]
     }
-    const fused = fuseReps([clear, occluded])!
-    const ankle = fused.angle.frames[0].worldLandmarks[27]
-    expect(Math.abs(ankle.x)).toBeLessThan(1)
+    const collected = collectReps([clear, occluded])!
+    expect(collected.display.index).toBe(1)
   })
 
-  it("returns null when no angle contains a rep", () => {
+  // Rep detection is a guess, and being unable to find a rep is not a reason to
+  // throw away footage the coach can still read.
+  it("keeps a capture that contained no countable rep", () => {
     const still: FormCoachAngleLandmarks = {
       index: 1,
       frames: Array.from({ length: 20 }, (_, i) => frameFrom(pose(0), i * 100)),
     }
-    expect(fuseReps([still])).toBeNull()
-    expect(fuseReps([])).toBeNull()
+    const collected = collectReps([still])!
+    expect(collected.repCount).toBe(0)
+    expect(collected.reps).toEqual([])
+    expect(collected.angles).toHaveLength(1)
+    expect(collected.angles[0].repSignal).toBeNull()
+    // Something to look at, rather than an empty box.
+    expect(collected.display.frames.length).toBeGreaterThan(0)
+  })
+
+  it("returns null only when nothing at all was tracked", () => {
+    expect(collectReps([])).toBeNull()
+    expect(
+      collectReps([
+        {
+          index: 1,
+          frames: [{ timeMs: 0, landmarks: [], worldLandmarks: [] }],
+        },
+      ])
+    ).toBeNull()
+  })
+
+  it("still summarises an angle that produced no rep", () => {
+    const still: FormCoachAngleLandmarks = {
+      index: 2,
+      frames: Array.from({ length: 20 }, (_, i) => frameFrom(pose(0), i * 100)),
+    }
+    const collected = collectReps([repClip(2, 0, 1), still])!
+    expect(collected.angles.map((angle) => angle.index)).toEqual([1, 2])
+    expect(collected.angles[1].repCount).toBe(0)
+    // It contributed no rep, so it is not a contributing angle.
+    expect(collected.angleCount).toBe(1)
   })
 
   it("records which signal each angle's reps came from", () => {
-    const fused = fuseReps([
+    const collected = collectReps([
       repClip(2, 0, 1),
       armClip(3, { near: 0.15, far: 0.65, axis: "forward" }, 2),
     ])!
-    expect(fused.angles.map((angle) => angle.repSignal)).toEqual([
+    expect(collected.angles.map((angle) => angle.repSignal)).toEqual([
       "hip_to_ankle",
       "wrist_to_shoulder",
     ])
   })
 
-  it("returns null for a still photo", () => {
+  it("counts no reps in a still photo but keeps it", () => {
     const photo: FormCoachAngleLandmarks = {
       index: 1,
       frames: [frameFrom(pose(0.5), 0)],
     }
-    expect(fuseReps([photo])).toBeNull()
+    const collected = collectReps([photo])!
+    expect(collected.repCount).toBe(0)
+    expect(collected.display.frames).toHaveLength(1)
+  })
+})
+
+describe("buildTimeline", () => {
+  it("samples the whole clip once a second", () => {
+    // Three 2s reps at 10fps is 6s of footage.
+    const timeline = buildTimeline([repClip(3, 0, 1)])
+    expect(timeline).toHaveLength(6)
+    expect(timeline.map((sample) => sample.timeMs)).toEqual([
+      0, 1000, 2000, 3000, 4000, 5000,
+    ])
+  })
+
+  it("puts every angle in one series, each sample saying where it came from", () => {
+    const timeline = buildTimeline([repClip(2, 0, 1), repClip(1, Math.PI / 2, 2)])
+    expect(new Set(timeline.map((sample) => sample.angleIndex))).toEqual(
+      new Set([1, 2])
+    )
+  })
+
+  // Body framing is what makes one series legitimate: the same movement filmed
+  // from two directions has to land in the same coordinate system.
+  it("puts two angles of the same movement in the same frame", () => {
+    const [front] = buildTimeline([repClip(1, 0, 1)])
+    const [side] = buildTimeline([repClip(1, Math.PI / 2, 2)])
+    front.worldLandmarks.forEach((point, i) => {
+      expect(point.x).toBeCloseTo(side.worldLandmarks[i].x, 4)
+      expect(point.y).toBeCloseTo(side.worldLandmarks[i].y, 4)
+      expect(point.z).toBeCloseTo(side.worldLandmarks[i].z, 4)
+    })
+  })
+
+  it("covers the gaps between reps, not just the reps", () => {
+    const clip = repClip(1, 0, 1)
+    // Four seconds of standing about after the set.
+    const tail = Array.from({ length: 40 }, (_, i) =>
+      frameFrom(pose(0), 2000 + i * 100)
+    )
+    const timeline = buildTimeline([{ index: 1, frames: [...clip.frames, ...tail] }])
+    expect(timeline.length).toBeGreaterThan(4)
+    expect(timeline.at(-1)!.timeMs).toBeGreaterThanOrEqual(5000)
+  })
+
+  it("thins a long clip instead of cutting it short", () => {
+    const long = repClip(30, 0, 1)
+    const timeline = buildTimeline([long], 10)
+    expect(timeline).toHaveLength(10)
+    expect(timeline[0].timeMs).toBe(0)
+    expect(timeline.at(-1)!.timeMs).toBeGreaterThan(50_000)
+  })
+
+  // With no rep detected the point cloud is the only evidence left, and a
+  // second between samples cannot show a two-second rep.
+  it("samples densely when asked to", () => {
+    const dense = buildTimeline([repClip(2, 0, 1)], 60, 333)
+    const coarse = buildTimeline([repClip(2, 0, 1)])
+    expect(dense.length).toBeGreaterThan(coarse.length * 2)
+    expect(dense[1].timeMs - dense[0].timeMs).toBeLessThan(500)
+  })
+
+  it("returns nothing when no frame was tracked", () => {
+    expect(
+      buildTimeline([
+        { index: 1, frames: [{ timeMs: 0, landmarks: [], worldLandmarks: [] }] },
+      ])
+    ).toEqual([])
+  })
+})
+
+describe("fitToFrameBudget", () => {
+  const rep = (repIndex: number, frames: number) => ({
+    angleIndex: 1,
+    repIndex,
+    startMs: 0,
+    timing: { totalMs: 2000, toTurnaroundMs: 1000 },
+    frames: Array.from({ length: frames }, (_, i) => frameFrom(pose(0), i * 100)),
+  })
+
+  it("leaves a capture inside the budget alone", () => {
+    const reps = [rep(1, 20), rep(2, 20)]
+    expect(fitToFrameBudget(reps, 100)).toHaveLength(2)
+  })
+
+  // Dropping the tail would throw away the reps where a set breaks down, which
+  // are the ones worth keeping.
+  it("thins evenly rather than truncating the set", () => {
+    const reps = Array.from({ length: 10 }, (_, i) => rep(i + 1, 20))
+    const kept = fitToFrameBudget(reps, 100)
+    expect(kept.length).toBeLessThan(10)
+    expect(kept[0].repIndex).toBe(1)
+    expect(kept.at(-1)!.repIndex).toBe(10)
   })
 })
 
@@ -430,46 +612,51 @@ describe("classifyCameraView", () => {
   })
 })
 
-describe("fuseReps per-rep output", () => {
+describe("collectReps per-rep output", () => {
   it("returns every contributing rep separately", () => {
-    const fused = fuseReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
-    expect(fused.reps).toHaveLength(5)
-    expect(
-      fused.reps.every((rep) => rep.frames.length === REP_PHASE_SAMPLES)
-    ).toBe(true)
+    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    expect(collected.reps).toHaveLength(5)
+    expect(collected.reps.every((rep) => rep.frames.length > 0)).toBe(true)
   })
 
   it("numbers reps within each angle", () => {
-    const fused = fuseReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
-    const first = fused.reps.filter((rep) => rep.angleIndex === 1)
-    const second = fused.reps.filter((rep) => rep.angleIndex === 2)
+    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    const first = collected.reps.filter((rep) => rep.angleIndex === 1)
+    const second = collected.reps.filter((rep) => rep.angleIndex === 2)
     expect(first.map((rep) => rep.repIndex)).toEqual([1, 2, 3])
     expect(second.map((rep) => rep.repIndex)).toEqual([1, 2])
   })
 
+  it("says where in its clip each rep began", () => {
+    const collected = collectReps([repClip(3, 0, 1)])!
+    const starts = collected.reps.map((rep) => rep.startMs)
+    expect(starts[0]).toBeLessThan(starts[1])
+    expect(starts[1]).toBeLessThan(starts[2])
+  })
+
   it("summarises each contributing angle", () => {
-    const fused = fuseReps([repClip(2, 0, 1), repClip(1, Math.PI / 2, 2)])!
-    expect(fused.angles).toHaveLength(2)
-    expect(fused.angles[0]).toMatchObject({
+    const collected = collectReps([repClip(2, 0, 1), repClip(1, Math.PI / 2, 2)])!
+    expect(collected.angles).toHaveLength(2)
+    expect(collected.angles[0]).toMatchObject({
       index: 1,
       view: "front",
       repCount: 2,
     })
-    expect(fused.angles[1]).toMatchObject({
+    expect(collected.angles[1]).toMatchObject({
       index: 2,
       view: "side",
       repCount: 1,
     })
-    expect(fused.angles[0].trackingRate).toBe(1)
+    expect(collected.angles[0].trackingRate).toBe(1)
   })
 
-  it("leaves out angles that contributed no reps", () => {
+  it("marks an angle that contributed no reps rather than dropping it", () => {
     const still: FormCoachAngleLandmarks = {
       index: 2,
       frames: Array.from({ length: 20 }, (_, i) => frameFrom(pose(0), i * 100)),
     }
-    const fused = fuseReps([repClip(2, 0, 1), still])!
-    expect(fused.angles.map((angle) => angle.index)).toEqual([1])
+    const collected = collectReps([repClip(2, 0, 1), still])!
+    expect(collected.angles.map((angle) => angle.repCount)).toEqual([2, 0])
   })
 })
 

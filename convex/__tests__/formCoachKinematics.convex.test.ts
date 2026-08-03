@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   LANDMARK,
   alignmentOffset,
-  canonicalRep,
+  meanTempo,
   consistency,
   jointAngle,
   phaseIndex,
@@ -10,6 +10,7 @@ import {
   repsFromViews,
   segmentFromVertical,
   symmetry,
+  travel,
   tempo,
   turnaroundIndex,
   type FormCoachCapture,
@@ -319,6 +320,31 @@ describe("aggregates", () => {
     expect(tempo(odd).returnMs).toBe(0);
   });
 
+  // How far the lift went is the reading that survives a bad camera angle, so
+  // it has to be right: a ratio against the lifter's own standing distance.
+  test("measures how far two landmarks closed together", () => {
+    const shallow = travel(
+      repFrom([legFrame(0), legFrame(30), legFrame(0)]),
+      "leftHip",
+      "leftAnkle",
+    )!;
+    const deep = travel(
+      repFrom([legFrame(0), legFrame(120), legFrame(0)]),
+      "leftHip",
+      "leftAnkle",
+    )!;
+
+    expect(shallow.startMetres).toBeCloseTo(0.9, 3);
+    // Both close towards the hip, and the deeper rep closes considerably more.
+    expect(shallow.changeFraction).toBeLessThan(0);
+    expect(deep.changeFraction).toBeLessThan(shallow.changeFraction);
+  });
+
+  test("reports no travel rather than zero when a landmark was lost", () => {
+    expect(travel(repFrom([emptyFrame(), emptyFrame()]), "leftHip", "leftAnkle"))
+      .toBeNull();
+  });
+
   test("summarises spread across reps", () => {
     const spread = consistency([100, 104, 96, null])!;
     expect(spread.mean).toBeCloseTo(100, 6);
@@ -360,7 +386,6 @@ describe("capture helpers", () => {
       repFrom([legFrame(45)], { angleIndex: 1, repIndex: 2 }),
       repFrom([legFrame(90)], { angleIndex: 2, repIndex: 1 }),
     ],
-    canonical: [legFrame(0), legFrame(60)],
   };
 
   // Knee tracking is only visible from the front; torso lean only from the side.
@@ -374,10 +399,10 @@ describe("capture helpers", () => {
     expect(repsFromViews(capture, ["back"])).toEqual([]);
   });
 
-  test("wraps the averaged rep with mean timing", () => {
-    const canonical = canonicalRep(capture);
-    expect(canonical.frames).toHaveLength(2);
-    expect(canonical.timing.totalMs).toBe(2000);
-    expect(canonical.timing.toTurnaroundMs).toBe(1200);
+  test("averages tempo across reps without averaging the reps themselves", () => {
+    const pace = meanTempo(capture.reps);
+    expect(pace.totalMs).toBe(2000);
+    expect(pace.towardsTurnaroundMs).toBe(1200);
+    expect(pace.returnMs).toBe(800);
   });
 });

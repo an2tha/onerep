@@ -4,9 +4,11 @@ import {
   AuthLayout,
   AuthMark,
   AuthModeCard,
+  GoogleMark,
 } from "@/components/auth-shell"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
+import { Capacitor } from "@capacitor/core"
 import { Eye, EyeSlash } from "@phosphor-icons/react"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
@@ -14,6 +16,7 @@ import {
   betterAuthErrorMessage,
   isEmailNotVerifiedError,
   useAppAuth,
+  useSocialProviders,
 } from "@/lib/auth-client"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -22,6 +25,7 @@ import { captureFeatureUsage } from "@/lib/analytics"
 import {
   getAuthCallbackUrl,
   getEmailVerificationCallbackUrl,
+  getSocialCallbackUrl,
   rememberPendingVerification,
 } from "@/lib/auth-redirects"
 
@@ -116,11 +120,23 @@ export default function Login() {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [legalAccepted, setLegalAccepted] = useState(false)
-  const [error, setError] = useState<string | undefined>()
+  // Better Auth bounces failed social sign-ins back here with its own error
+  // code in the query, so any `error` param means the Google round trip broke.
+  const [error, setError] = useState<string | undefined>(
+    searchParams.has("error")
+      ? "Google sign-in did not complete. Try again, or use your email and password."
+      : undefined
+  )
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const authActionRef = useRef(false)
-  const submitting = loading
+  const socialProviders = useSocialProviders()
+  // Google's OAuth pages refuse to load inside an embedded webview, so the
+  // button stays off in the Capacitor builds until native sign-in lands.
+  const googleAvailable =
+    socialProviders?.google === true && !Capacitor.isNativePlatform()
+  const submitting = loading || googleLoading
   const redirectingSignedInUser = authLoaded && isSignedIn
   const authenticatedHandoffReady =
     redirectingSignedInUser && convexAuth.isAuthenticated
@@ -161,6 +177,54 @@ export default function Login() {
         : "/reset-password",
       { replace: false }
     )
+  }
+
+  async function handleGoogleSignIn() {
+    if (redirectIfSignedIn()) return
+
+    setError(undefined)
+    setMessage(undefined)
+    if (mode === "signup" && !legalAccepted) {
+      setError("Confirm that you are at least 13 and accept the Terms")
+      return
+    }
+    if (authActionRef.current || submitting) return
+
+    authActionRef.current = true
+    setGoogleLoading(true)
+
+    try {
+      const { error } = await withAuthActionTimeout(
+        "Sign in",
+        authClient.signIn.social({
+          provider: "google",
+          callbackURL: getSocialCallbackUrl(nextPath),
+          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+            isNewUser: true,
+          }),
+          errorCallbackURL: getAuthCallbackUrl("/login"),
+        })
+      )
+      if (error) {
+        setError(betterAuthErrorMessage(error, "Google sign-in failed"))
+        return
+      }
+
+      // The browser is on its way to Google; keep the button busy so the page
+      // does not flash back to an idle state before it unloads.
+      setMessage("Opening Google…")
+      return
+    } catch (error) {
+      setError(
+        betterAuthErrorMessage(
+          error,
+          "Could not reach Google. Check your connection and try again."
+        )
+      )
+    } finally {
+      authActionRef.current = false
+      setGoogleLoading(false)
+    }
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -445,6 +509,29 @@ export default function Login() {
                   : "Create account"}
             </button>
           </form>
+
+          {googleAvailable && (
+            <>
+              <div className="my-5 flex items-center gap-3">
+                <span className="h-px flex-1 bg-border" />
+                <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  or
+                </span>
+                <span className="h-px flex-1 bg-border" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={submitting}
+                aria-busy={googleLoading}
+                className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+              >
+                <GoogleMark />
+                {googleLoading ? "Opening Google…" : "Continue with Google"}
+              </button>
+            </>
+          )}
         </AuthModeCard>
       </section>
 

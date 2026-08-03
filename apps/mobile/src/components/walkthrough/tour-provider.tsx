@@ -19,13 +19,11 @@ import { api } from "../../../../../convex/_generated/api"
 import { WALKTHROUGH_CHAPTERS, findChapter } from "@/lib/walkthrough/chapters"
 import {
   deriveLegacySuppression,
-  isWelcomeSeen,
   resolveChapterSteps,
   resolveTourAction,
 } from "@/lib/walkthrough/resolve"
 import {
   stepBody,
-  WELCOME_CHAPTER_ID,
   type ChapterId,
   type ChapterStatus,
   type TourChapter,
@@ -39,13 +37,9 @@ import {
   useSmoothNavigate,
 } from "@/lib/navigation"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
-import { safeLocalStorageGet, safeLocalStorageRemove } from "@/lib/utils"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useCarbDisplayMode } from "@/lib/use-carb-display"
 import { TourAnchorContext, TourApiContext, type TourApi } from "./tour-context"
-import { WelcomeSheet } from "./welcome-sheet"
-
-export const WELCOME_PENDING_KEY = "onerep:walkthrough-welcome-pending"
 
 /** How long to wait for a step's target to mount before moving past it. */
 const ANCHOR_TIMEOUT_MS = 2000
@@ -77,13 +71,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const [tour, setTour] = useState<RunningTour | null>(null)
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-  const [showWelcome, setShowWelcome] = useState(false)
   const [settled, setSettled] = useState(false)
   const anchors = useRef(new Map<string, HTMLElement>())
   const primerShownRef = useRef(false)
-  const welcomePendingRef = useRef(
-    safeLocalStorageGet(WELCOME_PENDING_KEY) === "true"
-  )
 
   const progress: WalkthroughProgress = useMemo(
     () => (progressQuery ?? {}) as WalkthroughProgress,
@@ -132,8 +122,22 @@ export function TourProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer)
   }, [location.pathname])
 
+  /**
+   * Writes race the server round trip: closing a chapter drops `tour` to null
+   * and re-runs the resolver before the mutation lands, which would reopen the
+   * chapter on the step that just closed it. Local writes win until the query
+   * catches up.
+   */
+  const localProgress = useRef<WalkthroughProgress>({})
+
   const persist = useCallback(
     (chapter: TourChapter, status: ChapterStatus, stepIndex: number) => {
+      localProgress.current[chapter.id] = {
+        status,
+        stepIndex,
+        version: chapter.version,
+        updatedAt: Date.now(),
+      }
       void setChapterProgress({
         chapterId: chapter.id,
         status,
@@ -165,34 +169,22 @@ export function TourProvider({ children }: { children: ReactNode }) {
     for (const chapter of WALKTHROUGH_CHAPTERS) {
       persist(chapter, "completed", 0)
     }
-    void setChapterProgress({
-      chapterId: WELCOME_CHAPTER_ID,
-      status: "completed",
-      stepIndex: 0,
-      version: 1,
-    }).catch(() => {})
-  }, [blocked, onboarding, persist, progress, setChapterProgress])
+  }, [blocked, onboarding, persist, progress])
 
   // Decide whether anything should open here.
   useEffect(() => {
-    if (tour || showWelcome) return
+    if (tour) return
     if (legacyBackfilledRef.current) return
 
-    const welcomeSeen = isWelcomeSeen(progress, welcomePendingRef.current)
     const action = resolveTourAction({
       pathname: location.pathname,
-      progress,
+      progress: { ...progress, ...localProgress.current },
       chapters: WALKTHROUGH_CHAPTERS,
       ctx: featureContext,
       blocked,
-      welcomeSeen,
       primerShownThisSession: primerShownRef.current,
     })
 
-    if (action.action === "welcome") {
-      setShowWelcome(true)
-      return
-    }
     if (action.action !== "start") return
 
     if (action.chapter.kind === "primer") primerShownRef.current = true
@@ -209,7 +201,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     location.pathname,
     persist,
     progress,
-    showWelcome,
     tour,
   ])
 
@@ -330,31 +321,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const resetChapter = useCallback(
     async (id?: ChapterId) => {
       await resetChapterProgressMutation(id ? { chapterId: id } : {})
+      if (id) {
+        delete localProgress.current[id]
+      } else {
+        localProgress.current = {}
+      }
       primerShownRef.current = false
     },
     [resetChapterProgressMutation]
-  )
-
-  const dismissWelcome = useCallback(
-    (skipEverything: boolean) => {
-      setShowWelcome(false)
-      welcomePendingRef.current = false
-      safeLocalStorageRemove(WELCOME_PENDING_KEY)
-
-      void setChapterProgress({
-        chapterId: WELCOME_CHAPTER_ID,
-        status: "completed",
-        stepIndex: 0,
-        version: 1,
-      }).catch(() => {})
-
-      if (skipEverything) {
-        for (const chapter of WALKTHROUGH_CHAPTERS) {
-          persist(chapter, "skipped", 0)
-        }
-      }
-    },
-    [persist, setChapterProgress]
   )
 
   const tourApi: TourApi = useMemo(
@@ -372,16 +346,6 @@ export function TourProvider({ children }: { children: ReactNode }) {
     <TourApiContext.Provider value={tourApi}>
       <TourAnchorContext.Provider value={registerAnchor}>
         {children}
-
-        {showWelcome && (
-          <WelcomeSheet
-            onStart={() => {
-              dismissWelcome(false)
-              navigate("/", { motion: "switch" })
-            }}
-            onSkip={() => dismissWelcome(true)}
-          />
-        )}
 
         {tour && currentStep && (
           <>
