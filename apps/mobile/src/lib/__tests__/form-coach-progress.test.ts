@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test"
+import { readFileSync } from "node:fs"
 import { formCoachAngleWeight, formCoachProgressValue } from "@/lib/form-coach"
 
 describe("formCoachAngleWeight", () => {
@@ -122,5 +123,43 @@ describe("formCoachProgressValue", () => {
         totalWeight: 0,
       })
     ).toBe(1)
+  })
+})
+
+/**
+ * The decode loop is DOM-bound, so this reads the source rather than running
+ * it. The bug it guards against was invisible on desktop and deterministic on
+ * the phone, which is the worst combination to leave untested.
+ */
+describe("video decoding", () => {
+  const source = readFileSync(
+    new URL("../form-coach.ts", import.meta.url),
+    "utf8"
+  )
+
+  // Sampling starts at t=0 on a video already at 0. Assigning the current time
+  // performs no seek, so WebKit fires no `seeked` and the wait never ends —
+  // the progress bar sat at exactly 0% forever. Chrome fires it regardless.
+  it("does not wait for a seek to a time the video is already at", () => {
+    expect(source).toContain(
+      "if (Math.abs(video.currentTime - seconds) < SEEK_EPSILON_S)"
+    )
+  })
+
+  it("gives up rather than hanging when a decode never answers", () => {
+    expect(source).toContain("DECODE_TIMEOUT_MS")
+    // Both waits, not just the seek.
+    expect(source).toContain("The video took too long to decode")
+    expect(source).toContain("The video stopped responding while being read")
+  })
+
+  it("clears its handlers and timer once settled", () => {
+    expect(source).toContain("video.onseeked = null")
+    expect(source).toContain("window.clearTimeout(timer)")
+  })
+
+  // WebKit treats preload as a hint; setting src alone can fetch nothing.
+  it("explicitly loads the element", () => {
+    expect(source).toContain("video.load()")
   })
 })

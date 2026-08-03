@@ -207,8 +207,14 @@ function createDecoder(url: string) {
   video.style.cssText =
     "position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0;pointer-events:none"
   document.body.appendChild(video)
+  // WebKit treats `preload` as a hint and will happily fetch nothing at all
+  // until something asks; setting src is not enough on iOS.
+  video.load()
   return video
 }
+
+/** A decode or seek that has not answered in this long is not going to. */
+const DECODE_TIMEOUT_MS = 15_000
 
 function onceReady(video: HTMLVideoElement) {
   return new Promise<void>((resolve, reject) => {
@@ -216,15 +222,56 @@ function onceReady(video: HTMLVideoElement) {
       resolve()
       return
     }
-    video.onloadeddata = () => resolve()
-    video.onerror = () => reject(new Error("Could not decode the video"))
+    let timer = 0
+    const finish = (error?: Error) => {
+      window.clearTimeout(timer)
+      video.onloadeddata = null
+      video.onerror = null
+      if (error) reject(error)
+      else resolve()
+    }
+    timer = window.setTimeout(
+      () => finish(new Error("The video took too long to decode")),
+      DECODE_TIMEOUT_MS
+    )
+    video.onloadeddata = () => finish()
+    video.onerror = () => finish(new Error("Could not decode the video"))
   })
 }
 
+/** Below this, two times are the same frame as far as any decoder cares. */
+const SEEK_EPSILON_S = 0.001
+
 function seekTo(video: HTMLVideoElement, seconds: number) {
   return new Promise<void>((resolve, reject) => {
-    video.onseeked = () => resolve()
-    video.onerror = () => reject(new Error("Could not seek the video"))
+    // Assigning the time the video is *already* at performs no seek, so no
+    // `seeked` event is ever fired and the wait never ends. Sampling starts at
+    // t=0 on a video whose currentTime is 0, which is why this hung on the
+    // very first frame — at exactly 0%, forever — on WebKit. Chrome fires the
+    // event anyway, which is why it only ever showed up on the phone.
+    if (Math.abs(video.currentTime - seconds) < SEEK_EPSILON_S) {
+      resolve()
+      return
+    }
+
+    // A watchdog as well, because a decoder that drops a `seeked` for any other
+    // reason should surface as an error the user can retry, never as a
+    // progress bar that sits still.
+    let timer = 0
+    const finish = (error?: Error) => {
+      window.clearTimeout(timer)
+      video.onseeked = null
+      video.onerror = null
+      if (error) reject(error)
+      else resolve()
+    }
+    timer = window.setTimeout(
+      () => finish(new Error("The video stopped responding while being read")),
+      DECODE_TIMEOUT_MS
+    )
+
+    video.onseeked = () => finish()
+    video.onerror = () => finish(new Error("Could not seek the video"))
     video.currentTime = seconds
   })
 }
@@ -537,10 +584,10 @@ export function selectCoachStills(
   summaries: Array<{ index: number; trackingRate: number }>,
   limit = MAX_COACH_STILLS
 ): CoachStill[] {
-  const poolByAngle = new Map(angles.map((angle) => [angle.index, angle.stills]))
-  const ranked = [...summaries].sort(
-    (a, b) => b.trackingRate - a.trackingRate
+  const poolByAngle = new Map(
+    angles.map((angle) => [angle.index, angle.stills])
   )
+  const ranked = [...summaries].sort((a, b) => b.trackingRate - a.trackingRate)
   const chosen: CoachStill[] = []
   const taken = new Set<string>()
 
@@ -667,11 +714,7 @@ export async function submitFormCoachClips(
     throw new Error("Nothing was tracked in that footage")
   }
 
-  const stills = selectCoachStills(
-    collected.reps,
-    oriented,
-    collected.angles
-  )
+  const stills = selectCoachStills(collected.reps, oriented, collected.angles)
   const { capture, angles } = buildFormCoachCapture(
     submission,
     collected,
