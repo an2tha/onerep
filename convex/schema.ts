@@ -1222,6 +1222,14 @@ export default defineSchema({
     /** What the capture could not answer, and why. */
     notMeasured: v.array(v.string()),
     /**
+     * What to watch for on the next set of this lift.
+     *
+     * Separate from findings and drills because it is read at a different
+     * moment: findings explain what happened, this is the thing to hold in mind
+     * while lifting. Optional so reports written before it existed still read.
+     */
+    checklist: v.optional(v.array(v.string())),
+    /**
      * Joint angles to aim for, rendered as a corrected pose in the app.
      *
      * Optional because reports written before corrections existed have no such

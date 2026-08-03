@@ -22,6 +22,7 @@ export type FormCoachReport = {
   }>
   drills: Array<{ name: string; reason: string }>
   notMeasured: string[]
+  checklist?: string[]
   corrections?: PoseCorrection[]
 }
 
@@ -74,6 +75,7 @@ export function buildFormCoachBlocks(
       })),
       drills: report.drills,
       notMeasured: report.notMeasured,
+      checklist: report.checklist,
     },
   })
 

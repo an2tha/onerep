@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   buildDigest,
@@ -154,6 +155,19 @@ describe("a capture with no detected reps", () => {
       phase: "turnaround",
     });
     expect(result.unavailable).toContain("no rep was detected");
+  });
+});
+
+// The checklist is read standing over the bar before the next set, so it is a
+// distinct field rather than the findings reformatted.
+describe("the report schema", () => {
+  test("requires a checklist", () => {
+    const prompt = readFileSync(
+      new URL("../ai/prompts/form_coach.yaml", import.meta.url),
+      "utf8",
+    );
+    expect(prompt).toContain("CHECKLIST");
+    expect(prompt).toContain("Never return an\n  empty checklist");
   });
 });
 

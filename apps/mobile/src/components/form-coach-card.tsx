@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from "react"
+import { Suspense, lazy, useEffect, useState, type ReactNode } from "react"
 import {
   ArrowLeft,
   ArrowsOut,
@@ -8,7 +8,9 @@ import {
   PushPin,
   PushPinSlash,
   Warning,
+  X,
 } from "@phosphor-icons/react"
+import { createPortal } from "react-dom"
 import { useMutation, useQuery } from "convex/react"
 import { toast } from "@repo/ui"
 import { cn } from "@/lib/utils"
@@ -43,6 +45,8 @@ export type FormCoachDetail = {
   findings: FormCoachFinding[]
   drills: Array<{ name: string; reason: string }>
   notMeasured: string[]
+  /** What to watch for on the next set. Absent on reports written before it. */
+  checklist?: string[]
 }
 
 /**
@@ -64,12 +68,74 @@ function evidenceLine(finding: FormCoachFinding) {
   return `${reading} · ${finding.confidence}`
 }
 
+/**
+ * Every overlay in this file goes through here, and none of them may be
+ * rendered in place.
+ *
+ * These sheets open from a card that lives inside the coach conversation, and
+ * the surfaces above it use `backdrop-filter` and transforms freely. Either one
+ * makes that ancestor the containing block for `position: fixed`, so a sheet
+ * rendered in the tree pins itself to the card instead of the viewport: it
+ * floats mid-page, its backdrop covers only the card's own box, and it inherits
+ * the app's max-width column. Portalling to the body is the whole fix.
+ */
+function SheetPortal({ children }: { children: ReactNode }) {
+  if (typeof document === "undefined") return null
+  return createPortal(children, document.body)
+}
+
+/**
+ * Open overlays, innermost last.
+ *
+ * These nest — the pose view opens from the detail sheet, which opens from the
+ * history sheet — and every one of them listens on `document`. Without knowing
+ * which is on top, one Escape closes the whole stack at once.
+ */
+const overlayStack: symbol[] = []
+
+/** Locks the page behind an overlay and closes it on Escape. */
+function useOverlayChrome(onClose: () => void) {
+  useEffect(() => {
+    const token = Symbol("overlay")
+    overlayStack.push(token)
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      if (overlayStack.at(-1) !== token) return
+      event.preventDefault()
+      onClose()
+    }
+    document.addEventListener("keydown", closeOnEscape)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape)
+      overlayStack.splice(overlayStack.indexOf(token), 1)
+      // Restores "hidden" while an outer overlay is still open, and the page's
+      // own value once the last one closes.
+      document.body.style.overflow = previousOverflow
+    }
+  }, [onClose])
+}
+
+/** The corrected skeleton's colour, matching `POSE_CORRECTED_COLOR`. */
+const CORRECTED_HEX = "#3ddc84"
+
 /** Which skeleton is which, for a scene showing both. */
-function PoseLegend() {
+function PoseLegend({ className }: { className?: string }) {
   return (
-    <div className="pointer-events-none absolute bottom-2.5 left-2.5 flex items-center gap-2 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-md">
+    <div
+      className={cn(
+        "pointer-events-none absolute bottom-2.5 left-2.5 flex items-center gap-2 rounded-full bg-black/55 px-2.5 py-1 backdrop-blur-md",
+        className
+      )}
+    >
       <span className="flex items-center gap-1 text-[11px] font-semibold text-white">
-        <span className="h-1.5 w-4 rounded-full bg-[#4da3ff]" />
+        <span
+          className="h-1.5 w-4 rounded-full"
+          style={{ backgroundColor: CORRECTED_HEX }}
+        />
         Corrected
       </span>
       <span className="flex items-center gap-1 text-[11px] text-white/60">
@@ -77,6 +143,116 @@ function PoseLegend() {
         Yours
       </span>
     </div>
+  )
+}
+
+/**
+ * Opacity for each skeleton at a blend position.
+ *
+ * Both are fully opaque in the middle rather than half-lit, because the default
+ * position is the one that has to show the difference. Fading only starts once
+ * the slider is pulled towards one side, and each end hides the other skeleton
+ * outright so it can be looked at on its own.
+ */
+export function blendOpacity(blend: number) {
+  return {
+    corrected: Math.min(1, 2 * blend),
+    yours: Math.min(1, 2 * (1 - blend)),
+  }
+}
+
+/**
+ * The scene at the size the correction actually needs.
+ *
+ * A rotated knee is a few degrees of difference, which is legible at 320px and
+ * essentially invisible in a card. This gives it the screen, and a blend slider
+ * so the two skeletons can be separated rather than squinted at.
+ */
+export function PoseExpandModal({
+  exerciseName,
+  pose,
+  corrections,
+  onClose,
+}: {
+  exerciseName: string
+  pose: FormCoachPose
+  corrections: PoseCorrection[]
+  onClose: () => void
+}) {
+  const [blend, setBlend] = useState(0.5)
+  const opacity = blendOpacity(blend)
+  const hasCorrection = corrections.length > 0
+
+  useOverlayChrome(onClose)
+
+  return (
+    <SheetPortal>
+      <div
+        className="sheet-overlay fixed inset-0 z-[100] flex flex-col bg-black/85 backdrop-blur-[10px]"
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${exerciseName} pose, expanded`}
+      >
+        <div
+          className="mx-auto flex w-full max-w-5xl shrink-0 items-center gap-3 px-4"
+          style={{
+            paddingTop: "max(0.75rem, env(safe-area-inset-top, 0.75rem))",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close expanded pose"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-white/70 active:bg-white/10"
+          >
+            <X size={16} weight="bold" />
+          </button>
+          <h2 className="min-w-0 flex-1 truncate text-[15px] font-semibold text-white">
+            {exerciseName}
+          </h2>
+        </div>
+
+        {/* min-h-0 so the scene can shrink inside the column rather than
+          overflowing it and pushing the slider off the bottom. */}
+        <div className="relative min-h-0 w-full flex-1">
+          <FormCoachPoseScene
+            pose={pose}
+            corrections={corrections}
+            correctedOpacity={opacity.corrected}
+            yoursOpacity={opacity.yours}
+            // Not `absolute inset-0`: the viewer's own mount is `relative`, and
+            // Tailwind emits `relative` after `absolute`, so it would win.
+            className="h-full w-full"
+          />
+          {hasCorrection && <PoseLegend className="bottom-4 left-4" />}
+        </div>
+
+        {hasCorrection && (
+          <div
+            className="mx-auto w-full max-w-md shrink-0 px-6 pt-2"
+            style={{
+              paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+            }}
+          >
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={blend}
+              onChange={(event) => setBlend(Number(event.target.value))}
+              aria-label="Fade between your rep and the corrected one"
+              className="h-9 w-full"
+              style={{ accentColor: CORRECTED_HEX }}
+            />
+            <div className="flex justify-between text-[12px] font-medium">
+              <span className="text-white/50">Yours</span>
+              <span style={{ color: CORRECTED_HEX }}>Corrected</span>
+            </div>
+          </div>
+        )}
+      </div>
+    </SheetPortal>
   )
 }
 
@@ -125,141 +301,178 @@ function FormCoachDetailSheet({
   corrections: PoseCorrection[]
   onClose: () => void
 }) {
+  const [expandedPose, setExpandedPose] = useState(false)
+  useOverlayChrome(onClose)
+
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={onClose}
-    >
+    <SheetPortal>
       <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`${exerciseName} form notes`}
-        className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-        onClick={(event) => event.stopPropagation()}
+        className="sheet-overlay fixed inset-0 z-[90] flex items-end justify-center bg-black/60 backdrop-blur-[8px] sm:items-center"
+        onClick={onClose}
       >
-        <div className="flex justify-center pt-3">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
-        </div>
-
-        <div className="flex items-center gap-3 px-5 pt-4 pb-3">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close form notes"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
-            style={{
-              color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
-            }}
-          >
-            <ArrowLeft size={14} weight="bold" />
-          </button>
-          <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
-            {exerciseName}
-          </h2>
-        </div>
-
-        {/* Bigger here than on the card: this is the screen you open to look
-            properly, so the scene gets the room the card cannot spare. */}
-        {pose.length > 0 && (
-          <div className="px-5 pb-4">
-            <div className="relative overflow-hidden rounded-[18px] bg-[#0c0c0c]">
-              <FormCoachPoseScene
-                pose={pose}
-                corrections={corrections}
-                className="h-[320px] w-full"
-              />
-              {corrections.length > 0 && <PoseLegend />}
-            </div>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${exerciseName} form notes`}
+          className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] sm:rounded-3xl"
+          style={{
+            paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex justify-center pt-3">
+            <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
           </div>
-        )}
 
-        <p className="px-5 pb-4 text-[13.5px] leading-6">{summary}</p>
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close form notes"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
+              style={{
+                color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
+              }}
+            >
+              <ArrowLeft size={14} weight="bold" />
+            </button>
+            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+              {exerciseName}
+            </h2>
+          </div>
 
-        <div className="flex flex-col gap-2.5 px-5">
-          {detail.findings.map((finding, index) => {
-            const severity = SEVERITY[finding.severity] ?? SEVERITY.minor
-            const Icon = severity.icon
-            return (
-              <div
-                key={index}
-                className={cn(
-                  "rounded-[18px] border px-4 py-3.5",
-                  severity.tint
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <Icon
-                    size={15}
-                    weight="fill"
-                    className={cn("shrink-0", severity.text)}
-                  />
-                  <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-tight">
-                    {finding.title}
-                  </p>
-                </div>
-                {/* The detail explains what it means for the lift; the cue is
+          {/* Bigger here than on the card: this is the screen you open to look
+            properly, so the scene gets the room the card cannot spare. */}
+          {pose.length > 0 && (
+            <div className="px-5 pb-4">
+              <div className="relative overflow-hidden rounded-[18px] bg-[#0c0c0c]">
+                <FormCoachPoseScene
+                  pose={pose}
+                  corrections={corrections}
+                  className="h-[320px] w-full"
+                />
+                {corrections.length > 0 && <PoseLegend />}
+                <ExpandPoseButton onExpand={() => setExpandedPose(true)} />
+              </div>
+            </div>
+          )}
+
+          <p className="px-5 pb-4 text-[13.5px] leading-6">{summary}</p>
+
+          {/* First, because it is the only part read *before* the next set
+            rather than after it. */}
+          {(detail.checklist ?? []).length > 0 && (
+            <div className="mx-5 mb-4 rounded-[18px] border border-border/60 bg-foreground/[0.04] px-4 py-3.5">
+              <p className="pb-2 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
+                Next set
+              </p>
+              <ol className="flex flex-col gap-2">
+                {detail.checklist!.map((item, index) => (
+                  <li key={index} className="flex gap-2.5">
+                    <span className="pt-px text-[12px] font-semibold text-muted-foreground/70 tabular-nums">
+                      {index + 1}
+                    </span>
+                    <span className="min-w-0 flex-1 text-[13.5px] leading-5">
+                      {item}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2.5 px-5">
+            {detail.findings.map((finding, index) => {
+              const severity = SEVERITY[finding.severity] ?? SEVERITY.minor
+              const Icon = severity.icon
+              return (
+                <div
+                  key={index}
+                  className={cn(
+                    "rounded-[18px] border px-4 py-3.5",
+                    severity.tint
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      size={15}
+                      weight="fill"
+                      className={cn("shrink-0", severity.text)}
+                    />
+                    <p className="min-w-0 flex-1 text-[15px] font-semibold tracking-tight">
+                      {finding.title}
+                    </p>
+                  </div>
+                  {/* The detail explains what it means for the lift; the cue is
                     the thing to do about it on the next set. Both earn their
                     place, so neither is clamped away. */}
-                <p className="pt-1.5 text-[13px] leading-5 text-muted-foreground">
-                  {finding.detail}
-                </p>
-                {finding.cue && (
-                  <p className="pt-2 text-[13px] leading-5 font-medium">
-                    {finding.cue}
+                  <p className="pt-1.5 text-[13px] leading-5 text-muted-foreground">
+                    {finding.detail}
                   </p>
-                )}
-                {/* The measurement behind the claim, so it can be checked
+                  {finding.cue && (
+                    <p className="pt-2 text-[13px] leading-5 font-medium">
+                      {finding.cue}
+                    </p>
+                  )}
+                  {/* The measurement behind the claim, so it can be checked
                     rather than taken on faith. */}
-                <p className="truncate pt-1.5 text-[11.5px] text-muted-foreground/70">
-                  {evidenceLine(finding)}
-                </p>
+                  <p className="truncate pt-1.5 text-[11.5px] text-muted-foreground/70">
+                    {evidenceLine(finding)}
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+
+          {detail.drills.length > 0 && (
+            <div className="px-5 pt-4">
+              <p className="pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
+                Work on
+              </p>
+              <div className="flex flex-col gap-1">
+                {detail.drills.map((drill, index) => (
+                  <p key={index} className="text-[13px] leading-5">
+                    {drill.name}
+                    <span className="text-muted-foreground">
+                      {" · "}
+                      {drill.reason}
+                    </span>
+                  </p>
+                ))}
               </div>
-            )
-          })}
+            </div>
+          )}
+
+          {detail.notMeasured.length > 0 && (
+            <div className="px-5 pt-4">
+              <p className="flex items-center gap-1.5 pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
+                <Eye size={11} weight="bold" />
+                Not visible
+              </p>
+              <ul className="flex flex-col gap-0.5">
+                {detail.notMeasured.map((item, index) => (
+                  <li
+                    key={index}
+                    className="text-[12.5px] leading-5 text-muted-foreground"
+                  >
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
-        {detail.drills.length > 0 && (
-          <div className="px-5 pt-4">
-            <p className="pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
-              Work on
-            </p>
-            <div className="flex flex-col gap-1">
-              {detail.drills.map((drill, index) => (
-                <p key={index} className="text-[13px] leading-5">
-                  {drill.name}
-                  <span className="text-muted-foreground">
-                    {" · "}
-                    {drill.reason}
-                  </span>
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {detail.notMeasured.length > 0 && (
-          <div className="px-5 pt-4">
-            <p className="flex items-center gap-1.5 pb-1.5 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
-              <Eye size={11} weight="bold" />
-              Not visible
-            </p>
-            <ul className="flex flex-col gap-0.5">
-              {detail.notMeasured.map((item, index) => (
-                <li
-                  key={index}
-                  className="text-[12.5px] leading-5 text-muted-foreground"
-                >
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {expandedPose && (
+          <PoseExpandModal
+            exerciseName={exerciseName}
+            pose={pose}
+            corrections={corrections}
+            onClose={() => setExpandedPose(false)}
+          />
         )}
       </div>
-    </div>
+    </SheetPortal>
   )
 }
 
@@ -286,10 +499,15 @@ function toFrames(pose: FormCoachPose): FormCoachFrame[] {
 export function FormCoachPoseScene({
   pose,
   corrections,
+  correctedOpacity = 1,
+  yoursOpacity,
   className,
 }: {
   pose: FormCoachPose
   corrections: PoseCorrection[]
+  /** Live, so the expanded view can fade one skeleton against the other. */
+  correctedOpacity?: number
+  yoursOpacity?: number
   className?: string
 }) {
   const original = toFrames(pose)
@@ -308,9 +526,31 @@ export function FormCoachPoseScene({
         playing
         // Already body-framed by the time it reaches a card.
         space="body"
+        boneOpacity={correctedOpacity}
+        // The ghost stays faint by default; only the expanded view raises it.
+        {...(yoursOpacity === undefined
+          ? {}
+          : { ghostOpacity: yoursOpacity * 0.85 })}
         className={className}
       />
     </Suspense>
+  )
+}
+
+/** Opens the scene full-screen. Sits on the scene, so every caller gets it. */
+export function ExpandPoseButton({ onExpand }: { onExpand: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        void hapticTap()
+        onExpand()
+      }}
+      aria-label="Expand the pose"
+      className="absolute top-2.5 right-2.5 flex size-9 items-center justify-center rounded-full bg-black/55 text-white/80 backdrop-blur-md active:bg-black/75"
+    >
+      <ArrowsOut size={14} weight="bold" />
+    </button>
   )
 }
 
@@ -346,6 +586,7 @@ export function FormCoachCard({
   const unpin = useMutation(api.ai.formCoachAgent.unpinReport)
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [expandedPose, setExpandedPose] = useState(false)
 
   async function togglePin(surface: "workouts" | "progress") {
     if (busy) return
@@ -366,7 +607,8 @@ export function FormCoachCard({
     detail &&
     (detail.findings.length > 0 ||
       detail.drills.length > 0 ||
-      detail.notMeasured.length > 0)
+      detail.notMeasured.length > 0 ||
+      (detail.checklist ?? []).length > 0)
   )
 
   return (
@@ -378,6 +620,7 @@ export function FormCoachCard({
           className="h-[220px] w-full"
         />
         {hasCorrection && <PoseLegend />}
+        <ExpandPoseButton onExpand={() => setExpandedPose(true)} />
       </div>
 
       <div className="px-4 pt-3 pb-3.5">
@@ -470,6 +713,15 @@ export function FormCoachCard({
         )}
       </div>
 
+      {expandedPose && (
+        <PoseExpandModal
+          exerciseName={exerciseName}
+          pose={pose}
+          corrections={corrections}
+          onClose={() => setExpandedPose(false)}
+        />
+      )}
+
       {expanded && detail && (
         <FormCoachDetailSheet
           exerciseName={exerciseName}
@@ -500,98 +752,102 @@ function FormCoachHistorySheet({ onClose }: { onClose: () => void }) {
   const reports = useQuery(api.ai.formCoachAgent.listReports, { limit: 30 })
   const [openReportId, setOpenReportId] =
     useState<Id<"formCoachReports"> | null>(null)
+  useOverlayChrome(onClose)
 
   return (
     <>
-      <div
-        className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-        onClick={onClose}
-      >
+      <SheetPortal>
         <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Form Coach history"
-          className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
-          style={{
-            paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-          }}
-          onClick={(event) => event.stopPropagation()}
+          className="sheet-overlay fixed inset-0 z-[80] flex items-end justify-center bg-black/60 backdrop-blur-[8px] sm:items-center"
+          onClick={onClose}
         >
-          <div className="flex justify-center pt-3">
-            <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
-          </div>
-
-          <div className="flex items-center gap-3 px-5 pt-4 pb-3">
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Close Form Coach history"
-              className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
-              style={{
-                color: "color-mix(in srgb, var(--foreground) 40%, transparent)",
-              }}
-            >
-              <ArrowLeft size={14} weight="bold" />
-            </button>
-            <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
-              Form Coach history
-            </h2>
-          </div>
-
-          {reports === undefined ? (
-            <div className="space-y-2 px-5 pb-5">
-              {[0, 1, 2].map((row) => (
-                <div
-                  key={row}
-                  className="h-16 animate-pulse rounded-2xl bg-muted/40"
-                />
-              ))}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Form Coach history"
+            className="sheet-panel max-h-[92svh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)] sm:rounded-3xl"
+            style={{
+              paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3">
+              <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />
             </div>
-          ) : reports.length === 0 ? (
-            <p className="px-5 pb-6 text-[14px] leading-5 text-muted-foreground">
-              Record a set with the form coach and every report will collect
-              here.
-            </p>
-          ) : (
-            <ul className="px-5 pb-5">
-              {reports.map((report) => (
-                <li key={report._id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hapticTap()
-                      setOpenReportId(report._id)
-                    }}
-                    className="flex w-full items-start gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-baseline gap-2">
-                        <span className="truncate text-[15px] font-semibold">
-                          {report.exerciseName}
+
+            <div className="flex items-center gap-3 px-5 pt-4 pb-3">
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close Form Coach history"
+                className="flex size-10 shrink-0 items-center justify-center rounded-full transition-colors active:bg-muted/60"
+                style={{
+                  color:
+                    "color-mix(in srgb, var(--foreground) 40%, transparent)",
+                }}
+              >
+                <ArrowLeft size={14} weight="bold" />
+              </button>
+              <h2 className="min-w-0 flex-1 truncate text-[17px] font-semibold tracking-tight">
+                Form Coach history
+              </h2>
+            </div>
+
+            {reports === undefined ? (
+              <div className="space-y-2 px-5 pb-5">
+                {[0, 1, 2].map((row) => (
+                  <div
+                    key={row}
+                    className="h-16 animate-pulse rounded-2xl bg-muted/40"
+                  />
+                ))}
+              </div>
+            ) : reports.length === 0 ? (
+              <p className="px-5 pb-6 text-[14px] leading-5 text-muted-foreground">
+                Record a set with the form coach and every report will collect
+                here.
+              </p>
+            ) : (
+              <ul className="px-5 pb-5">
+                {reports.map((report) => (
+                  <li key={report._id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticTap()
+                        setOpenReportId(report._id)
+                      }}
+                      className="flex w-full items-start gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-2">
+                          <span className="truncate text-[15px] font-semibold">
+                            {report.exerciseName}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
+                            {report.date}
+                          </span>
                         </span>
-                        <span className="shrink-0 text-[11px] text-muted-foreground tabular-nums">
-                          {report.date}
+                        <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-muted-foreground">
+                          {report.summary}
                         </span>
+                        {report.findingCount > 0 && (
+                          <span className="mt-1 block text-[11px] text-muted-foreground">
+                            {report.findingCount} note
+                            {report.findingCount === 1 ? "" : "s"}
+                            {report.majorCount > 0 &&
+                              ` · ${report.majorCount} to fix`}
+                          </span>
+                        )}
                       </span>
-                      <span className="mt-0.5 line-clamp-2 block text-[13px] leading-5 text-muted-foreground">
-                        {report.summary}
-                      </span>
-                      {report.findingCount > 0 && (
-                        <span className="mt-1 block text-[11px] text-muted-foreground">
-                          {report.findingCount} note
-                          {report.findingCount === 1 ? "" : "s"}
-                          {report.majorCount > 0 &&
-                            ` · ${report.majorCount} to fix`}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
-      </div>
+      </SheetPortal>
 
       {openReportId && (
         <FormCoachHistoryDetail
@@ -621,6 +877,7 @@ function FormCoachHistoryDetail({
         findings: report.findings,
         drills: report.drills,
         notMeasured: report.notMeasured,
+        checklist: report.checklist,
       }}
       pose={(report.pose ?? []) as FormCoachPose}
       corrections={(report.corrections ?? []) as PoseCorrection[]}
@@ -710,6 +967,7 @@ export function FormCoachPinnedCards({
               findings: card.findings,
               drills: card.drills,
               notMeasured: card.notMeasured,
+              checklist: card.checklist,
             }}
             onUnpin={() =>
               setDismissed((current) => new Set(current).add(card.pinId))
