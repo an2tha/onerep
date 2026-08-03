@@ -32,7 +32,12 @@ import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { toast } from "@repo/ui"
 import { cn } from "@/lib/utils"
-import { FormCoachCard, FormCoachPoseScene } from "@/components/form-coach-card"
+import {
+  ExpandPoseButton,
+  FormCoachCard,
+  FormCoachPoseScene,
+  PoseExpandModal,
+} from "@/components/form-coach-card"
 import type { PoseCorrection } from "@/lib/pose-correction"
 import type { Day } from "@/lib/workout-sync"
 import type { Exercise } from "@/lib/exercise-catalog"
@@ -519,6 +524,7 @@ export type CoachUiBlock =
         }>
         drills: Array<{ name: string; reason: string }>
         notMeasured: string[]
+        checklist?: string[]
       }
       caption?: string
     }
@@ -2132,6 +2138,7 @@ function CoachPoseBlock({
 }: {
   block: Extract<CoachUiBlock, { type: "pose" }>
 }) {
+  const [expanded, setExpanded] = useState(false)
   const pose = block.frames.map((frame) => ({
     timeMs: frame.timeMs,
     worldLandmarks: frame.worldLandmarks.map((point) => ({
@@ -2154,13 +2161,22 @@ function CoachPoseBlock({
             {block.detail}
           </p>
         )}
-        <div className="mt-3 overflow-hidden rounded-[18px] bg-[#0c0c0c]">
+        <div className="relative mt-3 overflow-hidden rounded-[18px] bg-[#0c0c0c]">
           <FormCoachPoseScene
             pose={pose}
             corrections={corrections}
             className="h-[220px] w-full"
           />
+          <ExpandPoseButton onExpand={() => setExpanded(true)} />
         </div>
+        {expanded && (
+          <PoseExpandModal
+            exerciseName={block.title}
+            pose={pose}
+            corrections={corrections}
+            onClose={() => setExpanded(false)}
+          />
+        )}
       </div>
     )
   }

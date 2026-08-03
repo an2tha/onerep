@@ -34,6 +34,11 @@ const PROGRESS_INTERVAL_MS = 80
  * of React state was both choppy to watch and a re-render per frame; this
  * animates at whatever the display runs at (60Hz+) with React uninvolved.
  */
+/** Corrected: green reads as the target, and separates from the white ghost. */
+export const POSE_CORRECTED_COLOR = 0x3ddc84
+export const POSE_PLAIN_COLOR = 0x4da3ff
+export const POSE_GHOST_COLOR = 0xffffff
+
 export function PoseViewer({
   frames,
   ghostFrames,
@@ -42,6 +47,9 @@ export function PoseViewer({
   loop = true,
   orientation = NEUTRAL_ORIENTATION,
   space = "camera",
+  boneColor,
+  boneOpacity = 1,
+  ghostOpacity = 0.22,
   onProgress,
   className,
 }: {
@@ -52,6 +60,11 @@ export function PoseViewer({
    * remembered across a toggle.
    */
   ghostFrames?: readonly FormCoachFrame[]
+  /** Defaults to the corrected green when there is a ghost to contrast with. */
+  boneColor?: number
+  /** Both are live: a correction is read by fading one against the other. */
+  boneOpacity?: number
+  ghostOpacity?: number
   playing: boolean
   /** Set to jump the playhead; changing this value seeks. */
   seekTimeMs?: number
@@ -66,6 +79,7 @@ export function PoseViewer({
   const mountRef = useRef<HTMLDivElement>(null)
   const jointsRef = useRef<THREE.Points | null>(null)
   const bonesRef = useRef<THREE.LineSegments | null>(null)
+  const ghostBonesRef = useRef<THREE.LineSegments | null>(null)
 
   const track = useMemo(() => buildPoseTrack(frames, { loop }), [frames, loop])
   const ghostTrack = useMemo(
@@ -139,7 +153,11 @@ export function PoseViewer({
     )
     const joints = new THREE.Points(
       jointGeometry,
-      new THREE.PointsMaterial({ color: 0xffffff, size: 0.05 })
+      new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.05,
+        transparent: true,
+      })
     )
     scene.add(joints)
     jointsRef.current = joints
@@ -151,7 +169,10 @@ export function PoseViewer({
     )
     const bones = new THREE.LineSegments(
       boneGeometry,
-      new THREE.LineBasicMaterial({ color: 0x4da3ff })
+      new THREE.LineBasicMaterial({
+        color: POSE_PLAIN_COLOR,
+        transparent: true,
+      })
     )
     scene.add(bones)
     bonesRef.current = bones
@@ -166,12 +187,13 @@ export function PoseViewer({
     const ghostBones = new THREE.LineSegments(
       ghostGeometry,
       new THREE.LineBasicMaterial({
-        color: 0xffffff,
+        color: POSE_GHOST_COLOR,
         transparent: true,
         opacity: 0.22,
       })
     )
     scene.add(ghostBones)
+    ghostBonesRef.current = ghostBones
 
     const resize = () => {
       const { clientWidth, clientHeight } = mount
@@ -200,7 +222,8 @@ export function PoseViewer({
             (clockRef.current + delta) % (current.durationMs || 1)
         }
         const ghost = ghostTrackRef.current
-        ghostBones.visible = Boolean(ghost)
+        ghostBones.visible =
+          Boolean(ghost) && ghostBones.material.opacity > 0.02
 
         // Both skeletons stand on the floor the *original* defines. Letting the
         // corrected pose derive its own would rotate it away from the ghost —
@@ -279,8 +302,33 @@ export function PoseViewer({
       renderer.domElement.remove()
       jointsRef.current = null
       bonesRef.current = null
+      ghostBonesRef.current = null
     }
   }, [])
+
+  // Materials are mutated in place rather than rebuilt: the scene is created
+  // once, and dragging a slider must not tear down the WebGL context.
+  const hasGhost = ghostTrack !== null
+  useEffect(() => {
+    const bones = bonesRef.current
+    const ghost = ghostBonesRef.current
+    const joints = jointsRef.current
+    if (!bones || !ghost || !joints) return
+
+    const boneMaterial = bones.material as THREE.LineBasicMaterial
+    boneMaterial.color.setHex(
+      boneColor ?? (hasGhost ? POSE_CORRECTED_COLOR : POSE_PLAIN_COLOR)
+    )
+    boneMaterial.opacity = boneOpacity
+    // Below this the skeleton is not dim, it is absent, and leaving an
+    // invisible mesh in the scene costs a draw call for nothing.
+    bones.visible = boneOpacity > 0.02
+    ;(joints.material as THREE.PointsMaterial).opacity = boneOpacity
+    joints.visible = bones.visible
+
+    const ghostMaterial = ghost.material as THREE.LineBasicMaterial
+    ghostMaterial.opacity = ghostOpacity
+  }, [boneColor, boneOpacity, ghostOpacity, hasGhost])
 
   // A different clip means starting over rather than resuming mid-way.
   useEffect(() => {

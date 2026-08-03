@@ -721,6 +721,7 @@ export const recordReport = internalMutation({
     ),
     drills: v.array(v.object({ name: v.string(), reason: v.string() })),
     notMeasured: v.array(v.string()),
+    checklist: v.optional(v.array(v.string())),
     pose: v.optional(v.array(poseFrameValidator)),
     corrections: v.optional(
       v.array(
@@ -830,6 +831,8 @@ const reportSchema = z.object({
   ),
   drills: z.array(z.object({ name: z.string(), reason: z.string() })),
   notMeasured: z.array(z.string()),
+  /** What to hold in mind on the next set, in the order it happens. */
+  checklist: z.array(z.string()),
   /**
    * Joint angles the lifter should have reached. The app rotates their own
    * skeleton to match, so the advice becomes something they can look at rather
@@ -1060,6 +1063,7 @@ export const analyse = action({
         findings: toStoredFindings(report.findings),
         drills: report.drills,
         notMeasured: report.notMeasured,
+        checklist: report.checklist,
         pose: args.pose,
         corrections: report.corrections,
         toolCalls: toStoredToolCalls(result.toolCalls),
@@ -1150,6 +1154,7 @@ export const listPinned = query({
           findings: report.findings,
           drills: report.drills,
           notMeasured: report.notMeasured,
+          checklist: report.checklist ?? [],
         };
       }),
     );

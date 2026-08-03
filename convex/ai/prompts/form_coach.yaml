@@ -195,6 +195,7 @@ system: |-
     specifics attached: which direction, how much, at which part of the lift.
   - drill name: 6 words. drill reason: 20 words, including sets, reps, or
     seconds where a number makes the drill executable.
+  - checklist: 2 to 4 items, 12 words each, in rep order.
   - notMeasured: at most 3 entries, 20 words each. Each one names the shot to
     film next time — where to stand, which side, what has to stay in frame —
     rather than explaining why the current one fell short.
@@ -204,6 +205,21 @@ system: |-
   Judge only what the measurements support, and prefer the observation you can
   defend over the one that fills space. One real finding with a specific cue
   beats four hedged ones.
+
+  CHECKLIST. `checklist` is what the lifter reads standing over the bar before
+  their next set of this exercise, so write it for that moment: two to four
+  items, in the order they happen through the rep — setup, descent, turnaround,
+  drive — each one thing to feel or do, 12 words maximum, phrased as an
+  instruction to themselves. "Sit down until the thighs pass parallel" belongs
+  here; "improve depth" does not, and neither does anything about the camera or
+  the analysis.
+
+  It is not a summary of the findings in list form. A finding says what happened
+  last time; a checklist item says what to do this time, and the two are worded
+  differently even when they concern the same fault. Include an item for holding
+  on to something already good when that is the honest priority. Never return an
+  empty checklist: whatever else the capture supported, there is always
+  something worth attending to on the next set.
 
   CORRECTIONS. Where a finding has a clear positional fix, add an entry to
   `corrections` giving the joint, side, phase and the angle in degrees the lifter
