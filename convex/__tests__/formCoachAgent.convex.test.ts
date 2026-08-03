@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { buildDigest, buildFormCoachTools } from "../ai/formCoachAgent";
+import {
+  buildDigest,
+  buildFormCoachTools,
+  buildPointCloud,
+} from "../ai/formCoachAgent";
 import {
   LANDMARK,
   type FormCoachCapture,
@@ -73,7 +77,6 @@ const capture: FormCoachCapture = {
     rep([0, 45, 90, 30], { angleIndex: 1, repIndex: 2 }),
     rep([0, 40, 80, 20], { angleIndex: 2, repIndex: 1 }),
   ],
-  canonical: [frame(0), frame(45), frame(90), frame(30)],
 };
 
 /** Tools are declared with an optional `execute`; every one of ours has it. */
@@ -90,13 +93,117 @@ describe("buildDigest", () => {
     expect(digest.exercise).toBe("Barbell Squat");
     expect(digest.reps).toBe(3);
     expect(digest.angles.map((a) => a.view)).toEqual(["side", "front"]);
-    expect(digest.overview.start.kneeLeft).toBeCloseTo(180, 0);
-    expect(digest.overview.turnaround.kneeLeft).toBeCloseTo(90, 0);
+    expect(digest.byPhase.start.kneeLeft.mean).toBeCloseTo(180, 0);
+    expect(digest.byPhase.turnaround.kneeLeft.mean).toBeCloseTo(90, 0);
+  });
+
+  // The mean alone is what the averaged rep used to give, and it is the reading
+  // a breakdown mid-set hides behind.
+  test("carries the spread across reps, not just the mean", () => {
+    const digest = buildDigest(capture);
+    const knee = digest.byPhase.turnaround.kneeLeft;
+    expect(knee.reps).toBe(3);
+    expect(knee.min).toBeCloseTo(80, 0);
+    expect(knee.max).toBeCloseTo(100, 0);
+    expect(knee.perRep).toHaveLength(3);
+  });
+
+  test("answers how far the lift travelled without a tool call", () => {
+    const digest = buildDigest(capture);
+    expect(digest.travelAtTurnaround?.signal).toBe("hip_to_ankle");
+    // Hip to ankle closes as the lifter descends, so this is negative.
+    expect(digest.travelAtTurnaround?.mean).toBeLessThan(0);
   });
 
   test("stays small enough to be worth sending up front", () => {
-    // The whole point of tools is that the prompt does not carry everything.
-    expect(JSON.stringify(buildDigest(capture)).length).toBeLessThan(1200);
+    // Generous by design: five phases of both sides beats the tool calls it
+    // replaces. Still a fraction of what shipping the reps themselves would be.
+    expect(JSON.stringify(buildDigest(capture)).length).toBeLessThan(6000);
+  });
+});
+
+// Rep detection failing is a normal outcome, not a broken capture: a hold, a
+// set of partials or patchy tracking all produce zero reps from good footage.
+describe("a capture with no detected reps", () => {
+  const repless: FormCoachCapture = {
+    ...capture,
+    repCount: 0,
+    reps: [],
+    angles: [{ ...capture.angles[0], repCount: 0, repSignal: null }],
+    timeline: [
+      { angleIndex: 1, timeMs: 0, worldLandmarks: frame(0).worldLandmarks },
+    ],
+  };
+
+  test("still builds a digest, and says why it is thin", () => {
+    const digest = buildDigest(repless);
+    expect(digest.reps).toBe(0);
+    expect(digest.travelAtTurnaround).toBeNull();
+    expect(digest.warnings.join(" ")).toContain("no rep was detected");
+  });
+
+  test("still carries the point cloud", () => {
+    expect(buildPointCloud(repless)!.samples).toHaveLength(1);
+  });
+
+  // "No angle matched that view" would send it hunting for a view that exists.
+  test("tells the model no rep was found rather than blaming the view", async () => {
+    const result = await call(buildFormCoachTools(repless).measure_joint_angle, {
+      joint: "knee",
+      side: "left",
+      phase: "turnaround",
+    });
+    expect(result.unavailable).toContain("no rep was detected");
+  });
+});
+
+describe("buildPointCloud", () => {
+  const timeline = [
+    {
+      angleIndex: 1,
+      timeMs: 0,
+      worldLandmarks: frame(0).worldLandmarks,
+    },
+    {
+      angleIndex: 2,
+      timeMs: 1000,
+      worldLandmarks: frame(90).worldLandmarks,
+    },
+  ];
+
+  test("is absent rather than empty when the client sent no timeline", () => {
+    expect(buildPointCloud(capture)).toBeNull();
+  });
+
+  test("lines every sample up against one joint header", () => {
+    const cloud = buildPointCloud({ ...capture, timeline })!;
+    expect(cloud.joints).toContain("leftKnee");
+    expect(cloud.samples).toHaveLength(2);
+    for (const sample of cloud.samples) {
+      expect(sample.xyz).toHaveLength(cloud.joints.length);
+    }
+    expect(cloud.samples.map((s) => s.angle)).toEqual([1, 2]);
+  });
+
+  // The raw arrays hold an untracked joint at the origin, which reads as a limb
+  // folded into the lifter's hips rather than as an absence.
+  test("reports an untracked joint as null, never as the origin", () => {
+    const blind = frame(0);
+    blind.worldLandmarks[LANDMARK.leftKnee] = {
+      x: 0,
+      y: 0,
+      z: 0,
+      visibility: 0.1,
+    };
+    const cloud = buildPointCloud({
+      ...capture,
+      timeline: [
+        { angleIndex: 1, timeMs: 0, worldLandmarks: blind.worldLandmarks },
+      ],
+    })!;
+    const kneeAt = cloud.joints.indexOf("leftKnee");
+    expect(cloud.samples[0].xyz[kneeAt]).toBeNull();
+    expect(cloud.samples[0].xyz[cloud.joints.indexOf("leftHip")]).not.toBeNull();
   });
 });
 
@@ -116,7 +223,8 @@ describe("form coach tools", () => {
       side: "left",
       phase: "turnaround",
     });
-    expect(result.degrees).toBeCloseTo(90, 0);
+    expect(result.mean).toBeCloseTo(90, 0);
+    expect(result.reps).toBe(3);
   });
 
   test("restricts a measurement to the views that could see it", async () => {
@@ -127,7 +235,7 @@ describe("form coach tools", () => {
       views: ["front"],
     });
     // The front angle's rep only reaches an 80 degree bend.
-    expect(frontOnly.degrees).toBeCloseTo(100, 0);
+    expect(frontOnly.mean).toBeCloseTo(100, 0);
     expect(frontOnly.reps).toBe(1);
   });
 
@@ -139,13 +247,20 @@ describe("form coach tools", () => {
       views: ["back"],
     });
     expect(result.unavailable).toBeTruthy();
-    expect(result.degrees).toBeUndefined();
+    expect(result.mean).toBeUndefined();
   });
 
   test("measures alignment in a chosen plane, with direction", async () => {
     const shifted: FormCoachCapture = {
       ...capture,
-      canonical: [frame(0, 0.06), frame(90, 0.06)],
+      reps: [
+        {
+          angleIndex: 1,
+          repIndex: 1,
+          frames: [frame(0, 0.06), frame(90, 0.06)],
+          timing: { totalMs: 2000, toTurnaroundMs: 1100 },
+        },
+      ],
     };
     const result = await call(buildFormCoachTools(shifted).measure_alignment, {
       subject: "leftKnee",
@@ -154,7 +269,7 @@ describe("form coach tools", () => {
       plane: "frontal",
       phase: "start",
     });
-    expect(Math.abs(result.metres as number)).toBeCloseTo(0.06, 2);
+    expect(Math.abs(result.mean as number)).toBeCloseTo(0.06, 2);
   });
 
   test("reports range of motion across the rep", async () => {
@@ -162,15 +277,15 @@ describe("form coach tools", () => {
       joint: "knee",
       side: "left",
     });
-    expect(result.maxDegrees).toBeCloseTo(180, 0);
-    expect(result.minDegrees).toBeCloseTo(90, 0);
+    expect(result.mostExtendedDegrees).toBeCloseTo(180, 0);
+    expect(result.mostFlexedDegrees).toBeCloseTo(80, 0);
   });
 
   test("splits tempo either side of the turnaround", async () => {
     const result = await call(tools.get_tempo, {});
-    expect(result.totalMs).toBe(2000);
-    expect(result.towardsTurnaroundMs).toBe(1100);
-    expect(result.returnMs).toBe(900);
+    expect((result.totalMs as { mean: number }).mean).toBe(2000);
+    expect((result.towardsTurnaroundMs as { mean: number }).mean).toBe(1100);
+    expect((result.returnMs as { mean: number }).mean).toBe(900);
   });
 
   // Averaging is exactly what hides rep-to-rep breakdown, so this tool has to

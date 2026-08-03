@@ -34,18 +34,21 @@ import {
   PLANES,
   SEGMENTS,
   alignmentOffset,
-  canonicalRep,
   consistency,
   jointAngle,
+  meanTempo,
   phaseIndex,
   rangeOfMotion,
   repsFromViews,
   segmentFromVertical,
   symmetry,
   tempo,
+  travel,
   LANDMARK,
   type FormCoachCapture,
   type JointName,
+  type KinematicFrame,
+  type LandmarkName,
   type KinematicRep,
   type Phase,
   type Plane,
@@ -60,6 +63,18 @@ import {
  */
 const MAX_AGENT_STEPS = 12;
 const MAX_OUTPUT_TOKENS = 1600;
+
+/**
+ * Frames of the footage the model is shown alongside the numbers.
+ *
+ * Landmarks describe a skeleton; they cannot say that the camera was hand-held,
+ * that a second lifter walked through the shot, or what the bar was doing. Five
+ * is enough to establish all three and few enough to stay affordable.
+ */
+const MAX_STILLS = 5;
+
+/** Roughly 400 KB per still once base64-encoded. */
+const MAX_STILL_BYTES = 550_000;
 
 const JOINT_NAMES = Object.keys(JOINTS) as [JointName, ...JointName[]];
 const SEGMENT_NAMES = Object.keys(SEGMENTS) as [SegmentName, ...SegmentName[]];
@@ -79,7 +94,7 @@ function selectReps(
   capture: FormCoachCapture,
   views: readonly string[] | undefined,
 ): KinematicRep[] {
-  if (!views || views.length === 0) return [canonicalRep(capture)];
+  if (!views || views.length === 0) return capture.reps;
   const matching = repsFromViews(
     capture,
     views as ReadonlyArray<"front" | "back" | "side" | "oblique">,
@@ -91,8 +106,60 @@ const viewsField = z
   .array(z.enum(["front", "back", "side", "oblique"]))
   .optional()
   .describe(
-    "Only use angles filmed from these views. Omit to use every rep averaged together.",
+    "Only use angles filmed from these views. Omit to read every rep in the capture.",
   );
+
+/** How many per-rep readings a tool result lists before it is just noise. */
+const MAX_PER_REP_REPORTED = 12;
+
+/**
+ * One reading per rep, reported as a spread rather than a single number.
+ *
+ * The mean alone is what the old averaged rep gave, and it is the least useful
+ * summary available: a lifter whose third rep collapses has a perfectly
+ * respectable mean. Handing over the extremes and the per-rep list lets the model
+ * see the rep that went wrong and check whether it went wrong more than once.
+ */
+function report(values: Array<number | null>, places = 1) {
+  const spread = consistency(values);
+  if (!spread) return { unavailable: "not tracked in any rep" };
+  return {
+    mean: round(spread.mean, places),
+    min: round(spread.min, places),
+    max: round(spread.max, places),
+    spreadAcrossReps: round(spread.standardDeviation, 2),
+    reps: spread.samples,
+    /** In the order the reps were performed. Null where the joint was lost. */
+    perRep: values
+      .slice(0, MAX_PER_REP_REPORTED)
+      .map((value) => round(value, places)),
+  };
+}
+
+/**
+ * Why a rep-shaped measurement came back empty.
+ *
+ * A capture with no detected rep and a view filter that matched nothing are very
+ * different situations, and telling them apart is the difference between the
+ * model filming advice and the model giving up.
+ */
+function whyNoReps(capture: FormCoachCapture) {
+  return capture.reps.length === 0
+    ? "no rep was detected anywhere in this capture, so nothing rep-shaped can be measured; the point cloud and the stills are what you have"
+    : "no angle matched that view";
+}
+
+/** The reading at one phase of every rep. */
+function atPhase(
+  reps: readonly KinematicRep[],
+  phase: Phase,
+  read: (frame: KinematicFrame) => number | null,
+) {
+  return reps.map((rep) => {
+    const frame = rep.frames[phaseIndex(rep.frames, phase)];
+    return frame ? read(frame) : null;
+  });
+}
 
 /**
  * The measurement toolbox, as tools.
@@ -133,21 +200,15 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ joint, side, phase, views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
-        const values = reps.map((rep) => {
-          const frame = rep.frames[phaseIndex(rep.frames, phase)];
-          return frame ? jointAngle(frame, joint, side) : null;
-        });
-        const spread = consistency(values);
+          return { unavailable: whyNoReps(capture) };
         return {
           joint,
           side,
           phase,
-          degrees: round(spread?.mean ?? null),
-          acrossReps: spread
-            ? { min: round(spread.min), max: round(spread.max) }
-            : null,
-          reps: values.length,
+          unit: "degrees",
+          ...report(
+            atPhase(reps, phase, (frame) => jointAngle(frame, joint, side)),
+          ),
         };
       },
     }),
@@ -164,18 +225,17 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ segment, side, phase, views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
-        const values = reps.map((rep) => {
-          const frame = rep.frames[phaseIndex(rep.frames, phase)];
-          return frame ? segmentFromVertical(frame, segment, side) : null;
-        });
-        const spread = consistency(values);
+          return { unavailable: whyNoReps(capture) };
         return {
           segment,
           side,
           phase,
-          degreesFromVertical: round(spread?.mean ?? null),
-          reps: values.length,
+          unit: "degrees from vertical",
+          ...report(
+            atPhase(reps, phase, (frame) =>
+              segmentFromVertical(frame, segment, side),
+            ),
+          ),
         };
       },
     }),
@@ -194,27 +254,25 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ subject, lineFrom, lineTo, plane, phase, views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
-        const values = reps.map((rep) => {
-          const frame = rep.frames[phaseIndex(rep.frames, phase)];
-          return frame
-            ? alignmentOffset(
+          return { unavailable: whyNoReps(capture) };
+        return {
+          subject,
+          plane,
+          phase,
+          unit: "metres",
+          note: "positive is towards the lifter's right (frontal) or front (sagittal)",
+          ...report(
+            atPhase(reps, phase, (frame) =>
+              alignmentOffset(
                 frame,
                 subject as never,
                 lineFrom as never,
                 lineTo as never,
                 plane,
-              )
-            : null;
-        });
-        const spread = consistency(values);
-        return {
-          subject,
-          plane,
-          phase,
-          metres: round(spread?.mean ?? null, 3),
-          note: "positive is towards the lifter's right (frontal) or front (sagittal)",
-          reps: values.length,
+              ),
+            ),
+            3,
+          ),
         };
       },
     }),
@@ -230,16 +288,15 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ joint, phase, views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
+          return { unavailable: whyNoReps(capture) };
         const readings = reps.map((rep) => symmetry(rep, joint, phase));
-        const spread = consistency(readings.map((r) => r.difference));
         return {
           joint,
           phase,
+          unit: "degrees, right minus left",
           left: round(consistency(readings.map((r) => r.left))?.mean ?? null),
           right: round(consistency(readings.map((r) => r.right))?.mean ?? null),
-          rightMinusLeftDegrees: round(spread?.mean ?? null),
-          reps: readings.length,
+          ...report(readings.map((r) => r.difference)),
         };
       },
     }),
@@ -255,23 +312,61 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ joint, side, views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
-        const extents = reps
-          .map((rep) => rangeOfMotion(rep, joint, side))
-          .filter(
-            (extent): extent is NonNullable<typeof extent> => extent !== null,
-          );
-        if (extents.length === 0)
+          return { unavailable: whyNoReps(capture) };
+        const extents = reps.map((rep) => rangeOfMotion(rep, joint, side));
+        if (extents.every((extent) => extent === null))
           return { unavailable: "joint was not tracked" };
+        const present = extents.filter(
+          (extent): extent is NonNullable<typeof extent> => extent !== null,
+        );
         return {
           joint,
           side,
-          minDegrees: round(Math.min(...extents.map((e) => e.min))),
-          maxDegrees: round(Math.max(...extents.map((e) => e.max))),
-          travelDegrees: round(
-            extents.reduce((total, e) => total + e.travel, 0) / extents.length,
+          unit: "degrees",
+          mostFlexedDegrees: round(Math.min(...present.map((e) => e.min))),
+          mostExtendedDegrees: round(Math.max(...present.map((e) => e.max))),
+          // The per-rep travel is the part worth looking at: a set where rep one
+          // moved through 90° and rep five through 40° is a set that broke down.
+          travel: report(extents.map((extent) => extent?.travel ?? null)),
+        };
+      },
+    }),
+
+    measure_travel: tool({
+      description:
+        "How far two landmarks moved apart or together between the start of the rep and the turnaround, in metres and as a fraction of the standing distance. This is how far the lifter actually went: hip to ankle for a squat or hinge, wrist to shoulder for a press, curl or row, wrist to hip for a raise. Camera-independent, so it works from any view.",
+      inputSchema: z.object({
+        from: z.enum(LANDMARK_NAMES),
+        to: z.enum(LANDMARK_NAMES),
+        views: viewsField,
+      }),
+      execute: async ({ from, to, views }) => {
+        const reps = selectReps(capture, views);
+        if (reps.length === 0)
+          return { unavailable: whyNoReps(capture) };
+        const readings = reps.map((rep) =>
+          travel(rep, from as never, to as never),
+        );
+        if (readings.every((reading) => reading === null))
+          return { unavailable: "one of those landmarks was not tracked" };
+        return {
+          from,
+          to,
+          standingMetres: round(
+            consistency(readings.map((r) => r?.startMetres ?? null))?.mean ??
+              null,
+            3,
           ),
-          reps: extents.length,
+          turnaroundMetres: round(
+            consistency(readings.map((r) => r?.turnaroundMetres ?? null))
+              ?.mean ?? null,
+            3,
+          ),
+          note: "changeFraction is negative when the landmarks closed together; -0.3 means they ended 30% closer than standing",
+          changeFraction: report(
+            readings.map((r) => r?.changeFraction ?? null),
+            2,
+          ),
         };
       },
     }),
@@ -283,21 +378,22 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async ({ views }) => {
         const reps = selectReps(capture, views);
         if (reps.length === 0)
-          return { unavailable: "no angle matched that view" };
+          return { unavailable: whyNoReps(capture) };
         const readings = reps.map(tempo);
         return {
           reps: readings.length,
-          totalMs: Math.round(
-            readings.reduce((total, r) => total + r.totalMs, 0) /
-              readings.length,
+          unit: "milliseconds",
+          totalMs: report(
+            readings.map((r) => r.totalMs),
+            0,
           ),
-          towardsTurnaroundMs: Math.round(
-            readings.reduce((total, r) => total + r.towardsTurnaroundMs, 0) /
-              readings.length,
+          towardsTurnaroundMs: report(
+            readings.map((r) => r.towardsTurnaroundMs),
+            0,
           ),
-          returnMs: Math.round(
-            readings.reduce((total, r) => total + r.returnMs, 0) /
-              readings.length,
+          returnMs: report(
+            readings.map((r) => r.returnMs),
+            0,
           ),
         };
       },
@@ -352,24 +448,124 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
   };
 }
 
-/** The short brief the model gets before it decides what to measure. */
-export function buildDigest(capture: FormCoachCapture) {
-  const canonical = canonicalRep(capture);
-  const at = (phase: Phase) => {
-    const frame = canonical.frames[phaseIndex(canonical.frames, phase)];
-    if (!frame) return {};
-    return {
-      kneeLeft: round(jointAngle(frame, "knee", "left")),
-      kneeRight: round(jointAngle(frame, "knee", "right")),
-      hipLeft: round(jointAngle(frame, "hip", "left")),
-      hipRight: round(jointAngle(frame, "hip", "right")),
-      elbowLeft: round(jointAngle(frame, "elbow", "left")),
-      elbowRight: round(jointAngle(frame, "elbow", "right")),
-      shoulderLeft: round(jointAngle(frame, "shoulder", "left")),
-      shoulderRight: round(jointAngle(frame, "shoulder", "right")),
-      torsoFromVertical: round(segmentFromVertical(frame, "torso", "left")),
-    };
+/** Samples of the point cloud the prompt will carry. */
+const MAX_TIMELINE_SAMPLES = 60;
+
+/**
+ * The footage as coordinates, one sample a second.
+ *
+ * Everything else in the payload is derived: a rep is an interpretation, a
+ * measurement is an interpretation of that. This is the positions themselves,
+ * so a fault nobody thought to write a tool for is still visible, and so a
+ * reading that looks wrong can be checked against the thing it came from.
+ *
+ * Columnar against a single `joints` header rather than repeating names on every
+ * sample: the same information, roughly a third of the tokens. Untracked joints
+ * are null rather than the origin, which is what the raw arrays hold and would
+ * otherwise read as a limb folded into the lifter's hips.
+ */
+export function buildPointCloud(capture: FormCoachCapture) {
+  const samples = (capture.timeline ?? []).slice(0, MAX_TIMELINE_SAMPLES);
+  if (samples.length === 0) return null;
+
+  const joints = Object.keys(LANDMARK) as LandmarkName[];
+  return {
+    format:
+      "xyz[] is aligned to joints[]; each entry is [x, y, z] in metres, or null where that joint was not tracked",
+    frame:
+      "body-fixed: origin at the hip midpoint, +x towards the lifter's right, +y up their torso, +z out of their chest. Yaw is removed, so samples from different angles share one coordinate system and are directly comparable",
+    sampledEvery: "1s of footage, covering the whole clip and not only the reps",
+    joints,
+    samples: samples.map((sample) => ({
+      angle: sample.angleIndex,
+      tMs: sample.timeMs,
+      xyz: joints.map((joint) => {
+        const value = sample.worldLandmarks[LANDMARK[joint]];
+        if (!value || (value.visibility ?? 1) < 0.5) return null;
+        return [round(value.x, 3), round(value.y, 3), round(value.z, 3)];
+      }),
+    })),
   };
+}
+
+/** The landmark pair whose distance the client counted reps in. */
+const SIGNAL_LANDMARKS: Record<string, [string, string]> = {
+  hip_to_ankle: ["leftHip", "leftAnkle"],
+  wrist_to_shoulder: ["leftWrist", "leftShoulder"],
+  wrist_to_hip: ["leftWrist", "leftHip"],
+};
+
+/** Anything about the footage that should temper what is read from it. */
+function captureWarnings(capture: FormCoachCapture) {
+  const warnings: string[] = [];
+  const worstTracking = Math.min(
+    ...capture.angles.map((angle) => angle.trackingRate),
+  );
+  if (capture.angles.length > 0 && worstTracking < 0.75) {
+    warnings.push(
+      `one angle held the lifter for only ${Math.round(worstTracking * 100)}% of its frames; tracking dropouts usually mean somebody or something else was in shot`,
+    );
+  }
+  if (capture.repCount === 0) {
+    warnings.push(
+      "no rep was detected, which is a limitation of the detector and not something to report to the lifter. Every rep-shaped tool will come back empty. Read the point cloud, work out what the body was doing, and coach that",
+    );
+  } else if (capture.repCount === 1) {
+    warnings.push("one rep only, so nothing can be checked for repeatability");
+  }
+  if (capture.angles.every((angle) => angle.view === "oblique")) {
+    warnings.push(
+      "every angle came out oblique, which is what a hand-held camera looks like; frontal-plane and sagittal-plane offsets are the readings this hurts most",
+    );
+  }
+  return warnings;
+}
+
+/**
+ * The brief the model gets before it decides what to measure.
+ *
+ * Deliberately generous. A tool call costs a round trip and the model only gets
+ * a handful, so anything it would obviously ask for first is cheaper to hand
+ * over: every joint at every phase, both sides, and the spread across reps
+ * rather than one number per joint. What it cannot get here — alignment offsets,
+ * arbitrary landmark pairs, per-rep breakdowns of a specific fault — is what the
+ * tools are for.
+ */
+export function buildDigest(capture: FormCoachCapture) {
+  const reps = capture.reps;
+  const spread = (read: (frame: KinematicFrame) => number | null, phase: Phase) =>
+    report(atPhase(reps, phase, read));
+
+  const at = (phase: Phase) => ({
+    kneeLeft: spread((f) => jointAngle(f, "knee", "left"), phase),
+    kneeRight: spread((f) => jointAngle(f, "knee", "right"), phase),
+    hipLeft: spread((f) => jointAngle(f, "hip", "left"), phase),
+    hipRight: spread((f) => jointAngle(f, "hip", "right"), phase),
+    elbowLeft: spread((f) => jointAngle(f, "elbow", "left"), phase),
+    elbowRight: spread((f) => jointAngle(f, "elbow", "right"), phase),
+    shoulderLeft: spread((f) => jointAngle(f, "shoulder", "left"), phase),
+    shoulderRight: spread((f) => jointAngle(f, "shoulder", "right"), phase),
+    torsoFromVertical: spread(
+      (f) => segmentFromVertical(f, "torso", "left"),
+      phase,
+    ),
+  });
+
+  // How far the lift actually travelled, in the same distance the reps were
+  // counted in. For a squat this is depth; there is no reason to make the model
+  // spend a call discovering the single most important number in the capture.
+  const signal = capture.angles.find((angle) => angle.repSignal)?.repSignal;
+  const pair = signal ? SIGNAL_LANDMARKS[signal] : undefined;
+  const travelled = pair
+    ? report(
+        reps.map(
+          (rep) =>
+            travel(rep, pair[0] as never, pair[1] as never)?.changeFraction ??
+            null,
+        ),
+        2,
+      )
+    : null;
 
   return {
     exercise: capture.exerciseName,
@@ -384,10 +580,27 @@ export function buildDigest(capture: FormCoachCapture) {
       // coach knows nothing else about is the strongest hint at what it was.
       repSignal: angle.repSignal ?? null,
     })),
-    tempo: tempo(canonical),
-    // A coarse orientation so the model can tell at a glance what kind of
-    // movement this was, without spending a tool call to find out.
-    overview: { start: at("start"), turnaround: at("turnaround") },
+    stills: (capture.stills ?? []).map((still) => still.label),
+    warnings: captureWarnings(capture),
+    tempo: meanTempo(reps),
+    travelAtTurnaround: travelled
+      ? {
+          signal: signal ?? null,
+          note: "fraction of the standing distance; -0.3 means the pair ended 30% closer than at the start",
+          ...travelled,
+        }
+      : null,
+    /**
+     * Every phase, both sides, as a spread across reps rather than a mean —
+     * the mean is what hid a collapsing third rep behind two good ones.
+     */
+    byPhase: {
+      start: at("start"),
+      mid_out: at("mid_out"),
+      turnaround: at("turnaround"),
+      mid_back: at("mid_back"),
+      end: at("end"),
+    },
   };
 }
 
@@ -670,16 +883,25 @@ function assertCaptureLimits(
   angles: Array<{ index: number }>,
   pose: Array<{ worldLandmarks: unknown[] }> | undefined,
 ) {
+  // Zero reps is allowed: a capture where the detector found nothing still
+  // carries a timeline, stills and angle metadata, and why no rep was counted is
+  // itself worth an answer. Only an entirely absent capture is rejected.
   if (
     !capture ||
     !Array.isArray(capture.reps) ||
-    capture.reps.length === 0 ||
     capture.reps.length > 200 ||
     !Number.isInteger(capture.repCount) ||
-    capture.repCount < 1 ||
+    capture.repCount < 0 ||
     capture.repCount > 200
   ) {
     throw new Error("Movement capture exceeds the 200-rep limit");
+  }
+  if (
+    capture.reps.length === 0 &&
+    (capture.timeline ?? []).length === 0 &&
+    (capture.stills ?? []).length === 0
+  ) {
+    throw new Error("The recorded movement contained nothing to read");
   }
   if (
     !Array.isArray(capture.angles) ||
@@ -687,6 +909,42 @@ function assertCaptureLimits(
     angles.length > 8
   ) {
     throw new Error("Movement capture exceeds the 8-angle limit");
+  }
+
+  if (capture.stills !== undefined) {
+    if (!Array.isArray(capture.stills) || capture.stills.length > MAX_STILLS) {
+      throw new Error(`A capture may carry at most ${MAX_STILLS} stills`);
+    }
+    for (const still of capture.stills) {
+      if (
+        !still ||
+        typeof still.dataUrl !== "string" ||
+        !still.dataUrl.startsWith("data:image/") ||
+        still.dataUrl.length > MAX_STILL_BYTES
+      ) {
+        throw new Error("A capture still is not a usable image");
+      }
+    }
+  }
+
+  if (capture.timeline !== undefined) {
+    if (
+      !Array.isArray(capture.timeline) ||
+      capture.timeline.length > MAX_TIMELINE_SAMPLES
+    ) {
+      throw new Error(
+        `A capture timeline may hold at most ${MAX_TIMELINE_SAMPLES} samples`,
+      );
+    }
+    for (const sample of capture.timeline) {
+      if (
+        !sample ||
+        !Array.isArray(sample.worldLandmarks) ||
+        sample.worldLandmarks.length > 33
+      ) {
+        throw new Error("Timeline samples may contain at most 33 landmarks");
+      }
+    }
   }
 
   const frames = [
@@ -725,7 +983,7 @@ export const analyse = action({
     landmarksStorageId: v.optional(v.id("_storage")),
     landmarksUploadId: v.optional(v.id("fileUploads")),
     angles: v.array(angleMetaValidator),
-    /** The canonical rep, kept with the report so a pinned card can render it. */
+    /** The rep to show, kept with the report so a pinned card can render it. */
     pose: v.optional(v.array(poseFrameValidator)),
   },
   handler: async (ctx, args): Promise<{ reportId: string; report: Report }> => {
@@ -761,7 +1019,14 @@ export const analyse = action({
 
     const result = await runOpenAiAgent({
       system: renderSystemPrompt("form_coach"),
-      user: JSON.stringify(buildDigest(capture)),
+      user: JSON.stringify({
+        digest: buildDigest(capture),
+        pointCloud: buildPointCloud(capture),
+      }),
+      // Ordered as the digest lists them, so "the second image" means something.
+      images: (capture.stills ?? [])
+        .slice(0, MAX_STILLS)
+        .map((still) => ({ url: still.dataUrl, detail: "low" as const })),
       tools: buildFormCoachTools(capture),
       schema: reportSchema,
       maxSteps: MAX_AGENT_STEPS,

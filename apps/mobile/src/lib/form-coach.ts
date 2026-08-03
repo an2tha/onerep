@@ -8,7 +8,15 @@ import {
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision"
 import { smoothFormCoachLandmarks } from "@/lib/pose-smoothing"
-import { applyOrientation, fuseReps, type FusedReps } from "@/lib/pose-reps"
+import {
+  applyOrientation,
+  buildTimeline,
+  collectReps,
+  type CapturedRep,
+  type CollectedReps,
+  type TimelineSample,
+  TIMELINE_DENSE_SAMPLE_MS,
+} from "@/lib/pose-reps"
 import { convexClient } from "@/lib/convex"
 import type { FormCoachReport } from "@/lib/form-coach-message"
 import { currentDateKey } from "@/lib/food-log"
@@ -103,9 +111,22 @@ export type FormCoachFrame = {
   worldLandmarks: Landmark[]
 }
 
+/** One frame of the clip as a picture, for the coach to actually look at. */
+export type ClipStill = {
+  /** Milliseconds into the clip it was grabbed from. */
+  timeMs: number
+  /** `data:image/jpeg;base64,…`. */
+  dataUrl: string
+}
+
 export type FormCoachAngleLandmarks = {
   index: number
   frames: FormCoachFrame[]
+  /**
+   * A spread of stills from across the clip. Sampled wide and narrowed to a
+   * handful at submit time, once rep detection has said which moments matter.
+   */
+  stills?: ClipStill[]
 }
 
 /**
@@ -114,6 +135,19 @@ export type FormCoachAngleLandmarks = {
  * halving this from 10fps roughly halves the time spent on pose estimation.
  */
 const SAMPLE_FPS = 10
+
+/**
+ * Stills grabbed per clip while it is being decoded, before rep detection has
+ * run. Sampled generously here because the decode is already paid for; the
+ * expensive step is shipping them, and only five ever leave the device.
+ */
+const STILL_POOL_PER_ANGLE = 10
+
+/** Longest edge of a still, in pixels. Enough to see a knee, small enough to send. */
+const STILL_MAX_EDGE = 448
+
+/** Stills one analysis may send to the model. */
+export const MAX_COACH_STILLS = 5
 
 /** Version-pinned to the installed package so the wasm matches this JS API. */
 const WASM_BASE =
@@ -238,6 +272,25 @@ export function formCoachProgressValue(input: {
   return Math.min(Math.max(value, 0), 1)
 }
 
+/** A photo scaled down to the size a still is sent at. */
+function shrinkToStill(bitmap: ImageBitmap): ClipStill[] {
+  const scale = Math.min(
+    1,
+    STILL_MAX_EDGE / Math.max(bitmap.width, bitmap.height)
+  )
+  const canvas = document.createElement("canvas")
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const context = canvas.getContext("2d")
+  if (!context) return []
+  try {
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return [{ timeMs: 0, dataUrl: canvas.toDataURL("image/jpeg", 0.6) }]
+  } catch {
+    return []
+  }
+}
+
 /** Pose estimation over a still, which yields a single frame at time 0. */
 async function extractImageLandmarks(
   angle: FormCoachAngle
@@ -256,6 +309,7 @@ async function extractImageLandmarks(
           worldLandmarks: result.worldLandmarks[0] ?? [],
         },
       ],
+      stills: shrinkToStill(bitmap),
     }
   } finally {
     bitmap.close()
@@ -263,9 +317,40 @@ async function extractImageLandmarks(
 }
 
 /**
+ * The current video frame as a small JPEG, or null if it cannot be drawn.
+ *
+ * Cross-origin frames taint the canvas and throw on export; the clips here are
+ * always same-origin blobs, but a still is a nice-to-have and never worth
+ * failing an analysis over.
+ */
+function grabStill(video: HTMLVideoElement, canvas: HTMLCanvasElement) {
+  const width = video.videoWidth
+  const height = video.videoHeight
+  if (!width || !height) return null
+
+  const scale = Math.min(1, STILL_MAX_EDGE / Math.max(width, height))
+  canvas.width = Math.round(width * scale)
+  canvas.height = Math.round(height * scale)
+  const context = canvas.getContext("2d")
+  if (!context) return null
+
+  try {
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL("image/jpeg", 0.6)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Runs pose estimation over one clip by seeking frame to frame. Seeking rather
  * than playing keeps sampling deterministic and independent of playback speed,
  * which matters because these clips are analysed, not watched.
+ *
+ * Stills are grabbed on the same pass. Landmarks say where the joints were;
+ * they cannot say that a second lifter walked into shot, that the camera was
+ * hand-held, or what the bar was doing — and those are the things that decide
+ * whether the numbers mean anything.
  */
 async function extractVideoLandmarks(
   angle: FormCoachAngle,
@@ -275,6 +360,7 @@ async function extractVideoLandmarks(
   const blob = base64ToBlob(angle.base64, angle.mimeType)
   const url = URL.createObjectURL(blob)
   const video = createDecoder(url)
+  const canvas = document.createElement("canvas")
 
   try {
     await onceReady(video)
@@ -285,7 +371,15 @@ async function extractVideoLandmarks(
       : angle.durationMs
 
     const frames: FormCoachFrame[] = []
+    const stills: ClipStill[] = []
     const step = 1000 / SAMPLE_FPS
+    const sampleCount = Math.max(1, Math.ceil(durationMs / step))
+    const stillEvery = Math.max(
+      1,
+      Math.ceil(sampleCount / STILL_POOL_PER_ANGLE)
+    )
+
+    let sample = 0
     for (let timeMs = 0; timeMs < durationMs; timeMs += step) {
       await seekTo(video, timeMs / 1000)
       timestampCursor += step
@@ -295,9 +389,14 @@ async function extractVideoLandmarks(
         landmarks: result.landmarks[0] ?? [],
         worldLandmarks: result.worldLandmarks[0] ?? [],
       })
+      if (sample % stillEvery === 0) {
+        const dataUrl = grabStill(video, canvas)
+        if (dataUrl) stills.push({ timeMs: Math.round(timeMs), dataUrl })
+      }
+      sample += 1
       onFraction?.(Math.min((timeMs + step) / durationMs, 1))
     }
-    return { index: angle.index, frames }
+    return { index: angle.index, frames, stills }
   } finally {
     video.onloadeddata = null
     video.onseeked = null
@@ -405,16 +504,93 @@ function compact(point: {
   }
 }
 
+/** The still nearest a moment in a clip, or null when that clip has none. */
+function stillNearest(pool: ClipStill[] | undefined, timeMs: number) {
+  if (!pool || pool.length === 0) return null
+  return pool.reduce((best, still) =>
+    Math.abs(still.timeMs - timeMs) < Math.abs(best.timeMs - timeMs)
+      ? still
+      : best
+  )
+}
+
+export type CoachStill = {
+  angleIndex: number
+  timeMs: number
+  /** What the model is being shown, e.g. "angle 1, rep 2, turnaround". */
+  label: string
+  dataUrl: string
+}
+
+/**
+ * The handful of frames the coach gets to look at.
+ *
+ * Turnarounds first, and one per angle before any angle gets a second, because
+ * the bottom of the rep is where a lift is won or lost and a view the model has
+ * not seen at all is worth more than a second look at one it has. The start of
+ * the best-tracked angle comes last, as the reference the others are read
+ * against.
+ */
+export function selectCoachStills(
+  reps: CapturedRep[],
+  angles: FormCoachAngleLandmarks[],
+  summaries: Array<{ index: number; trackingRate: number }>,
+  limit = MAX_COACH_STILLS
+): CoachStill[] {
+  const poolByAngle = new Map(angles.map((angle) => [angle.index, angle.stills]))
+  const ranked = [...summaries].sort(
+    (a, b) => b.trackingRate - a.trackingRate
+  )
+  const chosen: CoachStill[] = []
+  const taken = new Set<string>()
+
+  const add = (rep: CapturedRep, offsetMs: number, phase: string) => {
+    if (chosen.length >= limit) return
+    const timeMs = rep.startMs + offsetMs
+    const still = stillNearest(poolByAngle.get(rep.angleIndex), timeMs)
+    if (!still) return
+    const key = `${rep.angleIndex}:${still.timeMs}`
+    if (taken.has(key)) return
+    taken.add(key)
+    chosen.push({
+      angleIndex: rep.angleIndex,
+      timeMs: still.timeMs,
+      label: `angle ${rep.angleIndex}, rep ${rep.repIndex}, ${phase}`,
+      dataUrl: still.dataUrl,
+    })
+  }
+
+  /** The rep from an angle most worth looking at: the deepest-tracked one. */
+  const pick = (angleIndex: number, nth: number) => {
+    const forAngle = reps.filter((rep) => rep.angleIndex === angleIndex)
+    return forAngle[Math.min(nth, forAngle.length - 1)]
+  }
+
+  for (let round = 0; round < 3 && chosen.length < limit; round += 1) {
+    for (const summary of ranked) {
+      const rep = pick(summary.index, round)
+      if (rep) add(rep, rep.timing.toTurnaroundMs, "turnaround")
+    }
+  }
+
+  const primary = ranked[0] ? pick(ranked[0].index, 0) : undefined
+  if (primary) add(primary, 0, "start")
+
+  return chosen.slice(0, limit)
+}
+
 /**
  * Builds the payload the coach reasons over.
  *
- * The canonical reps are already body-framed and phase-normalised, so this is a
- * few hundred KB of numbers rather than tens of MB of video — and the server
- * needs no rep detection or basis-building of its own.
+ * Reps are body-framed but otherwise as filmed, so this is a few hundred KB of
+ * numbers rather than tens of MB of video — and the server needs no rep
+ * detection or basis-building of its own.
  */
 export function buildFormCoachCapture(
   submission: FormCoachSubmission,
-  fused: FusedReps
+  collected: CollectedReps,
+  stills: CoachStill[] = [],
+  timeline: TimelineSample[] = []
 ) {
   const kindByIndex = new Map(
     submission.angles.map((angle) => [angle.index, angle.kind])
@@ -423,30 +599,39 @@ export function buildFormCoachCapture(
     capture: {
       slug: submission.slug,
       exerciseName: submission.exerciseName,
-      repCount: fused.repCount,
-      angles: fused.angles,
-      reps: fused.reps.map((rep) => ({
+      repCount: collected.repCount,
+      angles: collected.angles,
+      reps: collected.reps.map((rep) => ({
         angleIndex: rep.angleIndex,
         repIndex: rep.repIndex,
+        startMs: rep.startMs,
         timing: rep.timing,
         frames: rep.frames.map((frame) => ({
+          timeMs: frame.timeMs,
           worldLandmarks: frame.worldLandmarks.map(compact),
         })),
       })),
-      canonical: fused.angle.frames.map((frame) => ({
-        worldLandmarks: frame.worldLandmarks.map(compact),
+      // The clip end to end, coarsely. Everything else in this payload is
+      // rep-shaped, and a rep is already an interpretation of the footage.
+      timeline: timeline.map((sample) => ({
+        angleIndex: sample.angleIndex,
+        timeMs: sample.timeMs,
+        worldLandmarks: sample.worldLandmarks.map(compact),
       })),
+      stills,
     },
     // Angle metadata is stored alongside the report so a saved session can say
     // how it was filmed without re-reading the landmark blob.
-    angles: fused.angles.map((angle) => ({
+    angles: collected.angles.map((angle) => ({
       index: angle.index,
       kind: kindByIndex.get(angle.index) ?? "video",
       view: angle.view,
       repCount: angle.repCount,
       trackingRate: angle.trackingRate,
       durationMs: angle.durationMs,
-      repSignal: angle.repSignal,
+      // Omitted rather than null when no rep was recognised: the stored
+      // validator has always treated this as an optional string.
+      ...(angle.repSignal ? { repSignal: angle.repSignal } : {}),
     })),
   }
 }
@@ -468,17 +653,37 @@ export async function submitFormCoachClips(
 ): Promise<{
   reportId: Id<"formCoachReports">
   report: FormCoachReport
-  /** The canonical rep the report describes, for showing in the message. */
+  /** The rep the report describes, for showing in the message. */
   frames: FormCoachFrame[]
 }> {
-  // Straightening is applied before fusing, so the coach measures the skeleton
-  // the lifter approved rather than the raw one.
-  const fused = fuseReps(applyOrientation(landmarks, orientation))
-  if (!fused) {
-    throw new Error("No complete reps were found in that footage")
+  // Straightening is applied first, so the coach measures the skeleton the
+  // lifter approved rather than the raw one.
+  const oriented = applyOrientation(landmarks, orientation)
+  const collected = collectReps(oriented)
+  // Only genuinely empty footage is refused. A capture where no rep was
+  // recognised still goes: the timeline, the stills and the angles carry plenty
+  // to coach from, and rep detection failing is itself worth the coach seeing.
+  if (!collected) {
+    throw new Error("Nothing was tracked in that footage")
   }
 
-  const { capture, angles } = buildFormCoachCapture(submission, fused)
+  const stills = selectCoachStills(
+    collected.reps,
+    oriented,
+    collected.angles
+  )
+  const { capture, angles } = buildFormCoachCapture(
+    submission,
+    collected,
+    stills,
+    // With no reps detected the point cloud is the only evidence the coach has,
+    // so it is sampled densely enough to actually show a rep.
+    buildTimeline(
+      oriented,
+      undefined,
+      collected.repCount === 0 ? TIMELINE_DENSE_SAMPLE_MS : undefined
+    )
+  )
 
   const landmarksUploadId = await uploadOwnedFile(
     new Blob([JSON.stringify(capture)], { type: "application/json" }),
@@ -495,7 +700,7 @@ export async function submitFormCoachClips(
     angles,
     // Stored with the report so a pinned card still has a body to draw long
     // after the landmark blob stops being interesting.
-    pose: fused.angle.frames.map((frame) => ({
+    pose: collected.display.frames.map((frame) => ({
       timeMs: frame.timeMs,
       worldLandmarks: frame.worldLandmarks.map((point) => ({
         x: Math.round(point.x * 1000) / 1000,
@@ -509,6 +714,6 @@ export async function submitFormCoachClips(
   return {
     reportId: result.reportId as Id<"formCoachReports">,
     report: { exerciseName: submission.exerciseName, ...result.report },
-    frames: fused.angle.frames,
+    frames: collected.display.frames,
   }
 }

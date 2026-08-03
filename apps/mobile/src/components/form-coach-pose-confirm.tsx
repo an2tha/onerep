@@ -3,7 +3,7 @@ import { ArrowCounterClockwise, Pause, Play } from "@phosphor-icons/react"
 import { SwipeToStart, toast } from "@repo/ui"
 import { cn, logDevError } from "@/lib/utils"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
-import { submitFormCoachClips } from "@/lib/form-coach"
+import { MAX_COACH_STILLS, submitFormCoachClips } from "@/lib/form-coach"
 import {
   clearFormCoachDraft,
   encodeFormCoachAngles,
@@ -16,7 +16,7 @@ import {
   trackingRate,
   type PoseOrientation,
 } from "@/lib/pose-scene"
-import { fuseReps } from "@/lib/pose-reps"
+import { collectReps } from "@/lib/pose-reps"
 import { appendFormCoachMessage } from "@/lib/form-coach-message"
 import { useSmoothNavigate } from "@/lib/navigation"
 
@@ -35,7 +35,7 @@ const PoseViewer = lazy(() =>
 export function FormCoachPoseConfirm() {
   const draft = useFormCoachDraft()
   const navigate = useSmoothNavigate()
-  // `null` selects the combined view; a number selects that raw angle.
+  // `null` selects the chosen rep; a number selects that raw angle.
   const [angleIndex, setAngleIndex] = useState<number | null>(null)
   const [playing, setPlaying] = useState(true)
   // Where playback got to, updated a few times a second purely to label the
@@ -51,18 +51,20 @@ export function FormCoachPoseConfirm() {
 
   const landmarks = draft?.landmarks ?? null
 
-  // Every rep from every angle, averaged into one canonical rep. Null when
-  // nothing recognisable as a rep was filmed, in which case the raw angles are
-  // all there is to show.
-  const fused = useMemo(
-    () => (landmarks ? fuseReps(landmarks) : null),
+  // Every rep from every angle, kept whole. Null only when nothing at all was
+  // tracked, in which case the raw angles are all there is to show.
+  const collected = useMemo(
+    () => (landmarks ? collectReps(landmarks) : null),
     [landmarks]
   )
 
-  const showCombined = fused !== null && angleIndex === null
-  const angle = showCombined ? fused.angle : landmarks?.[angleIndex ?? 0]
+  const showBestRep = collected !== null && angleIndex === null
+  // With no rep detected there is still a clip to look at, but calling it a rep
+  // would be a lie, and this screen exists to be believed.
+  const hasReps = (collected?.repCount ?? 0) > 0
+  const angle = showBestRep ? collected.display : landmarks?.[angleIndex ?? 0]
   const frames = useMemo(() => trackedFrames(angle), [angle])
-  const rate = showCombined ? 1 : trackingRate(angle)
+  const rate = showBestRep ? 1 : trackingRate(angle)
 
   const startMs = frames[0]?.timeMs ?? 0
   const durationMs = Math.max((frames.at(-1)?.timeMs ?? 0) - startMs, 0)
@@ -141,31 +143,33 @@ export function FormCoachPoseConfirm() {
             Does this look right?
           </h2>
           <p className="pt-0.5 text-[13px] leading-5 text-muted-foreground">
-            {showCombined
-              ? `${fused.repCount} rep${fused.repCount === 1 ? "" : "s"} from ${fused.angleCount} angle${fused.angleCount === 1 ? "" : "s"}, averaged into one. Drag to rotate it.`
-              : `This is how your ${draft.exerciseName.toLowerCase()} was tracked. Drag to rotate it.`}
+            {showBestRep && hasReps
+              ? `Your clearest of ${collected.repCount} rep${collected.repCount === 1 ? "" : "s"} across ${collected.angleCount} angle${collected.angleCount === 1 ? "" : "s"}. Drag to rotate it.`
+              : showBestRep
+                ? `No full rep was counted, so this is the clearest tracking instead. You can still send it. Drag to rotate it.`
+                : `This is how your ${draft.exerciseName.toLowerCase()} was tracked. Drag to rotate it.`}
           </p>
         </div>
 
         {/* ── View switcher ───────────────────────────────────────────── */}
-        {(fused !== null || landmarks.length > 1) && (
+        {(collected !== null || landmarks.length > 1) && (
           <div className="flex items-center gap-1.5 overflow-x-auto px-5 pb-3">
-            {fused !== null && (
+            {collected !== null && (
               <button
                 type="button"
                 onClick={() => {
                   void hapticTap()
                   setAngleIndex(null)
                 }}
-                aria-pressed={showCombined}
+                aria-pressed={showBestRep}
                 className={cn(
                   "min-h-9 shrink-0 rounded-full px-3.5 text-[13px] font-semibold transition-colors",
-                  showCombined
+                  showBestRep
                     ? "bg-foreground text-background"
                     : "bg-foreground/[0.06] text-muted-foreground"
                 )}
               >
-                Combined
+                {hasReps ? "Best rep" : "Tracked"}
               </button>
             )}
             {landmarks.map((entry, index) => (
@@ -217,18 +221,18 @@ export function FormCoachPoseConfirm() {
                     playing={playing}
                     seekTimeMs={seekTimeMs}
                     orientation={orientation}
-                    // The fused rep is already body-framed; the raw angles are
+                    // The chosen rep is already body-framed; the raw angles are
                     // still in the camera's frame.
-                    space={showCombined ? "body" : "camera"}
+                    space={showBestRep ? "body" : "camera"}
                     onProgress={setProgressMs}
                     className="aspect-[3/4] w-full"
                   />
                 </Suspense>
                 <div className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur-md">
                   <span className="text-[12px] font-medium text-white tabular-nums">
-                    {showCombined
-                      ? `${fused.repCount} rep${fused.repCount === 1 ? "" : "s"}`
-                      : `${Math.round(rate * 100)}% tracked`}
+                    {showBestRep && hasReps
+                      ? `${collected.repCount} rep${collected.repCount === 1 ? "" : "s"}`
+                      : `${Math.round((showBestRep ? 1 : rate) * 100)}% tracked`}
                   </span>
                 </div>
                 {frames.length > 1 && (
@@ -372,9 +376,14 @@ export function FormCoachPoseConfirm() {
             Try again
           </button>
           <p className="text-center text-[12px] text-muted-foreground">
-            {fused
-              ? `${fused.repCount} rep${fused.repCount === 1 ? "" : "s"} · ${totalTracked} tracked frames · ${landmarks.length} angle${landmarks.length === 1 ? "" : "s"}`
+            {collected
+              ? `${hasReps ? `${collected.repCount} rep${collected.repCount === 1 ? "" : "s"}` : "no reps counted"} · ${totalTracked} tracked frames · ${landmarks.length} angle${landmarks.length === 1 ? "" : "s"}`
               : `${totalTracked} tracked frame${totalTracked === 1 ? "" : "s"} across ${landmarks.length} angle${landmarks.length === 1 ? "" : "s"}`}
+          </p>
+          {/* Said plainly, because it is the one part of this the skeleton
+              above does not show. */}
+          <p className="text-center text-[12px] text-muted-foreground">
+            Sends your skeleton and up to {MAX_COACH_STILLS} frames of the video
           </p>
         </div>
       </div>

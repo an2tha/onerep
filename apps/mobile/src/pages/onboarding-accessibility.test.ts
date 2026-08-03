@@ -70,10 +70,7 @@ describe("Onboarding production contract", () => {
   test("reuses the real Coach animated backdrop and Coach chat backend", () => {
     assert.match(source, /coach-swoosh-backdrop coach-swoosh-backdrop--mobile/)
     assert.match(source, /className="coach-background-layer"/)
-    assert.match(
-      source,
-      /api\.ai\.metricGeneration\.generateCoachChatMessage/
-    )
+    assert.match(source, /api\.ai\.metricGeneration\.generateCoachChatMessage/)
     assert.match(source, /api\.ai\.coachOperations\.applyApproved/)
     assert.match(source, /const SETUP_MESSAGE_LIMIT = 5/)
     assert.match(source, /aria-label="Message Coach"/)
@@ -122,20 +119,14 @@ describe("Onboarding production contract", () => {
       styles,
       /prefers-reduced-motion[\s\S]*\.onboarding-chat-typing span[\s\S]*animation: none !important/
     )
-    assert.match(source, /function CoachFeatureMockups/)
-    assert.match(
-      source,
-      /aria-label="Animated compact caffeine dashboard widget"/
-    )
-    assert.match(source, /aria-label="Animated estimated caffeine decay chart"/)
+    assert.match(source, /function CoachPreviewExchange/)
+    // The Coach preview is a still: text and a definition list, nothing that
+    // moves or needs an alt text for an animation.
+    assert.match(source, /<figcaption className="onboarding-coach-preview-ask"/)
+    assert.doesNotMatch(source, /aria-label="Animated/)
     assert.match(
       styles,
       /\.onboarding-frame[\s\S]*backdrop-filter: blur\(26px\)/
-    )
-    assert.match(styles, /\.onboarding-svg-curve[\s\S]*onboarding-curve-draw/)
-    assert.match(
-      styles,
-      /prefers-reduced-motion[\s\S]*\.onboarding-svg-curve[\s\S]*animation: none !important/
     )
   })
 
@@ -196,7 +187,10 @@ describe("Onboarding production contract", () => {
   })
 
   test("Coach setup defers navigation until onboarding finishes", () => {
-    assert.match(pageSource, /setSetupDestination\(SETUP_DESTINATIONS\[action\]\)/)
+    assert.match(
+      pageSource,
+      /setSetupDestination\(SETUP_DESTINATIONS\[action\]\)/
+    )
     assert.match(pageSource, /setupDestination \?\?/)
   })
 
@@ -220,7 +214,10 @@ describe("Onboarding production contract", () => {
       pageSource,
       /\(!rawPrompt && !selectedAttachment\) \|\| setupBusy/
     )
-    assert.match(pageSource, /if \(selectedAttachment\) clearSetupAttachment\(\)/)
+    assert.match(
+      pageSource,
+      /if \(selectedAttachment\) clearSetupAttachment\(\)/
+    )
   })
 
   test("the attach control does not read as a second primary action", () => {

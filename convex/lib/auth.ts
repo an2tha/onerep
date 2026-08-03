@@ -26,6 +26,16 @@ export const trustedOrigins = Array.from(new Set([
   "https://localhost",
 ].filter((origin) => origin.trim().length > 0)));
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+/**
+ * Google sign-in only exists when both credentials are set, so a deployment
+ * without them keeps working on email and password instead of offering a
+ * button that can only fail.
+ */
+export const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
+
 export type CurrentUser = {
   _id: string;
   id: string;
@@ -74,6 +84,24 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
           name: user.name,
           url,
         });
+      },
+    },
+    socialProviders: googleAuthConfigured
+      ? {
+          google: {
+            clientId: googleClientId!,
+            clientSecret: googleClientSecret!,
+            prompt: "select_account",
+          },
+        }
+      : {},
+    account: {
+      accountLinking: {
+        // Google verifies the address it hands us, so an existing email and
+        // password account keeps its user id (and everything keyed by it)
+        // instead of forking into a second account.
+        enabled: true,
+        trustedProviders: ["google"],
       },
     },
     user: {

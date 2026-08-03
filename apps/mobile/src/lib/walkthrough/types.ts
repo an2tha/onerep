@@ -72,8 +72,6 @@ export type ChapterProgressRecord = {
 
 export type WalkthroughProgress = Record<string, ChapterProgressRecord>
 
-export const WELCOME_CHAPTER_ID = "__welcome"
-
 export function stepBody(step: TourStep, ctx: TourContext) {
   return typeof step.body === "function" ? step.body(ctx) : step.body
 }

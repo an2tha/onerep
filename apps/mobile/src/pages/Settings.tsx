@@ -33,7 +33,6 @@ import {
 } from "@/lib/apple-health-sync"
 import { api } from "../../../../convex/_generated/api"
 import { useTour } from "@/components/walkthrough/tour-context"
-import { WELCOME_PENDING_KEY } from "@/components/walkthrough/tour-provider"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
 import type { TourChapter } from "@/lib/walkthrough/types"
@@ -718,7 +717,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     hapticTap()
     try {
       await tour.resetChapter()
-      safeLocalStorageSet(WELCOME_PENDING_KEY, "true")
       toast.success("Walkthrough reset")
       navigate("/", { motion: "switch" })
     } catch {

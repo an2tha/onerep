@@ -200,11 +200,17 @@ function FormCoachDetailSheet({
                     {finding.title}
                   </p>
                 </div>
-                {/* The cue is the actionable half; the detail explains the
-                    same thing at length. Showing both says it twice. */}
-                <p className="line-clamp-2 pt-1.5 text-[13px] leading-5">
-                  {finding.cue || finding.detail}
+                {/* The detail explains what it means for the lift; the cue is
+                    the thing to do about it on the next set. Both earn their
+                    place, so neither is clamped away. */}
+                <p className="pt-1.5 text-[13px] leading-5 text-muted-foreground">
+                  {finding.detail}
                 </p>
+                {finding.cue && (
+                  <p className="pt-2 text-[13px] leading-5 font-medium">
+                    {finding.cue}
+                  </p>
+                )}
                 {/* The measurement behind the claim, so it can be checked
                     rather than taken on faith. */}
                 <p className="truncate pt-1.5 text-[11.5px] text-muted-foreground/70">
@@ -244,7 +250,7 @@ function FormCoachDetailSheet({
               {detail.notMeasured.map((item, index) => (
                 <li
                   key={index}
-                  className="line-clamp-2 text-[12.5px] leading-5 text-muted-foreground"
+                  className="text-[12.5px] leading-5 text-muted-foreground"
                 >
                   {item}
                 </li>

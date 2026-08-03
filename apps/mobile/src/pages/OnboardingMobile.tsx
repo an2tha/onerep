@@ -75,7 +75,6 @@ const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
 const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
-const WALKTHROUGH_WELCOME_PENDING_KEY = "onerep:walkthrough-welcome-pending"
 
 const activities = [
   ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
@@ -232,212 +231,39 @@ function deriveSafetyMode(
 
 import { MultiSelectList, NumberQuestion } from "@repo/ui"
 
-function CoachFeatureMockups() {
+/**
+ * A still of one real Coach exchange, in the same shapes Coach actually
+ * renders: a question, an answer, the numbers behind it, and the ask before
+ * anything is written. Nothing here animates or pretends to be tappable.
+ */
+function CoachPreviewExchange() {
   return (
-    <div className="onboarding-coach-showcase" aria-label="Coach capabilities">
-      <article className="onboarding-coach-glass" data-mockup="card">
-        <div className="onboarding-coach-copy">
-          <p className="onboarding-coach-kicker">Interactive cards</p>
-          <h2>Adjust before you log</h2>
-          <p>
-            Coach can generate controls, quantities, choices, and safe actions.
-          </p>
-        </div>
-        <svg
-          viewBox="0 0 320 150"
-          className="onboarding-coach-svg"
-          role="img"
-          aria-label="Animated meal logging card with quantity controls"
-        >
-          <g className="onboarding-svg-card">
-            <rect
-              x="18"
-              y="16"
-              width="284"
-              height="118"
-              rx="18"
-              className="onboarding-svg-surface"
-            />
-            <text x="36" y="42" className="onboarding-svg-eyebrow">
-              QUICK MEAL
-            </text>
-            <text x="36" y="65" className="onboarding-svg-title">
-              Chicken rice bowl
-            </text>
-            <text x="36" y="88" className="onboarding-svg-value">
-              520
-            </text>
-            <text x="76" y="88" className="onboarding-svg-unit">
-              kcal
-            </text>
-            <g className="onboarding-svg-stepper">
-              <rect
-                x="194"
-                y="69"
-                width="88"
-                height="34"
-                rx="10"
-                className="onboarding-svg-control"
-              />
-              <path
-                d="M210 86h8M258 86h8M262 82v8"
-                className="onboarding-svg-line"
-              />
-              <text
-                x="235"
-                y="90"
-                textAnchor="middle"
-                className="onboarding-svg-control-text"
-              >
-                1
-              </text>
-            </g>
-            <rect
-              x="36"
-              y="108"
-              width="104"
-              height="8"
-              rx="4"
-              className="onboarding-svg-muted"
-            />
-            <rect
-              x="148"
-              y="108"
-              width="67"
-              height="8"
-              rx="4"
-              className="onboarding-svg-muted onboarding-svg-muted-delay"
-            />
-          </g>
-        </svg>
-      </article>
-
-      <article className="onboarding-coach-glass" data-mockup="widget">
-        <div className="onboarding-coach-copy">
-          <p className="onboarding-coach-kicker">Dashboard widgets</p>
-          <h2>Keep only what earns space</h2>
-          <p>
-            Preview a compact widget, then decide whether it belongs on Today.
-          </p>
-        </div>
-        <svg
-          viewBox="0 0 320 150"
-          className="onboarding-coach-svg"
-          role="img"
-          aria-label="Animated compact caffeine dashboard widget"
-        >
-          <g className="onboarding-svg-widget">
-            <rect
-              x="22"
-              y="24"
-              width="276"
-              height="102"
-              rx="16"
-              className="onboarding-svg-surface"
-            />
-            <rect
-              x="22"
-              y="24"
-              width="3"
-              height="102"
-              rx="1.5"
-              className="onboarding-svg-accent"
-            />
-            <text x="40" y="49" className="onboarding-svg-eyebrow">
-              CAFFEINE TODAY
-            </text>
-            <text
-              x="40"
-              y="83"
-              className="onboarding-svg-value onboarding-svg-value-large"
-            >
-              190
-            </text>
-            <text x="93" y="83" className="onboarding-svg-unit">
-              mg
-            </text>
-            <g className="onboarding-svg-counter">
-              <rect
-                x="211"
-                y="62"
-                width="64"
-                height="32"
-                rx="9"
-                className="onboarding-svg-control"
-              />
-              <path
-                d="M222 78h8M256 78h8M260 74v8"
-                className="onboarding-svg-line"
-              />
-            </g>
-            <rect
-              x="40"
-              y="102"
-              width="145"
-              height="5"
-              rx="2.5"
-              className="onboarding-svg-track"
-            />
-            <rect
-              x="40"
-              y="102"
-              width="69"
-              height="5"
-              rx="2.5"
-              className="onboarding-svg-progress"
-            />
-          </g>
-        </svg>
-      </article>
-
-      <article className="onboarding-coach-glass" data-mockup="followup">
-        <div className="onboarding-coach-copy">
-          <p className="onboarding-coach-kicker">Smart follow-ups</p>
-          <h2>Extend the useful signal</h2>
-          <p>
-            Coach can suggest a related view without adding anything silently.
-          </p>
-        </div>
-        <svg
-          viewBox="0 0 320 150"
-          className="onboarding-coach-svg"
-          role="img"
-          aria-label="Animated estimated caffeine decay chart"
-        >
-          <g className="onboarding-svg-followup">
-            <rect
-              x="22"
-              y="21"
-              width="276"
-              height="108"
-              rx="16"
-              className="onboarding-svg-surface"
-            />
-            <text x="40" y="47" className="onboarding-svg-eyebrow">
-              ESTIMATED DECAY · 5H HALF-LIFE
-            </text>
-            <path d="M42 107H278" className="onboarding-svg-axis" />
-            <path
-              d="M42 65C77 68 94 78 123 84S180 96 278 105"
-              className="onboarding-svg-curve"
-            />
-            <circle cx="42" cy="65" r="4" className="onboarding-svg-dot" />
-            <circle
-              cx="123"
-              cy="84"
-              r="3"
-              className="onboarding-svg-dot onboarding-svg-dot-two"
-            />
-            <text x="40" y="121" className="onboarding-svg-caption">
-              now
-            </text>
-            <text x="255" y="121" className="onboarding-svg-caption">
-              12h
-            </text>
-          </g>
-        </svg>
-      </article>
-    </div>
+    <figure className="onboarding-coach-preview">
+      <figcaption className="onboarding-coach-preview-ask">
+        Logged a chicken rice bowl. What's left today?
+      </figcaption>
+      <div className="onboarding-coach-preview-reply">
+        <p>That bowl is about 520 kcal. Here's the rest of your day.</p>
+        <dl className="onboarding-coach-preview-stats">
+          <div>
+            <dt>Calories left</dt>
+            <dd>780</dd>
+          </div>
+          <div>
+            <dt>Protein left</dt>
+            <dd>52 g</dd>
+          </div>
+          <div>
+            <dt>Next session</dt>
+            <dd>Push day</dd>
+          </div>
+        </dl>
+        <p className="onboarding-coach-preview-note">
+          I can log the bowl and put protein on Today — say the word and I'll do
+          it.
+        </p>
+      </div>
+    </figure>
   )
 }
 
@@ -848,8 +674,8 @@ export function OnboardingMobile() {
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
 
   const coachMessages = [
-    "One more thing before your numbers. Meet Coach, the part of OneRep you talk to.",
-    "Coach turns a conversation into interactive cards, compact dashboard widgets, and useful follow-ups. Nothing gets added silently.",
+    "One more thing before your numbers. Coach is the part of OneRep you talk to.",
+    "Ask about your day and you get an answer with your own numbers behind it. It only writes something after you say yes.",
   ]
 
   const stageMessages: Record<StageId, string[]> = {
@@ -1266,9 +1092,6 @@ export function OnboardingMobile() {
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
-      // Arms the walkthrough welcome sheet. Local so it shows immediately,
-      // without waiting on a Convex round trip.
-      safeLocalStorageSet(WALKTHROUGH_WELCOME_PENDING_KEY, "true")
       setComplete(true)
       hapticMedium()
       await new Promise((resolve) => window.setTimeout(resolve, 720))
@@ -1339,7 +1162,7 @@ export function OnboardingMobile() {
       return (
         <>
           <div className="onboarding-chat-card onboarding-chat-card-flush">
-            <CoachFeatureMockups />
+            <CoachPreviewExchange />
           </div>
           <QuickReplies
             options={[
@@ -1666,8 +1489,9 @@ export function OnboardingMobile() {
             selected account context, and submitted images are sent to
             OpenRouter, which routes them to the selected model provider,
             currently OpenAI; both may process the request. AI is optional and
-            core tracking remains available without it. I can withdraw consent with future
-            effect by deleting affected data or my account, or by contacting{" "}
+            core tracking remains available without it. I can withdraw consent
+            with future effect by deleting affected data or my account, or by
+            contacting{" "}
             <a
               href="mailto:support@onerep.life"
               className="font-semibold text-foreground underline decoration-border underline-offset-4"

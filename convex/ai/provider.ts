@@ -103,6 +103,7 @@ export type AgentResult<T> = {
 export async function runOpenAiAgent<T>({
   system,
   user,
+  images,
   tools,
   schema,
   maxSteps,
@@ -110,6 +111,11 @@ export async function runOpenAiAgent<T>({
 }: {
   system: string;
   user: string;
+  /**
+   * Sent alongside `user` in the opening message, so the model can look at the
+   * thing it is reasoning about rather than only at numbers derived from it.
+   */
+  images?: AiImage[];
   tools: ToolSet;
   /** Constrains the model's final answer rather than validating it afterwards. */
   schema: z.ZodType<T>;
@@ -135,7 +141,24 @@ export async function runOpenAiAgent<T>({
     const result = await generateText({
       model: openai(config.model),
       system,
-      prompt: user,
+      messages: [
+        {
+          role: "user",
+          content:
+            images && images.length > 0
+              ? [
+                  { type: "text" as const, text: user },
+                  ...images.map((image) => ({
+                    type: "image" as const,
+                    image: image.url,
+                    mediaType: image.url.startsWith("data:image/png")
+                      ? ("image/png" as const)
+                      : ("image/jpeg" as const),
+                  })),
+                ]
+              : user,
+        },
+      ],
       tools,
       stopWhen: stepCountIs(maxSteps),
       // Asking for free-form JSON and validating at the far end meant any

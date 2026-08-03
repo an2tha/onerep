@@ -48,6 +48,21 @@ export function getAuthCallbackUrl(path: string) {
   return `${getAppOrigin()}${normalizedPath}`
 }
 
+/**
+ * Where an OAuth provider drops the user back. Everything lands on
+ * `/sso-callback` so one screen waits out the Better Auth to Convex handoff
+ * before forwarding to `path`.
+ */
+export function getSocialCallbackUrl(
+  path: string,
+  options?: { isNewUser?: boolean }
+) {
+  const params = new URLSearchParams({ next: path, method: "google" })
+  if (options?.isNewUser) params.set("new", "1")
+
+  return getAuthCallbackUrl(`/sso-callback?${params.toString()}`)
+}
+
 export function getEmailVerificationCallbackUrl() {
   return getAuthCallbackUrl("/email-verified?source=email")
 }

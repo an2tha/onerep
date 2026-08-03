@@ -1,23 +1,32 @@
 /**
- * Geometry over canonical reps. Deliberately knows nothing about any exercise.
+ * Geometry over reps. Deliberately knows nothing about any exercise.
  *
  * Everything here answers a question of the form "what is this angle" or "how far
  * is this joint off that line". Nothing names a correct value, a threshold, or a
  * movement, so the same functions serve a squat, a lunge and an overhead press.
  * Judging what the numbers mean is the model's job — see `formCoachAgent.ts`.
  *
- * Input is already body-framed (camera-independent) and phase-normalised by
- * `fuseReps` on the client, so no rep detection or basis-building happens here.
+ * Input is already body-framed (camera-independent) by `collectReps` on the
+ * client, so no rep detection or basis-building happens here. Reps arrive whole,
+ * at the sampling rate they were filmed at, and every reading below is taken per
+ * rep: averaging reps together before measuring would smooth away the extreme
+ * that makes a rep worth commenting on.
  */
 
 export type Vec3 = { x: number; y: number; z: number; visibility?: number };
 
-/** One phase-normalised frame: 0 = start of the rep, last = back to the start. */
-export type KinematicFrame = { worldLandmarks: Vec3[] };
+/** One frame of a rep: the first is the start, the last is back to the start. */
+export type KinematicFrame = {
+  worldLandmarks: Vec3[];
+  /** Milliseconds from the start of the rep. Absent on pre-2026 captures. */
+  timeMs?: number;
+};
 
 export type KinematicRep = {
   angleIndex: number;
   repIndex: number;
+  /** Where the rep began in its own clip. Absent on pre-2026 captures. */
+  startMs?: number;
   frames: KinematicFrame[];
   timing: { totalMs: number; toTurnaroundMs: number };
 };
@@ -32,9 +41,26 @@ export type KinematicAngle = {
   durationMs: number;
   /**
    * The body distance the client counted reps in — "hip_to_ankle",
-   * "wrist_to_shoulder" or "wrist_to_hip". Absent from older captures.
+   * "wrist_to_shoulder" or "wrist_to_hip". Absent from older captures, and null
+   * when this angle yielded no rep at all.
    */
-  repSignal?: string;
+  repSignal?: string | null;
+};
+
+/** One second of the footage as body-framed points. */
+export type TimelineSample = {
+  angleIndex: number;
+  timeMs: number;
+  worldLandmarks: Vec3[];
+};
+
+/** One frame of the footage, for the model to look at rather than infer. */
+export type CaptureStill = {
+  angleIndex: number;
+  timeMs: number;
+  label: string;
+  /** `data:image/jpeg;base64,…`. */
+  dataUrl: string;
 };
 
 /** The whole capture, as it arrives from the client. */
@@ -43,10 +69,23 @@ export type FormCoachCapture = {
   exerciseName: string;
   repCount: number;
   angles: KinematicAngle[];
-  /** Every rep from every angle, each on the same phase grid. */
+  /** Every rep from every angle, whole and unaveraged. */
   reps: KinematicRep[];
-  /** All reps averaged into one. */
-  canonical: KinematicFrame[];
+  /** At most a handful of frames as pictures. Absent on pre-2026 captures. */
+  stills?: CaptureStill[];
+  /**
+   * The whole of every clip at one sample a second, whether or not a rep was
+   * happening. Absent on pre-2026 captures.
+   */
+  timeline?: TimelineSample[];
+  /**
+   * All reps averaged into one, on pre-2026 captures only.
+   *
+   * The client no longer produces this and nothing reads it: averaging reps
+   * before measuring them was hiding the faults worth reporting. Declared so an
+   * older capture blob still parses.
+   */
+  canonical?: KinematicFrame[];
 };
 
 // ── Landmarks ────────────────────────────────────────────────────────────────
@@ -342,6 +381,74 @@ export function rangeOfMotion(
   return { min, max, travel: max - min };
 }
 
+/** Straight-line distance between two landmarks, in metres. */
+export function landmarkDistance(
+  frame: KinematicFrame,
+  from: LandmarkName,
+  to: LandmarkName,
+): number | null {
+  const a = point(frame, from);
+  const b = point(frame, to);
+  if (!a || !b) return null;
+  return norm(sub(a, b));
+}
+
+export type TravelReading = {
+  startMetres: number;
+  turnaroundMetres: number;
+  /** Turnaround minus start: negative means the two landmarks closed together. */
+  changeMetres: number;
+  /** That change as a fraction of the standing distance. */
+  changeFraction: number;
+  minMetres: number;
+  maxMetres: number;
+};
+
+/**
+ * How far apart two landmarks were at the start of a rep versus at the
+ * turnaround, in metres and as a fraction of where they started.
+ *
+ * This is the one measurement that answers "how far did they actually go" without
+ * naming an exercise or needing a particular camera angle. Hip to ankle closes as
+ * a squat descends, wrist to shoulder as a curl closes, wrist to hip as a raise
+ * opens — and because it is a ratio against the lifter's own standing distance,
+ * it is free of both body size and the depth-axis error that makes a raw
+ * monocular measurement untrustworthy.
+ */
+export function travel(
+  rep: KinematicRep,
+  from: LandmarkName,
+  to: LandmarkName,
+): TravelReading | null {
+  const values = rep.frames.map((frame) => landmarkDistance(frame, from, to));
+  const tracked = values.filter((value): value is number => value !== null);
+  if (tracked.length < 2) return null;
+
+  const startMetres = values.find((value) => value !== null) ?? null;
+  if (startMetres === null) return null;
+
+  // A turnaround frame that lost one of the landmarks falls back to whichever
+  // tracked frame got furthest from standing, which is the same moment.
+  const turnIndex = phaseIndex(rep.frames, "turnaround");
+  const turnaroundMetres =
+    values[turnIndex] ??
+    tracked.reduce((best, value) =>
+      Math.abs(value - startMetres) > Math.abs(best - startMetres)
+        ? value
+        : best,
+    );
+
+  return {
+    startMetres,
+    turnaroundMetres,
+    changeMetres: turnaroundMetres - startMetres,
+    changeFraction:
+      startMetres < 1e-6 ? 0 : (turnaroundMetres - startMetres) / startMetres,
+    minMetres: Math.min(...tracked),
+    maxMetres: Math.max(...tracked),
+  };
+}
+
 export type SymmetryReading = {
   left: number | null;
   right: number | null;
@@ -425,18 +532,19 @@ export function repsFromViews(
   return capture.reps.filter((rep) => indices.has(rep.angleIndex));
 }
 
-/** The averaged rep, wrapped so it can be passed anywhere a rep is expected. */
-export function canonicalRep(capture: FormCoachCapture): KinematicRep {
-  const totals = capture.reps.map((rep) => rep.timing.totalMs);
-  const outs = capture.reps.map((rep) => rep.timing.toTurnaroundMs);
+/**
+ * Mean tempo across the capture, since there is no longer one averaged rep to
+ * read it off.
+ */
+export function meanTempo(reps: readonly KinematicRep[]): Tempo {
   const mean = (values: number[]) =>
     values.length === 0
       ? 0
       : Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-  return {
-    angleIndex: 0,
-    repIndex: 0,
-    frames: capture.canonical,
-    timing: { totalMs: mean(totals), toTurnaroundMs: mean(outs) },
-  };
+  const total = mean(reps.map((rep) => Math.max(rep.timing.totalMs, 0)));
+  const out = Math.min(
+    mean(reps.map((rep) => Math.max(rep.timing.toTurnaroundMs, 0))),
+    total,
+  );
+  return { totalMs: total, towardsTurnaroundMs: out, returnMs: total - out };
 }
