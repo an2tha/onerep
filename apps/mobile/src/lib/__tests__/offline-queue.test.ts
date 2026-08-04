@@ -154,7 +154,10 @@ describe("offline mutation queue", () => {
   })
 
   test("setting an owner adopts existing unowned queued jobs", () => {
-    enqueueOfflineMutation("logs.water.setDay", { date: "2026-06-24", entries: [] })
+    enqueueOfflineMutation("logs.water.setDay", {
+      date: "2026-06-24",
+      entries: [],
+    })
 
     setOfflineQueueOwner("user-2")
 

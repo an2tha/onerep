@@ -195,14 +195,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     })
     persist(action.chapter, "in_progress", action.startIndex)
     hapticMedium()
-  }, [
-    blocked,
-    featureContext,
-    location.pathname,
-    persist,
-    progress,
-    tour,
-  ])
+  }, [blocked, featureContext, location.pathname, persist, progress, tour])
 
   const currentStep = tour ? tour.steps[tour.index] : undefined
 

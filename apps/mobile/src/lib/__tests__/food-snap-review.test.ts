@@ -65,7 +65,11 @@ describe("snap review helpers", () => {
         {
           name: "Grilled chicken pieces",
           quantityInGrams: "120 g",
-          searchQueries: ["chicken breast", "cooked chicken", "grilled chicken"],
+          searchQueries: [
+            "chicken breast",
+            "cooked chicken",
+            "grilled chicken",
+          ],
         },
       ],
     })
@@ -137,7 +141,9 @@ describe("snap review helpers", () => {
     const calls: string[] = []
     const search: FoodSearchFn = async (query) => {
       calls.push(query)
-      return query === "white rice" ? [food({ id: "rice", name: "White rice" })] : []
+      return query === "white rice"
+        ? [food({ id: "rice", name: "White rice" })]
+        : []
     }
 
     const items = await mapSnapDetectionsToReviewItems(

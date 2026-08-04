@@ -1,9 +1,10 @@
 import * as React from "react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
   CaretDown,
   CaretRight,
+  ClockCounterClockwise,
   Copy,
   DotsThree,
   Fire,
@@ -14,11 +15,13 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
+import { useSearchParams } from "react-router"
 import { cn } from "@/lib/utils"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { updateOneRepWidgets } from "@/lib/workout-live-activity"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { LogPastWorkoutSheet } from "@/components/log-past-workout-sheet"
 import { SwipeToStart, toast } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
@@ -573,6 +576,7 @@ function MuscleVolumeCard({ muscleVolume }: { muscleVolume: MuscleSets[] }) {
 
 export default function Workouts() {
   const navigate = useSmoothNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const trainingHeaderRef = useTourAnchor("training-header")
   const trainingStartRef = useTourAnchor("training-start")
   const todayKey = todayIso()
@@ -580,6 +584,67 @@ export default function Workouts() {
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false)
   const isToday = dateKey === todayKey
   const dateLabel = formatDateLabel(dateKey, todayKey)
+
+  /**
+   * Asks how to log a past session before opening anything.
+   *
+   * Every "log a past workout" entry point funnels through this sheet so the
+   * choice — describe it, or start from a preset — is made once, next to the
+   * day it applies to, rather than being implied by which button was tapped.
+   */
+  const [logPastDate, setLogPastDate] = useState<string | null>(() =>
+    searchParams.get("logPast")
+  )
+  const startRetroLog = useCallback((date: string) => {
+    hapticMedium()
+    setLogPastDate(date)
+  }, [])
+
+  // Consume `?logPast=` once. Leaving it in the URL would reopen the sheet
+  // every time this tab is returned to.
+  useEffect(() => {
+    if (!searchParams.has("logPast")) return
+    const next = new URLSearchParams(searchParams)
+    next.delete("logPast")
+    setSearchParams(next, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  /** Straight into dictation: the retro logger opens with the sheet up. */
+  const describeRetroLog = useCallback(
+    (date: string) => {
+      setLogPastDate(null)
+      navigate(`/workout/log/${date}?describe=1`, { motion: "forward" })
+    },
+    [navigate]
+  )
+
+  /** The abridged preset logger: sets × reps per exercise, expandable. */
+  const quickLogPreset = useCallback(
+    (date: string, presetId: string) => {
+      setLogPastDate(null)
+      navigate(
+        `/workout/log/${date}/quick?preset=${encodeURIComponent(presetId)}`,
+        { motion: "forward" }
+      )
+    },
+    [navigate]
+  )
+
+  /** Reopens a saved session so sets can be added or corrected. */
+  const editRetroLog = useCallback(
+    (date: string, sessionId?: string) => {
+      if (!sessionId) {
+        toast.error("This workout is too old to edit. Delete and re-log it.")
+        return
+      }
+      hapticSelection()
+      navigate(
+        `/workout/log/${date}?sessionId=${encodeURIComponent(sessionId)}`,
+        { motion: "forward" }
+      )
+    },
+    [navigate]
+  )
 
   // ── Convex ────────────────────────────────────────────────────────────────
   const serverPresets = useQuery(api.logs.presets.list)
@@ -1247,13 +1312,39 @@ export default function Workouts() {
                     { hour: "numeric", minute: "2-digit" }
                   )}
                 </p>
+                <div className="flex flex-col gap-2 pt-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      editRetroLog(dateKey, selectedWorkoutLog.sessionId)
+                    }
+                    className="motion-tactile h-[46px] w-full rounded-[18px] bg-muted/60 text-[14px] font-semibold transition-opacity active:opacity-80"
+                  >
+                    Add to this workout
+                  </button>
+                  {workoutLogs.length < 2 && (
+                    <button
+                      type="button"
+                      onClick={() => startRetroLog(dateKey)}
+                      className="motion-tactile h-[46px] w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
+                    >
+                      Log a second session
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="mt-4 border-t border-border pt-4">
                 <p className="text-[15px] leading-6 text-muted-foreground">
-                  There is no completed training on this date. Choose Today to
-                  start a new workout.
+                  Trained without your phone? Add it now.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => startRetroLog(dateKey)}
+                  className="motion-tactile mt-3 h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80"
+                >
+                  Log this workout
+                </button>
               </div>
             )}
           </section>
@@ -1287,6 +1378,13 @@ export default function Workouts() {
                     }}
                     onComplete={() => navigate(nextWorkoutHref)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => startRetroLog(offsetDateKey(todayKey, -1))}
+                    className="motion-tactile mt-2.5 h-11 w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
+                  >
+                    Log a past workout
+                  </button>
                 </div>
               )}
               <dl className="mt-4 grid grid-cols-2 divide-x divide-border border-t border-border pt-4">
@@ -1337,10 +1435,22 @@ export default function Workouts() {
                         logs={
                           workoutLogs as [CachedWorkoutLog, CachedWorkoutLog]
                         }
+                        onEdit={(editSlot) =>
+                          editRetroLog(
+                            dateKey,
+                            workoutLogs[editSlot - 1]?.sessionId
+                          )
+                        }
                       />
                     ) : workoutLogs.length === 1 ? (
                       <div className="space-y-3.5">
-                        <WorkoutLogSummary log={workoutLogs[0]} slot={1} />
+                        <WorkoutLogSummary
+                          log={workoutLogs[0]}
+                          slot={1}
+                          onEdit={() =>
+                            editRetroLog(dateKey, workoutLogs[0]?.sessionId)
+                          }
+                        />
 
                         {todayPreset2 ? (
                           <div className="border-t border-border/35 pt-3.5">
@@ -1780,6 +1890,16 @@ export default function Workouts() {
                                       >
                                         <Copy /> Duplicate
                                       </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        className="rounded-lg py-2.5"
+                                        onSelect={() => {
+                                          hapticSelection()
+                                          quickLogPreset(dateKey, preset.id)
+                                        }}
+                                      >
+                                        <ClockCounterClockwise /> Log past
+                                        session
+                                      </DropdownMenuItem>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
                                         variant="destructive"
@@ -1881,6 +2001,17 @@ export default function Workouts() {
             setConfirmDeleteWorkout(false)
           }}
           onCancel={() => setConfirmDeleteWorkout(false)}
+        />
+      )}
+
+      {logPastDate && (
+        <LogPastWorkoutSheet
+          todayKey={todayKey}
+          initialDate={logPastDate}
+          presets={presets}
+          onDescribe={describeRetroLog}
+          onPickPreset={quickLogPreset}
+          onClose={() => setLogPastDate(null)}
         />
       )}
 

@@ -21,10 +21,8 @@ import { captureFeatureUsage } from "@/lib/analytics"
 import {
   currentDateKey,
   detectTimeZone,
-  DEFAULT_MEAL_CATEGORIES,
   defaultMeal,
   foodPortionLabel,
-  logMicrosFromFoodDetail,
   stripUndefined,
   type FoodPortion,
   type LogMicros,
@@ -65,7 +63,6 @@ function shouldOpenReviewAsPage() {
   )
 }
 
-const MEAL_CATEGORIES = DEFAULT_MEAL_CATEGORIES
 const FOOD_SEARCH_DEBOUNCE_MS = 320
 const FOOD_SEARCH_FETCH_LIMIT = 32
 const FOOD_SEARCH_RESULT_LIMIT = 24
@@ -128,7 +125,6 @@ export default function SearchFoods() {
   const [retryNonce, setRetryNonce] = useState(0)
   const [added, setAdded] = useState<AddedState | null>(null)
   const [detailItem, setDetailItem] = useState<FoodSearchItem | null>(null)
-  const [pendingItem, setPendingItem] = useState<FoodSearchItem | null>(null)
   const addingFoodRef = useRef<string | null>(null)
   const [addingFoodId, setAddingFoodId] = useState<string | null>(null)
   const [recentSearches, setRecentSearches] = useState(() =>
@@ -528,7 +524,7 @@ export default function SearchFoods() {
                           type="button"
                           onClick={() => {
                             if (!isAdded && addingFoodId === null)
-                              setPendingItem(item)
+                              openFoodReview(item)
                           }}
                           disabled={isAdded || addingFoodId !== null}
                           aria-busy={isAdding}
@@ -588,27 +584,6 @@ export default function SearchFoods() {
             ).catch(reportOfflineMutationError)
           }}
           onClose={() => setDetailItem(null)}
-        />
-      )}
-
-      {pendingItem && (
-        <MealSelectSheet
-          item={pendingItem}
-          onSelect={async (meal) => {
-            try {
-              await handleAdd(
-                pendingItem,
-                100,
-                logMicrosFromFoodDetail(pendingItem, 100),
-                meal,
-                pendingItem
-              )
-              setPendingItem(null)
-            } catch (error) {
-              reportOfflineMutationError(error)
-            }
-          }}
-          onClose={() => setPendingItem(null)}
         />
       )}
     </>
@@ -725,88 +700,5 @@ function SearchSuggestionGroup({
         ))}
       </div>
     </section>
-  )
-}
-
-function MealSelectSheet({
-  item,
-  onSelect,
-  onClose,
-}: {
-  item: FoodSearchItem
-  onSelect: (meal: string) => Promise<void>
-  onClose: () => void
-}) {
-  const categories = MEAL_CATEGORIES
-  const suggested = defaultMeal()
-  const titleId = `meal-select-${item.id}`
-  const [savingMeal, setSavingMeal] = useState<string | null>(null)
-
-  // Don't let the sheet vanish mid-save; the entry would still land with no
-  // "Added" feedback.
-  const closeIfIdle = () => {
-    if (savingMeal) return
-    onClose()
-  }
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !savingMeal) onClose()
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [onClose, savingMeal])
-
-  return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/55" onClick={closeIfIdle} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="fixed inset-x-0 bottom-0 z-50 mx-auto max-h-[calc(100svh-1rem)] w-full max-w-sm overflow-y-auto rounded-t-2xl border border-border bg-card px-5 pt-5 md:top-1/2 md:right-auto md:bottom-auto md:left-1/2 md:mx-0 md:w-[min(24rem,calc(100vw-2rem))] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-2xl"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-      >
-        <p
-          id={titleId}
-          className="mb-0.5 text-[19px] leading-snug font-semibold tracking-[-0.01em]"
-        >
-          Add to…
-        </p>
-        <p className="mb-4 truncate text-[14px] text-muted-foreground">
-          {item.name}
-        </p>
-        <div className="divide-y divide-border border-y border-border">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={async () => {
-                if (savingMeal) return
-                setSavingMeal(cat.id)
-                try {
-                  await onSelect(cat.id)
-                } finally {
-                  setSavingMeal(null)
-                }
-              }}
-              disabled={Boolean(savingMeal)}
-              aria-busy={savingMeal === cat.id}
-              className="flex min-h-14 w-full items-center justify-between px-1 py-3 text-left transition-colors active:bg-muted"
-            >
-              <span className="text-[15px] font-semibold">{cat.label}</span>
-              {cat.id === suggested && (
-                <span className="text-[13px] font-medium text-muted-foreground">
-                  Suggested
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-    </>
   )
 }

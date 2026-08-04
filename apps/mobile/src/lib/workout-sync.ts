@@ -1,13 +1,7 @@
 export type WorkoutFocus = "strength" | "cardio" | "mobility"
 export type CardioDistanceUnit = "km" | "mi"
 export type CardioSourceProvider =
-  | "manual"
-  | "apple_health"
-  | "strava"
-  | "garmin"
-  | "fitbit"
-  | "gpx"
-  | "other"
+  "manual" | "apple_health" | "strava" | "garmin" | "fitbit" | "gpx" | "other"
 
 export type HeartRateZones = {
   zone1Seconds?: number
@@ -77,7 +71,15 @@ export type WorkoutPresetCard = {
   steps: string[]
 }
 
-export const WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
+export const WEEK_DAYS = [
+  "Mon",
+  "Tue",
+  "Wed",
+  "Thu",
+  "Fri",
+  "Sat",
+  "Sun",
+] as const
 export type Day = (typeof WEEK_DAYS)[number]
 export type Routine = Record<Day, string | null>
 export type ScheduleRoutines = {

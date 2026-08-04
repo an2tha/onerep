@@ -1,15 +1,15 @@
 - generic [ref=e3]:
-  - banner [ref=e4]:
-    - generic [ref=e5]: 1 Build Error
-  - generic [ref=e7]:
-    - generic [ref=e8]: node_modules/motion/dist/es/react.mjs
-    - generic [ref=e10]:
-      - generic [ref=e11]: "error: Could not resolve: \"framer-motion\". Maybe you need to \"bun install\"?"
-      - generic [ref=e12]:
-        - generic: "1"
-        - generic [ref=e13]:
-          - generic [ref=e14]: import * as fm from 'framer-motion';
-          - generic: ___________________________________
-  - contentinfo [ref=e15]:
-    - generic [ref=e16]: Errors during a build can only be dismissed by fixing them.
-    - generic [ref=e18]: Bun v1.3.12
+    - banner [ref=e4]:
+        - generic [ref=e5]: 1 Build Error
+    - generic [ref=e7]:
+        - generic [ref=e8]: node_modules/motion/dist/es/react.mjs
+        - generic [ref=e10]:
+            - generic [ref=e11]: 'error: Could not resolve: "framer-motion". Maybe you need to "bun install"?'
+            - generic [ref=e12]:
+                - generic: "1"
+                - generic [ref=e13]:
+                    - generic [ref=e14]: import * as fm from 'framer-motion';
+                    - generic: ___________________________________
+    - contentinfo [ref=e15]:
+        - generic [ref=e16]: Errors during a build can only be dismissed by fixing them.
+        - generic [ref=e18]: Bun v1.3.12

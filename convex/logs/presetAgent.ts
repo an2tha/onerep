@@ -4,13 +4,20 @@ import { hasOpenAiApiKey, requestOpenAiJson } from "../ai/provider";
 import { renderSystemPrompt } from "../ai/prompts.generated";
 import { consumeAiUsageOrThrow } from "../ai/usage";
 import { getAuthUser } from "../lib/auth";
-
-const MAX_INPUT_CHARS = 8_000;
-const MAX_EXERCISES = 18;
-const MAX_SETS_PER_EXERCISE = 8;
-
-const SET_TYPES = ["working", "warmup", "failure", "myoreps", "drop"] as const;
-type SetType = (typeof SET_TYPES)[number];
+import {
+  MAX_EXERCISES,
+  MAX_INPUT_CHARS,
+  MAX_SETS_PER_EXERCISE,
+  cleanExerciseName,
+  clampNumber,
+  clampText,
+  inferSetType,
+  normalizeSetType,
+  parseRestSeconds,
+  parseSetCountAndReps,
+  parseWeightKg,
+} from "../lib/workoutTextParser";
+import type { SetType } from "../lib/workoutTextParser";
 
 type AgentSetDraft = {
   type?: SetType;
@@ -35,25 +42,6 @@ type PlanContext = {
   safetyMode?: string;
   safetyFlags?: string[];
 };
-
-function clampText(value: unknown, maxLength: number) {
-  return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
-}
-
-function clampNumber(
-  value: unknown,
-  min: number,
-  max: number,
-  fallback: number,
-) {
-  const parsed = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(min, Math.min(max, Math.round(parsed)));
-}
-
-function normalizeSetType(value: unknown): SetType {
-  return SET_TYPES.includes(value as SetType) ? (value as SetType) : "working";
-}
 
 function normalizeSet(value: unknown): AgentSetDraft {
   const input =
@@ -102,94 +90,6 @@ function normalizeDraft(
     exercises,
     notes: clampText(input.notes, 240) || undefined,
   };
-}
-
-function parseWeightKg(raw: string) {
-  const match = raw.match(
-    /(?:@|with|using)?\s*(\d+(?:\.\d+)?)\s*(kg|kgs|kilograms?|lb|lbs|pounds?)\b/i,
-  );
-  if (!match) return "";
-  const amount = Number(match[1]);
-  if (!Number.isFinite(amount)) return "";
-  const unit = match[2].toLowerCase();
-  if (unit.startsWith("lb") || unit.startsWith("pound")) {
-    return String(+(amount / 2.20462).toFixed(2));
-  }
-  return String(+amount.toFixed(2));
-}
-
-function parseRestSeconds(raw: string) {
-  const minMatch = raw.match(
-    /(?:rest\s*)?(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)\b/i,
-  );
-  if (minMatch) return clampNumber(Number(minMatch[1]) * 60, 0, 600, 120);
-
-  const secMatch = raw.match(
-    /(?:rest\s*)?(\d+)\s*(?:s|sec|secs|second|seconds)\b/i,
-  );
-  if (secMatch) return clampNumber(secMatch[1], 0, 600, 120);
-
-  return 120;
-}
-
-function parseSetCountAndReps(raw: string) {
-  const compact = raw.match(
-    /(\d+)\s*[x×]\s*(\d+(?:\s*[-–]\s*\d+)?|max|amrap|failure)/i,
-  );
-  if (compact) {
-    return {
-      count: clampNumber(compact[1], 1, MAX_SETS_PER_EXERCISE, 3),
-      reps: compact[2].replace(/\s+/g, ""),
-    };
-  }
-
-  const verbose = raw.match(
-    /(\d+)\s*sets?\s*(?:of|x|×)?\s*(\d+(?:\s*[-–]\s*\d+)?|max|amrap|failure)?/i,
-  );
-  if (verbose) {
-    return {
-      count: clampNumber(verbose[1], 1, MAX_SETS_PER_EXERCISE, 3),
-      reps: verbose[2]?.replace(/\s+/g, "") ?? "",
-    };
-  }
-
-  const duration = raw.match(
-    /(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute|minutes)\b/i,
-  );
-  if (duration) return { count: 1, reps: `${duration[1]} min` };
-
-  return { count: 3, reps: "" };
-}
-
-function inferSetType(raw: string): SetType {
-  if (/warm\s*-?up/i.test(raw)) return "warmup";
-  if (/drop/i.test(raw)) return "drop";
-  if (/myo/i.test(raw)) return "myoreps";
-  if (/failure|amrap/i.test(raw)) return "failure";
-  return "working";
-}
-
-function cleanExerciseName(raw: string) {
-  return raw
-    .replace(/^\s*(?:[-*•]|\d+[.)]|[A-Z]\d?[.)])\s*/i, "")
-    .replace(
-      /^\s*(?:add|swap(?:\s+for)?|replace(?:\s+(?:with|for))?|change(?:\s+to)?|sub(?:stitute)?(?:\s+(?:with|for))?)\s+/i,
-      "",
-    )
-    .replace(/\([^)]*\)/g, " ")
-    .replace(/\b\d+\s*(?:sets?|rounds?)\b.*$/i, " ")
-    .replace(
-      /\b\d+\s*[x×]\s*(?:\d+(?:\s*[-–]\s*\d+)?|max|amrap|failure)\b.*$/i,
-      " ",
-    )
-    .replace(
-      /(?:@|with|using)?\s*\d+(?:\.\d+)?\s*(?:kg|kgs|kilograms?|lb|lbs|pounds?)\b/gi,
-      " ",
-    )
-    .replace(/\brest\b.*$/i, " ")
-    .replace(/[—–:]+$/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function fallbackDraftFromText(text: string): AgentPresetDraft {

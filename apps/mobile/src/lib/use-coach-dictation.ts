@@ -52,12 +52,27 @@ function permissionError(code?: string) {
     : "Voice input stopped. Try again."
 }
 
+/** Biasing vocabulary for the nutrition-focused coach chat. */
+const DEFAULT_CONTEXTUAL_STRINGS = [
+  "calories",
+  "protein",
+  "carbohydrates",
+  "repetitions",
+  "kilograms",
+]
+
 export function useCoachDictation({
   value,
   onChange,
+  contextualStrings = DEFAULT_CONTEXTUAL_STRINGS,
 }: {
   value: string
   onChange: (value: string) => void
+  /**
+   * Words the recogniser should favour. Defaults to nutrition terms; a workout
+   * surface passes lifting vocabulary so "AMRAP" and "dropset" survive.
+   */
+  contextualStrings?: string[]
 }) {
   const [available, setAvailable] = useState(
     () => Capacitor.isNativePlatform() || Boolean(webRecognitionConstructor())
@@ -68,6 +83,10 @@ export function useCoachDictation({
   const webRecognitionRef = useRef<WebRecognition | null>(null)
   const nativeListenersRef = useRef<PluginListenerHandle[]>([])
   const baseRef = useRef("")
+  // Read inside the start callback, which must not re-create on every render
+  // just because the caller passed a fresh array literal.
+  const contextualStringsRef = useRef(contextualStrings)
+  contextualStringsRef.current = contextualStrings
   const finalRef = useRef("")
   const interimRef = useRef("")
   const activeRef = useRef(false)
@@ -185,13 +204,7 @@ export function useCoachDictation({
       popup: false,
       partialResults: true,
       addPunctuation: true,
-      contextualStrings: [
-        "calories",
-        "protein",
-        "carbohydrates",
-        "repetitions",
-        "kilograms",
-      ],
+      contextualStrings: contextualStringsRef.current,
       useOnDeviceRecognition: onDevice.available,
       allowForSilence: 1_500,
       continuousPTT: true,

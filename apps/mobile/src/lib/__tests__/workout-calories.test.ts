@@ -25,66 +25,121 @@ describe("MET_BY_CATEGORY", () => {
 
 describe("estimateWorkoutCalories", () => {
   test("returns 0 for zero duration", () => {
-    expect(estimateWorkoutCalories({ durationSeconds: 0, weightKg: 80 })).toBe(0)
+    expect(estimateWorkoutCalories({ durationSeconds: 0, weightKg: 80 })).toBe(
+      0
+    )
   })
 
   test("returns 0 for negative duration", () => {
-    expect(estimateWorkoutCalories({ durationSeconds: -60, weightKg: 80 })).toBe(0)
+    expect(
+      estimateWorkoutCalories({ durationSeconds: -60, weightKg: 80 })
+    ).toBe(0)
   })
 
   test("uses default weight (75 kg) when weightKg is missing", () => {
     // 1 hour strength at 75 kg: 5.0 × 75 × 1 = 375
-    const result = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength" })
+    const result = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+    })
     expect(result).toBe(375)
   })
 
   test("uses default weight when weightKg is 0", () => {
-    const withZero = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength", weightKg: 0 })
-    const withDefault = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength" })
+    const withZero = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+      weightKg: 0,
+    })
+    const withDefault = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+    })
     expect(withZero).toBe(withDefault)
   })
 
   test("uses default MET when category is unknown", () => {
     // Default MET is 5.0 (strength), weight 75 kg, 1 hour = 375
-    const result = estimateWorkoutCalories({ durationSeconds: 3600, category: "unknown", weightKg: 75 })
+    const result = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "unknown",
+      weightKg: 75,
+    })
     expect(result).toBe(375)
   })
 
   test("uses default MET when category is omitted", () => {
-    const result = estimateWorkoutCalories({ durationSeconds: 3600, weightKg: 75 })
+    const result = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      weightKg: 75,
+    })
     expect(result).toBe(375)
   })
 
   test("scales linearly with duration", () => {
-    const half = estimateWorkoutCalories({ durationSeconds: 1800, category: "strength", weightKg: 80 })
-    const full = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength", weightKg: 80 })
+    const half = estimateWorkoutCalories({
+      durationSeconds: 1800,
+      category: "strength",
+      weightKg: 80,
+    })
+    const full = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+      weightKg: 80,
+    })
     // Due to rounding, allow ±1 kcal tolerance
     expect(Math.abs(full - half * 2)).toBeLessThanOrEqual(1)
   })
 
   test("scales linearly with body weight", () => {
-    const light = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength", weightKg: 60 })
-    const heavy = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength", weightKg: 90 })
+    const light = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+      weightKg: 60,
+    })
+    const heavy = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+      weightKg: 90,
+    })
     // 60 kg → 300 kcal, 90 kg → 450 kcal (ratio 1.5)
     expect(light).toBe(300)
     expect(heavy).toBe(450)
   })
 
   test("cardio burns more than strength for same weight/duration", () => {
-    const strength = estimateWorkoutCalories({ durationSeconds: 3600, category: "strength", weightKg: 75 })
-    const cardio = estimateWorkoutCalories({ durationSeconds: 3600, category: "cardio", weightKg: 75 })
+    const strength = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "strength",
+      weightKg: 75,
+    })
+    const cardio = estimateWorkoutCalories({
+      durationSeconds: 3600,
+      category: "cardio",
+      weightKg: 75,
+    })
     expect(cardio).toBeGreaterThan(strength)
   })
 
   test("returns a positive integer (rounded)", () => {
-    const result = estimateWorkoutCalories({ durationSeconds: 2700, category: "mobility", weightKg: 70 })
+    const result = estimateWorkoutCalories({
+      durationSeconds: 2700,
+      category: "mobility",
+      weightKg: 70,
+    })
     expect(Number.isInteger(result)).toBe(true)
     expect(result).toBeGreaterThan(0)
   })
 
   test("30-minute strength session at 80 kg is correct", () => {
     // 5.0 × 80 × (1800/3600) = 5.0 × 80 × 0.5 = 200
-    expect(estimateWorkoutCalories({ durationSeconds: 1800, category: "strength", weightKg: 80 })).toBe(200)
+    expect(
+      estimateWorkoutCalories({
+        durationSeconds: 1800,
+        category: "strength",
+        weightKg: 80,
+      })
+    ).toBe(200)
   })
 })
 
@@ -96,14 +151,16 @@ describe("totalDayWorkoutCalories", () => {
   test("sums calories from multiple sessions", () => {
     const sessions = [
       { durationSeconds: 1800, category: "strength", weightKg: 80 }, // 200
-      { durationSeconds: 1800, category: "cardio",   weightKg: 80 }, // 320
+      { durationSeconds: 1800, category: "cardio", weightKg: 80 }, // 320
     ]
     expect(totalDayWorkoutCalories(sessions)).toBe(520)
   })
 
   test("single session equals estimateWorkoutCalories", () => {
     const single = { durationSeconds: 3000, category: "core", weightKg: 75 }
-    expect(totalDayWorkoutCalories([single])).toBe(estimateWorkoutCalories(single))
+    expect(totalDayWorkoutCalories([single])).toBe(
+      estimateWorkoutCalories(single)
+    )
   })
 })
 

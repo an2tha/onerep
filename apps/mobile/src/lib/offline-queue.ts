@@ -58,7 +58,8 @@ const MUTATION_REGISTRY = {
   "users.users.setCustomGoals": api.users.users.setCustomGoals,
   "users.users.setNetCarbsEnabled": api.users.users.setNetCarbsEnabled,
   "users.users.setMealCalorieTargets": api.users.users.setMealCalorieTargets,
-  "users.users.setCustomMealCategories": api.users.users.setCustomMealCategories,
+  "users.users.setCustomMealCategories":
+    api.users.users.setCustomMealCategories,
   "users.users.setMacroCycling": api.users.users.setMacroCycling,
   "users.users.setWorkoutAdjustment": api.users.users.setWorkoutAdjustment,
   "users.users.setWidgetLayout": api.users.users.setWidgetLayout,
@@ -72,6 +73,9 @@ const MUTATION_REGISTRY = {
   "logs.customFoods.save": api.logs.customFoods.save,
   "logs.customFoods.remove": api.logs.customFoods.remove,
   "logs.customFoods.markUsed": api.logs.customFoods.markUsed,
+  "logs.customExercises.save": api.logs.customExercises.save,
+  "logs.customExercises.remove": api.logs.customExercises.remove,
+  "logs.customExercises.markUsed": api.logs.customExercises.markUsed,
   "sharing.diaryShares.invite": api.sharing.diaryShares.invite,
   "sharing.diaryShares.updateScope": api.sharing.diaryShares.updateScope,
   "sharing.diaryShares.revoke": api.sharing.diaryShares.revoke,
@@ -199,10 +203,7 @@ function objectArgs(args: unknown): Record<string, unknown> | null {
     : null
 }
 
-function offlineMutationCoalesceKey(
-  name: OfflineMutationName,
-  args: unknown
-) {
+function offlineMutationCoalesceKey(name: OfflineMutationName, args: unknown) {
   if (
     name === "logs.foodLogs.setDay" ||
     name === "logs.water.setDay" ||

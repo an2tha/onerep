@@ -26,7 +26,19 @@ function entry(overrides: Partial<FoodLogEntry> = {}): FoodLogEntry {
 const logs: ReportDayLog[] = [
   {
     date: "2026-07-29",
-    entries: [entry(), entry({ id: "e2", name: "Chicken", meal: "lunch", calories: 500, protein: 45, carbs: 10, fat: 15, fiber: 3 })],
+    entries: [
+      entry(),
+      entry({
+        id: "e2",
+        name: "Chicken",
+        meal: "lunch",
+        calories: 500,
+        protein: 45,
+        carbs: 10,
+        fat: 15,
+        fiber: 3,
+      }),
+    ],
   },
   { date: "2026-07-31", entries: [entry({ id: "e3" })] },
 ]
@@ -87,8 +99,9 @@ describe("totals", () => {
   })
 
   test("an empty day has a zeroed split rather than NaN", () => {
-    expect(macroSplitFromTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 }))
-      .toEqual({ protein: 0, carbs: 0, fat: 0 })
+    expect(
+      macroSplitFromTotals({ calories: 0, protein: 0, carbs: 0, fat: 0 })
+    ).toEqual({ protein: 0, carbs: 0, fat: 0 })
   })
 })
 

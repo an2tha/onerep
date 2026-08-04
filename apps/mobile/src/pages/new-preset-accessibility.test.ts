@@ -22,16 +22,16 @@ describe("New preset accessibility contract", () => {
   })
 
   test("set row numeric fields expose stable mobile form metadata", () => {
-    expect(NEW_PRESET_SOURCE).toContain('name={`set-${index + 1}-weight`}')
+    expect(NEW_PRESET_SOURCE).toContain("name={`set-${index + 1}-weight`}")
     expect(NEW_PRESET_SOURCE).toContain(
-      "aria-label={`Set ${index + 1} weight in ${unit}`}",
+      "aria-label={`Set ${index + 1} weight in ${unit}`}"
     )
-    expect(NEW_PRESET_SOURCE).toContain('name={`set-${index + 1}-reps`}')
+    expect(NEW_PRESET_SOURCE).toContain("name={`set-${index + 1}-reps`}")
     expect(NEW_PRESET_SOURCE).not.toContain("left-reps")
     expect(NEW_PRESET_SOURCE).not.toContain("right-reps")
-    expect(NEW_PRESET_SOURCE).not.toContain('name={`set-${index + 1}-rpe`}')
+    expect(NEW_PRESET_SOURCE).not.toContain("name={`set-${index + 1}-rpe`}")
     expect(NEW_PRESET_SOURCE).toContain(
-      "aria-label={`Set ${index + 1} rest time`}",
+      "aria-label={`Set ${index + 1} rest time`}"
     )
   })
 
@@ -51,14 +51,14 @@ describe("New preset accessibility contract", () => {
   test("preset save and text import are single-flight actions", () => {
     expect(NEW_PRESET_SOURCE).toContain("const savingRef = useRef(false)")
     expect(NEW_PRESET_SOURCE).toContain(
-      "const generatingPresetRef = useRef(false)",
+      "const generatingPresetRef = useRef(false)"
     )
     expect(NEW_PRESET_SOURCE).toContain("if (")
     expect(NEW_PRESET_SOURCE).toContain("savingRef.current ||")
     expect(NEW_PRESET_SOURCE).toContain("savingRef.current = true")
     expect(NEW_PRESET_SOURCE).toContain("savingRef.current = false")
     expect(NEW_PRESET_SOURCE).toContain(
-      "if (generatingPresetRef.current || generatingPreset) return",
+      "if (generatingPresetRef.current || generatingPreset) return"
     )
     expect(NEW_PRESET_SOURCE).toContain("generatingPresetRef.current = true")
     expect(NEW_PRESET_SOURCE).toContain("generatingPresetRef.current = false")

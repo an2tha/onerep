@@ -40,7 +40,10 @@ export function mealTargetProgress(
   if (!Number.isFinite(target) || target <= 0) {
     // No budget for this meal — anything logged is "over" by definition, but
     // an empty meal is not a failure.
-    return { ratio: consumed > 0 ? 2 : 0, state: consumed > 0 ? "over" : "under" }
+    return {
+      ratio: consumed > 0 ? 2 : 0,
+      state: consumed > 0 ? "over" : "under",
+    }
   }
 
   const exact = consumed / target

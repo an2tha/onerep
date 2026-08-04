@@ -1,13 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { appleStateFor } from "../billing/apple";
-import { googleStateFor } from "../billing/google";
 import { stripeStateFor } from "../billing/stripe";
 import { stateGrantsAccess, type BillingState } from "../billing/types";
 
 /**
- * Table-driven coverage of every status each store can report, and whether it
- * grants the entitlement. These mappings are the part of the billing stack that
- * silently costs money when it is wrong in either direction.
+ * Table-driven coverage of every status Stripe can report, and whether it
+ * grants the entitlement. Stripe is the only platform OneRep Pro is sold on,
+ * and this mapping is the part of the billing stack that silently costs money
+ * when it is wrong in either direction.
  */
 
 const NOW = 1_800_000_000_000;
@@ -17,47 +16,6 @@ const FUTURE = NOW + 7 * DAY;
 function granted(state: BillingState, gracePeriodExpiresAt?: number) {
   return stateGrantsAccess(state, FUTURE, NOW, gracePeriodExpiresAt);
 }
-
-describe("Apple subscription status codes", () => {
-  const transaction = {};
-  const renewing = { autoRenewStatus: 1 };
-  const notRenewing = { autoRenewStatus: 0 };
-
-  test.each<[number, object, BillingState, boolean]>([
-    [1, renewing, "active", true],
-    [1, notRenewing, "canceled", true],
-    [2, renewing, "expired", false],
-    [3, renewing, "billing_retry", true],
-    [4, renewing, "grace_period", true],
-    [5, renewing, "refunded", false],
-  ])("status %d -> %s (grants: %s)", (status, renewal, expected, grants) => {
-    const state = appleStateFor(status, transaction, renewal);
-    expect(state).toBe(expected);
-    expect(granted(state, FUTURE)).toBe(grants);
-  });
-
-  test("a revoked transaction is a refund regardless of status", () => {
-    expect(
-      appleStateFor(1, { revocationDate: NOW - DAY }, { autoRenewStatus: 1 }),
-    ).toBe("refunded");
-  });
-});
-
-describe("Google subscriptionState", () => {
-  test.each<[string, BillingState, boolean]>([
-    ["SUBSCRIPTION_STATE_ACTIVE", "active", true],
-    ["SUBSCRIPTION_STATE_IN_GRACE_PERIOD", "grace_period", true],
-    ["SUBSCRIPTION_STATE_CANCELED", "canceled", true],
-    ["SUBSCRIPTION_STATE_ON_HOLD", "billing_retry", true],
-    ["SUBSCRIPTION_STATE_PAUSED", "paused", false],
-    ["SUBSCRIPTION_STATE_EXPIRED", "expired", false],
-    ["SUBSCRIPTION_STATE_UNSPECIFIED", "expired", false],
-  ])("%s -> %s (grants: %s)", (playState, expected, grants) => {
-    const state = googleStateFor(playState);
-    expect(state).toBe(expected);
-    expect(granted(state, FUTURE)).toBe(grants);
-  });
-});
 
 describe("Stripe subscription status", () => {
   function subscription(status: string, cancelAtPeriodEnd = false) {

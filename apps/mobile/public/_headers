@@ -13,6 +13,23 @@
   Cache-Control: public, max-age=0, must-revalidate
   X-Content-Type-Options: nosniff
 
+/version.json
+  Cache-Control: no-cache, must-revalidate
+  Content-Type: application/json; charset=utf-8
+
+# The native WebView origin is https://localhost, so the OTA manifest is a
+# cross-origin read and needs CORS. The zip is fetched by native code, which
+# does not, but the header is harmless and keeps both debuggable from a browser.
+/ota/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+  Content-Type: application/json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+# Filenames carry the version, so these are safe to cache forever.
+/ota/bundles/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
 /icon-*.png
   Cache-Control: public, max-age=604800
 

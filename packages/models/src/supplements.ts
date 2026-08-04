@@ -12,20 +12,10 @@ export type SupplementCategory =
   | "other";
 
 export type SupplementForm =
-  | "capsule"
-  | "tablet"
-  | "powder"
-  | "liquid"
-  | "gummy"
-  | "softgel"
-  | "other";
+  "capsule" | "tablet" | "powder" | "liquid" | "gummy" | "softgel" | "other";
 
 export type SupplementScheduleType =
-  | "none"
-  | "daily"
-  | "weekdays"
-  | "training_days"
-  | "rest_days";
+  "none" | "daily" | "weekdays" | "training_days" | "rest_days";
 
 export type SupplementSchedule = {
   type: SupplementScheduleType;

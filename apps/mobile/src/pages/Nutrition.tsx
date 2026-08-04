@@ -28,6 +28,7 @@ import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { SummaryBlock } from "@repo/ui"
+import { SlideToDeleteRow } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useSmoothNavigate } from "@/lib/navigation"
@@ -2691,9 +2692,13 @@ export default function Nutrition() {
                   {recentFood.length > 0 ? (
                     <div className="space-y-2">
                       {recentFood.map((entry) => (
-                        <div
+                        <SlideToDeleteRow
                           key={entry.id}
-                          className="flex items-center justify-between gap-3"
+                          deleteLabel={`Delete ${entry.name}`}
+                          onDelete={() => removeFoodEntry(entry.id)}
+                          className="-mx-1 rounded-lg"
+                          actionClassName="rounded-r-lg"
+                          rowClassName="flex items-center justify-between gap-3 bg-background px-1"
                         >
                           <div className="min-w-0 flex-1">
                             <p className="native-row-title truncate">
@@ -2706,7 +2711,10 @@ export default function Nutrition() {
                           {(entry.recipeId || entry.recipeDraft) && (
                             <button
                               type="button"
-                              onClick={() => editRecipeFromLogEntry(entry)}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                editRecipeFromLogEntry(entry)
+                              }}
                               className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                               aria-label={`Edit recipe for ${entry.name}`}
                             >
@@ -2716,7 +2724,7 @@ export default function Nutrition() {
                           <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                             {fmt(entry.calories)} kcal
                           </span>
-                        </div>
+                        </SlideToDeleteRow>
                       ))}
                     </div>
                   ) : (

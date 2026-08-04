@@ -823,6 +823,28 @@ export default defineSchema({
       filterFields: ["userId", "category"],
     }),
 
+  // User-authored exercises. Kept out of `exercises` because the catalog import
+  // (`bun run exercises:import`) runs `convex import --replace`, which would
+  // wipe any user-owned rows living in that table.
+  customExercises: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    category: v.string(), // "strength" | "cardio" | "mobility" | "core"
+    equipment: v.optional(v.string()),
+    primaryMuscles: v.array(v.string()),
+    secondaryMuscles: v.array(v.string()),
+    instructions: v.array(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_name", ["userId", "name"])
+    .searchIndex("search_name", {
+      searchField: "name",
+      filterFields: ["userId", "category"],
+    }),
+
   dailyCheckIns: defineTable({
     userId: v.string(),
     updatedAt: v.number(),
@@ -1120,10 +1142,11 @@ export default defineSchema({
     .index("by_platform_and_eventId", ["platform", "eventId"])
     .index("by_processedAt", ["processedAt"]),
 
-  // ── Store-facing account identifiers ─────────────────────────────────────
-  // StoreKit's `appAccountToken` must be a UUID, so we mint a stable one per
-  // user and keep the reverse mapping here. Play's `obfuscatedAccountId` and
-  // Stripe's `client_reference_id` reuse the same value for consistency.
+  // ── Store-facing account identifiers (legacy) ────────────────────────────
+  // Minted to link StoreKit's `appAccountToken` / Play's `obfuscatedAccountId`
+  // back to an account. In-app purchases were removed, so nothing reads or
+  // writes this any more; the table stays defined only so Convex can validate
+  // rows that already exist. Drop it once the purge migration has run.
   billingIdentities: defineTable({
     userId: v.string(),
     appAccountToken: v.string(),

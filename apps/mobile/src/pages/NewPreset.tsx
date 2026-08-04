@@ -24,6 +24,7 @@ import {
   DotsSixVertical,
   FloppyDisk,
   MagnifyingGlass,
+  PencilSimple,
   Plus,
   Sparkle,
   Timer,
@@ -44,6 +45,16 @@ import {
   visibleRecentExerciseSearches,
   type RecentExerciseSearch,
 } from "@/lib/exercise-search-recents"
+import {
+  CreateExerciseButton,
+  CustomExerciseSheet,
+} from "@/components/custom-exercise-sheet"
+import {
+  CUSTOM_EXERCISE_ID_PREFIX,
+  customExerciseDraftFromExercise,
+  emptyCustomExerciseDraft,
+  type CustomExerciseDraft,
+} from "@/lib/custom-exercises"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
@@ -53,11 +64,8 @@ import {
 } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
-import {
-  WeightSelectorSheet,
-  type BarType,
-  type WeightSelectorChange,
-} from "./ActiveWorkout"
+import { WeightSelectorSheet, type WeightSelectorChange } from "./ActiveWorkout"
+import type { BarType } from "@/lib/workout-logging"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -657,9 +665,17 @@ function PresetExerciseCard({
             <button
               onClick={onToggleCollapse}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted active:text-foreground"
-              aria-label={collapsed ? `Expand ${exercise.name}` : `Collapse ${exercise.name}`}
+              aria-label={
+                collapsed
+                  ? `Expand ${exercise.name}`
+                  : `Collapse ${exercise.name}`
+              }
             >
-              {collapsed ? <CaretDown size={15} weight="bold" /> : <CaretUp size={15} weight="bold" />}
+              {collapsed ? (
+                <CaretDown size={15} weight="bold" />
+              ) : (
+                <CaretUp size={15} weight="bold" />
+              )}
             </button>
           </div>
         </div>
@@ -762,6 +778,9 @@ function SearchSheet({
     readRecentExerciseSearches()
   )
   const [closing, setClosing] = useState(false)
+  const [editorDraft, setEditorDraft] = useState<CustomExerciseDraft | null>(
+    null
+  )
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -836,6 +855,25 @@ function SearchSheet({
     window.setTimeout(onClose, 340)
   }
 
+  function openExerciseCreator() {
+    setEditorDraft(emptyCustomExerciseDraft({ name: query.trim() }))
+  }
+
+  function handleCustomExerciseSaved(exercise: Exercise) {
+    setEditorDraft(null)
+    setRemoteExercises((current) => [
+      exercise,
+      ...current.filter((item) => item.id !== exercise.id),
+    ])
+    if (!addedIds.includes(exercise.id)) handleToggle(exercise)
+  }
+
+  function handleCustomExerciseDeleted(docId: string) {
+    const id = `${CUSTOM_EXERCISE_ID_PREFIX}${docId}`
+    setEditorDraft(null)
+    setRemoteExercises((current) => current.filter((item) => item.id !== id))
+  }
+
   return (
     <div
       className={cn(
@@ -907,8 +945,20 @@ function SearchSheet({
                   added={addedIds.includes(ex.id)}
                   onAdd={() => handleToggle(ex)}
                   onBodyClick={() => onBodyClick(ex)}
+                  onEdit={
+                    ex.custom
+                      ? () =>
+                          setEditorDraft(customExerciseDraftFromExercise(ex))
+                      : undefined
+                  }
                 />
               ))}
+              <div className="px-4 py-4">
+                <CreateExerciseButton
+                  query={query}
+                  onClick={openExerciseCreator}
+                />
+              </div>
             </div>
           ) : searchState === "done" ? (
             <div className="flex flex-col items-center gap-3 px-5 py-16 text-center">
@@ -920,6 +970,10 @@ function SearchSheet({
                   Try a broader exercise or muscle name.
                 </p>
               </div>
+              <CreateExerciseButton
+                query={query}
+                onClick={openExerciseCreator}
+              />
               <ExerciseSuggestionGroups
                 variant="chips"
                 popularLabel="Try instead"
@@ -956,6 +1010,18 @@ function SearchSheet({
           ) : null}
         </div>
       </div>
+      {editorDraft && (
+        // Stops the editor's own backdrop click from bubbling out and closing
+        // the search sheet underneath it too.
+        <div onClick={(event) => event.stopPropagation()}>
+          <CustomExerciseSheet
+            initialDraft={editorDraft}
+            onClose={() => setEditorDraft(null)}
+            onSaved={handleCustomExerciseSaved}
+            onDeleted={handleCustomExerciseDeleted}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -969,11 +1035,13 @@ function SearchExerciseCard({
   added,
   onAdd,
   onBodyClick,
+  onEdit,
 }: {
   exercise: Exercise
   added: boolean
   onAdd: () => void
   onBodyClick: () => void
+  onEdit?: () => void
 }) {
   return (
     <div className={cn("flex items-stretch", added && "opacity-60")}>
@@ -981,9 +1049,16 @@ function SearchExerciseCard({
         onClick={onBodyClick}
         className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pr-4 pl-4 text-left active:bg-muted/40"
       >
-        <p className="truncate text-[15px] leading-snug font-semibold">
-          {exercise.name}
-        </p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <p className="truncate text-[15px] leading-snug font-semibold">
+            {exercise.name}
+          </p>
+          {exercise.custom && (
+            <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none font-semibold text-muted-foreground">
+              Yours
+            </span>
+          )}
+        </div>
         <p className="mt-1 truncate text-[13px] text-muted-foreground">
           {exercise.muscle}
         </p>
@@ -994,12 +1069,20 @@ function SearchExerciseCard({
         )}
       </button>
 
+      {onEdit && (
+        <button
+          onClick={onEdit}
+          className="flex min-h-11 min-w-11 items-center justify-center px-2 text-muted-foreground transition-colors active:text-foreground"
+          aria-label={`Edit ${exercise.name}`}
+        >
+          <PencilSimple size={15} weight="bold" />
+        </button>
+      )}
+
       <button
         onClick={onAdd}
         className="flex min-h-11 min-w-11 items-center justify-center px-3 text-muted-foreground transition-colors active:text-foreground"
-        aria-label={
-          added ? `Remove ${exercise.name}` : `Add ${exercise.name}`
-        }
+        aria-label={added ? `Remove ${exercise.name}` : `Add ${exercise.name}`}
       >
         {added ? (
           <X size={14} weight="bold" className="text-foreground/40" />

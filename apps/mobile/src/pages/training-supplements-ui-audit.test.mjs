@@ -20,8 +20,12 @@ const setRow = readFileSync(
 
 test("active workout communicates time, progress, and next action", () => {
   // One header timer that switches between counting the session and counting
-  // rest, rather than two separately labelled readouts.
-  assert.match(activeWorkout, /rest\.remaining !== null \? "Rest" : "Elapsed"/)
+  // rest, rather than two separately labelled readouts. Retro mode adds a third
+  // state ahead of it, so the live pair is matched across the wrapping ternary.
+  assert.match(
+    activeWorkout,
+    /rest\.remaining !== null\s*\?\s*"Rest"\s*:\s*"Elapsed"/,
+  )
   assert.match(activeWorkout, /formatElapsed\(rest\.remaining \?\? elapsed\)/)
   assert.match(activeWorkout, /role="progressbar"/)
   assert.match(activeWorkout, /aria-label="Workout completion"/)

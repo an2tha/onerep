@@ -41,10 +41,19 @@ export function playRestCompletion() {
   if (restVibrationEnabled()) navigator.vibrate?.([120, 70, 180])
 }
 
-const COLORS = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#b517ff", "#ff9f1c"]
+const COLORS = [
+  "#ff4d6d",
+  "#ffd166",
+  "#06d6a0",
+  "#4cc9f0",
+  "#b517ff",
+  "#ff9f1c",
+]
 
 /** Celebrations are intentionally not preference-gated. */
-export function celebrateAchievement(intensity: "target" | "workout" = "target") {
+export function celebrateAchievement(
+  intensity: "target" | "workout" = "target"
+) {
   if (typeof document === "undefined") return
   const root = document.createElement("div")
   root.className = "onerep-confetti-root"
@@ -56,7 +65,10 @@ export function celebrateAchievement(intensity: "target" | "workout" = "target")
     piece.style.setProperty("--start-x", `${Math.random() * 100}vw`)
     piece.style.setProperty("--drift", `${Math.random() * 220 - 110}px`)
     piece.style.setProperty("--r", `${Math.random() * 1080 - 540}deg`)
-    piece.style.setProperty("--delay", `${Math.random() * (intensity === "workout" ? 1000 : 300)}ms`)
+    piece.style.setProperty(
+      "--delay",
+      `${Math.random() * (intensity === "workout" ? 1000 : 300)}ms`
+    )
     piece.style.setProperty("--duration", `${2200 + Math.random() * 1400}ms`)
     piece.style.width = `${size}px`
     piece.style.height = `${size * 0.7}px`

@@ -2,6 +2,7 @@ import { Migrations } from "@convex-dev/migrations";
 import { components, internal } from "./_generated/api";
 import type { DataModel, Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
+import { recomputeRollupFor } from "./billing/store";
 
 export const migrations = new Migrations<DataModel>(components.migrations);
 
@@ -73,4 +74,41 @@ export const runLegacyMediaDeletion = migrations.runner([
   internal.migrations.deleteLegacyRecipePhotos,
   internal.migrations.deleteLegacyBodyPhotos,
   internal.migrations.deleteLegacyFormCaptures,
+]);
+
+/**
+ * Delete the App Store and Play rows left behind by in-app purchases.
+ *
+ * `subscriptionGrantsAccess` already ignores non-Stripe rows, so access is cut
+ * off the moment that ships; this migration is the cleanup that makes it
+ * possible to narrow `billingPlatform` to `stripe` and drop `billingIdentities`
+ * from the schema afterwards.
+ *
+ * The rollup is recomputed per affected user rather than left to the nightly
+ * `reconcileRollups` cron, so `subscriptionStates` stops advertising an
+ * `app_store`/`play_store` origin as soon as the row backing it is gone.
+ */
+export const deleteStoreSubscriptions = migrations.define({
+  table: "billingSubscriptions",
+  batchSize: 50,
+  migrateOne: async (ctx, subscription) => {
+    if (subscription.platform === "stripe") return;
+    const { userId } = subscription;
+    await ctx.db.delete(subscription._id);
+    await recomputeRollupFor(ctx, userId);
+  },
+});
+
+/** The `appAccountToken` mappings only ever served StoreKit and Play. */
+export const deleteStoreIdentities = migrations.define({
+  table: "billingIdentities",
+  batchSize: 50,
+  migrateOne: async (ctx, identity) => {
+    await ctx.db.delete(identity._id);
+  },
+});
+
+export const runStorePurchasePurge = migrations.runner([
+  internal.migrations.deleteStoreSubscriptions,
+  internal.migrations.deleteStoreIdentities,
 ]);

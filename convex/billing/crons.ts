@@ -39,36 +39,15 @@ export const listLiveSubscriptions = internalQuery({
     await ctx.db.query("billingSubscriptions").take(args.limit),
 });
 
-/** Re-read one subscription from its platform, whichever that is. */
+/** Re-read one Stripe subscription from Stripe. */
 export const revalidateOne = internalAction({
   args: {
-    platform: v.union(
-      v.literal("apple"),
-      v.literal("google"),
-      v.literal("stripe"),
-    ),
     platformSubscriptionId: v.string(),
-    productId: v.string(),
     userId: v.string(),
   },
   handler: async (ctx, args) => {
-    if (args.platform === "stripe") {
-      await ctx.runAction(internal.billing.stripe.refreshSubscription, {
-        platformSubscriptionId: args.platformSubscriptionId,
-        userId: args.userId,
-      });
-      return;
-    }
-    if (args.platform === "apple") {
-      await ctx.runAction(internal.billing.apple.refreshSubscription, {
-        originalTransactionId: args.platformSubscriptionId,
-        userId: args.userId,
-      });
-      return;
-    }
-    await ctx.runAction(internal.billing.google.refreshSubscription, {
-      purchaseToken: args.platformSubscriptionId,
-      productId: args.productId,
+    await ctx.runAction(internal.billing.stripe.refreshSubscription, {
+      platformSubscriptionId: args.platformSubscriptionId,
       userId: args.userId,
     });
   },
@@ -77,6 +56,10 @@ export const revalidateOne = internalAction({
 /**
  * Revalidate subscriptions that are due — those about to lapse, plus anything
  * whose 24h polling window has elapsed.
+ *
+ * Only Stripe rows are revalidated. Legacy App Store and Play rows have no
+ * credentials behind them any more and no longer grant the entitlement, so
+ * there is nothing to re-read.
  */
 export const revalidateDue = internalAction({
   args: {},
@@ -88,20 +71,21 @@ export const revalidateDue = internalAction({
       { limit: REVALIDATION_BATCH },
     );
 
-    due.forEach((subscription, index) => {
+    const stripeDue = due.filter(
+      (subscription) => subscription.platform === "stripe",
+    );
+    stripeDue.forEach((subscription, index) => {
       void ctx.scheduler.runAfter(
         index * STAGGER_MS,
         internal.billing.crons.revalidateOne,
         {
-          platform: subscription.platform,
           platformSubscriptionId: subscription.platformSubscriptionId,
-          productId: subscription.productId,
           userId: subscription.userId,
         },
       );
     });
 
-    return { scheduled: due.length };
+    return { scheduled: stripeDue.length };
   },
 });
 

@@ -14,7 +14,11 @@
         "VITE_APP_URL",
         "VITE_SITE_URL",
         "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
-        "VITE_PUBLIC_POSTHOG_HOST"
+        "VITE_PUBLIC_POSTHOG_HOST",
+        "VITE_BUNDLE_VERSION",
+        "VITE_BUNDLE_COMMIT",
+        "VITE_OTA_MANIFEST_URL",
+        "VITE_OTA_ORIGIN"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
@@ -29,7 +33,11 @@
         "VITE_APP_URL",
         "VITE_SITE_URL",
         "VITE_PUBLIC_POSTHOG_PROJECT_TOKEN",
-        "VITE_PUBLIC_POSTHOG_HOST"
+        "VITE_PUBLIC_POSTHOG_HOST",
+        "VITE_BUNDLE_VERSION",
+        "VITE_BUNDLE_COMMIT",
+        "VITE_OTA_MANIFEST_URL",
+        "VITE_OTA_ORIGIN"
       ],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },

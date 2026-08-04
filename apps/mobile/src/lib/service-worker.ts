@@ -19,9 +19,20 @@ export type AppServiceWorkerContainer = {
     url: string,
     options?: { scope?: string; updateViaCache?: "all" | "imports" | "none" }
   ) => Promise<AppServiceWorkerRegistration>
+  getRegistrations?: () => Promise<
+    readonly { unregister: () => Promise<boolean> }[]
+  >
   addEventListener?: (type: "controllerchange", listener: () => void) => void
   removeEventListener?: (type: "controllerchange", listener: () => void) => void
 }
+
+type AppCacheStorage = {
+  keys: () => Promise<string[]>
+  delete: (key: string) => Promise<boolean>
+}
+
+/** Cache-name prefix used by public/sw.js. */
+const APP_CACHE_PREFIX = "onerep-app-"
 
 type RegisterAppServiceWorkerOptions = {
   onError?: (error: unknown) => void
@@ -75,6 +86,53 @@ export async function registerAppServiceWorker({
     onError?.(error)
     return null
   }
+}
+
+/**
+ * Removes the service worker and its caches. Used on native, where the OTA
+ * updater owns updates instead.
+ *
+ * Android serves the app over https://localhost through WebViewAssetLoader,
+ * which does support service workers, so sw.js genuinely installs there. When
+ * the updater swaps the bundle it changes the backing directory, not the
+ * origin — so a surviving cache would keep serving the previous index.html and
+ * its hashed assets, and the update would silently not take effect.
+ *
+ * This actively unregisters rather than merely declining to register, because
+ * devices running an earlier build already have one installed.
+ */
+export async function unregisterAppServiceWorker(
+  serviceWorker: AppServiceWorkerContainer | null = browserServiceWorker(),
+  cacheStorage: AppCacheStorage | undefined = typeof caches === "undefined"
+    ? undefined
+    : caches
+) {
+  let removed = false
+
+  try {
+    const registrations = (await serviceWorker?.getRegistrations?.()) ?? []
+    for (const registration of registrations) {
+      await registration.unregister()
+      removed = true
+    }
+  } catch (error) {
+    console.warn("Service worker unregistration failed", error)
+  }
+
+  try {
+    const keys = (await cacheStorage?.keys()) ?? []
+    for (const key of keys) {
+      // Only our own caches: anything else in this origin belongs to code we
+      // do not control.
+      if (!key.startsWith(APP_CACHE_PREFIX)) continue
+      await cacheStorage?.delete(key)
+      removed = true
+    }
+  } catch (error) {
+    console.warn("Service worker cache cleanup failed", error)
+  }
+
+  return removed
 }
 
 export function activateWaitingServiceWorker(

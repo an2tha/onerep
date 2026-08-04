@@ -1,126 +1,37 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
+import { safeGetAuthUser } from "./lib/auth";
+import {
+  type ClientExercise,
+  type ExerciseCategory,
+  categoryOf,
+  customExerciseClientId,
+  customExerciseDocId,
+  exerciseCategoryValidator,
+  isCustomExerciseId,
+  toClientExercise,
+} from "./lib/exerciseShape";
 
 const GLOBAL_EXERCISE_USER_ID = "__global__";
 const MAX_LIMIT = 50;
+const MAX_CUSTOM_MATCHES = 50;
 
-const categoryValidator = v.union(
-  v.literal("strength"),
-  v.literal("cardio"),
-  v.literal("mobility"),
-  v.literal("core"),
-);
-
-type ExerciseCategory = "strength" | "cardio" | "mobility" | "core";
 type ExerciseDoc = Doc<"exercises">;
-
-type ClientExercise = {
-  id: string;
-  name: string;
-  category: ExerciseCategory;
-  muscle: string;
-  description: string;
-  sets: string;
-  color: string;
-  level?: string;
-  mechanic?: string | null;
-  equipment?: string | null;
-  primaryMuscles?: string[];
-  secondaryMuscles?: string[];
-  instructions?: string[];
-};
+type CustomExerciseDoc = Doc<"customExercises">;
 
 function clampLimit(limit: number | undefined) {
   if (!Number.isFinite(limit ?? 0)) return 25;
   return Math.max(1, Math.min(Math.floor(limit ?? 25), MAX_LIMIT));
 }
 
-function titleCase(value: string) {
-  return value
-    .split(/[\s_-]+/g)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function categoryOf(doc: ExerciseDoc): ExerciseCategory {
-  if (
-    doc.category === "strength" ||
-    doc.category === "cardio" ||
-    doc.category === "mobility" ||
-    doc.category === "core"
-  ) {
-    return doc.category;
-  }
-  return "strength";
-}
-
-function muscleLabel(doc: ExerciseDoc) {
-  const muscles = [...doc.primaryMuscles, ...doc.secondaryMuscles]
-    .slice(0, 4)
-    .map(titleCase);
-  return muscles.length > 0 ? muscles.join(" · ") : "Full Body";
-}
-
-function descriptionOf(doc: ExerciseDoc) {
-  return (
-    doc.instructions[0] ??
-    `${doc.name} exercise using ${doc.equipment ?? "bodyweight or available equipment"}.`
-  );
-}
-
-function defaultSets(category: ExerciseCategory) {
-  switch (category) {
-    case "cardio":
-      return "20–40 min";
-    case "mobility":
-      return "2–3 × 60 s";
-    case "core":
-      return "3 × 12 reps";
-    default:
-      return "3 × 8–12 reps";
-  }
-}
-
-function categoryColor(category: ExerciseCategory) {
-  switch (category) {
-    case "cardio":
-      return "#f97316";
-    case "mobility":
-      return "#10b981";
-    case "core":
-      return "#3b82f6";
-    default:
-      return "#78716c";
-  }
-}
-
-function toClientExercise(doc: ExerciseDoc): ClientExercise {
-  const category = categoryOf(doc);
-  return {
-    id: doc.exerciseId,
-    name: doc.name,
-    category,
-    muscle: muscleLabel(doc),
-    description: descriptionOf(doc),
-    sets: defaultSets(category),
-    color: categoryColor(category),
-    level: doc.level,
-    mechanic: doc.mechanic ?? null,
-    equipment: doc.equipment ?? null,
-    primaryMuscles: doc.primaryMuscles,
-    secondaryMuscles: doc.secondaryMuscles,
-    instructions: doc.instructions,
-  };
-}
-
 function uniqueCategories(categories: ExerciseCategory[] | undefined) {
   return [...new Set(categories ?? [])];
 }
 
-function filterByCategories(
-  docs: ExerciseDoc[],
+function filterByCategories<T extends { category: string }>(
+  docs: T[],
   categories: ExerciseCategory[],
 ) {
   if (categories.length === 0) return docs;
@@ -128,10 +39,43 @@ function filterByCategories(
   return docs.filter((doc) => categorySet.has(categoryOf(doc)));
 }
 
+/** The caller's custom exercises matching the same query/category filters. */
+async function searchCustomExercises(
+  ctx: QueryCtx,
+  args: { searchText: string; categories: ExerciseCategory[]; limit: number },
+): Promise<CustomExerciseDoc[]> {
+  const user = await safeGetAuthUser(ctx);
+  if (!user) return [];
+
+  const take = Math.min(Math.max(args.limit, 10), MAX_CUSTOM_MATCHES);
+
+  if (args.searchText) {
+    return filterByCategories(
+      await ctx.db
+        .query("customExercises")
+        .withSearchIndex("search_name", (q) =>
+          q.search("name", args.searchText).eq("userId", user._id),
+        )
+        .take(take),
+      args.categories,
+    );
+  }
+
+  return filterByCategories(
+    await ctx.db
+      .query("customExercises")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .take(MAX_CUSTOM_MATCHES),
+    args.categories,
+  ).sort(
+    (a, b) => (b.lastUsedAt ?? b.updatedAt) - (a.lastUsedAt ?? a.updatedAt),
+  );
+}
+
 export const search = query({
   args: {
     query: v.optional(v.string()),
-    categories: v.optional(v.array(categoryValidator)),
+    categories: v.optional(v.array(exerciseCategoryValidator)),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<ClientExercise[]> => {
@@ -169,12 +113,29 @@ export const search = query({
         .take(limit);
     }
 
+    const custom = await searchCustomExercises(ctx, {
+      searchText,
+      categories,
+      limit,
+    });
+
     const seen = new Set<string>();
     const result: ClientExercise[] = [];
+
+    // The caller's own exercises lead — they're the ones they went out of their
+    // way to create, and there are never enough of them to crowd out the catalog.
+    for (const doc of custom) {
+      const id = customExerciseClientId(doc._id);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      result.push(toClientExercise(id, doc, { custom: true }));
+      if (result.length >= limit) return result;
+    }
+
     for (const doc of docs) {
       if (seen.has(doc.exerciseId)) continue;
       seen.add(doc.exerciseId);
-      result.push(toClientExercise(doc));
+      result.push(toClientExercise(doc.exerciseId, doc));
       if (result.length >= limit) break;
     }
     return result;
@@ -187,7 +148,25 @@ export const resolve = query({
     const ids = [...new Set(args.ids.filter(Boolean))].slice(0, 100);
     const result: Record<string, ClientExercise> = {};
 
+    const customIds = ids.filter(isCustomExerciseId);
+    if (customIds.length > 0) {
+      const user = await safeGetAuthUser(ctx);
+      if (user) {
+        for (const id of customIds) {
+          const docId = ctx.db.normalizeId(
+            "customExercises",
+            customExerciseDocId(id),
+          );
+          if (!docId) continue;
+          const doc = await ctx.db.get(docId);
+          if (!doc || doc.userId !== user._id) continue;
+          result[id] = toClientExercise(id, doc, { custom: true });
+        }
+      }
+    }
+
     for (const id of ids) {
+      if (isCustomExerciseId(id)) continue;
       const doc = await ctx.db
         .query("exercises")
         .withIndex("by_userId_and_exerciseId", (q) =>
@@ -195,7 +174,7 @@ export const resolve = query({
         )
         .first();
       if (!doc) continue;
-      result[id] = toClientExercise(doc);
+      result[id] = toClientExercise(doc.exerciseId, doc);
     }
 
     return result;

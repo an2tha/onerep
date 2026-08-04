@@ -1,7 +1,7 @@
 import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
-import { defineConfig, loadEnv } from "vite"
+import { defineConfig, loadEnv, type Plugin } from "vite"
 
 const uiRoot = path.resolve(__dirname, "../../packages/ui/src")
 const appRoot = path.resolve(__dirname, "./src")
@@ -19,6 +19,33 @@ function isPlaceholderServiceUrl(value: string | undefined) {
     )
   } catch {
     return true
+  }
+}
+
+/**
+ * Emits dist/version.json describing the build.
+ *
+ * The OTA packaging script reads this rather than being told a version
+ * separately, so the version advertised in the manifest cannot drift from the
+ * one compiled into the JS — the failure mode being a manifest promising a
+ * bundle whose contents are a build older than it claims, after which devices
+ * consider themselves up to date forever.
+ */
+function versionStampPlugin(version: string, commit: string): Plugin {
+  return {
+    name: "onerep-version-stamp",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify(
+          { version, commit, builtAt: new Date().toISOString() },
+          null,
+          2
+        ),
+      })
+    },
   }
 }
 
@@ -65,7 +92,14 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     envDir: envRoot,
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      versionStampPlugin(
+        env.VITE_BUNDLE_VERSION?.trim() || "0.0.0",
+        env.VITE_BUNDLE_COMMIT?.trim() || "unknown"
+      ),
+    ],
     build: {
       rollupOptions: {
         output: {
@@ -85,6 +119,10 @@ export default defineConfig(({ command, mode }) => {
             ) {
               return "auth-data"
             }
+            // Left unassigned so Rollup splits it off on its own. src/lib/ota
+            // imports it dynamically behind a native-platform guard, so on the
+            // web build this chunk is never requested.
+            if (id.includes("@capgo/capacitor-updater")) return undefined
             if (id.includes("@capacitor") || id.includes("@ionic")) {
               return "native"
             }

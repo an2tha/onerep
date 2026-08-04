@@ -29,7 +29,7 @@ export function netCarbs(source: CarbSource): number {
 /** The carb number to render for the active mode. */
 export function displayCarbs(
   source: CarbSource,
-  mode: CarbDisplayMode,
+  mode: CarbDisplayMode
 ): number {
   return mode === "net" ? netCarbs(source) : safeNumber(source.carbs)
 }
@@ -56,10 +56,13 @@ export function carbLabelLong(mode: CarbDisplayMode): string {
  */
 export function sumDisplayCarbs(
   items: CarbSource[],
-  mode: CarbDisplayMode,
+  mode: CarbDisplayMode
 ): number {
   if (!Array.isArray(items)) return 0
-  return items.reduce((total, item) => total + displayCarbs(item ?? {}, mode), 0)
+  return items.reduce(
+    (total, item) => total + displayCarbs(item ?? {}, mode),
+    0
+  )
 }
 
 /** Adapts a recipe ingredient's per-100g nutrients to a CarbSource. */
@@ -85,7 +88,7 @@ export function ingredientCarbSource(ingredient: {
 export function displayCarbGoal(
   goalCarbs: number,
   fiberGoal: number | undefined | null,
-  mode: CarbDisplayMode,
+  mode: CarbDisplayMode
 ): number {
   const goal = safeNumber(goalCarbs)
   if (mode !== "net") return goal

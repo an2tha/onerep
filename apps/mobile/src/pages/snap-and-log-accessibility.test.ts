@@ -3,16 +3,18 @@ import { readFileSync } from "node:fs"
 
 const SNAP_SOURCE = readFileSync(
   new URL("./SnapAndLog.tsx", import.meta.url),
-  "utf8",
+  "utf8"
 )
 
 describe("Snap and Log accessibility contract", () => {
   test("camera capture controls expose explicit button semantics", () => {
     expect(SNAP_SOURCE).toContain(
-      'aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}',
+      'aria-label={mode === "barcode" ? "Capture barcode" : "Capture"}'
     )
     expect(SNAP_SOURCE).toContain('aria-label="Switch camera"')
-    expect(SNAP_SOURCE).toContain('aria-label={flash ? "Turn flash off" : "Turn flash on"}')
+    expect(SNAP_SOURCE).toContain(
+      'aria-label={flash ? "Turn flash off" : "Turn flash on"}'
+    )
   })
 
   test("camera startup and blocked states provide visible recovery", () => {
@@ -21,7 +23,7 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain("setCameraAttempt((attempt) => attempt + 1)")
     expect(SNAP_SOURCE).toContain("Starting camera")
     expect(SNAP_SOURCE).toContain(
-      "Keep OneRep open while we connect to your camera.",
+      "Keep OneRep open while we connect to your camera."
     )
     expect(SNAP_SOURCE).toContain("Try camera again")
     expect(SNAP_SOURCE).toContain('navigate("/foods/search")')
@@ -41,8 +43,12 @@ describe("Snap and Log accessibility contract", () => {
 
   test("camera result logging prevents duplicate submissions", () => {
     expect(SNAP_SOURCE).toContain("const [loggingTarget, setLoggingTarget]")
-    expect(SNAP_SOURCE).toContain("const loggingTargetRef = useRef<string | null>(null)")
-    expect(SNAP_SOURCE).toContain("if (loggingTargetRef.current || added === item.id) return")
+    expect(SNAP_SOURCE).toContain(
+      "const loggingTargetRef = useRef<string | null>(null)"
+    )
+    expect(SNAP_SOURCE).toContain(
+      "if (loggingTargetRef.current || added === item.id) return"
+    )
     expect(SNAP_SOURCE).toContain("if (snapLogging) return")
     expect(SNAP_SOURCE).toContain("setLoggingTarget(item.id)")
     expect(SNAP_SOURCE).toContain("setSnapLogging(true)")

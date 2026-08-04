@@ -65,14 +65,20 @@ describe("recent exercise search helpers", () => {
   test("moves an existing exercise to the front", () => {
     expect(
       nextRecentExerciseSearches(
-        [compactRecentExerciseSearch(squat), compactRecentExerciseSearch(bench)],
+        [
+          compactRecentExerciseSearch(squat),
+          compactRecentExerciseSearch(bench),
+        ],
         squat
       ).map((exercise) => exercise.id)
     ).toEqual(["e1", "e2"])
 
     expect(
       nextRecentExerciseSearches(
-        [compactRecentExerciseSearch(squat), compactRecentExerciseSearch(bench)],
+        [
+          compactRecentExerciseSearch(squat),
+          compactRecentExerciseSearch(bench),
+        ],
         bench
       ).map((exercise) => exercise.id)
     ).toEqual(["e2", "e1"])
@@ -86,8 +92,9 @@ describe("recent exercise search helpers", () => {
       ]),
     })
 
-    expect(readRecentExerciseSearches(storage).map((exercise) => exercise.id))
-      .toEqual(["e1", "e2"])
+    expect(
+      readRecentExerciseSearches(storage).map((exercise) => exercise.id)
+    ).toEqual(["e1", "e2"])
 
     const brokenStorage = mockStorage({ [RECENT_KEY]: "not-json" })
     expect(readRecentExerciseSearches(brokenStorage)).toEqual([])
@@ -129,10 +136,13 @@ describe("recent exercise search helpers", () => {
     })
 
     expect(
-      rememberRecentExerciseSearch(bench, storage).map((exercise) => exercise.id)
+      rememberRecentExerciseSearch(bench, storage).map(
+        (exercise) => exercise.id
+      )
     ).toEqual(["e2", "e1"])
-    expect(readRecentExerciseSearches(storage).map((exercise) => exercise.id))
-      .toEqual(["e2", "e1"])
+    expect(
+      readRecentExerciseSearches(storage).map((exercise) => exercise.id)
+    ).toEqual(["e2", "e1"])
   })
 
   test("hides exercises already added to the current workout", () => {

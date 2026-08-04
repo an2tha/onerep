@@ -11,6 +11,13 @@ import { v } from "convex/values";
 export const PRO_ENTITLEMENT = "OneRep Pro";
 export const MONTHLY_PACKAGE_IDENTIFIER = "monthly";
 
+/**
+ * Stripe is the only platform we sell on. `apple` and `google` remain in the
+ * union solely so Convex can still validate rows written before in-app purchases
+ * were removed — nothing writes them any more, and `subscriptionGrantsAccess`
+ * treats them as inert. Narrow this union once the purge migration in
+ * `convex/migrations.ts` has run to completion in production.
+ */
 export const billingPlatform = v.union(
   v.literal("apple"),
   v.literal("google"),
@@ -64,12 +71,8 @@ export type SubscriptionSource =
   | "stripe_api"
   | "stripe_webhook";
 
-/** Product identifiers, kept identical across the three stores. */
+/** The monthly plan identifier. */
 export const MONTHLY_PRODUCT_ID = "onerep_pro_monthly";
-
-/** Error code surfaced when a store subscription already belongs elsewhere. */
-export const SUBSCRIPTION_OWNED_BY_ANOTHER_ACCOUNT =
-  "SUBSCRIPTION_OWNED_BY_ANOTHER_ACCOUNT";
 
 export type NormalizedSubscriptionStatus = {
   appUserId: string;
@@ -148,23 +151,6 @@ export function storeLabelForPlatform(platform: BillingPlatform): string {
       return "play_store";
     case "stripe":
       return "stripe";
-  }
-}
-
-export function platformForStore(store: string | null | undefined) {
-  switch (store?.toLowerCase()) {
-    case "app_store":
-    case "mac_app_store":
-    case "apple":
-      return "apple" as const;
-    case "play_store":
-    case "google":
-      return "google" as const;
-    case "stripe":
-    case "rc_billing":
-      return "stripe" as const;
-    default:
-      return undefined;
   }
 }
 

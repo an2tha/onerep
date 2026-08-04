@@ -42,6 +42,10 @@ jobs:
             # are fixed, so the gate covers the whole repo.
             bun run turbo run test --filter=datasource --filter=@@repo/ui --filter=@@repo/models --filter=web
             bun run test:convex
+            # The OTA path ships code to devices without a store review, so it
+            # is gated here explicitly rather than waiting for the mobile suite
+            # above to be unblocked.
+            bun run test:ota
         runAs: 0:0
         useTTY: false
         condition: SUCCESSFUL
@@ -106,6 +110,38 @@ jobs:
             value: https://chatty-panda-144.convex.site
           - name: VITE_APP_URL
             value: https://app.onerep.life
+          # Stamps the OTA bundle version into the JS and into dist/version.json.
+          # Monotonic, and never reused: each Pages deploy replaces the site, so
+          # a rollback is a redeploy at a HIGHER version carrying the old code.
+          - name: VITE_BUNDLE_VERSION
+            value: 1.0.@build_number@
+          - name: VITE_BUNDLE_COMMIT
+            value: "@commit_hash@"
+          - name: VITE_OTA_MANIFEST_URL
+            value: https://app.onerep.life/ota/manifest.json
+          - name: VITE_OTA_ORIGIN
+            value: https://app.onerep.life
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
+      # Cuts the OTA zip and manifest into apps/mobile/dist so they ship in the
+      # same Pages deploy as the PWA. Ordering matters: the zip is built from a
+      # staged copy of dist before dist/ota exists, so it never contains itself.
+      #
+      # Node, not Bun: @@capgo/cli is a Node CLI, same constraint as wrangler.
+      - type: CommandStep
+        name: Package OTA bundle
+        runInContainer: true
+        image: node:22-alpine
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+          commands: |
+            set -eu
+            node scripts/ota/build-ota-release.mjs \
+              --dist apps/mobile/dist \
+              --base-url https://app.onerep.life
+        runAs: 0:0
         useTTY: false
         condition: SUCCESSFUL
         optional: false
@@ -132,6 +168,12 @@ jobs:
               2>&1 | tee /tmp/deploy-mobile.log
             grep -q "Deployment complete" /tmp/deploy-mobile.log || {
               echo "wrangler exited without completing a deployment"
+              exit 1
+            }
+            # The OTA manifest is what native devices poll; if the SPA fallback
+            # swallowed it, every install silently stops updating.
+            curl -fsS https://app.onerep.life/ota/manifest.json | grep -q '"version"' || {
+              echo "OTA manifest is not reachable after deploy"
               exit 1
             }
         runAs: 0:0

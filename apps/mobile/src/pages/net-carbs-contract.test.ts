@@ -31,11 +31,7 @@ describe("net carb display mode", () => {
   })
 
   test("every carb display surface derives its label from the mode", () => {
-    for (const source of [
-      NUTRITION_SOURCE,
-      REPORT_SOURCE,
-      APP_SOURCE,
-    ]) {
+    for (const source of [NUTRITION_SOURCE, REPORT_SOURCE, APP_SOURCE]) {
       expect(source).toContain("carbLabel(")
     }
     expect(MEAL_PREP_SOURCE).toContain("carbLabelLower(")

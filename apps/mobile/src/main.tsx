@@ -58,6 +58,7 @@ import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
+import QuickLogPreset from "./pages/QuickLogPreset.tsx"
 import SnapAndLog from "./pages/SnapAndLog.tsx"
 import SearchFoods from "./pages/SearchFoods.tsx"
 import FoodReview from "./pages/FoodReview.tsx"
@@ -81,15 +82,18 @@ import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster, toast } from "@repo/ui"
+import { Capacitor } from "@capacitor/core"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { initializePwaInstallTracking } from "./lib/pwa-install"
 import {
   activateWaitingServiceWorker,
   registerAppServiceWorker,
   reloadWhenServiceWorkerControlsPage,
+  unregisterAppServiceWorker,
   type AppServiceWorkerRegistration,
 } from "./lib/service-worker"
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
+import { OtaLifecycle } from "./components/ota-lifecycle"
 import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
 import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
 import {
@@ -110,6 +114,16 @@ initializePwaInstallTracking()
 function PwaLifecycle() {
   useEffect(() => {
     if (!import.meta.env.PROD) return
+
+    // On native, OtaLifecycle owns updates. A service worker here would keep
+    // serving the previous bundle's index.html and hashed assets out of cache
+    // after the updater swaps the bundle directory, silently defeating it.
+    // Existing installs already registered one, so unregister rather than
+    // simply returning early.
+    if (Capacitor.isNativePlatform()) {
+      void unregisterAppServiceWorker()
+      return
+    }
 
     let disposed = false
     let registration: AppServiceWorkerRegistration | null = null
@@ -701,6 +715,31 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // Reconstructing a session that already happened. Same component in
+        // retro mode; `?sessionId=` edits an existing log, `?preset=` seeds
+        // from a plan, `?health=` seeds from a recorded Apple Health workout.
+        path: "/workout/log/:date",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Retro Log">
+              <ActiveWorkout />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        // The abridged preset logger: sets × reps × weight per exercise, with
+        // "Customize" handing off to the full retro logger above.
+        path: "/workout/log/:date/quick",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Quick Log">
+              <QuickLogPreset />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
         path: "/camera",
         element: (
           <AuthGuard>
@@ -945,6 +984,9 @@ createRoot(document.getElementById("root")!).render(
         <ThemeProvider>
           <PwaLifecycle />
           <ErrorBoundary label="the app">
+            {/* Inside the boundary on purpose: a bundle whose tree crashes
+                must never reach notifyAppReady() and report itself healthy. */}
+            <OtaLifecycle />
             <OfflineSyncIndicator />
             <WidgetDataSync />
             <AppleHealthSync />

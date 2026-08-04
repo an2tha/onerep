@@ -12,15 +12,15 @@ export function filledWaterGlassCount(totalMl: number, goalMl: number): number {
     0,
     Math.min(
       WATER_GLASS_COUNT,
-      Math.floor((totalMl / goalMl) * WATER_GLASS_COUNT + Number.EPSILON),
-    ),
+      Math.floor((totalMl / goalMl) * WATER_GLASS_COUNT + Number.EPSILON)
+    )
   )
 }
 
 export function waterAmountNeededForGlass(
   totalMl: number,
   goalMl: number,
-  glassCount: number,
+  glassCount: number
 ): number {
   return Math.max(0, waterGlassTargetMl(goalMl, glassCount) - totalMl)
 }
