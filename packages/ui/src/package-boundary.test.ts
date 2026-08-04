@@ -65,6 +65,9 @@ describe("@repo/ui package boundary", () => {
       "auth-guard.tsx",
       "auth-shell.tsx",
       "bottom-bar.tsx",
+      // Convex writes and haptics behind the shared sheet and button
+      // primitives; the catalog it edits is app-side.
+      "custom-exercise-sheet.tsx",
       "error-boundary.tsx",
       "food-detail-sheet.tsx",
       // Form coach: camera and MediaRecorder capture, Convex reads and
@@ -74,9 +77,15 @@ describe("@repo/ui package boundary", () => {
       "form-coach-pose-confirm.tsx",
       "form-coach-recorder.tsx",
       "form-coach-review-sheet.tsx",
+      // Backdates a workout against the app's local-date and preset helpers,
+      // with haptics on the day strip.
+      "log-past-workout-sheet.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       "offline-sync-indicator.tsx",
+      // Renders null; drives the native OTA plugin's check/apply/rollback
+      // lifecycle.
+      "ota-lifecycle.tsx",
       // Imperative three.js renderer driving a WebGL canvas and OrbitControls.
       "pose-viewer.tsx",
       "tooltips.tsx",
