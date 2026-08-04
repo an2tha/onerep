@@ -748,7 +748,7 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
-        .query("exercises")
+        .query("customExercises")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db

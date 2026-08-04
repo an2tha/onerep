@@ -5,18 +5,18 @@ The wizard has completed a deep integration of PostHog analytics into the OneRep
 
 > **Action required**: Run `bun add posthog-js @posthog/react` in `apps/mobile` to install the PostHog packages (sandbox restrictions prevented automatic installation). Environment variables have already been written to `.env`.
 
-| Event | Description | File |
-|---|---|---|
-| `user_signed_in` | User successfully signed in with email and password | `src/pages/Login.tsx` |
-| `user_signed_up` | User successfully created a new account | `src/pages/Login.tsx` |
-| `onboarding_completed` | User completed the onboarding flow (age, height, goal) | `src/pages/Onboarding.tsx` |
-| `workout_started` | User started an active workout session | `src/pages/ActiveWorkout.tsx` |
-| `workout_completed` | User finished and saved a workout session | `src/pages/ActiveWorkout.tsx` |
-| `workout_preset_saved` | User saved a workout preset (create or edit) | `src/pages/NewPreset.tsx` |
-| `food_logged` | User added a food item to their diary via search | `src/pages/SearchFoods.tsx` |
-| `food_snap_captured` | User took a photo to identify food via AI snap | `src/pages/SnapAndLog.tsx` |
-| `food_barcode_scanned` | User scanned a barcode and a food was found | `src/pages/SnapAndLog.tsx` |
-| `food_logged_from_camera` | User added a food item via snap or barcode | `src/pages/SnapAndLog.tsx` |
+| Event                     | Description                                            | File                          |
+| ------------------------- | ------------------------------------------------------ | ----------------------------- |
+| `user_signed_in`          | User successfully signed in with email and password    | `src/pages/Login.tsx`         |
+| `user_signed_up`          | User successfully created a new account                | `src/pages/Login.tsx`         |
+| `onboarding_completed`    | User completed the onboarding flow (age, height, goal) | `src/pages/Onboarding.tsx`    |
+| `workout_started`         | User started an active workout session                 | `src/pages/ActiveWorkout.tsx` |
+| `workout_completed`       | User finished and saved a workout session              | `src/pages/ActiveWorkout.tsx` |
+| `workout_preset_saved`    | User saved a workout preset (create or edit)           | `src/pages/NewPreset.tsx`     |
+| `food_logged`             | User added a food item to their diary via search       | `src/pages/SearchFoods.tsx`   |
+| `food_snap_captured`      | User took a photo to identify food via AI snap         | `src/pages/SnapAndLog.tsx`    |
+| `food_barcode_scanned`    | User scanned a barcode and a food was found            | `src/pages/SnapAndLog.tsx`    |
+| `food_logged_from_camera` | User added a food item via snap or barcode             | `src/pages/SnapAndLog.tsx`    |
 
 ## Next steps
 

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs"
 
 const SEARCH_FOODS_SOURCE = readFileSync(
   new URL("./SearchFoods.tsx", import.meta.url),
-  "utf8",
+  "utf8"
 )
 
 describe("Search foods accessibility contract", () => {
@@ -18,14 +18,6 @@ describe("Search foods accessibility contract", () => {
     expect(SEARCH_FOODS_SOURCE).toContain('type="button"')
   })
 
-  test("meal selection sheet actions are explicit buttons", () => {
-    expect(SEARCH_FOODS_SOURCE).toContain("key={cat.id}")
-    expect(SEARCH_FOODS_SOURCE).toContain('type="button"')
-    expect(SEARCH_FOODS_SOURCE).toContain("await onSelect(cat.id)")
-    expect(SEARCH_FOODS_SOURCE).toContain("disabled={Boolean(savingMeal)}")
-    expect(SEARCH_FOODS_SOURCE).toContain("aria-busy={savingMeal === cat.id}")
-  })
-
   test("idle search state exposes recent and popular suggestions", () => {
     expect(SEARCH_FOODS_SOURCE).toContain("readRecentFoodSearches")
     expect(SEARCH_FOODS_SOURCE).toContain("nextRecentFoodSearches")
@@ -36,21 +28,19 @@ describe("Search foods accessibility contract", () => {
     expect(SEARCH_FOODS_SOURCE).toContain("SearchSuggestionGroup")
   })
 
-  test("quick add meal selection waits for offline persistence before closing", () => {
-    expect(SEARCH_FOODS_SOURCE).toContain(
-      "onSelect={async (meal) => {",
-    )
-    expect(SEARCH_FOODS_SOURCE).toContain("await handleAdd(")
-    expect(SEARCH_FOODS_SOURCE).toContain("setPendingItem(null)")
-    expect(SEARCH_FOODS_SOURCE).toContain("reportOfflineMutationError(error)")
+  test("the add button opens the same portion review as the card body", () => {
+    // Both the card and its "+" go through openFoodReview so a food is never
+    // logged at a guessed portion without the user picking one.
+    expect(SEARCH_FOODS_SOURCE).toContain("openFoodReview(item)")
+    expect(SEARCH_FOODS_SOURCE).not.toContain("MealSelectSheet")
   })
 
   test("food add persistence is single flight and exposes busy state", () => {
     expect(SEARCH_FOODS_SOURCE).toContain(
-      "const addingFoodRef = useRef<string | null>(null)",
+      "const addingFoodRef = useRef<string | null>(null)"
     )
     expect(SEARCH_FOODS_SOURCE).toContain(
-      "const [addingFoodId, setAddingFoodId] = useState<string | null>(null)",
+      "const [addingFoodId, setAddingFoodId] = useState<string | null>(null)"
     )
     expect(SEARCH_FOODS_SOURCE).toContain("if (addingFoodRef.current) return")
     expect(SEARCH_FOODS_SOURCE).toContain("addingFoodRef.current = item.id")
@@ -58,7 +48,7 @@ describe("Search foods accessibility contract", () => {
     expect(SEARCH_FOODS_SOURCE).toContain("addingFoodRef.current = null")
     expect(SEARCH_FOODS_SOURCE).toContain("setAddingFoodId(null)")
     expect(SEARCH_FOODS_SOURCE).toContain(
-      "disabled={isAdded || addingFoodId !== null}",
+      "disabled={isAdded || addingFoodId !== null}"
     )
     expect(SEARCH_FOODS_SOURCE).toContain("aria-busy={isAdding}")
     expect(SEARCH_FOODS_SOURCE).toContain("hapticSelection()")

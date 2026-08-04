@@ -34,6 +34,29 @@ export function isLinkableActivity(activityType: string): boolean {
   return LINKABLE_ACTIVITY_TYPES.has(activityType);
 }
 
+/**
+ * Activity types that represent lifting rather than cardio.
+ *
+ * These are the inverse of the linkable set: HealthKit knows the session
+ * happened and how long it lasted, but carries no exercises, so promoting one
+ * automatically would produce an empty log. Instead they seed the retro logger,
+ * where the user supplies what they actually did.
+ */
+const STRENGTH_ACTIVITY_TYPES = new Set([
+  "traditionalStrengthTraining",
+  "functionalStrengthTraining",
+  "coreTraining",
+]);
+
+export function isStrengthActivity(activityType: string): boolean {
+  return STRENGTH_ACTIVITY_TYPES.has(activityType);
+}
+
+/** The session id a health workout always promotes onto, linked or not. */
+export function healthSessionId(externalId: string) {
+  return `apple-health:${externalId}`;
+}
+
 const appleHealthWorkoutValidator = v.object({
   uuid: v.string(),
   activityType: v.string(),
@@ -194,7 +217,143 @@ export const list = query({
         sourceName: row.sourceName,
         linked: row.linkedSessionId !== undefined,
         linkable: isLinkableActivity(row.activityType),
+        // Recorded lifting with nothing to promote — the retro logger's cue.
+        needsExercises:
+          isStrengthActivity(row.activityType) &&
+          row.linkedSessionId === undefined,
       }));
+  },
+});
+
+// ── unlogged ──────────────────────────────────────────────────────────────────
+
+/**
+ * Recorded strength sessions with no training log behind them.
+ *
+ * Feeds the "you trained Tuesday — what did you do?" prompt. Dates that already
+ * hold two sessions are filtered out so the nudge never offers a workout that
+ * cannot be saved.
+ */
+export const unlogged = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return [];
+    const limit = Math.min(Math.max(args.limit ?? 3, 1), 5);
+
+    const rows = await ctx.db
+      .query("healthWorkouts")
+      .withIndex("by_userId_and_startedAt", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .take(30);
+
+    const candidates = rows
+      .filter(
+        (row) =>
+          row.dismissedAt === undefined &&
+          row.linkedSessionId === undefined &&
+          isStrengthActivity(row.activityType),
+      )
+      // Bound the per-date slot reads below rather than scanning every match.
+      .slice(0, limit * 2);
+
+    const results = [];
+    for (const row of candidates) {
+      if (results.length >= limit) break;
+      const slot = await findFreeWorkoutSlot(
+        ctx,
+        user._id,
+        row.date,
+        healthSessionId(row.externalId),
+      );
+      if (slot === null) continue;
+      results.push({
+        _id: row._id,
+        externalId: row.externalId,
+        activityName: row.activityName,
+        date: row.date,
+        startedAt: row.startedAt,
+        endedAt: row.endedAt,
+        durationSeconds: row.durationSeconds,
+        activeEnergyKcal: row.activeEnergyKcal,
+        avgHeartRateBpm: row.avgHeartRateBpm,
+        sourceName: row.sourceName,
+        slot,
+      });
+    }
+    return results;
+  },
+});
+
+// ── getById ───────────────────────────────────────────────────────────────────
+
+/** Seeds the retro logger with a recorded session's date, duration and end. */
+export const getById = query({
+  args: { id: v.id("healthWorkouts") },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    const row = await ctx.db.get(args.id);
+    if (!row || row.userId !== user._id) return null;
+    return {
+      _id: row._id,
+      externalId: row.externalId,
+      sessionId: healthSessionId(row.externalId),
+      activityType: row.activityType,
+      activityName: row.activityName,
+      date: row.date,
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
+      durationSeconds: row.durationSeconds,
+      activeEnergyKcal: row.activeEnergyKcal,
+      avgHeartRateBpm: row.avgHeartRateBpm,
+      sourceName: row.sourceName,
+      linked: row.linkedSessionId !== undefined,
+    };
+  },
+});
+
+// ── attachToLog ───────────────────────────────────────────────────────────────
+
+/**
+ * Records that a retro-logged session covers this recorded workout.
+ *
+ * Separate from `linkToTrainingLog`: that mutation *creates* a cardio log,
+ * whereas here the user has already written the log by hand and this only marks
+ * the linkage so the nudge stops offering it and a re-sync stays idempotent.
+ */
+export const attachToLog = mutation({
+  args: {
+    id: v.id("healthWorkouts"),
+    sessionId: v.string(),
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const workout = await ctx.db.get(args.id);
+    if (!workout || workout.userId !== user._id) {
+      throw new Error("Health workout not found");
+    }
+
+    const log = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_and_date_and_sessionId", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("date", args.date)
+          .eq("sessionId", args.sessionId),
+      )
+      .unique();
+    if (!log) throw new Error("No workout log to attach to");
+
+    await ctx.db.patch(args.id, {
+      linkedSessionId: args.sessionId,
+      linkedDate: args.date,
+      updatedAt: Date.now(),
+    });
+    return { ok: true };
   },
 });
 

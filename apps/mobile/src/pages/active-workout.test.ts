@@ -16,6 +16,9 @@ import { readFileSync } from "node:fs"
 
 const ACTIVE_WORKOUT_SOURCE = [
   "./ActiveWorkout.tsx",
+  // The pure core — types, unit/plate math, draft storage, and the timers —
+  // was extracted here so the retro logger can share it.
+  "../lib/workout-logging.ts",
   "../../../../packages/ui/src/components/workout-controls.tsx",
 ]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
@@ -385,9 +388,7 @@ describe("active workout sync production safeguards", () => {
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain('role="status"')
     expect(ACTIVE_WORKOUT_SOURCE).toContain('aria-live="polite"')
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      'aria-label="Save workout again"'
-    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain('aria-label="Save workout again"')
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "onClick={() => syncToConvex({ immediate: true })}"
     )
@@ -464,7 +465,7 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain("type LocalActiveWorkoutDraft")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("ACTIVE_WORKOUT_DRAFT_PREFIX")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("readActiveWorkoutDraft(slot)")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("writeActiveWorkoutDraft({")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("writeActiveWorkoutDraft(")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("clearActiveWorkoutDraft(slot)")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("You have an active workout")
     expect(ACTIVE_WORKOUT_SOURCE).toContain("Resume workout")
@@ -481,8 +482,10 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "safeLocalStorageRemove(storageKey)"
     )
+    // Retro mode points the hook at a key no live session uses, so it can
+    // never resume someone else's rest timer.
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "const rest = useRestCountdown(restTimerKey(slot))"
+      "isRetro ? `${REST_TIMER_PREFIX}retro` : restTimerKey(slot)"
     )
   })
 
@@ -512,9 +515,7 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       'dropActive && "border-foreground/35"'
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "min-w-0 flex-1 text-center"
-    )
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("min-w-0 flex-1 text-center")
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "grid-cols-[3.25rem_minmax(0,1fr)_3.25rem]"
     )

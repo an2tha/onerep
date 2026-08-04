@@ -52,7 +52,6 @@ export function AiAccessRequiredModal({
   isNative,
   onClose,
   onOpenPaywall,
-  onRestore,
   onOpenSettings,
 }: {
   open: boolean
@@ -63,10 +62,10 @@ export function AiAccessRequiredModal({
   freeLimit?: number | null
   proLimit?: number | null
   usedCount?: number | null
+  /** Native builds cannot buy: Pro is sold on the web through Stripe only. */
   isNative?: boolean
   onClose: () => void
   onOpenPaywall: () => void
-  onRestore: () => void
   onOpenSettings: () => void
 }) {
   if (!open) return null
@@ -152,32 +151,37 @@ export function AiAccessRequiredModal({
       </div>
 
       <div className="paywall-footer">
-        <button
-          type="button"
-          onClick={onOpenPaywall}
-          disabled={busy}
-          aria-busy={busy}
-          className="paywall-cta"
-        >
-          {busy ? "Starting checkout…" : "Continue"}
-          {!busy && <ArrowRight size={16} weight="bold" aria-hidden="true" />}
-        </button>
-
-        {isNative && (
-          <p className="paywall-secure">
-            <ShieldCheck size={13} weight="fill" aria-hidden="true" />
-            Secured with the App Store
+        {isNative ? (
+          <p className="paywall-note">
+            OneRep Pro is managed on the OneRep website. Subscribe there and
+            your access appears here automatically.
           </p>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={onOpenPaywall}
+              disabled={busy}
+              aria-busy={busy}
+              className="paywall-cta"
+            >
+              {busy ? "Starting checkout…" : "Continue"}
+              {!busy && (
+                <ArrowRight size={16} weight="bold" aria-hidden="true" />
+              )}
+            </button>
+
+            <p className="paywall-secure">
+              <ShieldCheck size={13} weight="fill" aria-hidden="true" />
+              Secured with Stripe
+            </p>
+          </>
         )}
 
         <div className="paywall-legal">
           <a href={PRIVACY_URL} target="_blank" rel="noreferrer">
             Privacy
           </a>
-          <span aria-hidden="true">|</span>
-          <button type="button" onClick={onRestore} disabled={busy}>
-            Restore Purchases
-          </button>
           <span aria-hidden="true">|</span>
           <a href={TERMS_URL} target="_blank" rel="noreferrer">
             Terms
@@ -273,28 +277,6 @@ export function useAiFeatureGate() {
             setPaywallBusy(false)
           }
         })()
-      }}
-      onRestore={() => {
-        if (paywallBusy) return
-        setPaywallBusy(true)
-        void billing
-          .restorePurchases()
-          .then(() => billing.refresh())
-          .then((customerInfo) => {
-            if (hasOneRepPro(customerInfo)) {
-              celebrateSubscription()
-            } else {
-              toast.message("No active Pro subscription found")
-            }
-          })
-          .catch((error) => {
-            const message =
-              error instanceof Error && error.message
-                ? error.message
-                : "Could not restore purchases"
-            if (message !== "Purchase canceled") toast.error(message)
-          })
-          .finally(() => setPaywallBusy(false))
       }}
       onOpenSettings={() => {
         setModalOpen(false)

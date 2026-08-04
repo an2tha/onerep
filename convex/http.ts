@@ -1,10 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import {
-  appleNotifications,
-  googleRtdn,
-  stripeWebhook,
-} from "./billing/webhooks";
+import { stripeWebhook } from "./billing/webhooks";
 import {
   authComponent,
   createAuth,
@@ -65,16 +61,6 @@ http.route({
   path: "/billing/stripe/webhook",
   method: "POST",
   handler: stripeWebhook,
-});
-http.route({
-  path: "/billing/apple/notifications",
-  method: "POST",
-  handler: appleNotifications,
-});
-http.route({
-  path: "/billing/google/rtdn",
-  method: "POST",
-  handler: googleRtdn,
 });
 
 export default http;

@@ -20,3 +20,30 @@ describe("Capacitor production config", () => {
     expect(config.plugins?.CapacitorCookies).toEqual({ enabled: true })
   })
 })
+
+describe("OTA updater config", () => {
+  const updater = () => config.plugins?.CapacitorUpdater
+
+  test("never auto-downloads: the app owns fetch, gating, and apply", () => {
+    expect(updater()?.autoUpdate).toBe(false)
+  })
+
+  test("is fully self-hosted: no request reaches the Capgo service", () => {
+    expect(updater()?.updateUrl).toBe("")
+    expect(updater()?.statsUrl).toBe("")
+  })
+
+  test("gives a cold start room to mount before the rollback timer fires", () => {
+    const timeout = updater()?.appReadyTimeout
+    expect(typeof timeout).toBe("number")
+    expect(timeout).toBeGreaterThanOrEqual(15000)
+  })
+
+  test("drops OTA bundles when a store update replaces the native shell", () => {
+    expect(updater()?.resetWhenUpdate).toBe(true)
+  })
+
+  test("forbids runtime rewrites of the update source", () => {
+    expect(updater()?.allowModifyUrl).toBe(false)
+  })
+})

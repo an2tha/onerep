@@ -718,12 +718,25 @@ describe("meal category localStorage helpers", () => {
 })
 
 describe("mergeCustomMealCategories", () => {
-  const local = { id: "pre_workout_1", label: "Pre-workout", color: "c1", bg: "b1" }
-  const server = { id: "second_dinner_2", label: "Second dinner", color: "c2", bg: "b2" }
+  const local = {
+    id: "pre_workout_1",
+    label: "Pre-workout",
+    color: "c1",
+    bg: "b1",
+  }
+  const server = {
+    id: "second_dinner_2",
+    label: "Second dinner",
+    color: "c2",
+    bg: "b2",
+  }
 
   test("server categories come first and local-only ones are kept", () => {
     const { merged, needsPush } = mergeCustomMealCategories([local], [server])
-    expect(merged.map((c) => c.id)).toEqual(["second_dinner_2", "pre_workout_1"])
+    expect(merged.map((c) => c.id)).toEqual([
+      "second_dinner_2",
+      "pre_workout_1",
+    ])
     // The local-only category is not on the server yet, so it must be pushed.
     expect(needsPush).toBe(true)
   })

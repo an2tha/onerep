@@ -7,7 +7,7 @@
  * dependency.
  */
 import { api } from "./_generated/api";
-import { action, env, query } from "./_generated/server";
+import { action, query } from "./_generated/server";
 
 export const getStatus = query({
   args: {},
@@ -16,7 +16,10 @@ export const getStatus = query({
     return {
       ...result,
       checkoutUrl: null,
-      nativeSdkKey: env.REVENUECAT_PUBLIC_SDK_KEY ?? null,
+      // Withheld deliberately. In-app purchases are gone, so an older build
+      // that still ships a store SDK must not be handed a key to configure it
+      // with — it would offer a purchase the server will no longer honour.
+      nativeSdkKey: null,
     };
   },
 });

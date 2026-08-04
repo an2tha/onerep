@@ -22,6 +22,11 @@ export function estimate1RM(weight: number, reps: number): number {
 }
 
 /** Returns percentage breakdowns of an estimated 1RM. */
-export function orm1RMBreakdown(orm: number): Array<{ pct: number; weight: number }> {
-  return [100, 90, 80, 70, 60].map((pct) => ({ pct, weight: (orm * pct) / 100 }))
+export function orm1RMBreakdown(
+  orm: number
+): Array<{ pct: number; weight: number }> {
+  return [100, 90, 80, 70, 60].map((pct) => ({
+    pct,
+    weight: (orm * pct) / 100,
+  }))
 }

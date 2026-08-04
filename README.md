@@ -173,21 +173,22 @@ VITE_PUBLIC_POSTHOG_HOST=
 
 The app opts out by default and only captures events after the user enables analytics.
 
-### RevenueCat
+### Subscriptions
 
-Subscriptions use RevenueCat's native SDK, web checkout, server API, and Convex webhook component. Configure the parts needed for the platform you are testing:
+OneRep Pro is sold through Stripe Checkout on the web only — there is no in-app purchase path on iOS or Android, and the apps ship no store billing SDK. Convex owns entitlement and reads it back from Stripe's API and webhook.
 
 ```env
-REVENUECAT_SECRET_KEY=
-REVENUECAT_API_V2_SECRET_KEY=
-REVENUECAT_PROJECT_ID=
-REVENUECAT_PUBLIC_SDK_KEY=
-REVENUECAT_WEB_CHECKOUT_URL=
-REVENUECAT_WEBHOOK_AUTH=
-REVENUECAT_MONTHLY_PRICE_LABEL="$9.99/month"
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_ID_MONTHLY=
+BILLING_MONTHLY_PRICE_LABEL="$9.99/month"
+BILLING_CHECKOUT_SUCCESS_URL=https://app.onerep.life/settings#success
+BILLING_CHECKOUT_CANCEL_URL=https://app.onerep.life/settings#failed
+# Optional: grants Pro to every account, for testing or an incident comp.
+BILLING_COMP_ALL_USERS=
 ```
 
-All of these are Convex deployment variables.
+All of these are Convex deployment variables. Point the Stripe webhook at `/billing/stripe/webhook` on your Convex HTTP URL.
 
 ## Native apps
 

@@ -371,4 +371,129 @@ describe("healthWorkouts", () => {
       "manual-after",
     ]);
   });
+  // ── Recorded lifting the user still has to describe ────────────────────────
+
+  test("a recorded lift is flagged as needing exercises, not as linkable", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|needs-exercises" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT],
+    });
+
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+    expect(row.needsExercises).toBe(true);
+    expect(row.linkable).toBe(false);
+  });
+
+  test("unlogged offers recorded lifts and drops them once handled", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|unlogged" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT, RUN],
+    });
+
+    // A run is promotable on its own, so it is not something to describe.
+    const pending = await user.query(api.logs.healthWorkouts.unlogged, {});
+    expect(pending).toHaveLength(1);
+    expect(pending[0].externalId).toBe("hk-lift-1");
+    expect(pending[0].durationSeconds).toBe(3600);
+
+    await user.mutation(api.logs.healthWorkouts.dismiss, {
+      id: pending[0]._id,
+    });
+    expect(await user.query(api.logs.healthWorkouts.unlogged, {})).toEqual([]);
+  });
+
+  test("unlogged skips a date that already holds two sessions", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|unlogged-full" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT],
+    });
+
+    for (const sessionId of ["one", "two"]) {
+      await user.mutation(api.logs.workouts.completion, {
+        date: LIFT.date,
+        sessionId,
+        slot: sessionId === "one" ? 1 : 2,
+        durationSeconds: 600,
+        exercises: [],
+      });
+    }
+
+    expect(await user.query(api.logs.healthWorkouts.unlogged, {})).toEqual([]);
+  });
+
+  test("a hand-written log attaches to its recorded workout and stays idempotent", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|attach" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT],
+    });
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+    const seed = await user.query(api.logs.healthWorkouts.getById, {
+      id: row._id,
+    });
+    expect(seed?.sessionId).toBe("apple-health:hk-lift-1");
+
+    await user.mutation(api.logs.workouts.completion, {
+      date: LIFT.date,
+      sessionId: seed!.sessionId,
+      slot: 1,
+      durationSeconds: seed!.durationSeconds,
+      exercises: [{ id: "squat", name: "Squat", sets: [] }],
+      completedAt: seed!.endedAt,
+    });
+    await user.mutation(api.logs.healthWorkouts.attachToLog, {
+      id: row._id,
+      sessionId: seed!.sessionId,
+      date: LIFT.date,
+    });
+
+    expect(await user.query(api.logs.healthWorkouts.unlogged, {})).toEqual([]);
+
+    // A re-sync followed by a re-save must not create a second log.
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT],
+    });
+    await user.mutation(api.logs.workouts.completion, {
+      date: LIFT.date,
+      sessionId: seed!.sessionId,
+      slot: 1,
+      durationSeconds: seed!.durationSeconds,
+      exercises: [
+        { id: "squat", name: "Squat", sets: [] },
+        { id: "row", name: "Row", sets: [] },
+      ],
+      completedAt: seed!.endedAt,
+    });
+
+    const logs = await user.query(api.logs.workouts.getLog, {
+      date: LIFT.date,
+    });
+    expect(logs).toHaveLength(1);
+    expect(logs[0].exercises).toHaveLength(2);
+  });
+
+  test("attachToLog refuses to link a workout that was never logged", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|attach-missing" });
+    await grantConsent(user);
+    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      workouts: [LIFT],
+    });
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+
+    await expect(
+      user.mutation(api.logs.healthWorkouts.attachToLog, {
+        id: row._id,
+        sessionId: "apple-health:hk-lift-1",
+        date: LIFT.date,
+      }),
+    ).rejects.toThrow(/no workout log/i);
+  });
 });

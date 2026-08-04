@@ -29,6 +29,11 @@ export function isProCompedForEveryone() {
 /**
  * Whether a stored platform subscription currently grants the entitlement.
  *
+ * Stripe is the only platform that can grant Pro. In-app purchases were removed
+ * outright, so App Store and Play rows left over from that era are inert here
+ * regardless of what state they were last seen in; the purge migration in
+ * `convex/migrations.ts` deletes them.
+ *
  * Rows imported from the previous billing provider carry a
  * `grandfatheredUntil` timestamp. Inside that window they grant access even if
  * the platform now reports otherwise — wrongly revoking a paying customer is
@@ -38,6 +43,7 @@ export function subscriptionGrantsAccess(
   subscription: Doc<"billingSubscriptions">,
   now: number,
 ): boolean {
+  if (subscription.platform !== "stripe") return false;
   if (
     stateGrantsAccess(
       subscription.state,

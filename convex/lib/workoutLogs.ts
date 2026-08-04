@@ -9,7 +9,49 @@ export type WorkoutLogWrite = {
   slot?: 1 | 2;
   exercises: Doc<"workoutLogs">["exercises"];
   durationSeconds: number;
+  /**
+   * When the session actually finished. Omit for a live completion; supply it
+   * when reconstructing a past workout so the log does not claim the user
+   * trained at the moment they got around to typing it in.
+   */
+  completedAt?: number;
 };
+
+/**
+ * The widest instant that can plausibly belong to a local calendar date.
+ *
+ * `date` is a *local* day computed on the client, but the server has no
+ * timezone to resolve it against. Anchoring at UTC midnight and widening by the
+ * UTC-12…UTC+14 offset range accepts every legitimate client while still
+ * rejecting a timestamp from an unrelated week.
+ */
+function calendarDateWindow(date: string): { start: number; end: number } | null {
+  const midnightUtc = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isFinite(midnightUtc)) return null;
+  const HOUR = 3_600_000;
+  return { start: midnightUtc - 14 * HOUR, end: midnightUtc + 38 * HOUR };
+}
+
+/**
+ * Keeps a client-supplied `completedAt` inside its calendar day and out of the
+ * future. Ordering and "when did I train" both read this field, so it is
+ * clamped rather than trusted.
+ */
+export function clampCompletedAt(
+  date: string,
+  completedAt: number | undefined,
+  now: number,
+): number {
+  if (completedAt === undefined || !Number.isFinite(completedAt)) return now;
+  const window = calendarDateWindow(date);
+  if (!window) return now;
+
+  const upper = Math.min(window.end, now);
+  // A future-dated log has no valid instant to land on; fall back to the write
+  // time rather than silently backdating it to the window's edge.
+  if (upper < window.start) return now;
+  return Math.min(Math.max(completedAt, window.start), upper);
+}
 
 /**
  * Finds the session a write should land on.
@@ -60,7 +102,8 @@ export async function upsertWorkoutLog(
     args.sessionId,
     args.hasExplicitSessionId ?? true,
   );
-  const completedAt = Date.now();
+  const now = Date.now();
+  const completedAt = clampCompletedAt(args.date, args.completedAt, now);
 
   if (existing) {
     await ctx.db.patch(existing._id, {
@@ -68,7 +111,9 @@ export async function upsertWorkoutLog(
       ...(args.slot === undefined ? {} : { slot: args.slot }),
       exercises: args.exercises,
       durationSeconds: args.durationSeconds,
-      completedAt,
+      // Editing a saved workout must not restamp when it happened. Only an
+      // explicit `completedAt` moves it.
+      ...(args.completedAt === undefined ? {} : { completedAt }),
     });
     return existing._id;
   }

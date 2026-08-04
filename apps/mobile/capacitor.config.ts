@@ -24,6 +24,34 @@ const config: CapacitorConfig = {
     CapacitorCookies: {
       enabled: true,
     },
+    // Over-the-air web bundle updates. src/lib/ota.ts owns the whole flow:
+    // it fetches our own manifest from Cloudflare Pages, decides whether the
+    // bundle is newer and whether this native shell is new enough to run it,
+    // then downloads and stages it. The plugin never initiates anything.
+    CapacitorUpdater: {
+      autoUpdate: false,
+      // Empty so no request can reach Capgo's hosted service even if a future
+      // default flips autoUpdate back on.
+      updateUrl: "",
+      statsUrl: "",
+      // notifyAppReady() only fires after React commits two frames. A cold
+      // start on a slow device has to mount the tree and hydrate Convex auth
+      // first; the 10s default is tight, 20s still reverts a genuinely broken
+      // bundle within one relaunch.
+      appReadyTimeout: 20000,
+      responseTimeout: 30,
+      // A store update ships new native code with new builtin web assets.
+      // Dropping OTA bundles is the only state whose JS is guaranteed to match
+      // the new plugin surface.
+      resetWhenUpdate: true,
+      autoDeleteFailed: true,
+      autoDeletePrevious: true,
+      // set() reloads the WebView; without this the user lands back on "/".
+      keepUrlPathAfterReload: true,
+      // The JS side must never be able to repoint where updates come from.
+      allowModifyUrl: false,
+      directUpdate: false,
+    },
   },
 }
 

@@ -51,12 +51,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       CONVEX_AUTH_HANDOFF_TIMEOUT_MS
     )
     return () => window.clearTimeout(timeout)
-  }, [
-    authServiceConfigured,
-    convexAuth.isAuthenticated,
-    isLoaded,
-    isSignedIn,
-  ])
+  }, [authServiceConfigured, convexAuth.isAuthenticated, isLoaded, isSignedIn])
 
   useEffect(() => {
     if (!isLoaded || convexAuth.isLoading || convexAuth.isAuthenticated) return

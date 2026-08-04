@@ -11,10 +11,10 @@
 
 /** Approximate MET values by exercise category */
 export const MET_BY_CATEGORY: Record<string, number> = {
-  strength: 5.0,   // General weight training
-  cardio: 8.0,     // Vigorous cardio / running
-  mobility: 2.5,   // Yoga / stretching
-  core: 3.5,       // Core-focused circuit
+  strength: 5.0, // General weight training
+  cardio: 8.0, // Vigorous cardio / running
+  mobility: 2.5, // Yoga / stretching
+  core: 3.5, // Core-focused circuit
 }
 
 const DEFAULT_WEIGHT_KG = 75
@@ -52,12 +52,9 @@ export function estimateWorkoutCalories({
  * Sum burned calories across multiple workout sessions on the same day.
  */
 export function totalDayWorkoutCalories(
-  sessions: WorkoutCaloriesInput[],
+  sessions: WorkoutCaloriesInput[]
 ): number {
-  return sessions.reduce(
-    (sum, s) => sum + estimateWorkoutCalories(s),
-    0,
-  )
+  return sessions.reduce((sum, s) => sum + estimateWorkoutCalories(s), 0)
 }
 
 /**
@@ -67,7 +64,7 @@ export function totalDayWorkoutCalories(
 export function adjustedCalorieTarget(
   baseTarget: number,
   burnedCalories: number,
-  floor = 1200,
+  floor = 1200
 ): number {
   return Math.max(floor, baseTarget + burnedCalories)
 }

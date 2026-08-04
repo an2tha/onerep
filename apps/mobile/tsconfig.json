@@ -2,7 +2,7 @@
   "files": [],
   "references": [
     { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" },
+    { "path": "./tsconfig.node.json" }
   ],
   "extends": "../../tsconfig.json",
   "compilerOptions": {
@@ -10,8 +10,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@repo/ui": ["../../packages/ui/src/index.ts"],
-      "@repo/ui/*": ["../../packages/ui/src/*"],
+      "@repo/ui/*": ["../../packages/ui/src/*"]
     },
-    "types": ["node", "bun-types"],
-  },
+    "types": ["node", "bun-types"]
+  }
 }

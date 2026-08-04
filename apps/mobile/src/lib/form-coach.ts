@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { Capacitor } from "@capacitor/core"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -7,6 +8,7 @@ import {
   type Landmark,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision"
+import { otaOrigin } from "@/lib/ota"
 import { smoothFormCoachLandmarks } from "@/lib/pose-smoothing"
 import {
   applyOrientation,
@@ -153,7 +155,18 @@ export const MAX_COACH_STILLS = 5
 const WASM_BASE =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
 
-const POSE_MODEL_PATH = "/pose_landmarker_lite.task"
+/**
+ * Absolute on native, root-relative on web.
+ *
+ * The 5.7 MB model is excluded from OTA bundles — shipping it in every update
+ * would roughly triple the download to preserve an offline guarantee this
+ * feature does not have anyway, since the wasm above already comes from a CDN.
+ * A root-relative path would resolve inside the swapped bundle directory and
+ * 404 after the first update, so native must name the origin explicitly.
+ */
+const POSE_MODEL_PATH = Capacitor.isNativePlatform()
+  ? `${otaOrigin()}/pose_landmarker_lite.task`
+  : "/pose_landmarker_lite.task"
 
 /**
  * One landmarker per running mode. Videos and stills need different modes, and

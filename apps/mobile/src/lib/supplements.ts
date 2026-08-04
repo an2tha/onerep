@@ -252,8 +252,7 @@ export type SupplementNutrientKey = (typeof SUPPLEMENT_NUTRIENT_KEYS)[number]
 export type SupplementSpecificNutrientKey =
   (typeof SUPPLEMENT_SPECIFIC_NUTRIENT_KEYS)[number]
 export type NutritionSummaryKey =
-  | FoodMicronutrientKey
-  | SupplementSpecificNutrientKey
+  FoodMicronutrientKey | SupplementSpecificNutrientKey
 
 export const SUPPLEMENT_SUMMARY_NUTRIENT_KEYS = [
   ...FOOD_MICRONUTRIENT_KEYS,
@@ -400,8 +399,16 @@ const OPEN_FOOD_FACTS_TO_SUPPLEMENT: Partial<
   caffeine: { detailKey: "caffeine", sourceUnit: "mg", targetUnit: "mg" },
   alcohol: { detailKey: "alcohol", sourceUnit: "g", targetUnit: "g" },
   omega3: { detailKey: "omega-3-fat", sourceUnit: "mg", targetUnit: "mg" },
-  epa: { detailKey: "eicosapentaenoic-acid", sourceUnit: "mg", targetUnit: "mg" },
-  dha: { detailKey: "docosahexaenoic-acid", sourceUnit: "mg", targetUnit: "mg" },
+  epa: {
+    detailKey: "eicosapentaenoic-acid",
+    sourceUnit: "mg",
+    targetUnit: "mg",
+  },
+  dha: {
+    detailKey: "docosahexaenoic-acid",
+    sourceUnit: "mg",
+    targetUnit: "mg",
+  },
 }
 
 export type SupplementDayPlanItem = {
@@ -429,11 +436,7 @@ function roundNutrient(value: number) {
   return Math.round(value * 100) / 100
 }
 
-function normalizeMass(
-  value: number,
-  fromUnit: string,
-  toUnit: NutrientUnit
-) {
+function normalizeMass(value: number, fromUnit: string, toUnit: NutrientUnit) {
   if (toUnit === "kcal") return value
   const normalized = fromUnit.toLowerCase().replace("µ", "u").trim()
   const inMg =
@@ -535,7 +538,8 @@ export function mergeNutritionTotals(
 ): Partial<Record<NutritionSummaryKey, number>> {
   const totals: Partial<Record<NutritionSummaryKey, number>> = {}
   for (const key of SUPPLEMENT_SUMMARY_NUTRIENT_KEYS) {
-    const food = key in foodTotals ? (foodTotals[key as FoodMicronutrientKey] ?? 0) : 0
+    const food =
+      key in foodTotals ? (foodTotals[key as FoodMicronutrientKey] ?? 0) : 0
     const supplement = supplementTotals[key] ?? 0
     const total = food + supplement
     if (total > 0) totals[key] = roundNutrient(total)
@@ -597,7 +601,8 @@ export function supplementTotals(entries: SupplementLogEntry[]) {
     (acc, kind) => {
       acc[kind] = entries
         .filter((entry) => {
-          const entryKind = entry.kind ?? categoryToSupplementKind(entry.category)
+          const entryKind =
+            entry.kind ?? categoryToSupplementKind(entry.category)
           return entryKind === kind && (entry.status ?? "taken") === "taken"
         })
         .reduce((sum, entry) => sum + entry.amount, 0)
@@ -743,7 +748,8 @@ export function buildSupplementDayPlan({
         ? "taken"
         : hasSkipped
           ? "skipped"
-          : isScheduled && (isPast || preferredTimePassed(date, item.schedule, now))
+          : isScheduled &&
+              (isPast || preferredTimePassed(date, item.schedule, now))
             ? "missed"
             : isScheduled
               ? "due"
@@ -824,10 +830,16 @@ function nutrientFromDetail(
 ) {
   const mapping = OPEN_FOOD_FACTS_TO_SUPPLEMENT[key]
   if (!mapping) return 0
-  const row = allNutrientRows(detail).find((item) => item.key === mapping.detailKey)
+  const row = allNutrientRows(detail).find(
+    (item) => item.key === mapping.detailKey
+  )
   if (!row || row.per100g <= 0) return 0
   const scaled = (row.per100g * servingGrams) / 100
-  return normalizeMass(scaled, row.unit || mapping.sourceUnit, mapping.targetUnit)
+  return normalizeMass(
+    scaled,
+    row.unit || mapping.sourceUnit,
+    mapping.targetUnit
+  )
 }
 
 function inferCategoryFromText(text: string): SupplementCategory {
@@ -897,7 +909,12 @@ export function supplementDraftFromFoodResult(
     servingGrams: servingGramsFromFoodResult(result),
     servingLabel: result.serving,
     nutrients: [
-      { key: "energy", name: "Calories", per100g: result.calories, unit: "kcal" },
+      {
+        key: "energy",
+        name: "Calories",
+        per100g: result.calories,
+        unit: "kcal",
+      },
       { key: "protein", name: "Protein", per100g: result.protein, unit: "g" },
       { key: "carbs", name: "Carbohydrates", per100g: result.carbs, unit: "g" },
       { key: "fat", name: "Total Fat", per100g: result.fat, unit: "g" },
@@ -907,19 +924,28 @@ export function supplementDraftFromFoodResult(
   return supplementDraftFromFoodDetail(detail)
 }
 
-export function supplementLogFromIntake(log: SupplementIntakeLog): SupplementLogEntry {
+export function supplementLogFromIntake(
+  log: SupplementIntakeLog
+): SupplementLogEntry {
   const kind = categoryToSupplementKind(log.category)
   const definition = SUPPLEMENT_DEFINITIONS[kind]
   const amount =
     kind === "creatine"
-      ? (log.nutrients.creatine ?? definition.defaultAmount * log.servingMultiplier)
+      ? (log.nutrients.creatine ??
+        definition.defaultAmount * log.servingMultiplier)
       : kind === "protein"
-        ? (log.nutrients.protein ?? definition.defaultAmount * log.servingMultiplier)
+        ? (log.nutrients.protein ??
+          definition.defaultAmount * log.servingMultiplier)
         : kind === "caffeine"
-          ? (log.nutrients.caffeine ?? definition.defaultAmount * log.servingMultiplier)
+          ? (log.nutrients.caffeine ??
+            definition.defaultAmount * log.servingMultiplier)
           : log.servingMultiplier
   return {
-    id: log.id ?? log._id ?? log.clientId ?? `${log.supplementId}-${log.loggedAt}`,
+    id:
+      log.id ??
+      log._id ??
+      log.clientId ??
+      `${log.supplementId}-${log.loggedAt}`,
     kind,
     category: log.category,
     supplementId: log.supplementId,

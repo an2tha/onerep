@@ -10,13 +10,7 @@ export type CompletedSet = {
 export type CardioDistanceUnit = "km" | "mi";
 
 export type CardioSourceProvider =
-  | "manual"
-  | "apple_health"
-  | "strava"
-  | "garmin"
-  | "fitbit"
-  | "gpx"
-  | "other";
+  "manual" | "apple_health" | "strava" | "garmin" | "fitbit" | "gpx" | "other";
 
 export type HeartRateZones = {
   zone1Seconds?: number;

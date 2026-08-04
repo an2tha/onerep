@@ -1728,9 +1728,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     )}
 
                     <PrimaryButton
-                      disabled={
-                        healthBusy || !healthSync?.appleHealthEnabled
-                      }
+                      disabled={healthBusy || !healthSync?.appleHealthEnabled}
                       onClick={async () => {
                         setHealthBusy(true)
                         setHealthError(null)
@@ -1741,11 +1739,10 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                             setHealthError("Permission was denied.")
                             return
                           }
-                          const workouts =
-                            await getRecentAppleHealthWorkouts({
-                              daysBack: APPLE_HEALTH_SYNC_DAYS_BACK,
-                              limit: APPLE_HEALTH_SYNC_LIMIT,
-                            })
+                          const workouts = await getRecentAppleHealthWorkouts({
+                            daysBack: APPLE_HEALTH_SYNC_DAYS_BACK,
+                            limit: APPLE_HEALTH_SYNC_LIMIT,
+                          })
                           const result = await importHealthWorkouts({
                             workouts: workouts.map((workout) =>
                               appleHealthWorkoutToImport(
@@ -2097,8 +2094,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     Delete account
                   </h2>
                   <p className="native-row-detail mt-1 max-w-xl">
-                    Permanently removes your logs, settings, any changes still waiting
-                    to be saved, and OneRep account data.
+                    Permanently removes your logs, settings, any changes still
+                    waiting to be saved, and OneRep account data.
                   </p>
                   <label className="native-field mt-4">
                     <span className="native-field-label">
@@ -2307,7 +2304,7 @@ function BillingSubscriptionPanel({
   billing: ReturnType<typeof useBilling>
 }) {
   const [action, setAction] = useState<
-    "purchase" | "restore" | "refresh" | "cancel" | null
+    "purchase" | "refresh" | "cancel" | null
   >(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const cancelButtonRef = useRef<HTMLButtonElement>(null)
@@ -2317,16 +2314,15 @@ function BillingSubscriptionPanel({
     billing.customerInfo?.source === "manual" &&
     billing.customerInfo.hasActiveSubscription === false
   const canceling = action === "cancel"
-  const opensSubscriptionManagement = billing.cancelOpensManagement
-  const requiresWebCancellation = billing.requiresWebCancellation
   const loading = billing.status === "loading"
   const unsupported = billing.status === "unsupported"
   const monthlyPrice = billing.monthlyPrice ?? "Monthly"
   const subscriptionDiagnostic = billing.subscriptionDiagnostic
   const disabled = unsupported || loading || action !== null
-  const purchaseDisabled = billing.isNative
-    ? disabled || !billing.canPurchase
-    : action !== null || !billing.canPurchase
+  const purchaseDisabled = action !== null || !billing.canPurchase
+  // Pro is sold on the web only, so a native build offers no upgrade control —
+  // just the status above, which says where the subscription lives.
+  const showPrimaryAction = active || !billing.isNative
   const refreshLabel =
     action === "refresh"
       ? "Checking..."
@@ -2359,7 +2355,7 @@ function BillingSubscriptionPanel({
     try {
       const result = await task()
       // Billing actions resolve to the verdict the server just gave, so this
-      // reflects the purchase that was actually made rather than the reactive
+      // reflects the state that was actually reached rather than the reactive
       // query's not-yet-updated value.
       const customerInfo =
         result && typeof result === "object" && "isActive" in result
@@ -2368,8 +2364,6 @@ function BillingSubscriptionPanel({
       if (nextAction !== "cancel" && hasOneRepPro(customerInfo)) {
         celebrateSubscription()
         if (successMessage) toast.success(successMessage)
-      } else if (nextAction === "restore") {
-        toast.message("No active Pro subscription found")
       } else if (successMessage) {
         toast.success(successMessage)
       }
@@ -2458,68 +2452,40 @@ function BillingSubscriptionPanel({
           </div>
 
           <div className="profile-pro-actions">
-            <button
-              type="button"
-              disabled={
-                active
-                  ? complimentary || disabled || requiresWebCancellation
-                  : purchaseDisabled
-              }
-              aria-busy={active ? action === "cancel" : action === "purchase"}
-              onClick={() => {
-                if (active) {
-                  if (complimentary) return
-                  if (requiresWebCancellation) return
-                  hapticTap()
-                  setConfirmCancel(true)
-                  return
-                }
-                void runBillingAction("purchase", billing.purchaseMonthly)
-              }}
-              className={cn(
-                "profile-pro-primary-action",
-                active && "profile-pro-management-action"
-              )}
-            >
-              {action === "purchase"
-                ? "Starting checkout..."
-                : active
-                  ? complimentary
-                    ? "Pro included"
-                    : requiresWebCancellation
-                      ? "Manage on the web"
+            {showPrimaryAction && (
+              <button
+                type="button"
+                disabled={active ? complimentary || disabled : purchaseDisabled}
+                aria-busy={active ? action === "cancel" : action === "purchase"}
+                onClick={() => {
+                  if (active) {
+                    if (complimentary) return
+                    hapticTap()
+                    setConfirmCancel(true)
+                    return
+                  }
+                  void runBillingAction("purchase", billing.purchaseMonthly)
+                }}
+                className={cn(
+                  "profile-pro-primary-action",
+                  active && "profile-pro-management-action"
+                )}
+              >
+                {action === "purchase"
+                  ? "Starting checkout..."
+                  : active
+                    ? complimentary
+                      ? "Pro included"
                       : action === "cancel"
                         ? "Opening..."
                         : "Manage subscription"
-                  : billing.canPurchase
-                    ? "Upgrade to Pro"
-                    : "Upgrade unavailable"}
-            </button>
-            {active && requiresWebCancellation && (
-              <p className="text-[13px] leading-5 text-white/65">
-                This membership was purchased through Stripe. Open the OneRep
-                web app to manage or cancel it.
-              </p>
+                    : billing.canPurchase
+                      ? "Upgrade to Pro"
+                      : "Upgrade unavailable"}
+              </button>
             )}
 
             <div className="profile-pro-secondary-actions">
-              {!active && (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  aria-busy={action === "restore"}
-                  onClick={() =>
-                    void runBillingAction(
-                      "restore",
-                      billing.restorePurchases,
-                      "Purchases restored"
-                    )
-                  }
-                  className="profile-pro-secondary-action"
-                >
-                  {action === "restore" ? "..." : "Restore"}
-                </button>
-              )}
               <button
                 type="button"
                 disabled={disabled}
@@ -2573,9 +2539,8 @@ function BillingSubscriptionPanel({
               id="cancel-subscription-description"
               className="native-row-detail mt-2"
             >
-              {opensSubscriptionManagement
-                ? "We’ll open the secure subscription page for the store where you purchased OneRep Pro."
-                : "We’ll open Stripe, where you can change your plan, update your payment method, download invoices, or cancel."}
+              We’ll open Stripe, where you can change your plan, update your
+              payment method, download invoices, or cancel.
             </p>
             <div className="mt-4 grid gap-2">
               <button
@@ -2596,11 +2561,7 @@ function BillingSubscriptionPanel({
                 }
                 className="min-h-11 rounded-[0.65rem] bg-foreground px-3 text-[15px] font-semibold text-background disabled:opacity-50"
               >
-                {canceling
-                  ? "Opening..."
-                  : opensSubscriptionManagement
-                    ? "Continue to manage"
-                    : "Continue to Stripe"}
+                {canceling ? "Opening..." : "Continue to Stripe"}
               </button>
               <button
                 type="button"

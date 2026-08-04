@@ -213,9 +213,9 @@ describe("ingredientsFromRecipe", () => {
   })
 
   test("the recipe name is carried through as the source", () => {
-    expect(ingredientsFromRecipe(recipe({ name: "Chilli" }))[0].sourceLabel).toBe(
-      "Chilli"
-    )
+    expect(
+      ingredientsFromRecipe(recipe({ name: "Chilli" }))[0].sourceLabel
+    ).toBe("Chilli")
   })
 })
 
@@ -235,7 +235,9 @@ describe("buildGroceryList", () => {
   test("a batch contributes groceries through its source recipe", () => {
     const source = recipe({ _id: "r1", name: "Chilli", servings: 2 })
     const { items, skippedBatches } = buildGroceryList({
-      batches: [{ sourceRecipeId: "r1", servingsTotal: 6, name: "Chilli batch" }],
+      batches: [
+        { sourceRecipeId: "r1", servingsTotal: 6, name: "Chilli batch" },
+      ],
       recipesById: new Map([["r1", source]]),
     })
     expect(skippedBatches).toEqual([])

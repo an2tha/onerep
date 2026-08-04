@@ -129,6 +129,7 @@ export async function deleteUserDataBatch(
     ["schedules", "by_userId"],
     ["activeWorkouts", "by_userId"],
     ["exercises", "by_userId"],
+    ["customExercises", "by_userId"],
     ["coachMemories", "by_userId"],
     ["coachCheckIns", "by_userId"],
     ["coachActionEvents", "by_userId"],
@@ -175,11 +176,7 @@ export async function deleteUserDataBatch(
   }
 
   if (budget > 0) {
-    const result = await deleteOwnedRecipes(
-      ctx,
-      userId,
-      Math.min(10, budget),
-    );
+    const result = await deleteOwnedRecipes(ctx, userId, Math.min(10, budget));
     deleted += result.deleted;
     budget -= result.deleted;
     if (result.mayHaveMore) remaining = true;

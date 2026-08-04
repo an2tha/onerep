@@ -30,8 +30,10 @@ import {
   ClockCounterClockwise,
   DotsSixVertical,
   MagnifyingGlass,
+  Microphone,
   Minus,
   PaperPlaneRight,
+  PencilSimple,
   Plus,
   Sparkle,
   TrendUp,
@@ -77,6 +79,18 @@ import {
   startFormCoachDraft,
   useFormCoachDraft,
 } from "@/lib/form-coach-clips"
+import { MobileSheet } from "@/components/mobile-sheet"
+import {
+  CreateExerciseButton,
+  CustomExerciseSheet,
+} from "@/components/custom-exercise-sheet"
+import {
+  CUSTOM_EXERCISE_ID_PREFIX,
+  customExerciseDraftFromExercise,
+  emptyCustomExerciseDraft,
+  type CustomExerciseDraft,
+} from "@/lib/custom-exercises"
+import { useCoachDictation } from "@/lib/use-coach-dictation"
 import { FormCoachRecorder } from "@/components/form-coach-recorder"
 import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
 import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
@@ -121,83 +135,97 @@ import {
   startWorkoutLiveActivity,
   updateWorkoutLiveActivity,
 } from "@/lib/workout-live-activity"
+import {
+  ACTIVE_WORKOUT_DRAFT_PREFIX,
+  BAR_PROFILES,
+  BAR_TYPES,
+  CARDIO_SOURCE_OPTIONS,
+  HEART_RATE_ZONES,
+  KG_TO_LBS,
+  MAX_RETRO_DURATION_SECONDS,
+  MIN_RETRO_DURATION_SECONDS,
+  REST_TIMER_PREFIX,
+  SET_ORDER,
+  activeWorkoutDraftKey,
+  appleHealthWorkoutToCardioPatch,
+  barImageForType,
+  barLabelForType,
+  cardioDetailsFromState,
+  cardioLogFromState,
+  clearActiveWorkoutDraft,
+  countWorkoutProgress,
+  defaultBarWeight,
+  displayWeightToKg,
+  durationFromCardioState,
+  estimateRetroDurationSeconds,
+  exerciseStateFromLoggedExercise,
+  formatAppleHealthWorkoutDate,
+  formatCardioNumber,
+  formatElapsed,
+  formatKgString,
+  formatWeightValue,
+  getBarProfile,
+  hasCardioStateDetails,
+  isBarType,
+  isCardioExercise,
+  makeCardioState,
+  makeDefaultExerciseState,
+  makeExerciseStateFromAgentDraft,
+  fillDownSetField,
+  makeSet,
+  normalizeAgentWorkoutSet,
+  normalizeBarType,
+  normalizeCardioState,
+  normalizeExerciseNameForMatch,
+  normalizeExerciseState,
+  paceFromCardioState,
+  parseKg,
+  parseNonNegativeInt,
+  parsePositiveFloat,
+  pickBestExerciseMatch,
+  plateDisplayFromValues,
+  platePerSideKg,
+  readActiveWorkoutDraft,
+  retroWorkoutDraftKey,
+  removeExFromItems,
+  replaceExerciseInItems,
+  restTimerKey,
+  scoreExerciseMatch,
+  splitDurationForState,
+  toDisplay,
+  toKg,
+  uid,
+  useElapsedTimer,
+  useRestCountdown,
+  workoutDragLabel,
+  workoutItemKey,
+  writeActiveWorkoutDraft,
+} from "@/lib/workout-logging"
+import type {
+  AgentWorkoutDraft,
+  AgentWorkoutExerciseDraft,
+  AgentWorkoutSetDraft,
+  AiWorkoutMode,
+  BarType,
+  CardioExerciseState,
+  CoachWorkoutProposal,
+  ExerciseState,
+  HeartRateZoneKey,
+  LastSession,
+  LocalActiveWorkoutDraft,
+  LoggedWorkoutExercise,
+  LoggedWorkoutSet,
+  PersistedExerciseState,
+  PersistedWorkoutSet,
+  SetType,
+  WeightUnit,
+  WorkoutItem,
+  WorkoutSet,
+} from "@/lib/workout-logging"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SetType = "working" | "warmup" | "failure" | "myoreps" | "drop"
-type WeightUnit = "kg" | "lbs"
 type WorkoutSyncStatus = "idle" | "pending" | "saving" | "saved" | "error"
-export type BarType = "olympic" | "womens" | "ez" | "trap" | "custom"
-type HeartRateZoneKey =
-  | "zone1Seconds"
-  | "zone2Seconds"
-  | "zone3Seconds"
-  | "zone4Seconds"
-  | "zone5Seconds"
-
-type WorkoutSet = {
-  id: string
-  type: SetType
-  weight: string
-  reps: string
-  restSeconds: number
-  completed: boolean
-}
-
-type PersistedWorkoutSet = Partial<WorkoutSet>
-
-type CardioExerciseState = {
-  distance: string
-  distanceUnit: CardioDistanceUnit
-  durationHours: string
-  durationMinutes: string
-  durationSeconds: string
-  paceMinutes: string
-  paceSeconds: string
-  avgHeartRate: string
-  maxHeartRate: string
-  zones: Record<HeartRateZoneKey, string>
-  routeName: string
-  routeUrl: string
-  sourceProvider: CardioSourceProvider
-  sourceName: string
-  sourceExternalId: string
-  sourceImportedAt: string
-  notes: string
-}
-
-type ExerciseState = {
-  sets: WorkoutSet[]
-  trackRpe: boolean
-  trackUnilateral: boolean
-  barWeight: string
-  barType: BarType
-  cardio: CardioExerciseState
-}
-
-type PersistedExerciseState = Partial<
-  Omit<ExerciseState, "sets" | "cardio">
-> & {
-  sets?: PersistedWorkoutSet[]
-  cardio?: Partial<CardioExerciseState>
-}
-
-type LoggedWorkoutSet = {
-  weight: number
-  reps: number
-  completed: boolean
-  type: string
-}
-
-type LastSession = {
-  date: string
-  sets: LoggedWorkoutSet[]
-}
-
-type LoggedWorkoutExercise = {
-  id: string
-  sets: LoggedWorkoutSet[]
-}
 
 type ExerciseCardDropProps = {
   dropActive: boolean
@@ -209,20 +237,6 @@ export type WeightSelectorChange = {
   weight?: string
   barWeight?: string
   barType?: BarType
-}
-
-type WorkoutItem =
-  | { kind: "solo"; exerciseId: string }
-  | { kind: "superset"; id: string; color: string; exerciseIds: string[] }
-
-type LocalActiveWorkoutDraft = {
-  elapsedSeconds: number
-  exerciseData: Record<string, ExerciseState>
-  items: WorkoutItem[]
-  presetId?: string
-  savedAt: number
-  slot: 1 | 2
-  startedAt: number
 }
 
 type ResumePromptState = {
@@ -244,29 +258,6 @@ type DropTarget = {
   targetKey: string
 } | null
 
-type AiWorkoutMode = "append" | "replace" | "swap"
-
-type AgentWorkoutSetDraft = Partial<WorkoutSet>
-
-type AgentWorkoutExerciseDraft = {
-  name: string
-  sets?: AgentWorkoutSetDraft[]
-  trackRpe?: boolean
-  trackUnilateral?: boolean
-}
-
-type AgentWorkoutDraft = {
-  name?: string
-  exercises?: AgentWorkoutExerciseDraft[]
-  notes?: string
-}
-
-type CoachWorkoutProposal = {
-  reply: string
-  draft: AgentWorkoutDraft
-  mode: AiWorkoutMode
-}
-
 type AiWorkoutSheetTarget = {
   exerciseId?: string
   exerciseName?: string
@@ -275,471 +266,8 @@ type AiWorkoutSheetTarget = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ABORTED_WORKOUT_SLOT_KEY = "onerep:aborted-workout-slot"
-const ACTIVE_WORKOUT_DRAFT_PREFIX = "onerep:active-workout-draft:v1:"
-const REST_TIMER_PREFIX = "onerep:active-rest-timer:v1:"
-
-const SET_ORDER: SetType[] = ["working", "warmup", "failure", "myoreps", "drop"]
-
-const KG_TO_LBS = 2.20462
-
-const BAR_TYPES = ["olympic", "womens", "ez", "trap", "custom"] as const
-
-const BAR_PROFILES: Array<{
-  type: BarType
-  label: string
-  shortLabel: string
-  kg: number
-  lbs: number
-  image: string
-}> = [
-  {
-    type: "olympic",
-    label: "Olympic bar",
-    shortLabel: "Olympic",
-    kg: 20,
-    lbs: 45,
-    image: olympicBarPng,
-  },
-  {
-    type: "womens",
-    label: "Training bar",
-    shortLabel: "15 kg",
-    kg: 15,
-    lbs: 35,
-    image: olympicBarPng,
-  },
-  {
-    type: "ez",
-    label: "EZ curl bar",
-    shortLabel: "EZ",
-    kg: 10,
-    lbs: 25,
-    image: ezBarPng,
-  },
-  {
-    type: "trap",
-    label: "Trap bar",
-    shortLabel: "Trap",
-    kg: 25,
-    lbs: 55,
-    image: trapBarPng,
-  },
-]
-
-const CARDIO_SOURCE_OPTIONS: Array<{
-  provider: CardioSourceProvider
-  label: string
-}> = [
-  { provider: "manual", label: "Manual" },
-  { provider: "apple_health", label: "Apple Health" },
-  { provider: "strava", label: "Strava" },
-  { provider: "garmin", label: "Garmin" },
-  { provider: "fitbit", label: "Fitbit" },
-  { provider: "gpx", label: "GPX" },
-  { provider: "other", label: "Other" },
-]
-
-const HEART_RATE_ZONES: Array<{
-  key: HeartRateZoneKey
-  label: string
-}> = [
-  { key: "zone1Seconds", label: "Z1" },
-  { key: "zone2Seconds", label: "Z2" },
-  { key: "zone3Seconds", label: "Z3" },
-  { key: "zone4Seconds", label: "Z4" },
-  { key: "zone5Seconds", label: "Z5" },
-]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function uid() {
-  return createClientId()
-}
-
-function formatElapsed(s: number) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  if (h > 0)
-    return `${h}:${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
-  return `${m}:${String(sec).padStart(2, "0")}`
-}
-
-function parsePositiveFloat(value: string) {
-  const parsed = Number.parseFloat(value)
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
-}
-
-function parseNonNegativeInt(value: string) {
-  const parsed = Number.parseInt(value || "0", 10)
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
-}
-
-function durationFromCardioState(cardio: CardioExerciseState) {
-  const hours = parseNonNegativeInt(cardio.durationHours)
-  const minutes = parseNonNegativeInt(cardio.durationMinutes)
-  const seconds = parseNonNegativeInt(cardio.durationSeconds)
-  const total = hours * 3600 + minutes * 60 + seconds
-  return total > 0 ? total : null
-}
-
-function paceFromCardioState(cardio: CardioExerciseState) {
-  const minutes = parseNonNegativeInt(cardio.paceMinutes)
-  const seconds = parseNonNegativeInt(cardio.paceSeconds)
-  const total = minutes * 60 + seconds
-  if (total <= 0) return null
-  return cardio.distanceUnit === "mi" ? total / 1.609344 : total
-}
-
-function formatCardioNumber(value: number) {
-  return String(Number.isInteger(value) ? value : +value.toFixed(2))
-}
-
-function splitDurationForState(totalSeconds?: number | null) {
-  const safeTotal = Math.max(0, Math.round(totalSeconds ?? 0))
-  const hours = Math.floor(safeTotal / 3600)
-  const minutes = Math.floor((safeTotal % 3600) / 60)
-  const seconds = safeTotal % 60
-  return {
-    hours: hours ? String(hours) : "",
-    minutes: minutes ? String(minutes) : "",
-    seconds: seconds ? String(seconds) : "",
-  }
-}
-
-function appleHealthWorkoutToCardioPatch(
-  workout: AppleHealthWorkout,
-  distanceUnit: CardioDistanceUnit
-): Partial<CardioExerciseState> {
-  const duration = splitDurationForState(workout.durationSeconds)
-  const distance =
-    workout.totalDistanceMeters && workout.totalDistanceMeters > 0
-      ? formatCardioNumber(
-          cardioMetersToDistance(workout.totalDistanceMeters, distanceUnit)
-        )
-      : ""
-  return {
-    distance,
-    distanceUnit,
-    durationHours: duration.hours,
-    durationMinutes: duration.minutes,
-    durationSeconds: duration.seconds,
-    paceMinutes: "",
-    paceSeconds: "",
-    avgHeartRate: workout.avgHeartRateBpm
-      ? String(Math.round(workout.avgHeartRateBpm))
-      : "",
-    maxHeartRate: workout.maxHeartRateBpm
-      ? String(Math.round(workout.maxHeartRateBpm))
-      : "",
-    routeName:
-      workout.routeName ??
-      (workout.hasRoute ? `${workout.activityName} route` : ""),
-    routeUrl: "",
-    sourceProvider: "apple_health",
-    sourceName: workout.sourceName ?? "Apple Health",
-    sourceExternalId: workout.uuid,
-    sourceImportedAt: new Date().toISOString(),
-  }
-}
-
-function formatAppleHealthWorkoutDate(startedAt: string) {
-  const date = new Date(startedAt)
-  if (Number.isNaN(date.getTime())) return "Recent"
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  })
-}
-
-function makeCardioState(): CardioExerciseState {
-  return {
-    distance: "",
-    distanceUnit: "km",
-    durationHours: "",
-    durationMinutes: "",
-    durationSeconds: "",
-    paceMinutes: "",
-    paceSeconds: "",
-    avgHeartRate: "",
-    maxHeartRate: "",
-    zones: {
-      zone1Seconds: "",
-      zone2Seconds: "",
-      zone3Seconds: "",
-      zone4Seconds: "",
-      zone5Seconds: "",
-    },
-    routeName: "",
-    routeUrl: "",
-    sourceProvider: "manual",
-    sourceName: "",
-    sourceExternalId: "",
-    sourceImportedAt: "",
-    notes: "",
-  }
-}
-
-function normalizeCardioState(
-  state?: Partial<CardioExerciseState>
-): CardioExerciseState {
-  const defaults = makeCardioState()
-  return {
-    ...defaults,
-    ...state,
-    distanceUnit: state?.distanceUnit === "mi" ? "mi" : "km",
-    sourceProvider: CARDIO_SOURCE_OPTIONS.some(
-      (option) => option.provider === state?.sourceProvider
-    )
-      ? (state?.sourceProvider as CardioSourceProvider)
-      : "manual",
-    zones: {
-      ...defaults.zones,
-      ...(state?.zones ?? {}),
-    },
-  }
-}
-
-function cardioLogFromState(
-  cardio: CardioExerciseState
-): CardioWorkoutDetails | null {
-  const details: CardioWorkoutDetails = {}
-  const distance = parsePositiveFloat(cardio.distance)
-  if (distance) {
-    details.distanceMeters = +cardioDistanceToMeters(
-      distance,
-      cardio.distanceUnit
-    ).toFixed(2)
-    details.distanceUnit = cardio.distanceUnit
-  }
-
-  const durationSeconds = durationFromCardioState(cardio)
-  if (durationSeconds) details.durationSeconds = durationSeconds
-
-  const calculatedPace = calcPaceSecondsPerKm(
-    details.distanceMeters,
-    durationSeconds ?? undefined
-  )
-  const manualPace = paceFromCardioState(cardio)
-  const paceSecondsPerKm = calculatedPace ?? manualPace
-  if (paceSecondsPerKm) {
-    details.paceSecondsPerKm = Math.round(paceSecondsPerKm)
-  }
-
-  const avgHeartRate = parsePositiveFloat(cardio.avgHeartRate)
-  if (avgHeartRate) details.avgHeartRateBpm = Math.round(avgHeartRate)
-
-  const maxHeartRate = parsePositiveFloat(cardio.maxHeartRate)
-  if (maxHeartRate) details.maxHeartRateBpm = Math.round(maxHeartRate)
-
-  const heartRateZones = Object.fromEntries(
-    HEART_RATE_ZONES.flatMap(({ key }) => {
-      const minutes = parsePositiveFloat(cardio.zones[key])
-      return minutes ? [[key, Math.round(minutes * 60)]] : []
-    })
-  ) as NonNullable<CardioWorkoutDetails["heartRateZones"]>
-  if (Object.keys(heartRateZones).length > 0) {
-    details.heartRateZones = heartRateZones
-  }
-
-  const routeName = cardio.routeName.trim()
-  const routeUrl = cardio.routeUrl.trim()
-  if (routeName || routeUrl) {
-    details.route = {
-      ...(routeName ? { name: routeName } : {}),
-      ...(routeUrl ? { url: routeUrl } : {}),
-    }
-  }
-
-  const sourceName = cardio.sourceName.trim()
-  const sourceExternalId = cardio.sourceExternalId.trim()
-  const sourceImportedAt = cardio.sourceImportedAt.trim()
-  if (cardio.sourceProvider !== "manual" || sourceName || sourceExternalId) {
-    details.source = {
-      provider: cardio.sourceProvider,
-      ...(sourceName ? { name: sourceName } : {}),
-      ...(sourceExternalId ? { externalId: sourceExternalId } : {}),
-      ...(sourceImportedAt ? { importedAt: sourceImportedAt } : {}),
-    }
-  }
-
-  const notes = cardio.notes.trim()
-  if (notes) details.notes = notes
-
-  return hasCardioDetails(details) ? details : null
-}
-
-function cardioDetailsFromState(cardio: CardioExerciseState) {
-  return cardioLogFromState(cardio)
-}
-
-function hasCardioStateDetails(cardio: CardioExerciseState) {
-  return Boolean(cardioDetailsFromState(cardio))
-}
-
-function toDisplay(kgStr: string, unit: WeightUnit): string {
-  if (!kgStr) return ""
-  const kg = parseFloat(kgStr)
-  if (isNaN(kg)) return kgStr
-  return formatWeightValue(kg, unit)
-}
-
-function toKg(displayVal: string, unit: WeightUnit): string {
-  if (!displayVal) return ""
-  const n = parseFloat(displayVal)
-  if (isNaN(n)) return displayVal
-  return unit === "lbs" ? formatKgString(n / KG_TO_LBS) : formatKgString(n)
-}
-
-function parseKg(value?: string | number | null) {
-  if (value == null || value === "") return null
-  const parsed = typeof value === "number" ? value : Number.parseFloat(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function formatKgString(kg: number) {
-  return String(+kg.toFixed(2))
-}
-
-function formatWeightValue(kg: number, unit: WeightUnit) {
-  const value = unit === "lbs" ? kg * KG_TO_LBS : kg
-  return String(Number.isInteger(value) ? value : +value.toFixed(1))
-}
-
-function displayWeightToKg(value: number, unit: WeightUnit) {
-  return unit === "lbs" ? value / KG_TO_LBS : value
-}
-
-function getBarProfile(type: BarType) {
-  return BAR_PROFILES.find((profile) => profile.type === type)
-}
-
-function isBarType(value: unknown): value is BarType {
-  return (
-    typeof value === "string" &&
-    (BAR_TYPES as readonly string[]).includes(value)
-  )
-}
-
-function normalizeBarType(value: unknown, barWeight?: string): BarType {
-  if (isBarType(value)) return value
-  const kg = parseKg(barWeight)
-  if (!kg) return "olympic"
-  const exactProfile = BAR_PROFILES.find(
-    (profile) =>
-      Math.abs(profile.kg - kg) < 0.01 ||
-      Math.abs(profile.lbs / KG_TO_LBS - kg) < 0.01
-  )
-  return exactProfile?.type ?? "custom"
-}
-
-function defaultBarWeight(type: BarType, unit: WeightUnit) {
-  const profile = getBarProfile(type) ?? BAR_PROFILES[0]
-  return unit === "lbs"
-    ? toKg(String(profile.lbs), "lbs")
-    : formatKgString(profile.kg)
-}
-
-function barImageForType(type: BarType) {
-  return getBarProfile(type)?.image ?? olympicBarPng
-}
-
-function barLabelForType(type: BarType) {
-  return getBarProfile(type)?.label ?? "Custom bar"
-}
-
-function platePerSideKg(totalKg: number | null, barKg: number | null) {
-  if (barKg == null || barKg <= 0 || totalKg == null) return null
-  return Math.max(0, (totalKg - barKg) / 2)
-}
-
-function plateDisplayFromValues(
-  totalWeight: string,
-  barWeight: string,
-  unit: WeightUnit
-) {
-  const totalKg = parseKg(totalWeight)
-  const barKg = parseKg(barWeight)
-  const plateKg = platePerSideKg(totalKg, barKg)
-  return plateKg == null ? "" : formatWeightValue(plateKg, unit)
-}
-
-function makeSet(): WorkoutSet {
-  return {
-    id: uid(),
-    type: "working",
-    weight: "",
-    reps: "",
-    restSeconds: 120,
-    completed: false,
-  }
-}
-
-function removeExFromItems(items: WorkoutItem[], exId: string): WorkoutItem[] {
-  return items.flatMap((item): WorkoutItem[] => {
-    if (item.kind === "solo") return item.exerciseId === exId ? [] : [item]
-    const rest = item.exerciseIds.filter((id) => id !== exId)
-    if (rest.length === 0) return []
-    if (rest.length === 1)
-      return [{ kind: "solo" as const, exerciseId: rest[0] }]
-    return [{ ...item, exerciseIds: rest }]
-  })
-}
-
-function workoutItemKey(item: WorkoutItem) {
-  return item.kind === "solo"
-    ? `solo:${item.exerciseId}`
-    : `superset:${item.id}`
-}
-
-function workoutDragLabel(
-  itemKey: string,
-  items: WorkoutItem[],
-  exerciseLookup: Record<string, Exercise>
-) {
-  const item = items.find((candidate) => workoutItemKey(candidate) === itemKey)
-  if (!item) return ""
-  if (item.kind === "solo") {
-    return exerciseLookup[item.exerciseId]?.name ?? ""
-  }
-  return item.exerciseIds
-    .map((id) => exerciseLookup[id]?.name)
-    .filter(Boolean)
-    .join(" + ")
-}
-
-/**
- * Count total sets and completed sets across the given workout items.
- *
- * @param items - Array of workout items (solo exercises or supersets) to include in the count
- * @param exData - Mapping from exercise ID to its state (including the `sets` array)
- * @returns An object with `total` — the number of sets across all referenced exercises, and `done` — the number of sets whose `completed` flag is `true`
- */
-function countWorkoutProgress(
-  items: WorkoutItem[],
-  exData: Record<string, ExerciseState>,
-  exerciseLookup: Record<string, Exercise>
-) {
-  let total = 0,
-    done = 0
-  for (const item of items) {
-    const ids = item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
-    for (const id of ids) {
-      const exercise = exerciseLookup[id]
-      const data = exData[id]
-      if (!data) continue
-      if (exercise?.category === "cardio") {
-        total += 1
-        if (hasCardioStateDetails(data.cardio)) done += 1
-        continue
-      }
-      const sets = data.sets ?? []
-      total += sets.length
-      done += sets.filter((x) => x.completed).length
-    }
-  }
-  return { total, done }
-}
 
 // ─── Next set indicator ───────────────────────────────────────────────────────
 
@@ -839,342 +367,6 @@ function findNextTarget(
  * @param state - Partial or persisted exercise state (may be undefined or missing fields)
  * @returns A normalized ExerciseState ready for UI usage and persistence
  */
-function normalizeExerciseState(state?: PersistedExerciseState): ExerciseState {
-  const barWeight = state?.barWeight || ""
-  return {
-    sets: (state?.sets || []).map((s) => ({
-      id: s.id || uid(),
-      type: s.type || "working",
-      weight: s.weight || "",
-      reps: s.reps || "",
-      restSeconds: s.restSeconds || 120,
-      completed: !!s.completed,
-    })),
-    trackRpe: false,
-    trackUnilateral: false,
-    barWeight,
-    barType: normalizeBarType(state?.barType, barWeight),
-    cardio: normalizeCardioState(state?.cardio),
-  }
-}
-
-function isCardioExercise(exercise: Exercise | undefined | null) {
-  return exercise?.category === "cardio"
-}
-
-function makeDefaultExerciseState(exercise: Exercise): ExerciseState {
-  return {
-    sets: isCardioExercise(exercise) ? [] : [makeSet(), makeSet(), makeSet()],
-    trackRpe: false,
-    trackUnilateral: false,
-    barWeight: "",
-    barType: "olympic",
-    cardio: makeCardioState(),
-  }
-}
-
-function normalizeExerciseNameForMatch(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-function scoreExerciseMatch(query: string, exercise: Exercise) {
-  const q = normalizeExerciseNameForMatch(query)
-  const name = normalizeExerciseNameForMatch(exercise.name)
-  if (!q || !name) return 0
-  if (q === name) return 100
-  if (name.includes(q) || q.includes(name)) return 85
-
-  const qTokens = new Set(q.split(" ").filter((token) => token.length > 2))
-  const haystack = normalizeExerciseNameForMatch(
-    [
-      exercise.name,
-      exercise.muscle,
-      exercise.equipment,
-      ...(exercise.primaryMuscles ?? []),
-      ...(exercise.secondaryMuscles ?? []),
-    ]
-      .filter(Boolean)
-      .join(" ")
-  )
-  const matches = [...qTokens].filter((token) => haystack.includes(token))
-  return matches.length * 12 - Math.max(0, qTokens.size - matches.length) * 3
-}
-
-function pickBestExerciseMatch(query: string, candidates: Exercise[]) {
-  const best = candidates
-    .map((exercise) => ({
-      exercise,
-      score: scoreExerciseMatch(query, exercise),
-    }))
-    .sort((a, b) => b.score - a.score)[0]
-  return best && best.score > 0 ? best.exercise : undefined
-}
-
-function normalizeAgentWorkoutSet(set: AgentWorkoutSetDraft): WorkoutSet {
-  const type = SET_ORDER.includes(set.type as SetType)
-    ? (set.type as SetType)
-    : "working"
-  const restSeconds = Number.isFinite(Number(set.restSeconds))
-    ? Math.max(0, Math.min(600, Math.round(Number(set.restSeconds))))
-    : 120
-
-  return normalizeExerciseState({
-    sets: [
-      {
-        ...set,
-        id: uid(),
-        type,
-        weight: String(set.weight ?? "").trim(),
-        reps: String(set.reps ?? "").trim(),
-        restSeconds,
-        completed: false,
-      },
-    ],
-  }).sets[0]
-}
-
-function makeExerciseStateFromAgentDraft(
-  exercise: Exercise,
-  draft: AgentWorkoutExerciseDraft
-): ExerciseState {
-  const base = makeDefaultExerciseState(exercise)
-  if (isCardioExercise(exercise)) return base
-
-  const sets =
-    draft.sets && draft.sets.length > 0
-      ? draft.sets.slice(0, 8).map((set) => normalizeAgentWorkoutSet(set))
-      : base.sets
-
-  return {
-    ...base,
-    sets,
-    trackRpe: false,
-    trackUnilateral: false,
-  }
-}
-
-function replaceExerciseInItems(
-  items: WorkoutItem[],
-  oldExerciseId: string,
-  newExerciseId: string
-): WorkoutItem[] {
-  return items.flatMap((item): WorkoutItem[] => {
-    if (item.kind === "solo") {
-      return [
-        {
-          kind: "solo" as const,
-          exerciseId:
-            item.exerciseId === oldExerciseId ? newExerciseId : item.exerciseId,
-        },
-      ]
-    }
-
-    const exerciseIds = item.exerciseIds.reduce<string[]>((acc, id) => {
-      const nextId = id === oldExerciseId ? newExerciseId : id
-      if (!acc.includes(nextId)) acc.push(nextId)
-      return acc
-    }, [])
-
-    if (exerciseIds.length === 0) return []
-    if (exerciseIds.length === 1) {
-      return [{ kind: "solo", exerciseId: exerciseIds[0] }]
-    }
-    return [{ ...item, exerciseIds }]
-  })
-}
-
-function activeWorkoutDraftKey(slot: 1 | 2) {
-  return `${ACTIVE_WORKOUT_DRAFT_PREFIX}${slot}`
-}
-
-function restTimerKey(slot: 1 | 2) {
-  return `${REST_TIMER_PREFIX}${slot}`
-}
-
-function readActiveWorkoutDraft(slot: 1 | 2): LocalActiveWorkoutDraft | null {
-  const raw = safeLocalStorageGet(activeWorkoutDraftKey(slot))
-  if (!raw) return null
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<LocalActiveWorkoutDraft>
-    if (
-      parsed.slot !== slot ||
-      !Array.isArray(parsed.items) ||
-      typeof parsed.exerciseData !== "object" ||
-      parsed.exerciseData === null ||
-      typeof parsed.startedAt !== "number" ||
-      typeof parsed.savedAt !== "number"
-    ) {
-      return null
-    }
-
-    return {
-      elapsedSeconds:
-        typeof parsed.elapsedSeconds === "number" ? parsed.elapsedSeconds : 0,
-      exerciseData: parsed.exerciseData as Record<string, ExerciseState>,
-      items: parsed.items as WorkoutItem[],
-      presetId:
-        typeof parsed.presetId === "string" ? parsed.presetId : undefined,
-      savedAt: parsed.savedAt,
-      slot,
-      startedAt: parsed.startedAt,
-    }
-  } catch {
-    return null
-  }
-}
-
-function writeActiveWorkoutDraft(draft: LocalActiveWorkoutDraft) {
-  safeLocalStorageSet(activeWorkoutDraftKey(draft.slot), JSON.stringify(draft))
-}
-
-function clearActiveWorkoutDraft(slot: 1 | 2) {
-  safeLocalStorageRemove(activeWorkoutDraftKey(slot))
-  safeLocalStorageRemove(restTimerKey(slot))
-}
-
-// ─── Rest timer countdown ─────────────────────────────────────────────────────
-
-function useRestCountdown(storageKey: string) {
-  const [remaining, setRemaining] = useState<number | null>(null)
-  const ref = useRef<ReturnType<typeof setInterval> | null>(null)
-  const endAtRef = useRef<number | null>(null)
-
-  const stopInterval = useCallback(() => {
-    if (ref.current) {
-      clearInterval(ref.current)
-      ref.current = null
-    }
-  }, [])
-
-  const updateFromEndAt = useCallback(() => {
-    const endAt = endAtRef.current
-    if (!endAt) {
-      setRemaining(null)
-      return
-    }
-
-    const next = Math.max(0, Math.ceil((endAt - Date.now()) / 1000))
-    if (next <= 0) {
-      stopInterval()
-      endAtRef.current = null
-      safeLocalStorageRemove(storageKey)
-      setRemaining(null)
-      playRestCompletion()
-      void playNativeRestHaptic()
-      void cancelRestAlert()
-      return
-    }
-
-    setRemaining(next)
-  }, [storageKey, stopInterval])
-
-  const startTicker = useCallback(() => {
-    stopInterval()
-    updateFromEndAt()
-    ref.current = setInterval(updateFromEndAt, 1000)
-  }, [stopInterval, updateFromEndAt])
-
-  function start(seconds: number) {
-    const endAt = Date.now() + seconds * 1000
-    endAtRef.current = endAt
-    safeLocalStorageSet(storageKey, JSON.stringify({ endAt }))
-    void scheduleRestAlert(endAt)
-    startTicker()
-  }
-
-  function dismiss() {
-    stopInterval()
-    endAtRef.current = null
-    safeLocalStorageRemove(storageKey)
-    void cancelRestAlert()
-    setRemaining(null)
-  }
-
-  useEffect(() => {
-    const raw = safeLocalStorageGet(storageKey)
-    if (!raw) return
-
-    try {
-      const parsed = JSON.parse(raw) as { endAt?: unknown }
-      if (typeof parsed.endAt === "number" && parsed.endAt > Date.now()) {
-        endAtRef.current = parsed.endAt
-        startTicker()
-      } else {
-        safeLocalStorageRemove(storageKey)
-      }
-    } catch {
-      safeLocalStorageRemove(storageKey)
-    }
-  }, [startTicker, storageKey])
-
-  useEffect(
-    () => () => {
-      stopInterval()
-    },
-    [stopInterval]
-  )
-
-  return { remaining, start, dismiss }
-}
-
-/**
- * Tracks seconds elapsed since a given start timestamp.
- *
- * Recalculates every second and also when the document becomes visible again.
- *
- * @param startedAt - Unix epoch milliseconds timestamp marking the start, or `null` if not started
- * @returns The number of whole seconds elapsed since `startedAt`; `0` if `startedAt` is `null`
- */
-
-function useElapsedTimer(startedAt: number | null) {
-  const [elapsed, setElapsed] = useState(0)
-
-  useEffect(() => {
-    /**
-     * Update the elapsed seconds state based on the `startedAt` timestamp.
-     *
-     * If `startedAt` is defined, computes the whole seconds elapsed since that timestamp
-     * (using floor) and updates the component state via `setElapsed`.
-     */
-    function updateElapsed() {
-      if (startedAt) {
-        const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000)
-        setElapsed(elapsedSeconds)
-      }
-    }
-
-    // Initial calculation
-    updateElapsed()
-
-    // Update every second
-    const id = setInterval(updateElapsed, 1000)
-
-    /**
-     * Recalculates the elapsed workout timer when the document becomes visible.
-     *
-     * This should be registered on the document's `visibilitychange` event so the elapsed time is updated when the tab or window regains focus.
-     */
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        updateElapsed()
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-
-    return () => {
-      clearInterval(id)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [startedAt])
-
-  return elapsed
-}
 
 // ─── Rest timer picker sheet ──────────────────────────────────────────────────
 
@@ -1808,6 +1000,7 @@ function ActiveSetRow({
   index,
   unit,
   onUpdate,
+  onRepsChange,
   onDelete,
   canDelete,
   onComplete,
@@ -1821,6 +1014,7 @@ function ActiveSetRow({
   index: number
   unit: WeightUnit
   onUpdate: (s: WorkoutSet) => void
+  onRepsChange: (value: string) => void
   onDelete: () => void
   canDelete: boolean
   onComplete: (restSeconds: number) => void
@@ -1868,7 +1062,7 @@ function ActiveSetRow({
         onDelete={onDelete}
         onToggleComplete={toggleDone}
         onWeightClick={() => setShowWeight(true)}
-        onRepsChange={(value) => onUpdate({ ...set, reps: value })}
+        onRepsChange={onRepsChange}
         onRestClick={() => setShowRest(true)}
       />
       {showRest && (
@@ -2388,6 +1582,7 @@ function ActiveExerciseCard({
   nextSetIndex,
   isNextCardio,
   reorderControls,
+  defaultSetCompleted = false,
 }: {
   exercise: Exercise
   data: ExerciseState
@@ -2419,22 +1614,44 @@ function ActiveExerciseCard({
   nextSetIndex?: number | null
   isNextCardio?: boolean
   reorderControls?: React.ReactNode
+  /** Retro mode records sets that already happened, so they start ticked. */
+  defaultSetCompleted?: boolean
 }) {
   const formCoachMovement = useFormCoachSupport(exercise.name)
 
   function addSet() {
-    onUpdate({ ...data, sets: [...data.sets, makeSet()] })
+    // A set added mid-exercise is almost always another of the same thing, so
+    // it starts from the last set rather than blank.
+    const previous = data.sets[data.sets.length - 1]
+    const next = makeSet(defaultSetCompleted)
+    onUpdate({
+      ...data,
+      sets: [
+        ...data.sets,
+        previous
+          ? {
+              ...next,
+              weight: previous.weight,
+              reps: previous.reps,
+              restSeconds: previous.restSeconds,
+            }
+          : next,
+      ],
+    })
   }
   function updateSet(i: number, s: WorkoutSet) {
     const sets = [...data.sets]
     sets[i] = s
     onUpdate({ ...data, sets })
   }
+  function updateSetField(i: number, field: "weight" | "reps", value: string) {
+    onUpdate({ ...data, sets: fillDownSetField(data.sets, i, field, value) })
+  }
   function updateWeightConfig(i: number, change: WeightSelectorChange) {
-    const sets = [...data.sets]
-    if (change.weight !== undefined) {
-      sets[i] = { ...sets[i], weight: change.weight }
-    }
+    const sets =
+      change.weight !== undefined
+        ? fillDownSetField(data.sets, i, "weight", change.weight)
+        : [...data.sets]
     onUpdate({
       ...data,
       sets,
@@ -2720,6 +1937,9 @@ function ActiveExerciseCard({
                         index={i}
                         unit={unit}
                         onUpdate={(updated) => updateSet(i, updated)}
+                        onRepsChange={(value) =>
+                          updateSetField(i, "reps", value)
+                        }
                         onDelete={() => removeSet(i)}
                         canDelete={data.sets.length > 1}
                         onComplete={onStartRest}
@@ -3111,6 +2331,9 @@ function AddExerciseSheet({
     readRecentExerciseSearches()
   )
   const [closing, setClosing] = useState(false)
+  const [editorDraft, setEditorDraft] = useState<CustomExerciseDraft | null>(
+    null
+  )
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchSeqRef = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -3184,6 +2407,26 @@ function AddExerciseSheet({
     onAdd(exercise)
     setRecentExercises(rememberRecentExerciseSearch(exercise))
     hapticSelection()
+  }
+
+  function openExerciseCreator() {
+    hapticTap()
+    setEditorDraft(emptyCustomExerciseDraft({ name: query.trim() }))
+  }
+
+  function handleCustomExerciseSaved(exercise: Exercise) {
+    setEditorDraft(null)
+    setRemoteExercises((current) => {
+      const rest = current.filter((item) => item.id !== exercise.id)
+      return [exercise, ...rest]
+    })
+    if (!addedIds.includes(exercise.id)) addAndRememberExercise(exercise)
+  }
+
+  function handleCustomExerciseDeleted(docId: string) {
+    const id = `${CUSTOM_EXERCISE_ID_PREFIX}${docId}`
+    setEditorDraft(null)
+    setRemoteExercises((current) => current.filter((item) => item.id !== id))
   }
 
   function requestClose() {
@@ -3285,10 +2528,22 @@ function AddExerciseSheet({
                       exercise={ex}
                       added={already}
                       onAdd={() => addAndRememberExercise(ex)}
+                      onEdit={
+                        ex.custom
+                          ? () =>
+                              setEditorDraft(
+                                customExerciseDraftFromExercise(ex)
+                              )
+                          : undefined
+                      }
                     />
                   )
                 })}
               </div>
+              <CreateExerciseButton
+                query={query}
+                onClick={openExerciseCreator}
+              />
             </>
           ) : searchState === "idle" ? (
             <div className="grid gap-5 pt-8">
@@ -3304,6 +2559,10 @@ function AddExerciseSheet({
                 popularSuggestions={popularSuggestions}
                 onChoose={chooseSuggestion}
               />
+              <CreateExerciseButton
+                query={query}
+                onClick={openExerciseCreator}
+              />
             </div>
           ) : searchState === "done" ? (
             <div className="flex flex-col items-center gap-5 px-2 py-16 text-center">
@@ -3316,6 +2575,10 @@ function AddExerciseSheet({
                   No matches{query.trim() ? ` for “${query.trim()}”` : ""}.
                 </p>
               </div>
+              <CreateExerciseButton
+                query={query}
+                onClick={openExerciseCreator}
+              />
               <ExerciseSuggestionGroups
                 recentSuggestions={recentSuggestions}
                 popularSuggestions={popularSuggestions}
@@ -3346,6 +2609,18 @@ function AddExerciseSheet({
           ) : null}
         </div>
       </div>
+      {editorDraft && (
+        // Stops the editor's own backdrop click from bubbling out and closing
+        // the search sheet underneath it too.
+        <div onClick={(event) => event.stopPropagation()}>
+          <CustomExerciseSheet
+            initialDraft={editorDraft}
+            onClose={() => setEditorDraft(null)}
+            onSaved={handleCustomExerciseSaved}
+            onDeleted={handleCustomExerciseDeleted}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -3415,46 +2690,64 @@ function ExerciseSearchResult({
   exercise,
   added,
   onAdd,
+  onEdit,
 }: {
   exercise: Exercise
   added: boolean
   onAdd: () => void
+  onEdit?: () => void
 }) {
   return (
-    <button
-      type="button"
-      disabled={added}
-      onClick={onAdd}
-      aria-label={
-        added ? `${exercise.name}, already added` : `Add ${exercise.name}`
-      }
-      className={cn(
-        "flex w-full items-center gap-3 px-3 py-3 text-left transition-colors active:bg-muted/55 disabled:cursor-default",
-        added && "opacity-45"
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[15px] leading-snug font-medium">
-          {exercise.name}
-        </p>
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[13px] text-muted-foreground">
-            {exercise.muscle}
-          </span>
-          <span className="text-[13px] text-muted-foreground">·</span>
-          <span className="shrink-0 text-[13px] text-muted-foreground">
-            {exercise.sets}
-          </span>
+    <div className={cn("flex w-full items-center", added && "opacity-45")}>
+      <button
+        type="button"
+        disabled={added}
+        onClick={onAdd}
+        aria-label={
+          added ? `${exercise.name}, already added` : `Add ${exercise.name}`
+        }
+        className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 text-left transition-colors active:bg-muted/55 disabled:cursor-default"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="truncate text-[15px] leading-snug font-medium">
+              {exercise.name}
+            </p>
+            {exercise.custom && (
+              <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] leading-none font-semibold text-muted-foreground">
+                Yours
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-[13px] text-muted-foreground">
+              {exercise.muscle}
+            </span>
+            <span className="text-[13px] text-muted-foreground">·</span>
+            <span className="shrink-0 text-[13px] text-muted-foreground">
+              {exercise.sets}
+            </span>
+          </div>
         </div>
-      </div>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground">
-        {added ? (
-          <Check size={14} weight="bold" className="text-foreground/70" />
-        ) : (
-          <Plus size={15} weight="bold" />
-        )}
-      </span>
-    </button>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground">
+          {added ? (
+            <Check size={14} weight="bold" className="text-foreground/70" />
+          ) : (
+            <Plus size={15} weight="bold" />
+          )}
+        </span>
+      </button>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Edit ${exercise.name}`}
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors active:bg-muted/55 active:text-foreground"
+        >
+          <PencilSimple size={15} weight="bold" />
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -3750,6 +3043,328 @@ function ResumeWorkoutSheet({
   )
 }
 
+/** Speech-recognition biasing vocabulary for dictating a workout. */
+const WORKOUT_DICTATION_TERMS = [
+  "reps",
+  "sets",
+  "kilograms",
+  "pounds",
+  "RPE",
+  "superset",
+  "dropset",
+  "warmup",
+  "AMRAP",
+  "bench press",
+  "squat",
+  "deadlift",
+  "overhead press",
+  "barbell row",
+]
+
+// ─── Reconstructing a past session ────────────────────────────────────────────
+
+/** "Today", "Yesterday", or "Tue, Mar 3" for the retro logger's header. */
+function formatRetroDateLabel(date: string) {
+  if (!date) return ""
+  const today = todayIso()
+  if (date === today) return "Today"
+  const yesterday = new Date(`${today}T12:00:00`)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (date === yesterday.toISOString().slice(0, 10)) return "Yesterday"
+  const parsed = new Date(`${date}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return date
+  return parsed.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+}
+
+/** Splits seconds into the hour/minute pair the duration stepper edits. */
+function splitDurationParts(totalSeconds: number) {
+  const safe = Math.max(0, Math.round(totalSeconds))
+  return {
+    hours: Math.floor(safe / 3600),
+    minutes: Math.floor((safe % 3600) / 60),
+  }
+}
+
+/**
+ * Speak or type what you did, and get editable sets back.
+ *
+ * The model returns exercise *names* only; they are resolved against the
+ * catalog here so a name it invented shows up as an unmatched row the user has
+ * to fix, rather than silently becoming a logged exercise.
+ */
+function BrainDumpSheet({
+  unit,
+  pending,
+  onClose,
+  onSubmit,
+}: {
+  unit: WeightUnit
+  pending: boolean
+  onClose: () => void
+  onSubmit: (text: string) => Promise<void>
+}) {
+  const [text, setText] = useState("")
+  const dictation = useCoachDictation({
+    value: text,
+    onChange: setText,
+    contextualStrings: WORKOUT_DICTATION_TERMS,
+  })
+
+  async function submit() {
+    // Stopping first recovers the tail iOS drops, so the last exercise someone
+    // says before hitting send is not silently lost.
+    const finalText =
+      dictation.status === "listening" ? await dictation.stop() : text
+    const trimmed = (finalText ?? text).trim()
+    if (trimmed.length < 4) return
+    await onSubmit(trimmed)
+  }
+
+  return (
+    <MobileSheet onClose={onClose} ariaLabel="Describe your workout">
+      <div className="px-6 pt-2 pb-6">
+        <h2 className="text-[20px] font-semibold tracking-tight">
+          What did you do?
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
+          Say it the way you'd tell a friend — "bench 3x8 at 185, then rows 3x10
+          at 60". Weights are read as {unit === "lbs" ? "pounds" : "kilograms"}.
+        </p>
+        <textarea
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          rows={4}
+          disabled={pending}
+          aria-label="Workout description"
+          placeholder="Bench 3x8 at 185, then rows 3x10 at 60..."
+          className="mt-4 w-full resize-none rounded-[20px] bg-muted/40 px-4 py-3 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+        />
+        {dictation.interim && (
+          <p className="mt-2 px-1 text-[13px] text-muted-foreground">
+            … · {dictation.interim}
+          </p>
+        )}
+        {dictation.error && (
+          <p className="mt-2 px-1 text-[13px] text-destructive">
+            {dictation.error}
+          </p>
+        )}
+        <div className="mt-4 flex gap-2">
+          {dictation.available && (
+            <button
+              type="button"
+              aria-label={
+                dictation.status === "listening"
+                  ? "Stop dictation"
+                  : "Dictate your workout"
+              }
+              aria-pressed={dictation.status === "listening"}
+              disabled={pending}
+              onClick={() =>
+                dictation.status === "listening"
+                  ? void dictation.stop()
+                  : void dictation.start()
+              }
+              className={cn(
+                "motion-tactile inline-flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[20px] transition-colors disabled:opacity-50",
+                dictation.status === "listening"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/60 text-foreground"
+              )}
+            >
+              <Microphone size={20} weight="bold" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={pending || text.trim().length < 4}
+            aria-busy={pending}
+            className="h-[52px] flex-1 rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
+          >
+            {pending ? "Reading..." : "Add these exercises"}
+          </button>
+        </div>
+      </div>
+    </MobileSheet>
+  )
+}
+
+/**
+ * The save step for a reconstructed session: what day, how long, and what time.
+ *
+ * Duration and time are prefilled but always editable — the app should never
+ * quietly assert how long someone trained.
+ */
+function RetroSaveSheet({
+  date,
+  onDateChange,
+  durationSeconds,
+  onDurationChange,
+  completedAt,
+  onCompletedAtChange,
+  totalSets,
+  doneSets,
+  mode,
+  onSave,
+  onCancel,
+}: {
+  date: string
+  onDateChange: (date: string) => void
+  durationSeconds: number
+  onDurationChange: (seconds: number) => void
+  completedAt: number | null
+  onCompletedAtChange: (value: number) => void
+  totalSets: number
+  doneSets: number
+  mode: "create" | "edit"
+  onSave: () => Promise<void>
+  onCancel: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const { hours, minutes } = splitDurationParts(durationSeconds)
+
+  function setParts(nextHours: number, nextMinutes: number) {
+    const total = Math.max(0, nextHours) * 3600 + Math.max(0, nextMinutes) * 60
+    onDurationChange(
+      Math.min(
+        MAX_RETRO_DURATION_SECONDS,
+        Math.max(MIN_RETRO_DURATION_SECONDS, total)
+      )
+    )
+  }
+
+  const timeValue = (() => {
+    if (completedAt === null) return ""
+    const parsed = new Date(completedAt)
+    if (Number.isNaN(parsed.getTime())) return ""
+    return `${String(parsed.getHours()).padStart(2, "0")}:${String(
+      parsed.getMinutes()
+    ).padStart(2, "0")}`
+  })()
+
+  async function save() {
+    if (saving) return
+    setSaving(true)
+    try {
+      await onSave()
+    } catch {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <MobileSheet onClose={onCancel} ariaLabel="Save this workout">
+      <div className="px-6 pt-2 pb-6">
+        <h2 className="text-[20px] font-semibold tracking-tight">
+          {mode === "edit" ? "Save changes" : "Log this workout"}
+        </h2>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
+          {doneSets} of {totalSets} set{totalSets === 1 ? "" : "s"} marked done.
+          Only completed sets are saved.
+        </p>
+
+        <label className="mt-5 flex flex-col gap-1.5">
+          <span className="px-1 text-[13px] font-bold text-muted-foreground">
+            Date
+          </span>
+          <input
+            type="date"
+            value={date}
+            max={todayIso()}
+            onChange={(event) => onDateChange(event.target.value)}
+            aria-label="Workout date"
+            className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </label>
+
+        <div className="mt-4 flex gap-3">
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className="px-1 text-[13px] font-bold text-muted-foreground">
+              Hours
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="6"
+              value={String(hours)}
+              onChange={(event) =>
+                setParts(Number(event.target.value) || 0, minutes)
+              }
+              aria-label="Workout duration hours"
+              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className="px-1 text-[13px] font-bold text-muted-foreground">
+              Minutes
+            </span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="59"
+              value={String(minutes)}
+              onChange={(event) =>
+                setParts(hours, Number(event.target.value) || 0)
+              }
+              aria-label="Workout duration minutes"
+              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </label>
+          <label className="flex flex-1 flex-col gap-1.5">
+            <span className="px-1 text-[13px] font-bold text-muted-foreground">
+              Finished
+            </span>
+            <input
+              type="time"
+              value={timeValue}
+              onChange={(event) => {
+                const [h, m] = event.target.value.split(":").map(Number)
+                if (!Number.isFinite(h) || !Number.isFinite(m)) return
+                const next = new Date(`${date}T12:00:00`)
+                next.setHours(h, m, 0, 0)
+                onCompletedAtChange(next.getTime())
+              }}
+              aria-label="Time the workout finished"
+              className="h-[52px] rounded-[20px] bg-muted/40 px-4 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </label>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => void save()}
+            disabled={saving || doneSets === 0}
+            aria-busy={saving}
+            className="h-[52px] w-full rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
+          >
+            {saving
+              ? "Saving..."
+              : mode === "edit"
+                ? "Save changes"
+                : "Log workout"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground disabled:opacity-50"
+          >
+            Keep editing
+          </button>
+        </div>
+      </div>
+    </MobileSheet>
+  )
+}
+
 function FinishSheet({
   elapsed,
   totalSets,
@@ -3980,7 +3595,8 @@ function renderSupersetItem(
   reorderMode: boolean,
   itemIndex: number,
   itemCount: number,
-  onMoveItem: (itemKey: string, direction: -1 | 1) => void
+  onMoveItem: (itemKey: string, direction: -1 | 1) => void,
+  defaultSetCompleted = false
 ) {
   const key = workoutItemKey(item)
   const dt = dropTarget
@@ -4116,6 +3732,7 @@ function renderSupersetItem(
                 onToggleCollapse={() => toggleCollapsed(exId)}
                 cardRef={() => undefined}
                 onStartRest={onStartRest}
+                defaultSetCompleted={defaultSetCompleted}
                 lastSession={lastSessionMap[exId] ?? null}
                 onShowHistory={() => onShowHistory(exId, ex.name)}
                 onAiChange={() => onAiChange(exId, ex.name)}
@@ -4145,11 +3762,90 @@ function renderSupersetItem(
  * @returns The React element for the Active Workout page.
  */
 export default function ActiveWorkout() {
-  const { presetId } = useParams<{ presetId?: string }>()
+  const routeParams = useParams<{ presetId?: string; date?: string }>()
   const navigate = useSmoothNavigate()
   const posthog = usePostHog()
   const [searchParams, setSearchParams] = useSearchParams()
-  const slot = (Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2
+
+  // ── Retro mode ────────────────────────────────────────────────────────────
+  // `/workout/log/:date` reconstructs a session that already happened. The
+  // set-entry UI is identical; what changes is that nothing here is live —
+  // there is no clock, no rest timer, and above all no `activeWorkouts` row,
+  // which is keyed by slot alone and would clobber a workout running right now.
+  const retroDateParam = routeParams.date
+  const isRetro = Boolean(retroDateParam)
+  const healthWorkoutParam = searchParams.get("health")
+  const editSessionIdParam = searchParams.get("sessionId")
+  const presetId =
+    routeParams.presetId ?? searchParams.get("preset") ?? undefined
+
+  const [retroDate, setRetroDate] = useState(retroDateParam ?? "")
+  const [retroDuration, setRetroDuration] = useState<number | null>(null)
+  const [retroCompletedAt, setRetroCompletedAt] = useState<number | null>(null)
+  const retroSessionIdRef = useRef<string | null>(null)
+  // `?describe=1` arrives from the "Describe it" choice in the log-a-past-workout
+  // sheet, so that path opens straight into dictation instead of an empty logger.
+  const [brainDumpOpen, setBrainDumpOpen] = useState(
+    () => searchParams.get("describe") === "1"
+  )
+  const [brainDumpPending, setBrainDumpPending] = useState(false)
+
+  const healthWorkout = useQuery(
+    api.logs.healthWorkouts.getById,
+    isRetro && healthWorkoutParam
+      ? { id: healthWorkoutParam as Id<"healthWorkouts"> }
+      : "skip"
+  )
+  const retroDayLogs = useQuery(
+    api.logs.workouts.getLog,
+    isRetro && retroDate ? { date: retroDate } : "skip"
+  )
+
+  // Health handoff reuses the namespace `linkToTrainingLog` writes, so a
+  // re-sync and a repeat save land on the same row instead of duplicating.
+  if (isRetro && retroSessionIdRef.current === null) {
+    retroSessionIdRef.current =
+      editSessionIdParam ??
+      (healthWorkoutParam ? null : `retro:${createClientId()}`)
+  }
+  if (
+    isRetro &&
+    retroSessionIdRef.current === null &&
+    healthWorkout !== undefined
+  ) {
+    // `null` means the recorded workout is gone or belongs to someone else.
+    // Fall back to a fresh session rather than leaving the page unable to save.
+    retroSessionIdRef.current =
+      healthWorkout?.sessionId ?? `retro:${createClientId()}`
+  }
+  const retroSessionId = retroSessionIdRef.current ?? ""
+
+  const retroFreeSlot = useQuery(
+    api.logs.workouts.freeSlot,
+    isRetro && retroDate && retroSessionId
+      ? { date: retroDate, sessionId: retroSessionId }
+      : "skip"
+  )
+  const attachHealthWorkout = useMutation(api.logs.healthWorkouts.attachToLog)
+  const retroDraftKey =
+    isRetro && retroDate && retroSessionId
+      ? retroWorkoutDraftKey(retroDate, retroSessionId)
+      : null
+  // Read inside the debounced sync closure, which cannot see fresh props.
+  const isRetroRef = useRef(isRetro)
+  useEffect(() => {
+    isRetroRef.current = isRetro
+  }, [isRetro])
+
+  const editingLog = useMemo(
+    () => retroDayLogs?.find((log) => log.sessionId === retroSessionId) ?? null,
+    [retroDayLogs, retroSessionId]
+  )
+  const retroMode: "create" | "edit" = editingLog ? "edit" : "create"
+
+  const slot = isRetro
+    ? ((editingLog?.slot ?? retroFreeSlot ?? 1) as 1 | 2)
+    : ((Number(searchParams.get("slot") ?? "1") || 1) as 1 | 2)
   const { requireAiAccess, aiAccessLoading, aiAccessModal } = useAiFeatureGate()
   const { context: coachContext, loading: coachContextLoading } =
     useCoachContext()
@@ -4176,7 +3872,10 @@ export default function ActiveWorkout() {
   const coachCheckIns = useQuery(api.ai.coachState.listCheckIns, { limit: 14 })
 
   // Active workout Convex sync
-  const activeWorkout = useQuery(api.logs.activeWorkout.getActive, { slot })
+  const activeWorkout = useQuery(
+    api.logs.activeWorkout.getActive,
+    isRetro ? "skip" : { slot }
+  )
   const createActive = useMutation(api.logs.activeWorkout.createActive)
   const updateActive = useMutation(api.logs.activeWorkout.updateActive)
   const abortActive = useMutation(api.logs.activeWorkout.abortActive)
@@ -4184,6 +3883,7 @@ export default function ActiveWorkout() {
   const generateCoachPlan = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
+  const draftLogFromText = useAction(api.logs.logAgent.draftLogFromText)
 
   const [items, setItems] = useState<WorkoutItem[]>([])
   const [exData, setExData] = useState<Record<string, ExerciseState>>({})
@@ -4227,8 +3927,25 @@ export default function ActiveWorkout() {
     items.map(workoutItemKey),
     itemRefs
   )
-  const elapsed = useElapsedTimer(activeWorkout?.startedAt ?? localStartedAt)
-  const rest = useRestCountdown(restTimerKey(slot))
+  const liveElapsed = useElapsedTimer(
+    isRetro ? null : (activeWorkout?.startedAt ?? localStartedAt)
+  )
+  // A reconstructed session has no clock to read, so `elapsed` becomes the
+  // duration the user confirms in the save sheet.
+  const elapsed = isRetro ? (retroDuration ?? 0) : liveElapsed
+  // The hook still runs (hooks cannot be conditional) but is pointed at a key
+  // no live session uses, so it never resumes someone else's rest timer.
+  const rest = useRestCountdown(
+    isRetro ? `${REST_TIMER_PREFIX}retro` : restTimerKey(slot)
+  )
+  // Rest is a live-workout concept; in retro mode starting one is a no-op.
+  const startRest = useCallback(
+    (seconds: number) => {
+      if (isRetro) return
+      rest.start(seconds)
+    },
+    [isRetro, rest]
+  )
 
   // Track if we've initialized from Convex to avoid overwriting user's workout data
   const [isInitialized, setIsInitialized] = useState(false)
@@ -4417,6 +4134,8 @@ export default function ActiveWorkout() {
   // ── Sync state to Convex (debounced) ──────────────────────────────────────
   const syncToConvex = useCallback(
     (options: { immediate?: boolean } = {}) => {
+      // Retro sessions are never mirrored into `activeWorkouts`.
+      if (isRetroRef.current) return
       if (abortingRef.current) return
       if (!isDirtyRef.current) return
       if (isSyncingRef.current) return
@@ -4504,6 +4223,72 @@ export default function ActiveWorkout() {
       }
     }
 
+    // Reconstructing a past session: never read or resume live state.
+    if (isRetro) {
+      if (!retroDate || !retroSessionId) return
+      // Wait for the day's logs so an edit hydrates rather than starting blank.
+      if (retroDayLogs === undefined) return
+      if (healthWorkoutParam && healthWorkout === undefined) return
+
+      if (editingLog) {
+        const loadedItems: WorkoutItem[] = []
+        const loadedExData: Record<string, ExerciseState> = {}
+        for (const logged of editingLog.exercises as LoggedWorkoutExercise[]) {
+          loadedItems.push({ kind: "solo", exerciseId: logged.id })
+          loadedExData[logged.id] = exerciseStateFromLoggedExercise(
+            logged as Parameters<typeof exerciseStateFromLoggedExercise>[0]
+          )
+        }
+        setRetroDuration(editingLog.durationSeconds ?? 0)
+        setRetroCompletedAt(editingLog.completedAt ?? null)
+        loadWorkoutState(loadedItems, loadedExData, null)
+        return
+      }
+
+      // A local draft outranks the preset it came from: it is either work this
+      // session already did and lost to a reload, or the numbers the abridged
+      // preset logger collected before handing over.
+      const retroDraft = retroDraftKey
+        ? readActiveWorkoutDraft(slot, retroDraftKey)
+        : null
+      if (retroDraft && retroDraft.items.length > 0) {
+        setRetroDuration(retroDraft.elapsedSeconds)
+        loadWorkoutState(retroDraft.items, retroDraft.exerciseData, null)
+        return
+      }
+
+      if (presetId && presets) {
+        const match = presets.find((p) => (p.id ?? p._id) === presetId)
+        if (match) {
+          const presetItems = (match.items as WorkoutItem[]) ?? []
+          const presetExData =
+            (match.exerciseData as Record<string, ExerciseState>) ?? {}
+          // The plan is the shape of the session; every set in it was done.
+          loadWorkoutState(
+            presetItems,
+            Object.fromEntries(
+              Object.entries(presetExData).map(([id, state]) => [
+                id,
+                {
+                  ...state,
+                  sets: (state.sets ?? []).map((set) => ({
+                    ...set,
+                    completed: true,
+                  })),
+                },
+              ])
+            ),
+            null
+          )
+          return
+        }
+        if (presets === undefined) return
+      }
+
+      loadWorkoutState([], {}, null)
+      return
+    }
+
     // If there's an active workout in Convex, load it
     if (activeWorkout) {
       if (resumeDecision === "pending") {
@@ -4545,10 +4330,53 @@ export default function ActiveWorkout() {
         loadWorkoutState(loadedItems, loadedExData, Date.now())
       }
     }
-  }, [activeWorkout, isInitialized, presetId, presets, resumeDecision, slot])
+  }, [
+    activeWorkout,
+    editingLog,
+    healthWorkout,
+    healthWorkoutParam,
+    isInitialized,
+    isRetro,
+    presetId,
+    presets,
+    resumeDecision,
+    retroDate,
+    retroDayLogs,
+    retroDraftKey,
+    retroSessionId,
+    slot,
+  ])
+
+  // Seed the duration from the recorded session, then from an estimate. Both
+  // are only a starting value — the save sheet shows it as an editable field
+  // rather than letting the app quietly invent how long someone trained.
+  useEffect(() => {
+    if (!isRetro || !isInitialized) return
+    if (retroDuration !== null) return
+    if (healthWorkout?.durationSeconds) {
+      setRetroDuration(Math.round(healthWorkout.durationSeconds))
+      return
+    }
+    if (items.length > 0) {
+      setRetroDuration(estimateRetroDurationSeconds(items, exData))
+    }
+  }, [isRetro, isInitialized, retroDuration, healthWorkout, items, exData])
+
+  // Apple Health knows exactly when the session ended; otherwise midday on the
+  // chosen date, which reads as "that day" without claiming a false clock time.
+  useEffect(() => {
+    if (!isRetro || retroCompletedAt !== null || !retroDate) return
+    if (healthWorkoutParam && healthWorkout === undefined) return
+    if (healthWorkout?.endedAt) {
+      setRetroCompletedAt(healthWorkout.endedAt)
+      return
+    }
+    setRetroCompletedAt(new Date(`${retroDate}T12:00:00`).getTime())
+  }, [isRetro, retroCompletedAt, retroDate, healthWorkout, healthWorkoutParam])
 
   // ── Create active workout in Convex when items are loaded ─────────────────
   useEffect(() => {
+    if (isRetro) return
     if (!isInitialized) return
     if (abortingRef.current) return
     if (items.length === 0) return
@@ -4567,6 +4395,7 @@ export default function ActiveWorkout() {
       }).catch(reportOfflineMutationError)
     }
   }, [
+    isRetro,
     isInitialized,
     items.length,
     activeWorkout,
@@ -4591,6 +4420,7 @@ export default function ActiveWorkout() {
   }, [isInitialized, elapsed, syncToConvex])
 
   useEffect(() => {
+    if (isRetro) return
     if (!isInitialized || items.length === 0) return
     if (!liveActivityStartedRef.current) {
       liveActivityStartedRef.current = true
@@ -4602,7 +4432,7 @@ export default function ActiveWorkout() {
     void updateWorkoutLiveActivity(liveActivityState).catch((error) =>
       logDevWarn("Failed to update workout Live Activity", error)
     )
-  }, [isInitialized, items.length, liveActivityState])
+  }, [isRetro, isInitialized, items.length, liveActivityState])
 
   useEffect(() => {
     if (!isInitialized) return
@@ -4628,16 +4458,20 @@ export default function ActiveWorkout() {
     if (!localStartedAt && !activeWorkout?.startedAt) {
       setLocalStartedAt(startedAt)
     }
-    writeActiveWorkoutDraft({
-      elapsedSeconds: elapsed,
-      exerciseData: exData,
-      items,
-      presetId,
-      savedAt: Date.now(),
-      slot,
-      startedAt,
-    })
+    writeActiveWorkoutDraft(
+      {
+        elapsedSeconds: elapsed,
+        exerciseData: exData,
+        items,
+        presetId,
+        savedAt: Date.now(),
+        slot,
+        startedAt,
+      },
+      retroDraftKey ?? undefined
+    )
   }, [
+    retroDraftKey,
     activeWorkout?.startedAt,
     elapsed,
     exData,
@@ -4649,12 +4483,107 @@ export default function ActiveWorkout() {
   ])
 
   useEffect(() => {
-    if (isInitialized) {
+    if (isInitialized && !isRetro) {
       captureFeatureUsage(posthog, "workout_started", {
         has_preset: Boolean(presetId),
       })
     }
-  }, [isInitialized, presetId, posthog])
+  }, [isInitialized, isRetro, presetId, posthog])
+
+  /**
+   * Turns a spoken or typed recap into exercises appended to the session.
+   *
+   * The action returns names, never catalog ids, so each one is resolved here
+   * and anything unmatched is reported rather than dropped — a silently missing
+   * exercise is worse than being told to add it by hand.
+   */
+  async function handleBrainDump(text: string) {
+    if (brainDumpPending) return
+    setBrainDumpPending(true)
+    try {
+      const draft = await draftLogFromText({ text, unit })
+      if (draft.exercises.length === 0) {
+        toast.error(draft.notes ?? "Nothing recognisable in that description.")
+        return
+      }
+
+      const resolved = await Promise.all(
+        draft.exercises.map(async (drafted) => {
+          const candidates = await searchExercises({
+            query: drafted.name,
+            limit: 6,
+          })
+          return {
+            drafted,
+            exercise: pickBestExerciseMatch(drafted.name, candidates),
+          }
+        })
+      )
+
+      const matched = resolved.filter((entry) => entry.exercise)
+      const unmatched = resolved
+        .filter((entry) => !entry.exercise)
+        .map((entry) => entry.drafted.name)
+
+      if (matched.length > 0) {
+        const nextLookup: Record<string, Exercise> = {}
+        const nextData: Record<string, ExerciseState> = {}
+        const nextItems: WorkoutItem[] = []
+        for (const { drafted, exercise } of matched) {
+          if (!exercise) continue
+          nextLookup[exercise.id] = exercise
+          nextData[exercise.id] = {
+            ...makeDefaultExerciseState(exercise, true),
+            sets: drafted.sets.map((set) => ({
+              id: createClientId(),
+              type: set.type,
+              weight: set.weightKg > 0 ? String(set.weightKg) : "",
+              reps: set.reps > 0 ? String(set.reps) : "",
+              restSeconds: 120,
+              completed: true,
+            })),
+          }
+          nextItems.push({ kind: "solo", exerciseId: exercise.id })
+        }
+        setExerciseLookup((prev) => ({ ...prev, ...nextLookup }))
+        setExData((prev) => ({ ...prev, ...nextData }))
+        setItems((prev) => [
+          ...prev,
+          ...nextItems.filter(
+            (item) =>
+              item.kind === "solo" &&
+              !prev.some(
+                (existing) =>
+                  existing.kind === "solo" &&
+                  existing.exerciseId === item.exerciseId
+              )
+          ),
+        ])
+      }
+
+      if (draft.durationMinutes && retroDuration === null) {
+        setRetroDuration(draft.durationMinutes * 60)
+      }
+
+      if (unmatched.length > 0) {
+        toast.error(
+          `Could not find ${unmatched.join(", ")}. Add ${
+            unmatched.length > 1 ? "them" : "it"
+          } by hand.`
+        )
+      }
+      if (matched.length > 0) setBrainDumpOpen(false)
+    } catch (error) {
+      logDevError("Failed to draft workout from text", error)
+      toast.error(
+        error instanceof Error && error.message.includes("limit")
+          ? error.message
+          : "Could not read that description. Try again or add sets by hand."
+      )
+    } finally {
+      setBrainDumpPending(false)
+    }
+  }
 
   function openAiWorkoutSheet(target: AiWorkoutSheetTarget) {
     if (requireAiAccess()) setAiSheetTarget(target)
@@ -5020,7 +4949,7 @@ export default function ActiveWorkout() {
     setItems((prev) => [...prev, { kind: "solo", exerciseId: id }])
     setExData((prev) => ({
       ...prev,
-      [id]: makeDefaultExerciseState(ex),
+      [id]: makeDefaultExerciseState(ex, isRetro),
     }))
   }
   function removeExercise(id: string) {
@@ -5222,6 +5151,53 @@ export default function ActiveWorkout() {
         ]
       })
     })
+    // A reconstructed session is written straight to the log. `finishActive`
+    // derives the date server-side in UTC, which would silently misfile it.
+    if (isRetro) {
+      try {
+        await logCompletion({
+          date: retroDate,
+          sessionId: retroSessionId,
+          slot,
+          exercises,
+          durationSeconds: elapsed,
+          ...(retroCompletedAt === null
+            ? {}
+            : { completedAt: retroCompletedAt }),
+        })
+        if (healthWorkout && !healthWorkout.linked) {
+          // Best effort: the log is already saved, and a missing link only
+          // means the nudge offers this session again.
+          await attachHealthWorkout({
+            id: healthWorkout._id,
+            sessionId: retroSessionId,
+            date: retroDate,
+          }).catch(reportOfflineMutationError)
+        }
+        captureFeatureUsage(posthog, "workout_logged_retro", {
+          mode: retroMode,
+          source: healthWorkoutParam
+            ? "apple_health"
+            : presetId
+              ? "preset"
+              : "manual",
+          item_count: exercises.length,
+        })
+        if (retroDraftKey) clearActiveWorkoutDraft(slot, retroDraftKey)
+        celebrateAchievement("workout")
+        window.setTimeout(() => navigate(-1), 450)
+      } catch (err) {
+        logDevError("Failed to log past workout:", err)
+        toast.error(
+          err instanceof Error && err.message.includes("two sessions")
+            ? "Two sessions are already logged that day. Edit one instead."
+            : "Could not save that workout. Please try again."
+        )
+        throw err
+      }
+      return
+    }
+
     try {
       // Finish the active workout in Convex (this also logs it)
       await finishActive({
@@ -5309,7 +5285,7 @@ export default function ActiveWorkout() {
     }, 520)
     hapticMedium()
     if (!currentSet.completed && currentSet.restSeconds > 0) {
-      rest.start(currentSet.restSeconds)
+      startRest(currentSet.restSeconds)
     }
   }
 
@@ -5330,6 +5306,50 @@ export default function ActiveWorkout() {
   function dismissSupersetTip() {
     setShowSupersetTip(false)
     window.localStorage.setItem("onerep:active-superset-tip-hidden", "1")
+  }
+
+  // Two sessions is the cap a date can hold, and `getLog` only ever reads two.
+  // Reaching this state means every entry point should have offered "edit"
+  // instead of "create", so say so and offer the real options rather than
+  // letting the user build a workout that cannot be saved.
+  if (isRetro && retroMode === "create" && retroFreeSlot === null) {
+    return (
+      <div className="desktop-canvas flex min-h-svh flex-col items-center justify-center gap-4 bg-background px-8 text-center">
+        <h1 className="text-[20px] font-semibold tracking-tight">
+          {formatRetroDateLabel(retroDate)} is full
+        </h1>
+        <p className="max-w-xs text-[14px] leading-relaxed text-muted-foreground">
+          Two sessions are already logged that day. Open one to add what you
+          did.
+        </p>
+        <div className="flex w-full max-w-xs flex-col gap-2">
+          {(retroDayLogs ?? []).map((log, index) => (
+            <button
+              key={log._id}
+              type="button"
+              onClick={() =>
+                navigate(
+                  `/workout/log/${retroDate}?sessionId=${encodeURIComponent(
+                    log.sessionId ?? ""
+                  )}`,
+                  { motion: "forward", replace: true }
+                )
+              }
+              className="motion-tactile h-[52px] w-full rounded-[20px] bg-muted/60 text-[15px] font-semibold transition-opacity active:opacity-80"
+            >
+              Edit workout {log.slot ?? index + 1}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="motion-tactile h-[52px] w-full rounded-[20px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35"
+          >
+            Go back
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -5367,16 +5387,45 @@ export default function ActiveWorkout() {
             </button>
             <div className="min-w-0 flex-1 text-center">
               <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
-                {rest.remaining !== null ? "Rest" : "Elapsed"}
+                {isRetro
+                  ? retroMode === "edit"
+                    ? "Editing"
+                    : "Logging"
+                  : rest.remaining !== null
+                    ? "Rest"
+                    : "Elapsed"}
               </p>
               <p
-                key={rest.remaining !== null ? "rest" : "workout"}
-                className="active-workout-timer-mode mt-1 text-[2rem] leading-none font-semibold tracking-tight tabular-nums md:text-[2.25rem]"
+                key={
+                  isRetro
+                    ? "retro"
+                    : rest.remaining !== null
+                      ? "rest"
+                      : "workout"
+                }
+                className={cn(
+                  "active-workout-timer-mode mt-1 leading-none font-semibold tracking-tight tabular-nums",
+                  isRetro
+                    ? "text-[1.5rem] md:text-[1.75rem]"
+                    : "text-[2rem] md:text-[2.25rem]"
+                )}
               >
-                {formatElapsed(rest.remaining ?? elapsed)}
+                {isRetro
+                  ? formatRetroDateLabel(retroDate)
+                  : formatElapsed(rest.remaining ?? elapsed)}
               </p>
             </div>
-            {rest.remaining !== null ? (
+            {isRetro ? (
+              <button
+                type="button"
+                onClick={() => setBrainDumpOpen(true)}
+                aria-label="Describe your workout"
+                className="motion-tactile inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-muted px-3 text-[13px] font-semibold text-foreground"
+              >
+                <Sparkle size={16} weight="bold" />
+                Describe
+              </button>
+            ) : rest.remaining !== null ? (
               <button
                 onClick={rest.dismiss}
                 className="motion-tactile h-11 shrink-0 rounded-xl bg-muted px-4 text-[13px] font-extrabold text-foreground"
@@ -5557,7 +5606,8 @@ export default function ActiveWorkout() {
                       if (el) itemRefs.current.set(key, el)
                       else itemRefs.current.delete(key)
                     }}
-                    onStartRest={rest.start}
+                    onStartRest={startRest}
+                    defaultSetCompleted={isRetro}
                     lastSession={lastSessionMap[item.exerciseId] ?? null}
                     onShowHistory={() =>
                       setHistorySheet({
@@ -5621,7 +5671,7 @@ export default function ActiveWorkout() {
                 },
                 makeDragHandlers,
                 itemRefs,
-                rest.start,
+                startRest,
                 exerciseLookup,
                 lastSessionMap,
                 (exId, name) => setHistorySheet({ exerciseId: exId, name }),
@@ -5632,7 +5682,8 @@ export default function ActiveWorkout() {
                 reorderMode,
                 itemIndex,
                 items.length,
-                moveItemByStep
+                moveItemByStep,
+                isRetro
               )
             })}
           </div>
@@ -5713,7 +5764,30 @@ export default function ActiveWorkout() {
           onClose={() => setAiSheetTarget(null)}
         />
       )}
-      {confirmFinish && (
+      {brainDumpOpen && (
+        <BrainDumpSheet
+          unit={unit}
+          pending={brainDumpPending}
+          onClose={() => setBrainDumpOpen(false)}
+          onSubmit={handleBrainDump}
+        />
+      )}
+      {confirmFinish && isRetro && (
+        <RetroSaveSheet
+          date={retroDate}
+          onDateChange={setRetroDate}
+          durationSeconds={retroDuration ?? 0}
+          onDurationChange={setRetroDuration}
+          completedAt={retroCompletedAt}
+          onCompletedAtChange={setRetroCompletedAt}
+          totalSets={totalSets}
+          doneSets={doneSets}
+          mode={retroMode}
+          onSave={handleFinish}
+          onCancel={() => setConfirmFinish(false)}
+        />
+      )}
+      {confirmFinish && !isRetro && (
         <FinishSheet
           elapsed={elapsed}
           totalSets={totalSets}
@@ -5732,8 +5806,8 @@ export default function ActiveWorkout() {
                 clearTimeout(syncTimeoutRef.current)
                 syncTimeoutRef.current = null
               }
-              await abortActive({ slot })
-              clearActiveWorkoutDraft(slot)
+              if (!isRetro) await abortActive({ slot })
+              clearActiveWorkoutDraft(slot, retroDraftKey ?? undefined)
               safeSessionStorageSet(ABORTED_WORKOUT_SLOT_KEY, String(slot))
               void endWorkoutLiveActivity(liveActivityState)
               navigate(-1)

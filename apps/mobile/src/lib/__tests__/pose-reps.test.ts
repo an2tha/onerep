@@ -237,7 +237,10 @@ describe("detectReps", () => {
     const detection = chooseRepSignal(
       Array.from({ length: 60 }, (_, i) => {
         const phase = (i % 20) / 20
-        return frameFrom(pose(0.18 * (1 - Math.cos(phase * 2 * Math.PI))), i * 100)
+        return frameFrom(
+          pose(0.18 * (1 - Math.cos(phase * 2 * Math.PI))),
+          i * 100
+        )
       })
     )
     expect(detection.reps).toHaveLength(3)
@@ -328,7 +331,10 @@ describe("detectReps beyond the squat", () => {
 
 describe("collectReps", () => {
   it("keeps every rep from every angle in one capture", () => {
-    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    const collected = collectReps([
+      repClip(3, 0, 1),
+      repClip(2, Math.PI / 2, 2),
+    ])!
     expect(collected.repCount).toBe(5)
     expect(collected.angleCount).toBe(2)
   })
@@ -477,7 +483,10 @@ describe("buildTimeline", () => {
   })
 
   it("puts every angle in one series, each sample saying where it came from", () => {
-    const timeline = buildTimeline([repClip(2, 0, 1), repClip(1, Math.PI / 2, 2)])
+    const timeline = buildTimeline([
+      repClip(2, 0, 1),
+      repClip(1, Math.PI / 2, 2),
+    ])
     expect(new Set(timeline.map((sample) => sample.angleIndex))).toEqual(
       new Set([1, 2])
     )
@@ -501,7 +510,9 @@ describe("buildTimeline", () => {
     const tail = Array.from({ length: 40 }, (_, i) =>
       frameFrom(pose(0), 2000 + i * 100)
     )
-    const timeline = buildTimeline([{ index: 1, frames: [...clip.frames, ...tail] }])
+    const timeline = buildTimeline([
+      { index: 1, frames: [...clip.frames, ...tail] },
+    ])
     expect(timeline.length).toBeGreaterThan(4)
     expect(timeline.at(-1)!.timeMs).toBeGreaterThanOrEqual(5000)
   })
@@ -526,7 +537,10 @@ describe("buildTimeline", () => {
   it("returns nothing when no frame was tracked", () => {
     expect(
       buildTimeline([
-        { index: 1, frames: [{ timeMs: 0, landmarks: [], worldLandmarks: [] }] },
+        {
+          index: 1,
+          frames: [{ timeMs: 0, landmarks: [], worldLandmarks: [] }],
+        },
       ])
     ).toEqual([])
   })
@@ -538,7 +552,9 @@ describe("fitToFrameBudget", () => {
     repIndex,
     startMs: 0,
     timing: { totalMs: 2000, toTurnaroundMs: 1000 },
-    frames: Array.from({ length: frames }, (_, i) => frameFrom(pose(0), i * 100)),
+    frames: Array.from({ length: frames }, (_, i) =>
+      frameFrom(pose(0), i * 100)
+    ),
   })
 
   it("leaves a capture inside the budget alone", () => {
@@ -614,13 +630,19 @@ describe("classifyCameraView", () => {
 
 describe("collectReps per-rep output", () => {
   it("returns every contributing rep separately", () => {
-    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    const collected = collectReps([
+      repClip(3, 0, 1),
+      repClip(2, Math.PI / 2, 2),
+    ])!
     expect(collected.reps).toHaveLength(5)
     expect(collected.reps.every((rep) => rep.frames.length > 0)).toBe(true)
   })
 
   it("numbers reps within each angle", () => {
-    const collected = collectReps([repClip(3, 0, 1), repClip(2, Math.PI / 2, 2)])!
+    const collected = collectReps([
+      repClip(3, 0, 1),
+      repClip(2, Math.PI / 2, 2),
+    ])!
     const first = collected.reps.filter((rep) => rep.angleIndex === 1)
     const second = collected.reps.filter((rep) => rep.angleIndex === 2)
     expect(first.map((rep) => rep.repIndex)).toEqual([1, 2, 3])
@@ -635,7 +657,10 @@ describe("collectReps per-rep output", () => {
   })
 
   it("summarises each contributing angle", () => {
-    const collected = collectReps([repClip(2, 0, 1), repClip(1, Math.PI / 2, 2)])!
+    const collected = collectReps([
+      repClip(2, 0, 1),
+      repClip(1, Math.PI / 2, 2),
+    ])!
     expect(collected.angles).toHaveLength(2)
     expect(collected.angles[0]).toMatchObject({
       index: 1,

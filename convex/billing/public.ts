@@ -1,4 +1,3 @@
-import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import type { Doc } from "../_generated/dataModel";
 import { action, env, query } from "../_generated/server";
@@ -8,12 +7,16 @@ import {
   normalizeMonthlyPriceLabel,
 } from "../lib/subscriptionPrice";
 import { isProCompedForEveryone, rollupForUser } from "./entitlement";
-import {
-  MONTHLY_PRODUCT_ID,
-  PRO_ENTITLEMENT,
-  SUBSCRIPTION_OWNED_BY_ANOTHER_ACCOUNT,
-  nonEmptyString,
-} from "./types";
+import { MONTHLY_PRODUCT_ID, PRO_ENTITLEMENT, nonEmptyString } from "./types";
+
+/**
+ * OneRep Pro is sold on the web through Stripe and nowhere else.
+ *
+ * There is no in-app purchase path on any platform, so this module exposes no
+ * receipt redemption or restore endpoint — a client cannot present a store
+ * receipt for the server to honour, and legacy App Store / Play rows no longer
+ * grant the entitlement.
+ */
 
 /**
  * The stable identifier we hand to the stores.
@@ -164,37 +167,7 @@ export const getStatus = query({
   },
 });
 
-/**
- * Everything the client needs to start a native purchase.
- *
- * A mutation-backed action rather than part of `getStatus` because it persists
- * the `appAccountToken` mapping on first use — that record is what lets a store
- * notification for a purchase we never observed still find the right account.
- */
-export const getPurchaseContext = action({
-  args: {},
-  handler: async (
-    ctx,
-  ): Promise<{
-    appAccountToken: string;
-    monthlyProductId: string;
-    monthlyPriceLabel: string;
-  }> => {
-    const user = await getAuthUser(ctx);
-    const { appAccountToken }: { appAccountToken: string } =
-      await ctx.runMutation(
-        internal.billing.identity.getOrCreateAppAccountToken,
-        { userId: user._id },
-      );
-    return {
-      appAccountToken,
-      monthlyProductId: MONTHLY_PRODUCT_ID,
-      monthlyPriceLabel: monthlyPriceLabel(),
-    };
-  },
-});
-
-/** Start a Stripe Checkout Session for web purchases. */
+/** Start a Stripe Checkout Session. This is the only way to buy OneRep Pro. */
 export const createCheckout = action({
   args: {},
   handler: async (ctx): Promise<{ url: string }> => {
@@ -228,51 +201,11 @@ export const createCheckout = action({
 });
 
 /**
- * Redeem a purchase made through the native store.
+ * Re-read the user's Stripe subscriptions.
  *
- * The client sends the signed JWS (iOS) or purchase token (Android) and never
- * grants entitlement itself; the server validates against Apple/Google and
- * writes the state. Only after this succeeds should the client finish or
- * acknowledge the transaction.
- */
-export const redeemPurchase = action({
-  args: {
-    platform: v.union(v.literal("apple"), v.literal("google")),
-    // Apple: the JWS transaction. Google: the purchase token.
-    receipt: v.string(),
-    productId: v.optional(v.string()),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    granted: boolean;
-    state: string | null;
-    error?: string;
-  }> => {
-    const user = await getAuthUser(ctx);
-    if (args.receipt.length === 0 || args.receipt.length > 4_096) {
-      throw new Error("Receipt must be between 1 and 4096 characters");
-    }
-    if (args.platform === "apple") {
-      return await ctx.runAction(internal.billing.apple.redeemTransaction, {
-        userId: user._id,
-        signedTransaction: args.receipt,
-      });
-    }
-    return await ctx.runAction(internal.billing.google.redeemPurchaseToken, {
-      userId: user._id,
-      purchaseToken: args.receipt,
-      productId: args.productId ?? MONTHLY_PRODUCT_ID,
-    });
-  },
-});
-
-/**
- * Re-read the user's subscriptions from every platform they hold one on.
- *
- * This is also what "restore purchases" resolves to on web, where there is no
- * store receipt to replay.
+ * This is what the client's "refresh" control resolves to. Legacy App Store and
+ * Play rows are skipped: we no longer hold credentials for those APIs, and they
+ * no longer grant the entitlement.
  */
 export const refreshStatus = action({
   args: {},
@@ -285,40 +218,22 @@ export const refreshStatus = action({
 
     let refreshed = 0;
     for (const subscription of subscriptions) {
+      if (subscription.platform !== "stripe") continue;
       try {
-        if (subscription.platform === "stripe") {
-          await ctx.runAction(internal.billing.stripe.refreshSubscription, {
-            platformSubscriptionId: subscription.platformSubscriptionId,
-            userId: user._id,
-          });
-        } else if (subscription.platform === "apple") {
-          await ctx.runAction(internal.billing.apple.refreshSubscription, {
-            originalTransactionId: subscription.platformSubscriptionId,
-            userId: user._id,
-          });
-        } else {
-          await ctx.runAction(internal.billing.google.refreshSubscription, {
-            purchaseToken: subscription.platformSubscriptionId,
-            productId: subscription.productId,
-            userId: user._id,
-          });
-        }
+        await ctx.runAction(internal.billing.stripe.refreshSubscription, {
+          platformSubscriptionId: subscription.platformSubscriptionId,
+          userId: user._id,
+        });
         refreshed += 1;
       } catch {
-        // One unreachable store must not block the others; the reconciliation
-        // cron will retry.
+        // A transient Stripe failure must not surface as an error here; the
+        // reconciliation cron will retry.
       }
     }
     return { refreshed };
   },
 });
 
-/**
- * Cancel the user's subscription where that is possible for us to do.
- *
- * Apple and Google only allow the account holder to cancel, through their own
- * UI, so those return the management URL for the client to open instead.
- */
 /**
  * Hands subscription management to Stripe's Customer Portal.
  *
@@ -327,9 +242,6 @@ export const refreshStatus = action({
  * Stripe changes its own billing rules. Under Managed Payments the buyer also
  * has Link's own order page, but the portal is the surface we can link to
  * directly from Settings.
- *
- * Store subscriptions are not Stripe's to manage, so those still return the
- * platform's own deep link.
  */
 export const createManagementSession = action({
   args: {},
@@ -337,9 +249,7 @@ export const createManagementSession = action({
     ctx,
     _args,
   ): Promise<
-    | { kind: "portal"; url: string }
-    | { kind: "store"; url: string }
-    | { kind: "none"; reason: string }
+    { kind: "portal"; url: string } | { kind: "none"; reason: string }
   > => {
     const user = await getAuthUser(ctx);
     const subscriptions: Doc<"billingSubscriptions">[] = await ctx.runQuery(
@@ -369,22 +279,6 @@ export const createManagementSession = action({
       return { kind: "portal", url };
     }
 
-    const native = subscriptions.find(
-      (subscription) =>
-        subscription.platform !== "stripe" &&
-        subscription.state !== "expired" &&
-        subscription.state !== "refunded",
-    );
-    if (native) {
-      return {
-        kind: "store",
-        url:
-          native.platform === "google"
-            ? "https://play.google.com/store/account/subscriptions"
-            : "https://apps.apple.com/account/subscriptions",
-      };
-    }
-
     return {
       kind: "none",
       reason: stripeSubscription
@@ -394,6 +288,7 @@ export const createManagementSession = action({
   },
 });
 
+/** Cancel the user's Stripe subscription at the end of the paid period. */
 export const cancelSubscription = action({
   args: {},
   handler: async (
@@ -426,84 +321,11 @@ export const cancelSubscription = action({
       return { canceled: true, expiresAt: result.canceledAt };
     }
 
-    const native = subscriptions.find(
-      (subscription) => subscription.platform !== "stripe",
-    );
     return {
       canceled: false,
-      managementUrl:
-        native?.platform === "google"
-          ? "https://play.google.com/store/account/subscriptions"
-          : "https://apps.apple.com/account/subscriptions",
-      reason: native
-        ? "Store subscriptions must be cancelled from the store account that bought them."
-        : "No active subscription to cancel.",
+      managementUrl: null,
+      reason: "No active subscription to cancel.",
     };
-  },
-});
-
-/**
- * Replay store purchases found on the device against this account.
- *
- * If a store subscription already belongs to a different OneRep account we
- * refuse rather than silently transferring it — keeping it with the original
- * owner is the safer default, and support can move it deliberately.
- */
-export const restorePurchases = action({
-  args: {
-    platform: v.union(v.literal("apple"), v.literal("google")),
-    receipts: v.array(
-      v.object({ receipt: v.string(), productId: v.optional(v.string()) }),
-    ),
-  },
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{ restored: number; conflicts: number }> => {
-    const user = await getAuthUser(ctx);
-    await ctx.runMutation(internal.security.claim, {
-      userId: user._id,
-      action: "purchase_restore",
-      limit: 2,
-      windowMs: 60 * 60 * 1000,
-    });
-    const deduplicated = Array.from(
-      new Map(args.receipts.map((item) => [item.receipt, item])).values(),
-    );
-    if (deduplicated.length > 20) {
-      throw new Error("A restore batch can contain at most 20 unique receipts");
-    }
-    if (
-      deduplicated.some(
-        (item) => item.receipt.length === 0 || item.receipt.length > 4_096,
-      )
-    ) {
-      throw new Error("Receipt must be between 1 and 4096 characters");
-    }
-    let restored = 0;
-    let conflicts = 0;
-
-    for (const item of deduplicated) {
-      const result: { granted: boolean; error?: string } =
-        args.platform === "apple"
-          ? await ctx.runAction(internal.billing.apple.redeemTransaction, {
-              userId: user._id,
-              signedTransaction: item.receipt,
-            })
-          : await ctx.runAction(internal.billing.google.redeemPurchaseToken, {
-              userId: user._id,
-              purchaseToken: item.receipt,
-              productId: item.productId ?? MONTHLY_PRODUCT_ID,
-            });
-
-      if (result.error === SUBSCRIPTION_OWNED_BY_ANOTHER_ACCOUNT) {
-        conflicts += 1;
-      } else if (result.granted) {
-        restored += 1;
-      }
-    }
-
-    return { restored, conflicts };
   },
 });
 

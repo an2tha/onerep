@@ -10,10 +10,9 @@ import {
 } from "./offline-queue"
 import { logDevWarn } from "./utils"
 
-export function useOfflineMutation<Mutation extends FunctionReference<"mutation">>(
-  functionReference: Mutation,
-  name: OfflineMutationName
-) {
+export function useOfflineMutation<
+  Mutation extends FunctionReference<"mutation">,
+>(functionReference: Mutation, name: OfflineMutationName) {
   const mutate = useMutation(functionReference)
 
   return useCallback(
@@ -35,6 +34,6 @@ export function useOfflineMutation<Mutation extends FunctionReference<"mutation"
         throw error
       }
     },
-    [mutate, name],
+    [mutate, name]
   )
 }

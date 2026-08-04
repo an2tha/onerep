@@ -16,6 +16,8 @@ export type Exercise = {
   primaryMuscles?: string[]
   secondaryMuscles?: string[]
   instructions?: string[]
+  /** True for exercises the signed-in user authored themselves. */
+  custom?: boolean
 }
 
 export const EXERCISES: Exercise[] = [
@@ -235,7 +237,8 @@ export function visiblePopularExerciseSearches(
   const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]))
 
   return POPULAR_EXERCISE_SEARCH_IDS.map((id) => byId.get(id)).filter(
-    (exercise): exercise is Exercise => Boolean(exercise && !added.has(exercise.id))
+    (exercise): exercise is Exercise =>
+      Boolean(exercise && !added.has(exercise.id))
   )
 }
 

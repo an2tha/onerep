@@ -60,6 +60,7 @@ import {
   compactCardioSummary,
   hasCardioDetails,
   normalizePresetCard,
+  todayIso,
   type Routine,
   type CachedWorkoutLog,
   type WorkoutPresetCard,
@@ -2041,9 +2042,104 @@ function WorkoutSmall({
             <HoldToStartRing onComplete={() => navigate("/workout/active")} />
           )}
         </div>
+        <button
+          type="button"
+          onClick={() =>
+            // Hands off to the Workouts page so this button opens the same
+            // "describe it or pick a preset" sheet every other entry point does.
+            navigate(`/workouts?logPast=${offsetIsoDate(-1)}`, {
+              motion: "forward",
+            })
+          }
+          className="motion-tactile mt-1 h-9 w-full rounded-xl text-[12px] font-semibold text-muted-foreground/70 transition-colors active:bg-muted/25 active:text-foreground"
+        >
+          Log a past workout
+        </button>
       </div>
     </Card>
   )
+}
+
+/** A calendar date `days` away from today, in the user's local time. */
+function offsetIsoDate(days: number) {
+  const date = new Date(`${todayIso()}T12:00:00`)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+/**
+ * "You trained Tuesday — what did you do?"
+ *
+ * Apple Health records that a lifting session happened and how long it lasted,
+ * but carries no exercises, so it cannot be promoted into the log automatically
+ * the way a run can. Surfacing it here turns a dead record into the one prompt
+ * that actually knows the user trained.
+ */
+function UnloggedWorkoutNudge() {
+  const navigate = useSmoothNavigate()
+  const unlogged = useQuery(api.logs.healthWorkouts.unlogged, { limit: 2 })
+  const dismiss = useMutation(api.logs.healthWorkouts.dismiss)
+
+  if (!unlogged || unlogged.length === 0) return null
+
+  return (
+    <>
+      {unlogged.map((workout) => (
+        <Card key={workout._id}>
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted/60">
+              <Barbell size={16} weight="bold" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-semibold">
+                {formatNudgeDate(workout.date)} · {workout.activityName}
+              </p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                {Math.round(workout.durationSeconds / 60)} min recorded, not
+                logged
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                navigate(`/workout/log/${workout.date}?health=${workout._id}`, {
+                  motion: "forward",
+                })
+              }
+              className="motion-tactile h-9 shrink-0 rounded-xl bg-foreground px-3 text-[12px] font-semibold text-background transition-opacity active:opacity-80"
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              aria-label={`Dismiss ${workout.activityName} on ${workout.date}`}
+              onClick={() => void dismiss({ id: workout._id })}
+              className="app-icon-button h-9 w-9 shrink-0 bg-transparent text-muted-foreground/60"
+            >
+              <X size={14} weight="bold" />
+            </button>
+          </div>
+        </Card>
+      ))}
+    </>
+  )
+}
+
+/** "Tuesday" for this week, "Mar 3" beyond it. */
+function formatNudgeDate(date: string) {
+  const parsed = new Date(`${date}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return date
+  const daysAgo = Math.round(
+    (Date.parse(`${todayIso()}T12:00:00`) - parsed.getTime()) / 86_400_000
+  )
+  if (daysAgo === 0) return "Today"
+  if (daysAgo === 1) return "Yesterday"
+  if (daysAgo < 7)
+    return parsed.toLocaleDateString(undefined, { weekday: "long" })
+  return parsed.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  })
 }
 
 function StreakSmall({ streak }: { streak: number }) {
@@ -2373,11 +2469,14 @@ export default function App() {
   const weeklyPlanRaw = useQuery(api.ai.coachState.getWeeklyPlan, {
     weekStart: weekStart(todayKey),
   })
-  const weeklyPlan = weeklyPlanRaw as {
-    title: string
-    days: WeeklyPlanDayView[]
-    assumptions: string[]
-  } | null | undefined
+  const weeklyPlan = weeklyPlanRaw as
+    | {
+        title: string
+        days: WeeklyPlanDayView[]
+        assumptions: string[]
+      }
+    | null
+    | undefined
   const todayShortDay = useMemo(
     () =>
       new Date(`${todayKey}T12:00:00Z`).toLocaleDateString("en-US", {
@@ -2705,13 +2804,21 @@ export default function App() {
   // the day's intake is food + supplements. The Nutrition page already does
   // this; Today used to show food only and the two screens disagreed.
   const supplementNutritionTotals = (
-    supplementOverview as { nutritionTotals?: Partial<Record<string, number>> } | undefined
+    supplementOverview as
+      { nutritionTotals?: Partial<Record<string, number>> } | undefined
   )?.nutritionTotals
   const intakeTotals = useMemo(
-    () => combineMacroTotals(totalsForEntries(foodEntries), supplementNutritionTotals),
+    () =>
+      combineMacroTotals(
+        totalsForEntries(foodEntries),
+        supplementNutritionTotals
+      ),
     [foodEntries, supplementNutritionTotals]
   )
-  const supplementCalories = nutrientTotal(supplementNutritionTotals, "calories")
+  const supplementCalories = nutrientTotal(
+    supplementNutritionTotals,
+    "calories"
+  )
   const carbMode: CarbDisplayMode = preferences?.netCarbsEnabled
     ? "net"
     : "total"
@@ -3497,6 +3604,10 @@ export default function App() {
                 onDeleteSlot={setConfirmDeleteSlot}
               />
             </TourAnchor>
+
+            <div className="mx-[var(--app-page-x)] mt-3 grid gap-2 md:mx-8">
+              <UnloggedWorkoutNudge />
+            </div>
 
             {(trainingWeek.sessions > 0 || trainingWeek.sets > 0) && (
               <TrainingWeekCard

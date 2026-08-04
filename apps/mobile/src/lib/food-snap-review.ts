@@ -77,7 +77,11 @@ function normalizeQueryKey(value: string): string {
 }
 
 function cleanStringList(value: unknown): string[] {
-  const values = Array.isArray(value) ? value : cleanString(value) ? [value] : []
+  const values = Array.isArray(value)
+    ? value
+    : cleanString(value)
+      ? [value]
+      : []
   const seen = new Set<string>()
   const cleaned: string[] = []
 
@@ -289,13 +293,17 @@ export async function mapSnapDetectionsToReviewItems(
         maxAlternatives
       )
       const hasProvidedFood = Boolean(provided && "food" in provided)
-      let food = hasProvidedFood ? (provided?.food ?? null) : alternatives[0] ?? null
+      let food = hasProvidedFood
+        ? (provided?.food ?? null)
+        : (alternatives[0] ?? null)
 
       if (provided?.food) {
         const selectedKey = provided.food.code || provided.food.id
         alternatives = [
           provided.food,
-          ...alternatives.filter((item) => (item.code || item.id) !== selectedKey),
+          ...alternatives.filter(
+            (item) => (item.code || item.id) !== selectedKey
+          ),
         ].slice(0, maxAlternatives)
       }
 
@@ -304,7 +312,10 @@ export async function mapSnapDetectionsToReviewItems(
           id: detection.id,
           detectedName: detection.name,
           quantityText: detection.quantityText,
-          grams: defaultGramsFor(food ?? alternatives[0] ?? null, detection.estimatedGrams),
+          grams: defaultGramsFor(
+            food ?? alternatives[0] ?? null,
+            detection.estimatedGrams
+          ),
           selected: Boolean(food),
           food,
           alternatives,
@@ -326,13 +337,15 @@ export async function mapSnapDetectionsToReviewItems(
         if (options.rankResults) {
           const bestRankByKey = new Map<string, number>()
           for (const query of queries) {
-            options.rankResults(alternatives, query).forEach((result, index) => {
-              const key = result.code || result.id
-              const previous = bestRankByKey.get(key)
-              if (previous === undefined || index < previous) {
-                bestRankByKey.set(key, index)
-              }
-            })
+            options
+              .rankResults(alternatives, query)
+              .forEach((result, index) => {
+                const key = result.code || result.id
+                const previous = bestRankByKey.get(key)
+                if (previous === undefined || index < previous) {
+                  bestRankByKey.set(key, index)
+                }
+              })
           }
           alternatives = [...alternatives].sort((a, b) => {
             const aRank = bestRankByKey.get(a.code || a.id) ?? 999

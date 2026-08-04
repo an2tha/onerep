@@ -14,8 +14,8 @@ const DAY = 24 * HOUR;
 function subscription(overrides: Record<string, unknown> = {}) {
   return {
     userId: "user_1",
-    platform: "apple" as const,
-    platformSubscriptionId: "orig_1",
+    platform: "stripe" as const,
+    platformSubscriptionId: "sub_1",
     productId: "onerep_pro_monthly",
     state: "active" as BillingState,
     autoRenew: true,
@@ -62,14 +62,14 @@ describe("rollupForUser", () => {
     expect(status.activeSubscriptions).toEqual([]);
   });
 
-  test("grants access from any single granting platform", () => {
+  test("grants access from a cancelled subscription still inside its period", () => {
     const status = rollupForUser(
       "user_1",
-      [subscription({ platform: "google", state: "canceled" }) as never],
+      [subscription({ state: "canceled" }) as never],
       NOW,
     );
     expect(status.isActive).toBe(true);
-    expect(status.store).toBe("play_store");
+    expect(status.store).toBe("stripe");
     expect(status.state).toBe("canceled");
   });
 
@@ -78,20 +78,34 @@ describe("rollupForUser", () => {
       "user_1",
       [
         subscription({
-          platform: "stripe",
           platformSubscriptionId: "sub_dead",
           state: "expired",
           expiresAt: NOW - DAY,
         }) as never,
-        subscription({ platform: "apple", state: "active" }) as never,
+        subscription({ state: "active" }) as never,
       ],
       NOW,
     );
     expect(status.isActive).toBe(true);
-    expect(status.store).toBe("app_store");
+    expect(status.store).toBe("stripe");
     // Only the granting subscription counts as active.
     expect(status.activeSubscriptions).toHaveLength(1);
   });
+
+  // In-app purchases were removed outright, so a row left over from that era
+  // must not keep granting Pro no matter how healthy it last looked.
+  test.each(["apple", "google"])(
+    "an active %s row left over from in-app purchases grants nothing",
+    (platform) => {
+      const status = rollupForUser(
+        "user_1",
+        [subscription({ platform, state: "active" }) as never],
+        NOW,
+      );
+      expect(status.isActive).toBe(false);
+      expect(status.activeSubscriptions).toEqual([]);
+    },
+  );
 
   test("revokes when every subscription has lapsed", () => {
     const status = rollupForUser(
@@ -194,6 +208,28 @@ describe("hasActiveProEntitlement", () => {
     expect(granted).toBe(true);
   });
 
+  test("a legacy store row does not grant, even grandfathered", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "billingSubscriptions",
+        subscription({
+          userId: "user_store",
+          platform: "apple",
+          platformSubscriptionId: "orig_store",
+          state: "active",
+          expiresAt: NOW + 30 * DAY,
+          originRevenueCat: true,
+          grandfatheredUntil: Date.now() + 60 * DAY,
+        }),
+      );
+    });
+    const granted = await t.run(
+      async (ctx) => await hasActiveProEntitlement(ctx, "user_store"),
+    );
+    expect(granted).toBe(false);
+  });
+
   test("a refund is never grandfathered", async () => {
     const t = convexTest(schema, modules);
     await t.run(async (ctx) => {
@@ -238,8 +274,8 @@ describe("store idempotency and ordering", () => {
     const t = convexTest(schema, modules);
     const base = {
       userId: "user_6",
-      platform: "apple" as const,
-      platformSubscriptionId: "orig_6",
+      platform: "stripe" as const,
+      platformSubscriptionId: "sub_6",
       productId: "onerep_pro_monthly",
       autoRenew: true,
       environment: "production" as const,
@@ -293,11 +329,11 @@ describe("store idempotency and ordering", () => {
     expect(afterSecond?.updatedAt).toBe(afterFirst?.updatedAt);
   });
 
-  test("reassigning a store subscription revokes the previous owner", async () => {
+  test("reassigning a subscription revokes the previous owner", async () => {
     const t = convexTest(schema, modules);
     const args = {
-      platform: "apple" as const,
-      platformSubscriptionId: "orig_shared",
+      platform: "stripe" as const,
+      platformSubscriptionId: "sub_shared",
       productId: "onerep_pro_monthly",
       state: "active" as const,
       autoRenew: true,

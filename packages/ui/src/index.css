@@ -7230,6 +7230,15 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   color: var(--muted-foreground);
 }
 
+/* Shown instead of the checkout button where Pro cannot be bought in-app. */
+.paywall-note {
+  text-align: center;
+  text-wrap: balance;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
 .paywall-legal {
   display: flex;
   flex-wrap: wrap;

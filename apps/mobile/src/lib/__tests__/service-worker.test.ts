@@ -4,6 +4,7 @@ import {
   canUseAppServiceWorker,
   registerAppServiceWorker,
   reloadWhenServiceWorkerControlsPage,
+  unregisterAppServiceWorker,
   type AppServiceWorkerContainer,
   type AppServiceWorkerRegistration,
 } from "../service-worker"
@@ -199,5 +200,73 @@ describe("service worker helpers", () => {
     controllerChange?.()
 
     expect(reloadCount).toBe(0)
+  })
+})
+
+describe("unregisterAppServiceWorker", () => {
+  function fakeCaches(keys: string[]) {
+    const deleted: string[] = []
+    return {
+      deleted,
+      storage: {
+        keys: async () => keys,
+        delete: async (key: string) => {
+          deleted.push(key)
+          return true
+        },
+      },
+    }
+  }
+
+  test("unregisters every worker and drops only our caches", async () => {
+    const unregistered: string[] = []
+    const serviceWorker = {
+      register: async () => ({}),
+      getRegistrations: async () => [
+        {
+          unregister: async () => {
+            unregistered.push("app")
+            return true
+          },
+        },
+        {
+          unregister: async () => {
+            unregistered.push("stale")
+            return true
+          },
+        },
+      ],
+    } as unknown as AppServiceWorkerContainer
+    // Anything not prefixed onerep-app- belongs to code we do not control.
+    const caches = fakeCaches(["onerep-app-v3", "onerep-app-v2", "other-cache"])
+
+    const removed = await unregisterAppServiceWorker(
+      serviceWorker,
+      caches.storage
+    )
+
+    expect(removed).toBe(true)
+    expect(unregistered).toEqual(["app", "stale"])
+    expect(caches.deleted).toEqual(["onerep-app-v3", "onerep-app-v2"])
+  })
+
+  test("reports nothing removed when there is no worker", async () => {
+    const caches = fakeCaches([])
+    const removed = await unregisterAppServiceWorker(null, caches.storage)
+
+    expect(removed).toBe(false)
+    expect(caches.deleted).toEqual([])
+  })
+
+  test("survives a container without getRegistrations", async () => {
+    const caches = fakeCaches(["onerep-app-v3"])
+    const serviceWorker = {
+      register: async () => ({}),
+    } as unknown as AppServiceWorkerContainer
+
+    await expect(
+      unregisterAppServiceWorker(serviceWorker, caches.storage)
+    ).resolves.toBe(true)
+    expect(caches.deleted).toEqual(["onerep-app-v3"])
   })
 })

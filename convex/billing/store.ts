@@ -23,11 +23,10 @@ function nextRevalidateAfter(expiresAt: number, now: number) {
 }
 
 /**
- * Claim an inbound store notification.
+ * Claim an inbound billing notification.
  *
- * Returns `false` when the event has already been seen, which is how every
- * webhook route stays idempotent under the retry policies of Apple (5× over
- * 24h), Pub/Sub (exponential backoff), and Stripe (3 days).
+ * Returns `false` when the event has already been seen, which is how the
+ * webhook route stays idempotent under Stripe's 3-day retry policy.
  */
 export const claimEvent = internalMutation({
   args: {
@@ -92,19 +91,6 @@ export const getSubscriptionByPlatformId = internalQuery({
           .eq("platformSubscriptionId", args.platformSubscriptionId),
       )
       .unique(),
-});
-
-export const findUserIdByAppAccountToken = internalQuery({
-  args: { appAccountToken: v.string() },
-  handler: async (ctx, args) => {
-    const identity = await ctx.db
-      .query("billingIdentities")
-      .withIndex("by_appAccountToken", (q) =>
-        q.eq("appAccountToken", args.appAccountToken),
-      )
-      .unique();
-    return identity?.userId ?? null;
-  },
 });
 
 export const listSubscriptionsForUser = internalQuery({
@@ -176,7 +162,7 @@ export const recordCheckout = internalMutation({
 });
 
 /**
- * Insert or update the row for one store subscription, then recompute the
+ * Insert or update the row for one platform subscription, then recompute the
  * user's rollup.
  *
  * `sourceUpdatedAt` is the platform's own timestamp for the state being
@@ -249,8 +235,8 @@ export const upsertPlatformSubscription = internalMutation({
       });
     }
 
-    // A store subscription can be reassigned to a different account via
-    // restore; recompute both rollups so the loser loses access too.
+    // A subscription can move to a different account when support re-attributes
+    // it; recompute both rollups so the loser loses access too.
     await recomputeRollupFor(ctx, args.userId);
     if (existing && existing.userId !== args.userId) {
       await recomputeRollupFor(ctx, existing.userId);

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
-import { upsertWorkoutLog } from "../lib/workoutLogs";
+import { findFreeWorkoutSlot, upsertWorkoutLog } from "../lib/workoutLogs";
 import {
   cardioDetailsValidator,
   completedExerciseValidator,
@@ -20,6 +20,9 @@ export const completion = mutation({
     slot: v.optional(v.union(v.literal(1), v.literal(2))),
     exercises: v.array(completedExerciseValidator),
     durationSeconds: v.number(),
+    // Reconstructed sessions supply the instant they actually finished. Live
+    // completions omit it and get the write time.
+    completedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
@@ -28,16 +31,47 @@ export const completion = mutation({
     // Old clients did not send a session ID. Keep their one-log-per-day
     // behavior intact, while new clients can safely create two daily sessions.
     const sessionId = args.sessionId ?? `legacy:${args.date}`;
+
+    // A slot-less write onto a full date would insert a third row that
+    // `getLog`'s `.take(2)` can never surface. Scoped to session-aware clients
+    // so legacy one-log-per-day writes keep their existing behaviour.
+    if (args.slot === undefined && args.sessionId !== undefined) {
+      const free = await findFreeWorkoutSlot(ctx, user._id, args.date, sessionId);
+      if (free === null) {
+        throw new Error(
+          "You already have two sessions logged that day. Edit one instead.",
+        );
+      }
+    }
+
     await upsertWorkoutLog(ctx, user._id, {
       date: args.date,
       sessionId,
       slot: args.slot,
       exercises: args.exercises,
       durationSeconds: args.durationSeconds,
+      completedAt: args.completedAt,
       hasExplicitSessionId: args.sessionId !== undefined,
     });
 
     return { ok: true };
+  },
+});
+
+// ── freeSlot ──────────────────────────────────────────────────────────────────
+
+/**
+ * The slot a new session would land on for a date, or null when both are taken.
+ *
+ * Entry points call this before navigating so a full day offers "edit an
+ * existing session" instead of failing at save time.
+ */
+export const freeSlot = query({
+  args: { date: v.string(), sessionId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    return await findFreeWorkoutSlot(ctx, user._id, args.date, args.sessionId);
   },
 });
 

@@ -14,7 +14,9 @@ export async function scheduleRestAlert(endAt: number) {
     (await LocalNotifications.requestPermissions()).display === "granted"
   if (!granted) return
 
-  await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] })
+  await LocalNotifications.cancel({
+    notifications: [{ id: REST_NOTIFICATION_ID }],
+  })
   await LocalNotifications.schedule({
     notifications: [
       {
@@ -31,7 +33,9 @@ export async function scheduleRestAlert(endAt: number) {
 
 export async function cancelRestAlert() {
   if (!Capacitor.isNativePlatform()) return
-  await LocalNotifications.cancel({ notifications: [{ id: REST_NOTIFICATION_ID }] })
+  await LocalNotifications.cancel({
+    notifications: [{ id: REST_NOTIFICATION_ID }],
+  })
 }
 
 export async function playNativeRestHaptic() {

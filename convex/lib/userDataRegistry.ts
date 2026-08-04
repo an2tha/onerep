@@ -44,6 +44,7 @@ export const userDataRegistry = {
   dashboardWidgets: "directly_user_owned",
   foodSourceCache: "global_non_user_data",
   exercises: "directly_user_owned",
+  customExercises: "directly_user_owned",
   dailyCheckIns: "directly_user_owned",
   coachMemories: "directly_user_owned",
   coachCheckIns: "directly_user_owned",
@@ -68,9 +69,6 @@ export const userDataRegistry = {
   formCoachSessions: "directly_user_owned",
   formCoachReports: "dependent_on_user_content",
   formCoachPins: "dependent_on_user_content",
-} satisfies Record<
-  TableNamesInDataModel<DataModel>,
-  UserDataClassification
->;
+} satisfies Record<TableNamesInDataModel<DataModel>, UserDataClassification>;
 
 export type RegisteredUserDataTable = keyof typeof userDataRegistry;

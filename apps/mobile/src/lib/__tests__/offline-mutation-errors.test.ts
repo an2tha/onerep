@@ -8,10 +8,8 @@ mock.module("sonner", () => ({
   },
 }))
 
-const {
-  offlineMutationErrorMessage,
-  reportOfflineMutationError,
-} = await import("../offline-mutation-errors")
+const { offlineMutationErrorMessage, reportOfflineMutationError } =
+  await import("../offline-mutation-errors")
 
 describe("offline mutation error reporting", () => {
   beforeEach(() => {

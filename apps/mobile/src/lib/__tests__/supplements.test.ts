@@ -240,8 +240,9 @@ describe("supplement helpers", () => {
       now: new Date("2026-06-25T12:00:00"),
     })
 
-    expect(loggableSupplementPlanItems(plan).map((entry) => entry.item._id))
-      .toEqual(["missed-supplement", "due-supplement"])
+    expect(
+      loggableSupplementPlanItems(plan).map((entry) => entry.item._id)
+    ).toEqual(["missed-supplement", "due-supplement"])
   })
 
   test("normalizes OpenFoodFacts detail into an editable supplement draft", () => {
@@ -265,8 +266,18 @@ describe("supplement helpers", () => {
       ],
       extraNutrients: [
         { key: "omega-3-fat", name: "Omega-3", per100g: 50000, unit: "mg" },
-        { key: "eicosapentaenoic-acid", name: "EPA", per100g: 20000, unit: "mg" },
-        { key: "docosahexaenoic-acid", name: "DHA", per100g: 10000, unit: "mg" },
+        {
+          key: "eicosapentaenoic-acid",
+          name: "EPA",
+          per100g: 20000,
+          unit: "mg",
+        },
+        {
+          key: "docosahexaenoic-acid",
+          name: "DHA",
+          per100g: 10000,
+          unit: "mg",
+        },
         { key: "vitamin-d", name: "Vitamin D", per100g: 500, unit: "mcg" },
       ],
     })

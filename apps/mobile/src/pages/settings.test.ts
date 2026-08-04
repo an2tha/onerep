@@ -223,10 +223,21 @@ describe("OneRep Pro membership surface", () => {
     assert.match(SETTINGS_SOURCE, /"profile-pro-primary-action"/)
     assert.doesNotMatch(SETTINGS_SOURCE, /OneRep membership/)
     assert.match(SETTINGS_SOURCE, /billing\.purchaseMonthly/)
-    assert.match(SETTINGS_SOURCE, /billing\.restorePurchases/)
     assert.match(SETTINGS_SOURCE, /billing\.refresh/)
     // Subscription management is Stripe's Customer Portal, not an in-app cancel.
     assert.match(SETTINGS_SOURCE, /billing\.openBillingManagement/)
+    // In-app purchases are gone: there is nothing to restore.
+    assert.doesNotMatch(SETTINGS_SOURCE, /restorePurchases/)
+  })
+
+  // Pro is sold on the web only. A native build that rendered an upgrade button
+  // would either dead-end or breach App Store rules, so it renders none.
+  test("hides the upgrade control on native, where Pro cannot be bought", () => {
+    assert.match(
+      SETTINGS_SOURCE,
+      /const showPrimaryAction = active \|\| !billing\.isNative/
+    )
+    assert.match(SETTINGS_SOURCE, /\{showPrimaryAction && \(/)
   })
 
   test("warns before handing off to Stripe, with tactile feedback at entry", () => {
@@ -673,7 +684,10 @@ describe("AI paywall", () => {
     // `cost` defaults to 1, so this is the old "any left" check for every
     // feature except form analysis, which spends more than one.
     assert.match(AI_ACCESS_SOURCE, /\(cost = 1\)/)
-    assert.match(AI_ACCESS_SOURCE, /if \(freeRequestsLeft >= cost\) return true/)
+    assert.match(
+      AI_ACCESS_SOURCE,
+      /if \(freeRequestsLeft >= cost\) return true/
+    )
     assert.match(
       AI_ACCESS_SOURCE,
       /const freeRequestsLeft = usage && !usage\.isPro \? usage\.remaining : 0/
@@ -761,12 +775,22 @@ describe("AI paywall", () => {
     assert.ok(!PAYWALL_STYLES.includes(".paywall-hero-mark"))
   })
 
-  test("the paywall links out to real legal pages and restore", () => {
+  test("the paywall links out to real legal pages", () => {
     assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/privacy/)
     assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/terms/)
-    assert.match(AI_ACCESS_SOURCE, /Restore Purchases/)
     // External links must not leak the opener.
     assert.match(AI_ACCESS_SOURCE, /rel="noreferrer"/)
+    // Nothing to restore now that in-app purchases are gone.
+    assert.doesNotMatch(AI_ACCESS_SOURCE, /Restore Purchases/)
+  })
+
+  test("the paywall offers no purchase path on native", () => {
+    // The checkout button and its Stripe reassurance are web-only; native gets
+    // a plain note saying where Pro actually lives.
+    assert.match(AI_ACCESS_SOURCE, /\{isNative \? \(/)
+    assert.match(AI_ACCESS_SOURCE, /className="paywall-note"/)
+    assert.match(PAYWALL_STYLES, /\.paywall-note/)
+    assert.doesNotMatch(AI_ACCESS_SOURCE, /Secured with the App Store/)
   })
 
   test("the paywall stays an accessible dialog", () => {
