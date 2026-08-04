@@ -23,11 +23,11 @@
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import {
+  copyFileSync,
   cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
-  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs"
@@ -124,6 +124,16 @@ function readVersionStamp(distDir) {
   return stamp
 }
 
+/**
+ * Copy-then-delete rather than rename: the staging directory lives in the
+ * OS temp dir and the build tree does not, so on CI the two sit on different
+ * filesystems and `renameSync` fails with EXDEV.
+ */
+function moveFile(from, to) {
+  copyFileSync(from, to)
+  rmSync(from, { force: true })
+}
+
 function stageBundle(distDir) {
   const stageRoot = mkdtempSync(path.join(tmpdir(), "onerep-ota-"))
   const stageDir = path.join(stageRoot, "bundle")
@@ -191,7 +201,7 @@ function zipBundle({ stageDir, stageRoot, repoRoot, version }) {
   }
 
   const zipPath = path.join(stageRoot, outputName)
-  renameSync(producedPath, zipPath)
+  moveFile(producedPath, zipPath)
   return { zipPath, reportedChecksum: reported.checksum }
 }
 
@@ -236,7 +246,7 @@ function main() {
 
     const bundlesDir = path.join(distDir, "ota", "bundles")
     mkdirSync(bundlesDir, { recursive: true })
-    renameSync(zipPath, path.join(bundlesDir, `${stamp.version}.zip`))
+    moveFile(zipPath, path.join(bundlesDir, `${stamp.version}.zip`))
     writeFileSync(
       path.join(distDir, "ota", "manifest.json"),
       `${JSON.stringify(manifest, null, 2)}\n`
