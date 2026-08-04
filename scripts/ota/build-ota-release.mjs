@@ -45,7 +45,7 @@ import path from "node:path"
 const OTA_MIN_NATIVE_VERSION = "1.0.0"
 
 /** Excluded from OTA bundles; served from the CDN origin instead. */
-const EXCLUDED_FROM_BUNDLE = ["pose_landmarker_lite.task"]
+const EXCLUDED_FROM_BUNDLE = ["pose_landmarker_lite.task", "pose_landmarker_heavy.task"]
 
 const APP_ID = "com.ananthh.onerep"
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+$/

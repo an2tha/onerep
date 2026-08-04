@@ -91,6 +91,7 @@ describe("AI prompt bundle", () => {
       "meal_description",
       "meal_image",
       "metric_selection",
+      "workout_log",
       "workout_preset",
     ];
     const yamlIds = readdirSync(resolve(aiDirectory, "prompts"))

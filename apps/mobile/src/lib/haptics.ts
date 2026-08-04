@@ -2,8 +2,17 @@ import { Capacitor } from "@capacitor/core"
 import { Haptics, ImpactStyle } from "@capacitor/haptics"
 import { safeLocalStorageGet, safeLocalStorageSet } from "./utils"
 
-const IS_NATIVE = Capacitor.isNativePlatform()
 export const HAPTICS_ENABLED_KEY = "onerep:haptics-enabled"
+
+/**
+ * Asked per call rather than cached at module scope: whichever module happens
+ * to import this one first would otherwise freeze the answer, which under
+ * `bun test` means the first test file to pull in a component decides what
+ * every later file sees.
+ */
+function isNative() {
+  return Capacitor.isNativePlatform()
+}
 
 /**
  * Fire-and-forget haptic helpers.
@@ -22,21 +31,21 @@ export function setHapticsEnabled(enabled: boolean) {
 }
 
 export function hapticTap() {
-  if (!IS_NATIVE || !hapticsEnabled()) return
+  if (!isNative() || !hapticsEnabled()) return
   Haptics.impact({ style: ImpactStyle.Light }).catch(() => {})
 }
 
 export function hapticMedium() {
-  if (!IS_NATIVE || !hapticsEnabled()) return
+  if (!isNative() || !hapticsEnabled()) return
   Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {})
 }
 
 export function hapticHeavy() {
-  if (!IS_NATIVE || !hapticsEnabled()) return
+  if (!isNative() || !hapticsEnabled()) return
   Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {})
 }
 
 export function hapticSelection() {
-  if (!IS_NATIVE || !hapticsEnabled()) return
+  if (!isNative() || !hapticsEnabled()) return
   Haptics.selectionChanged().catch(() => {})
 }

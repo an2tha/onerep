@@ -165,8 +165,8 @@ const WASM_BASE =
  * 404 after the first update, so native must name the origin explicitly.
  */
 const POSE_MODEL_PATH = Capacitor.isNativePlatform()
-  ? `${otaOrigin()}/pose_landmarker_lite.task`
-  : "/pose_landmarker_lite.task"
+  ? `${otaOrigin()}/pose_landmarker_heavy.task`
+  : "/pose_landmarker_heavy.task"
 
 /**
  * One landmarker per running mode. Videos and stills need different modes, and
