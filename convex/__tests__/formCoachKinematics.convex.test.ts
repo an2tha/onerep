@@ -17,6 +17,8 @@ import {
   type KinematicFrame,
   type KinematicRep,
   type Vec3,
+  bodyLineTilt,
+  trunkRotation,
 } from "../ai/formCoachKinematics";
 
 const LANDMARK_COUNT = 33;
@@ -66,10 +68,6 @@ function uprightFrame(): KinematicFrame {
   put(frame, "rightKnee", { x: 0.15, y: -0.45, z: 0 });
   put(frame, "leftAnkle", { x: -0.15, y: -0.9, z: 0 });
   put(frame, "rightAnkle", { x: 0.15, y: -0.9, z: 0 });
-  put(frame, "leftHeel", { x: -0.15, y: -0.95, z: -0.05 });
-  put(frame, "rightHeel", { x: 0.15, y: -0.95, z: -0.05 });
-  put(frame, "leftFoot", { x: -0.15, y: -0.95, z: 0.1 });
-  put(frame, "rightFoot", { x: 0.15, y: -0.95, z: 0.1 });
   return frame;
 }
 
@@ -404,5 +402,70 @@ describe("capture helpers", () => {
     expect(pace.totalMs).toBe(2000);
     expect(pace.towardsTurnaroundMs).toBe(1200);
     expect(pace.returnMs).toBe(800);
+  });
+});
+
+describe("body lines", () => {
+  /** Rotates a point about the body's vertical axis by `radians`. */
+  function twist(frame: KinematicFrame, names: string[], radians: number) {
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    for (const name of names) {
+      const p = frame.worldLandmarks[LANDMARK[name as LandmarkName]];
+      const x = p.x * cos - p.z * sin;
+      const z = p.x * sin + p.z * cos;
+      p.x = x;
+      p.z = z;
+    }
+  }
+
+  test("reports a level lifter as level", () => {
+    expect(bodyLineTilt(uprightFrame(), "shoulder")).toBeCloseTo(0, 5);
+    expect(bodyLineTilt(uprightFrame(), "hip")).toBeCloseTo(0, 5);
+    expect(trunkRotation(uprightFrame())).toBeCloseTo(0, 5);
+  });
+
+  test("signs a tilt positive when the right side is higher", () => {
+    const frame = uprightFrame();
+    // Right shoulder raised, left dropped by the same amount, so the line tips
+    // without the midpoint moving.
+    frame.worldLandmarks[LANDMARK.rightShoulder].y += 0.2;
+    frame.worldLandmarks[LANDMARK.leftShoulder].y -= 0.2;
+
+    const tilt = bodyLineTilt(frame, "shoulder");
+    expect(tilt).not.toBeNull();
+    expect(tilt!).toBeGreaterThan(0);
+    // Half-width 0.2, rise 0.2 either side: atan(0.4/0.4) = 45 degrees.
+    expect(tilt!).toBeCloseTo(45, 0);
+  });
+
+  test("measures shoulders turned against the hips", () => {
+    const frame = uprightFrame();
+    twist(frame, ["leftShoulder", "rightShoulder"], Math.PI / 6);
+
+    const rotation = trunkRotation(frame);
+    expect(rotation).not.toBeNull();
+    expect(Math.abs(rotation!)).toBeCloseTo(30, 0);
+  });
+
+  test("does not read a forward lean as rotation", () => {
+    // The whole trunk pitches forward; shoulders and hips stay square to each
+    // other, which is exactly what projecting onto the transverse plane is for.
+    const frame = uprightFrame();
+    for (const name of ["leftShoulder", "rightShoulder"] as const) {
+      const p = frame.worldLandmarks[LANDMARK[name]];
+      p.z += 0.3;
+      p.y -= 0.1;
+    }
+
+    expect(trunkRotation(frame)).toBeCloseTo(0, 5);
+  });
+
+  test("is unknown when a landmark was not tracked", () => {
+    const frame = uprightFrame();
+    frame.worldLandmarks[LANDMARK.leftShoulder].visibility = 0;
+
+    expect(bodyLineTilt(frame, "shoulder")).toBeNull();
+    expect(trunkRotation(frame)).toBeNull();
   });
 });

@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test"
-import { buildManifest, OtaPackagingError } from "../build-ota-release.mjs"
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
+import {
+  buildManifest,
+  OtaPackagingError,
+  stageBundle,
+} from "../build-ota-release.mjs"
 
 const CHECKSUM = "a".repeat(64)
 
@@ -59,5 +66,41 @@ describe("buildManifest", () => {
 
   test("defaults the commit when the build was not stamped with one", () => {
     expect(buildManifest({ ...base, commit: undefined }).commit).toBe("unknown")
+  })
+})
+
+describe("stageBundle", () => {
+  /** A dist directory shaped like a real build, in a throwaway location. */
+  function fakeDist() {
+    const dir = mkdtempSync(path.join(tmpdir(), "onerep-dist-"))
+    writeFileSync(path.join(dir, "index.html"), "<html></html>")
+    mkdirSync(path.join(dir, "assets"))
+    writeFileSync(path.join(dir, "assets/index.js"), "console.log(1)")
+    mkdirSync(path.join(dir, "models"))
+    writeFileSync(path.join(dir, "models/motionbert_lite_int8.onnx"), "weights")
+    mkdirSync(path.join(dir, "ota"))
+    writeFileSync(path.join(dir, "ota/manifest.json"), "{}")
+    return dir
+  }
+
+  test("leaves the pose models out of the zip", () => {
+    // They are ~19 MB and change only when the models are re-exported, so
+    // including them would multiply the size of every routine web update.
+    const { stageDir } = stageBundle(fakeDist())
+
+    expect(existsSync(path.join(stageDir, "models"))).toBe(false)
+    expect(existsSync(path.join(stageDir, "assets/index.js"))).toBe(true)
+  })
+
+  test("leaves a previous run's artifacts out of the zip", () => {
+    const { stageDir } = stageBundle(fakeDist())
+
+    expect(existsSync(path.join(stageDir, "ota"))).toBe(false)
+  })
+
+  test("refuses a bundle the plugin would reject", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "onerep-dist-"))
+
+    expect(() => stageBundle(dir)).toThrow(OtaPackagingError)
   })
 })

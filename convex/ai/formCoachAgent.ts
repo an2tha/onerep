@@ -29,22 +29,26 @@ import {
   requireReadyUpload,
 } from "../lib/uploads";
 import {
+  BODY_LINES,
   JOINTS,
   PHASES,
   PLANES,
   SEGMENTS,
   alignmentOffset,
   consistency,
+  bodyLineTilt,
   jointAngle,
   meanTempo,
   phaseIndex,
   rangeOfMotion,
   repsFromViews,
   segmentFromVertical,
+  trunkRotation,
   symmetry,
   tempo,
   travel,
   LANDMARK,
+  type BodyLineName,
   type FormCoachCapture,
   type JointName,
   type KinematicFrame,
@@ -78,6 +82,10 @@ const MAX_STILL_BYTES = 550_000;
 
 const JOINT_NAMES = Object.keys(JOINTS) as [JointName, ...JointName[]];
 const SEGMENT_NAMES = Object.keys(SEGMENTS) as [SegmentName, ...SegmentName[]];
+const BODY_LINE_NAMES = Object.keys(BODY_LINES) as [
+  BodyLineName,
+  ...BodyLineName[],
+];
 const LANDMARK_NAMES = Object.keys(LANDMARK) as [string, ...string[]];
 
 const sideSchema = z.enum(["left", "right"]);
@@ -177,6 +185,7 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       execute: async () => ({
         joints: JOINT_NAMES,
         segments: SEGMENT_NAMES,
+        bodyLines: BODY_LINE_NAMES,
         landmarks: LANDMARK_NAMES,
         planes: PLANES,
         phases: PHASES,
@@ -236,6 +245,46 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
               segmentFromVertical(frame, segment, side),
             ),
           ),
+        };
+      },
+    }),
+
+    measure_body_line_tilt: tool({
+      description:
+        "How far the shoulder line or the hip line is off horizontal, in degrees. 0 is level, positive means the lifter's right side is higher. Catches a lateral imbalance that interior joint angles cannot see, because both sides can bend identically while the whole frame tips.",
+      inputSchema: z.object({
+        line: z.enum(BODY_LINE_NAMES),
+        phase: phaseSchema,
+        views: viewsField,
+      }),
+      execute: async ({ line, phase, views }) => {
+        const reps = selectReps(capture, views);
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
+        return {
+          line,
+          phase,
+          unit: "degrees from horizontal, positive right side high",
+          ...report(
+            atPhase(reps, phase, (frame) => bodyLineTilt(frame, line)),
+          ),
+        };
+      },
+    }),
+
+    measure_trunk_rotation: tool({
+      description:
+        "Rotation of the shoulders against the hips about the vertical axis, in degrees. 0 is square, positive means the shoulders are turned towards the lifter's right. This is the twist a one-sided lift induces. A forward lean does not register as rotation.",
+      inputSchema: z.object({
+        phase: phaseSchema,
+        views: viewsField,
+      }),
+      execute: async ({ phase, views }) => {
+        const reps = selectReps(capture, views);
+        if (reps.length === 0) return { unavailable: whyNoReps(capture) };
+        return {
+          phase,
+          unit: "degrees, positive shoulders right",
+          ...report(atPhase(reps, phase, (frame) => trunkRotation(frame))),
         };
       },
     }),
@@ -840,7 +889,9 @@ const reportSchema = z.object({
    */
   corrections: z.array(
     z.object({
-      joint: z.enum(["knee", "hip", "ankle", "elbow", "shoulder"]),
+      // Mirrors JOINTS. No ankle: there is no foot landmark to close that
+      // angle, so it can be neither measured nor corrected.
+      joint: z.enum(["knee", "hip", "elbow", "shoulder"]),
       side: z.enum(["left", "right", "both"]),
       phase: z.enum(PHASES as unknown as [Phase, ...Phase[]]),
       targetDegrees: z.number(),

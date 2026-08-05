@@ -67,7 +67,7 @@ describe("toScenePoints", () => {
   })
 
   it("treats a missing visibility score as tracked", () => {
-    // MediaPipe omits `visibility` on world landmarks in some builds, so the
+    // A provider may omit `visibility` on world landmarks, so the
     // type is widened here rather than the absence being treated as untracked.
     const points = toScenePoints(
       frame({
@@ -353,7 +353,7 @@ describe("toGroundFrame", () => {
 })
 
 describe("pose space", () => {
-  /** A standing lifter in MediaPipe's camera frame, where y grows downward. */
+  /** A standing lifter in the provider's camera frame, where y grows downward. */
   function cameraFrame() {
     const landmarks = Array.from({ length: POSE_LANDMARK_COUNT }, () => ({
       x: 0,
