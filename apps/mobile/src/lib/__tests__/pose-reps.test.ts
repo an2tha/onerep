@@ -31,7 +31,7 @@ function pose(depth: number, yawRadians = 0): P[] {
     z: 0,
     visibility: 1,
   }))
-  // MediaPipe world y grows downward, so these are negated: a standing lifter
+  // Provider world y grows downward, so these are negated: a standing lifter
   // has their head at negative y. Getting this backwards would invert every
   // gravity-referenced measurement.
   const set = (i: number, x: number, y: number, z: number) => {
@@ -46,7 +46,7 @@ function pose(depth: number, yawRadians = 0): P[] {
   set(27, -0.15, -hipToAnkleGap, 0) // left ankle
   set(28, 0.15, -hipToAnkleGap, 0) // right ankle
   // Nose forward of the shoulders. At yaw 0 that puts it nearer the camera
-  // (MediaPipe z grows away from it), i.e. the lifter is facing the lens.
+  // (provider z grows away from it), i.e. the lifter is facing the lens.
   set(0, 0, 0.75, -0.1) // nose
 
   if (yawRadians === 0) return points

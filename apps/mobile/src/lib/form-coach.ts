@@ -98,7 +98,7 @@ export type FormCoachSubmission = {
 /**
  * One tracked joint.
  *
- * Structurally MediaPipe's `Landmark`, but declared here so nothing downstream
+ * Structurally a pose library's `Landmark`, but declared here so nothing downstream
  * of pose estimation has to import a pose library to name a point. Visibility
  * is optional because not every backend reports it; absent means certain.
  */
@@ -150,10 +150,12 @@ export const MAX_COACH_STILLS = 5
  * nothing about how the points were produced, so a backend swap stops here.
  *
  * Two things a provider must honour, because the rest of the pipeline is built
- * on them: landmarks come in MediaPipe's 33-point BlazePose layout (see
- * `pose-scene.ts`, which names the joints by index), and `worldLandmarks` are
- * metres with the origin at the hip midpoint. A backend with a different
- * skeleton has to remap to that layout inside its provider.
+ * on them: landmarks come in the 33-point BlazePose layout (see `pose-scene.ts`,
+ * which names the joints by index), and `worldLandmarks` are metres with the
+ * origin at the hip midpoint, y growing downward and z away from the lens. A
+ * backend with a different skeleton has to remap to that layout inside its
+ * provider — `pose-joints.ts` is where the current one does it, and the slots it
+ * cannot fill are declared in `IGNORED_POSE_LANDMARKS`.
  */
 export type PoseProvider = {
   /** Named in logs, so a capture can be traced back to what produced it. */
@@ -195,16 +197,16 @@ export function setPoseProvider(provider: PoseProvider | null) {
 }
 
 /**
- * The provider in force, defaulting to MediaPipe.
+ * The provider in force, defaulting to YOLO-pose feeding MotionBERT.
  *
  * Loaded dynamically so this module stays free of any one backend: the
- * MediaPipe wasm and its type surface are only pulled in if nothing else was
- * registered by the time footage is actually read.
+ * onnxruntime bundle and the models it fetches are only pulled in if nothing
+ * else was registered by the time footage is actually read.
  */
 export async function getPoseProvider(): Promise<PoseProvider> {
   if (!activeProvider) {
-    const { mediapipePoseProvider } = await import("@/lib/mediapipe")
-    activeProvider ??= mediapipePoseProvider
+    const { motionBertPoseProvider } = await import("@/lib/motionbert")
+    activeProvider ??= motionBertPoseProvider
   }
   return activeProvider
 }
@@ -282,8 +284,8 @@ export async function extractFormCoachLandmarks(
   onProgress?.({ stage: "reading", value: 0 })
 
   const results: FormCoachAngleLandmarks[] = []
-  // Sequentially: a provider is free to hold one stateful decoder, and
-  // MediaPipe's video mode in particular is.
+  // Sequentially: a provider is free to hold one stateful decoder, and to size
+  // its own memory on the assumption that one clip is in flight at a time.
   for (const angle of submission.angles) {
     const started = performance.now()
     const weight = formCoachAngleWeight(angle)

@@ -36,15 +36,44 @@ describe("static assets shipped to Cloudflare Pages", () => {
     expect(oversized).toEqual([])
   })
 
-  test("the pose model is fetched from a CDN rather than served by us", async () => {
-    // It is 29 MB — over the cap above — so a self-hosted copy cannot deploy.
+  test("both pose models are actually present to be served", () => {
+    // They are build artefacts of `scripts/form-JEPA/export_onnx.py`, not
+    // source, so the only thing stopping a deploy that 404s on every pose
+    // request is checking they were exported.
+    const models = readdirSync(path.join(publicDir, "models"))
+
+    expect(models).toContain("yolo11n_pose_448_fp32.onnx")
+    expect(models).toContain("motionbert_lite_int8.onnx")
+  })
+
+  test("the unquantized lifter is not shipped", () => {
+    // fp32 MotionBERT is 64 MB and spills its weights into a sidecar .data
+    // file. Either would fail the cap above; the .data file would also load as
+    // a silently broken model, since nothing fetches it.
+    //
+    // The detector is deliberately fp32 and is not covered by this: quantizing
+    // it costs 10x in speed, which is why it ships at full precision.
+    const models = readdirSync(path.join(publicDir, "models"))
+
+    expect(models.filter((name) => name.startsWith("motionbert"))).toEqual([
+      "motionbert_lite_int8.onnx",
+    ])
+    expect(models.filter((name) => name.endsWith(".data"))).toEqual([])
+  })
+
+  test("models are addressed by absolute origin on native only", async () => {
+    // On native these sit outside the OTA bundle — too big to ship in every
+    // update — so a root-relative path resolves inside the bundle directory
+    // Capgo swapped in and 404s after the first update. On the web the reverse
+    // holds: the same origin already serves them, and reaching for the
+    // production origin means dev fetches a model that is not deployed there
+    // yet and gets the SPA shell back with a 200.
     const source = await Bun.file(
-      path.join(import.meta.dir, "src/lib/form-coach.ts")
+      path.join(import.meta.dir, "src/lib/onnx-runtime.ts")
     ).text()
 
-    expect(source).toContain("https://storage.googleapis.com/mediapipe-models/")
-    expect(
-      readdirSync(publicDir).filter((name) => name.includes("pose_landmarker"))
-    ).toEqual([])
+    expect(source).toMatch(
+      /isNativePlatform\(\)\s*\?\s*`\$\{otaOrigin\(\)\}\/models`\s*:\s*"\/models"/
+    )
   })
 })

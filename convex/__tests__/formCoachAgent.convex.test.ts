@@ -353,6 +353,7 @@ describe("form coach tools", () => {
           : {
               joint: "knee",
               segment: "torso",
+              line: "shoulder",
               side: "left",
               phase: "turnaround",
             };

@@ -131,13 +131,28 @@ function moveFile(from, to) {
   rmSync(from, { force: true })
 }
 
-function stageBundle(distDir) {
+/**
+ * Directories that are deployed but must not travel inside the OTA zip.
+ *
+ * `ota` is a previous run's artifacts, which would nest a bundle in a bundle.
+ *
+ * `models` is the ~19 MB of pose weights. They change only when the models are
+ * re-exported, which is far rarer than a web release, so shipping them in every
+ * update would multiply the size of a typical OTA by an order of magnitude for
+ * bytes the device already has. They stay in the Pages deploy and are fetched
+ * from an absolute origin — see `modelBase` in `apps/mobile/src/lib/
+ * onnx-runtime.ts`, which explains why absolute and not root-relative.
+ */
+const EXCLUDED_FROM_BUNDLE = ["ota", "models"]
+
+export function stageBundle(distDir) {
   const stageRoot = mkdtempSync(path.join(tmpdir(), "onerep-ota-"))
   const stageDir = path.join(stageRoot, "bundle")
   cpSync(distDir, stageDir, { recursive: true })
 
-  // Never let a previous run's artifacts end up inside the zip.
-  rmSync(path.join(stageDir, "ota"), { recursive: true, force: true })
+  for (const directory of EXCLUDED_FROM_BUNDLE) {
+    rmSync(path.join(stageDir, directory), { recursive: true, force: true })
+  }
 
   if (!existsSync(path.join(stageDir, "index.html"))) {
     throw new OtaPackagingError(
