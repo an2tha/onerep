@@ -1,5 +1,11 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateText, Output, stepCountIs, type ToolSet } from "ai";
+import {
+  generateText,
+  Output,
+  stepCountIs,
+  type ModelMessage,
+  type ToolSet,
+} from "ai";
 // See the note in formCoachAgent.ts: the named `z` export is undefined under
 // the Bun runtime, so import the namespace instead.
 import * as z from "zod";
@@ -137,34 +143,37 @@ export async function runOpenAiAgent<T>({
     baseURL: config.baseURL,
   });
 
+  const messages: ModelMessage[] = [
+    {
+      role: "user",
+      content:
+        images && images.length > 0
+          ? [
+              { type: "text" as const, text: user },
+              ...images.map((image) => ({
+                type: "image" as const,
+                image: image.url,
+                mediaType: image.url.startsWith("data:image/png")
+                  ? ("image/png" as const)
+                  : ("image/jpeg" as const),
+              })),
+            ]
+          : user,
+    },
+  ];
+  // Asking for free-form JSON and validating at the far end meant any deviation
+  // surfaced as an opaque failure with nothing to debug. Handing the schema to
+  // the provider makes the shape a constraint instead.
+  const output = Output.object({ schema, name: "report" });
+
   try {
     const result = await generateText({
       model: openai(config.model),
       system,
-      messages: [
-        {
-          role: "user",
-          content:
-            images && images.length > 0
-              ? [
-                  { type: "text" as const, text: user },
-                  ...images.map((image) => ({
-                    type: "image" as const,
-                    image: image.url,
-                    mediaType: image.url.startsWith("data:image/png")
-                      ? ("image/png" as const)
-                      : ("image/jpeg" as const),
-                  })),
-                ]
-              : user,
-        },
-      ],
+      messages,
       tools,
       stopWhen: stepCountIs(maxSteps),
-      // Asking for free-form JSON and validating at the far end meant any
-      // deviation surfaced as an opaque failure with nothing to debug. Handing
-      // the schema to the provider makes the shape a constraint instead.
-      output: Output.object({ schema, name: "report" }),
+      output,
       maxOutputTokens: maxTokens,
     });
 
@@ -179,10 +188,50 @@ export async function runOpenAiAgent<T>({
       });
     }
 
+    if (result.finishReason === "stop") {
+      return {
+        output: result.output as T,
+        toolCalls,
+        steps: result.steps.length,
+      };
+    }
+
+    // A run that ends on a tool call (the step ceiling) or mid-sentence (the
+    // token ceiling) never reaches the point where the SDK parses the schema,
+    // and reading `result.output` then throws "No output generated" — which
+    // says nothing about the transcript that produced it. Ask once more with
+    // everything gathered so far, tools closed off and room to write: that
+    // final answer is what the ceilings were always meant to yield.
+    const finish = await generateText({
+      model: openai(config.model),
+      system,
+      messages: [
+        ...messages,
+        ...result.responseMessages,
+        {
+          role: "user",
+          content:
+            "Stop gathering evidence and answer now, using only what you have already looked at.",
+        },
+      ],
+      // Kept in the request so the transcript's tool calls stay resolvable,
+      // while `none` forbids another one.
+      tools,
+      toolChoice: "none",
+      output,
+      maxOutputTokens: maxTokens * 2,
+    });
+
+    if (finish.finishReason !== "stop") {
+      throw new Error(
+        `the model stopped early (${result.finishReason}, then ${finish.finishReason}) without producing a report`,
+      );
+    }
+
     return {
-      output: result.output as T,
+      output: finish.output as T,
       toolCalls,
-      steps: result.steps.length,
+      steps: result.steps.length + finish.steps.length,
     };
   } catch (error) {
     throw new Error(`Model request failed: ${describeProviderError(error)}`);
