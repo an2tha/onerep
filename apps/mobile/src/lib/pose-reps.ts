@@ -78,7 +78,7 @@ type Vec = { x: number; y: number; z: number }
 type Point = Vec & { visibility?: number }
 
 /**
- * Gravity, as MediaPipe sees it. Its world y grows *downward*, so up is -y.
+ * Gravity, as the pose provider reports it. World y grows *downward*, so up is -y.
  * The camera's own vertical is the only estimate of gravity available, which is
  * why the viewer offers a manual correction on top.
  */
@@ -108,7 +108,7 @@ function normalize(a: Vec): Vec | null {
  * Rewrites landmarks into a body-fixed frame: origin at the hips, +x from left
  * hip to right hip, +y up the torso, +z out the front.
  *
- * Without this, angles cannot be combined at all. MediaPipe's world landmarks
+ * Without this, angles cannot be combined at all. The provider's world landmarks
  * are metric but still camera-relative, so the same squat filmed from the side
  * and from the front produces two point clouds rotated ~90° apart. Averaging
  * them raw would collapse the lifter into a smear. In the body frame both
@@ -154,7 +154,7 @@ export function toBodyFrame(
  * straightened one.
  *
  * The viewer works in scene coordinates, which negate y and z relative to
- * MediaPipe's. Under that flip a rotation about x is unchanged, while one about
+ * the provider's. Under that flip a rotation about x is unchanged, while one about
  * z reverses — hence the sign on roll.
  */
 export function applyOrientation(
@@ -733,7 +733,7 @@ const SAGITTAL_TOLERANCE_DEG = 30
  * Deliberately not the body-framed ones: body framing exists to remove the
  * camera's orientation, which is precisely the signal needed here.
  *
- * MediaPipe world landmarks sit in a camera-relative frame — x across the image,
+ * World landmarks sit in a camera-relative frame — x across the image,
  * z into it — so the shoulder line's bearing in the horizontal plane says how
  * square-on the shot was. Running left-to-right across the image means front or
  * back; running into the image means side.
@@ -773,7 +773,7 @@ export function classifyCameraView(
     // more than one shot further away.
     acrossX += dx / span
     acrossZ += dz / span
-    // MediaPipe z grows away from the camera, so a negative offset means the
+    // Provider z grows away from the camera, so a negative offset means the
     // face is turned towards it.
     noseDepth += nose.z - (left.z + right.z) / 2
     counted += 1

@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+dataset/
+outputs/
+checkpoints/
+MotionBERT/
+*.pt
+onnx/

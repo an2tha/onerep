@@ -104,10 +104,10 @@ export const LANDMARK = {
   rightKnee: 26,
   leftAnkle: 27,
   rightAnkle: 28,
-  leftHeel: 29,
-  rightHeel: 30,
-  leftFoot: 31,
-  rightFoot: 32,
+  // No heels or toes. The pose backend lifts to a 17-joint H36M skeleton, which
+  // ends at the ankle, so slots 29-32 are never populated by anything. They were
+  // listed here while the backend was MediaPipe; leaving them would offer the
+  // model measurements that always come back null.
 } as const;
 
 export type LandmarkName = keyof typeof LANDMARK;
@@ -216,9 +216,10 @@ export function phaseIndex(frames: KinematicFrame[], phase: Phase) {
 export const JOINTS = {
   knee: ["Hip", "Knee", "Ankle"],
   hip: ["Shoulder", "Hip", "Knee"],
-  ankle: ["Knee", "Ankle", "Foot"],
   elbow: ["Shoulder", "Elbow", "Wrist"],
   shoulder: ["Hip", "Shoulder", "Elbow"],
+  // No ankle. Dorsiflexion is the angle at the ankle between the shin and the
+  // foot, and there is no foot landmark to close it — see `LANDMARK`.
 } as const satisfies Record<string, readonly [string, string, string]>;
 
 export type JointName = keyof typeof JOINTS;
@@ -257,7 +258,8 @@ export const SEGMENTS = {
   shin: ["Knee", "Ankle"],
   upper_arm: ["Shoulder", "Elbow"],
   forearm: ["Elbow", "Wrist"],
-  foot: ["Heel", "Foot"],
+  // No foot segment, for the same reason there is no ankle joint: heel and toe
+  // are not in the skeleton. Heel lift is not measurable at all now.
 } as const satisfies Record<string, readonly [string, string]>;
 
 export type SegmentName = keyof typeof SEGMENTS;
@@ -313,6 +315,76 @@ export function segmentFromVertical(
   return degrees(
     Math.acos(Math.min(1, Math.max(-1, Math.abs(axis.y) / length))),
   );
+}
+
+// ── Body lines ───────────────────────────────────────────────────────────────
+
+/**
+ * The two cross-body lines, left landmark first.
+ *
+ * Everything above is measured down one side of the body or the other. These are
+ * measured across it, which answers a different class of question: not "how far
+ * did this joint bend" but "did the two sides stay level with each other".
+ */
+export const BODY_LINES = {
+  shoulder: ["leftShoulder", "rightShoulder"],
+  hip: ["leftHip", "rightHip"],
+} as const satisfies Record<string, readonly [LandmarkName, LandmarkName]>;
+
+export type BodyLineName = keyof typeof BODY_LINES;
+
+function lineVector(frame: KinematicFrame, line: BodyLineName): Vec3 | null {
+  const [left, right] = BODY_LINES[line];
+  const a = point(frame, left);
+  const b = point(frame, right);
+  if (!a || !b) return null;
+  const v = sub(b, a);
+  return norm(v) < 1e-9 ? null : v;
+}
+
+/**
+ * How far a cross-body line is off horizontal, in degrees. 0 is level.
+ *
+ * Signed, positive meaning the lifter's right side is higher. A shoulder line
+ * that tilts under load is a lateral imbalance — one side giving way, or a
+ * heavier dumbbell winning; a hip line that tilts is a hip hike or a collapse on
+ * one leg. Neither shows up in any interior joint angle, because both sides can
+ * bend identically while the whole frame tips.
+ */
+export function bodyLineTilt(
+  frame: KinematicFrame,
+  line: BodyLineName,
+): number | null {
+  const v = lineVector(frame, line);
+  if (!v) return null;
+  // Against the body frame's own +y, which is up. asin of the vertical
+  // component is the angle away from the horizontal plane.
+  return degrees(Math.asin(Math.min(1, Math.max(-1, v.y / norm(v)))));
+}
+
+/**
+ * Rotation of the shoulders against the hips about the body's vertical axis, in
+ * degrees. 0 is square.
+ *
+ * Signed, positive meaning the shoulders are turned towards the lifter's right.
+ * This is the twist a one-sided lift induces and that a lifter cannot see:
+ * rowing with one shoulder dropping back, a press where one arm leads, a squat
+ * that unwinds slightly out of the hole. Both lines are projected onto the
+ * transverse plane first, so a forward lean does not register as rotation.
+ */
+export function trunkRotation(frame: KinematicFrame): number | null {
+  const shoulders = lineVector(frame, "shoulder");
+  const hips = lineVector(frame, "hip");
+  if (!shoulders || !hips) return null;
+
+  // Flatten both onto the transverse plane by discarding the vertical.
+  const a = { x: hips.x, y: 0, z: hips.z };
+  const b = { x: shoulders.x, y: 0, z: shoulders.z };
+  if (norm(a) < 1e-9 || norm(b) < 1e-9) return null;
+
+  // Signed angle about +y, from the hip line to the shoulder line.
+  const cross = a.z * b.x - a.x * b.z;
+  return degrees(Math.atan2(cross, dot(a, b)));
 }
 
 // ── Alignment ────────────────────────────────────────────────────────────────
