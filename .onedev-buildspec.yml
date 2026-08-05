@@ -172,10 +172,29 @@ jobs:
             }
             # The OTA manifest is what native devices poll; if the SPA fallback
             # swallowed it, every install silently stops updating.
-            curl -fsS https://app.onerep.life/ota/manifest.json | grep -q '"version"' || {
-              echo "OTA manifest is not reachable after deploy"
-              exit 1
-            }
+            #
+            # node's own fetch, not curl: node:22-alpine ships no curl, so this
+            # check exited 1 on a missing binary and failed the step *after* a
+            # successful deploy -- taking the marketing deploy down with it.
+            # Retried, because a fresh deployment needs a moment to reach every
+            # edge, and one cold miss is not a broken manifest.
+            node -e '(async () => {
+              const url = "https://app.onerep.life/ota/manifest.json"
+              for (let attempt = 1; attempt <= 5; attempt++) {
+                if (attempt > 1) await new Promise((r) => setTimeout(r, 3000))
+                try {
+                  const response = await fetch(url, { cache: "no-store" })
+                  if (!response.ok) continue
+                  const manifest = JSON.parse(await response.text())
+                  if (manifest.version) {
+                    console.log("OTA manifest is live at " + manifest.version)
+                    return
+                  }
+                } catch {}
+              }
+              console.error("OTA manifest is not reachable after deploy")
+              process.exit(1)
+            })()'
         runAs: 0:0
         envVars:
           - name: CLOUDFLARE_API_TOKEN
