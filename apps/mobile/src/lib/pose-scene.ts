@@ -6,22 +6,30 @@ export const POSE_LANDMARK_COUNT = 33
  * Landmarks the scene leaves out.
  *
  * Eyes, ears and mouth (1–10) and the finger points (17–22) are the noisiest
- * part of the model and say nothing about a squat. Drawn, they read as a
+ * part of the layout and say nothing about a squat. Drawn, they read as a
  * flickering cloud around the head and hands that makes the tracking look
  * broken even when the body is followed perfectly.
  *
+ * The feet (29–32) are here for a different reason: the pose backend simply has
+ * no such joints. COCO and H36M both stop at the ankle, so heels and toes would
+ * have to be invented from the shin, and a fabricated foot is worse than an
+ * honest absence — it would swing confidently through the floor at the bottom
+ * of every squat.
+ *
  * The nose (0) survives as the single head marker — head position does matter
- * for a squat — and the wrists (15, 16) still terminate the arms.
+ * for a squat — and the wrists (15, 16) and ankles (27, 28) still terminate the
+ * limbs.
  */
 export const IGNORED_POSE_LANDMARKS: ReadonlySet<number> = new Set([
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22,
+  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 18, 19, 20, 21, 22, 29, 30, 31, 32,
 ])
 
 /**
  * The skeleton the scene draws, as landmark index pairs. A trimmed version of
- * MediaPipe's topology: no face mesh, no finger fan. Kept here rather than read
- * off `PoseLandmarker.POSE_CONNECTIONS` so the scene can be built and tested
- * without loading the 6 MB model.
+ * the BlazePose topology: no face mesh, no finger fan, and no foot triangles —
+ * see `IGNORED_POSE_LANDMARKS` for why each group is gone. Kept here rather than
+ * read off a pose library so the scene can be built and tested without loading a
+ * model.
  */
 export const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
   // Neck — nose to each shoulder, standing in for a head that is otherwise
@@ -38,17 +46,11 @@ export const POSE_BONES: ReadonlyArray<readonly [number, number]> = [
   [11, 23],
   [12, 24],
   [23, 24],
-  // Legs
+  // Legs, ending at the ankles.
   [23, 25],
   [25, 27],
-  [27, 29],
-  [27, 31],
-  [29, 31],
   [24, 26],
   [26, 28],
-  [28, 30],
-  [28, 32],
-  [30, 32],
 ]
 
 /** Floats in the joint buffer: one xyz per landmark. */
@@ -69,8 +71,8 @@ export type ScenePoint = { x: number; y: number; z: number; visible: boolean }
 /**
  * Which coordinate system a frame's landmarks are already in.
  *
- * `camera` is MediaPipe's own: y grows downward and z away from the lens.
- * `body` is what `toBodyFrame` produces for a fused rep — already y-up and
+ * `camera` is the frame a provider reports in: y grows downward and z away from
+ * the lens. `body` is what `toBodyFrame` produces for a fused rep — y-up and
  * z-forward, because the whole point of that frame is to be camera-independent.
  *
  * Getting this wrong flips the skeleton upside down, so it is named rather than
@@ -79,9 +81,9 @@ export type ScenePoint = { x: number; y: number; z: number; visible: boolean }
 export type PoseSpace = "camera" | "body"
 
 /**
- * MediaPipe world landmarks are metres with the origin at the hip midpoint,
- * y pointing down and z pointing away from the camera. Three.js wants y up, so
- * those are negated — but only for data that is still in the camera's frame.
+ * World landmarks are metres with the origin at the hip midpoint, y pointing
+ * down and z pointing away from the camera. Three.js wants y up, so those are
+ * negated — but only for data that is still in the camera's frame.
  */
 export function toScenePoints(
   frame: FormCoachFrame | undefined,

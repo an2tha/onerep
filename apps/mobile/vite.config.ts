@@ -138,6 +138,23 @@ export default defineConfig(({ command, mode }) => {
       },
     },
     resolve: {
+      /**
+       * Keeps onnxruntime's wasm out of the bundle.
+       *
+       * By default the package resolves to a "bundle" build that inlines the
+       * runtime, and Rollup emits a 26.8 MB `.wasm` into `dist/assets` — past
+       * Cloudflare Pages' 25 MiB per-file cap, so the deploy fails at the very
+       * last step. This condition selects the build that fetches its wasm at
+       * runtime instead, which is what `onnx-runtime.ts` already points at a
+       * version-matched CDN.
+       */
+      conditions: [
+        "onnxruntime-web-use-extern-wasm",
+        // Vite's own defaults, which naming any condition replaces.
+        "module",
+        "browser",
+        "development|production",
+      ],
       dedupe: ["convex", "react", "react-dom"],
       alias: {
         "@": appRoot,
