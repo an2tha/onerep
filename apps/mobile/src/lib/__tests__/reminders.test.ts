@@ -4,10 +4,12 @@ let platform = "ios"
 const cancelMock = mock(async () => undefined)
 const requestPermissionsMock = mock(async () => ({ display: "granted" }))
 const scheduleMock = mock(async () => undefined)
+const createChannelMock = mock(async () => undefined)
 
 mock.module("@capacitor/core", () => ({
   Capacitor: {
     getPlatform: () => platform,
+    isNativePlatform: () => platform !== "web",
   },
 }))
 
@@ -16,6 +18,7 @@ mock.module("@capacitor/local-notifications", () => ({
     cancel: cancelMock,
     requestPermissions: requestPermissionsMock,
     schedule: scheduleMock,
+    createChannel: createChannelMock,
   },
 }))
 
@@ -36,6 +39,7 @@ describe("reminder settings", () => {
       display: "granted",
     }))
     scheduleMock.mockClear()
+    createChannelMock.mockClear()
   })
 
   test("mergeReminderSettings fills missing reminders from defaults", () => {
@@ -147,5 +151,37 @@ describe("reminder settings", () => {
       repeats: true,
       allowWhileIdle: true,
     })
+  })
+
+  test("routes reminders to their own Android channel so they can be muted alone", async () => {
+    platform = "android"
+
+    await syncPushReminders({
+      ...DEFAULT_REMINDERS,
+      water: { enabled: true, hour: 8, minute: 0 },
+    })
+
+    expect(createChannelMock).toHaveBeenCalled()
+    const payload = (
+      scheduleMock.mock.calls as unknown as Array<
+        [{ notifications: Array<{ channelId?: string }> }]
+      >
+    )[0][0]
+    expect(payload.notifications[0].channelId).toBe("reminders")
+  })
+
+  test("sets no channel on iOS, which has no such concept", async () => {
+    await syncPushReminders({
+      ...DEFAULT_REMINDERS,
+      water: { enabled: true, hour: 8, minute: 0 },
+    })
+
+    expect(createChannelMock).not.toHaveBeenCalled()
+    const payload = (
+      scheduleMock.mock.calls as unknown as Array<
+        [{ notifications: Array<{ channelId?: string }> }]
+      >
+    )[0][0]
+    expect(payload.notifications[0].channelId).toBeUndefined()
   })
 })

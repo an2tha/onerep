@@ -810,12 +810,27 @@ describe("AI paywall", () => {
 
   test("the Health section is gated on platform and consent", () => {
     assert.match(SETTINGS_SOURCE, /activeView === "health"/)
-    // An Apple Health row on Android or the web is dead UI.
-    assert.match(SETTINGS_SOURCE, /isAppleHealthSupportedPlatform\(\)/)
+    // A health row on the web is dead UI — there is no store to read.
+    assert.match(SETTINGS_SOURCE, /isHealthSyncSupportedPlatform\(\)/)
     // Consent is the gate; the import toggle stays disabled without it.
     assert.match(SETTINGS_SOURCE, /wearableIntegrations/)
     assert.match(SETTINGS_SOURCE, /disabled=\{!wearableConsent\}/)
-    // A denied HealthKit permission must produce readable copy, not a silent no-op.
+    // A denied permission must produce readable copy, not a silent no-op.
     assert.match(SETTINGS_SOURCE, /Permission was denied/)
+  })
+
+  test("health copy names the platform's own store, not always Apple's", () => {
+    // Hardcoding "Apple Health" is what made the whole section Android-hostile.
+    assert.doesNotMatch(SETTINGS_SOURCE, /"Apple Health"/)
+    assert.match(SETTINGS_SOURCE, /healthProviderLabel\(\)/)
+  })
+
+  test("Android gets the Health Connect affordances iOS does not need", () => {
+    // Health Connect can be missing or outdated; HealthKit never is.
+    assert.match(SETTINGS_SOURCE, /healthProviderUnavailable/)
+    assert.match(SETTINGS_SOURCE, /openHealthProviderListing\(\)/)
+    // Revocation only happens inside the Health Connect app.
+    assert.match(SETTINGS_SOURCE, /supportsHealthSettingsDeepLink\(\)/)
+    assert.match(SETTINGS_SOURCE, /openHealthSettings\(\)/)
   })
 })

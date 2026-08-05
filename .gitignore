@@ -52,3 +52,30 @@ apps/server/data/raw
 
 # Local test-account credentials (never commit)
 test-user.txt
+
+# ── ML model weights and datasets ─────────────────────────────────────────────
+# Large binary artifacts. They are reproducible from the export scripts and
+# fetched separately (see scripts/form-JEPA/fetch-dataset.sh), so they do not
+# belong in git history.
+*.onnx
+*.mlmodel
+*.mlmodelc/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.tflite
+*.h5
+*.npz
+*.pkl
+# CoreML packages, wherever they live — including the copies inside the iOS app.
+*.mlpackage/
+# Trained checkpoints from the form-JEPA training runs.
+scripts/form-JEPA/best_epoch.bin
+scripts/form-JEPA/models/
+scripts/form-JEPA/data/
+scripts/form-JEPA/dataset/
+scripts/form-JEPA/datasets/
+# Runtime pose weights served from the OTA origin, not bundled in the web build.
+apps/mobile/public/models/
+apps/mobile/ios/App/App/public/models/

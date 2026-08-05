@@ -21,6 +21,8 @@ import {
   releaseDetectorScratch,
   warmDetector,
 } from "@/lib/yolo-pose"
+import { Capacitor } from "@capacitor/core"
+import { PoseEstimation } from "@/lib/native-pose"
 
 /**
  * MotionBERT-lite as the 3D half of the `PoseProvider`.
@@ -34,6 +36,11 @@ import {
  *
  * The cost is that lifting is not incremental: the clip is detected end to end
  * first, then lifted in one or two passes.
+ *
+ * On iOS the lift runs through CoreML instead of wasm. Only the lift is
+ * swapped: detection and normalization stay in JS so there is exactly one
+ * implementation of `cropScale`, whose output the two backends must agree on
+ * bit-for-bit or the 3D results will diverge in ways nothing will flag.
  */
 
 export const MOTIONBERT_MODEL = "motionbert_lite_int8.onnx"
@@ -74,6 +81,10 @@ const ASSUMED_TORSO_M = 0.5
 
 /** Confidence below which a detected joint is not worth feeding the lifter. */
 const MIN_JOINT_SCORE = 0.3
+
+/** True when the CoreML lifter is present and should be preferred over wasm. */
+const nativeLiftAvailable = () =>
+  Capacitor.getPlatform() === "ios" && Capacitor.isPluginAvailable("PoseEstimation")
 
 /**
  * The normalization MotionBERT was trained under, from `crop_scale` in
@@ -132,24 +143,79 @@ export function cropScale(frames: (Keypoint2D[] | null)[]): Float32Array | null 
 }
 
 /**
+ * One window through the CoreML lifter.
+ *
+ * The traced `.mlpackage` has a fixed input shape of `[1, 243, 17, 3]`, unlike
+ * the ONNX graph which accepts any length. A window shorter than 243 — the tail
+ * of a clip, or a tiled still — is therefore padded by repeating its last frame
+ * and the padding is discarded from the output. Repeating rather than zeroing
+ * matters: a run of zero frames is a body collapsing into the origin, and the
+ * temporal attention would smear that back across the real frames next to it.
+ */
+async function liftWindowNative(
+  window: Float32Array,
+  length: number,
+  stride: number
+): Promise<Float32Array> {
+  let padded = window
+  if (length < MAX_CLIP_LEN) {
+    padded = new Float32Array(MAX_CLIP_LEN * stride)
+    padded.set(window)
+    const last = window.subarray((length - 1) * stride, length * stride)
+    for (let frame = length; frame < MAX_CLIP_LEN; frame += 1) {
+      padded.set(last, frame * stride)
+    }
+  }
+
+  const { keypoints3d } = await PoseEstimation.lift({
+    // Capacitor's bridge serializes to JSON, so a typed array has to cross as
+    // a plain number array in both directions.
+    keypoints: Array.from(padded),
+    frames: MAX_CLIP_LEN,
+  })
+
+  const full = Float32Array.from(keypoints3d)
+  return length < MAX_CLIP_LEN ? full.subarray(0, length * stride) : full
+}
+
+/**
  * Runs the lifter over a normalized track, in windows it can hold at once.
  *
  * Windows are consecutive and non-overlapping, matching `WildDetDataset`. They
  * do not need to be blended at the seam: the normalization above is global, so
  * two windows of the same clip already share one coordinate frame.
  */
-async function lift(normalized: Float32Array, frameCount: number) {
-  const session = await loadSession(MOTIONBERT_MODEL)
+async function lift(
+  normalized: Float32Array,
+  frameCount: number
+): Promise<Float32Array> {
   const stride = H36M_JOINTS * 3
   const lifted = new Float32Array(frameCount * stride)
+  const native = nativeLiftAvailable()
+  const session = native ? null : await loadSession(MOTIONBERT_MODEL)
 
   for (let start = 0; start < frameCount; start += MAX_CLIP_LEN) {
     const length = Math.min(MAX_CLIP_LEN, frameCount - start)
     const window = normalized.subarray(start * stride, (start + length) * stride)
+
+    if (native) {
+      try {
+        lifted.set(await liftWindowNative(window, length, stride), start * stride)
+        continue
+      } catch (error) {
+        // A CoreML failure should degrade to a slower clip, not a broken one.
+        // Falling back mid-clip is safe because both backends read the same
+        // globally normalized input and so share a coordinate frame.
+        console.warn("native lift failed, falling back to wasm", error)
+      }
+    }
+
+    const fallback = session ?? (await loadSession(MOTIONBERT_MODEL))
     const input = new ort.Tensor("float32", window, [1, length, H36M_JOINTS, 3])
-    const outputs = await session.run({ [session.inputNames[0]]: input })
-    lifted.set(outputs[session.outputNames[0]].data as Float32Array, start * stride)
+    const outputs = await fallback.run({ [fallback.inputNames[0]]: input })
+    lifted.set(outputs[fallback.outputNames[0]].data as Float32Array, start * stride)
   }
+
   return lifted
 }
 
@@ -301,8 +367,17 @@ export const motionBertPoseProvider: PoseProvider = {
 
   // Warming before the first angle means the wait on the wasm runtime and the
   // ~19 MB of weights is reported as loading rather than as a frame that
-  // mysteriously takes ten seconds.
+  // mysteriously takes ten seconds. On iOS the CoreML model is warmed instead;
+  // its first load also compiles, which is slower still and worth hiding.
   async warm(_kinds: FormCoachAngleKind[]) {
+    if (nativeLiftAvailable()) {
+      try {
+        await Promise.all([warmDetector(), PoseEstimation.prepare()])
+        return
+      } catch (error) {
+        console.warn("native lifter unavailable, using wasm", error)
+      }
+    }
     await Promise.all([warmDetector(), loadSession(MOTIONBERT_MODEL)])
   },
 
@@ -314,6 +389,9 @@ export const motionBertPoseProvider: PoseProvider = {
 
   async dispose() {
     releaseDetectorScratch()
+    if (nativeLiftAvailable()) {
+      await PoseEstimation.unload().catch(() => {})
+    }
     await releaseSessions()
   },
 }

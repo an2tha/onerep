@@ -1,0 +1,169 @@
+import { Capacitor, registerPlugin } from "@capacitor/core"
+
+/**
+ * The platform health store, behind one interface.
+ *
+ * iOS talks to HealthKit through `AppleHealthPlugin.swift`; Android talks to
+ * Health Connect through `HealthConnectPlugin.kt`. Both plugins deliberately
+ * return the same 14-field workout shape so nothing above this module has to
+ * know which platform it is on.
+ */
+
+export type HealthProvider = "apple_health" | "health_connect"
+
+export type HealthWorkout = {
+  uuid: string
+  activityType: string
+  activityName: string
+  startedAt: string
+  endedAt: string
+  durationSeconds: number
+  totalDistanceMeters?: number
+  avgHeartRateBpm?: number
+  maxHeartRateBpm?: number
+  activeEnergyKcal?: number
+  sourceName?: string
+  sourceBundleId?: string
+  hasRoute?: boolean
+  routeName?: string
+}
+
+/**
+ * Health Connect can be absent or outdated on a device, which HealthKit never
+ * is. `providerStatus` is what lets Settings offer a Play Store link instead of
+ * a toggle that cannot succeed.
+ */
+export type HealthProviderStatus =
+  "available" | "update_required" | "unavailable"
+
+export type HealthAvailability = {
+  available: boolean
+  platform: string
+  authorizationStatus?: string
+  providerStatus?: HealthProviderStatus
+}
+
+export type HealthAuthorization = {
+  available: boolean
+  granted: boolean
+}
+
+type HealthWorkoutQuery = {
+  limit?: number
+  daysBack?: number
+}
+
+type HealthPlugin = {
+  isAvailable(): Promise<HealthAvailability>
+  requestAuthorization(): Promise<HealthAuthorization>
+  getRecentWorkouts(
+    options?: HealthWorkoutQuery
+  ): Promise<{ workouts: HealthWorkout[] }>
+  saveWorkout(options: {
+    startedAt: number
+    endedAt: number
+    title: string
+  }): Promise<{ saved: boolean }>
+  openHealthSettings?(): Promise<void>
+  openProviderListing?(): Promise<void>
+}
+
+const appleHealth = registerPlugin<HealthPlugin>("AppleHealth")
+const healthConnect = registerPlugin<HealthPlugin>("HealthConnect")
+
+/** Which store this platform uses, or null on web. */
+export function healthProvider(): HealthProvider | null {
+  if (!Capacitor.isNativePlatform()) return null
+  const platform = Capacitor.getPlatform()
+  if (platform === "ios") return "apple_health"
+  if (platform === "android") return "health_connect"
+  return null
+}
+
+export function isHealthSyncSupportedPlatform() {
+  return healthProvider() !== null
+}
+
+/** User-facing name of the store; every Settings string routes through this. */
+export function healthProviderLabel(
+  provider: HealthProvider | null = healthProvider()
+): string {
+  if (provider === "health_connect") return "Health Connect"
+  return "Apple Health"
+}
+
+function plugin(): HealthPlugin | null {
+  const provider = healthProvider()
+  if (provider === "apple_health") return appleHealth
+  if (provider === "health_connect") return healthConnect
+  return null
+}
+
+export async function getHealthAvailability(): Promise<HealthAvailability> {
+  const active = plugin()
+  if (!active) {
+    return { available: false, platform: Capacitor.getPlatform() }
+  }
+  return active.isAvailable()
+}
+
+export async function requestHealthAuthorization(): Promise<HealthAuthorization> {
+  const active = plugin()
+  if (!active) return { available: false, granted: false }
+  return active.requestAuthorization()
+}
+
+export async function getRecentHealthWorkouts(
+  options: HealthWorkoutQuery = {}
+): Promise<HealthWorkout[]> {
+  const active = plugin()
+  if (!active) return []
+  const { workouts } = await active.getRecentWorkouts({
+    daysBack: options.daysBack ?? 30,
+    limit: options.limit ?? 12,
+  })
+  return workouts
+}
+
+/**
+ * Writes a finished OneRep session back to the health store.
+ *
+ * Opt-in on both platforms — callers must check the user's preference first.
+ * Resolves `{ saved: false }` rather than throwing when write permission was
+ * never granted, because a declined health write must not fail a workout save.
+ */
+export async function saveWorkoutToHealth(options: {
+  startedAt: number
+  endedAt: number
+  title: string
+}): Promise<{ saved: boolean }> {
+  const active = plugin()
+  if (!active) return { saved: false }
+  try {
+    return await active.saveWorkout(options)
+  } catch {
+    return { saved: false }
+  }
+}
+
+/**
+ * Android only. Health Connect has no programmatic revoke, so the user has to
+ * be sent to the Health Connect app to change or withdraw permissions.
+ */
+export function supportsHealthSettingsDeepLink() {
+  return healthProvider() === "health_connect"
+}
+
+export async function openHealthSettings() {
+  if (!supportsHealthSettingsDeepLink()) return
+  await healthConnect.openHealthSettings?.()
+}
+
+/**
+ * Android only. Health Connect is a separately-installed app before Android 14,
+ * so "not available" is a recoverable state rather than a dead end.
+ */
+export async function openHealthProviderListing() {
+  if (healthProvider() !== "health_connect") return
+  await healthConnect.openProviderListing?.()
+}

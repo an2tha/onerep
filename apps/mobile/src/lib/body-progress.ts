@@ -48,7 +48,9 @@ const ADVANCED_MEASUREMENT_KEYS = [
 ] as const
 
 function measurementInputValue(value: number | undefined) {
-  return typeof value === "number" && Number.isFinite(value) ? String(value) : ""
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : ""
 }
 
 export function localDateInputValue(date = new Date()) {
@@ -106,9 +108,7 @@ export async function syncDailyCheckInReminder(
     return "unsupported"
   }
 
-  const { LocalNotifications } = await import(
-    "@capacitor/local-notifications"
-  )
+  const { LocalNotifications } = await import("@capacitor/local-notifications")
 
   await LocalNotifications.cancel({
     notifications: [{ id: DAILY_CHECK_IN_NOTIFICATION_ID }],
@@ -123,6 +123,13 @@ export async function syncDailyCheckInReminder(
     return "denied"
   }
 
+  const {
+    ensureNotificationChannels,
+    NOTIFICATION_CHANNELS,
+    supportsNotificationChannels,
+  } = await import("./notification-channels")
+  await ensureNotificationChannels()
+
   await LocalNotifications.schedule({
     notifications: [
       {
@@ -130,6 +137,9 @@ export async function syncDailyCheckInReminder(
         title: "Daily check-in",
         body: "Log your latest measurements and see how your goal is moving.",
         schedule: { at: nextReminderDate(reminder), allowWhileIdle: true },
+        channelId: supportsNotificationChannels()
+          ? NOTIFICATION_CHANNELS.reminders
+          : undefined,
       },
     ],
   })

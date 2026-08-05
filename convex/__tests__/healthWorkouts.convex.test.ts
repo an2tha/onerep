@@ -54,7 +54,8 @@ describe("healthWorkouts", () => {
   test("import rejects an unauthenticated caller", async () => {
     const t = convexTest(schema, modules);
     await expect(
-      t.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      t.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: [RUN],
       }),
     ).rejects.toThrow(/Not authenticated|Unauthenticated/);
@@ -73,7 +74,8 @@ describe("healthWorkouts", () => {
     await grantConsent(user, false);
 
     await expect(
-      user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: [RUN],
       }),
     ).rejects.toThrow(/not enabled/i);
@@ -85,13 +87,15 @@ describe("healthWorkouts", () => {
     await grantConsent(user);
 
     await expect(
-      user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: [RUN],
       }),
     ).resolves.toEqual({ imported: 1, updated: 0, skipped: 0 });
 
     await expect(
-      user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: [RUN],
       }),
     ).resolves.toEqual({ imported: 0, updated: 1, skipped: 0 });
@@ -106,10 +110,12 @@ describe("healthWorkouts", () => {
     const user = t.withIdentity({ tokenIdentifier: "test|revise" });
     await grantConsent(user);
 
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [{ ...RUN, activeEnergyKcal: 655, maxHeartRateBpm: 181 }],
     });
 
@@ -126,7 +132,8 @@ describe("healthWorkouts", () => {
     await grantConsent(user);
 
     await expect(
-      user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: [RUN, { ...LIFT, startedAt: "not-a-date" }],
       }),
     ).resolves.toEqual({ imported: 1, updated: 0, skipped: 1 });
@@ -138,7 +145,8 @@ describe("healthWorkouts", () => {
     await grantConsent(user);
 
     await expect(
-      user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "apple_health",
         workouts: Array.from({ length: 51 }, (_, index) => ({
           ...RUN,
           uuid: `hk-${index}`,
@@ -151,7 +159,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|link" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
 
@@ -184,7 +193,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|link-twice" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -212,7 +222,8 @@ describe("healthWorkouts", () => {
       exercises: [],
       durationSeconds: 1800,
     });
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -247,7 +258,8 @@ describe("healthWorkouts", () => {
         durationSeconds: 1800,
       });
     }
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -271,7 +283,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|lift" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
 
@@ -286,7 +299,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|unlink" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -307,7 +321,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|dismiss" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -324,7 +339,8 @@ describe("healthWorkouts", () => {
     const stranger = t.withIdentity({ tokenIdentifier: "test|hw-stranger" });
     await grantConsent(owner);
     await grantConsent(stranger);
-    await owner.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await owner.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await owner.query(api.logs.healthWorkouts.list, {});
@@ -346,7 +362,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|coexist" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [RUN],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -377,7 +394,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|needs-exercises" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
 
@@ -390,7 +408,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|unlogged" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT, RUN],
     });
 
@@ -410,7 +429,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|unlogged-full" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
 
@@ -431,7 +451,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|attach" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -457,7 +478,8 @@ describe("healthWorkouts", () => {
     expect(await user.query(api.logs.healthWorkouts.unlogged, {})).toEqual([]);
 
     // A re-sync followed by a re-save must not create a second log.
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
     await user.mutation(api.logs.workouts.completion, {
@@ -483,7 +505,8 @@ describe("healthWorkouts", () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|attach-missing" });
     await grantConsent(user);
-    await user.mutation(api.logs.healthWorkouts.importFromAppleHealth, {
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
       workouts: [LIFT],
     });
     const [row] = await user.query(api.logs.healthWorkouts.list, {});
@@ -495,5 +518,68 @@ describe("healthWorkouts", () => {
         date: LIFT.date,
       }),
     ).rejects.toThrow(/no workout log/i);
+  });
+
+  test("Health Connect imports land with their own provider", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|health-connect" });
+    await grantConsent(user);
+
+    await expect(
+      user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+        provider: "health_connect",
+        workouts: [RUN],
+      }),
+    ).resolves.toEqual({ imported: 1, updated: 0, skipped: 0 });
+
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+    expect(row.provider).toBe("health_connect");
+    expect(row.linkable).toBe(true);
+  });
+
+  test("the same external id from two providers stays two rows", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|two-providers" });
+    await grantConsent(user);
+
+    // Record ids come from different namespaces, so an id collision across
+    // stores is possible and must not silently merge two real workouts.
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "apple_health",
+      workouts: [RUN],
+    });
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "health_connect",
+      workouts: [RUN],
+    });
+
+    await expect(
+      user.query(api.logs.healthWorkouts.list, {}),
+    ).resolves.toHaveLength(2);
+  });
+
+  test("promotion namespaces the session id per provider", async () => {
+    const t = convexTest(schema, modules);
+    const user = t.withIdentity({ tokenIdentifier: "test|hc-link" });
+    await grantConsent(user);
+    // No sourceName, so the provider label is what has to fill in.
+    const { sourceName: _ignored, ...anonymousRun } = RUN;
+    await user.mutation(api.logs.healthWorkouts.importHealthWorkouts, {
+      provider: "health_connect",
+      workouts: [anonymousRun],
+    });
+    const [row] = await user.query(api.logs.healthWorkouts.list, {});
+
+    const result = await user.mutation(
+      api.logs.healthWorkouts.linkToTrainingLog,
+      { id: row._id },
+    );
+    expect(result.sessionId).toBe("health-connect:hk-run-1");
+
+    const logs = await user.query(api.logs.workouts.getHistory, {});
+    expect(logs[0].exercises[0].cardio?.source?.provider).toBe(
+      "health_connect",
+    );
+    expect(logs[0].exercises[0].cardio?.source?.name).toBe("Health Connect");
   });
 });

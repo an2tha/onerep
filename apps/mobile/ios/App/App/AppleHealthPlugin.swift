@@ -11,7 +11,8 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getRecentWorkouts", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getRecentWorkouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise)
     ]
 
     private let healthStore = HKHealthStore()
@@ -36,7 +37,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
-        healthStore.requestAuthorization(toShare: [], read: healthReadTypes()) { success, error in
+        healthStore.requestAuthorization(toShare: healthShareTypes(), read: healthReadTypes()) { success, error in
             DispatchQueue.main.async {
                 if let error = error {
                     call.reject(error.localizedDescription, nil, error)
@@ -90,6 +91,94 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         healthStore.execute(query)
+    }
+
+    /**
+     Writes a finished OneRep strength session into HealthKit.
+
+     Opt-in: `src/lib/health-provider.ts` only calls this when the user has
+     enabled it in Settings. Resolves `saved: false` rather than rejecting when
+     write authorization is missing — a declined health write must never fail a
+     workout save.
+     */
+    @objc func saveWorkout(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        guard
+            let startedAt = call.getDouble("startedAt"),
+            let endedAt = call.getDouble("endedAt")
+        else {
+            call.reject("startedAt and endedAt are required")
+            return
+        }
+
+        let workoutType = HKObjectType.workoutType()
+        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        let start = Date(timeIntervalSince1970: startedAt / 1000)
+        let end = Date(timeIntervalSince1970: endedAt / 1000)
+        guard end > start else {
+            call.resolve(["saved": false])
+            return
+        }
+
+        let configuration = HKWorkoutConfiguration()
+        configuration.activityType = .traditionalStrengthTraining
+        configuration.locationType = .indoor
+
+        let builder = HKWorkoutBuilder(
+            healthStore: healthStore,
+            configuration: configuration,
+            device: .local()
+        )
+
+        builder.beginCollection(withStart: start) { started, error in
+            guard started else {
+                DispatchQueue.main.async {
+                    call.reject(
+                        error?.localizedDescription ?? "Unable to record the workout",
+                        nil,
+                        error
+                    )
+                }
+                return
+            }
+
+            builder.endCollection(withEnd: end) { ended, endError in
+                guard ended else {
+                    DispatchQueue.main.async {
+                        call.reject(
+                            endError?.localizedDescription ?? "Unable to record the workout",
+                            nil,
+                            endError
+                        )
+                    }
+                    return
+                }
+
+                builder.finishWorkout { workout, finishError in
+                    DispatchQueue.main.async {
+                        if let finishError = finishError {
+                            call.reject(finishError.localizedDescription, nil, finishError)
+                            return
+                        }
+                        call.resolve(["saved": workout != nil])
+                    }
+                }
+            }
+        }
+    }
+
+    private func healthShareTypes() -> Set<HKSampleType> {
+        // Workouts only. The app has no business writing anything else, and a
+        // wider share set is an App Review question we do not need to answer.
+        [HKObjectType.workoutType()]
     }
 
     private func healthReadTypes() -> Set<HKObjectType> {

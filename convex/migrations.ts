@@ -112,3 +112,35 @@ export const runStorePurchasePurge = migrations.runner([
   internal.migrations.deleteStoreSubscriptions,
   internal.migrations.deleteStoreIdentities,
 ]);
+
+/**
+ * Backfill `healthSync.healthSyncEnabled` from the legacy `appleHealthEnabled`.
+ *
+ * The field was named for the only platform that had a health store at the
+ * time; Health Connect made that name wrong rather than merely ugly. This is
+ * the backfill step of widen → dual-write → backfill → narrow: writers already
+ * set both fields, readers already prefer the new one, and once this has run
+ * everywhere `appleHealthEnabled` can be dropped from the schema and the `??`
+ * fallbacks removed from Settings.tsx and health-sync.tsx.
+ *
+ * Idempotent: rows that already carry the new field are skipped.
+ */
+export const backfillHealthSyncEnabled = migrations.define({
+  table: "userPreferences",
+  batchSize: 100,
+  migrateOne: async (ctx, preferences) => {
+    const healthSync = preferences.healthSync;
+    if (!healthSync) return;
+    if (healthSync.healthSyncEnabled !== undefined) return;
+    await ctx.db.patch(preferences._id, {
+      healthSync: {
+        ...healthSync,
+        healthSyncEnabled: healthSync.appleHealthEnabled,
+      },
+    });
+  },
+});
+
+export const runHealthSyncRename = migrations.runner([
+  internal.migrations.backfillHealthSyncEnabled,
+]);

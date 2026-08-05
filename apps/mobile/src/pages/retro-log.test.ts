@@ -55,8 +55,10 @@ describe("retro mode never touches live workout state", () => {
   })
 
   test("does not start a Live Activity for a workout that already ended", () => {
+    // The retro guard has to be the first statement in the effect, before any
+    // other condition can reach startWorkoutLiveActivity.
     expect(PAGE).toMatch(
-      /useEffect\(\(\) => \{\s*if \(isRetro\) return\s*if \(!isInitialized \|\| items\.length === 0\) return\s*if \(!liveActivityStartedRef\.current\)/
+      /useEffect\(\(\) => \{\s*if \(isRetro\) return[\s\S]*?startWorkoutLiveActivity/
     )
   })
 

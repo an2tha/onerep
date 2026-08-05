@@ -20,10 +20,18 @@ export async function uploadOwnedFile(
     mimeType,
     size: file.size,
   })
+  // CapacitorHttp proxies every non-GET fetch through native, and its bridge
+  // only knows how to serialize File (not plain Blob) bodies — a Blob crosses
+  // as an empty object and the request dies with CapacitorUrlRequestError 0.
+  // File extends Blob, so wrapping is free on web too.
+  const body =
+    file instanceof File
+      ? file
+      : new File([file], fileName ?? "upload", { type: file.type })
   const response = await fetch(intent.uploadUrl, {
     method: "POST",
     headers: { "Content-Type": mimeType },
-    body: file,
+    body,
   })
   if (!response.ok) throw new Error("File upload failed")
   const payload = (await response.json()) as { storageId?: string }

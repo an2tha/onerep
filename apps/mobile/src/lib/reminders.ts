@@ -1,5 +1,10 @@
 import { Capacitor } from "@capacitor/core"
 import { LocalNotifications } from "@capacitor/local-notifications"
+import {
+  ensureNotificationChannels,
+  NOTIFICATION_CHANNELS,
+  supportsNotificationChannels,
+} from "./notification-channels"
 
 export type ReminderConfig = {
   enabled: boolean
@@ -99,6 +104,7 @@ export async function syncPushReminders(
     return "disabled"
   }
 
+  await ensureNotificationChannels()
   const permission = await LocalNotifications.requestPermissions()
   if (permission.display !== "granted") {
     return "denied"
@@ -107,6 +113,9 @@ export async function syncPushReminders(
   const ids = Object.values(REMINDER_COPY).map(({ id }) => ({ id }))
   await LocalNotifications.cancel({ notifications: ids })
 
+  const channelId = supportsNotificationChannels()
+    ? NOTIFICATION_CHANNELS.reminders
+    : undefined
   await LocalNotifications.schedule({
     notifications: enabledEntries.map(([kind, reminder]) => ({
       id: REMINDER_COPY[kind].id,
@@ -117,6 +126,7 @@ export async function syncPushReminders(
         repeats: true,
         allowWhileIdle: true,
       },
+      channelId,
     })),
   })
 

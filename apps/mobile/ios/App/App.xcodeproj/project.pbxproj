@@ -7,8 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF323302395AE009D4737 /* MotionBERT.mlpackage */; };
+		184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */; };
+		184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184AF327302395E5009D4737 /* NativePoseEstimation.swift */; };
+		184AF337302398D4009D4737 /* PosePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184AF336302398D2009D4737 /* PosePipeline.swift */; };
 		1878F2C1300544250012B825 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1878F2C0300544250012B825 /* SceneDelegate.swift */; };
-		187CE67130234E3C00D471B1 /* CoreMLPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 187CE67030234E3600D471B1 /* CoreMLPlugin.swift */; };
 		18D26E053008F1C500483600 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18D26E043008F1C400483600 /* WidgetKit.framework */; };
 		18D26E073008F1C500483600 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 18D26E063008F1C500483600 /* SwiftUI.framework */; };
 		18D26E183008F1C500483600 /* OneRepExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 18D26E023008F1C400483600 /* OneRepExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -49,8 +52,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		184AF323302395AE009D4737 /* MotionBERT.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = MotionBERT.mlpackage; sourceTree = "<group>"; };
+		184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Yolo11nPose.mlpackage; sourceTree = "<group>"; };
+		184AF327302395E5009D4737 /* NativePoseEstimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePoseEstimation.swift; sourceTree = "<group>"; };
+		184AF336302398D2009D4737 /* PosePipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PosePipeline.swift; sourceTree = "<group>"; };
 		1878F2C0300544250012B825 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
-		187CE67030234E3600D471B1 /* CoreMLPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreMLPlugin.swift; sourceTree = "<group>"; };
 		18D26E023008F1C400483600 /* OneRepExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OneRepExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		18D26E043008F1C400483600 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		18D26E063008F1C500483600 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
@@ -136,13 +142,16 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
-				187CE67030234E3600D471B1 /* CoreMLPlugin.swift */,
+				184AF336302398D2009D4737 /* PosePipeline.swift */,
+				184AF327302395E5009D4737 /* NativePoseEstimation.swift */,
 				1878F2C0300544250012B825 /* SceneDelegate.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7C41A0042D09000000000004 /* BridgeViewController.swift */,
 				7C41A0022D09000000000002 /* AppleHealthPlugin.swift */,
+				184AF323302395AE009D4737 /* MotionBERT.mlpackage */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
+				184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
 				504EC3131FED79650016851F /* Info.plist */,
@@ -282,8 +291,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				187CE67130234E3C00D471B1 /* CoreMLPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */,
+				184AF337302398D4009D4737 /* PosePipeline.swift in Sources */,
+				184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */,
+				184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */,
 				7C41A0032D09000000000003 /* BridgeViewController.swift in Sources */,
 				7C41A0012D09000000000001 /* AppleHealthPlugin.swift in Sources */,
 				1878F2C1300544250012B825 /* SceneDelegate.swift in Sources */,
@@ -347,7 +359,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.OneRep;
@@ -390,7 +402,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				MTL_FAST_MATH = YES;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.OneRep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -537,7 +549,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -560,7 +572,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";

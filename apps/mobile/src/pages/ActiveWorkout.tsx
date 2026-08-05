@@ -116,11 +116,13 @@ import {
   normalizeScheduleRoutines,
 } from "@/lib/workout-sync"
 import {
-  getRecentAppleHealthWorkouts,
-  isAppleHealthSupportedPlatform,
-  requestAppleHealthAuthorization,
-  type AppleHealthWorkout,
-} from "@/lib/apple-health"
+  getRecentHealthWorkouts,
+  healthProviderLabel,
+  isHealthSyncSupportedPlatform,
+  saveWorkoutToHealth,
+  requestHealthAuthorization,
+  type HealthWorkout,
+} from "@/lib/health-provider"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
 import { suggestDoubleProgression } from "@/lib/workout-progression"
@@ -133,6 +135,7 @@ import {
 import {
   endWorkoutLiveActivity,
   startWorkoutLiveActivity,
+  supportsLiveWorkoutStatusSetting,
   updateWorkoutLiveActivity,
 } from "@/lib/workout-live-activity"
 import {
@@ -147,7 +150,7 @@ import {
   REST_TIMER_PREFIX,
   SET_ORDER,
   activeWorkoutDraftKey,
-  appleHealthWorkoutToCardioPatch,
+  healthWorkoutToCardioPatch,
   barImageForType,
   barLabelForType,
   cardioDetailsFromState,
@@ -159,7 +162,7 @@ import {
   durationFromCardioState,
   estimateRetroDurationSeconds,
   exerciseStateFromLoggedExercise,
-  formatAppleHealthWorkoutDate,
+  formatHealthWorkoutDate,
   formatCardioNumber,
   formatElapsed,
   formatKgString,
@@ -1118,14 +1121,14 @@ function CardioDetailsPanel({
     CARDIO_SOURCE_OPTIONS.find(
       (option) => option.provider === cardio.sourceProvider
     )?.label ?? "Manual"
-  const appleHealthSupported = isAppleHealthSupportedPlatform()
-  const [appleHealthLoading, setAppleHealthLoading] = useState(false)
-  const [appleHealthError, setAppleHealthError] = useState<string | null>(null)
-  const [appleHealthWorkouts, setAppleHealthWorkouts] = useState<
-    AppleHealthWorkout[]
+  const healthSupported = isHealthSyncSupportedPlatform()
+  const [healthLoading, setHealthLoading] = useState(false)
+  const [healthError, setHealthError] = useState<string | null>(null)
+  const [healthWorkoutsList, setHealthWorkoutsList] = useState<
+    HealthWorkout[]
   >([])
-  const [showAppleHealthWorkouts, setShowAppleHealthWorkouts] = useState(false)
-  const appleHealthLoadingRef = useRef(false)
+  const [showHealthWorkouts, setShowHealthWorkouts] = useState(false)
+  const healthLoadingRef = useRef(false)
 
   function update(patch: Partial<CardioExerciseState>) {
     onUpdate({ ...cardio, ...patch })
@@ -1155,58 +1158,60 @@ function CardioDetailsPanel({
     })
   }
 
-  async function loadAppleHealthWorkouts() {
-    if (appleHealthLoadingRef.current || appleHealthLoading) return
-    appleHealthLoadingRef.current = true
-    setAppleHealthLoading(true)
-    setAppleHealthError(null)
+  async function loadHealthWorkouts() {
+    if (healthLoadingRef.current || healthLoading) return
+    healthLoadingRef.current = true
+    setHealthLoading(true)
+    setHealthError(null)
     try {
-      const authorization = await requestAppleHealthAuthorization()
+      const authorization = await requestHealthAuthorization()
       if (!authorization.available) {
-        setAppleHealthError("Apple Health is not available on this device.")
-        setAppleHealthWorkouts([])
-        setShowAppleHealthWorkouts(true)
+        setHealthError(`${healthProviderLabel()} is not available on this device.`)
+        setHealthWorkoutsList([])
+        setShowHealthWorkouts(true)
         return
       }
       if (!authorization.granted) {
-        setAppleHealthError("Apple Health permission was not granted.")
-        setAppleHealthWorkouts([])
-        setShowAppleHealthWorkouts(true)
+        setHealthError(`${healthProviderLabel()} permission was not granted.`)
+        setHealthWorkoutsList([])
+        setShowHealthWorkouts(true)
         return
       }
 
-      const workouts = await getRecentAppleHealthWorkouts({
+      const workouts = await getRecentHealthWorkouts({
         daysBack: 30,
         limit: 12,
       })
-      setAppleHealthWorkouts(workouts)
-      setShowAppleHealthWorkouts(true)
+      setHealthWorkoutsList(workouts)
+      setShowHealthWorkouts(true)
       if (workouts.length === 0) {
-        setAppleHealthError("No recent cardio workouts found in Apple Health.")
+        setHealthError(
+          `No recent cardio workouts found in ${healthProviderLabel()}.`
+        )
       }
     } catch (error) {
-      setAppleHealthWorkouts([])
-      setShowAppleHealthWorkouts(true)
-      setAppleHealthError(
+      setHealthWorkoutsList([])
+      setShowHealthWorkouts(true)
+      setHealthError(
         error instanceof Error
           ? error.message
-          : "Could not read Apple Health workouts."
+          : `Could not read ${healthProviderLabel()} workouts.`
       )
     } finally {
-      appleHealthLoadingRef.current = false
-      setAppleHealthLoading(false)
+      healthLoadingRef.current = false
+      setHealthLoading(false)
     }
   }
 
-  function importAppleHealthWorkout(workout: AppleHealthWorkout) {
+  function importHealthWorkout(workout: HealthWorkout) {
     onUpdate({
       ...cardio,
-      ...appleHealthWorkoutToCardioPatch(workout, cardio.distanceUnit),
+      ...healthWorkoutToCardioPatch(workout, cardio.distanceUnit),
       zones: cardio.zones,
       notes: cardio.notes,
     })
-    setShowAppleHealthWorkouts(false)
-    toast.success("Imported Apple Health workout")
+    setShowHealthWorkouts(false)
+    toast.success(`Imported ${healthProviderLabel()} workout`)
   }
 
   const fieldCls =
@@ -1231,16 +1236,16 @@ function CardioDetailsPanel({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
-          {appleHealthSupported && (
+          {healthSupported && (
             <button
               type="button"
-              onClick={loadAppleHealthWorkouts}
-              disabled={appleHealthLoading}
-              aria-busy={appleHealthLoading}
+              onClick={loadHealthWorkouts}
+              disabled={healthLoading}
+              aria-busy={healthLoading}
               className="flex h-8 items-center gap-1.5 rounded-full bg-foreground px-2.5 text-[13px] font-semibold text-background transition-opacity active:opacity-80 disabled:opacity-55"
             >
               <AppleLogo size={13} weight="fill" />
-              {appleHealthLoading ? "Syncing" : "Health"}
+              {healthLoading ? "Syncing" : "Health"}
             </button>
           )}
           <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[13px] font-semibold text-muted-foreground/60 tabular-nums">
@@ -1249,12 +1254,12 @@ function CardioDetailsPanel({
         </div>
       </div>
 
-      {appleHealthSupported && showAppleHealthWorkouts && (
+      {healthSupported && showHealthWorkouts && (
         <div className="mb-3 rounded-[22px] border border-border/45 bg-background p-2.5">
           <div className="mb-2 flex items-center justify-between gap-2 px-1">
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-muted-foreground">
-                Apple Health
+                {healthProviderLabel()}
               </p>
               <p className="truncate text-[13px] font-semibold text-muted-foreground/60">
                 Recent cardio workouts
@@ -1263,29 +1268,29 @@ function CardioDetailsPanel({
             <button
               type="button"
               onClick={() =>
-                appleHealthLoading
+                healthLoading
                   ? undefined
-                  : setShowAppleHealthWorkouts(false)
+                  : setShowHealthWorkouts(false)
               }
-              disabled={appleHealthLoading}
+              disabled={healthLoading}
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted/45 text-muted-foreground/60 active:bg-muted disabled:opacity-40"
-              aria-label="Close Apple Health workouts"
+              aria-label={`Close ${healthProviderLabel()} workouts`}
             >
               <X size={12} weight="bold" />
             </button>
           </div>
-          {appleHealthError && (
+          {healthError && (
             <p className="rounded-[16px] bg-muted/35 px-3 py-2 text-[13px] font-semibold text-muted-foreground/75">
-              {appleHealthError}
+              {healthError}
             </p>
           )}
-          {appleHealthWorkouts.length > 0 && (
+          {healthWorkoutsList.length > 0 && (
             <div className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
-              {appleHealthWorkouts.map((workout) => (
+              {healthWorkoutsList.map((workout) => (
                 <button
                   key={workout.uuid}
                   type="button"
-                  onClick={() => importAppleHealthWorkout(workout)}
+                  onClick={() => importHealthWorkout(workout)}
                   className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[17px] bg-muted/25 px-3 py-2 text-left transition-colors active:bg-muted/55"
                 >
                   <span className="min-w-0">
@@ -1308,7 +1313,7 @@ function CardioDetailsPanel({
                     </span>
                   </span>
                   <span className="shrink-0 text-[13px] font-semibold text-muted-foreground">
-                    {formatAppleHealthWorkoutDate(workout.startedAt)}
+                    {formatHealthWorkoutDate(workout.startedAt)}
                   </span>
                 </button>
               ))}
@@ -3891,6 +3896,8 @@ export default function ActiveWorkout() {
     Record<string, Exercise>
   >({})
   const preferences = useQuery(api.users.users.getPreferences)
+  const liveWorkoutStatusEnabled = preferences?.liveWorkoutStatusEnabled ?? true
+  const healthWriteEnabled = preferences?.healthSync?.writeEnabled ?? false
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [confirmAbort, setConfirmAbort] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -4112,8 +4119,20 @@ export default function ActiveWorkout() {
           ? Date.now() + rest.remaining * 1000
           : undefined,
       slot,
+      // Android's ongoing notification counts up from this; iOS carries its own
+      // startedAt on the activity attributes.
+      startedAt: activeWorkout?.startedAt ?? localStartedAt ?? undefined,
     }),
-    [doneSets, nextExercise?.name, nextTarget, rest.remaining, slot, totalSets]
+    [
+      activeWorkout?.startedAt,
+      doneSets,
+      localStartedAt,
+      nextExercise?.name,
+      nextTarget,
+      rest.remaining,
+      slot,
+      totalSets,
+    ]
   )
   const activeWorkoutItem = nextTarget
     ? items.find((item) =>
@@ -4421,18 +4440,34 @@ export default function ActiveWorkout() {
 
   useEffect(() => {
     if (isRetro) return
-    if (!isInitialized || items.length === 0) return
+    // Gating on `isInitialized` as well used to mean an open workout built by
+    // hand never got live status at all: nothing sets isInitialized when there
+    // is no Convex row, local draft, or preset to load from. `items.length > 0`
+    // is the condition that actually matters — it is only reachable after the
+    // load effect ran or the user added an exercise themselves, so a session
+    // still waiting on a resume decision (items still empty) is unaffected.
+    if (items.length === 0) return
+    // Android's ongoing notification is opt-out; iOS has no such setting, so
+    // supportsLiveWorkoutStatusSetting() keeps the preference from suppressing
+    // the Live Activity there.
+    if (supportsLiveWorkoutStatusSetting() && !liveWorkoutStatusEnabled) {
+      if (liveActivityStartedRef.current) {
+        liveActivityStartedRef.current = false
+        void endWorkoutLiveActivity(liveActivityState).catch(() => {})
+      }
+      return
+    }
     if (!liveActivityStartedRef.current) {
       liveActivityStartedRef.current = true
       void startWorkoutLiveActivity(liveActivityState).catch((error) =>
-        logDevWarn("Failed to start workout Live Activity", error)
+        logDevWarn("Failed to start workout status", error)
       )
       return
     }
     void updateWorkoutLiveActivity(liveActivityState).catch((error) =>
-      logDevWarn("Failed to update workout Live Activity", error)
+      logDevWarn("Failed to update workout status", error)
     )
-  }, [isRetro, isInitialized, items.length, liveActivityState])
+  }, [isRetro, items.length, liveActivityState, liveWorkoutStatusEnabled])
 
   useEffect(() => {
     if (!isInitialized) return
@@ -5115,6 +5150,34 @@ export default function ActiveWorkout() {
     })
   }
 
+  /**
+   * Mirrors the finished session into Apple Health / Health Connect.
+   *
+   * Strictly best-effort and opt-in: a refused or failed health write must
+   * never surface to someone who has just finished a workout, and the training
+   * log is already saved by the time this runs.
+   */
+  async function writeSessionToHealth(exerciseCount: number) {
+    if (!healthWriteEnabled) return
+    const startedAt = activeWorkout?.startedAt ?? localStartedAt
+    if (!startedAt) return
+    const endedAt = Date.now()
+    if (endedAt <= startedAt) return
+
+    try {
+      await saveWorkoutToHealth({
+        startedAt,
+        endedAt,
+        title:
+          exerciseCount > 0
+            ? `OneRep · ${exerciseCount} exercise${exerciseCount === 1 ? "" : "s"}`
+            : "OneRep workout",
+      })
+    } catch (error) {
+      logDevWarn("Failed to save the workout to the health store", error)
+    }
+  }
+
   async function handleFinish() {
     // Retain this ID across the direct attempt and offline fallback. If the
     // network resolves late, Convex will upsert the same session instead of
@@ -5212,6 +5275,7 @@ export default function ActiveWorkout() {
       })
       clearActiveWorkoutDraft(slot)
       void endWorkoutLiveActivity(liveActivityState)
+      void writeSessionToHealth(exercises.length)
       celebrateAchievement("workout")
       window.setTimeout(() => navigate(-1), 450)
     } catch (err) {
@@ -5227,6 +5291,7 @@ export default function ActiveWorkout() {
         })
         clearActiveWorkoutDraft(slot)
         void endWorkoutLiveActivity(liveActivityState)
+        void writeSessionToHealth(exercises.length)
         celebrateAchievement("workout")
         window.setTimeout(() => navigate(-1), 450)
       } catch (fallbackErr) {

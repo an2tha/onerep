@@ -4,4 +4,18 @@
     <string name="title_activity_main">OneRep</string>
     <string name="package_name">com.ananthh.onerep</string>
     <string name="custom_url_scheme">onerep</string>
+
+    <!-- Home-screen widgets. Labels mirror the WidgetKit configurationDisplayName
+         values in ios/App/OneRep/OneRepNutritionalWidget.swift. -->
+    <string name="widget_quick_actions_label">OneRep Actions</string>
+    <string name="widget_quick_actions_description">Start a workout or log a meal.</string>
+    <string name="widget_nutrition_label">Nutrition Overview</string>
+    <string name="widget_nutrition_description">Live calories and macros from OneRep.</string>
+    <string name="widget_schedule_label">Today\'s Workout</string>
+    <string name="widget_schedule_description">Exercises and sets scheduled for today.</string>
+    <string name="widget_combined_label">Nutrition Detail</string>
+    <string name="widget_combined_description">Foods logged, calories left, and macro breakdown.</string>
+
+    <!-- Shown by Health Connect when it asks why we want the user's data. -->
+    <string name="health_permissions_rationale">OneRep reads completed cardio workouts, heart rate, distance, and active energy so your training history is complete. With your permission it can also write finished OneRep sessions back to Health Connect.</string>
 </resources>

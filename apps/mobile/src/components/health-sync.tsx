@@ -3,29 +3,35 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import {
-  getRecentAppleHealthWorkouts,
-  isAppleHealthSupportedPlatform,
-  requestAppleHealthAuthorization,
-} from "@/lib/apple-health"
+  getRecentHealthWorkouts,
+  healthProvider,
+  healthProviderLabel,
+  isHealthSyncSupportedPlatform,
+  requestHealthAuthorization,
+} from "@/lib/health-provider"
 import {
-  APPLE_HEALTH_SYNC_DAYS_BACK,
-  APPLE_HEALTH_SYNC_LIMIT,
-  appleHealthWorkoutToImport,
-  shouldSyncAppleHealth,
-} from "@/lib/apple-health-sync"
+  HEALTH_SYNC_DAYS_BACK,
+  HEALTH_SYNC_LIMIT,
+  healthWorkoutToImport,
+  shouldSyncHealth,
+} from "@/lib/health-sync"
 import { logDevWarn } from "@/lib/utils"
 
 /**
- * Pulls HealthKit workouts into Convex when the app comes to the foreground.
+ * Pulls platform health workouts into Convex when the app comes to the
+ * foreground — HealthKit on iOS, Health Connect on Android.
  *
- * Uses `visibilitychange` rather than `@capacitor/app`: that package is not a
- * dependency, and `visibilitychange` is already the app's foreground signal.
+ * Uses `visibilitychange` rather than `@capacitor/app`'s resume event because
+ * it is already the app's foreground signal and covers the web too. This also
+ * covers the Android permission flow, which hands control to the Health Connect
+ * activity and therefore fires a visibility change on return; `runningRef`
+ * keeps that from re-entering mid-request.
  *
  * Deliberately a plain `useMutation`, not `useOfflineMutation` — queuing a
- * HealthKit batch offline is pointless (the next foreground sync re-reads the
- * same data from HealthKit) and would bloat localStorage.
+ * health batch offline is pointless (the next foreground sync re-reads the same
+ * data from the store) and would bloat localStorage.
  */
-export function AppleHealthSync() {
+export function HealthSync() {
   const { user } = useAppAuth()
   const preferences = useQuery(
     api.users.users.getPreferences,
@@ -33,7 +39,7 @@ export function AppleHealthSync() {
   )
   const onboarding = useQuery(api.users.onboarding.get, user ? {} : "skip")
   const importWorkouts = useMutation(
-    api.logs.healthWorkouts.importFromAppleHealth
+    api.logs.healthWorkouts.importHealthWorkouts
   )
   const recordSyncError = useMutation(api.logs.healthWorkouts.recordSyncError)
   const runningRef = useRef(false)
@@ -43,29 +49,37 @@ export function AppleHealthSync() {
     (onboarding as { consent?: { wearableIntegrations?: boolean } } | null)
       ?.consent?.wearableIntegrations === true
   const healthSync = preferences?.healthSync
+  // healthSyncEnabled is canonical; appleHealthEnabled is the legacy name still
+  // dual-written server-side until the backfill runs.
+  const healthSyncEnabled =
+    healthSync?.healthSyncEnabled ?? healthSync?.appleHealthEnabled ?? false
 
   const sync = useCallback(async () => {
     if (runningRef.current) return
     runningRef.current = true
     try {
-      const authorization = await requestAppleHealthAuthorization()
+      const authorization = await requestHealthAuthorization()
       if (!authorization.available || !authorization.granted) return
 
-      const workouts = await getRecentAppleHealthWorkouts({
-        daysBack: APPLE_HEALTH_SYNC_DAYS_BACK,
-        limit: APPLE_HEALTH_SYNC_LIMIT,
+      const provider = healthProvider()
+      if (!provider) return
+
+      const workouts = await getRecentHealthWorkouts({
+        daysBack: HEALTH_SYNC_DAYS_BACK,
+        limit: HEALTH_SYNC_LIMIT,
       })
       if (workouts.length === 0) return
 
       await importWorkouts({
+        provider,
         workouts: workouts.map((workout) =>
-          appleHealthWorkoutToImport(workout, timeZone)
+          healthWorkoutToImport(workout, timeZone)
         ),
       })
     } catch (error) {
       // A background sync must never interrupt. The failure is surfaced in
       // Settings instead of a toast.
-      logDevWarn("Apple Health sync failed", error)
+      logDevWarn(`${healthProviderLabel()} sync failed`, error)
       const message = error instanceof Error ? error.message : "Sync failed"
       await recordSyncError({ message }).catch(() => {})
     } finally {
@@ -79,10 +93,10 @@ export function AppleHealthSync() {
     function maybeSync() {
       if (typeof document !== "undefined" && document.hidden) return
       if (
-        !shouldSyncAppleHealth({
-          supported: isAppleHealthSupportedPlatform(),
+        !shouldSyncHealth({
+          supported: isHealthSyncSupportedPlatform(),
           consentGranted,
-          enabled: healthSync?.appleHealthEnabled ?? false,
+          enabled: healthSyncEnabled ?? false,
           autoSync: healthSync?.autoSyncOnForeground ?? true,
           lastSyncedAt: healthSync?.lastSyncedAt,
           now: Date.now(),
@@ -101,7 +115,7 @@ export function AppleHealthSync() {
     preferences,
     onboarding,
     consentGranted,
-    healthSync?.appleHealthEnabled,
+    healthSyncEnabled,
     healthSync?.autoSyncOnForeground,
     healthSync?.lastSyncedAt,
     sync,

@@ -24,6 +24,13 @@ const config: CapacitorConfig = {
     CapacitorCookies: {
       enabled: true,
     },
+    // Android-only. Without an explicit smallIcon the plugin falls back to the
+    // launcher icon, which the status bar renders as an alpha mask — i.e. a
+    // featureless white square. ic_stat_onerep is a monochrome silhouette.
+    LocalNotifications: {
+      smallIcon: "ic_stat_onerep",
+      iconColor: "#09090B",
+    },
     // Over-the-air web bundle updates. src/lib/ota.ts owns the whole flow:
     // it fetches our own manifest from Cloudflare Pages, decides whether the
     // bundle is newer and whether this native shell is new enough to run it,

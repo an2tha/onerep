@@ -42,7 +42,7 @@ import path from "node:path"
  * bundle depend on a native capability the older shell does not have. Nothing
  * can infer that coupling, so it has to be a deliberate edit.
  */
-const OTA_MIN_NATIVE_VERSION = "1.0.0"
+const OTA_MIN_NATIVE_VERSION = "1.1.0"
 
 const APP_ID = "com.ananthh.onerep"
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+$/

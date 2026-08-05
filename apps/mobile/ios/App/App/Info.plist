@@ -60,6 +60,8 @@
 	<string>OneRep uses the camera to snap and log meals.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>OneRep reads Apple Health workouts, distance, heart rate, routes, and source data to import cardio workout details.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>OneRep can save the strength sessions you finish here to Apple Health, so your training shows up alongside the rest of your activity.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
