@@ -1,5 +1,4 @@
 import { useMemo } from "react"
-import { Capacitor } from "@capacitor/core"
 import { useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import {
@@ -8,7 +7,6 @@ import {
   type Landmark,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision"
-import { otaOrigin } from "@/lib/ota"
 import { smoothFormCoachLandmarks } from "@/lib/pose-smoothing"
 import {
   applyOrientation,
@@ -156,22 +154,23 @@ const WASM_BASE =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm"
 
 /**
- * Absolute on native, root-relative on web.
+ * Served from Google's model CDN rather than our own origin.
  *
- * The 5.7 MB model is excluded from OTA bundles — shipping it in every update
- * would roughly triple the download to preserve an offline guarantee this
- * feature does not have anyway, since the wasm above already comes from a CDN.
- * A root-relative path would resolve inside the swapped bundle directory and
- * 404 after the first update, so native must name the origin explicitly.
+ * The heavy model is 29.2 MB, past Cloudflare Pages' hard 25 MiB per-file cap,
+ * so hosting it ourselves is not an option. Nothing is lost: the wasm above
+ * already comes from a CDN, so Form Coach never had an offline guarantee to
+ * give up, and a self-hosted copy would also have to be excluded from OTA
+ * bundles to keep updates small — which meant naming an absolute origin on
+ * native anyway, since a root-relative path resolves inside the swapped bundle
+ * directory and 404s after the first update.
  */
-const POSE_MODEL_PATH = Capacitor.isNativePlatform()
-  ? `${otaOrigin()}/pose_landmarker_heavy.task`
-  : "/pose_landmarker_heavy.task"
+const POSE_MODEL_PATH =
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/latest/pose_landmarker_heavy.task"
 
 /**
  * One landmarker per running mode. Videos and stills need different modes, and
  * flipping a single instance between them reloads its graph on every switch.
- * Each is loaded once and reused — the model is ~6 MB and slow to instantiate.
+ * Each is loaded once and reused — the model is ~29 MB and slow to instantiate.
  */
 const landmarkers = new Map<"VIDEO" | "IMAGE", Promise<PoseLandmarker>>()
 

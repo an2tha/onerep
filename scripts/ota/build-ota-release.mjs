@@ -44,9 +44,6 @@ import path from "node:path"
  */
 const OTA_MIN_NATIVE_VERSION = "1.0.0"
 
-/** Excluded from OTA bundles; served from the CDN origin instead. */
-const EXCLUDED_FROM_BUNDLE = ["pose_landmarker_lite.task", "pose_landmarker_heavy.task"]
-
 const APP_ID = "com.ananthh.onerep"
 const SEMVER_PATTERN = /^\d+\.\d+\.\d+$/
 
@@ -139,9 +136,6 @@ function stageBundle(distDir) {
   const stageDir = path.join(stageRoot, "bundle")
   cpSync(distDir, stageDir, { recursive: true })
 
-  for (const name of EXCLUDED_FROM_BUNDLE) {
-    rmSync(path.join(stageDir, name), { force: true })
-  }
   // Never let a previous run's artifacts end up inside the zip.
   rmSync(path.join(stageDir, "ota"), { recursive: true, force: true })
 
