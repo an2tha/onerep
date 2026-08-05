@@ -50,6 +50,30 @@ export const MIN_REP_RANGE_M = 0.05
  */
 export const MIN_REP_RANGE_DEG = 22
 
+/**
+ * The shortest and longest a rep may last.
+ *
+ * Tracking noise oscillates over two or three frames — a couple of hundred
+ * milliseconds at any sampling rate we use — while the fastest thing a human
+ * actually reps takes closer to a second. The upper bound is deliberately
+ * loose: a grinding single or a paused tempo squat is slow, and the point is
+ * only to reject a "rep" that spans half the clip because the signal drifted.
+ */
+export const MIN_REP_MS = 500
+export const MAX_REP_MS = 20_000
+
+/**
+ * How far in from each end the working range is measured.
+ *
+ * Thresholds used to come from the raw minimum and maximum, which made the
+ * whole detector hostage to a single frame: one limb flip or one moment of the
+ * tracker latching onto somebody walking past would stretch the range, spread
+ * the hysteresis bands past where any real rep reached, and return zero reps
+ * for a clip full of them. Percentiles cost nothing and cannot be moved by a
+ * handful of bad frames.
+ */
+const RANGE_PERCENTILE = 0.05
+
 type Vec = { x: number; y: number; z: number }
 type Point = Vec & { visibility?: number }
 
@@ -331,51 +355,173 @@ export type Rep = {
   endIndex: number
 }
 
+/** Value at a percentile of an already-sorted list. */
+function percentileOf(sorted: readonly number[], fraction: number): number {
+  const index = Math.round(fraction * (sorted.length - 1))
+  return sorted[Math.min(Math.max(index, 0), sorted.length - 1)]!
+}
+
+/** The working range of a signal, measured in from both ends to shed outliers. */
+function robustRange(tracked: readonly number[]) {
+  const sorted = [...tracked].sort((a, b) => a - b)
+  const low = percentileOf(sorted, RANGE_PERCENTILE)
+  const high = percentileOf(sorted, 1 - RANGE_PERCENTILE)
+  return { low, high, range: high - low }
+}
+
+/**
+ * A three-point median over the signal, which removes single-frame spikes.
+ *
+ * A spike matters beyond just moving the thresholds: one frame that reads as
+ * fully extended in the middle of a descent ends the rep early and starts a
+ * phantom one. A median leaves a smooth signal essentially untouched while
+ * deleting anything only one frame wide.
+ *
+ * Untracked frames stay untracked — a gap is information, and filling it in
+ * would invent a position the lifter was never in.
+ */
+function despike(signal: ReadonlyArray<number | null>): Array<number | null> {
+  return signal.map((value, i) => {
+    if (value === null) return null
+    const window = [signal[i - 1], value, signal[i + 1]].filter(
+      (candidate): candidate is number =>
+        candidate !== null && candidate !== undefined
+    )
+    window.sort((a, b) => a - b)
+    return window[Math.floor(window.length / 2)]!
+  })
+}
+
+/**
+ * How strongly a signal repeats, and at what lag.
+ *
+ * This is the self-similarity idea behind class-agnostic rep counters: a set of
+ * reps is periodic, so the signal correlated against a shifted copy of itself
+ * peaks at the rep period. It is a whole-clip fit rather than a threshold
+ * crossing, which is what makes it robust — a few bad frames barely move a
+ * correlation computed over hundreds of pairs, whereas they can easily fake or
+ * destroy an individual crossing.
+ *
+ * Used to judge *which* signal describes the movement rather than to count off
+ * it directly: a jittery channel and a real one can produce the same number of
+ * cycles, but only the real one repeats on a steady period.
+ */
+export function selfSimilarity(
+  signal: ReadonlyArray<number | null>,
+  minLag: number,
+  maxLag: number
+): { lag: number; strength: number } | null {
+  const tracked = signal.filter((value): value is number => value !== null)
+  if (tracked.length < 4) return null
+
+  // Half the clip is the longest lag with enough overlap to mean anything.
+  const longest = Math.min(maxLag, Math.floor(signal.length / 2))
+  if (minLag < 1 || longest < minLag) return null
+
+  const mean = tracked.reduce((sum, value) => sum + value, 0) / tracked.length
+  const variance =
+    tracked.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+    tracked.length
+  if (variance <= 0) return null
+
+  let best: { lag: number; strength: number } | null = null
+  for (let lag = minLag; lag <= longest; lag += 1) {
+    let sum = 0
+    let pairs = 0
+    for (let i = 0; i + lag < signal.length; i += 1) {
+      const here = signal[i]
+      const there = signal[i + lag]
+      if (here === null || there === null) continue
+      sum += (here - mean) * (there - mean)
+      pairs += 1
+    }
+    if (pairs < 4) continue
+    const strength = sum / pairs / variance
+    if (!best || strength > best.strength) best = { lag, strength }
+  }
+
+  if (!best || best.strength <= 0) return null
+  return { lag: best.lag, strength: Math.min(best.strength, 1) }
+}
+
+/**
+ * How evenly spaced a set of rep durations is, from 0 to 1.
+ *
+ * Real reps are rhythmic; cycles read off noise are not. A single rep has no
+ * rhythm to judge, so it scores neutral rather than being punished for it.
+ */
+export function durationRegularity(durations: readonly number[]): number {
+  if (durations.length < 2) return 1
+  const mean =
+    durations.reduce((sum, value) => sum + value, 0) / durations.length
+  if (mean <= 0) return 0
+  const variance =
+    durations.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
+    durations.length
+  const spread = Math.sqrt(variance) / mean
+  return Math.min(Math.max(1 - spread, 0), 1)
+}
+
 /**
  * Finds cycles in one signal, taking a *fall* and return as the rep.
  *
  * Uses hysteresis rather than plain local minima: a lifter pausing or bouncing
  * at the turnaround produces several minima within one rep, and thresholding on
  * a single midpoint would count each of them.
+ *
+ * Crossings are read from a despiked copy and the working range from
+ * percentiles, so neither the thresholds nor the transitions can be set by one
+ * bad frame. The turnaround is still located in the raw signal, because the
+ * deepest frame is the one worth measuring and a filter moves it.
  */
 function detectCycles(
   signal: ReadonlyArray<number | null>,
-  minRange: number
+  minRange: number,
+  times: readonly number[]
 ): Rep[] {
   const tracked = signal.filter((value): value is number => value !== null)
   if (tracked.length < 4) return []
 
-  const top = Math.max(...tracked)
-  const bottom = Math.min(...tracked)
-  const range = top - bottom
+  const smoothed = despike(signal)
+  const { low, range } = robustRange(
+    smoothed.filter((value): value is number => value !== null)
+  )
   if (range < minRange) return []
 
   // Wide band so noise around either end cannot re-trigger the state machine.
-  const extended = bottom + range * 0.75
-  const deep = bottom + range * 0.35
+  const extended = low + range * 0.75
+  const deep = low + range * 0.35
+  // Most of the way back up: enough to call a rep performed even though the
+  // lifter never returned to a clean lockout.
+  const recovered = low + range * 0.55
 
   const reps: Rep[] = []
   let phase: "extended" | "working" = "extended"
   let startIndex = 0
   let bottomIndex = 0
   let bottomValue = Infinity
+  let lastIndex = -1
+  let lastValue: number | null = null
 
-  for (let i = 0; i < signal.length; i += 1) {
-    const value = signal[i]
+  for (let i = 0; i < smoothed.length; i += 1) {
+    const value = smoothed[i]
     if (value === null) continue
+    lastIndex = i
+    lastValue = value
 
     if (phase === "extended") {
       if (value >= extended) startIndex = i
       if (value <= deep) {
         phase = "working"
         bottomIndex = i
-        bottomValue = value
+        bottomValue = signal[i]!
       }
       continue
     }
 
-    if (value < bottomValue) {
-      bottomValue = value
+    const raw = signal[i]!
+    if (raw < bottomValue) {
+      bottomValue = raw
       bottomIndex = i
     }
     if (value >= extended) {
@@ -386,7 +532,18 @@ function detectCycles(
     }
   }
 
-  return reps
+  // A clip that stops before the lifter racks the bar used to lose its final
+  // rep entirely — the state machine only ever emitted one on the way back up,
+  // so ending mid-ascent discarded it. That is the most fatigued rep of the
+  // set and the one most likely to carry the fault worth coaching.
+  if (phase === "working" && lastValue !== null && lastValue >= recovered) {
+    reps.push({ startIndex, bottomIndex, endIndex: lastIndex })
+  }
+
+  return reps.filter((rep) => {
+    const duration = (times[rep.endIndex] ?? 0) - (times[rep.startIndex] ?? 0)
+    return duration >= MIN_REP_MS && duration <= MAX_REP_MS
+  })
 }
 
 export type RepDetection = {
@@ -396,45 +553,103 @@ export type RepDetection = {
 }
 
 /**
+ * The typical gap between frames, used to convert rep durations into lags.
+ *
+ * Measured rather than assumed, so a clip sampled at some other rate — or one
+ * whose decoder delivered frames unevenly — still reasons in real time.
+ */
+function frameStepMs(times: readonly number[]): number {
+  const steps: number[] = []
+  for (let i = 1; i < times.length; i += 1) {
+    const step = times[i]! - times[i - 1]!
+    if (step > 0) steps.push(step)
+  }
+  if (steps.length === 0) return 0
+  steps.sort((a, b) => a - b)
+  return steps[Math.floor(steps.length / 2)]!
+}
+
+/**
+ * How much a set of detected reps looks like lifting rather than like noise.
+ *
+ * Three independent things have to hold: the signal has to repeat on a steady
+ * period, the reps it produced have to be evenly spaced, and the excursion has
+ * to clear the threshold by a margin. Each is capped once it is convincing, so
+ * two signals that both plainly describe the movement come out equal rather
+ * than being separated on a rounding difference.
+ */
+function detectionScore(input: {
+  reps: readonly Rep[]
+  times: readonly number[]
+  similarity: number | null
+  excess: number
+}): number {
+  if (input.reps.length === 0) return 0
+
+  const durations = input.reps.map(
+    (rep) =>
+      (input.times[rep.endIndex] ?? 0) - (input.times[rep.startIndex] ?? 0)
+  )
+  // A clip too short to show a second period cannot be judged on rhythm, so an
+  // unavailable reading sits between "steady" and "not", rather than at zero.
+  const rhythm = input.similarity === null ? 0.75 : 0.5 + 0.5 * input.similarity
+  const regularity = 0.5 + 0.5 * durationRegularity(durations)
+  const margin = 0.5 + 0.5 * Math.min(input.excess / 3, 1)
+  return rhythm * regularity * margin
+}
+
+/**
  * Reads reps out of whichever signal the movement actually lives in.
  *
  * Each candidate is tried in both directions, because a rep is not always a
  * shortening: a bench press starts at lockout and closes the wrist-to-shoulder
- * distance, while an overhead press starts racked and opens it. Whichever
- * combination yields the most reps wins, with the larger excursion breaking
- * ties — but measured against that signal's own threshold, since degrees and
- * metres are not comparable and the raw number would simply pick whichever
- * signal happened to have the bigger units.
+ * distance, while an overhead press starts racked and opens it.
+ *
+ * The winner used to be whichever combination produced the most reps, which is
+ * backwards: noise generates more cycles than lifting does, so the jitteriest
+ * channel won. A squat with a loaded bar racked on the shoulders would get
+ * counted off elbow-angle noise, because two bad frames are enough to clear a
+ * flat threshold measured as a raw maximum minus minimum. Signals are now
+ * scored on how much they look like a set — periodic, evenly spaced, and
+ * clearly past threshold — and count only decides anything through that.
  */
 export function chooseRepSignal(
   frames: readonly FormCoachFrame[]
 ): RepDetection {
-  let best: RepDetection & { excess: number } = {
+  const times = frames.map((frame) => frame.timeMs)
+  const step = frameStepMs(times)
+  const minLag = step > 0 ? Math.max(1, Math.round(MIN_REP_MS / step)) : 1
+  const maxLag =
+    step > 0 ? Math.max(minLag, Math.round(MAX_REP_MS / step)) : frames.length
+
+  let best: RepDetection & { score: number } = {
     signal: null,
     reps: [],
-    excess: 0,
+    score: 0,
   }
 
   for (const name of Object.keys(REP_SIGNALS) as RepSignalName[]) {
     const values = frames.map(REP_SIGNALS[name].read)
     const tracked = values.filter((value): value is number => value !== null)
     if (tracked.length < 4) continue
-    const range = Math.max(...tracked) - Math.min(...tracked)
-    const minRange = minRepRange(name, Math.max(...tracked))
+    const { high, range } = robustRange(tracked)
+    const minRange = minRepRange(name, high)
     if (range < minRange) continue
     const excess = range / minRange
+    const periodicity = selfSimilarity(values, minLag, maxLag)
+    const similarity = periodicity ? periodicity.strength : null
 
     for (const inverted of [false, true]) {
       const reps = detectCycles(
         inverted ? values.map((v) => (v === null ? null : -v)) : values,
-        minRange
+        minRange,
+        times
       )
-      const better =
-        reps.length > best.reps.length ||
-        (reps.length === best.reps.length &&
-          reps.length > 0 &&
-          excess > best.excess)
-      if (better) best = { signal: name, reps, excess }
+      const score = detectionScore({ reps, times, similarity, excess })
+      // Strictly greater, so signals that describe the movement equally well
+      // fall back to the order they are declared in — hips before wrists,
+      // distances before angles — rather than to floating-point luck.
+      if (score > best.score) best = { signal: name, reps, score }
     }
   }
 
