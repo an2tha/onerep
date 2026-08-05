@@ -60,8 +60,6 @@ describe("@repo/ui package boundary", () => {
       "../../../apps/mobile/src/components"
     )
     const allowedModules = new Set([
-      // Renders null; pulls HealthKit workouts into Convex on foreground.
-      "apple-health-sync.tsx",
       "auth-guard.tsx",
       "auth-shell.tsx",
       "bottom-bar.tsx",
@@ -77,6 +75,9 @@ describe("@repo/ui package boundary", () => {
       "form-coach-pose-confirm.tsx",
       "form-coach-recorder.tsx",
       "form-coach-review-sheet.tsx",
+      // Renders null; pulls platform health workouts into Convex on
+      // foreground — HealthKit on iOS, Health Connect on Android.
+      "health-sync.tsx",
       // Backdates a workout against the app's local-date and preset helpers,
       // with haptics on the day strip.
       "log-past-workout-sheet.tsx",

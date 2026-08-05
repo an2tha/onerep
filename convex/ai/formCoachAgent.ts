@@ -66,7 +66,13 @@ import {
  * is still produced from whatever it gathered.
  */
 const MAX_AGENT_STEPS = 12;
-const MAX_OUTPUT_TOKENS = 1600;
+/**
+ * Covers reasoning tokens as well as the report itself, so it is not a budget
+ * for the prose alone. A full report — findings with evidence, drills, a
+ * checklist and corrections — ran into the old 1,600 ceiling and came back
+ * truncated, which reaches the app as a failed request rather than a short one.
+ */
+const MAX_OUTPUT_TOKENS = 4_000;
 
 /**
  * Frames of the footage the model is shown alongside the numbers.
