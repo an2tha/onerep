@@ -1,7 +1,15 @@
 export type WorkoutFocus = "strength" | "cardio" | "mobility"
 export type CardioDistanceUnit = "km" | "mi"
+/** Mirrors `CardioSourceProvider` in packages/models/src/workoutLogs.ts. */
 export type CardioSourceProvider =
-  "manual" | "apple_health" | "strava" | "garmin" | "fitbit" | "gpx" | "other"
+  | "manual"
+  | "apple_health"
+  | "health_connect"
+  | "strava"
+  | "garmin"
+  | "fitbit"
+  | "gpx"
+  | "other"
 
 export type HeartRateZones = {
   zone1Seconds?: number

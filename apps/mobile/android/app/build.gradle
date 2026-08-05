@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+apply plugin: 'org.jetbrains.kotlin.android'
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace = "com.ananthh.onerep"
@@ -7,10 +9,10 @@ android {
         applicationId "com.ananthh.onerep"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 2
         // Semver, because CapacitorUpdater.current().native feeds the
         // minNativeVersion gate in src/lib/ota-manifest.ts. "1.0" does not parse.
-        versionName "1.0.0"
+        versionName "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -18,11 +20,40 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing is driven by properties so no keystore or password is ever
+    // committed. Supply them via ~/.gradle/gradle.properties or -P flags:
+    //   onerepStoreFile, onerepStorePassword, onerepKeyAlias, onerepKeyPassword
+    // With none set, `assembleRelease` falls back to the debug signing config so
+    // a local release build still runs.
+    signingConfigs {
+        release {
+            def storePath = project.findProperty('onerepStoreFile')
+            if (storePath) {
+                storeFile file(storePath)
+                storePassword project.findProperty('onerepStorePassword')
+                keyAlias project.findProperty('onerepKeyAlias')
+                keyPassword project.findProperty('onerepKeyPassword')
+            }
+        }
+    }
+
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig project.hasProperty('onerepStoreFile')
+                ? signingConfigs.release
+                : signingConfigs.debug
         }
+    }
+
+    buildFeatures {
+        compose true
+    }
+
+    kotlinOptions {
+        // Must match the Java target in capacitor.build.gradle.
+        jvmTarget = '21'
     }
 }
 
@@ -42,6 +73,15 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+
+    // --- Native parity ---
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion"
+    // Health Connect: the Android counterpart of the HealthKit import.
+    implementation "androidx.health.connect:connect-client:$androidxHealthConnectVersion"
+    // Glance: the Android counterpart of the WidgetKit extension.
+    implementation "androidx.glance:glance-appwidget:$androidxGlanceVersion"
+    implementation "androidx.glance:glance-material3:$androidxGlanceVersion"
+    implementation platform("androidx.compose:compose-bom:$androidxComposeBomVersion")
 }
 
 apply from: 'capacitor.build.gradle'

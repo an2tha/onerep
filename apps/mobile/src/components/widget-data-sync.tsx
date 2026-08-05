@@ -8,7 +8,7 @@ import {
   normalizeScheduleRoutines,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
-import { updateOneRepWidgets } from "@/lib/workout-live-activity"
+import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { logDevWarn } from "@/lib/utils"
 
 export function WidgetDataSync() {
@@ -115,7 +115,7 @@ export function WidgetDataSync() {
   useEffect(() => {
     if (!payload) return
     void updateOneRepWidgets(payload).catch((error) =>
-      logDevWarn("Failed to sync iOS widgets", error)
+      logDevWarn("Failed to sync home-screen widgets", error)
     )
   }, [payload])
 

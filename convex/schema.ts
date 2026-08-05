@@ -130,13 +130,30 @@ export default defineSchema({
     ),
     healthSync: v.optional(
       v.object({
+        /**
+         * Legacy name from when iOS was the only platform. Still written so a
+         * rollback stays safe; `healthSyncEnabled` is the canonical field and
+         * wins on read. Drop this once a backfill has run.
+         */
         appleHealthEnabled: v.boolean(),
+        healthSyncEnabled: v.optional(v.boolean()),
         autoSyncOnForeground: v.boolean(),
+        /**
+         * Writing finished sessions back to the health store. Opt-in on both
+         * platforms — the app historically only ever read.
+         */
+        writeEnabled: v.optional(v.boolean()),
         lastSyncedAt: v.optional(v.number()),
         /** Surfaced in Settings; a background sync must never toast. */
         lastSyncError: v.optional(v.string()),
       }),
     ),
+    /**
+     * The ongoing workout notification on Android. iOS has no equivalent
+     * setting because a Live Activity is far less intrusive than a persistent
+     * Android notification.
+     */
+    liveWorkoutStatusEnabled: v.optional(v.boolean()),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -485,7 +502,8 @@ export default defineSchema({
     .index("by_userId_and_date_and_sessionId", ["userId", "date", "sessionId"]),
 
   /**
-   * Workouts read out of Apple Health.
+   * Workouts read out of the platform health store — Apple Health on iOS,
+   * Health Connect on Android.
    *
    * Kept separate from `workoutLogs` on purpose: importing is not the same as
    * training-logging. A day has only two workout slots, so a silent auto-write
@@ -494,8 +512,11 @@ export default defineSchema({
    */
   healthWorkouts: defineTable({
     userId: v.string(),
-    provider: v.literal("apple_health"),
-    /** The HealthKit UUID — the dedupe key. */
+    provider: v.union(
+      v.literal("apple_health"),
+      v.literal("health_connect")
+    ),
+    /** HealthKit sample UUID or Health Connect record id — the dedupe key. */
     externalId: v.string(),
     activityType: v.string(),
     activityName: v.string(),
@@ -519,7 +540,9 @@ export default defineSchema({
     importedAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_userId_and_externalId", ["userId", "externalId"])
+    // provider is part of the key: HealthKit UUIDs and Health Connect record
+    // ids come from different namespaces and could otherwise collide.
+    .index("by_userId_and_externalId", ["userId", "provider", "externalId"])
     .index("by_userId_and_startedAt", ["userId", "startedAt"])
     .index("by_userId_and_date", ["userId", "date"]),
 

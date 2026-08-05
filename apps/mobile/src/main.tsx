@@ -25,7 +25,7 @@ import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
-import { AppleHealthSync } from "@/components/apple-health-sync"
+import { HealthSync } from "@/components/health-sync"
 import { MealCategorySync } from "@/components/meal-category-sync"
 
 import "./index.css"
@@ -83,6 +83,8 @@ import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster, toast } from "@repo/ui"
 import { Capacitor } from "@capacitor/core"
+import { App as CapacitorApp } from "@capacitor/app"
+import { deepLinkToPath } from "./lib/deep-links"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { initializePwaInstallTracking } from "./lib/pwa-install"
 import {
@@ -974,6 +976,24 @@ const router = createBrowserRouter([
   },
 ])
 
+// Widgets, the iOS Live Activity, and the Android ongoing notification all open
+// the app via onerep://. Without an explicit listener the query string — which
+// is what carries liveAction=complete|skipRest — is only delivered by accident.
+if (Capacitor.isNativePlatform()) {
+  void CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+    const path = deepLinkToPath(url)
+    if (!path) return
+    // Replace, not push, when we are already on the target screen. The
+    // notification's "Complete set" link lands on /workout/active while the
+    // user is already there; pushing a second entry remounts the route and
+    // throws away the in-progress workout before the liveAction handler can
+    // read it.
+    const samePath =
+      router.state.location.pathname === path.split("?")[0]
+    void router.navigate(path, samePath ? { replace: true } : undefined)
+  })
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ConvexBetterAuthProvider
@@ -989,7 +1009,7 @@ createRoot(document.getElementById("root")!).render(
             <OtaLifecycle />
             <OfflineSyncIndicator />
             <WidgetDataSync />
-            <AppleHealthSync />
+            <HealthSync />
             <MealCategorySync />
             <RouterProvider router={router} />
             <Toaster

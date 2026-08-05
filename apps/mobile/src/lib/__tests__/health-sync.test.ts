@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import {
-  APPLE_HEALTH_SYNC_MIN_INTERVAL_MS,
-  appleHealthWorkoutToImport,
-  shouldSyncAppleHealth,
-} from "../apple-health-sync"
-import type { AppleHealthWorkout } from "../apple-health"
+  HEALTH_SYNC_MIN_INTERVAL_MS,
+  healthWorkoutToImport,
+  shouldSyncHealth,
+} from "../health-sync"
+import type { HealthWorkout } from "../health-provider"
 
 const NOW = Date.parse("2026-08-01T12:00:00.000Z")
 
@@ -17,50 +17,50 @@ const READY = {
   now: NOW,
 }
 
-describe("shouldSyncAppleHealth", () => {
+describe("shouldSyncHealth", () => {
   test("syncs when everything is on and there is no prior sync", () => {
-    expect(shouldSyncAppleHealth(READY)).toBe(true)
+    expect(shouldSyncHealth(READY)).toBe(true)
   })
 
   test("refuses on an unsupported platform", () => {
-    expect(shouldSyncAppleHealth({ ...READY, supported: false })).toBe(false)
+    expect(shouldSyncHealth({ ...READY, supported: false })).toBe(false)
   })
 
   test("refuses without wearable consent", () => {
-    expect(shouldSyncAppleHealth({ ...READY, consentGranted: false })).toBe(
+    expect(shouldSyncHealth({ ...READY, consentGranted: false })).toBe(
       false
     )
   })
 
   test("refuses when the integration is switched off", () => {
-    expect(shouldSyncAppleHealth({ ...READY, enabled: false })).toBe(false)
+    expect(shouldSyncHealth({ ...READY, enabled: false })).toBe(false)
   })
 
   test("refuses when auto-sync is off, leaving only the manual button", () => {
-    expect(shouldSyncAppleHealth({ ...READY, autoSync: false })).toBe(false)
+    expect(shouldSyncHealth({ ...READY, autoSync: false })).toBe(false)
   })
 
   test("throttles a sync inside the interval", () => {
     expect(
-      shouldSyncAppleHealth({
+      shouldSyncHealth({
         ...READY,
-        lastSyncedAt: NOW - (APPLE_HEALTH_SYNC_MIN_INTERVAL_MS - 1000),
+        lastSyncedAt: NOW - (HEALTH_SYNC_MIN_INTERVAL_MS - 1000),
       })
     ).toBe(false)
   })
 
   test("syncs again once the interval has elapsed", () => {
     expect(
-      shouldSyncAppleHealth({
+      shouldSyncHealth({
         ...READY,
-        lastSyncedAt: NOW - APPLE_HEALTH_SYNC_MIN_INTERVAL_MS,
+        lastSyncedAt: NOW - HEALTH_SYNC_MIN_INTERVAL_MS,
       })
     ).toBe(true)
   })
 })
 
-describe("appleHealthWorkoutToImport", () => {
-  const base: AppleHealthWorkout = {
+describe("healthWorkoutToImport", () => {
+  const base: HealthWorkout = {
     uuid: "hk-1",
     activityType: "running",
     activityName: "Outdoor Run",
@@ -70,7 +70,7 @@ describe("appleHealthWorkoutToImport", () => {
   }
 
   test("carries the identity and timing fields through", () => {
-    const payload = appleHealthWorkoutToImport(base, "UTC")
+    const payload = healthWorkoutToImport(base, "UTC")
     expect(payload).toMatchObject({
       uuid: "hk-1",
       activityType: "running",
@@ -81,7 +81,7 @@ describe("appleHealthWorkoutToImport", () => {
   })
 
   test("omits absent optional fields rather than sending undefined", () => {
-    const payload = appleHealthWorkoutToImport(base, "UTC")
+    const payload = healthWorkoutToImport(base, "UTC")
     expect(payload).not.toHaveProperty("totalDistanceMeters")
     expect(payload).not.toHaveProperty("avgHeartRateBpm")
     expect(payload).not.toHaveProperty("routeName")
@@ -90,31 +90,31 @@ describe("appleHealthWorkoutToImport", () => {
   test("dates a late-evening workout by local day, not UTC day", () => {
     // 9pm on the 30th in New York is already the 31st in UTC. Using the UTC
     // date would file the session under the wrong day in the training log.
-    const evening: AppleHealthWorkout = {
+    const evening: HealthWorkout = {
       ...base,
       startedAt: "2026-07-31T01:00:00.000Z",
       endedAt: "2026-07-31T01:45:00.000Z",
     }
-    expect(appleHealthWorkoutToImport(evening, "America/New_York").date).toBe(
+    expect(healthWorkoutToImport(evening, "America/New_York").date).toBe(
       "2026-07-30"
     )
-    expect(appleHealthWorkoutToImport(evening, "UTC").date).toBe("2026-07-31")
+    expect(healthWorkoutToImport(evening, "UTC").date).toBe("2026-07-31")
   })
 
   test("dates an early-morning workout by local day ahead of UTC", () => {
     // 8am on the 31st in Tokyo is still the 30th in UTC.
-    const morning: AppleHealthWorkout = {
+    const morning: HealthWorkout = {
       ...base,
       startedAt: "2026-07-30T23:00:00.000Z",
       endedAt: "2026-07-30T23:45:00.000Z",
     }
-    expect(appleHealthWorkoutToImport(morning, "Asia/Tokyo").date).toBe(
+    expect(healthWorkoutToImport(morning, "Asia/Tokyo").date).toBe(
       "2026-07-31"
     )
   })
 
   test("passes through the metrics HealthKit provided", () => {
-    const payload = appleHealthWorkoutToImport(
+    const payload = healthWorkoutToImport(
       {
         ...base,
         totalDistanceMeters: 8000,

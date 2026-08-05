@@ -27,7 +27,11 @@ import {
   type CardioSourceProvider,
   type CardioWorkoutDetails,
 } from "@/lib/workout-sync"
-import type { AppleHealthWorkout } from "@/lib/apple-health"
+import {
+  healthProvider,
+  healthProviderLabel,
+  type HealthWorkout,
+} from "@/lib/health-provider"
 import { playRestCompletion } from "@/lib/workout-celebration"
 import {
   cancelRestAlert,
@@ -284,8 +288,8 @@ export function splitDurationForState(totalSeconds?: number | null) {
   }
 }
 
-export function appleHealthWorkoutToCardioPatch(
-  workout: AppleHealthWorkout,
+export function healthWorkoutToCardioPatch(
+  workout: HealthWorkout,
   distanceUnit: CardioDistanceUnit
 ): Partial<CardioExerciseState> {
   const duration = splitDurationForState(workout.durationSeconds)
@@ -313,14 +317,14 @@ export function appleHealthWorkoutToCardioPatch(
       workout.routeName ??
       (workout.hasRoute ? `${workout.activityName} route` : ""),
     routeUrl: "",
-    sourceProvider: "apple_health",
-    sourceName: workout.sourceName ?? "Apple Health",
+    sourceProvider: healthProvider() ?? "apple_health",
+    sourceName: workout.sourceName ?? healthProviderLabel(),
     sourceExternalId: workout.uuid,
     sourceImportedAt: new Date().toISOString(),
   }
 }
 
-export function formatAppleHealthWorkoutDate(startedAt: string) {
+export function formatHealthWorkoutDate(startedAt: string) {
   const date = new Date(startedAt)
   if (Number.isNaN(date.getTime())) return "Recent"
   return date.toLocaleDateString("en-US", {

@@ -468,6 +468,38 @@ export const setNetCarbsEnabled = mutation({
   },
 });
 
+/**
+ * The ongoing workout notification on Android.
+ *
+ * Defaults on, but exposed because an Android ongoing notification sits in the
+ * shade for the entire session — far more intrusive than the iOS Live Activity
+ * it mirrors, and users will want to turn it off.
+ */
+export const setLiveWorkoutStatus = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        liveWorkoutStatusEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        liveWorkoutStatusEnabled: args.enabled,
+        updatedAt: Date.now(),
+      });
+    }
+  },
+});
+
 export const setMacroCycling = mutation({
   args: {
     enabled: v.boolean(),
@@ -1088,8 +1120,9 @@ export const getNutritionPlan = query({
 
 export const setHealthSync = mutation({
   args: {
-    appleHealthEnabled: v.optional(v.boolean()),
+    healthSyncEnabled: v.optional(v.boolean()),
     autoSyncOnForeground: v.optional(v.boolean()),
+    writeEnabled: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
@@ -1098,15 +1131,23 @@ export const setHealthSync = mutation({
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .unique();
 
+    const enabled =
+      args.healthSyncEnabled ??
+      existing?.healthSync?.healthSyncEnabled ??
+      existing?.healthSync?.appleHealthEnabled ??
+      false;
+
     const healthSync = {
-      appleHealthEnabled:
-        args.appleHealthEnabled ??
-        existing?.healthSync?.appleHealthEnabled ??
-        false,
+      // Dual-written during the rename. See the schema note on
+      // userPreferences.healthSync.
+      appleHealthEnabled: enabled,
+      healthSyncEnabled: enabled,
       autoSyncOnForeground:
         args.autoSyncOnForeground ??
         existing?.healthSync?.autoSyncOnForeground ??
         true,
+      writeEnabled:
+        args.writeEnabled ?? existing?.healthSync?.writeEnabled ?? false,
       lastSyncedAt: existing?.healthSync?.lastSyncedAt,
       lastSyncError: existing?.healthSync?.lastSyncError,
     };

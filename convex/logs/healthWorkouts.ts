@@ -5,15 +5,32 @@ import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 import { findFreeWorkoutSlot, upsertWorkoutLog } from "../lib/workoutLogs";
 
-/** One HealthKit batch. The client reads at most 50 workouts per sync. */
+/** One health batch. The client reads at most 50 workouts per sync. */
 const MAX_IMPORT_BATCH = 50;
+
+/** Which platform health store a row came from. */
+export type HealthProvider = "apple_health" | "health_connect";
+
+export const healthProviderValidator = v.union(
+  v.literal("apple_health"),
+  v.literal("health_connect"),
+);
+
+const PROVIDER_LABELS: Record<HealthProvider, string> = {
+  apple_health: "Apple Health",
+  health_connect: "Health Connect",
+};
 
 /**
  * Activity types that map cleanly onto a cardio exercise.
  *
- * HealthKit also returns strength training, which has no distance or pace and
- * would produce a misleading cardio row. Those still import — they just are not
- * offered for promotion into the training log.
+ * The vocabulary is the slug set both native plugins emit
+ * (`workoutActivityIdentifier` in AppleHealthPlugin.swift, `HealthActivityTypes`
+ * on Android), so one list covers both platforms.
+ *
+ * The camelCase HealthKit enum names below are retained because rows imported
+ * before the slug mapping existed still carry them; neither plugin emits them
+ * today.
  */
 const LINKABLE_ACTIVITY_TYPES = new Set([
   "running",
@@ -23,6 +40,15 @@ const LINKABLE_ACTIVITY_TYPES = new Set([
   "rowing",
   "hiking",
   "elliptical",
+  // Slug forms of the four entries below. The camelCase names were never
+  // actually emitted by the iOS plugin — `workoutActivityIdentifier` has always
+  // returned slugs — so stairs, skiing and wheelchair sessions have silently
+  // failed to be linkable until now.
+  "stairs",
+  "snow_sports",
+  "wheelchair_run",
+  "wheelchair_walk",
+  // Retained for rows imported before this was noticed.
   "stairClimbing",
   "crossCountrySkiing",
   "downhillSkiing",
@@ -52,12 +78,22 @@ export function isStrengthActivity(activityType: string): boolean {
   return STRENGTH_ACTIVITY_TYPES.has(activityType);
 }
 
+const SESSION_ID_PREFIX: Record<HealthProvider, string> = {
+  // Unchanged for Apple: existing workoutLogs rows already carry this prefix and
+  // the id is the idempotency key for promotion.
+  apple_health: "apple-health",
+  health_connect: "health-connect",
+};
+
 /** The session id a health workout always promotes onto, linked or not. */
-export function healthSessionId(externalId: string) {
-  return `apple-health:${externalId}`;
+export function healthSessionId(
+  provider: HealthProvider,
+  externalId: string,
+) {
+  return `${SESSION_ID_PREFIX[provider]}:${externalId}`;
 }
 
-const appleHealthWorkoutValidator = v.object({
+const healthWorkoutValidator = v.object({
   uuid: v.string(),
   activityType: v.string(),
   activityName: v.string(),
@@ -93,8 +129,13 @@ async function patchHealthSync(
     .query("userPreferences")
     .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
+  const enabled =
+    existing?.healthSync?.healthSyncEnabled ??
+    existing?.healthSync?.appleHealthEnabled ??
+    true;
   const healthSync = {
-    appleHealthEnabled: existing?.healthSync?.appleHealthEnabled ?? true,
+    appleHealthEnabled: enabled,
+    healthSyncEnabled: enabled,
     autoSyncOnForeground: existing?.healthSync?.autoSyncOnForeground ?? true,
     ...existing?.healthSync,
     ...patch,
@@ -112,13 +153,17 @@ async function patchHealthSync(
 }
 
 /**
- * Idempotent upsert keyed on the HealthKit UUID.
+ * Idempotent upsert keyed on (provider, external id).
  *
- * Re-running the same pull is a no-op beyond metric revisions — HealthKit
- * revises energy and heart rate after a workout has already synced.
+ * Re-running the same pull is a no-op beyond metric revisions — both HealthKit
+ * and Health Connect revise energy and heart rate after a workout has already
+ * synced.
  */
-export const importFromAppleHealth = mutation({
-  args: { workouts: v.array(appleHealthWorkoutValidator) },
+export const importHealthWorkouts = mutation({
+  args: {
+    workouts: v.array(healthWorkoutValidator),
+    provider: healthProviderValidator,
+  },
   handler: async (ctx, args) => {
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
@@ -161,7 +206,10 @@ export const importFromAppleHealth = mutation({
       const existing = await ctx.db
         .query("healthWorkouts")
         .withIndex("by_userId_and_externalId", (q) =>
-          q.eq("userId", user._id).eq("externalId", workout.uuid),
+          q
+            .eq("userId", user._id)
+            .eq("provider", args.provider)
+            .eq("externalId", workout.uuid),
         )
         .unique();
 
@@ -171,7 +219,7 @@ export const importFromAppleHealth = mutation({
       } else {
         await ctx.db.insert("healthWorkouts", {
           userId: user._id,
-          provider: "apple_health",
+          provider: args.provider,
           externalId: workout.uuid,
           ...fields,
           importedAt: now,
@@ -205,6 +253,7 @@ export const list = query({
       .map((row) => ({
         _id: row._id,
         externalId: row.externalId,
+        provider: row.provider,
         activityType: row.activityType,
         activityName: row.activityName,
         date: row.date,
@@ -264,7 +313,7 @@ export const unlogged = query({
         ctx,
         user._id,
         row.date,
-        healthSessionId(row.externalId),
+        healthSessionId(row.provider, row.externalId),
       );
       if (slot === null) continue;
       results.push({
@@ -298,7 +347,8 @@ export const getById = query({
     return {
       _id: row._id,
       externalId: row.externalId,
-      sessionId: healthSessionId(row.externalId),
+      provider: row.provider,
+      sessionId: healthSessionId(row.provider, row.externalId),
       activityType: row.activityType,
       activityName: row.activityName,
       date: row.date,
@@ -378,7 +428,7 @@ export const linkToTrainingLog = mutation({
       throw new Error("This activity type cannot be added to the training log");
     }
 
-    const sessionId = `apple-health:${workout.externalId}`;
+    const sessionId = healthSessionId(workout.provider, workout.externalId);
     // A slot is mandatory: `logs.workouts.getLog` reads `.take(2)` per date, so
     // a slot-less third log would be silently invisible.
     const slot = await findFreeWorkoutSlot(
@@ -413,8 +463,8 @@ export const linkToTrainingLog = mutation({
               ? { route: { name: workout.routeName } }
               : {}),
             source: {
-              provider: "apple_health" as const,
-              name: workout.sourceName ?? "Apple Health",
+              provider: workout.provider,
+              name: workout.sourceName ?? PROVIDER_LABELS[workout.provider],
               externalId: workout.externalId,
               importedAt: new Date(workout.importedAt).toISOString(),
             },

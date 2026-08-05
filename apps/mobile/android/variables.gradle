@@ -1,5 +1,8 @@
 ext {
-    minSdkVersion = 24
+    // 26, not 24: the Health Connect client SDK requires API 26. Android 8.0 is
+    // 2017 hardware; the health import is a headline feature and gating it at
+    // runtime instead would mean two code paths for a rounding-error audience.
+    minSdkVersion = 26
     compileSdkVersion = 36
     targetSdkVersion = 36
     androidxActivityVersion = '1.11.0'
@@ -13,4 +16,10 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+
+    // Native parity additions.
+    androidxHealthConnectVersion = '1.1.0-rc02'
+    androidxGlanceVersion = '1.1.1'
+    androidxComposeBomVersion = '2025.04.01'
+    kotlinxCoroutinesVersion = '1.10.2'
 }

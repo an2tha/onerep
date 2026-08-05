@@ -446,19 +446,19 @@ describe("active workout sync production safeguards", () => {
 
   test("Apple Health import loading is single-flight and announced", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "const appleHealthLoadingRef = useRef(false)"
+      "const healthLoadingRef = useRef(false)"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "if (appleHealthLoadingRef.current || appleHealthLoading) return"
+      "if (healthLoadingRef.current || healthLoading) return"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "appleHealthLoadingRef.current = true"
+      "healthLoadingRef.current = true"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "appleHealthLoadingRef.current = false"
+      "healthLoadingRef.current = false"
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={appleHealthLoading}")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={appleHealthLoading}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("aria-busy={healthLoading}")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("disabled={healthLoading}")
   })
 
   test("active workouts recover locally and ask before resuming", () => {

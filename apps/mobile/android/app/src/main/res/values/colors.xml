@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Referenced by AppTheme in styles.xml. -->
+    <color name="colorPrimary">#09090B</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#09090B</color>
+
+    <!-- Status bar tint applied to the monochrome notification icon. -->
+    <color name="colorNotification">#09090B</color>
+</resources>

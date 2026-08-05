@@ -25,7 +25,10 @@ describe("buildManifest", () => {
       version: "1.0.482",
       url: "https://app.onerep.life/ota/bundles/1.0.482.zip",
       checksum: CHECKSUM,
-      minNativeVersion: "1.0.0",
+      // Raised to 1.1.0 with the native parity release: the bundle now calls
+      // HealthConnect / WorkoutStatus / HomeWidgets, which a 1.0.0 shell has no
+      // implementation for.
+      minNativeVersion: "1.1.0",
       commit: "abc1234",
       releasedAt: "2026-08-04T12:00:00Z",
       mandatory: false,

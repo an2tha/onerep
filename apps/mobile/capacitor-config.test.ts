@@ -19,6 +19,10 @@ describe("Capacitor production config", () => {
     expect(config.plugins?.CapacitorHttp).toEqual({ enabled: true })
     expect(config.plugins?.CapacitorCookies).toEqual({ enabled: true })
   })
+
+  test("ships a monochrome status-bar icon so Android does not draw a white square", () => {
+    expect(config.plugins?.LocalNotifications?.smallIcon).toBe("ic_stat_onerep")
+  })
 })
 
 describe("OTA updater config", () => {

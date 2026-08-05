@@ -33,6 +33,7 @@ export const cardioDetailsValidator = v.object({
       provider: v.union(
         v.literal("manual"),
         v.literal("apple_health"),
+        v.literal("health_connect"),
         v.literal("strava"),
         v.literal("garmin"),
         v.literal("fitbit"),

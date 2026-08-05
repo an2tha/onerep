@@ -8,11 +8,12 @@
 	</array>
 	<key>com.apple.developer.healthkit</key>
 	<true/>
-	<key>com.apple.developer.healthkit.access</key>
-	<array>
-		<string>health-records</string>
-	</array>
-	<key>com.apple.developer.healthkit.background-delivery</key>
-	<true/>
+	<!--
+		Deliberately absent:
+		- healthkit.access (health-records): the plugin never reads clinical
+		  records, and claiming that scope invites an App Review question.
+		- healthkit.background-delivery: no HKObserverQuery exists anywhere;
+		  syncing is foreground-triggered from health-sync.tsx.
+	-->
 </dict>
 </plist>
