@@ -7,8 +7,10 @@ import {
   buildTimeline,
   collectReps,
   detectReps,
+  durationRegularity,
   fitToFrameBudget,
   hipToAnkle,
+  selfSimilarity,
   toBodyFrame,
 } from "@/lib/pose-reps"
 import { POSE_LANDMARK_COUNT } from "@/lib/pose-scene"
@@ -326,6 +328,160 @@ describe("detectReps beyond the squat", () => {
       signal: null,
       reps: [],
     })
+  })
+})
+
+/** Deterministic pseudo-random in [-1, 1], so a failure always reproduces. */
+function jitter(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453
+  return (value - Math.floor(value)) * 2 - 1
+}
+
+/** Replaces some landmarks in one frame, keeping both landmark sets in step. */
+function withPoints(
+  frame: FormCoachFrame,
+  edit: (points: P[]) => void
+): FormCoachFrame {
+  const points = frame.landmarks.map((point) => ({ ...point })) as P[]
+  edit(points)
+  return { ...frame, landmarks: points, worldLandmarks: points }
+}
+
+/**
+ * The fixtures above are all clean cosines, which is why the detector looked
+ * correct while failing on a phone. These are the shapes real footage arrives
+ * in: a tracker that loses the lifter for a moment, a clip that stops before
+ * the bar is racked, and channels that carry nothing but noise.
+ */
+describe("detectReps on footage that is not clean", () => {
+  // One bad frame used to set the thresholds for the whole clip. The tracker
+  // latching onto something else stretched the working range until no real rep
+  // reached the top of it, and a set of five came back as zero.
+  it("ignores a single frame of garbage tracking when setting its range", () => {
+    const clip = repClip(3)
+    const wrecked = clip.frames.map((frame, i) =>
+      i === 0
+        ? withPoints(frame, (points) => {
+            points[27] = { x: -0.15, y: -5, z: 0, visibility: 1 }
+            points[28] = { x: 0.15, y: -5, z: 0, visibility: 1 }
+          })
+        : frame
+    )
+    expect(detectReps(wrecked)).toHaveLength(3)
+  })
+
+  // A spike partway down a rep reads as a full lockout, which ended the rep
+  // early and started a phantom one behind it.
+  it("does not split a rep around a one-frame spike", () => {
+    const clip = repClip(3)
+    const spiked = clip.frames.map((frame, i) =>
+      i === 7
+        ? withPoints(frame, (points) => {
+            points[27] = { x: -0.15, y: -4, z: 0, visibility: 1 }
+            points[28] = { x: 0.15, y: -4, z: 0, visibility: 1 }
+          })
+        : frame
+    )
+    expect(detectReps(spiked)).toHaveLength(3)
+  })
+
+  // Filming almost always stops on the way up from the last rep rather than
+  // after a clean lockout, and that rep is the most fatigued one in the set.
+  it("keeps a last rep the lifter never fully stood up from", () => {
+    const frames: FormCoachFrame[] = []
+    for (let i = 0; i < 40; i += 1) {
+      const phase = (i % 20) / 20
+      frames.push(
+        frameFrom(pose((1 - Math.cos(phase * 2 * Math.PI)) / 2), i * 100)
+      )
+    }
+    // A third rep that descends and comes most of the way back, then the clip
+    // ends — no return to lockout for the state machine to close on.
+    for (let j = 0; j <= 16; j += 1) {
+      const depth = (1 - Math.cos((j / 20) * 2 * Math.PI)) / 2
+      frames.push(frameFrom(pose(depth), (40 + j) * 100))
+    }
+    expect(detectReps(frames)).toHaveLength(3)
+  })
+
+  // Sampled at 30fps so the oscillation is smooth rather than frame-to-frame:
+  // this is a signal drifting, not a spike, and only its duration gives it away.
+  it("rejects cycles too fast to be reps", () => {
+    const frames = Array.from({ length: 90 }, (_, i) =>
+      frameFrom(
+        pose((1 - Math.cos((i / 12) * 2 * Math.PI)) / 2),
+        Math.round(i * 33)
+      )
+    )
+    expect(detectReps(frames)).toEqual([])
+  })
+
+  // The old rule was "most reps wins", and noise always produces more cycles
+  // than lifting does. A barbell on the shoulders keeps the elbows bent and
+  // half-occluded, so their angle is the noisiest channel in the clip.
+  it("does not count a squat off a noisy arm channel", () => {
+    const clip = repClip(3).frames.map((frame, i) =>
+      withPoints(frame, (points) => {
+        for (const index of [13, 14, 15, 16]) {
+          points[index] = {
+            x: jitter(i * 7 + index),
+            y: jitter(i * 11 + index),
+            z: jitter(i * 13 + index),
+            visibility: 1,
+          }
+        }
+      })
+    )
+    const detected = chooseRepSignal(clip)
+    expect(detected.signal).toBe("hip_to_ankle")
+    expect(detected.reps).toHaveLength(3)
+  })
+})
+
+describe("selfSimilarity", () => {
+  it("finds the rep period in a repeating signal", () => {
+    const values = Array.from(
+      { length: 60 },
+      (_, i) => (1 - Math.cos((i / 20) * 2 * Math.PI)) / 2
+    )
+    expect(selfSimilarity(values, 5, 30)?.lag).toBe(20)
+  })
+
+  it("scores a steady signal above a jittery one", () => {
+    const steady = Array.from(
+      { length: 60 },
+      (_, i) => (1 - Math.cos((i / 20) * 2 * Math.PI)) / 2
+    )
+    const noisy = Array.from({ length: 60 }, (_, i) => jitter(i))
+    const steadyStrength = selfSimilarity(steady, 5, 30)?.strength ?? 0
+    const noisyStrength = selfSimilarity(noisy, 5, 30)?.strength ?? 0
+    expect(steadyStrength).toBeGreaterThan(noisyStrength)
+  })
+
+  it("has nothing to say about a signal that never moves", () => {
+    expect(selfSimilarity(Array(40).fill(0.5), 5, 20)).toBeNull()
+  })
+
+  it("ignores untracked frames rather than reading them as zero", () => {
+    const values = Array.from({ length: 60 }, (_, i) =>
+      i % 17 === 0 ? null : (1 - Math.cos((i / 20) * 2 * Math.PI)) / 2
+    )
+    expect(selfSimilarity(values, 5, 30)?.lag).toBe(20)
+  })
+})
+
+describe("durationRegularity", () => {
+  it("scores evenly spaced reps at one", () => {
+    expect(durationRegularity([2000, 2000, 2000])).toBe(1)
+  })
+
+  it("has no rhythm to judge in a single rep", () => {
+    expect(durationRegularity([2000])).toBe(1)
+  })
+
+  it("falls as the durations scatter", () => {
+    expect(durationRegularity([500, 1500])).toBeCloseTo(0.5, 5)
+    expect(durationRegularity([1800, 2000, 2200])).toBeGreaterThan(0.85)
   })
 })
 

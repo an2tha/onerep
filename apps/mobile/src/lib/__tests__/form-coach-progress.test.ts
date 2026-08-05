@@ -133,7 +133,7 @@ describe("formCoachProgressValue", () => {
  */
 describe("video decoding", () => {
   const source = readFileSync(
-    new URL("../form-coach.ts", import.meta.url),
+    new URL("../mediapipe.ts", import.meta.url),
     "utf8"
   )
 
