@@ -58,6 +58,13 @@ test-user.txt
 # fetched separately (see scripts/form-JEPA/fetch-dataset.sh), so they do not
 # belong in git history.
 *.onnx
+# ...except the two runtime pose models, which are not "fetched separately" by
+# anything. Vite copies them into apps/mobile/dist and they deploy to
+# app.onerep.life, which is where the web app and — via otaOrigin() — the native
+# app both fetch them from. They are kept out of the OTA zip *because* they are
+# served from that origin. Untracking them once already broke CI and would have
+# shipped a deploy with no models at all. See apps/mobile/public-assets.test.ts.
+!apps/mobile/public/models/*.onnx
 *.mlmodel
 *.mlmodelc/
 *.pt
@@ -76,6 +83,6 @@ scripts/form-JEPA/models/
 scripts/form-JEPA/data/
 scripts/form-JEPA/dataset/
 scripts/form-JEPA/datasets/
-# Runtime pose weights served from the OTA origin, not bundled in the web build.
-apps/mobile/public/models/
+# Regenerated from apps/mobile/public/models by `cap sync`, so it is a build
+# artifact even though the originals are tracked.
 apps/mobile/ios/App/App/public/models/
