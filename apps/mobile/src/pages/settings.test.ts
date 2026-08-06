@@ -678,7 +678,7 @@ const PAYWALL_STYLES = readFileSync(
   "utf8"
 )
 
-describe("AI paywall", () => {
+describe("AI subscription hint", () => {
   test("free accounts spend their allowance before the paywall appears", () => {
     // The gate must not block a non-Pro user who can still afford the request.
     // `cost` defaults to 1, so this is the old "any left" check for every
@@ -696,7 +696,7 @@ describe("AI paywall", () => {
     assert.match(AI_ACCESS_SOURCE, /usage === undefined/)
   })
 
-  test("the paywall contrasts the free and Pro allowances from server values", () => {
+  test("the hint contrasts the free and Pro allowances from server values", () => {
     assert.match(AI_ACCESS_SOURCE, /const free = freeLimit \?\? 10/)
     assert.match(AI_ACCESS_SOURCE, /const pro = proLimit \?\? 500/)
     assert.match(AI_ACCESS_SOURCE, /freeLimit=\{usage && !usage\.isPro/)
@@ -704,78 +704,77 @@ describe("AI paywall", () => {
     assert.match(AI_ACCESS_SOURCE, /usedCount=\{usage\?\.count/)
   })
 
-  test("the paywall adapts when the allowance is already spent", () => {
+  test("the hint adapts when the allowance is already spent", () => {
     assert.match(
       AI_ACCESS_SOURCE,
       /const spentAllowance = usedCount != null && usedCount >= free/
     )
-    assert.match(AI_ACCESS_SOURCE, /You're out of AI this month/)
-    assert.match(AI_ACCESS_SOURCE, /Unlock OneRep Pro/)
+    assert.match(AI_ACCESS_SOURCE, /That’s your free AI for this month/)
+    assert.match(AI_ACCESS_SOURCE, /The AI bit costs us money/)
   })
 
-  test("the paywall is a full-screen surface with the standard anatomy", () => {
-    // Close, hero, title, benefits, plan, CTA, then legal + restore.
+  test("the hint explains the cost honestly instead of selling", () => {
+    // The whole point of this surface: say why AI needs a subscription, and
+    // say plainly that nothing else in the app is behind it.
+    assert.match(AI_ACCESS_SOURCE, /models we pay for by the request/)
+    assert.match(AI_ACCESS_SOURCE, /Everything else in OneRep/)
+    assert.match(AI_ACCESS_SOURCE, /stays free/)
+  })
+
+  test("the hint is a compact sheet, not a full-screen sales page", () => {
+    // Scrim, sheet, close, copy, price, CTA, legal — and nothing more.
     for (const className of [
-      "paywall-screen",
-      "paywall-close",
-      "paywall-hero",
-      "paywall-title",
-      "paywall-benefits",
-      "paywall-plan",
-      "paywall-cta",
-      "paywall-legal",
+      "ai-hint-layer",
+      "ai-hint-scrim",
+      "ai-hint-sheet",
+      "ai-hint-close",
+      "ai-hint-title",
+      "ai-hint-body",
+      "ai-hint-cta",
+      "ai-hint-legal",
     ]) {
       assert.ok(
         AI_ACCESS_SOURCE.includes(className),
-        `paywall is missing ${className}`
+        `hint is missing ${className}`
       )
     }
-    assert.match(PAYWALL_STYLES, /\.paywall-screen \{[\s\S]*position: fixed/)
+    assert.match(PAYWALL_STYLES, /\.ai-hint-layer \{[\s\S]*position: fixed/)
     assert.match(
       PAYWALL_STYLES,
-      /\.paywall-footer \{[\s\S]*var\(--app-safe-bottom\)/
+      /\.ai-hint-sheet \{[\s\S]*var\(--app-safe-bottom\)/
     )
+    // The old marketing anatomy must not creep back.
+    for (const gone of ["hero", "benefits", "paywall-plan", "unsplash"]) {
+      assert.ok(
+        !AI_ACCESS_SOURCE.toLowerCase().includes(gone),
+        `hint should not carry ${gone}`
+      )
+    }
+    assert.ok(!PAYWALL_STYLES.includes(".paywall-"))
+  })
+
+  test("tapping outside the hint dismisses it", () => {
     assert.match(
-      PAYWALL_STYLES,
-      /\.paywall-close \{[\s\S]*var\(--app-safe-top\)/
+      AI_ACCESS_SOURCE,
+      /className="ai-hint-scrim"[\s\S]*onClick=\{onClose\}/
     )
   })
 
-  test("the paywall uses a hero image that degrades gracefully", () => {
-    assert.match(AI_ACCESS_SOURCE, /const PAYWALL_HERO_IMAGE =/)
-    assert.match(AI_ACCESS_SOURCE, /https:\/\/images\.unsplash\.com\/photo-/)
-    // Decorative, so it must not be announced.
-    assert.match(AI_ACCESS_SOURCE, /alt=""/)
-    // Offline the image simply drops out rather than leaving a broken frame.
-    assert.match(AI_ACCESS_SOURCE, /onError=\{\(event\) => \{/)
-    assert.match(
-      PAYWALL_STYLES,
-      /\.paywall-hero-scrim \{[\s\S]*linear-gradient/
-    )
-    // The close control sits on the photo, so it cannot be theme-tinted.
-    assert.match(
-      PAYWALL_STYLES,
-      /\.paywall-close \{[\s\S]*rgba\(10, 12, 20, 0\.5\)/
-    )
-  })
-
-  test("the paywall clears the desktop sidebar instead of covering it", () => {
+  test("the hint clears the desktop sidebar instead of covering it", () => {
     // The sidebar is a fixed 16rem rail at the lg breakpoint.
     assert.match(
       PAYWALL_STYLES,
-      /@media \(min-width: 1024px\) \{[\s\S]*\.paywall-screen \{[\s\S]*left: 16rem/
+      /@media \(min-width: 1024px\) \{[\s\S]*\.ai-hint-layer \{[\s\S]*left: 16rem/
     )
   })
 
-  test("the paywall carries no decorative eyebrow or sparkle mark", () => {
-    assert.ok(!AI_ACCESS_SOURCE.includes("paywall-eyebrow"))
-    assert.ok(!AI_ACCESS_SOURCE.includes("paywall-hero-mark"))
+  test("the hint carries no decorative eyebrow or sparkle mark", () => {
+    assert.ok(!AI_ACCESS_SOURCE.includes("ai-hint-eyebrow"))
     assert.ok(!AI_ACCESS_SOURCE.includes("Sparkle"))
-    assert.ok(!PAYWALL_STYLES.includes(".paywall-eyebrow"))
-    assert.ok(!PAYWALL_STYLES.includes(".paywall-hero-mark"))
+    assert.ok(!PAYWALL_STYLES.includes(".ai-hint-eyebrow"))
   })
 
-  test("the paywall links out to real legal pages", () => {
+  test("the hint links out to real legal pages", () => {
     assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/privacy/)
     assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/terms/)
     // External links must not leak the opener.
@@ -784,16 +783,16 @@ describe("AI paywall", () => {
     assert.doesNotMatch(AI_ACCESS_SOURCE, /Restore Purchases/)
   })
 
-  test("the paywall offers no purchase path on native", () => {
+  test("the hint offers no purchase path on native", () => {
     // The checkout button and its Stripe reassurance are web-only; native gets
     // a plain note saying where Pro actually lives.
     assert.match(AI_ACCESS_SOURCE, /\{isNative \? \(/)
-    assert.match(AI_ACCESS_SOURCE, /className="paywall-note"/)
-    assert.match(PAYWALL_STYLES, /\.paywall-note/)
+    assert.match(AI_ACCESS_SOURCE, /className="ai-hint-note"/)
+    assert.match(PAYWALL_STYLES, /\.ai-hint-note/)
     assert.doesNotMatch(AI_ACCESS_SOURCE, /Secured with the App Store/)
   })
 
-  test("the paywall stays an accessible dialog", () => {
+  test("the hint stays an accessible dialog", () => {
     assert.match(AI_ACCESS_SOURCE, /role="dialog"/)
     assert.match(AI_ACCESS_SOURCE, /aria-modal="true"/)
     assert.match(AI_ACCESS_SOURCE, /aria-labelledby="ai-access-required-title"/)
