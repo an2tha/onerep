@@ -1,0 +1,19 @@
+{
+  "comment": "Runtime pose weights. Published to R2 by publish.ts, fetched in CI by fetch.ts. Bump `version` and the checksums whenever export_onnx.py is re-run; the object key carries the version so an old deploy never picks up a new model.",
+  "version": "1",
+  "bucket": "onerep-models",
+  "baseUrl": "https://models.onerep.life",
+  "target": "apps/mobile/public/models",
+  "files": [
+    {
+      "name": "yolo11n_pose_448_fp32.onnx",
+      "bytes": 11716352,
+      "sha256": "c3f883d86265355db19d23916f04aec81de99e4c6431a828cf90453cdf2a4ec3"
+    },
+    {
+      "name": "motionbert_lite_int8.onnx",
+      "bytes": 16566321,
+      "sha256": "160974dfe283a08e6443ba0d05f35d5232e31d91db5bedab1d7890255b58f1e7"
+    }
+  ]
+}
