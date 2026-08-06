@@ -25,6 +25,33 @@ jobs:
         useTTY: false
         condition: SUCCESSFUL
         optional: false
+      # The two runtime pose weights are build artifacts, too large and too often
+      # re-exported to keep in git, so they are pulled from R2 into
+      # apps/mobile/public/models before anything reads them.
+      #
+      # This runs before the tests, not just before the build:
+      # apps/mobile/public-assets.test.ts asserts both files are present, and it
+      # is the guard that stops a deploy shipping without them. Cloudflare Pages
+      # replaces the whole site on every deploy, so a build with no models does
+      # not fall back to the previous copies -- it 404s every pose request, on
+      # web and on native alike, since otaOrigin() is the same host.
+      #
+      # Plain HTTPS with no credentials: the bucket is public and every download
+      # is checked against the sha256 committed in scripts/pose-models/manifest.json.
+      - type: CommandStep
+        name: Fetch pose models
+        runInContainer: true
+        image: oven/bun:1.3.4
+        interpreter:
+          type: PosixInterpreter
+          shell: sh
+          commands: |
+            set -eu
+            bun run models:fetch
+        runAs: 0:0
+        useTTY: false
+        condition: SUCCESSFUL
+        optional: false
       - type: CommandStep
         name: Run tests
         runInContainer: true
