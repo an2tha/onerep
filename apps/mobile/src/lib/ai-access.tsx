@@ -1,11 +1,5 @@
 import { useCallback, useState } from "react"
-import {
-  ArrowRight,
-  Check,
-  CheckCircle,
-  ShieldCheck,
-  X,
-} from "@phosphor-icons/react"
+import { ArrowRight, ShieldCheck, X } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { toast } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
@@ -32,14 +26,6 @@ export function useAiAccessSubscription() {
 
 const PRIVACY_URL = "https://onerep.life/privacy"
 const TERMS_URL = "https://onerep.life/terms"
-
-/**
- * Paywall hero (Unsplash, free license). Matches the remote-URL convention
- * already used for recipe imagery in RecipesHub, and falls back to the plain
- * gradient header if the image cannot load offline.
- */
-const PAYWALL_HERO_IMAGE =
-  "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=1200&q=80"
 
 export function AiAccessRequiredModal({
   open,
@@ -73,88 +59,64 @@ export function AiAccessRequiredModal({
   const free = freeLimit ?? 10
   const pro = proLimit ?? 500
   const spentAllowance = usedCount != null && usedCount >= free
-
-  const benefits = [
-    `${pro} AI credits a month, up from ${free}`,
-    "Coach builds routines, recipes, and goals",
-    "Food photo analysis and workout generation",
-    "Progress insights across your training data",
-  ]
+  // `price` falls back to a bare "Monthly" while billing is still loading its
+  // label, which would read as "Monthly · cancel anytime" — drop it instead.
+  const hasPriceLabel = /\d/.test(price)
 
   return (
-    <div
-      className="paywall-screen"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="ai-access-required-title"
-    >
-      <div className="paywall-glow" aria-hidden="true" />
-
+    <div className="ai-hint-layer" role="presentation">
       <button
         type="button"
-        onClick={onClose}
+        className="ai-hint-scrim"
         aria-label="Close"
-        className="paywall-close"
+        onClick={onClose}
+      />
+
+      <div
+        className="ai-hint-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-access-required-title"
       >
-        <X size={17} weight="bold" />
-      </button>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="ai-hint-close"
+        >
+          <X size={15} weight="bold" />
+        </button>
 
-      <div className="paywall-scroll">
-        <div className="paywall-hero">
-          <img
-            src={PAYWALL_HERO_IMAGE}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-            onError={(event) => {
-              event.currentTarget.style.display = "none"
-            }}
-          />
-          <span className="paywall-hero-scrim" aria-hidden="true" />
-        </div>
-
-        <h2 id="ai-access-required-title" className="paywall-title">
-          {spentAllowance ? "You're out of AI this month" : "Unlock OneRep Pro"}
-        </h2>
-        <p className="paywall-subtitle">
+        <h2 id="ai-access-required-title" className="ai-hint-title">
           {spentAllowance
-            ? `You've used all ${free} free AI credits. They reset on the 1st.`
-            : "Everything else stays free. Pro covers the AI."}
+            ? "That’s your free AI for this month"
+            : "The AI bit costs us money"}
+        </h2>
+
+        <p className="ai-hint-body">
+          {spentAllowance
+            ? `You’ve used all ${free} free AI requests. They come back on the 1st — or Pro raises the limit to ${pro} a month.`
+            : "Every Coach answer, food photo, and generated workout runs on models we pay for by the request. We’d hand them out for free if we could, but they need a subscription to stay switched on."}
+        </p>
+        <p className="ai-hint-body">
+          Everything else in OneRep — logging, progress, recipes you write
+          yourself — stays free.
         </p>
 
-        <ul className="paywall-benefits">
-          {benefits.map((benefit) => (
-            <li key={benefit}>
-              <CheckCircle size={19} weight="fill" aria-hidden="true" />
-              <span>{benefit}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="paywall-plan" aria-label={`Monthly plan, ${price}`}>
-          <span className="paywall-plan-check" aria-hidden="true">
-            <Check size={12} weight="bold" />
-          </span>
-          <span className="paywall-plan-body">
-            <span className="paywall-plan-title">Monthly</span>
-            <span className="paywall-plan-detail">Cancel anytime</span>
-          </span>
-          <span className="paywall-plan-price">{price}</span>
-        </div>
+        <p className="ai-hint-price">
+          {hasPriceLabel ? `${price} · cancel anytime` : "Cancel anytime"}
+        </p>
 
         {error && (
-          <p className="paywall-error" role="alert">
+          <p className="ai-hint-error" role="alert">
             {error}
           </p>
         )}
-      </div>
 
-      <div className="paywall-footer">
         {isNative ? (
-          <p className="paywall-note">
-            OneRep Pro is managed on the OneRep website. Subscribe there and
-            your access appears here automatically.
+          <p className="ai-hint-note">
+            Pro is managed on the OneRep website. Subscribe there and your
+            access appears here automatically.
           </p>
         ) : (
           <>
@@ -163,7 +125,7 @@ export function AiAccessRequiredModal({
               onClick={onOpenPaywall}
               disabled={busy}
               aria-busy={busy}
-              className="paywall-cta"
+              className="ai-hint-cta"
             >
               {busy ? "Starting checkout…" : "Continue"}
               {!busy && (
@@ -171,14 +133,14 @@ export function AiAccessRequiredModal({
               )}
             </button>
 
-            <p className="paywall-secure">
+            <p className="ai-hint-secure">
               <ShieldCheck size={13} weight="fill" aria-hidden="true" />
               Secured with Stripe
             </p>
           </>
         )}
 
-        <div className="paywall-legal">
+        <div className="ai-hint-legal">
           <a href={PRIVACY_URL} target="_blank" rel="noreferrer">
             Privacy
           </a>

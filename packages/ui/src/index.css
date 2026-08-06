@@ -6994,193 +6994,79 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
-/* ── Pro paywall ──────────────────────────────────────────────────────────
-   Full-screen purchase surface: hero mark, benefits, the single monthly
-   plan, then a pinned call to action with the legal and restore row. */
-.paywall-screen {
+/* ── AI subscription hint ─────────────────────────────────────────────────
+   Not a sales page: a small sheet that explains, once, why the AI features
+   need a subscription. Bottom sheet on phones, centred card on desktop. */
+.ai-hint-layer {
   position: fixed;
   inset: 0;
   z-index: 90;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  background: var(--background);
+  justify-content: flex-end;
+}
+
+.ai-hint-scrim {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--background) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.ai-hint-sheet {
+  position: relative;
+  border: 1px solid var(--divider);
+  border-bottom: 0;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: var(--card, var(--background));
   color: var(--foreground);
+  padding: 1.5rem 1.4rem calc(var(--app-safe-bottom) + 1.25rem);
+  box-shadow: 0 -1rem 3rem color-mix(in srgb, #000 22%, transparent);
 }
 
-/* Keeps the surface from reading as a flat sheet without adding decoration. */
-.paywall-glow {
+.ai-hint-close {
   position: absolute;
-  top: -28%;
-  left: 50%;
-  width: min(34rem, 130%);
-  height: 26rem;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--foreground) 12%, transparent) 0%,
-    transparent 68%
-  );
-  pointer-events: none;
-}
-
-/* Sits on the hero photo in both themes, so it is deliberately theme-agnostic
-   rather than tinted from --foreground, which vanished on the light canvas. */
-.paywall-close {
-  position: absolute;
-  top: calc(var(--app-safe-top) + 0.5rem);
-  left: 0.85rem;
-  z-index: 2;
+  top: 1rem;
+  right: 1rem;
   display: flex;
-  width: 2.35rem;
-  height: 2.35rem;
+  width: 2rem;
+  height: 2rem;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(10, 12, 20, 0.5);
-  color: #fff;
+  background: color-mix(in srgb, var(--foreground) 7%, transparent);
+  color: var(--muted-foreground);
 }
 
-.paywall-close:active {
-  background: rgba(10, 12, 20, 0.72);
+.ai-hint-close:active {
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+  color: var(--foreground);
 }
 
-.paywall-scroll {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  overflow-y: auto;
-  padding: calc(var(--app-safe-top) + 4rem) 1.5rem 1.5rem;
-  text-align: center;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* The hero sits above the scrim, so the close control needs to clear it. */
-.paywall-close {
-  backdrop-filter: blur(8px);
-}
-
-/* Full-bleed hero photo, faded into the page so the title reads over it.
-   The image is decorative: if it fails to load the scrim alone still works. */
-.paywall-hero {
-  position: relative;
-  margin: calc(var(--app-safe-top) * -1 - 4rem) -1.5rem 1.25rem;
-  height: 17rem;
-  overflow: hidden;
-}
-
-.paywall-hero img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 30%;
-  filter: grayscale(0.35) contrast(1.05);
-}
-
-.paywall-hero-scrim {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--background) 10%, transparent) 0%,
-    color-mix(in srgb, var(--background) 4%, transparent) 40%,
-    color-mix(in srgb, var(--background) 80%, transparent) 76%,
-    var(--background) 100%
-  );
-}
-
-.paywall-title {
-  margin-top: 0;
-  font-size: 1.75rem;
+.ai-hint-title {
+  margin: 0 3rem 0.65rem 0;
+  font-size: 1.15rem;
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
-.paywall-subtitle {
-  margin: 0.55rem auto 0;
-  max-width: 20rem;
-  font-size: 0.85rem;
+.ai-hint-body {
+  margin: 0 0 0.6rem;
+  font-size: 0.875rem;
   line-height: 1.5;
   color: var(--muted-foreground);
 }
 
-.paywall-benefits {
-  display: grid;
-  gap: 0.85rem;
-  margin: 2rem auto 0;
-  max-width: 21rem;
-  text-align: left;
-}
-
-.paywall-benefits li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.paywall-benefits svg {
-  flex-shrink: 0;
-  margin-top: 0.05rem;
+.ai-hint-price {
+  margin: 0.9rem 0 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--foreground);
 }
 
-.paywall-plan {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 2rem auto 0;
-  max-width: 21rem;
-  border: 1.5px solid var(--foreground);
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--foreground) 5%, transparent);
-  padding: 0.9rem 1rem;
-  text-align: left;
-}
-
-.paywall-plan-check {
-  display: flex;
-  width: 1.15rem;
-  height: 1.15rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--foreground);
-  color: var(--background);
-}
-
-.paywall-plan-body {
-  display: grid;
-  min-width: 0;
-  flex: 1;
-  gap: 0.1rem;
-}
-
-.paywall-plan-title {
-  font-size: 0.92rem;
-  font-weight: 700;
-}
-
-.paywall-plan-detail {
-  font-size: 0.72rem;
-  color: var(--muted-foreground);
-}
-
-.paywall-plan-price {
-  flex-shrink: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-}
-
-.paywall-error {
-  margin: 1rem auto 0;
-  max-width: 21rem;
+.ai-hint-error {
+  margin: 0 0 0.85rem;
   border: 1px solid color-mix(in srgb, var(--destructive) 25%, transparent);
   border-radius: 0.75rem;
   background: color-mix(in srgb, var(--destructive) 8%, transparent);
@@ -7190,145 +7076,88 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   color: var(--destructive);
 }
 
-.paywall-footer {
-  position: relative;
-  z-index: 1;
-  border-top: 1px solid var(--divider);
-  background: var(--background);
-  padding: 0.9rem 1.5rem calc(var(--app-safe-bottom) + 0.9rem);
-}
-
-.paywall-cta {
+.ai-hint-cta {
   display: flex;
   width: 100%;
-  min-height: 3.25rem;
+  min-height: 3rem;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
   border-radius: 999px;
   background: var(--foreground);
   color: var(--background);
-  font-size: 0.95rem;
+  font-size: 0.9375rem;
   font-weight: 700;
 }
 
-.paywall-cta:active:not(:disabled) {
+.ai-hint-cta:active:not(:disabled) {
   opacity: 0.85;
 }
 
-.paywall-cta:disabled {
+.ai-hint-cta:disabled {
   opacity: 0.5;
 }
 
-.paywall-secure {
+.ai-hint-secure {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  margin-top: 0.65rem;
+  margin: 0.6rem 0 0;
   font-size: 0.7rem;
   color: var(--muted-foreground);
 }
 
 /* Shown instead of the checkout button where Pro cannot be bought in-app. */
-.paywall-note {
-  text-align: center;
-  text-wrap: balance;
+.ai-hint-note {
+  margin: 0;
+  text-wrap: pretty;
   font-size: 0.8125rem;
   line-height: 1.45;
   color: var(--muted-foreground);
 }
 
-.paywall-legal {
+.ai-hint-legal {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  margin-top: 0.65rem;
+  margin-top: 0.85rem;
   font-size: 0.7rem;
   color: color-mix(in srgb, var(--muted-foreground) 80%, transparent);
 }
 
-.paywall-legal a,
-.paywall-legal button {
+.ai-hint-legal a,
+.ai-hint-legal button {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.paywall-legal button:disabled {
-  opacity: 0.5;
-  text-decoration: none;
-}
-
-/* The desktop sidebar is a fixed 16rem rail, so the paywall starts after it
-   rather than covering the app's primary navigation. Inside that space the
-   content becomes a centred column instead of a stretched full-bleed banner. */
+/* The desktop sidebar is a fixed 16rem rail, so the hint starts after it
+   rather than covering the app's primary navigation, and centres as a card. */
 @media (min-width: 1024px) {
-  .paywall-screen {
+  .ai-hint-layer {
     left: 16rem;
-  }
-
-  .paywall-scroll {
-    display: flex;
-    flex-direction: column;
     justify-content: center;
-    padding: 2rem 1.5rem 1rem;
+    align-items: center;
+    padding: 1.5rem;
   }
 
-  .paywall-scroll > * {
+  .ai-hint-sheet {
     width: 100%;
     max-width: 24rem;
-    margin-inline: auto;
-  }
-
-  .paywall-hero {
-    margin: 0 auto 1.5rem;
-    height: 12rem;
+    border: 1px solid var(--divider);
     border-radius: 1.25rem;
-  }
-
-  .paywall-hero-scrim {
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 55%,
-      color-mix(in srgb, var(--background) 55%, transparent) 100%
-    );
-  }
-
-  .paywall-benefits,
-  .paywall-plan {
-    margin-top: 1.5rem;
-  }
-
-  .paywall-footer {
-    padding: 1rem 1.5rem 1.5rem;
-  }
-
-  .paywall-footer > * {
-    width: 100%;
-    max-width: 24rem;
-    margin-inline: auto;
-  }
-
-  .paywall-close {
-    top: 1rem;
-    left: 1rem;
-    background: color-mix(in srgb, var(--foreground) 8%, transparent);
-    color: var(--muted-foreground);
-  }
-
-  .paywall-close:active {
-    background: color-mix(in srgb, var(--foreground) 15%, transparent);
-    color: var(--foreground);
+    padding: 1.5rem 1.4rem 1.4rem;
+    box-shadow: 0 1.5rem 3rem color-mix(in srgb, #000 22%, transparent);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .paywall-cta,
-  .paywall-close {
+  .ai-hint-cta,
+  .ai-hint-close {
     transition: none !important;
   }
 }
