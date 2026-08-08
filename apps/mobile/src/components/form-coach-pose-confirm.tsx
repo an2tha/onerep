@@ -17,6 +17,7 @@ import {
   type PoseOrientation,
 } from "@/lib/pose-scene"
 import { collectReps } from "@/lib/pose-reps"
+import { clampOrientation } from "@/lib/device-gravity"
 import { appendFormCoachMessage } from "@/lib/form-coach-message"
 import { useSmoothNavigate } from "@/lib/navigation"
 
@@ -50,6 +51,11 @@ export function FormCoachPoseConfirm() {
   const [attempt, setAttempt] = useState(0)
 
   const landmarks = draft?.landmarks ?? null
+  // Tilt measured by the accelerometer while filming, when a clip has one.
+  // The sliders correct all angles at once, so the first measured clip speaks
+  // for the take.
+  const measured =
+    draft?.clips.find((clip) => clip.orientation)?.orientation ?? null
 
   // Every rep from every angle, kept whole. Null only when nothing at all was
   // tracked, in which case the raw angles are all there is to show.
@@ -74,6 +80,13 @@ export function FormCoachPoseConfirm() {
     setSeekTimeMs(0)
     setPlaying(true)
   }, [angleIndex])
+
+  // Each fresh estimation seeds the sliders from the measured tilt — a start
+  // point, not a decision; the sliders stay the user's.
+  useEffect(() => {
+    if (!landmarks) return
+    setOrientation(measured ? clampOrientation(measured) : NEUTRAL_ORIENTATION)
+  }, [landmarks, measured])
 
   if (!draft || draft.phase !== "confirm" || !landmarks) return null
 
@@ -143,7 +156,7 @@ export function FormCoachPoseConfirm() {
             Does this look right?
           </h2>
           <p className="pt-0.5 text-[13px] leading-5 text-muted-foreground">
-            {showBestRep && hasReps
+            {showBestRep && collected && hasReps
               ? `Your clearest of ${collected.repCount} rep${collected.repCount === 1 ? "" : "s"} across ${collected.angleCount} angle${collected.angleCount === 1 ? "" : "s"}. Drag to rotate it.`
               : showBestRep
                 ? `No full rep was counted, so this is the clearest tracking instead. You can still send it. Drag to rotate it.`
@@ -230,7 +243,7 @@ export function FormCoachPoseConfirm() {
                 </Suspense>
                 <div className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 backdrop-blur-md">
                   <span className="text-[12px] font-medium text-white tabular-nums">
-                    {showBestRep && hasReps
+                    {showBestRep && collected && hasReps
                       ? `${collected.repCount} rep${collected.repCount === 1 ? "" : "s"}`
                       : `${Math.round((showBestRep ? 1 : rate) * 100)}% tracked`}
                   </span>
@@ -285,7 +298,14 @@ export function FormCoachPoseConfirm() {
           {frames.length > 0 && (
             <div className="pt-3">
               <div className="flex items-center justify-between pb-1">
-                <p className="text-[13px] font-semibold">Straighten</p>
+                <p className="text-[13px] font-semibold">
+                  Straighten
+                  {measured && (
+                    <span className="pl-1.5 text-[12px] font-normal text-muted-foreground">
+                      auto
+                    </span>
+                  )}
+                </p>
                 <button
                   type="button"
                   onClick={() => {

@@ -114,6 +114,7 @@ export async function deleteUserDataBatch(
     ["healthProfiles", "by_userId"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
+    ["momentEvents", "by_userId"],
     ["foodLogs", "by_userId_date"],
     ["waterLogs", "by_userId_date"],
     ["supplementLogs", "by_userId_date"],

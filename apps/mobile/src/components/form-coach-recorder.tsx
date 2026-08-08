@@ -11,6 +11,12 @@ import { toast } from "@repo/ui"
 import { hapticHeavy, hapticTap } from "@/lib/haptics"
 import { useFormCoachSupport } from "@/lib/form-coach"
 import {
+  emaGravity,
+  gravityToOrientation,
+  normalizeEventGravity,
+  type GravityVector,
+} from "@/lib/device-gravity"
+import {
   MAX_FORM_COACH_ANGLES,
   addFormCoachClip,
   closeFormCoachRecorder,
@@ -109,6 +115,10 @@ function FormCoachCamera({
   const chunksRef = useRef<Blob[]>([])
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const gravityRef = useRef<GravityVector | null>(null)
+  const motionListenerRef = useRef<((event: DeviceMotionEvent) => void) | null>(
+    null
+  )
 
   const [cameraState, setCameraState] = useState<CameraState>("requesting")
   const [cameraAttempt, setCameraAttempt] = useState(0)
@@ -186,6 +196,52 @@ function FormCoachCamera({
     }
   }, [cameraAttempt, facingMode, startCamera])
 
+  // ── Camera tilt from gravity ──────────────────────────────────────────────
+
+  const stopMotion = useCallback(() => {
+    if (motionListenerRef.current) {
+      window.removeEventListener("devicemotion", motionListenerRef.current)
+      motionListenerRef.current = null
+    }
+  }, [])
+
+  /**
+   * Low-passes gravity while the take records, to seed the Straighten sliders
+   * later. Best effort throughout: no sensor, no permission, or a rejection
+   * all mean the sliders start at zero, exactly as before this existed.
+   *
+   * Called synchronously from the record button so the iOS 13+
+   * `DeviceMotionEvent.requestPermission` prompt still counts as being inside
+   * a user gesture — nothing before the request may await.
+   */
+  const startMotion = useCallback(async () => {
+    try {
+      if (typeof DeviceMotionEvent === "undefined") return
+      const { requestPermission } = DeviceMotionEvent as unknown as {
+        requestPermission?: () => Promise<string>
+      }
+      if (
+        typeof requestPermission === "function" &&
+        (await requestPermission()) !== "granted"
+      )
+        return
+      if (motionListenerRef.current) return
+      gravityRef.current = null
+      const onMotion = (event: DeviceMotionEvent) => {
+        const gravity = normalizeEventGravity(
+          event.accelerationIncludingGravity,
+          Capacitor.getPlatform()
+        )
+        if (!gravity) return
+        gravityRef.current = emaGravity(gravityRef.current, gravity)
+      }
+      motionListenerRef.current = onMotion
+      window.addEventListener("devicemotion", onMotion)
+    } catch {
+      // Denied or broken. The sliders still exist; nothing to say about it.
+    }
+  }, [])
+
   // Recording keeps running if the app is backgrounded mid-take, which would
   // produce a clip the user never saw being filmed. Stop instead.
   useEffect(() => {
@@ -205,8 +261,9 @@ function FormCoachCamera({
       if (stopTimerRef.current) clearTimeout(stopTimerRef.current)
       if (tickRef.current) clearInterval(tickRef.current)
       if (recorderRef.current?.state === "recording") recorderRef.current.stop()
+      stopMotion()
     }
-  }, [])
+  }, [stopMotion])
 
   // ── Recording ─────────────────────────────────────────────────────────────
 
@@ -232,6 +289,12 @@ function FormCoachCamera({
     }
 
     const startedAt = Date.now()
+    // The camera in use and the interface orientation, pinned at record start —
+    // both are frozen while a take runs (the flip button is disabled), and the
+    // gravity mapping depends on them.
+    const facing = facingMode
+    const screenOrientation =
+      window.screen?.orientation?.type ?? "portrait-primary"
     chunksRef.current = []
     recorderRef.current = recorder
     recorder.ondataavailable = (event) => {
@@ -242,6 +305,9 @@ function FormCoachCamera({
         clearInterval(tickRef.current)
         tickRef.current = null
       }
+      stopMotion()
+      const gravity = gravityRef.current
+      gravityRef.current = null
       recorderRef.current = null
       const blob = new Blob(chunksRef.current, {
         type: mimeType ?? "video/webm",
@@ -257,24 +323,31 @@ function FormCoachCamera({
         return
       }
       void hapticTap()
+      const orientation = gravity
+        ? gravityToOrientation(gravity, facing, screenOrientation)
+        : null
       // Adding the clip closes the camera and reveals the review sheet over the
       // workout, which never left the screen underneath.
       addFormCoachClip({
         kind: "video",
         blob,
         durationMs: Date.now() - startedAt,
+        ...(orientation ? { orientation } : {}),
       })
     }
 
     setElapsed(0)
     setPhase("recording")
     void hapticHeavy()
+    // Before any await can intervene: the iOS motion-permission prompt must
+    // trace back to this button press.
+    void startMotion()
     recorder.start()
     tickRef.current = setInterval(() => {
       setElapsed(Date.now() - startedAt)
     }, 100)
     stopTimerRef.current = setTimeout(stopRecording, MAX_DURATION_MS)
-  }, [canRecord, stopRecording])
+  }, [canRecord, facingMode, startMotion, stopMotion, stopRecording])
 
   const close = useCallback(() => {
     stopRecording()

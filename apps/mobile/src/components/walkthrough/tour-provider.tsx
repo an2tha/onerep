@@ -38,6 +38,7 @@ import {
 } from "@/lib/navigation"
 import { hapticMedium, hapticTap } from "@/lib/haptics"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { useSuppressFullScreenEvents } from "@/lib/full-screen-events"
 import { useCarbDisplayMode } from "@/lib/use-carb-display"
 import { TourAnchorContext, TourApiContext, type TourApi } from "./tour-context"
 
@@ -114,6 +115,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setGuidedTooltipsSuppressed(Boolean(tour))
     return () => setGuidedTooltipsSuppressed(false)
   }, [tour])
+
+  // Same claim, one layer up: a full-screen moment landing mid-walkthrough
+  // would cover the thing the walkthrough is pointing at.
+  useSuppressFullScreenEvents(Boolean(tour))
 
   // Never measure a rect mid route transition.
   useEffect(() => {

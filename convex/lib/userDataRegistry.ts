@@ -46,6 +46,7 @@ export const userDataRegistry = {
   exercises: "directly_user_owned",
   customExercises: "directly_user_owned",
   dailyCheckIns: "directly_user_owned",
+  momentEvents: "directly_user_owned",
   coachMemories: "directly_user_owned",
   coachCheckIns: "directly_user_owned",
   coachActionEvents: "directly_user_owned",

@@ -22,6 +22,11 @@ import {
   samplePoseAt,
   type SampledPoint,
 } from "@/lib/pose-interpolate"
+import {
+  POSE_CORRECTED_COLOR,
+  POSE_GHOST_COLOR,
+  POSE_PLAIN_COLOR,
+} from "@/lib/pose-colors"
 
 /** How often the scrubber label is told where playback got to. */
 const PROGRESS_INTERVAL_MS = 80
@@ -34,11 +39,6 @@ const PROGRESS_INTERVAL_MS = 80
  * of React state was both choppy to watch and a re-render per frame; this
  * animates at whatever the display runs at (60Hz+) with React uninvolved.
  */
-/** Corrected: green reads as the target, and separates from the white ghost. */
-export const POSE_CORRECTED_COLOR = 0x3ddc84
-export const POSE_PLAIN_COLOR = 0x4da3ff
-export const POSE_GHOST_COLOR = 0xffffff
-
 export function PoseViewer({
   frames,
   ghostFrames,

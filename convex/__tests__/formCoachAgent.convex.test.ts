@@ -1,9 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { convexTest } from "convex-test";
+import schema from "../schema";
+import { internal } from "../_generated/api";
 import {
+  EXERCISE_REFERENCE_INSTRUCTION_CAP,
   buildDigest,
+  buildExerciseReference,
   buildFormCoachTools,
   buildPointCloud,
+  isSaneReferenceMatch,
 } from "../ai/formCoachAgent";
 import {
   LANDMARK,
@@ -11,6 +17,8 @@ import {
   type KinematicFrame,
   type KinematicRep,
 } from "../ai/formCoachKinematics";
+
+const modules = import.meta.glob("../**/*.ts");
 
 const LANDMARK_COUNT = 33;
 
@@ -120,6 +128,215 @@ describe("buildDigest", () => {
     // Generous by design: five phases of both sides beats the tool calls it
     // replaces. Still a fraction of what shipping the reps themselves would be.
     expect(JSON.stringify(buildDigest(capture)).length).toBeLessThan(6000);
+  });
+});
+
+// The reference is the catalog's word on how the movement should be done. It
+// rides in the digest, so these cover its shape, its size, and — because a
+// wrong reference misleads worse than a missing one — when it stays away.
+describe("exerciseReference", () => {
+  const catalogRow = {
+    name: "Barbell Squat",
+    category: "strength",
+    level: "beginner",
+    mechanic: "compound",
+    force: "push",
+    equipment: "barbell",
+    primaryMuscles: ["quadriceps"],
+    secondaryMuscles: ["glutes", "hamstrings"],
+    instructions: ["Set the bar on your traps.", "Squat down.", "Stand up."],
+  };
+
+  test("carries the catalog fields the coach can plan from", () => {
+    const reference = buildExerciseReference(catalogRow);
+    expect(reference).toEqual({
+      name: "Barbell Squat",
+      category: "strength",
+      level: "beginner",
+      mechanic: "compound",
+      force: "push",
+      equipment: "barbell",
+      primaryMuscles: ["quadriceps"],
+      secondaryMuscles: ["glutes", "hamstrings"],
+      instructions: "Set the bar on your traps. Squat down. Stand up.",
+    });
+  });
+
+  test("fields a custom exercise does not have arrive as null", () => {
+    const reference = buildExerciseReference({
+      name: "Yoke Carry",
+      category: "strength",
+      primaryMuscles: [],
+      secondaryMuscles: [],
+      instructions: [],
+    });
+    expect(reference.level).toBeNull();
+    expect(reference.mechanic).toBeNull();
+    expect(reference.force).toBeNull();
+    expect(reference.equipment).toBeNull();
+  });
+
+  test("truncates long instructions at a step boundary, under the cap", () => {
+    const step = "Keep the bar over the middle of the foot. ".repeat(9).trim(); // ~385 chars
+    const steps = Array.from({ length: 8 }, () => step);
+    const reference = buildExerciseReference({
+      ...catalogRow,
+      instructions: steps,
+    });
+    expect(reference.instructions.length).toBeLessThanOrEqual(
+      EXERCISE_REFERENCE_INSTRUCTION_CAP,
+    );
+    // Whole steps only: what survives is an exact prefix-join of the input.
+    expect(reference.instructions).toBe([step, step, step, step].join(" "));
+  });
+
+  test("a single oversized step is sliced rather than dropped to nothing", () => {
+    const reference = buildExerciseReference({
+      ...catalogRow,
+      instructions: ["x".repeat(EXERCISE_REFERENCE_INSTRUCTION_CAP + 500)],
+    });
+    expect(reference.instructions).toHaveLength(
+      EXERCISE_REFERENCE_INSTRUCTION_CAP,
+    );
+  });
+
+  test("rides in the digest when resolved, and is null when it is not", () => {
+    const reference = buildExerciseReference(catalogRow);
+    expect(buildDigest(capture, reference).exerciseReference?.name).toBe(
+      "Barbell Squat",
+    );
+    expect(buildDigest(capture).exerciseReference).toBeNull();
+  });
+
+  test("accepts a hit only when the names or the movement genuinely agree", () => {
+    // Containment after normalisation.
+    expect(isSaneReferenceMatch("Barbell Squat", "squat", "squat")).toBe(true);
+    // Same named movement, different phrasing.
+    expect(
+      isSaneReferenceMatch("Barbell Full Squat", "Front Squat", "squat"),
+    ).toBe(true);
+    // A search hit that shares a word but not a movement.
+    expect(
+      isSaneReferenceMatch("Barbell Curl", "Barbell Squat", "squat"),
+    ).toBe(false);
+    // `general` matches everything, so agreeing on it proves nothing.
+    expect(
+      isSaneReferenceMatch("Cable Fly", "Zercher Carry", "general"),
+    ).toBe(false);
+    expect(isSaneReferenceMatch("", "Squat", "squat")).toBe(false);
+  });
+});
+
+describe("resolveExerciseReference", () => {
+  const seed = {
+    userId: "__global__",
+    exerciseId: "Barbell_Squat",
+    name: "Barbell Squat",
+    category: "strength",
+    level: "beginner",
+    mechanic: "compound",
+    force: "push",
+    equipment: "barbell",
+    primaryMuscles: ["quadriceps"],
+    secondaryMuscles: ["glutes"],
+    instructions: ["Set the bar on your traps.", "Squat down.", "Stand up."],
+  };
+
+  function harness() {
+    const t = convexTest(schema, modules);
+    return t;
+  }
+
+  test("finds the catalog row by the exerciseId the client sends", async () => {
+    const t = harness();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("exercises", seed);
+    });
+    const reference = await t.query(
+      internal.ai.formCoachAgent.resolveExerciseReference,
+      {
+        userId: "user_1",
+        exerciseId: "Barbell_Squat",
+        exerciseName: "Barbell Squat",
+        slug: "squat",
+      },
+    );
+    expect(reference?.name).toBe("Barbell Squat");
+    expect(reference?.instructions).toContain("Squat down.");
+  });
+
+  test("falls back to a name search when the id is not in the catalog", async () => {
+    const t = harness();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("exercises", seed);
+    });
+    const reference = await t.query(
+      internal.ai.formCoachAgent.resolveExerciseReference,
+      {
+        userId: "user_1",
+        exerciseId: "legacy-uuid-1234",
+        exerciseName: "Barbell Squat",
+        slug: "squat",
+      },
+    );
+    expect(reference?.name).toBe("Barbell Squat");
+  });
+
+  test("returns nothing rather than a wrong reference on a weak hit", async () => {
+    const t = harness();
+    await t.run(async (ctx) => {
+      await ctx.db.insert("exercises", {
+        ...seed,
+        exerciseId: "Barbell_Curl",
+        name: "Barbell Curl",
+      });
+    });
+    const reference = await t.query(
+      internal.ai.formCoachAgent.resolveExerciseReference,
+      {
+        userId: "user_1",
+        exerciseId: "unknown-id",
+        exerciseName: "Barbell Squat",
+        slug: "squat",
+      },
+    );
+    expect(reference).toBeNull();
+  });
+
+  test("reads a custom exercise, but only for its owner", async () => {
+    const t = harness();
+    const docId = await t.run(async (ctx) =>
+      ctx.db.insert("customExercises", {
+        userId: "user_1",
+        name: "Yoke Carry",
+        category: "strength",
+        primaryMuscles: ["traps"],
+        secondaryMuscles: [],
+        instructions: ["Stand under the yoke.", "Walk."],
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+    const owned = await t.query(
+      internal.ai.formCoachAgent.resolveExerciseReference,
+      {
+        userId: "user_1",
+        exerciseId: `custom:${docId}`,
+        exerciseName: "Yoke Carry",
+        slug: "general",
+      },
+    );
+    expect(owned?.name).toBe("Yoke Carry");
+    const foreign = await t.query(
+      internal.ai.formCoachAgent.resolveExerciseReference,
+      {
+        userId: "user_2",
+        exerciseId: `custom:${docId}`,
+        exerciseName: "Yoke Carry",
+        slug: "general",
+      },
+    );
+    expect(foreign).toBeNull();
   });
 });
 

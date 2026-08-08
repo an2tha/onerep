@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor } from "@capacitor/core"
 import { useAction, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
+import { trackUmami } from "@/lib/analytics"
 
 /**
  * Billing hook for OneRep Pro, which is sold on the web through Stripe only.
@@ -283,23 +284,30 @@ export function useBilling({ userId }: UseBillingOptions) {
    * control, and the guard here keeps that true even if one is added by
    * mistake.
    */
-  const purchaseMonthly = useCallback(async () => {
-    if (isNative) return null
-    setError(null)
-    setIsBusy(true)
-    try {
-      const { url } = await createCheckout({})
-      window.location.assign(url)
-      return null
-    } catch (cause) {
-      if (mounted.current) {
-        setError(billingErrorMessage(cause, "Could not start checkout"))
+  const purchaseMonthly = useCallback(
+    async (source = "unknown") => {
+      if (isNative) return null
+      setError(null)
+      setIsBusy(true)
+      try {
+        const { url } = await createCheckout({})
+        // Fired before the redirect: once `assign` lands there is no page left
+        // to fire from, and this is the top of the only funnel that earns money.
+        trackUmami("checkout_started", { source })
+        window.location.assign(url)
+        return null
+      } catch (cause) {
+        trackUmami("checkout_start_failed", { source })
+        if (mounted.current) {
+          setError(billingErrorMessage(cause, "Could not start checkout"))
+        }
+        return null
+      } finally {
+        if (mounted.current) setIsBusy(false)
       }
-      return null
-    } finally {
-      if (mounted.current) setIsBusy(false)
-    }
-  }, [createCheckout, isNative])
+    },
+    [createCheckout, isNative]
+  )
 
   /**
    * Hands the user to Stripe's Customer Portal, where cancelling, resuming,
@@ -317,6 +325,7 @@ export function useBilling({ userId }: UseBillingOptions) {
         setError(result.reason)
         return false
       }
+      trackUmami("billing_portal_opened")
       const opened = window.open(result.url, "_blank", "noopener,noreferrer")
       if (!opened) window.location.assign(result.url)
       return true

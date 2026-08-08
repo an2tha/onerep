@@ -5,6 +5,7 @@ import { cn, logDevError } from "@/lib/utils"
 import { hapticMedium, hapticSelection, hapticTap } from "@/lib/haptics"
 import {
   extractFormCoachLandmarks,
+  useUserHeightCm,
   type FormCoachProgress,
 } from "@/lib/form-coach"
 import {
@@ -32,6 +33,8 @@ export function FormCoachReviewSheet() {
   const [analysing, setAnalysing] = useState(false)
   const [progress, setProgress] = useState<FormCoachProgress | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // Sizes the lifted skeleton to the actual person instead of a 170 cm default.
+  const heightCm = useUserHeightCm()
 
   const clips = draft?.clips ?? []
   // Follow the newest angle so a clip recorded from "+" is the one on screen.
@@ -69,6 +72,7 @@ export function FormCoachReviewSheet() {
           exerciseId: draft.exerciseId,
           exerciseName: draft.exerciseName,
           angles,
+          heightCm,
         },
         setProgress
       )
@@ -89,11 +93,11 @@ export function FormCoachReviewSheet() {
 
   const canAddAngle = clips.length < MAX_FORM_COACH_ANGLES
 
+  // No backdrop dismiss: a stray tap outside the panel must not throw away
+  // recorded angles. Discarding is the X button's job, and the pose-confirm
+  // sheet in this same flow behaves the same way.
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={discard}
-    >
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]">
       <div
         role="dialog"
         aria-modal="true"
@@ -102,7 +106,6 @@ export function FormCoachReviewSheet() {
         style={{
           paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-center pt-3">
           <div className="h-1 w-10 rounded-full bg-foreground/[0.10]" />

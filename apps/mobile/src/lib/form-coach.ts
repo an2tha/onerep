@@ -72,6 +72,19 @@ export function useFormCoachSupport(
   )
 }
 
+/**
+ * The lifter's height in centimetres, or undefined while the profile queries
+ * load or when neither profile has one. Same precedence as onboarding: the
+ * health profile wins, onboarding answers fill in behind it. The 170 cm
+ * fallback lives in the pose provider, not here, so a still-loading profile
+ * and a genuinely absent one degrade identically.
+ */
+export function useUserHeightCm(): number | undefined {
+  const healthProfile = useQuery(api.logs.calories.getProfile, {})
+  const onboardingProfile = useQuery(api.users.onboarding.get, {})
+  return healthProfile?.heightCm ?? onboardingProfile?.heightCm ?? undefined
+}
+
 export type FormCoachAngleKind = "video" | "image"
 
 /** One recorded or uploaded angle, ready to send. */
@@ -93,6 +106,11 @@ export type FormCoachSubmission = {
   exerciseId: string
   exerciseName: string
   angles: FormCoachAngle[]
+  /**
+   * The lifter's height, when the profile knows it. Sets the absolute scale of
+   * the lifted skeleton; absent means the provider assumes 170 cm.
+   */
+  heightCm?: number
 }
 
 /**
@@ -157,6 +175,12 @@ export const MAX_COACH_STILLS = 5
  * provider — `pose-joints.ts` is where the current one does it, and the slots it
  * cannot fill are declared in `IGNORED_POSE_LANDMARKS`.
  */
+/** What a provider may know about the person it is measuring. All optional. */
+export type PoseEstimateOptions = {
+  /** Lifter's height, for the metric scale. Absent means a 170 cm default. */
+  heightCm?: number
+}
+
 export type PoseProvider = {
   /** Named in logs, so a capture can be traced back to what produced it. */
   readonly id: string
@@ -178,7 +202,8 @@ export type PoseProvider = {
    */
   estimateAngle(
     angle: FormCoachAngle,
-    onFraction?: (fraction: number) => void
+    onFraction?: (fraction: number) => void,
+    options?: PoseEstimateOptions
   ): Promise<FormCoachAngleLandmarks>
   /** Releases models and other held resources. */
   dispose?(): Promise<void> | void
@@ -289,11 +314,14 @@ export async function extractFormCoachLandmarks(
   for (const angle of submission.angles) {
     const started = performance.now()
     const weight = formCoachAngleWeight(angle)
-    const result = await pose.estimateAngle(angle, (fraction) =>
-      onProgress?.({
-        stage: "reading",
-        value: (doneWeight + fraction * weight) / totalWeight,
-      })
+    const result = await pose.estimateAngle(
+      angle,
+      (fraction) =>
+        onProgress?.({
+          stage: "reading",
+          value: (doneWeight + fraction * weight) / totalWeight,
+        }),
+      { heightCm: submission.heightCm }
     )
     doneWeight += weight
     onProgress?.({
@@ -314,21 +342,13 @@ export async function extractFormCoachLandmarks(
     console.log(
       `[form-coach] angle ${angle.index} (${angle.kind}): ${result.frames.length} frame(s) at ${rate} in ${Math.round(performance.now() - started)}ms`
     )
-    for (const frame of result.frames) {
-      console.log(
-        `[form-coach] angle ${angle.index} @ ${frame.timeMs}ms —`,
-        frame.landmarks.length === 0 ? "no pose detected" : frame.landmarks
-      )
-    }
     results.push(result)
   }
 
   // Every frame is estimated independently, so the raw output shakes even when
   // the lifter is still. Smoothing here means the 3D preview and whatever the
   // coach eventually scores both read the same clean motion.
-  const smoothed = smoothFormCoachLandmarks(results)
-  console.log("[form-coach] landmarks (smoothed)", smoothed)
-  return smoothed
+  return smoothFormCoachLandmarks(results)
 }
 
 /** Coordinates rounded to the millimetre — well past what the model resolves. */

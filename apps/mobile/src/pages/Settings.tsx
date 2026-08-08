@@ -67,6 +67,7 @@ import {
 import { toast } from "@repo/ui"
 import { useTheme } from "@repo/ui"
 import posthog from "posthog-js"
+import { trackUmami } from "@/lib/analytics"
 import { convexClient } from "@/lib/convex"
 import {
   authClient,
@@ -123,6 +124,8 @@ import {
 } from "@/lib/pwa-install"
 import { billingErrorMessage, hasOneRepPro, useBilling } from "@/lib/billing"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { useMomentPreview } from "@/lib/full-screen-events"
+import { MOMENT_IDS, type MomentId } from "@/lib/moments"
 import {
   CompactSwitch,
   AiUsageProgress,
@@ -307,9 +310,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     api.users.users.setWorkoutAdjustment,
     "users.users.setWorkoutAdjustment"
   )
-  const setLiveWorkoutStatus = useMutation(
-    api.users.users.setLiveWorkoutStatus
-  )
+  const setLiveWorkoutStatus = useMutation(api.users.users.setLiveWorkoutStatus)
   const setPushReminders = useOfflineMutation(
     api.users.users.setPushReminders,
     "users.users.setPushReminders"
@@ -320,6 +321,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   )
   const clearOnboarding = useMutation(api.users.onboarding.clear)
   const resetShownTooltips = useMutation(api.users.tooltips.resetShownTooltips)
+  const clearMomentHistory = useMutation(api.users.moments.clearHistory)
+  const { startPreview } = useMomentPreview()
   const tour = useTour()
   const deleteMyDataBatch = useMutation(api.users.users.deleteMyDataBatch)
 
@@ -394,6 +397,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [resettingOnboarding, setResettingOnboarding] = useState(false)
   const [refreshingTooltips, setRefreshingTooltips] = useState(false)
   const [testingNotification, setTestingNotification] = useState(false)
+  const [clearingMoments, setClearingMoments] = useState(false)
   const [activeView, setActiveView] = useState<SettingsView>("overview")
   const [hapticsOn, setHapticsOn] = useState(() => {
     if (typeof window === "undefined") return true
@@ -438,9 +442,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         // Clear first so React Strict Mode cannot celebrate the same redirect
         // twice when it remounts effects during development.
         clearCheckoutResultHash()
+        trackUmami("checkout_completed")
         celebrateSubscription()
         toast.success("Welcome to OneRep Pro")
       } else if (checkoutResult === "failed") {
+        trackUmami("checkout_abandoned")
         setCheckoutFailed(true)
       }
     }
@@ -671,6 +677,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       })
 
       safeLocalStorageSet("onerep:analytics-enabled", String(analyticsEnabled))
+      // Fired before the opt-out so the last thing PostHog hears is the reason
+      // it is going quiet. Umami takes it either way — it is anonymous.
+      trackUmami("privacy_settings_saved", {
+        analytics: analyticsEnabled,
+        personalized_insights: personalizedInsightsEnabled,
+      })
       if (analyticsEnabled) posthog.opt_in_capturing()
       else posthog.opt_out_capturing()
     }, "Privacy settings saved")
@@ -707,6 +719,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       clearOfflineQueue()
       await signOutApp()
       safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
+      trackUmami("user_signed_out")
       posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
@@ -752,6 +765,36 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       )
     } finally {
       setRefreshingTooltips(false)
+    }
+  }
+
+  /**
+   * Opens a moment over the top of Settings with its trigger bypassed. It
+   * reads the real account data, so what you see is what that user would get;
+   * it writes nothing, so previewing it here does not cost the real one.
+   */
+  function handlePreviewMoment(id: MomentId) {
+    hapticTap()
+    startPreview(id)
+  }
+
+  async function handleClearMomentHistory() {
+    if (clearingMoments) return
+    hapticTap()
+    setClearingMoments(true)
+    try {
+      const { cleared } = await clearMomentHistory({})
+      toast.success(
+        cleared === 0
+          ? "Nothing to forget"
+          : `Forgot ${cleared} shown moment${cleared === 1 ? "" : "s"}`
+      )
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not clear moments"
+      )
+    } finally {
+      setClearingMoments(false)
     }
   }
 
@@ -960,6 +1003,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       clearOfflineQueue()
       await signOutApp().catch(() => undefined)
 
+      trackUmami("account_deleted")
       posthog.reset()
       navigate("/login", { replace: true })
     } catch (error) {
@@ -1786,11 +1830,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                                 }
                                 if (!authorization.granted) {
                                   setHealthError(
-                                    
                                     healthProvider() === "health_connect"
                                       ? "Permission was denied. You can grant it in the Health Connect app."
                                       : "Permission was denied. Enable OneRep under Settings › Health › Data Access & Devices."
-                                  
                                   )
                                   return
                                 }
@@ -2331,6 +2373,39 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     }}
                   />
                 </GroupedList>
+
+                <SettingsSectionIntro>
+                  Full-screen moments, opened by hand. They read your real
+                  history and record nothing, so a preview never uses up the
+                  real one.
+                </SettingsSectionIntro>
+                <GroupedList label="Full-screen moments">
+                  <ListRow
+                    title="Show the missed-log nudge"
+                    detail="The check-in for a day that went unlogged"
+                    onClick={() => handlePreviewMoment(MOMENT_IDS.missedLog)}
+                  />
+                  <ListRow
+                    title="Show the training-lapse nudge"
+                    detail="The check-in for a stretch of days off"
+                    onClick={() =>
+                      handlePreviewMoment(MOMENT_IDS.trainingLapse)
+                    }
+                  />
+                  <ListRow
+                    title="Show the weekly report"
+                    detail="The week that most recently closed, whatever is in it"
+                    onClick={() => handlePreviewMoment(MOMENT_IDS.weeklyReport)}
+                  />
+                  <ListRow
+                    title={
+                      clearingMoments ? "Forgetting…" : "Forget shown moments"
+                    }
+                    detail="Clear the record so the real triggers can fire again"
+                    disabled={clearingMoments}
+                    onClick={() => void handleClearMomentHistory()}
+                  />
+                </GroupedList>
               </>
             )}
           </div>
@@ -2592,11 +2667,14 @@ function BillingSubscriptionPanel({
                 onClick={() => {
                   if (active) {
                     if (complimentary) return
+                    trackUmami("subscription_cancel_intent")
                     hapticTap()
                     setConfirmCancel(true)
                     return
                   }
-                  void runBillingAction("purchase", billing.purchaseMonthly)
+                  void runBillingAction("purchase", () =>
+                    billing.purchaseMonthly("settings")
+                  )
                 }}
                 className={cn(
                   "profile-pro-primary-action",

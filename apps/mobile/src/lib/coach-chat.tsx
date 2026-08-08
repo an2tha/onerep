@@ -505,7 +505,7 @@ export type CoachUiBlock =
       frames: CoachPoseFrame[]
       /** Joint targets, applied to `frames` to draw the corrected body. */
       corrections?: Array<{
-        joint: "knee" | "hip" | "ankle" | "elbow" | "shoulder"
+        joint: "knee" | "hip" | "elbow" | "shoulder"
         side: "left" | "right" | "both"
         phase: string
         targetDegrees: number

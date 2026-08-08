@@ -36,7 +36,7 @@ function chipLabels(dateKey: string) {
   }
 }
 
-function fullDateLabel(dateKey: string, todayKey: string) {
+export function fullDateLabel(dateKey: string, todayKey: string) {
   if (dateKey === todayKey) return "Today"
   if (dateKey === offsetDateKey(todayKey, -1)) return "Yesterday"
   return new Date(`${dateKey}T12:00:00`).toLocaleDateString(undefined, {
@@ -44,6 +44,70 @@ function fullDateLabel(dateKey: string, todayKey: string) {
     month: "long",
     day: "numeric",
   })
+}
+
+/**
+ * The horizontal run of recent days, newest first.
+ *
+ * Exported because the check-in moment asks the same question from a full
+ * screen instead of a sheet, and two strips that drift apart is two strips
+ * too many.
+ */
+export function DayStrip({
+  todayKey,
+  value,
+  onChange,
+  days = DAY_CHOICES,
+  className,
+}: {
+  todayKey: string
+  value: string
+  onChange: (date: string) => void
+  days?: number
+  className?: string
+}) {
+  const dayKeys = useMemo(
+    () =>
+      Array.from({ length: days }, (_, index) =>
+        offsetDateKey(todayKey, -index)
+      ),
+    [days, todayKey]
+  )
+
+  return (
+    <div
+      className={cn("flex gap-1.5 overflow-x-auto", className)}
+      style={{ scrollbarWidth: "none" }}
+    >
+      {dayKeys.map((dayKey) => {
+        const { weekday, day } = chipLabels(dayKey)
+        const selected = dayKey === value
+        return (
+          <button
+            key={dayKey}
+            type="button"
+            aria-pressed={selected}
+            aria-label={fullDateLabel(dayKey, todayKey)}
+            onClick={() => {
+              hapticSelection()
+              onChange(dayKey)
+            }}
+            className={cn(
+              "motion-tactile flex h-[58px] w-[46px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[16px] transition-colors",
+              selected
+                ? "bg-foreground text-background"
+                : "bg-muted/40 text-muted-foreground active:bg-muted/70"
+            )}
+          >
+            <span className="text-[11px] font-medium">{weekday}</span>
+            <span className="text-[16px] leading-none font-semibold tabular-nums">
+              {day}
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
 /**
@@ -70,14 +134,6 @@ export function LogPastWorkoutSheet({
 }) {
   const [date, setDate] = useState(initialDate)
   const [step, setStep] = useState<"choose" | "preset">("choose")
-
-  const days = useMemo(
-    () =>
-      Array.from({ length: DAY_CHOICES }, (_, index) =>
-        offsetDateKey(todayKey, -index)
-      ),
-    [todayKey]
-  )
 
   return (
     <MobileSheet
@@ -121,38 +177,12 @@ export function LogPastWorkoutSheet({
 
       {step === "choose" ? (
         <>
-          <div
-            className="flex gap-1.5 overflow-x-auto px-5 pb-1.5"
-            style={{ scrollbarWidth: "none" }}
-          >
-            {days.map((dayKey) => {
-              const { weekday, day } = chipLabels(dayKey)
-              const selected = dayKey === date
-              return (
-                <button
-                  key={dayKey}
-                  type="button"
-                  aria-pressed={selected}
-                  aria-label={fullDateLabel(dayKey, todayKey)}
-                  onClick={() => {
-                    hapticSelection()
-                    setDate(dayKey)
-                  }}
-                  className={cn(
-                    "motion-tactile flex h-[58px] w-[46px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[16px] transition-colors",
-                    selected
-                      ? "bg-foreground text-background"
-                      : "bg-muted/40 text-muted-foreground active:bg-muted/70"
-                  )}
-                >
-                  <span className="text-[11px] font-medium">{weekday}</span>
-                  <span className="text-[16px] leading-none font-semibold tabular-nums">
-                    {day}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+          <DayStrip
+            todayKey={todayKey}
+            value={date}
+            onChange={setDate}
+            className="px-5 pb-1.5"
+          />
           <p className="px-5 pt-2 text-[13px] text-muted-foreground">
             {fullDateLabel(date, todayKey)}
           </p>

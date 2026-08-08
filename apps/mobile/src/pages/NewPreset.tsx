@@ -1456,7 +1456,7 @@ export default function NewPreset() {
   }
 
   async function handleGenerateFromText(text: string, mode: AgentPresetMode) {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "preset_from_text")) return
     if (!text.trim()) return
     if (generatingPresetRef.current || generatingPreset) return
 
@@ -2085,7 +2085,7 @@ export default function NewPreset() {
           {items.length === 0 && (
             <button
               onClick={() => {
-                if (requireAiAccess()) setPasteOpen(true)
+                if (requireAiAccess(1, "preset_paste")) setPasteOpen(true)
               }}
               disabled={loadingPreset || generatingPreset}
               aria-busy={generatingPreset}

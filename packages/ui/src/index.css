@@ -7161,3 +7161,81 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     transition: none !important;
   }
 }
+
+/* ── Full-screen moments ──────────────────────────────────────────────────
+   The layer the app takes over the whole screen with: the daily nudge, the
+   week in review. Above sheets, below toasts — an error about a failed save
+   still has to reach the user while one of these is open. */
+.moment-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  animation: moment-in var(--motion-panel, 340ms)
+    var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+
+.moment-screen {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: calc(var(--app-safe-top) + 0.5rem) var(--app-page-x, 1.25rem)
+    calc(var(--app-safe-bottom, 1rem) + 1rem);
+}
+
+.moment-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: moment-content-in 420ms
+    var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)) 90ms both;
+}
+
+.moment-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 1rem;
+}
+
+@keyframes moment-in {
+  from {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes moment-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (min-width: 640px) {
+  .moment-screen {
+    margin: 0 auto;
+    width: 100%;
+    max-width: 30rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment-layer,
+  .moment-body {
+    animation: none;
+  }
+}

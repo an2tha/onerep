@@ -1808,7 +1808,7 @@ export default function Nutrition() {
     }
 
     if (searchParams.get("describe") === "1") {
-      if (requireAiAccess()) {
+      if (requireAiAccess(1, "describe_meal")) {
         setAddOpen(false)
         setDescribeOpen(true)
       }
@@ -1897,19 +1897,19 @@ export default function Nutrition() {
   }
 
   function openSnapCamera() {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "snap_camera")) return
     setAddOpen(false)
     navigate("/camera")
   }
 
   function openDescribeMeal() {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "describe_meal")) return
     setAddOpen(false)
     setDescribeOpen(true)
   }
 
   async function handleDescribeMeal(text: string) {
-    if (describeBusy || !requireAiAccess()) return
+    if (describeBusy || !requireAiAccess(1, "describe_meal")) return
     setDescribeBusy(true)
     try {
       const result = (await convexClient.action(api.logs.snap.describeText, {
@@ -2141,7 +2141,7 @@ export default function Nutrition() {
           key={label}
           type="button"
           onClick={() => {
-            if (requiresAiAccess && !requireAiAccess()) return
+            if (requiresAiAccess && !requireAiAccess(1, "nutrition_action")) return
             action()
           }}
           className="app-button app-button-quiet min-h-18 flex-col gap-1.5 px-1"
@@ -3127,7 +3127,7 @@ export default function Nutrition() {
                     key={label}
                     type="button"
                     onClick={() => {
-                      if (requiresAiAccess && !requireAiAccess()) return
+                      if (requiresAiAccess && !requireAiAccess(1, "nutrition_action")) return
                       setAddOpen(false)
                       action()
                     }}

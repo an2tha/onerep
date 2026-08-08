@@ -23,16 +23,14 @@ export type PoseSmoothingOptions = {
 }
 
 /**
- * Tuned against a synthetic 2s squat sampled at 5fps with ±2cm of noise, which
- * is the shape of the real pipeline. At these values a stationary joint's
- * frame-to-frame shake drops ~61%, while the bottom of the rep lands within
- * ~5mm of the true depth — the measurement that actually decides whether a
- * squat gets called shallow.
+ * Tuned against a synthetic 2s squat with ±2cm of noise, which is the shape of
+ * the real pipeline — clips are sampled at 12fps (`SAMPLE_FPS` in clip-decode).
+ * At these values a stationary joint's frame-to-frame shake drops ~61%, while
+ * the bottom of the rep lands within ~5mm of the true depth — the measurement
+ * that actually decides whether a squat gets called shallow.
  *
  * `beta` is high because lag matters more than polish here: the filter is only
- * allowed to smooth hard while a joint is genuinely still. It had to rise from
- * 2.5 to 6 when sampling dropped from 10fps to 5fps — at 200ms between samples,
- * the same smoothing costs twice as much lag through the fast part of a rep.
+ * allowed to smooth hard while a joint is genuinely still.
  */
 export const DEFAULT_POSE_SMOOTHING: PoseSmoothingOptions = {
   minCutoff: 0.5,
@@ -124,11 +122,19 @@ function smoothSeries<T extends Pointish>(
 ): T[][] {
   const filters = new Map<number, OneEuroPoint>()
   let lastTimeMs: number | null = null
+  // Before there is a previous timestamp, dt comes from the series' own
+  // spacing; clips are sampled at 12fps (`SAMPLE_FPS` in clip-decode), which is
+  // also the fallback for a series too short to measure.
+  const gapSeconds =
+    series.length > 1 ? (series[1].timeMs - series[0].timeMs) / 1000 : 0
+  const firstDtSeconds = gapSeconds > 0 ? gapSeconds : 1 / 12
 
   return series.map(({ timeMs, points }) => {
     if (points.length === 0) return []
     const dtSeconds =
-      lastTimeMs === null ? 1 / 30 : Math.max(timeMs - lastTimeMs, 0) / 1000
+      lastTimeMs === null
+        ? firstDtSeconds
+        : Math.max(timeMs - lastTimeMs, 0) / 1000
     lastTimeMs = timeMs
 
     return points.map((point, index) => {

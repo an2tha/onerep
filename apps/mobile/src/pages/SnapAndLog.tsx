@@ -127,7 +127,7 @@ export default function SnapAndLog() {
 
   useEffect(() => {
     if (mode === "snap" && !aiAccessLoading && !hasAiAccess) {
-      requireAiAccess()
+      requireAiAccess(1, "snap_camera")
     }
   }, [mode, aiAccessLoading, hasAiAccess, requireAiAccess])
 
@@ -327,7 +327,7 @@ export default function SnapAndLog() {
   }
 
   async function processSnapBlob(blob: Blob) {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "snap_process")) return
 
     setSnapPhase("uploading")
     try {
@@ -416,7 +416,7 @@ export default function SnapAndLog() {
     )
       return
 
-    if (mode === "snap" && !requireAiAccess()) return
+    if (mode === "snap" && !requireAiAccess(1, "snap_capture")) return
     void hapticMedium()
     setFired(true)
     setTimeout(() => setFired(false), 500)
@@ -542,7 +542,7 @@ export default function SnapAndLog() {
   // ── Mode switch reset ─────────────────────────────────────────────────────
 
   function switchMode(m: ScreenMode) {
-    if (m === "snap" && !requireAiAccess()) return
+    if (m === "snap" && !requireAiAccess(1, "snap_camera")) return
 
     setMode(m)
     setSnapPhase("idle")

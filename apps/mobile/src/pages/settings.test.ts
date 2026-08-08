@@ -683,7 +683,8 @@ describe("AI subscription hint", () => {
     // The gate must not block a non-Pro user who can still afford the request.
     // `cost` defaults to 1, so this is the old "any left" check for every
     // feature except form analysis, which spends more than one.
-    assert.match(AI_ACCESS_SOURCE, /\(cost = 1\)/)
+    // The second argument only labels the event fired when the gate closes.
+    assert.match(AI_ACCESS_SOURCE, /\(cost = 1, feature = "unknown"\)/)
     assert.match(
       AI_ACCESS_SOURCE,
       /if \(freeRequestsLeft >= cost\) return true/

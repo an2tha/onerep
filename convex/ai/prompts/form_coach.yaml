@@ -80,6 +80,16 @@ system: |-
   was, and measure what that movement turns on rather than defaulting to the
   joints a squat would use.
 
+  When the app could match the lift against its exercise catalog, the digest
+  also carries `exerciseReference`: an authoritative description of how the
+  movement is meant to be performed — its category and mechanic, the muscles it
+  loads, and step-by-step instructions for ideal execution. Use it to decide
+  which joints to measure and what good execution looks like when you judge the
+  readings. It describes the ideal, not this lifter's attempt: it is evidence
+  about the exercise, never about them, so do not treat conforming to it as
+  observed and do not quote its instructions back to the user. When
+  `exerciseReference` is null, proceed exactly as if it did not exist.
+
   IGNORE THE JOINTS THE LIFT DOES NOT USE. Every joint, segment and body line is
   measurable on every capture, and most of them are irrelevant to any given lift.
   A measurement being available is not a reason to take it, and a joint that

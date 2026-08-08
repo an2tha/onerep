@@ -21,6 +21,11 @@ import {
   type AgentToolCall,
 } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
+import { matchFormCoachExercise } from "./formCoach";
+import {
+  customExerciseDocId,
+  isCustomExerciseId,
+} from "../lib/exerciseShape";
 import { consumeAiUsageOrThrow } from "./usage";
 import { claimRateLimit } from "../lib/rateLimits";
 import {
@@ -576,6 +581,163 @@ function captureWarnings(capture: FormCoachCapture) {
   return warnings;
 }
 
+// ── Exercise reference ───────────────────────────────────────────────────────
+
+/**
+ * Hard cap on the instruction prose carried into the prompt. The catalog's
+ * longest entry runs past 3,000 characters, and the tail of a long entry is
+ * finishing detail, not the movement.
+ */
+export const EXERCISE_REFERENCE_INSTRUCTION_CAP = 1_600;
+
+/** How the catalog says the movement is performed, sized for a prompt. */
+export type ExerciseReference = {
+  name: string;
+  category: string;
+  level: string | null;
+  mechanic: string | null;
+  force: string | null;
+  equipment: string | null;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  /** The numbered steps joined into prose, cut at a step boundary. */
+  instructions: string;
+};
+
+/** The catalog fields a reference is derived from; custom rows lack some. */
+type ExerciseReferenceSource = {
+  name: string;
+  category: string;
+  level?: string;
+  mechanic?: string;
+  force?: string;
+  equipment?: string;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  instructions: string[];
+};
+
+/**
+ * Joins instruction steps up to the cap, dropping whole steps rather than
+ * cutting mid-sentence. A first step that is alone over the cap — nothing in
+ * the catalog is, but nothing stops a custom exercise being — is sliced, since
+ * an empty reference would be worse than a shortened one.
+ */
+function capInstructions(steps: string[]): string {
+  let joined = "";
+  for (const step of steps) {
+    const trimmed = step.trim();
+    if (!trimmed) continue;
+    const next = joined ? `${joined} ${trimmed}` : trimmed;
+    if (next.length > EXERCISE_REFERENCE_INSTRUCTION_CAP) break;
+    joined = next;
+  }
+  if (!joined) {
+    joined = (steps[0] ?? "").trim().slice(0, EXERCISE_REFERENCE_INSTRUCTION_CAP);
+  }
+  return joined;
+}
+
+export function buildExerciseReference(
+  source: ExerciseReferenceSource,
+): ExerciseReference {
+  return {
+    name: source.name,
+    category: source.category,
+    level: source.level ?? null,
+    mechanic: source.mechanic ?? null,
+    force: source.force ?? null,
+    equipment: source.equipment ?? null,
+    primaryMuscles: source.primaryMuscles,
+    secondaryMuscles: source.secondaryMuscles,
+    instructions: capInstructions(source.instructions),
+  };
+}
+
+function normalizeExerciseName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Whether a full-text hit is close enough to hand the model as the reference.
+ *
+ * A wrong reference is worse than none — it would tell the coach to judge a
+ * row against squat instructions — so this errs towards nothing: the names
+ * must contain one another once normalised, or both must resolve to the same
+ * *named* form-coach movement. The `general` fallback matches everything, so
+ * agreement on it means nothing and is not accepted.
+ */
+export function isSaneReferenceMatch(
+  candidateName: string,
+  recordedName: string,
+  recordedSlug: string,
+): boolean {
+  const candidate = normalizeExerciseName(candidateName);
+  const recorded = normalizeExerciseName(recordedName);
+  if (!candidate || !recorded) return false;
+  if (candidate.includes(recorded) || recorded.includes(candidate)) return true;
+  const matched = matchFormCoachExercise(candidateName).slug;
+  return matched !== "general" && matched === recordedSlug;
+}
+
+const GLOBAL_EXERCISE_USER_ID = "__global__";
+
+/**
+ * Resolves the recorded exercise to a catalog (or custom) row and returns it
+ * reference-shaped, or null when nothing matches well enough to trust.
+ *
+ * The client sends the catalog `exerciseId` (e.g. "Barbell_Squat") for bundled
+ * exercises and a `custom:<docId>` id for the user's own, so the exact lookups
+ * come first and the name search is only the fallback for ids the catalog no
+ * longer carries.
+ */
+export const resolveExerciseReference = internalQuery({
+  args: {
+    userId: v.string(),
+    exerciseId: v.string(),
+    exerciseName: v.string(),
+    slug: v.string(),
+  },
+  handler: async (ctx, args): Promise<ExerciseReference | null> => {
+    if (isCustomExerciseId(args.exerciseId)) {
+      const docId = ctx.db.normalizeId(
+        "customExercises",
+        customExerciseDocId(args.exerciseId),
+      );
+      if (!docId) return null;
+      const doc = await ctx.db.get(docId);
+      if (!doc || doc.userId !== args.userId) return null;
+      return buildExerciseReference(doc);
+    }
+
+    const exact = await ctx.db
+      .query("exercises")
+      .withIndex("by_userId_and_exerciseId", (q) =>
+        q
+          .eq("userId", GLOBAL_EXERCISE_USER_ID)
+          .eq("exerciseId", args.exerciseId),
+      )
+      .first();
+    if (exact) return buildExerciseReference(exact);
+
+    const searchText = args.exerciseName.trim();
+    if (!searchText) return null;
+    const hit = await ctx.db
+      .query("exercises")
+      .withSearchIndex("search_name", (q) =>
+        q.search("name", searchText).eq("userId", GLOBAL_EXERCISE_USER_ID),
+      )
+      .first();
+    if (!hit || !isSaneReferenceMatch(hit.name, args.exerciseName, args.slug)) {
+      return null;
+    }
+    return buildExerciseReference(hit);
+  },
+});
+
 /**
  * The brief the model gets before it decides what to measure.
  *
@@ -586,7 +748,10 @@ function captureWarnings(capture: FormCoachCapture) {
  * arbitrary landmark pairs, per-rep breakdowns of a specific fault — is what the
  * tools are for.
  */
-export function buildDigest(capture: FormCoachCapture) {
+export function buildDigest(
+  capture: FormCoachCapture,
+  exerciseReference: ExerciseReference | null = null,
+) {
   const reps = capture.reps;
   const spread = (read: (frame: KinematicFrame) => number | null, phase: Phase) =>
     report(atPhase(reps, phase, read));
@@ -625,6 +790,12 @@ export function buildDigest(capture: FormCoachCapture) {
   return {
     exercise: capture.exerciseName,
     slug: capture.slug,
+    /**
+     * How the movement is meant to be performed, from the exercise catalog.
+     * Null when the recorded exercise could not be matched to a row it would
+     * be safe to hand over — a wrong reference misleads worse than none.
+     */
+    exerciseReference,
     reps: capture.repCount,
     angles: capture.angles.map((angle) => ({
       index: angle.index,
@@ -1077,10 +1248,28 @@ export const analyse = action({
     // snap action counts one credit for its two provider calls.
     await consumeAiUsageOrThrow(ctx, user._id, "form_coach");
 
+    // How the catalog says this movement is performed. Best effort: a capture
+    // of an exercise the catalog has never heard of is still analysed, just
+    // without the reference, exactly as every capture was before it existed.
+    let exerciseReference: ExerciseReference | null = null;
+    try {
+      exerciseReference = await ctx.runQuery(
+        internal.ai.formCoachAgent.resolveExerciseReference,
+        {
+          userId: user._id,
+          exerciseId: args.exerciseId,
+          exerciseName: args.exerciseName,
+          slug: args.slug,
+        },
+      );
+    } catch {
+      // A missing reference is a thinner prompt, not a failed analysis.
+    }
+
     const result = await runOpenAiAgent({
       system: renderSystemPrompt("form_coach"),
       user: JSON.stringify({
-        digest: buildDigest(capture),
+        digest: buildDigest(capture, exerciseReference),
         pointCloud: buildPointCloud(capture),
       }),
       // Ordered as the digest lists them, so "the second image" means something.
