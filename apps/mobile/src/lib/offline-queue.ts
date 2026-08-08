@@ -299,6 +299,7 @@ export async function flushOfflineQueue() {
   const ownerId = getOfflineQueueOwner()
   const queue = readOfflineQueue()
   const remaining: OfflineJob[] = []
+  let settled: OfflineJob[] = remaining
 
   try {
     for (const job of queue) {
@@ -340,11 +341,19 @@ export async function flushOfflineQueue() {
       }
     }
   } finally {
-    writeOfflineQueue(remaining)
+    // Jobs enqueued while we were awaiting the network are not in `remaining`,
+    // and the guard above only serializes flushes, not enqueues. Blind-writing
+    // would delete every write the user made during the round trip.
+    const snapshotIds = new Set(queue.map((job) => job.id))
+    const arrivedMidFlush = readOfflineQueue().filter(
+      (job) => !snapshotIds.has(job.id)
+    )
+    settled = [...remaining, ...arrivedMidFlush]
+    writeOfflineQueue(settled)
     flushing = false
   }
 
-  return { flushed, remaining: remaining.length }
+  return { flushed, remaining: settled.length }
 }
 
 export function getOfflineQueueSummary() {

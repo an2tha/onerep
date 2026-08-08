@@ -44,7 +44,20 @@ export const claimEvent = internalMutation({
         q.eq("platform", args.platform).eq("eventId", args.eventId),
       )
       .unique();
-    if (existing) return { claimed: false as const, eventDocId: existing._id };
+    if (existing) {
+      // A failed row must stay claimable. Stripe retries a 500, and if we treat
+      // that retry as a duplicate we answer 200 and the subscription is never
+      // written — one flaky API call and the customer pays for nothing.
+      if (existing.status !== "failed") {
+        return { claimed: false as const, eventDocId: existing._id };
+      }
+      await ctx.db.patch(existing._id, {
+        status: "received",
+        processedAt: Date.now(),
+        error: undefined,
+      });
+      return { claimed: true as const, eventDocId: existing._id };
+    }
 
     const eventDocId = await ctx.db.insert("billingEvents", {
       platform: args.platform,

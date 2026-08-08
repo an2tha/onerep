@@ -2,8 +2,6 @@
 //  NativePoseEstimation.swift
 //  App
 //
-//  Created by Anantha Halmuttur on 05.08.26.
-//
 //  CoreML YOLO11n-pose + MotionBERT, exposed to Capacitor.
 //
 //  This plugin runs the two forward passes and nothing else. Letterboxing,

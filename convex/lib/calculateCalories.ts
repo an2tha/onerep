@@ -81,6 +81,7 @@ function caloriePlanForGoal(
   tdee: number,
   goal: string,
   context: NutritionPersonalizationContext,
+  sex: string,
 ) {
   const safetyMode = context.safetyMode ?? "standard";
   const isProtectedMode =
@@ -108,9 +109,16 @@ function caloriePlanForGoal(
           ? 0.16
           : 0.12;
     const deficit = clamp(Math.round(tdee * trendMultiplier), 220, 450);
+    // Never prescribe below the accepted clinical minimum, whatever the maths
+    // says. A 40 kg 18-year-old on "lose fat" lands at 1084 kcal without this.
+    const floor = sex === "male" ? 1500 : 1200;
+    const targetCalories = Math.max(floor, tdee - deficit);
     return {
-      targetCalories: tdee - deficit,
-      strategy: `Modest deficit: about ${deficit} kcal below estimated maintenance.`,
+      targetCalories,
+      strategy:
+        targetCalories === floor
+          ? `Held at the ${floor} kcal minimum: a deeper cut wouldn't be safe at this size.`
+          : `Modest deficit: about ${deficit} kcal below estimated maintenance.`,
     };
   }
 
@@ -261,7 +269,12 @@ export function calculateCalories(
       OCCUPATION_ACTIVITY_TDEE_DELTA[context?.occupationActivity ?? "mixed"] ??
       0;
     const adjustedTdee = Math.round(tdee * (1 + activityAdjustment));
-    const plan = caloriePlanForGoal(adjustedTdee, nutritionGoal, context ?? {});
+    const plan = caloriePlanForGoal(
+      adjustedTdee,
+      nutritionGoal,
+      context ?? {},
+      sex,
+    );
     const macros = macroTargets(
       plan.targetCalories,
       weightKg,
