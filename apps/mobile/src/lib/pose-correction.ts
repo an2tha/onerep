@@ -13,7 +13,7 @@ import type { FormCoachFrame } from "@/lib/form-coach"
  * than a generic diagram.
  */
 export type PoseCorrection = {
-  joint: "knee" | "hip" | "ankle" | "elbow" | "shoulder"
+  joint: "knee" | "hip" | "elbow" | "shoulder"
   side: "left" | "right" | "both"
   /** Where in the rep the correction applies. */
   phase: string
@@ -59,7 +59,6 @@ const CHAINS: Record<
     vertex: "Hip",
     chain: ["Knee", "Ankle", "Heel", "Foot"],
   },
-  ankle: { proximal: "Knee", vertex: "Ankle", chain: ["Heel", "Foot"] },
   elbow: { proximal: "Shoulder", vertex: "Elbow", chain: ["Wrist"] },
   shoulder: { proximal: "Hip", vertex: "Shoulder", chain: ["Elbow", "Wrist"] },
 }
@@ -161,11 +160,45 @@ function applyToSide(
 }
 
 /**
+ * Where in the rep each phase lives, as a fraction of the way through it. The
+ * frames are phase-normalised upstream, so progress through the array is
+ * progress through the movement.
+ */
+const PHASE_PROGRESS: Record<string, number> = {
+  start: 0,
+  mid_out: 0.25,
+  turnaround: 0.5,
+  mid_back: 0.75,
+  end: 1,
+}
+
+/** Half-width of the easing window, in rep-progress units. */
+const PHASE_WINDOW = 0.5
+
+/**
+ * How strongly a correction applies at `progress`, given its phase.
+ *
+ * A raised-cosine bump centred on the phase's position: full strength there,
+ * falling smoothly to nothing half a rep away. For a `turnaround` correction
+ * this is the familiar shape — zero at both ends, peak at the bottom. For a
+ * `start` or `end` correction the peak sits at the edge of the clip, so only
+ * the inward half of the bump is ever sampled and it still eases away cleanly.
+ * An unknown phase falls back to turnaround, the least-wrong place to peak.
+ */
+export function correctionStrength(progress: number, phase: string): number {
+  const target = PHASE_PROGRESS[phase] ?? PHASE_PROGRESS.turnaround
+  const distance = Math.abs(progress - target)
+  if (distance >= PHASE_WINDOW) return 0
+  return 0.5 * (1 + Math.cos((Math.PI * distance) / PHASE_WINDOW))
+}
+
+/**
  * A copy of the rep with the corrections applied at the phase they belong to.
  *
  * Corrections are eased in across the rep rather than snapping on at one frame,
  * because a skeleton that jumps at the bottom reads as a glitch rather than as
- * advice. Weighting follows how far each frame is into the movement.
+ * advice. Each correction's weight peaks where its phase actually happens —
+ * a `start` cue lands at the first frames, a `turnaround` cue at the deepest.
  */
 export function applyCorrections(
   frames: readonly FormCoachFrame[],
@@ -175,12 +208,11 @@ export function applyCorrections(
 
   return frames.map((frame, frameIndex) => {
     const points = frame.worldLandmarks.map((point) => ({ ...point }))
-    // Full strength at the furthest point of the rep, tapering to nothing at
-    // either end where the lifter is simply standing.
     const progress = frames.length < 2 ? 1 : frameIndex / (frames.length - 1)
-    const strength = Math.sin(Math.PI * progress)
 
     for (const correction of corrections) {
+      const strength = correctionStrength(progress, correction.phase)
+      if (strength <= 0) continue
       const sides: Array<"left" | "right"> =
         correction.side === "both" ? ["left", "right"] : [correction.side]
       for (const side of sides) {

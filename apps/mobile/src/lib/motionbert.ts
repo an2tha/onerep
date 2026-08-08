@@ -63,21 +63,38 @@ const MAX_CLIP_LEN = 243
 const STILL_WINDOW = 27
 
 /**
- * Assumed distance from hip to the base of the neck, in metres.
+ * Hip→thorax length as a fraction of stature: 0.5 m / 170 cm ≈ 0.294.
  *
- * A monocular lift has no absolute scale — nothing in a single camera's view
- * distinguishes a large person far away from a small one close up. But
- * `worldLandmarks` is defined in metres, and rep detection thresholds
- * (`MIN_REP_RANGE_M` and the rest) are metric, so a scale has to come from
- * somewhere. The torso is the most stable choice: it barely changes length
- * through a rep, unlike anything involving a limb, and varies less between
- * adults than height does.
+ * This is the anthropometric assumption the whole metric scale rests on, and it
+ * is deliberately a *ratio*, not a length. A monocular lift has no absolute
+ * scale — nothing in a single camera's view distinguishes a large person far
+ * away from a small one close up. But `worldLandmarks` is defined in metres,
+ * and rep detection thresholds (`MIN_REP_RANGE_M` and the rest) are metric, so
+ * a scale has to come from somewhere. The torso is the most stable choice: it
+ * barely changes length through a rep, unlike anything involving a limb.
  *
- * The consequence is that absolute measurements are approximate for an unusually
- * proportioned lifter, while everything relative — depth reached, symmetry,
- * tempo — stays correct. Rep detection reads the second kind.
+ * The old code hardcoded 0.5 m for everyone, which mis-scaled every metric
+ * output for anyone not ~170 cm. Scaling by the user's height keeps torso
+ * proportion fixed (hip→thorax ≈ 0.294 × stature) while sizing the skeleton to
+ * the actual person. Do not "simplify" this back to a constant.
  */
-const ASSUMED_TORSO_M = 0.5
+const TORSO_PER_STATURE_CM = 0.5 / 170
+
+/** Height assumed when the profile has none — reproduces the historic 0.5 m torso. */
+const DEFAULT_HEIGHT_CM = 170
+
+/** Heights outside this band are treated as data-entry noise, not people. */
+const MIN_HEIGHT_CM = 120
+const MAX_HEIGHT_CM = 220
+
+/** Assumed hip→thorax length in metres for a lifter of the given height. */
+export function assumedTorsoM(heightCm?: number): number {
+  const height =
+    typeof heightCm === "number" && Number.isFinite(heightCm)
+      ? Math.min(MAX_HEIGHT_CM, Math.max(MIN_HEIGHT_CM, heightCm))
+      : DEFAULT_HEIGHT_CM
+  return TORSO_PER_STATURE_CM * height
+}
 
 /** Confidence below which a detected joint is not worth feeding the lifter. */
 const MIN_JOINT_SCORE = 0.3
@@ -241,7 +258,11 @@ function jointAt(
  * the scale of the entire clip. One factor for the whole clip, never per frame,
  * for the same reason the normalization is global.
  */
-export function metricScale(lifted: Float32Array, frameCount: number) {
+export function metricScale(
+  lifted: Float32Array,
+  frameCount: number,
+  heightCm?: number
+) {
   const lengths: number[] = []
   for (let frame = 0; frame < frameCount; frame += 1) {
     const length = distance(
@@ -253,7 +274,7 @@ export function metricScale(lifted: Float32Array, frameCount: number) {
   if (lengths.length === 0) return 0
   lengths.sort((a, b) => a - b)
   const median = lengths[Math.floor(lengths.length / 2)]
-  return median > 0 ? ASSUMED_TORSO_M / median : 0
+  return median > 0 ? assumedTorsoM(heightCm) / median : 0
 }
 
 /** Per-joint confidence for one frame, in H36M order, for `visibility`. */
@@ -274,7 +295,8 @@ const emptyFrame = (timeMs: number): FormCoachFrame => ({
  * 33-slot layout the rest of the pipeline reads.
  */
 async function assemble(
-  detections: { timeMs: number; keypoints: Keypoint2D[] | null; width: number; height: number }[]
+  detections: { timeMs: number; keypoints: Keypoint2D[] | null; width: number; height: number }[],
+  heightCm?: number
 ): Promise<FormCoachFrame[]> {
   const h36m = detections.map(({ keypoints }) =>
     keypoints ? cocoToH36m(keypoints) : null
@@ -286,7 +308,7 @@ async function assemble(
   if (!normalized) return detections.map(({ timeMs }) => emptyFrame(timeMs))
 
   const lifted = await lift(normalized, detections.length)
-  const scale = metricScale(lifted, detections.length)
+  const scale = metricScale(lifted, detections.length, heightCm)
   if (scale === 0) return detections.map(({ timeMs }) => emptyFrame(timeMs))
 
   return detections.map((detection, frame) => {
@@ -312,7 +334,8 @@ async function assemble(
 
 async function extractVideoLandmarks(
   angle: FormCoachAngle,
-  onFraction?: (fraction: number) => void
+  onFraction?: (fraction: number) => void,
+  heightCm?: number
 ): Promise<FormCoachAngleLandmarks> {
   const { frames, stills } = await sampleClip(
     angle,
@@ -327,13 +350,14 @@ async function extractVideoLandmarks(
     (fraction) => onFraction?.(fraction * 0.95)
   )
 
-  const assembled = await assemble(frames)
+  const assembled = await assemble(frames, heightCm)
   onFraction?.(1)
   return { index: angle.index, frames: assembled, stills }
 }
 
 async function extractImageLandmarks(
-  angle: FormCoachAngle
+  angle: FormCoachAngle,
+  heightCm?: number
 ): Promise<FormCoachAngleLandmarks> {
   const blob = base64ToBlob(angle.base64, angle.mimeType)
   const bitmap = await createImageBitmap(blob)
@@ -348,7 +372,8 @@ async function extractImageLandmarks(
     // Tiled into a window the temporal model can work with, then read back from
     // the middle — the frame with context on both sides.
     const tiled = await assemble(
-      Array.from({ length: STILL_WINDOW }, () => detection)
+      Array.from({ length: STILL_WINDOW }, () => detection),
+      heightCm
     )
     const middle = tiled[Math.floor(STILL_WINDOW / 2)] ?? emptyFrame(0)
     return {
@@ -381,10 +406,10 @@ export const motionBertPoseProvider: PoseProvider = {
     await Promise.all([warmDetector(), loadSession(MOTIONBERT_MODEL)])
   },
 
-  estimateAngle(angle, onFraction) {
+  estimateAngle(angle, onFraction, options) {
     return angle.kind === "image"
-      ? extractImageLandmarks(angle)
-      : extractVideoLandmarks(angle, onFraction)
+      ? extractImageLandmarks(angle, options?.heightCm)
+      : extractVideoLandmarks(angle, onFraction, options?.heightCm)
   },
 
   async dispose() {

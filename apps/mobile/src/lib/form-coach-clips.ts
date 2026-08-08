@@ -18,6 +18,12 @@ export type FormCoachClip = {
   blob: Blob
   /** Always 0 for stills. */
   durationMs: number
+  /**
+   * Camera tilt measured from gravity while this clip recorded, when the
+   * accelerometer allowed. Seeds the Straighten sliders; never applied without
+   * the user seeing it first.
+   */
+  orientation?: { pitchDeg: number; rollDeg: number }
 }
 
 /**
@@ -125,6 +131,7 @@ export function addFormCoachClip(clip: {
   kind: FormCoachAngleKind
   blob: Blob
   durationMs: number
+  orientation?: { pitchDeg: number; rollDeg: number }
 }) {
   if (!draft || draft.clips.length >= MAX_FORM_COACH_ANGLES) return
   draft = {
@@ -140,6 +147,7 @@ export function addFormCoachClip(clip: {
         url: URL.createObjectURL(clip.blob),
         blob: clip.blob,
         durationMs: clip.durationMs,
+        ...(clip.orientation ? { orientation: clip.orientation } : {}),
       },
     ],
   }

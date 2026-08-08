@@ -9,6 +9,7 @@ import {
   copyTextToClipboard,
 } from "@/lib/error-diagnostics"
 import { logDevError } from "@/lib/utils"
+import { trackUmami } from "@/lib/analytics"
 import { signOutApp, useAppAuth } from "@/lib/auth-client"
 
 interface Props {
@@ -38,6 +39,12 @@ class ErrorBoundaryInner extends Component<ErrorBoundaryInnerProps, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     logDevError("[ErrorBoundary]", error, info.componentStack)
+    // A blank screen is the one failure nobody reports, so it has to report
+    // itself. The label and error name only — a message can carry anything.
+    trackUmami("screen_crashed", {
+      screen: this.props.label ?? "unknown",
+      error: error.name || "Error",
+    })
     this.setState({ componentStack: info.componentStack ?? undefined })
     if (
       isUnauthenticatedError(error) &&

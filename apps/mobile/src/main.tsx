@@ -12,6 +12,7 @@ import {
   createBrowserRouter,
   Navigate,
   useLocation,
+  useMatches,
   useOutlet,
   useSearchParams,
 } from "react-router"
@@ -19,7 +20,7 @@ import { RouterProvider } from "react-router/dom"
 import { useConvexAuth } from "convex/react"
 import posthog from "posthog-js"
 import { PostHogProvider, usePostHog } from "@posthog/react"
-import { captureFeatureUsage } from "@/lib/analytics"
+import { captureFeatureUsage, routePattern, trackUmami } from "@/lib/analytics"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
@@ -110,6 +111,8 @@ import {
   type RouteMotion,
 } from "./lib/navigation"
 import { TourProvider } from "./components/walkthrough/tour-provider"
+import { FullScreenEventProvider } from "./lib/full-screen-events"
+import { AppMoments } from "./components/moments/app-moments"
 
 initializePwaInstallTracking()
 
@@ -355,6 +358,12 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
+  const matches = useMatches()
+  // The deepest match is the one holding the params; the layout route has none.
+  const screen = routePattern(
+    location.pathname,
+    matches[matches.length - 1]?.params ?? {}
+  )
 
   const setBottomBarAction = useCallback(
     (_action?: () => void) => undefined,
@@ -414,6 +423,12 @@ function NavSync() {
   useEffect(() => {
     clearRouteMotion()
   }, [location.key])
+
+  // One screen event per navigation, keyed on the route pattern rather than the
+  // path, so `/foods/review/:id` is one row instead of one row per meal.
+  useEffect(() => {
+    trackUmami("screen_view", { screen })
+  }, [location.key, screen])
 
   useLayoutEffect(() => {
     const previousKey = previousLocationKeyRef.current
@@ -518,54 +533,57 @@ function NavSync() {
       : "loading"
     : undefined
   return (
-    <BottomBarActionProvider onActionChange={setBottomBarAction}>
-      <TourProvider>
-        <div
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-          className="app-route-shell"
-        >
-          <div className="app-route-stack">
-            {routeTransition?.from && (
+    <FullScreenEventProvider>
+      <BottomBarActionProvider onActionChange={setBottomBarAction}>
+        <TourProvider>
+          <div
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            className="app-route-shell"
+          >
+            <div className="app-route-stack">
+              {routeTransition?.from && (
+                <div
+                  key={`from-${routeTransition.fromKey}`}
+                  className="app-route-frame app-route-frame-previous"
+                  data-route-path={routeTransition.fromPathname}
+                  data-route-ready={routeTransition.ready ? "true" : undefined}
+                  data-route-kind={routeTransition.kind}
+                  data-route-direction={routeTransition.direction}
+                  aria-hidden="true"
+                  // aria-hidden alone leaves the outgoing screen focusable and
+                  // tappable for the length of the transition.
+                  inert
+                >
+                  {routeTransition.from}
+                </div>
+              )}
               <div
-                key={`from-${routeTransition.fromKey}`}
-                className="app-route-frame app-route-frame-previous"
-                data-route-path={routeTransition.fromPathname}
-                data-route-ready={routeTransition.ready ? "true" : undefined}
-                data-route-kind={routeTransition.kind}
-                data-route-direction={routeTransition.direction}
-                aria-hidden="true"
-                // aria-hidden alone leaves the outgoing screen focusable and
-                // tappable for the length of the transition.
-                inert
+                key={location.key}
+                ref={activeRouteFrameRef}
+                className="app-route-frame app-route-frame-current"
+                data-route-path={location.pathname}
+                data-route-kind={routeTransition?.kind}
+                data-route-direction={routeTransition?.direction}
+                data-route-loading={
+                  routeTransition && !routeTransition.ready ? "true" : undefined
+                }
+                data-route-ready={routeTransition?.ready ? "true" : undefined}
               >
-                {routeTransition.from}
+                {outlet}
               </div>
-            )}
-            <div
-              key={location.key}
-              ref={activeRouteFrameRef}
-              className="app-route-frame app-route-frame-current"
-              data-route-path={location.pathname}
-              data-route-kind={routeTransition?.kind}
-              data-route-direction={routeTransition?.direction}
-              data-route-loading={
-                routeTransition && !routeTransition.ready ? "true" : undefined
-              }
-              data-route-ready={routeTransition?.ready ? "true" : undefined}
-            >
-              {outlet}
             </div>
           </div>
-        </div>
-        {showBottomBar && (
-          <BottomBar
-            pathname={location.pathname}
-            chromeState={currentChromeState}
-          />
-        )}
-      </TourProvider>
-    </BottomBarActionProvider>
+          {showBottomBar && (
+            <BottomBar
+              pathname={location.pathname}
+              chromeState={currentChromeState}
+            />
+          )}
+        </TourProvider>
+        <AppMoments />
+      </BottomBarActionProvider>
+    </FullScreenEventProvider>
   )
 }
 

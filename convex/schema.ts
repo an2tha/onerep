@@ -873,6 +873,28 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  /**
+   * One row per full-screen moment the app has already put in front of the
+   * user, scoped by `key` — a date for the daily nudge, an ISO week for the
+   * report. Server-side rather than local so a nudge answered on the phone is
+   * not waiting on the tablet, and so a reinstall does not replay the week.
+   */
+  momentEvents: defineTable({
+    userId: v.string(),
+    eventId: v.string(),
+    key: v.string(),
+    outcome: v.union(
+      v.literal("shown"),
+      v.literal("resolved"),
+      v.literal("dismissed"),
+    ),
+    shownAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_event", ["userId", "eventId"])
+    .index("by_userId_and_event_and_key", ["userId", "eventId", "key"]),
+
   // ── Coach memory, check-ins, and reversible action history ──────────────
   // Memories are stored one-per-key so the list stays bounded and individual
   // preferences can be updated without rewriting an ever-growing document.

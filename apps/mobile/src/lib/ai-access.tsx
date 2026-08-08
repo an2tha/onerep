@@ -7,6 +7,7 @@ import { useAppAuth } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hasOneRepPro, useBilling } from "@/lib/billing"
 import { celebrateSubscription } from "@/lib/subscription-celebration"
+import { trackUmami } from "@/lib/analytics"
 
 export function useAiAccessSubscription() {
   const { user, userId } = useAppAuth()
@@ -186,7 +187,7 @@ export function useAiFeatureGate() {
    * after they have already filmed and processed a clip.
    */
   const requireAiAccess = useCallback(
-    (cost = 1) => {
+    (cost = 1, feature = "unknown") => {
       if (hasPro) return true
       if (isLoading) {
         toast.message("Checking your access…")
@@ -194,10 +195,18 @@ export function useAiFeatureGate() {
       }
       if (freeRequestsLeft >= cost) return true
 
+      // The one place a free account is turned away from AI, so it is the one
+      // honest measure of how often the allowance is what stops people.
+      trackUmami("ai_paywall_shown", {
+        feature,
+        cost,
+        used: usage?.count ?? 0,
+        limit: usage?.limit ?? 0,
+      })
       setModalOpen(true)
       return false
     },
-    [freeRequestsLeft, hasPro, isLoading]
+    [freeRequestsLeft, hasPro, isLoading, usage?.count, usage?.limit]
   )
 
   // Lets Developer settings preview the paywall without spending an allowance.
@@ -219,7 +228,8 @@ export function useAiFeatureGate() {
         setPaywallBusy(true)
         void (async () => {
           try {
-            const purchasedCustomerInfo = await billing.purchaseMonthly()
+            const purchasedCustomerInfo =
+            await billing.purchaseMonthly("ai_paywall")
             const customerInfo =
               purchasedCustomerInfo ?? (await billing.refresh())
             if (hasOneRepPro(customerInfo)) {
@@ -250,6 +260,7 @@ export function useAiFeatureGate() {
   return {
     hasAiAccess,
     aiAccessLoading: isLoading,
+    aiUsage: usage ?? null,
     requireAiAccess,
     showAiPaywall,
     aiAccessModal,

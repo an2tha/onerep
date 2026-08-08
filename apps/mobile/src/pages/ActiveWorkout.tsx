@@ -3876,7 +3876,7 @@ export default function ActiveWorkout() {
     formCoachDraft?.phase === "recording" && formCoachDraft.clips.length === 0
   useEffect(() => {
     if (!formCoachOpening || aiAccessLoading) return
-    if (!requireAiAccess(FORM_COACH_AI_COST)) clearFormCoachDraft()
+    if (!requireAiAccess(FORM_COACH_AI_COST, "form_coach")) clearFormCoachDraft()
   }, [formCoachOpening, aiAccessLoading, requireAiAccess])
 
   const presets = useQuery(api.logs.presets.list, {})
@@ -4634,7 +4634,7 @@ export default function ActiveWorkout() {
   }
 
   function openAiWorkoutSheet(target: AiWorkoutSheetTarget) {
-    if (requireAiAccess()) setAiSheetTarget(target)
+    if (requireAiAccess(1, "workout_ai_sheet")) setAiSheetTarget(target)
   }
 
   async function resolveAiDraftExercises(
@@ -4657,7 +4657,7 @@ export default function ActiveWorkout() {
   async function handleAskCoachForWorkout(
     text: string
   ): Promise<CoachWorkoutProposal> {
-    if (!requireAiAccess()) throw new Error("Coach access is required.")
+    if (!requireAiAccess(1, "workout_coach_ask")) throw new Error("Coach access is required.")
     if (!text.trim()) throw new Error("Tell Coach what you need first.")
     if (aiUpdatingRef.current || aiUpdating) {
       throw new Error("Coach is already working on your plan.")
@@ -4823,7 +4823,7 @@ export default function ActiveWorkout() {
   async function handleAiWorkoutChange(
     proposal: CoachWorkoutProposal
   ): Promise<void> {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "workout_ai_apply")) return
     if (aiUpdatingRef.current || aiUpdating) return
 
     aiUpdatingRef.current = true

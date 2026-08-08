@@ -64,6 +64,8 @@
 	<string>OneRep can save the strength sessions you finish here to Apple Health, so your training shows up alongside the rest of your activity.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OneRep uses the microphone when you dictate a message to Coach.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>OneRep uses motion data to level the camera when checking your form.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>OneRep may save captured meal photos when you choose to keep them.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

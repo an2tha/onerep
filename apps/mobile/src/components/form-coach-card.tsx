@@ -16,6 +16,7 @@ import { toast } from "@repo/ui"
 import { cn } from "@/lib/utils"
 import { hapticSelection, hapticTap } from "@/lib/haptics"
 import { applyCorrections, type PoseCorrection } from "@/lib/pose-correction"
+import { POSE_CORRECTED_COLOR, poseColorHex } from "@/lib/pose-colors"
 import type { FormCoachFrame } from "@/lib/form-coach"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
@@ -119,8 +120,8 @@ function useOverlayChrome(onClose: () => void) {
   }, [onClose])
 }
 
-/** The corrected skeleton's colour, matching `POSE_CORRECTED_COLOR`. */
-const CORRECTED_HEX = "#3ddc84"
+/** The corrected skeleton's colour, derived so it cannot drift from the scene. */
+const CORRECTED_HEX = poseColorHex(POSE_CORRECTED_COLOR)
 
 /** Which skeleton is which, for a scene showing both. */
 function PoseLegend({ className }: { className?: string }) {
@@ -303,6 +304,7 @@ function FormCoachDetailSheet({
 }) {
   const [expandedPose, setExpandedPose] = useState(false)
   useOverlayChrome(onClose)
+  const checklist = detail.checklist ?? []
 
   return (
     <SheetPortal>
@@ -361,14 +363,14 @@ function FormCoachDetailSheet({
 
           {/* First, because it is the only part read *before* the next set
             rather than after it. */}
-          {(detail.checklist ?? []).length > 0 && (
+          {checklist.length > 0 && (
             <div className="mx-5 mb-4 rounded-[18px] border border-border/60 bg-foreground/[0.04] px-4 py-3.5">
               <p className="pb-2 text-[11px] font-bold tracking-[0.12em] text-muted-foreground/60 uppercase">
                 Next set
               </p>
               <ol className="flex flex-col gap-2">
-                {detail.checklist!.map((item, index) => (
-                  <li key={index} className="flex gap-2.5">
+                {checklist.map((item, index) => (
+                  <li key={`${item}-${index}`} className="flex gap-2.5">
                     <span className="pt-px text-[12px] font-semibold text-muted-foreground/70 tabular-nums">
                       {index + 1}
                     </span>
@@ -387,7 +389,7 @@ function FormCoachDetailSheet({
               const Icon = severity.icon
               return (
                 <div
-                  key={index}
+                  key={`${finding.title}-${index}`}
                   className={cn(
                     "rounded-[18px] border px-4 py-3.5",
                     severity.tint
@@ -431,7 +433,7 @@ function FormCoachDetailSheet({
               </p>
               <div className="flex flex-col gap-1">
                 {detail.drills.map((drill, index) => (
-                  <p key={index} className="text-[13px] leading-5">
+                  <p key={`${drill.name}-${index}`} className="text-[13px] leading-5">
                     {drill.name}
                     <span className="text-muted-foreground">
                       {" · "}
@@ -452,7 +454,7 @@ function FormCoachDetailSheet({
               <ul className="flex flex-col gap-0.5">
                 {detail.notMeasured.map((item, index) => (
                   <li
-                    key={index}
+                    key={`${item}-${index}`}
                     className="text-[12.5px] leading-5 text-muted-foreground"
                   >
                     {item}
@@ -603,13 +605,16 @@ export function FormCoachCard({
   }
 
   const hasCorrection = corrections.length > 0
-  const hasDetail = Boolean(
+  // Nullable rather than a boolean flag, so the branches below can read from it
+  // without a non-null assertion.
+  const openableDetail =
     detail &&
     (detail.findings.length > 0 ||
       detail.drills.length > 0 ||
       detail.notMeasured.length > 0 ||
       (detail.checklist ?? []).length > 0)
-  )
+      ? detail
+      : undefined
 
   return (
     <div className="w-full max-w-md overflow-hidden rounded-[20px] border border-border/55 bg-card">
@@ -639,7 +644,7 @@ export function FormCoachCard({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5">
-            {hasDetail && (
+            {openableDetail && (
               <button
                 type="button"
                 onClick={() => {
@@ -673,7 +678,7 @@ export function FormCoachCard({
           {summary}
         </p>
 
-        {hasDetail && (
+        {openableDetail && (
           <button
             type="button"
             onClick={() => {
@@ -682,8 +687,8 @@ export function FormCoachCard({
             }}
             className="pt-2 text-[12px] font-semibold text-muted-foreground active:text-foreground"
           >
-            {detail!.findings.length} note
-            {detail!.findings.length === 1 ? "" : "s"} from the coach
+            {openableDetail.findings.length} note
+            {openableDetail.findings.length === 1 ? "" : "s"} from the coach
           </button>
         )}
 
@@ -722,11 +727,11 @@ export function FormCoachCard({
         />
       )}
 
-      {expanded && detail && (
+      {expanded && openableDetail && (
         <FormCoachDetailSheet
           exerciseName={exerciseName}
           summary={summary}
-          detail={detail}
+          detail={openableDetail}
           pose={pose}
           corrections={corrections}
           onClose={() => setExpanded(false)}
@@ -736,12 +741,6 @@ export function FormCoachCard({
   )
 }
 
-/**
- * The pinned cards for one screen, under their own heading.
- *
- * Renders nothing at all when there is no advice, so the section never appears
- * as an empty shell on a page the user has not used the form coach from.
- */
 /**
  * Every report the form coach has written, newest first.
  *
@@ -886,6 +885,12 @@ function FormCoachHistoryDetail({
   )
 }
 
+/**
+ * The pinned cards for one screen, under their own heading.
+ *
+ * Renders nothing at all when there is no advice, so the section never appears
+ * as an empty shell on a page the user has not used the form coach from.
+ */
 export function FormCoachPinnedCards({
   surface,
 }: {

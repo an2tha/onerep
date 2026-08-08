@@ -106,6 +106,37 @@ describe("applyCorrections", () => {
     expect(end).toBeCloseTo(180, 3)
   })
 
+  // The model names the phase a correction belongs to; the easing has to honour
+  // it rather than assuming everything happens at the clip midpoint.
+  // A slight bend at the ends: a perfectly straight leg has no rotation plane
+  // for the correction to work in, so it would mask the easing being tested.
+  it("peaks a start-phase correction at the start, not the middle", () => {
+    const corrected = applyCorrections(rep([10, 45, 90, 45, 10]), [
+      { joint: "knee", side: "left", phase: "start", targetDegrees: 150 },
+    ])
+    // Full strength on the first frame, where the phase actually is.
+    expect(
+      measureJoint(corrected[0].worldLandmarks, "knee", "left")
+    ).toBeCloseTo(150, 3)
+    // Faded out entirely by the midpoint, which belongs to turnaround.
+    expect(
+      measureJoint(corrected[2].worldLandmarks, "knee", "left")
+    ).toBeCloseTo(90, 3)
+  })
+
+  it("peaks an end-phase correction at the last frame", () => {
+    const corrected = applyCorrections(rep([10, 45, 90, 45, 10]), [
+      { joint: "knee", side: "left", phase: "end", targetDegrees: 150 },
+    ])
+    expect(
+      measureJoint(corrected[4].worldLandmarks, "knee", "left")
+    ).toBeCloseTo(150, 3)
+    // Out of range at the far end of the rep, so the start frame keeps its bend.
+    expect(
+      measureJoint(corrected[0].worldLandmarks, "knee", "left")
+    ).toBeCloseTo(170, 3)
+  })
+
   it("keeps the limb rigid", () => {
     const before = rep([0, 90, 0])
     const after = applyCorrections(before, deeper)

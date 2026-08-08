@@ -51,6 +51,7 @@ import {
   safeLocalStorageSet,
 } from "@/lib/utils"
 import { useAiFeatureGate } from "@/lib/ai-access"
+import { trackUmami, usageBucket } from "@/lib/analytics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import {
@@ -511,7 +512,7 @@ export default function Coach() {
   const saveCoachGoal = useMutation(api.ai.coachGoals.save)
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setDashboardWidgetPinned = useMutation(api.dashboardWidgets.setPinned)
-  const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
+  const { requireAiAccess, aiAccessModal, aiUsage } = useAiFeatureGate()
   const dictation = useCoachDictation({
     value: input,
     onChange: updateComposer,
@@ -1470,7 +1471,7 @@ export default function Coach() {
         : rawPrompt ||
           "Analyze this image in the context of my goals and recent data."
     if (busy || loading) return
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "coach_chat")) return
 
     hapticMedium()
     setLastFailedPrompt(null)
@@ -1486,6 +1487,21 @@ export default function Coach() {
     if (recipeCustomization) setRecipeCustomization(null)
     if (guidedIntent) setGuidedIntent(null)
     setBusy(true)
+
+    const startedAt = Date.now()
+    // Every field here is a shape, never content: how the request was framed,
+    // not a word of what was asked.
+    const requestShape = {
+      mode: activeMode,
+      turn: nextMessages.length,
+      has_image: Boolean(selectedAttachment),
+      intent: guidedIntent?.kind ?? (recipeCustomization ? "customize_recipe" : "free"),
+      allowance: aiUsage
+        ? usageBucket(aiUsage.remaining, aiUsage.limit)
+        : "unknown",
+      is_pro: aiUsage?.isPro ?? false,
+    }
+    trackUmami("coach_request", requestShape)
 
     try {
       const result = await generateChat({
@@ -1518,6 +1534,13 @@ export default function Coach() {
         operations.length > 0 && !needsConfirmation
           ? await executeOperations(operations)
           : []
+      trackUmami("coach_reply", {
+        mode: activeMode,
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+        operations: operations.length,
+        needs_confirmation: needsConfirmation,
+        reply_chars: response.reply.length,
+      })
       hapticTap()
       setMessages([
         ...nextMessages,
@@ -1531,6 +1554,14 @@ export default function Coach() {
         },
       ])
     } catch (error) {
+      // The server has no error code for a spent allowance, only prose, so the
+      // string match is what separates "you ran out" from "it broke".
+      const message = error instanceof Error ? error.message : ""
+      trackUmami("coach_failed", {
+        mode: activeMode,
+        seconds: Math.round((Date.now() - startedAt) / 1000),
+        reason: /limit reached/i.test(message) ? "allowance_spent" : "error",
+      })
       hapticHeavy()
       setLastFailedPrompt(prompt)
       setMessages([

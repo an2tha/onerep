@@ -30,9 +30,16 @@ describe("blendOpacity", () => {
 describe("the corrected pose", () => {
   // It was rendered in the same blue family as the plain pose and read as
   // invisible against the ghost.
-  it("is green, and the legend swatch matches the skeleton", () => {
-    expect(viewer).toContain("POSE_CORRECTED_COLOR = 0x3ddc84")
-    expect(card).toContain('CORRECTED_HEX = "#3ddc84"')
+  it("is green, and the legend swatch derives from the same constant", () => {
+    const colors = readFileSync(
+      join(here, "..", "lib", "pose-colors.ts"),
+      "utf8"
+    )
+    expect(colors).toContain("POSE_CORRECTED_COLOR = 0x3ddc84")
+    // The scene and the DOM chrome both read the shared constant; no hand-typed
+    // hex copy that can drift.
+    expect(card).toContain("poseColorHex(POSE_CORRECTED_COLOR)")
+    expect(card).not.toContain('"#3ddc84"')
   })
 
   it("only takes the corrected colour when there is a ghost to contrast with", () => {

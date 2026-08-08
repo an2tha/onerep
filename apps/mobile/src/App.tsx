@@ -2771,7 +2771,7 @@ export default function App() {
   }
 
   function openSnapCamera() {
-    if (!requireAiAccess()) return
+    if (!requireAiAccess(1, "snap_camera")) return
     if (!navigator.onLine) {
       setSnapOffline(true)
       return
@@ -4263,7 +4263,7 @@ export default function App() {
                   detail: "Build a temporary recipe with Coach",
                   Icon: Sparkle,
                   action: () => {
-                    if (!requireAiAccess()) return
+                    if (!requireAiAccess(1, "describe_meal")) return
                     setHomeAddOpen(false)
                     navigate("/nutrition?describe=1")
                   },

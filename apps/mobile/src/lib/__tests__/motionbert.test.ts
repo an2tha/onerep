@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { cropScale, metricScale } from "@/lib/motionbert"
+import { assumedTorsoM, cropScale, metricScale } from "@/lib/motionbert"
 import { H36M, H36M_JOINTS, type Keypoint2D } from "@/lib/pose-joints"
 
 /**
@@ -122,5 +122,44 @@ describe("metricScale", () => {
   it("reports no scale when nothing was lifted", () => {
     expect(metricScale(lifted([]), 0)).toBe(0)
     expect(metricScale(lifted([0, 0]), 2)).toBe(0)
+  })
+
+  it("scales the torso to the lifter's height when one is known", () => {
+    // At 190 cm the assumed torso is 0.5 × 190/170 m, so a 0.25-unit torso
+    // needs a proportionally larger metres-per-unit factor.
+    const scale = metricScale(lifted([0.25, 0.25, 0.25]), 3, 190)
+    expect(scale).toBeCloseTo((0.5 * (190 / 170)) / 0.25)
+  })
+
+  it("reproduces the historic scale at the 170 cm default", () => {
+    const track = lifted([0.25, 0.25, 0.25])
+    expect(metricScale(track, 3, 170)).toBeCloseTo(metricScale(track, 3))
+    expect(metricScale(track, 3)).toBeCloseTo(2)
+  })
+})
+
+describe("assumedTorsoM", () => {
+  it("keeps today's half metre at the 170 cm default", () => {
+    expect(assumedTorsoM()).toBeCloseTo(0.5)
+    expect(assumedTorsoM(170)).toBeCloseTo(0.5)
+  })
+
+  it("responds linearly to height", () => {
+    // hip→thorax ≈ 0.294 × stature, so doubling within the band doubles it.
+    expect(assumedTorsoM(140)).toBeCloseTo((0.5 * 140) / 170)
+    expect(assumedTorsoM(200)).toBeCloseTo((0.5 * 200) / 170)
+    expect(assumedTorsoM(200) / assumedTorsoM(160)).toBeCloseTo(200 / 160)
+  })
+
+  it("clamps heights outside the plausible band", () => {
+    // 60 cm is a typo or a toddler; neither should shrink every rep gate.
+    expect(assumedTorsoM(60)).toBeCloseTo(assumedTorsoM(120))
+    expect(assumedTorsoM(400)).toBeCloseTo(assumedTorsoM(220))
+  })
+
+  it("falls back to the default when height is missing or broken", () => {
+    expect(assumedTorsoM(undefined)).toBeCloseTo(0.5)
+    expect(assumedTorsoM(Number.NaN)).toBeCloseTo(0.5)
+    expect(assumedTorsoM(Number.POSITIVE_INFINITY)).toBeCloseTo(0.5)
   })
 })

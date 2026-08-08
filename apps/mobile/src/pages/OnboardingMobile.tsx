@@ -53,6 +53,7 @@ import {
 } from "@/lib/coach-chat"
 import { currentDateKey, detectTimeZone } from "@/lib/food-log"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { trackUmami } from "@/lib/analytics"
 import {
   createClientId,
   safeLocalStorageRemove,
@@ -438,6 +439,11 @@ export function OnboardingMobile() {
 
   const [initialized, setInitialized] = useState(false)
   const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
+  // The denominator for every step and completion number below.
+  useEffect(() => {
+    trackUmami("onboarding_started", { replay: coachReplay })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [typing, setTyping] = useState(true)
   const [typedCount, setTypedCount] = useState(0)
   const [draft, setDraft] = useState<OnboardingDraft>({
@@ -743,6 +749,13 @@ export function OnboardingMobile() {
   function advance(fromStage: number) {
     setError(null)
     hapticMedium()
+    // Onboarding is where accounts are won or abandoned, and the only way to
+    // see where it happens is to count each step as it is left behind.
+    trackUmami("onboarding_step", {
+      stage: stages[fromStage]?.id ?? "unknown",
+      index: fromStage,
+      total: stages.length,
+    })
     setStage(Math.min(fromStage + 1, stages.length - 1))
   }
 
@@ -1065,6 +1078,7 @@ export function OnboardingMobile() {
           : null
     if (missing) {
       hapticHeavy()
+      trackUmami("onboarding_blocked", { stage: missing.stage })
       setStage(stages.findIndex((item) => item.id === missing.stage))
       setError(missing.message)
       return
@@ -1116,6 +1130,14 @@ export function OnboardingMobile() {
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
       safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
+      trackUmami("onboarding_completed", {
+        goal: draft.goal ?? "unset",
+        experience: experienceLevel ?? "unset",
+        nutrition_goal: effectiveNutritionGoal ?? "unset",
+        tracking_mode: trackingMode ?? "unset",
+        coach_messages: setupUsed,
+        replay: coachReplay,
+      })
       setComplete(true)
       hapticMedium()
       await new Promise((resolve) => window.setTimeout(resolve, 720))
@@ -1125,6 +1147,7 @@ export function OnboardingMobile() {
         { replace: true }
       )
     } catch (saveError) {
+      trackUmami("onboarding_save_failed")
       setError(
         saveError instanceof Error
           ? saveError.message

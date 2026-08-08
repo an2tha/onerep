@@ -3,9 +3,10 @@ import type { FormCoachFrame } from "@/lib/form-coach"
 /**
  * Continuous pose over time, built from the measured frames.
  *
- * The clips are sampled at 10fps, so playing frames straight back steps the
- * skeleton ten times a second and reads as jitter however clean the underlying
- * data is. This fills the gaps so the scene can animate at display rate.
+ * The clips are sampled at 12fps (`SAMPLE_FPS` in clip-decode), so playing
+ * frames straight back steps the skeleton twelve times a second and reads as
+ * jitter however clean the underlying data is. This fills the gaps so the
+ * scene can animate at display rate.
  *
  * Interpolation is monotone cubic (Fritsch–Carlson / PCHIP), chosen over the
  * usual Catmull-Rom because it is shape-preserving: between two measured
