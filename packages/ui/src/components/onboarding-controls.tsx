@@ -1,9 +1,17 @@
+import { useState } from "react"
 import { Check, Minus, Plus, type Icon } from "@phosphor-icons/react"
 
 import { cn } from "../lib/utils"
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
+}
+
+function parseDraft(raw: string) {
+  const normalized = raw.replace(",", ".").trim()
+  if (!normalized || normalized === "-" || normalized === ".") return null
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : null
 }
 
 export function NumberQuestion({
@@ -26,10 +34,26 @@ export function NumberQuestion({
   onInteract?: () => void
 }) {
   const inputId = `onboarding-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`
+  // Null means "not being edited" — the field mirrors the committed value.
+  // While editing we keep the raw text so half-typed numbers survive.
+  const [draft, setDraft] = useState<string | null>(null)
 
   function update(next: number) {
+    setDraft(null)
     onInteract?.()
     onChange(clamp(next, min, max))
+  }
+
+  function commitDraft() {
+    if (draft === null) return
+    const parsed = parseDraft(draft)
+    setDraft(null)
+    if (parsed === null) return
+    const settled = clamp(parsed, min, max)
+    if (settled !== value) {
+      onInteract?.()
+      onChange(settled)
+    }
   }
 
   return (
@@ -52,15 +76,37 @@ export function NumberQuestion({
         </button>
         <input
           id={inputId}
-          type="number"
-          inputMode="numeric"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={draft ?? String(value)}
           onChange={(event) => {
-            const next = Number(event.target.value)
-            if (Number.isFinite(next)) update(next)
+            const raw = event.target.value.replace(/[^\d.,-]/g, "")
+            setDraft(raw)
+            const parsed = parseDraft(raw)
+            // Commit live only while the number is already in range; anything
+            // outside waits for blur so typing "1" toward "170" isn't snapped.
+            if (parsed !== null && parsed >= min && parsed <= max) {
+              onChange(parsed)
+            }
+          }}
+          onFocus={(event) => event.currentTarget.select()}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault()
+              event.currentTarget.blur()
+              return
+            }
+            if (event.key === "ArrowUp") {
+              event.preventDefault()
+              update((parseDraft(draft ?? "") ?? value) + step)
+              return
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault()
+              update((parseDraft(draft ?? "") ?? value) - step)
+            }
           }}
           aria-label={label}
           className="onboarding-number-input"

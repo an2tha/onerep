@@ -2499,22 +2499,22 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   @keyframes weight-selector-panel-in {
     from {
       opacity: 0;
-      transform: translate3d(-50%, calc(-50% + 12px), 0) scale(0.975);
+      transform: translate3d(0, 12px, 0) scale(0.975);
     }
     to {
       opacity: 1;
-      transform: translate3d(-50%, -50%, 0) scale(1);
+      transform: translate3d(0, 0, 0) scale(1);
     }
   }
 
   @keyframes weight-selector-panel-out {
     from {
       opacity: 1;
-      transform: translate3d(-50%, -50%, 0) scale(1);
+      transform: translate3d(0, 0, 0) scale(1);
     }
     to {
       opacity: 0;
-      transform: translate3d(-50%, calc(-50% + 10px), 0) scale(0.98);
+      transform: translate3d(0, 10px, 0) scale(0.98);
     }
   }
 
