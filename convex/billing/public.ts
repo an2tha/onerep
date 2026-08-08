@@ -6,7 +6,11 @@ import {
   DEFAULT_MONTHLY_PRICE_LABEL,
   normalizeMonthlyPriceLabel,
 } from "../lib/subscriptionPrice";
-import { isProCompedForEveryone, rollupForUser } from "./entitlement";
+import {
+  isProCompedForEveryone,
+  rollupForUser,
+  subscriptionGrantsAccess,
+} from "./entitlement";
 import { MONTHLY_PRODUCT_ID, PRO_ENTITLEMENT, nonEmptyString } from "./types";
 
 /**
@@ -178,6 +182,22 @@ export const createCheckout = action({
       limit: 5,
       windowMs: 15 * 60 * 1000,
     });
+
+    // Refuse to sell Pro to someone who already owns it. Without this, a user
+    // whose entitlement hasn't surfaced yet presses Continue again and ends up
+    // with two Stripe customers, two live subscriptions, and two charges a
+    // month — of which the app can only ever cancel the first.
+    const existing: Doc<"billingSubscriptions">[] = await ctx.runQuery(
+      internal.billing.store.listSubscriptionsForUser,
+      { userId: user._id },
+    );
+    const now = Date.now();
+    if (existing.some((row) => subscriptionGrantsAccess(row, now))) {
+      throw new Error(
+        "You're already on OneRep Pro. Manage the plan you have from Settings.",
+      );
+    }
+
     const successUrl = checkoutReturnUrl(
       "BILLING_CHECKOUT_SUCCESS_URL",
       "#success",

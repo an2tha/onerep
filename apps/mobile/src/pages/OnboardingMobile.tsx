@@ -605,6 +605,15 @@ export function OnboardingMobile() {
     setInitialized(true)
   }, [healthProfile, initialized, onboardingProfile, preferences])
 
+  // If the queries never land — offline, dead socket — stop waiting and let the
+  // user answer against local defaults. The guard above makes a late arrival a
+  // no-op, so nothing they typed can be overwritten after this fires.
+  useEffect(() => {
+    if (initialized) return
+    const timer = window.setTimeout(() => setInitialized(true), 6000)
+    return () => window.clearTimeout(timer)
+  }, [initialized])
+
   useEffect(() => {
     setDraft((current) => ({
       ...current,
@@ -1037,14 +1046,29 @@ export function OnboardingMobile() {
       setError("Tick the consent box above so I can save your plan.")
       return
     }
-    if (
-      !draft.goal ||
-      !experienceLevel ||
-      !profile.sex ||
-      savingRef.current ||
-      saving
-    )
+    if (savingRef.current || saving) return
+
+    // Never fail silently here — a mute return leaves "Start training" looking
+    // broken with no way back. Send them to whatever answer went missing.
+    const missing = !draft.goal
+      ? { stage: "goal" as StageId, message: "Pick a goal first — tap it below." }
+      : !experienceLevel
+        ? {
+            stage: "experience" as StageId,
+            message: "Tell me how long you've been training.",
+          }
+        : !profile.sex
+          ? {
+              stage: "sex" as StageId,
+              message: "I still need your baseline to do the maths.",
+            }
+          : null
+    if (missing) {
+      hapticHeavy()
+      setStage(stages.findIndex((item) => item.id === missing.stage))
+      setError(missing.message)
       return
+    }
 
     hapticHeavy()
     savingRef.current = true
@@ -1112,6 +1136,21 @@ export function OnboardingMobile() {
   }
 
   function renderInput(stageId: StageId, stageIndex: number) {
+    // Until hydration settles, answering is unsafe: the effect above still
+    // holds the right to overwrite every answer with what the server says.
+    if (!initialized) {
+      return (
+        <div
+          className="onboarding-chat-typing"
+          role="status"
+          aria-label="Loading your details"
+        >
+          <span />
+          <span />
+          <span />
+        </div>
+      )
+    }
     if (stageId === "intro") {
       return (
         <QuickReplies

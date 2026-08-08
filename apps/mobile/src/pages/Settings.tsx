@@ -679,6 +679,29 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   async function handleLogout() {
     if (loggingOut) return
     hapticMedium()
+
+    // Logging out wipes the queue. Try to land the writes first, and if any
+    // survive, say so out loud rather than deleting the user's work on a
+    // single tap of a button labelled "Remove this account from this device".
+    if (getOfflineQueueSummary().total > 0 && isBrowserOnline()) {
+      try {
+        await flushOfflineQueue()
+      } catch {
+        // Fall through to the warning below.
+      }
+    }
+    const stranded = getOfflineQueueSummary().total
+    if (stranded > 0) {
+      const plural = stranded === 1 ? "change" : "changes"
+      if (
+        !window.confirm(
+          `${stranded} ${plural} haven't synced yet and will be lost if you log out now. Log out anyway?`
+        )
+      ) {
+        return
+      }
+    }
+
     setLoggingOut(true)
     try {
       clearOfflineQueue()
@@ -1960,8 +1983,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <SettingsSectionLabel title="Privacy" />
                 <GroupedList label="Privacy controls">
                   <SettingsRow
-                    label="Analytics"
-                    detail="Share anonymous feature-usage counts. Meal, workout, body, and Coach contents are never included."
+                    label="Optional analytics"
+                    detail="Share anonymous feature-usage counts. Meal, workout, body, and Coach contents are never included. Basic usage measurement runs either way — see the privacy policy."
                   >
                     <CompactSwitch
                       onInteract={hapticSelection}
