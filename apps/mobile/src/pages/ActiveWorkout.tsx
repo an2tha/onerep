@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import { useParams, useSearchParams } from "react-router"
 import { usePostHog } from "@posthog/react"
 import { captureFeatureUsage, durationBucket } from "@/lib/analytics"
@@ -586,10 +587,10 @@ export function WeightSelectorSheet({
     commitWeightKg(activeBar.kg + plateKg * 2, activeBar.kg, activeBar.type)
   }
 
-  return (
+  return createPortal(
     <div
       className={cn(
-        "fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-[8px] md:block md:p-6",
+        "fixed inset-0 z-50 flex items-end justify-center bg-black/55 backdrop-blur-[8px] md:items-center md:p-6",
         isClosing
           ? "weight-selector-overlay-exit"
           : "weight-selector-overlay-enter"
@@ -601,20 +602,17 @@ export function WeightSelectorSheet({
         aria-modal="true"
         aria-label="Weight selector"
         className={cn(
-          "max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:absolute md:top-1/2 md:left-1/2 md:max-w-3xl md:rounded-[28px] md:shadow-2xl",
+          "flex max-h-[92dvh] w-full max-w-sm flex-col overflow-hidden rounded-t-3xl bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.24)] md:max-h-[calc(100dvh-3rem)] md:max-w-3xl md:rounded-[28px] md:shadow-2xl",
           isClosing
             ? "weight-selector-panel-exit"
             : "weight-selector-panel-enter"
         )}
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex justify-center pt-3 pb-1">
+        <div className="flex shrink-0 justify-center pt-3 pb-1 md:hidden">
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
-        <div className="flex items-center justify-between px-5 py-3">
+        <div className="flex shrink-0 items-center justify-between px-5 py-3 md:pt-5">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-[18px] bg-muted/55 text-foreground/70">
               <Barbell size={17} weight="bold" />
@@ -639,7 +637,13 @@ export function WeightSelectorSheet({
           </button>
         </div>
 
-        <div className="px-5 pb-4 md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-3 md:px-6 md:pb-6">
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto px-5 pb-4 md:px-6 md:pb-5",
+            hasBar &&
+              "md:grid md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:items-start md:gap-3"
+          )}
+        >
           <div className="rounded-[26px] border border-border/45 bg-background p-3">
             <div className="flex items-center justify-between gap-3 px-1">
               <div className="min-w-0">
@@ -909,16 +913,25 @@ export function WeightSelectorSheet({
             </div>
           </div>
 
+        </div>
+
+        <div
+          className="shrink-0 border-t border-border/40 bg-card px-5 pt-3 md:px-6"
+          style={{
+            paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+          }}
+        >
           <button
             type="button"
             onClick={dismiss}
-            className="mt-3 h-12 w-full rounded-[20px] bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-85 md:col-span-2"
+            className="h-12 w-full rounded-[20px] bg-foreground text-[14px] font-semibold tracking-tight text-background transition-opacity active:opacity-85"
           >
             Done
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
