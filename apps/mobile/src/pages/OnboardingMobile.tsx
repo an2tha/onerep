@@ -696,7 +696,7 @@ export function OnboardingMobile() {
   const stageMessages: Record<StageId, string[]> = {
     intro: [
       "Hi, I'm your OneRep coach.",
-      "I'll set up your training and nutrition targets in about a minute, just a quick chat with no forms.",
+      "I'll set up your training and nutrition targets in about a minute",
     ],
     goal: ["First things first: what are you working toward?"],
     experience: [
