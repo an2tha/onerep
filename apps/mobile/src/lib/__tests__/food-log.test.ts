@@ -14,7 +14,11 @@ import {
   foodLogEntriesFromMealPreset,
   foodLogEntriesFromHistoryMeal,
   foodPortionLabel,
+  foodServingLabel,
+  foodServingMultiplier,
   gramsFromFoodPortion,
+  isNamedFoodServing,
+  stepFoodServingMultiplier,
   mealEntriesSignature,
   mealPresetTemplateEntries,
   nutritionDetailTotals,
@@ -772,5 +776,63 @@ describe("mergeCustomMealCategories", () => {
       []
     )
     expect(merged).toEqual([local])
+  })
+})
+
+// ── Named servings ────────────────────────────────────────────────────────────
+
+describe("named food servings", () => {
+  test("a serving the units can already spell is not named", () => {
+    expect(
+      isNamedFoodServing("100 g", defaultFoodPortion("100 g", "apple"))
+    ).toBe(false)
+    expect(
+      isNamedFoodServing("100g", defaultFoodPortion("100 g", "apple"))
+    ).toBe(false)
+    expect(isNamedFoodServing("", defaultFoodPortion("", "apple"))).toBe(false)
+    expect(isNamedFoodServing(null, defaultFoodPortion("", "apple"))).toBe(
+      false
+    )
+  })
+
+  test("a serving in the food's own words is named", () => {
+    expect(
+      isNamedFoodServing("8 ONZ", defaultFoodPortion("8 ONZ", "apple", 242))
+    ).toBe(true)
+    expect(
+      isNamedFoodServing(
+        "1 cup, chopped",
+        defaultFoodPortion("1 cup, chopped", "apple", 125)
+      )
+    ).toBe(true)
+  })
+
+  test("multiplier counts servings out of the selected grams", () => {
+    expect(foodServingMultiplier(242, 242)).toBe(1)
+    expect(foodServingMultiplier(484, 242)).toBe(2)
+    expect(foodServingMultiplier(121, 242)).toBe(0.5)
+    expect(foodServingMultiplier(0, 242)).toBe(0)
+  })
+
+  test("multiplier survives a serving with no weight", () => {
+    expect(foodServingMultiplier(242, 0)).toBe(1)
+    expect(foodServingMultiplier(242, Number.NaN)).toBe(1)
+  })
+
+  test("a single serving reads as itself, more of it multiplies", () => {
+    expect(foodServingLabel(1, "8 ONZ")).toBe("8 ONZ")
+    expect(foodServingLabel(2, "8 ONZ")).toBe("2 × 8 ONZ")
+    expect(foodServingLabel(0.5, "8 ONZ")).toBe("0.5 × 8 ONZ")
+  })
+
+  test("stepping snaps to whole servings and floors at a half", () => {
+    expect(stepFoodServingMultiplier(1, 1)).toBe(2)
+    expect(stepFoodServingMultiplier(2, 1)).toBe(3)
+    expect(stepFoodServingMultiplier(1.6, 1)).toBe(2)
+    expect(stepFoodServingMultiplier(0.5, 1)).toBe(1)
+    expect(stepFoodServingMultiplier(3, -1)).toBe(2)
+    expect(stepFoodServingMultiplier(1.6, -1)).toBe(1)
+    expect(stepFoodServingMultiplier(1, -1)).toBe(0.5)
+    expect(stepFoodServingMultiplier(0.5, -1)).toBe(0.5)
   })
 })

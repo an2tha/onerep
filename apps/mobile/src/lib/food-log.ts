@@ -539,6 +539,53 @@ export function foodPortionLabel(portion: FoodPortion) {
   return `${formatFoodPortionAmount(portion.amount)} ${foodPortionUnitLabel(portion.unit)}`
 }
 
+// ─── Named servings ──────────────────────────────────────────────────────────
+// A food that ships its own serving text ("8 ONZ", "1 cup, chopped") carries a
+// unit we cannot spell. Those get multiplied whole rather than converted.
+
+function canonicalServingText(value: string) {
+  return value.toLowerCase().replace(/[\s.]+/g, "")
+}
+
+/**
+ * True when a food's own serving text says something our unit labels cannot.
+ * A serving of "100 g" is just grams and deserves no special treatment; a
+ * serving of "8 ONZ" or "1 cup, chopped" does.
+ */
+export function isNamedFoodServing(
+  label: string | null | undefined,
+  portion: FoodPortion
+) {
+  const text = (label ?? "").trim()
+  if (!text) return false
+  return (
+    canonicalServingText(text) !==
+    canonicalServingText(foodPortionLabel(portion))
+  )
+}
+
+/** How many of a named serving the selected grams add up to. */
+export function foodServingMultiplier(grams: number, servingGrams: number) {
+  if (!(servingGrams > 0)) return 1
+  return Math.round((nonNegativeFoodNumber(grams) / servingGrams) * 100) / 100
+}
+
+/** "8 ONZ" at a single serving, "2 × 8 ONZ" past that. */
+export function foodServingLabel(multiplier: number, servingLabel: string) {
+  if (Math.abs(multiplier - 1) < 0.005) return servingLabel
+  return `${formatFoodPortionAmount(multiplier)} × ${servingLabel}`
+}
+
+/**
+ * Next or previous whole multiple of a named serving. Stepping snaps to round
+ * counts — nobody means to log 1.54 servings — and bottoms out at a half.
+ */
+export function stepFoodServingMultiplier(current: number, dir: 1 | -1) {
+  if (dir > 0) return current < 1 ? 1 : Math.floor(current + 1e-6) + 1
+  if (current <= 1) return 0.5
+  return Math.max(0.5, Math.ceil(current - 1e-6) - 1)
+}
+
 function normalizePortionUnit(raw: string): FoodPortionUnit | null {
   const unit = raw.toLowerCase().replace(/\./g, "").replace(/\s+/g, " ").trim()
   if (unit === "g" || unit === "gram" || unit === "grams") return "g"

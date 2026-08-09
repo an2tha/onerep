@@ -834,3 +834,37 @@ describe("AI subscription hint", () => {
     assert.match(SETTINGS_SOURCE, /openHealthSettings\(\)/)
   })
 })
+
+// ─── Agent access ─────────────────────────────────────────────────────────────
+
+describe("agent access is findable", () => {
+  const MCP_PANEL = readFileSync(
+    new URL("../components/mcp-tokens-section.tsx", import.meta.url),
+    "utf8"
+  )
+
+  test("minting a token is a top-level row, not buried in Data & account", () => {
+    // It lived under Data & account first, four scrolls down past the export
+    // and the delete-account box. Nobody was going to find it there.
+    assert.match(SETTINGS_SOURCE, /title="MCP access"/)
+    assert.match(SETTINGS_SOURCE, /showView\("agents"\)/)
+    assert.match(SETTINGS_SOURCE, /agents: "MCP access"/)
+  })
+
+  test("the row says whether anything is connected before you open it", () => {
+    assert.match(SETTINGS_SOURCE, /mcpTokenCount/)
+    assert.match(SETTINGS_SOURCE, /Connect Claude or another MCP client/)
+  })
+
+  test("both scopes can be minted, and read-only is offered first", () => {
+    const readOnly = MCP_PANEL.indexOf("New read-only token")
+    const readWrite = MCP_PANEL.indexOf("New read & write token")
+    assert.ok(readOnly > -1 && readWrite > -1)
+    assert.ok(readOnly < readWrite)
+  })
+
+  test("the plaintext is presented as shown-once, and revocation is one tap", () => {
+    assert.match(MCP_PANEL, /only time it will be shown/i)
+    assert.match(MCP_PANEL, /revokeToken\(/)
+  })
+})

@@ -19,7 +19,9 @@ describe("AuthGuard source contract", () => {
 
   test("keeps a newly signed-in session alive during Convex token hydration", () => {
     expect(AUTH_GUARD_SOURCE).toContain("Finishing sign in")
-    expect(AUTH_GUARD_SOURCE).toContain("if (!authServiceConfigured || authLoadTimedOut || isSignedIn) return")
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (!authServiceConfigured || authLoadTimedOut || isSignedIn) return"
+    )
     expect(AUTH_GUARD_SOURCE).toContain(
       "never destroy the newly created session"
     )
@@ -30,6 +32,24 @@ describe("AuthGuard source contract", () => {
     expect(AUTH_GUARD_SOURCE).toContain("Sign-in service unavailable")
     expect(AUTH_GUARD_SOURCE).toContain("Retry")
     expect(AUTH_GUARD_SOURCE).toContain("Sign out and start again")
+  })
+
+  test("lets the stall timeout escape a Convex handoff that never resolves", () => {
+    // The spinner condition must not be checked ahead of the timeout, or a
+    // Convex client stuck on `isLoading` pins the app to "Finishing sign in".
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "if (waitingForConvexAuth && !stalled) return <AuthHandoff />"
+    )
+    expect(AUTH_GUARD_SOURCE).toContain(
+      "const stalled = handoffTimedOut || (!isOnline && waitingForConvexAuth)"
+    )
+  })
+
+  test("treats offline as offline instead of as a signed-out session", () => {
+    expect(AUTH_GUARD_SOURCE).toContain("You’re offline")
+    expect(AUTH_GUARD_SOURCE).toContain("if (!isOnline) return")
+    expect(AUTH_GUARD_SOURCE).toContain('window.addEventListener("online"')
+    expect(AUTH_GUARD_SOURCE).toContain('window.addEventListener("offline"')
   })
 
   test("unauthenticated protected routes render a visible sign-in handoff", () => {

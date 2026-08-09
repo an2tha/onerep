@@ -5,8 +5,9 @@ import {
   Barbell,
   CaretLeft,
   CaretRight,
+  Plus,
 } from "@phosphor-icons/react"
-import { toast } from "@repo/ui"
+import { MomentRow, MomentScreen, MomentSecondaryAction, toast } from "@repo/ui"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
@@ -33,10 +34,6 @@ import {
   type SourceWorkoutLog,
 } from "@/lib/moment-quick-log"
 import { DayStrip, fullDateLabel } from "@/components/log-past-workout-sheet"
-import {
-  MomentScreen,
-  MomentSecondaryAction,
-} from "@/components/moments/moment-screen"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
 /**
@@ -72,42 +69,6 @@ function dayWord(date: string, todayKey: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, {
     weekday: "long",
   })
-}
-
-function Row({
-  icon,
-  title,
-  detail,
-  disabled,
-  onClick,
-}: {
-  icon: React.ReactNode
-  title: string
-  detail: string
-  disabled?: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors active:bg-muted/40 disabled:opacity-45"
-    >
-      <span className="app-icon-button pointer-events-none h-9 w-9 shrink-0 bg-muted/55 text-muted-foreground/70">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] font-semibold">
-          {title}
-        </span>
-        <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
-          {detail}
-        </span>
-      </span>
-      <CaretRight size={11} className="shrink-0 text-muted-foreground" />
-    </button>
-  )
 }
 
 /**
@@ -286,17 +247,20 @@ export function QuickLogStep({
   }
 
   /**
-   * The way out for a session that was not like any of these. Hands off to the
-   * existing retro funnel rather than growing a second one: `?logPast=` opens
-   * the same sheet the Workouts page uses, already on the chosen day, with
-   * dictation and the full logger behind it.
+   * Anything the lists above cannot express — a one-off, a session that went
+   * nothing like the plan, an exercise this account has never done.
+   *
+   * Goes straight to the logger for the chosen day rather than back through
+   * the Workouts page's sheet: the day has already been picked here, and
+   * asking for it a second time is the detour this screen exists to remove.
    */
-  function openFullFunnel() {
+  function openBlankLogger() {
     hapticSelection()
     onClose("resolved")
-    navigate(`/workouts?logPast=${date}`, { motion: "forward" })
+    navigate(`/workout/log/${date}`, { motion: "forward" })
   }
 
+  const loading = presets === undefined || preferences === undefined
   const hasOneTapOptions = candidates.length > 0 || presetRows.length > 0
 
   return (
@@ -305,15 +269,17 @@ export function QuickLogStep({
       subtitle={
         hasOneTapOptions
           ? "Pick the day, then the session. Numbers come from the last time you did it."
-          : "Pick the day and we'll open the logger on it."
+          : "Pick the day, then add the exercises you did."
       }
-      onClose={() => onClose("dismissed")}
+      onClose={() => {
+        hapticSelection()
+        onClose("dismissed")
+      }}
       actions={
         <>
-          <MomentSecondaryAction onClick={openFullFunnel}>
-            {hasOneTapOptions
-              ? "It was something else"
-              : `Log ${fullDateLabel(date, todayKey)}`}
+          <MomentSecondaryAction onClick={openBlankLogger}>
+            <Plus size={14} weight="bold" className="mr-1.5" />
+            {hasOneTapOptions ? "Another exercise" : "Add exercises"}
           </MomentSecondaryAction>
           <MomentSecondaryAction
             onClick={() => {
@@ -339,7 +305,7 @@ export function QuickLogStep({
           {candidates.map((candidate, index) => (
             <div key={candidate.id}>
               {index > 0 && <div className="mx-4 h-px bg-border/50" />}
-              <Row
+              <MomentRow
                 icon={<ArrowClockwise size={16} weight="bold" />}
                 title={candidate.title}
                 detail={candidate.detail}
@@ -354,13 +320,15 @@ export function QuickLogStep({
       {presetRows.length > 0 && (
         <>
           <p className="mt-5 mb-2 px-1 text-[13px] text-muted-foreground">
-            Or one of your plans, as written
+            {candidates.length > 0
+              ? "Or one of your plans, as written"
+              : "Your plans, as written"}
           </p>
           <div className="app-surface overflow-hidden">
             {presetRows.map((row, index) => (
               <div key={row.id}>
                 {index > 0 && <div className="mx-4 h-px bg-border/50" />}
-                <Row
+                <MomentRow
                   icon={<Barbell size={16} weight="bold" />}
                   title={row.name}
                   detail={row.detail}
@@ -371,6 +339,33 @@ export function QuickLogStep({
             ))}
           </div>
         </>
+      )}
+
+      {/*
+        A blank screen with one button that leaves is the worst version of
+        this. Say why there is nothing to tap, and point at the thing that
+        would put something here next time.
+      */}
+      {!loading && !hasOneTapOptions && (
+        <div className="app-surface mt-4 px-4 py-5">
+          <p className="text-[14px] font-semibold">Nothing to repeat yet.</p>
+          <p className="mt-1 text-[13px] leading-snug text-muted-foreground">
+            Once you have saved a routine or logged a session, both show up here
+            as one tap. For now, add the exercises you did.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              hapticSelection()
+              onClose("resolved")
+              navigate("/routines", { motion: "forward" })
+            }}
+            className="mt-3 inline-flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+          >
+            Build a routine
+            <CaretRight size={11} weight="bold" className="ml-1.5" />
+          </button>
+        </div>
       )}
     </MomentScreen>
   )

@@ -7177,6 +7177,11 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     var(--motion-ease-out, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
+/* Below the sheet layer, for a moment that has opened one of its own. */
+.moment-layer[data-yielded="true"] {
+  z-index: 40;
+}
+
 .moment-screen {
   position: relative;
   display: flex;

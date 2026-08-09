@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { cn } from "../lib/utils"
 
 export type MobileSheetProps = {
@@ -244,7 +245,10 @@ export function MobileSheet({
     ? { height: `${currentHeight}px` }
     : {}
 
-  return (
+  // Portaled to <body>: the route frames animate with transforms and sit in
+  // low z-index stacking contexts, so a sheet rendered in place gets clipped
+  // to the content pane and paints beneath the desktop sidebar.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
       style={{ overflow: "visible" }}
@@ -301,6 +305,7 @@ export function MobileSheet({
         </div>
         {bottom && <div className="shrink-0">{bottom}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

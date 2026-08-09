@@ -1,19 +1,15 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery } from "convex/react"
-import { CaretRight, Drop, ForkKnife } from "@phosphor-icons/react"
-import { toast } from "@repo/ui"
+import { CaretLeft, ChatCircleDots, Drop } from "@phosphor-icons/react"
+import { MomentRow, MomentScreen, MomentSecondaryAction, toast } from "@repo/ui"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { createClientId, logDevWarn } from "@/lib/utils"
 import { fmtMl } from "@/lib/water-amounts"
-import { buildQuickRepeatFoods } from "@/lib/food-quick-repeat"
 import type { FoodLogEntry } from "@/lib/food-log"
 import type { SourceWorkoutLog } from "@/lib/moment-quick-log"
-import {
-  MomentScreen,
-  MomentSecondaryAction,
-} from "@/components/moments/moment-screen"
+import { QuickFoodStep } from "@/components/moments/quick-food-step"
 import { QuickLogStep } from "@/components/moments/quick-log-step"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
 
@@ -27,19 +23,43 @@ type Answer = {
   label: string
   detail: string
   /**
-   * `retro` and `rest` finish the job here. The rest hand off, because
-   * describing a meal or talking to a coach is not a one-tap thing and
-   * pretending otherwise would just add a step.
+   * Every answer but `close` opens something: the rapid food log, the day
+   * picker, the questions the coach gets asked. Nothing here is a bare link
+   * to a page.
    */
-  action: "retro" | "rest" | "nutrition" | "coach" | "routines" | "close"
+  action: "retro" | "rest" | "coach" | "nutrition" | "close"
   outcome: FullScreenEventOutcome
+}
+
+/**
+ * Questions worth asking a coach about a stalled week, phrased the way the
+ * user would phrase them.
+ *
+ * Tapping one sends it — the point of a shortcut is not having to type, and a
+ * prompt sitting in a composer waiting to be pressed is still typing's
+ * problem. "Another reason" opens the coach with an empty composer for
+ * everything these four do not cover.
+ */
+const COACH_PROMPTS: Record<CheckInVariant, string[]> = {
+  "training-lapse": [
+    "I'm too sore to train the way my plan wants. What should I change this week?",
+    "Something hurts when I train. How do I work around it without losing progress?",
+    "I'm exhausted and my sessions keep slipping. Is this recovery or motivation?",
+    "I've missed a stretch of training. Where should I restart without overdoing it?",
+  ],
+  "missed-log": [
+    "I keep forgetting to log my food. How do I make it stick?",
+    "Logging every meal is taking too long. What is the least I can track and still make progress?",
+    "I stopped logging because the numbers were stressing me out. What now?",
+    "My eating has drifted off plan. Help me get back to it without starting over.",
+  ],
 }
 
 const MISSED_LOG_ANSWERS: Answer[] = [
   {
     id: "ate-unlogged",
     label: "I ate, I just didn't write it down",
-    detail: "Open today's diary and fill in what you remember.",
+    detail: "Your usual foods and recipes, one tap each.",
     action: "nutrition",
     outcome: "resolved",
   },
@@ -60,7 +80,7 @@ const MISSED_LOG_ANSWERS: Answer[] = [
   {
     id: "help",
     label: "Something's not working for me",
-    detail: "Tell your coach what's in the way.",
+    detail: "Ask your coach, without typing it out.",
     action: "coach",
     outcome: "resolved",
   },
@@ -84,15 +104,8 @@ const LAPSE_ANSWERS: Answer[] = [
   {
     id: "sore",
     label: "Sore, tired, or hurt",
-    detail: "Your coach can work around it.",
+    detail: "Ask your coach to work around it.",
     action: "coach",
-    outcome: "resolved",
-  },
-  {
-    id: "lost-it",
-    label: "I've lost the thread",
-    detail: "Start from a shorter routine and rebuild.",
-    action: "routines",
     outcome: "resolved",
   },
 ]
@@ -121,9 +134,8 @@ function copyFor(variant: CheckInVariant, daysSince: number) {
  * It asks before it suggests, and where it can, it finishes the job in place:
  * a rest week, a glass of water, a meal you have eaten forty times before all
  * complete here and close on a write rather than on a promise to go somewhere
- * else and do it. The answers that genuinely need another screen — describing
- * a session out loud, talking to the coach — still hand off, because faking
- * those into one tap would only add a step.
+ * else and do it. Talking to the coach is one step removed rather than two:
+ * pick the question here and it arrives already asked.
  */
 export function CheckInMoment({
   variant,
@@ -142,15 +154,13 @@ export function CheckInMoment({
   onClose: (outcome: FullScreenEventOutcome) => void
 }) {
   const navigate = useSmoothNavigate()
-  const [step, setStep] = useState<"ask" | "day">("ask")
+  const [step, setStep] = useState<"ask" | "day" | "coach" | "food">("ask")
   const [busy, setBusy] = useState(false)
 
   const markRestDays = useMutation(api.logs.restDays.mark)
   const unmarkRestDays = useMutation(api.logs.restDays.unmark)
   const addWater = useMutation(api.logs.water.addEntry)
   const removeWater = useMutation(api.logs.water.removeEntry)
-  const addFood = useMutation(api.logs.foodLogs.addEntry)
-  const removeFood = useMutation(api.logs.foodLogs.removeEntry)
 
   // Only the missed-log nudge offers food and water, and only it pays for the
   // history query behind them.
@@ -161,15 +171,6 @@ export function CheckInMoment({
 
   const answers = variant === "missed-log" ? MISSED_LOG_ANSWERS : LAPSE_ANSWERS
   const { title, subtitle } = copyFor(variant, daysSince)
-
-  /** The handful of foods this user logs over and over, newest portion first. */
-  const repeatFoods = useMemo(() => {
-    if (!recentFood) return []
-    return buildQuickRepeatFoods(
-      recentFood.filter((day) => day.date !== todayKey),
-      3
-    )
-  }, [recentFood, todayKey])
 
   /** Marks the whole unrested stretch, with one undo covering all of it. */
   async function markRest() {
@@ -236,34 +237,6 @@ export function CheckInMoment({
     }
   }
 
-  async function logFood(entry: FoodLogEntry) {
-    if (busy) return
-    const id = createClientId()
-    setBusy(true)
-    try {
-      await addFood({
-        date: todayKey,
-        entry: { ...entry, id, loggedAt: new Date().toISOString() },
-      })
-      hapticMedium()
-      toast.success(`${entry.name} logged`, {
-        action: {
-          label: "Undo",
-          onClick: () => {
-            void removeFood({ date: todayKey, entryId: id }).catch(() => {
-              toast.error("Couldn't undo that")
-            })
-          },
-        },
-      })
-    } catch (error) {
-      logDevWarn("Failed to repeat a food from a moment", error)
-      toast.error("Couldn't log that. Try again.")
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function choose(answer: Answer) {
     hapticSelection()
     if (answer.action === "retro") {
@@ -274,15 +247,92 @@ export function CheckInMoment({
       void markRest()
       return
     }
-
-    onClose(answer.outcome)
-    if (answer.action === "nutrition") {
-      navigate(`/nutrition?date=${todayKey}`, { motion: "forward" })
-    } else if (answer.action === "coach") {
-      navigate("/coach", { motion: "forward" })
-    } else if (answer.action === "routines") {
-      navigate("/routines", { motion: "forward" })
+    if (answer.action === "coach") {
+      setStep("coach")
+      return
     }
+    if (answer.action === "nutrition") {
+      setStep("food")
+      return
+    }
+    onClose(answer.outcome)
+  }
+
+  /** Hands the question to the coach and lets it answer on arrival. */
+  function askCoach(prompt?: string) {
+    hapticSelection()
+    onClose("resolved")
+    navigate("/coach", {
+      motion: "forward",
+      state: prompt
+        ? {
+            coachMode: "personal_trainer",
+            initialInput: prompt,
+            autoSend: true,
+          }
+        : undefined,
+    })
+  }
+
+  if (step === "food") {
+    return (
+      <QuickFoodStep
+        todayKey={todayKey}
+        recentFood={recentFood}
+        onBack={() => setStep("ask")}
+        onClose={onClose}
+      />
+    )
+  }
+
+  if (step === "coach") {
+    return (
+      <MomentScreen
+        title="What should it know?"
+        subtitle="Pick the closest one and your coach answers it with your last twelve weeks already in front of it."
+        onClose={() => {
+          hapticSelection()
+          onClose("dismissed")
+        }}
+        actions={
+          <>
+            <MomentSecondaryAction onClick={() => askCoach()}>
+              Another reason
+            </MomentSecondaryAction>
+            <MomentSecondaryAction
+              onClick={() => {
+                hapticSelection()
+                setStep("ask")
+              }}
+              className="bg-transparent text-muted-foreground active:bg-muted/40"
+            >
+              <CaretLeft size={13} weight="bold" className="mr-1.5" />
+              Back
+            </MomentSecondaryAction>
+          </>
+        }
+      >
+        <div className="app-surface overflow-hidden">
+          {COACH_PROMPTS[variant].map((prompt, index) => (
+            <div key={prompt}>
+              {index > 0 && <div className="mx-4 h-px bg-border/50" />}
+              <button
+                type="button"
+                onClick={() => askCoach(prompt)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors active:bg-muted/40"
+              >
+                <span className="app-icon-button pointer-events-none h-9 w-9 shrink-0 bg-muted/55 text-muted-foreground/70">
+                  <ChatCircleDots size={16} weight="bold" />
+                </span>
+                <span className="min-w-0 flex-1 text-[14px] leading-snug font-medium">
+                  {prompt}
+                </span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </MomentScreen>
+    )
   }
 
   if (step === "day") {
@@ -315,33 +365,25 @@ export function CheckInMoment({
         {answers.map((answer, index) => (
           <div key={answer.id}>
             {index > 0 && <div className="mx-4 h-px bg-border/50" />}
-            <button
-              type="button"
+            <MomentRow
+              title={answer.label}
+              detail={answer.detail}
               disabled={busy}
               onClick={() => choose(answer)}
-              className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors active:bg-muted/40 disabled:opacity-45"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold">
-                  {answer.label}
-                </span>
-                <span className="mt-0.5 block text-[13px] leading-snug text-muted-foreground">
-                  {answer.detail}
-                </span>
-              </span>
-              <CaretRight
-                size={11}
-                className="shrink-0 text-muted-foreground"
-              />
-            </button>
+            />
           </div>
         ))}
       </div>
 
+      {/*
+        Water only. The foods that used to sit here are the whole of the
+        rapid-log step now, and offering the same three in two places invites
+        the user to log one of them twice.
+      */}
       {variant === "missed-log" && (
         <div className="mt-5">
           <p className="mb-2 px-1 text-[13px] text-muted-foreground">
-            Or salvage something from today
+            Or drink something, while you are here
           </p>
           <div className="flex flex-wrap gap-1.5">
             {WATER_CHIPS_ML.map((amountMl) => (
@@ -351,15 +393,6 @@ export function CheckInMoment({
                 label={fmtMl(amountMl)}
                 disabled={busy}
                 onClick={() => void logWater(amountMl)}
-              />
-            ))}
-            {repeatFoods.map((food) => (
-              <Chip
-                key={food.key}
-                icon={<ForkKnife size={13} weight="bold" />}
-                label={food.entry.name}
-                disabled={busy}
-                onClick={() => void logFood(food.entry)}
               />
             ))}
           </div>
