@@ -71,11 +71,16 @@ import type * as logs_mealPresets from "../logs/mealPresets.js";
 import type * as logs_presetAgent from "../logs/presetAgent.js";
 import type * as logs_presets from "../logs/presets.js";
 import type * as logs_recipes from "../logs/recipes.js";
+import type * as logs_restDays from "../logs/restDays.js";
 import type * as logs_snap from "../logs/snap.js";
 import type * as logs_snapMatching from "../logs/snapMatching.js";
 import type * as logs_supplements from "../logs/supplements.js";
 import type * as logs_water from "../logs/water.js";
 import type * as logs_workouts from "../logs/workouts.js";
+import type * as mcp_data from "../mcp/data.js";
+import type * as mcp_server from "../mcp/server.js";
+import type * as mcp_tokens from "../mcp/tokens.js";
+import type * as mcp_tools from "../mcp/tools.js";
 import type * as migrations from "../migrations.js";
 import type * as security from "../security.js";
 import type * as sharing_diaryComments from "../sharing/diaryComments.js";
@@ -90,6 +95,7 @@ import type * as users_schedules from "../users/schedules.js";
 import type * as users_tooltips from "../users/tooltips.js";
 import type * as users_users from "../users/users.js";
 import type * as users_walkthrough from "../users/walkthrough.js";
+import type * as users_weeklyTargets from "../users/weeklyTargets.js";
 
 import type {
   ApiFromModules,
@@ -161,11 +167,16 @@ declare const fullApi: ApiFromModules<{
   "logs/presetAgent": typeof logs_presetAgent;
   "logs/presets": typeof logs_presets;
   "logs/recipes": typeof logs_recipes;
+  "logs/restDays": typeof logs_restDays;
   "logs/snap": typeof logs_snap;
   "logs/snapMatching": typeof logs_snapMatching;
   "logs/supplements": typeof logs_supplements;
   "logs/water": typeof logs_water;
   "logs/workouts": typeof logs_workouts;
+  "mcp/data": typeof mcp_data;
+  "mcp/server": typeof mcp_server;
+  "mcp/tokens": typeof mcp_tokens;
+  "mcp/tools": typeof mcp_tools;
   migrations: typeof migrations;
   security: typeof security;
   "sharing/diaryComments": typeof sharing_diaryComments;
@@ -180,6 +191,7 @@ declare const fullApi: ApiFromModules<{
   "users/tooltips": typeof users_tooltips;
   "users/users": typeof users_users;
   "users/walkthrough": typeof users_walkthrough;
+  "users/weeklyTargets": typeof users_weeklyTargets;
 }>;
 
 /**

@@ -126,6 +126,15 @@ import { billingErrorMessage, hasOneRepPro, useBilling } from "@/lib/billing"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useMomentPreview } from "@/lib/full-screen-events"
 import { MOMENT_IDS, type MomentId } from "@/lib/moments"
+import { McpTokensSection } from "@/components/mcp-tokens-section"
+import { resolveConvexSiteUrl } from "@/lib/service-urls"
+
+/** Where an MCP client points. Shown so nobody has to guess the hostname. */
+const mcpSiteUrl = resolveConvexSiteUrl(
+  import.meta.env.VITE_CONVEX_SITE_URL,
+  import.meta.env.VITE_CONVEX_URL
+)
+const mcpEndpointUrl = mcpSiteUrl ? `${mcpSiteUrl}/mcp` : undefined
 import {
   CompactSwitch,
   AiUsageProgress,
@@ -2251,6 +2260,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     onClick={handleClearLocalData}
                   />
                 </GroupedList>
+
+                <SettingsSectionLabel
+                  title="Agent access"
+                  detail="Let an AI assistant read and write your log over MCP"
+                />
+                <McpTokensSection endpoint={mcpEndpointUrl} />
 
                 <SettingsSectionLabel
                   title="Permanent actions"

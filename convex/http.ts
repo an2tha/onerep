@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { stripeWebhook } from "./billing/webhooks";
+import { mcpEndpoint } from "./mcp/server";
 import {
   authComponent,
   createAuth,
@@ -62,5 +63,10 @@ http.route({
   method: "POST",
   handler: stripeWebhook,
 });
+
+// The MCP endpoint. Authorized by bearer token rather than a session, so it
+// deliberately sits outside the auth component's CORS-scoped routes.
+http.route({ path: "/mcp", method: "POST", handler: mcpEndpoint });
+http.route({ path: "/mcp", method: "OPTIONS", handler: mcpEndpoint });
 
 export default http;

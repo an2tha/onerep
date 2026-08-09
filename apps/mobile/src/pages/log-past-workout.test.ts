@@ -20,6 +20,9 @@ const read = (path: string) =>
 const SHEET = read("../components/log-past-workout-sheet.tsx")
 const WORKOUTS = read("./Workouts.tsx")
 const QUICK = read("./QuickLogPreset.tsx")
+// The expansion itself lives in a shared module: the check-in moment logs a
+// preset without opening this page, and both must expand it identically.
+const PRESET_LOG = read("../lib/preset-quick-log.ts")
 const RETRO = read("./ActiveWorkout.tsx")
 const ROUTES = read("../main.tsx")
 const DASHBOARD = read("../App.tsx")
@@ -100,12 +103,19 @@ describe("the abridged preset view", () => {
   test("collapses each exercise to sets, reps, and weight", () => {
     expect(QUICK).toContain('label="Sets"')
     expect(QUICK).toContain('label="Reps"')
-    expect(QUICK).toContain("setCount: string")
+    expect(PRESET_LOG).toContain("setCount: string")
   })
 
   test("records a session, so every set it writes is completed", () => {
-    expect(QUICK).toContain("makeSet(true)")
-    expect(QUICK).toContain("completed: true")
+    expect(PRESET_LOG).toContain("makeSet(true)")
+    expect(PRESET_LOG).toContain("completed: true")
+  })
+
+  test("the page expands the plan through the shared module", () => {
+    expect(QUICK).toContain('from "@/lib/preset-quick-log"')
+    expect(QUICK).toContain("buildCompletionExercises({")
+    // The page must not grow its own copy of the expansion again.
+    expect(QUICK).not.toContain("normalizeExerciseState(")
   })
 
   test("saves through the log mutation with the day it happened", () => {

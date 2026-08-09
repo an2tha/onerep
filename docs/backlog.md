@@ -3,59 +3,62 @@
 Things that are wanted but not built. Deliberately short: an item earns its
 place here by being specific enough to start, and leaves by being done.
 
+## The Convex tests are half fiction
+
+**Status:** found, not fixed. Urgent in the sense that nobody knows what is
+actually covered.
+
+`convexTest`'s `withIdentity` takes one argument and returns a scoped
+instance. Nineteen files in `convex/__tests__` call it as
+`withIdentity({ … }, async () => { … })` — the callback is an ignored second
+argument, so it never runs, and every assertion inside it never executes. The
+tests pass because nothing in them happens. Roughly 130 blocks are affected.
+
+The fix per block is mechanical (`const asUser = t.withIdentity({ … })`, then
+`asUser.mutation(…)`), and it was applied to `moments`, `restDays`, `mcp` and
+`mcpEndpoint`. The other nineteen files were left alone deliberately: turning
+them on will surface real failures, and that is a body of work to schedule
+rather than smuggle into an unrelated change.
+
 ## Full-screen moments: quick actions and better UI
 
-**Status:** not started. The moments themselves shipped — see
-`apps/mobile/src/lib/full-screen-events.tsx` for the layer,
-`apps/mobile/src/lib/moments.ts` for the triggers.
+**Status:** done, bar one deliberate exclusion.
 
-Two related complaints about what's there now.
+Quick actions land in the check-in moment: repeating a recent session or a
+saved preset onto a chosen day, marking a stretch as deliberate rest, a glass
+of water, and repeating a food eaten often. Each writes and closes with undo
+in the toast. The weekly report was rebuilt around a seven-day strip and now
+ends by asking for next week's session target, which it holds you to when that
+week closes.
 
-**Quick actions right from the prompt.** Today every answer on the check-in
-screen is a hand-off: it closes the moment and navigates somewhere else, and
-the user finishes the job on a different page having already forgotten why
-they were sent there. The obvious ones should complete in place — log the
-session, log the meal, mark the rest day — and the screen should close on
-something being _done_ rather than on a promise to do it. The retro-log path
-is the sharpest case: picking a day and describing the session is two screens
-away when it could be one.
-
-**Better UI.** The current screens are honest and plain, which was the right
-first pass and is not the last one. The weekly report in particular is four
-stat tiles and a list; it should be worth stopping for.
-
-Related: `apps/mobile/src/components/moments/`.
+**Not done: dictation in place.** "Describe it" lives inside
+`ActiveWorkout.tsx`, 3,800 lines that own the retro logger, the draft handoff
+and the AI parse. Hosting it in a moment means extracting that first. The
+moment still hands off to it through `?logPast=`, which is one route
+transition, not a dead end.
 
 ## A full MCP interface, auth-gated
 
-**Status:** not started. Nothing of this exists yet.
+**Status:** shipped, token-authenticated. `POST /mcp` on the Convex HTTP
+router, JSON-RPC 2.0, protocol version 2025-06-18.
 
-Expose the account over the Model Context Protocol so an agent — Claude, or
-whatever the user already has open — can read and write the log without
-anybody pretending a chat box is an API. Full-fledged, meaning the same
-surface the app has rather than a demo with three read-only tools.
+Ten tools — five read, five write — in `convex/mcp/tools.ts`, backed by
+internal functions in `convex/mcp/data.ts` that go through the same `lib`
+helpers the app does, so the two-sessions-a-day rule and every validator hold
+for an agent exactly as they do for a person. Nothing deletes. Tokens are
+minted in Settings → Data & account, stored only as a SHA-256 hash, scoped
+read or read-and-write, revocable, and rate limited per token so one looping
+agent cannot lock its owner out.
 
-**Shape.** An MCP server speaking streamable HTTP, mounted on the existing
-Convex HTTP router (`convex/http.ts`, which already carries the auth-provider
-and Stripe webhook routes). Tools are thin wrappers over the functions that
-exist: `logs.foodLogs`, `logs.workouts`, `logs.water`, `logs.supplements`,
-`bodyProgress`, `users.users.getEffectiveGoals`, the progress queries. Writes
-must go through the same mutations the app calls — validators, rate limits and
-entitlement checks included — never straight at the tables.
+What is left:
 
-**Auth is the whole job.** OAuth 2.1 with dynamic client registration is what
-MCP clients expect, and better-auth is already the identity here. Per-user
-tokens, scoped read vs. write, revocable from Settings, with the token list
-and last-used timestamp visible there. An unauthenticated request gets nothing
-— no anonymous tier, no shared key in an env var. Rate-limit per token, not
-per user, or one runaway agent buries the account it belongs to.
+**OAuth 2.1 with dynamic client registration.** Tokens are pasted into a
+client config today. That works and is testable; it is not what MCP clients
+expect long term. The token model is the same underneath, so this is additive.
 
-**Open questions.**
+**AI-billed operations are not exposed.** Nothing in the tool list reaches the
+coach or snap, because whose quota an agent-invoked coach call spends is still
+unanswered. Answer it before adding one.
 
-- Which tools are write-capable at all. "Delete my last month of logs" is a
-  sentence an agent can produce by accident.
-- Whether AI-billed operations (coach, snap) are reachable over MCP, and whose
-  quota they spend — see `convex/ai/usage.ts` and the entitlement gate.
-- Whether shared-diary viewers get a read-only token, or nothing.
-
-Related: `convex/http.ts`, `convex/lib/auth.ts`, `convex/lib/rateLimits.ts`.
+**Shared-diary viewers get nothing.** Read-only tokens scoped to somebody
+else's diary are plausible and unbuilt.

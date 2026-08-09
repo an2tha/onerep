@@ -11,27 +11,21 @@ import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { resolveExerciseIds, type Exercise } from "@/lib/exercise-catalog"
 import { todayIso } from "@/lib/workout-sync"
 import {
-  cardioLogFromState,
   estimateRetroDurationSeconds,
   isCardioExercise,
-  makeSet,
-  normalizeExerciseState,
   retroWorkoutDraftKey,
-  toDisplay,
-  toKg,
   writeActiveWorkoutDraft,
   type ExerciseState,
   type WeightUnit,
   type WorkoutItem,
 } from "@/lib/workout-logging"
-
-/** One abridged row: the whole exercise collapsed to three numbers. */
-type QuickRow = {
-  exerciseId: string
-  setCount: string
-  reps: string
-  weight: string
-}
+import {
+  buildCompletionExercises,
+  expandToExerciseData as expandRows,
+  flattenItems,
+  rowsFromPreset,
+  type QuickRow,
+} from "@/lib/preset-quick-log"
 
 function formatRetroDateLabel(date: string, todayKey: string) {
   if (date === todayKey) return "Today"
@@ -41,33 +35,6 @@ function formatRetroDateLabel(date: string, todayKey: string) {
     month: "long",
     day: "numeric",
   })
-}
-
-/** Every exercise in the preset, in order, with supersets flattened. */
-function flattenItems(items: WorkoutItem[]): string[] {
-  return items.flatMap((item) =>
-    item.kind === "solo" ? [item.exerciseId] : item.exerciseIds
-  )
-}
-
-/**
- * Collapses a planned exercise into "N sets of R at W".
- *
- * The first set carries the row because a preset's later sets are usually
- * copies of it; where they aren't, the user has the full logger one tap away.
- */
-function rowFromState(
-  exerciseId: string,
-  state: ExerciseState,
-  unit: WeightUnit
-): QuickRow {
-  const first = state.sets[0]
-  return {
-    exerciseId,
-    setCount: state.sets.length > 0 ? String(state.sets.length) : "3",
-    reps: first?.reps ?? "",
-    weight: first ? toDisplay(first.weight, unit) : "",
-  }
 }
 
 /**
@@ -135,11 +102,7 @@ export default function QuickLogPreset() {
   // planned weights converted from the wrong unit.
   useEffect(() => {
     if (!preset || preferences === undefined || rows !== null) return
-    setRows(
-      flattenItems(items).map((id) =>
-        rowFromState(id, normalizeExerciseState(presetExerciseData[id]), unit)
-      )
-    )
+    setRows(rowsFromPreset(items, presetExerciseData, unit))
   }, [preset, preferences, rows, items, presetExerciseData, unit])
 
   useEffect(() => {
@@ -160,39 +123,16 @@ export default function QuickLogPreset() {
     )
   }, [])
 
-  /**
-   * Expands the abridged rows back into per-set state.
-   *
-   * Both the save and the handoff to the full logger go through here, so what
-   * gets written and what the user then sees can never disagree.
-   */
-  const expandToExerciseData = useCallback((): Record<
-    string,
-    ExerciseState
-  > => {
-    const expanded: Record<string, ExerciseState> = {}
-    for (const row of rows ?? []) {
-      const base = normalizeExerciseState(presetExerciseData[row.exerciseId])
-      const exercise = lookup[row.exerciseId]
-      if (exercise && isCardioExercise(exercise)) {
-        expanded[row.exerciseId] = base
-        continue
-      }
-      const count = Math.min(Math.max(parseInt(row.setCount, 10) || 0, 0), 20)
-      const weightKg = toKg(row.weight, unit)
-      expanded[row.exerciseId] = {
-        ...base,
-        sets: Array.from({ length: count }, (_, index) => ({
-          ...makeSet(true),
-          id: base.sets[index]?.id ?? createClientId(),
-          restSeconds: base.sets[index]?.restSeconds ?? 120,
-          reps: row.reps,
-          weight: weightKg,
-        })),
-      }
-    }
-    return expanded
-  }, [rows, presetExerciseData, lookup, unit])
+  const expandToExerciseData = useCallback(
+    (): Record<string, ExerciseState> =>
+      expandRows({
+        rows: rows ?? [],
+        presetExerciseData,
+        lookup,
+        unit,
+      }),
+    [rows, presetExerciseData, lookup, unit]
+  )
 
   // Cardio is told apart from lifting by the catalog entry, so neither saving
   // nor handing off is safe until every exercise has resolved.
@@ -236,32 +176,10 @@ export default function QuickLogPreset() {
   async function handleSave() {
     if (saving) return
     const exerciseData = expandToExerciseData()
-    const exercises = flattenItems(items).flatMap((id) => {
-      const exercise = lookup[id]
-      if (!exercise) return []
-      const data = exerciseData[id]
-      if (!data) return []
-      const cardio = isCardioExercise(exercise)
-        ? cardioLogFromState(data.cardio)
-        : null
-      const sets = isCardioExercise(exercise)
-        ? []
-        : data.sets.map((set) => ({
-            type: "normal",
-            weight: parseFloat(String(set.weight)) || 0,
-            reps: parseFloat(String(set.reps)) || 0,
-            completed: true,
-          }))
-      if (sets.length === 0 && !cardio) return []
-      return [
-        {
-          id,
-          name: exercise.name,
-          category: exercise.category,
-          sets,
-          ...(cardio ? { cardio } : {}),
-        },
-      ]
+    const exercises = buildCompletionExercises({
+      exerciseIds: flattenItems(items),
+      exerciseData,
+      lookup,
     })
 
     if (exercises.length === 0) {

@@ -512,10 +512,7 @@ export default defineSchema({
    */
   healthWorkouts: defineTable({
     userId: v.string(),
-    provider: v.union(
-      v.literal("apple_health"),
-      v.literal("health_connect")
-    ),
+    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
     /** HealthKit sample UUID or Health Connect record id — the dedupe key. */
     externalId: v.string(),
     activityType: v.string(),
@@ -872,6 +869,63 @@ export default defineSchema({
     userId: v.string(),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
+
+  /**
+   * Personal access tokens for the MCP endpoint.
+   *
+   * Only the hash is stored: the plaintext is shown once, at creation, and is
+   * unrecoverable afterwards. `scopes` is checked per tool call, so a token
+   * handed to something read-only cannot be talked into writing.
+   */
+  mcpTokens: defineTable({
+    userId: v.string(),
+    /** What the user called it — "laptop Claude", "the shortcut". */
+    name: v.string(),
+    /** SHA-256 of the plaintext token, hex. */
+    tokenHash: v.string(),
+    /** First few characters, so a token can be told apart in a list. */
+    prefix: v.string(),
+    scopes: v.array(v.union(v.literal("read"), v.literal("write"))),
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_tokenHash", ["tokenHash"]),
+
+  /**
+   * What the user said they'd do next week, taken at the end of the last one.
+   *
+   * One row per ISO week. The weekly report reads the target back when that
+   * week closes, which is the only reason to ask for it: a number nobody is
+   * ever shown again is a survey, not a plan.
+   */
+  weeklyTargets: defineTable({
+    userId: v.string(),
+    weekKey: v.string(), // 2026-W16
+    sessions: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_week", ["userId", "weekKey"]),
+
+  /**
+   * Days the user has said were rest on purpose.
+   *
+   * Kept apart from workoutLogs because a rest day is the absence of a
+   * session, not a kind of one: it must never show up in volume, streaks or
+   * history. It exists so the lapse nudge can tell a deload from a drift.
+   */
+  restDays: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD
+    /** Where the marker came from, for when this grows a second entry point. */
+    source: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_date", ["userId", "date"]),
 
   /**
    * One row per full-screen moment the app has already put in front of the
