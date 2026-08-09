@@ -25,10 +25,18 @@ const ROUTE_MOTIONS = new Set<RouteMotion>([
 
 export const ROUTE_TRANSITION_MS = 900
 
+/**
+ * The horizontal map the tab transition slides along. This has to match the
+ * order the tabs are actually drawn in (see `TABS` in `components/bottom-bar`),
+ * because the direction is derived from the difference between two indexes — a
+ * list in a different order sends the page sliding away from the tab you just
+ * pressed.
+ */
 export const PRIMARY_TAB_ORDER = [
   "/",
-  "/workouts",
   "/nutrition",
+  "/workouts",
+  "/exercises",
   "/progress",
   "/coach",
 ]
@@ -66,6 +74,10 @@ export function shouldShowBottomBar(pathname: string) {
     pathname === "/supplements" ||
     pathname === "/coach" ||
     pathname === "/exercises" ||
+    // A single exercise is a browsing destination, not a task. Keeping the
+    // chrome means the desktop sidebar does not vanish just because someone
+    // wanted to read how a curl works.
+    pathname.startsWith("/exercises/") ||
     pathname === "/settings"
   )
 }

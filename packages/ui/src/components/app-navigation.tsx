@@ -48,7 +48,12 @@ export function AppNavigationChrome({
         <nav
           ref={primaryNavRef}
           aria-label="Primary"
-          className="mx-auto grid h-[4.25rem] max-w-xl grid-cols-5 px-1"
+          // Column count follows the tab list rather than a hardcoded class, so
+          // adding a destination cannot silently squash the last one off-screen.
+          style={{
+            gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
+          }}
+          className="mx-auto grid h-[4.25rem] max-w-xl px-1"
         >
           {tabs.map((tab) => (
             <button
@@ -58,7 +63,8 @@ export function AppNavigationChrome({
               type="button"
               onClick={tab.onSelect}
               className={cn(
-                "flex min-w-0 flex-col items-center justify-center gap-1 px-1 text-[0.75rem] leading-none font-medium transition-colors",
+                "flex min-w-0 flex-col items-center justify-center gap-1 px-0.5 leading-none font-medium transition-colors",
+                tabs.length > 5 ? "text-[0.68rem]" : "text-[0.75rem]",
                 coachActive
                   ? tab.active
                     ? "text-foreground dark:text-white"

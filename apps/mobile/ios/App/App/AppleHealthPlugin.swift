@@ -12,6 +12,7 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getRecentWorkouts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getDailyMetrics", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "saveWorkout", returnType: CAPPluginReturnPromise)
     ]
 
@@ -91,6 +92,219 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
 
         healthStore.execute(query)
+    }
+
+    /**
+     Daily recovery signals: sleep, steps, resting heart rate, and HRV.
+
+     Returns one entry per local calendar day, oldest first, with every field
+     optional — each is a different sensor with a different failure mode, and a
+     phone with no watch legitimately has steps and nothing else.
+
+     Days are keyed by the *local* calendar, and sleep is attributed to the day
+     it was woken up on. Somebody who goes to bed at 23:30 on Monday and wakes
+     at 07:00 on Tuesday slept for Tuesday, which is the day the coach will be
+     talking about.
+     */
+    @objc func getDailyMetrics(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.resolve(["days": []])
+            return
+        }
+
+        let daysBack = min(max(call.getInt("daysBack") ?? 30, 1), 90)
+        let calendar = Calendar.current
+        // The window ends *now*, not at midnight. Ending at startOfDay excluded
+        // today's steps and heart data entirely, and — worse — dropped last
+        // night's sleep for anyone who fell asleep after midnight, since the
+        // whole sample then started after the cutoff. Android already used now;
+        // the two platforms must not disagree about what a day is.
+        let end = Date()
+        let startOfToday = calendar.startOfDay(for: end)
+        guard let start = calendar.date(byAdding: .day, value: -(daysBack - 1), to: startOfToday) else {
+            call.resolve(["days": []])
+            return
+        }
+
+        var buckets: [String: [String: Any]] = [:]
+        let group = DispatchGroup()
+        let lock = NSLock()
+
+        func record(_ dayKey: String, _ field: String, _ value: Double) {
+            lock.lock()
+            var bucket = buckets[dayKey] ?? ["date": dayKey]
+            bucket[field] = value
+            buckets[dayKey] = bucket
+            lock.unlock()
+        }
+
+        // Steps and active energy: summed over each local day.
+        for (identifier, field) in [
+            (HKQuantityTypeIdentifier.stepCount, "steps"),
+            (HKQuantityTypeIdentifier.activeEnergyBurned, "activeEnergyKcal")
+        ] {
+            guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { continue }
+            group.enter()
+            collectDailyStatistics(
+                type: type,
+                unit: identifier == .stepCount ? HKUnit.count() : HKUnit.kilocalorie(),
+                options: .cumulativeSum,
+                start: start,
+                end: end,
+                calendar: calendar
+            ) { results in
+                results.forEach { record($0.key, field, $0.value) }
+                group.leave()
+            }
+        }
+
+        // Resting heart rate and HRV: averaged, because a day may carry
+        // several readings and none of them is more true than the others.
+        for (identifier, field, unit) in [
+            (HKQuantityTypeIdentifier.restingHeartRate, "restingHeartRateBpm", HKUnit.count().unitDivided(by: .minute())),
+            (HKQuantityTypeIdentifier.heartRateVariabilitySDNN, "hrvMs", HKUnit.secondUnit(with: .milli))
+        ] {
+            guard let type = HKObjectType.quantityType(forIdentifier: identifier) else { continue }
+            group.enter()
+            collectDailyStatistics(
+                type: type,
+                unit: unit,
+                options: .discreteAverage,
+                start: start,
+                end: end,
+                calendar: calendar
+            ) { results in
+                results.forEach { record($0.key, field, $0.value) }
+                group.leave()
+            }
+        }
+
+        group.enter()
+        collectDailySleepMinutes(start: start, end: end, calendar: calendar) { results in
+            results.forEach { record($0.key, "sleepMinutes", $0.value) }
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            let days = buckets.values.sorted {
+                ($0["date"] as? String ?? "") < ($1["date"] as? String ?? "")
+            }
+            call.resolve(["days": days])
+        }
+    }
+
+    /// Bucketed statistics for one quantity type, keyed by local day.
+    private func collectDailyStatistics(
+        type: HKQuantityType,
+        unit: HKUnit,
+        options: HKStatisticsOptions,
+        start: Date,
+        end: Date,
+        calendar: Calendar,
+        completion: @escaping ([String: Double]) -> Void
+    ) {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let query = HKStatisticsCollectionQuery(
+            quantityType: type,
+            quantitySamplePredicate: predicate,
+            options: options,
+            anchorDate: start,
+            intervalComponents: DateComponents(day: 1)
+        )
+
+        query.initialResultsHandler = { [weak self] _, collection, _ in
+            guard let self = self, let collection = collection else {
+                completion([:])
+                return
+            }
+
+            var results: [String: Double] = [:]
+            collection.enumerateStatistics(from: start, to: end) { statistics, _ in
+                let quantity = options.contains(.cumulativeSum)
+                    ? statistics.sumQuantity()
+                    : statistics.averageQuantity()
+                guard let quantity = quantity else { return }
+                let key = self.dayKey(statistics.startDate, calendar: calendar)
+                results[key] = quantity.doubleValue(for: unit)
+            }
+            completion(results)
+        }
+
+        healthStore.execute(query)
+    }
+
+    /**
+     Asleep minutes per local day, attributed to the wake-up day.
+
+     Only genuinely-asleep categories are counted; `inBed` is excluded, because
+     time spent reading in bed is not recovery and counting it would flatter
+     every baseline. Overlapping samples from several sources are merged rather
+     than summed — a phone and a watch both recording the same night must not
+     produce sixteen hours of sleep.
+     */
+    private func collectDailySleepMinutes(
+        start: Date,
+        end: Date,
+        calendar: Calendar,
+        completion: @escaping ([String: Double]) -> Void
+    ) {
+        guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            completion([:])
+            return
+        }
+
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: end, options: .strictStartDate)
+        let query = HKSampleQuery(
+            sampleType: type,
+            predicate: predicate,
+            limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        ) { [weak self] _, samples, _ in
+            guard let self = self else {
+                completion([:])
+                return
+            }
+
+            var asleepValues: Set<Int> = [HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue]
+            if #available(iOS 16.0, *) {
+                asleepValues.formUnion([
+                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepREM.rawValue
+                ])
+            }
+
+            let asleep = (samples as? [HKCategorySample] ?? [])
+                .filter { asleepValues.contains($0.value) }
+                .sorted { $0.startDate < $1.startDate }
+
+            // Merge overlaps first, then attribute. Two devices recording the
+            // same night are one night's sleep.
+            var merged: [(start: Date, end: Date)] = []
+            for sample in asleep {
+                if let last = merged.last, sample.startDate <= last.end {
+                    merged[merged.count - 1].end = max(last.end, sample.endDate)
+                } else {
+                    merged.append((sample.startDate, sample.endDate))
+                }
+            }
+
+            var results: [String: Double] = [:]
+            for interval in merged {
+                let key = self.dayKey(interval.end, calendar: calendar)
+                let minutes = interval.end.timeIntervalSince(interval.start) / 60
+                results[key] = (results[key] ?? 0) + minutes
+            }
+            completion(results)
+        }
+
+        healthStore.execute(query)
+    }
+
+    /// `YYYY-MM-DD` in the device's own calendar.
+    private func dayKey(_ date: Date, calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
     /**
@@ -189,11 +403,21 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             HKQuantityTypeIdentifier.distanceCycling,
             HKQuantityTypeIdentifier.distanceSwimming,
             HKQuantityTypeIdentifier.heartRate,
-            HKQuantityTypeIdentifier.activeEnergyBurned
+            HKQuantityTypeIdentifier.activeEnergyBurned,
+            // Recovery signals. Read-only, and read as daily aggregates rather
+            // than raw samples — the coach reasons about "an hour less than
+            // usual", never about individual beats.
+            HKQuantityTypeIdentifier.stepCount,
+            HKQuantityTypeIdentifier.restingHeartRate,
+            HKQuantityTypeIdentifier.heartRateVariabilitySDNN
         ].forEach { identifier in
             if let type = HKObjectType.quantityType(forIdentifier: identifier) {
                 types.insert(type)
             }
+        }
+
+        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
+            types.insert(sleep)
         }
 
         types.insert(HKSeriesType.workoutRoute())

@@ -19,6 +19,7 @@ const AI_USAGE_SOURCES = [
   "workout_log",
   "food_snap",
   "form_coach",
+  "in_workout",
 ] as const;
 
 export type AiUsageSource = (typeof AI_USAGE_SOURCES)[number];
@@ -37,6 +38,7 @@ export const AI_USAGE_COST: Record<AiUsageSource, number> = {
   workout_log: 1,
   food_snap: 1,
   form_coach: 2,
+  in_workout: 1,
 };
 
 export function aiUsageCost(source: AiUsageSource) {
@@ -106,6 +108,7 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("workout_log"),
       v.literal("food_snap"),
       v.literal("form_coach"),
+      v.literal("in_workout"),
     ),
   },
   handler: async (ctx, args): Promise<AiUsageQuota> => {

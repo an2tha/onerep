@@ -11,12 +11,17 @@ import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { claimRateLimit } from "../lib/rateLimits";
 
 /**
- * Personal access tokens for the MCP endpoint.
+ * Personal access keys for the REST API and the MCP endpoint.
+ *
+ * One credential for both surfaces, deliberately. Two parallel key systems
+ * would mean two revocation paths and two chances to forget one of them, and a
+ * key that can read your log is a key that can read your log whichever door it
+ * walks through.
  *
  * Creation is an action rather than a mutation because it needs real
  * randomness and a real hash, and the deterministic query/mutation runtime is
- * the wrong place to ask for either. The action mints the token, hands the
- * hash to an internal mutation, and returns the plaintext exactly once.
+ * the wrong place to ask for either. The action mints the key, hands the hash
+ * to an internal mutation, and returns the plaintext exactly once.
  */
 
 const scopeValidator = v.union(v.literal("read"), v.literal("write"));
@@ -24,7 +29,21 @@ const scopeValidator = v.union(v.literal("read"), v.literal("write"));
 /** More than this and it stops being a list and starts being an attack surface. */
 const MAX_TOKENS = 10;
 
-const TOKEN_PREFIX = "onerep_mcp_";
+/**
+ * Keys minted before the REST API read `onerep_mcp_`. They still work: lookup
+ * is by hash, and the prefix has never been anything but a label.
+ */
+const TOKEN_PREFIX = "onerep_sk_";
+
+/**
+ * Per-key budget, per hour. Writes are scarcer than reads because a wrong one
+ * leaves a mess in the log that a human has to clean up by hand.
+ */
+export const KEY_RATE_LIMITS = {
+  read: 600,
+  write: 60,
+  windowMs: 60 * 60 * 1000,
+} as const;
 
 export async function sha256Hex(value: string) {
   const bytes = new TextEncoder().encode(value);
@@ -104,10 +123,10 @@ export const store = internalMutation({
       .collect();
     const live = existing.filter((row) => row.revokedAt === undefined);
     if (live.length >= MAX_TOKENS) {
-      throw new Error("You already have ten tokens. Revoke one first.");
+      throw new Error("You already have ten keys. Revoke one first.");
     }
 
-    const name = args.name.trim().slice(0, 60) || "Untitled token";
+    const name = args.name.trim().slice(0, 60) || "Untitled key";
     // A token with no scope can do nothing, which is a support ticket waiting
     // to happen. Default to read.
     const scopes = args.scopes.length > 0 ? args.scopes : ["read" as const];
@@ -166,8 +185,8 @@ export const touch = internalMutation({
       ctx,
       row.userId,
       args.write ? `mcp:write:${args.id}` : `mcp:read:${args.id}`,
-      args.write ? 60 : 600,
-      60 * 60 * 1000,
+      args.write ? KEY_RATE_LIMITS.write : KEY_RATE_LIMITS.read,
+      KEY_RATE_LIMITS.windowMs,
     );
 
     await ctx.db.patch(args.id, { lastUsedAt: Date.now() });

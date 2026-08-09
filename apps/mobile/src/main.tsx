@@ -30,6 +30,7 @@ import {
 } from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
 import { HealthSync } from "@/components/health-sync"
+import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
 
 import "./index.css"
@@ -55,6 +56,7 @@ if (posthogToken) {
 }
 import App from "./App.tsx"
 import Exercises from "./pages/Exercises.tsx"
+import ExerciseDetail from "./pages/ExerciseDetail.tsx"
 import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx"
@@ -709,7 +711,19 @@ const router = createBrowserRouter([
         path: "/exercises",
         element: (
           <AuthGuard>
-            <Exercises />
+            <ErrorBoundary label="Exercises">
+              <Exercises />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/exercises/:exerciseId",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Exercise">
+              <ExerciseDetail />
+            </ErrorBoundary>
           </AuthGuard>
         ),
       },
@@ -1047,8 +1061,7 @@ if (Capacitor.isNativePlatform()) {
     // user is already there; pushing a second entry remounts the route and
     // throws away the in-progress workout before the liveAction handler can
     // read it.
-    const samePath =
-      router.state.location.pathname === path.split("?")[0]
+    const samePath = router.state.location.pathname === path.split("?")[0]
     void router.navigate(path, samePath ? { replace: true } : undefined)
   })
 }
@@ -1069,6 +1082,7 @@ createRoot(document.getElementById("root")!).render(
             <OfflineSyncIndicator />
             <WidgetDataSync />
             <HealthSync />
+            <CoachPushRegistration />
             <MealCategorySync />
             <RouterProvider router={router} />
             <Toaster

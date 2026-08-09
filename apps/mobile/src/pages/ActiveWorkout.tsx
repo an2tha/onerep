@@ -81,6 +81,7 @@ import {
   useFormCoachDraft,
 } from "@/lib/form-coach-clips"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { InWorkoutCoach } from "@/components/in-workout-coach"
 import {
   CreateExerciseButton,
   CustomExerciseSheet,
@@ -3913,6 +3914,7 @@ export default function ActiveWorkout() {
   const healthWriteEnabled = preferences?.healthSync?.writeEnabled ?? false
   const [unit, setUnit] = useState<WeightUnit>("kg")
   const [confirmAbort, setConfirmAbort] = useState(false)
+  const [coachSheetOpen, setCoachSheetOpen] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [aiSheetTarget, setAiSheetTarget] = useState<AiWorkoutSheetTarget>(null)
@@ -5463,6 +5465,19 @@ export default function ActiveWorkout() {
             >
               <X size={22} weight="bold" />
             </button>
+            {!isRetro && (
+              <button
+                type="button"
+                aria-label="Ask your coach"
+                onClick={() => {
+                  hapticSelection()
+                  setCoachSheetOpen(true)
+                }}
+                className="motion-tactile inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground active:text-foreground"
+              >
+                <Sparkle size={20} weight="bold" />
+              </button>
+            )}
             <div className="min-w-0 flex-1 text-center">
               <p className="text-[11px] font-bold tracking-[0.14em] text-muted-foreground uppercase">
                 {isRetro
@@ -5633,6 +5648,16 @@ export default function ActiveWorkout() {
             </div>
           </section>
         </header>
+
+        {/* The coach between sets, live sessions only. The retro logger is
+            bookkeeping about the past and gets no spotter. */}
+        {!isRetro && (
+          <InWorkoutCoach
+            open={coachSheetOpen}
+            onClose={() => setCoachSheetOpen(false)}
+            slot={slot}
+          />
+        )}
         <main className="flex flex-col gap-5 px-[var(--app-page-x)] pt-5 md:px-0 md:pt-7">
           <div className="active-workout-list-enter flex flex-col gap-5 md:gap-6">
             {items.length > 0 && (

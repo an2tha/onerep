@@ -13,7 +13,12 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseRouteResult
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
@@ -32,6 +37,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -58,6 +65,14 @@ class HealthConnectPlugin : Plugin() {
         HealthPermission.getReadPermission(HeartRateRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+        // Recovery signals, read-only. Requested alongside the workout
+        // permissions rather than in a second prompt: Health Connect shows one
+        // consent screen listing everything, and asking twice reads as an app
+        // that came back for more.
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
     )
 
     private val writePermissions = setOf(
@@ -257,6 +272,169 @@ class HealthConnectPlugin : Plugin() {
                 call.resolve(JSObject().put("workouts", array))
             }.onFailure {
                 call.reject(it.message ?: "Unable to read Health Connect workouts", it.asException())
+            }
+        }
+    }
+
+    /**
+     * Daily recovery signals: sleep, steps, resting heart rate, and HRV.
+     *
+     * Mirrors `getDailyMetrics` on the iOS plugin exactly — one entry per local
+     * calendar day, oldest first, every field optional. A device with no
+     * connected watch legitimately reports steps and nothing else.
+     *
+     * Sleep is attributed to the day it was woken up on: somebody who goes to
+     * bed at 23:30 and wakes at 07:00 slept for the second day, which is the
+     * one the coach will be talking about.
+     */
+    /**
+     * Reads every page of a record query.
+     *
+     * `readRecords` silently returns one page; across a 35-day window several
+     * of these record types exceed it, and a truncated read is a corrupted
+     * baseline rather than an error anyone sees.
+     */
+    private suspend fun <T : androidx.health.connect.client.records.Record> readAll(
+        hc: HealthConnectClient,
+        request: ReadRecordsRequest<T>,
+        onRecord: (T) -> Unit,
+    ) {
+        var response = hc.readRecords(request)
+        response.records.forEach(onRecord)
+        var token = response.pageToken
+        while (token != null) {
+            response = hc.readRecords(
+                ReadRecordsRequest(
+                    recordType = request.recordType,
+                    timeRangeFilter = request.timeRangeFilter,
+                    pageToken = token,
+                ),
+            )
+            response.records.forEach(onRecord)
+            token = response.pageToken
+        }
+    }
+
+    @PluginMethod
+    fun getDailyMetrics(call: PluginCall) {
+        val hc = client
+        if (hc == null) {
+            call.resolve(JSObject().put("days", JSArray()))
+            return
+        }
+
+        val daysBack = (call.getInt("daysBack") ?: 30).coerceIn(1, 90)
+        val zone = ZoneId.systemDefault()
+        val startDay = LocalDate.now(zone).minusDays((daysBack - 1).toLong())
+        val start = startDay.atStartOfDay(zone).toInstant()
+        val end = Instant.now()
+
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) {
+                    val buckets = sortedMapOf<String, MutableMap<String, Double>>()
+
+                    fun bucket(day: String): MutableMap<String, Double> =
+                        buckets.getOrPut(day) { mutableMapOf() }
+
+                    fun dayOf(instant: Instant): String =
+                        instant.atZone(zone).toLocalDate().toString()
+
+                    // Steps and calories go through the aggregate API rather
+                    // than raw records, for two reasons that both bit the raw
+                    // version: aggregation de-duplicates across data origins (a
+                    // phone and a watch both counting the same walk must not
+                    // sum), and raw step records arrive in 15-minute chunks
+                    // that overflow a page across a 35-day window.
+                    hc.aggregateGroupByPeriod(
+                        AggregateGroupByPeriodRequest(
+                            metrics = setOf(
+                                StepsRecord.COUNT_TOTAL,
+                                ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                            ),
+                            timeRangeFilter = TimeRangeFilter.between(
+                                startDay.atStartOfDay(),
+                                end.atZone(zone).toLocalDateTime(),
+                            ),
+                            timeRangeSlicer = Period.ofDays(1),
+                        ),
+                    ).forEach { slice ->
+                        val day = slice.startTime.toLocalDate().toString()
+                        slice.result[StepsRecord.COUNT_TOTAL]?.let {
+                            bucket(day)["steps"] = it.toDouble()
+                        }
+                        slice.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.let {
+                            bucket(day)["activeEnergyKcal"] = it.inKilocalories
+                        }
+                    }
+
+                    // Averaged, not summed: a day may carry several readings and
+                    // none of them is more true than the others.
+                    val restingSums = mutableMapOf<String, Pair<Double, Int>>()
+                    readAll(hc, ReadRecordsRequest(
+                        recordType = RestingHeartRateRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                    )) { record ->
+                        val key = dayOf(record.time)
+                        val (sum, count) = restingSums[key] ?: (0.0 to 0)
+                        restingSums[key] = (sum + record.beatsPerMinute.toDouble()) to (count + 1)
+                    }
+                    restingSums.forEach { (day, entry) ->
+                        bucket(day)["restingHeartRateBpm"] = entry.first / entry.second
+                    }
+
+                    val hrvSums = mutableMapOf<String, Pair<Double, Int>>()
+                    readAll(hc, ReadRecordsRequest(
+                        recordType = HeartRateVariabilityRmssdRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                    )) { record ->
+                        val key = dayOf(record.time)
+                        val (sum, count) = hrvSums[key] ?: (0.0 to 0)
+                        hrvSums[key] = (sum + record.heartRateVariabilityMillis) to (count + 1)
+                    }
+                    hrvSums.forEach { (day, entry) ->
+                        bucket(day)["hrvMs"] = entry.first / entry.second
+                    }
+
+                    // Merge overlapping sessions before attributing them. A phone
+                    // and a watch recording the same night must not add up to
+                    // sixteen hours of sleep.
+                    val sessions = mutableListOf<SleepSessionRecord>()
+                    readAll(hc, ReadRecordsRequest(
+                        recordType = SleepSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                    )) { record -> sessions.add(record) }
+                    sessions.sortBy { it.startTime }
+
+                    val merged = mutableListOf<Pair<Instant, Instant>>()
+                    sessions.forEach { record ->
+                        val last = merged.lastOrNull()
+                        if (last != null && !record.startTime.isAfter(last.second)) {
+                            merged[merged.size - 1] =
+                                last.first to maxOf(last.second, record.endTime)
+                        } else {
+                            merged.add(record.startTime to record.endTime)
+                        }
+                    }
+                    merged.forEach { (from, to) ->
+                        val day = bucket(dayOf(to))
+                        day["sleepMinutes"] =
+                            (day["sleepMinutes"] ?: 0.0) + Duration.between(from, to).toMinutes()
+                    }
+
+                    buckets.map { (date, fields) ->
+                        JSObject().apply {
+                            put("date", date)
+                            fields.forEach { (key, value) -> put(key, value) }
+                        }
+                    }
+                }
+            }.onSuccess { days ->
+                val array = JSArray()
+                days.forEach { array.put(it) }
+                call.resolve(JSObject().put("days", array))
+            }.onFailure {
+                call.reject(it.message ?: "Unable to read Health Connect metrics", it.asException())
             }
         }
     }

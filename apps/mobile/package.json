@@ -25,6 +25,7 @@
     "@capacitor/ios": "^8.3.4",
     "@capacitor/local-notifications": "^8.2.0",
     "@capacitor/preferences": "^8.0.1",
+    "@capacitor/push-notifications": "^8.1.2",
     "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-speech-recognition": "^8.1.7",
     "@capgo/capacitor-updater": "^8.51.3",

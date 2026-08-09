@@ -9,6 +9,7 @@ import {
 import { useLocation } from "react-router"
 import {
   Barbell,
+  Books,
   ChartLine,
   ForkKnife,
   House,
@@ -60,6 +61,7 @@ const TABS = [
   { path: "/", Icon: House, label: "Today" },
   { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Training" },
+  { path: "/exercises", Icon: Books, label: "Exercises" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/coach", Icon: RocketLaunchIcon, label: "Coach" },
 ] as const
@@ -68,6 +70,7 @@ const DESKTOP_TABS = [
   { path: "/", Icon: House, label: "Today" },
   { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
   { path: "/workouts", Icon: Barbell, label: "Training" },
+  { path: "/exercises", Icon: Books, label: "Exercises" },
   { path: "/progress", Icon: ChartLine, label: "Progress" },
   { path: "/coach", Icon: RocketLaunchIcon, label: "Coach" },
 ] as const
@@ -85,13 +88,10 @@ function isNutritionPath(pathname: string) {
   )
 }
 
+// `/exercises` used to alias here, back when it rendered the Training page. It
+// is its own destination now, so it gets its own highlight.
 function isTrainingPath(pathname: string) {
-  return (
-    pathname === "/workouts" ||
-    pathname.startsWith("/workouts/") ||
-    pathname === "/exercises" ||
-    pathname.startsWith("/exercises/")
-  )
+  return pathname === "/workouts" || pathname.startsWith("/workouts/")
 }
 
 function isActive(pathname: string, path: string) {
@@ -127,7 +127,10 @@ export function BottomBar({
       active,
       icon: <Icon size={22} weight={active ? "fill" : "regular"} />,
       onSelect: () => {
-        if (!active) navigate(path, { motion: "switch" })
+        if (pathname === path) return
+        // Already inside this tab's subtree (a single exercise, a recipe): the
+        // tab acts as "pop to root", so it should read as going back.
+        navigate(path, { motion: active ? "back" : "switch" })
       },
     }
   })
@@ -139,7 +142,10 @@ export function BottomBar({
       active,
       icon: <Icon size={17} weight={active ? "fill" : "regular"} />,
       onSelect: () => {
-        if (!active) navigate(path, { motion: "switch" })
+        if (pathname === path) return
+        // Already inside this tab's subtree (a single exercise, a recipe): the
+        // tab acts as "pop to root", so it should read as going back.
+        navigate(path, { motion: active ? "back" : "switch" })
       },
     }
   })

@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react"
 import { api } from "../../../../convex/_generated/api"
 import { useAppAuth } from "@/lib/auth-client"
 import {
+  getHealthDailyMetrics,
   getRecentHealthWorkouts,
   healthProvider,
   healthProviderLabel,
@@ -10,6 +11,7 @@ import {
   requestHealthAuthorization,
 } from "@/lib/health-provider"
 import {
+  HEALTH_METRICS_DAYS_BACK,
   HEALTH_SYNC_DAYS_BACK,
   HEALTH_SYNC_LIMIT,
   healthWorkoutToImport,
@@ -42,6 +44,7 @@ export function HealthSync() {
     api.logs.healthWorkouts.importHealthWorkouts
   )
   const recordSyncError = useMutation(api.logs.healthWorkouts.recordSyncError)
+  const syncMetrics = useMutation(api.logs.healthMetrics.sync)
   const runningRef = useRef(false)
 
   const timeZone = preferences?.lastActiveTimezone || "UTC"
@@ -64,10 +67,22 @@ export function HealthSync() {
       const provider = healthProvider()
       if (!provider) return
 
-      const workouts = await getRecentHealthWorkouts({
-        daysBack: HEALTH_SYNC_DAYS_BACK,
-        limit: HEALTH_SYNC_LIMIT,
-      })
+      const [workouts, days] = await Promise.all([
+        getRecentHealthWorkouts({
+          daysBack: HEALTH_SYNC_DAYS_BACK,
+          limit: HEALTH_SYNC_LIMIT,
+        }),
+        // Recovery baselines need a month to mean anything, and unlike
+        // workouts these rows are upserted per day — re-reading the same
+        // fortnight every sync is the intended behaviour, not waste. A watch
+        // writes last night's sleep hours after the fact.
+        getHealthDailyMetrics({ daysBack: HEALTH_METRICS_DAYS_BACK }),
+      ])
+
+      if (days.length > 0) {
+        await syncMetrics({ provider, days })
+      }
+
       if (workouts.length === 0) return
 
       await importWorkouts({
@@ -85,7 +100,7 @@ export function HealthSync() {
     } finally {
       runningRef.current = false
     }
-  }, [importWorkouts, recordSyncError, timeZone])
+  }, [importWorkouts, recordSyncError, syncMetrics, timeZone])
 
   useEffect(() => {
     if (!user || preferences === undefined || onboarding === undefined) return

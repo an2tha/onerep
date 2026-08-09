@@ -86,6 +86,8 @@ describe("AI prompt bundle", () => {
     const expectedIds = [
       "coach_advice",
       "coach_chat",
+      "coach_in_workout",
+      "coach_weekly_review",
       "food_match",
       "form_coach",
       "meal_description",

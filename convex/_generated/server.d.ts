@@ -32,8 +32,13 @@ type Env = {
   readonly BILLING_CHECKOUT_SUCCESS_URL: string | undefined;
   readonly BILLING_COMP_ALL_USERS: string | undefined;
   readonly BILLING_MONTHLY_PRICE_LABEL: string | undefined;
+  readonly COACH_PROACTIVE_ENABLED: string | undefined;
+  readonly COACH_REVIEW_PRO_ONLY: string | undefined;
   readonly DATASOURCE_API_TOKEN: string | undefined;
   readonly DATASOURCE_URL: string | undefined;
+  readonly FCM_CLIENT_EMAIL: string | undefined;
+  readonly FCM_PRIVATE_KEY: string | undefined;
+  readonly FCM_PROJECT_ID: string | undefined;
   readonly OPENAI_MODEL: string | undefined;
   readonly OPENROUTER_API_KEY: string | undefined;
   readonly OPENROUTER_MODEL: string | undefined;

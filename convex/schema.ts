@@ -154,6 +154,25 @@ export default defineSchema({
      * Android notification.
      */
     liveWorkoutStatusEnabled: v.optional(v.boolean()),
+    /**
+     * Whether Coach may speak first, and when.
+     *
+     * Distinct from `pushReminders`, which is a clock the user set themselves.
+     * This is the app deciding it has something to say, which is a different
+     * permission and deserves its own switch. Absent means the defaults in
+     * `convex/lib/outreach.ts` apply.
+     */
+    coachOutreach: v.optional(
+      v.object({
+        enabled: v.boolean(),
+        weeklyReview: v.boolean(),
+        nudges: v.boolean(),
+        /** Local minutes-of-day. Silence wraps midnight when start > end. */
+        quietHours: v.optional(
+          v.object({ startMinutes: v.number(), endMinutes: v.number() }),
+        ),
+      }),
+    ),
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
@@ -541,6 +560,41 @@ export default defineSchema({
     // ids come from different namespaces and could otherwise collide.
     .index("by_userId_and_externalId", ["userId", "provider", "externalId"])
     .index("by_userId_and_startedAt", ["userId", "startedAt"])
+    .index("by_userId_and_date", ["userId", "date"]),
+
+  /**
+   * Daily recovery signals read out of the platform health store.
+   *
+   * One row per user per local day, upserted — the phone re-reads the same day
+   * repeatedly as a watch syncs late, and the last read wins. Deliberately
+   * separate from `healthWorkouts`: those are discrete sessions the user may
+   * promote into their training log, while these are ambient background
+   * measurements nobody logged and nobody should have to.
+   *
+   * Every field is optional because every field is a different sensor with a
+   * different failure mode. A phone with no watch has steps and nothing else;
+   * that is a normal row, not a broken one.
+   */
+  healthMetrics: defineTable({
+    userId: v.string(),
+    date: v.string(), // YYYY-MM-DD, the user's local day
+    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
+    /** Asleep time, not time in bed. */
+    sleepMinutes: v.optional(v.number()),
+    steps: v.optional(v.number()),
+    restingHeartRateBpm: v.optional(v.number()),
+    /**
+     * HRV in milliseconds — SDNN from HealthKit, RMSSD from Health Connect.
+     * The two are different statistics and must never be compared across
+     * platforms; every consumer works in deviation from the same user's own
+     * baseline, which is per-provider by construction.
+     */
+    hrvMs: v.optional(v.number()),
+    activeEnergyKcal: v.optional(v.number()),
+    syncedAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
     .index("by_userId_and_date", ["userId", "date"]),
 
   // ── Food logs (one doc per user+date, stores all entries) ─────────────────
@@ -1006,6 +1060,99 @@ export default defineSchema({
   })
     .index("by_userId", ["userId"])
     .index("by_userId_and_requestId", ["userId", "requestId"]),
+
+  // ── Coach outreach: the machinery for speaking first ─────────────────────
+  // One row per device per user. A token is a routing address, not an
+  // identity: the same phone handed to a second account gets a second row, and
+  // the stale one dies the next time FCM rejects it.
+  pushTokens: defineTable({
+    userId: v.string(),
+    token: v.string(),
+    platform: v.union(v.literal("ios"), v.literal("android")),
+    createdAt: v.number(),
+    lastSeenAt: v.number(),
+    /** Set when the provider says the token is gone; the row is then dropped. */
+    failedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_token", ["token"]),
+
+  // Every message Coach sent on its own initiative. This is the frequency cap's
+  // memory and the dedupe key's home, so it is written before anyone is
+  // disturbed rather than after.
+  coachTouches: defineTable({
+    userId: v.string(),
+    kind: v.union(
+      v.literal("weekly_review"),
+      v.literal("missed_log"),
+      v.literal("training_lapse"),
+    ),
+    /** The scope one sending covers — a date key, a week key, a lapse key. */
+    dedupeKey: v.string(),
+    sentAt: v.number(),
+    delivered: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_sentAt", ["userId", "sentAt"])
+    .index("by_userId_and_kind_and_dedupeKey", ["userId", "kind", "dedupeKey"]),
+
+  // The Sunday review: what the coach made of the week, and what it proposes
+  // doing about it. Operations are stored as proposals and applied only when
+  // the user taps, so this table holds intent, never a completed write.
+  coachReviews: defineTable({
+    userId: v.string(),
+    /** Monday of the week under review, so a week has exactly one row. */
+    weekStart: v.string(),
+    weekKey: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("partial"),
+      v.literal("dismissed"),
+      v.literal("expired"),
+    ),
+    headline: v.string(),
+    summary: v.array(v.string()),
+    focus: v.optional(v.string()),
+    proposedOperations: v.array(v.any()),
+    /** Indices of `proposedOperations` the user has applied. */
+    appliedOperations: v.array(v.number()),
+    requestId: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_status", ["userId", "status"])
+    .index("by_userId_and_weekStart", ["userId", "weekStart"])
+    // For the expiry cron, which asks a cross-user question and was
+    // filter-scanning the whole table to answer it.
+    .index("by_status_and_createdAt", ["status", "createdAt"]),
+
+  /**
+   * One row per user per calendar month: the long view, precomputed.
+   *
+   * Deriving this on read would mean pulling six months of food logs into
+   * every coach turn. A closed month's numbers never change again, so
+   * computing once and storing is both cheaper and exactly as correct; the
+   * current month is simply recomputed whenever the weekly review runs.
+   */
+  coachMonthlySummaries: defineTable({
+    userId: v.string(),
+    month: v.string(), // YYYY-MM
+    sessions: v.number(),
+    activeDays: v.number(),
+    sets: v.number(),
+    loggedFoodDays: v.number(),
+    daysInMonth: v.number(),
+    avgCalories: v.union(v.number(), v.null()),
+    avgProtein: v.union(v.number(), v.null()),
+    weightStartKg: v.union(v.number(), v.null()),
+    weightEndKg: v.union(v.number(), v.null()),
+    computedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_month", ["userId", "month"]),
 
   coachWeeklyPlans: defineTable({
     userId: v.string(),

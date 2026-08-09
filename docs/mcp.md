@@ -7,21 +7,28 @@ add to it. This is the reference for using it and for working on it.
 - **Endpoint:** `POST https://<your-convex-deployment>.convex.site/mcp`
 - **Transport:** streamable HTTP, JSON-RPC 2.0, one response per request
 - **Protocol version:** `2025-06-18`
-- **Auth:** a bearer token you create in the app
+- **Auth:** a bearer key you create in the app
 
 The exact endpoint for your deployment is printed in the app under
-**Settings → MCP access**, next to the button that mints the token. Copy it
+**Settings → API & MCP**, next to the button that mints the key. Copy it
 from there rather than assembling it by hand.
+
+The same tools are available over plain HTTP for anything that does not speak
+the protocol — see [the REST API](./api.md). Same keys, same scopes, same
+limits.
 
 ## Getting a token
 
-1. Open OneRep → **Settings → MCP access**.
-2. Choose **New read-only token** or **New read & write token**.
-3. Copy the token. It is shown once and never again — only a SHA-256 hash of
-   it is stored, so a token you lose is a token you replace.
+1. Open OneRep → **Settings → API & MCP**.
+2. Name it, choose **Read only** or **Read & write**, and create it.
+3. Copy the key. It is shown once and never again — only a SHA-256 hash of
+   it is stored, so a key you lose is a key you replace.
 
-A token is revoked from the same screen and stops working on the next request.
-Ten live tokens per account is the ceiling.
+A key is revoked from the same screen and stops working on the next request.
+Ten live keys per account is the ceiling. Keys minted before the REST API
+existed read `onerep_mcp_` rather than `onerep_sk_`; they still work, because
+the lookup has always been by hash and the prefix has never been anything but a
+label.
 
 **Read-only means read-only.** The scope is checked on every call, so a
 read-only token cannot be argued into writing: the write tools are not listed
@@ -33,7 +40,7 @@ Claude Code:
 
 ```sh
 claude mcp add --transport http onerep https://<deployment>.convex.site/mcp \
-  --header "Authorization: Bearer onerep_mcp_…"
+  --header "Authorization: Bearer onerep_sk_…"
 ```
 
 Anything that takes a JSON config:
@@ -44,7 +51,7 @@ Anything that takes a JSON config:
     "onerep": {
       "type": "http",
       "url": "https://<deployment>.convex.site/mcp",
-      "headers": { "Authorization": "Bearer onerep_mcp_…" }
+      "headers": { "Authorization": "Bearer onerep_sk_…" }
     }
   }
 }
@@ -54,7 +61,7 @@ By hand, to check it is alive:
 
 ```sh
 curl -s https://<deployment>.convex.site/mcp \
-  -H "Authorization: Bearer onerep_mcp_…" \
+  -H "Authorization: Bearer onerep_sk_…" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq
 ```
@@ -127,14 +134,15 @@ A token is your whole log. Treat it like a password:
 
 ## How it is built
 
-| File                                                | Role                                                          |
-| --------------------------------------------------- | ------------------------------------------------------------- |
-| `convex/mcp/server.ts`                              | The HTTP action: JSON-RPC envelope, bearer check, dispatch.   |
-| `convex/mcp/tools.ts`                               | The tool catalog — schemas, scopes, argument coercion.        |
-| `convex/mcp/data.ts`                                | Internal queries and mutations keyed by an explicit `userId`. |
-| `convex/mcp/tokens.ts`                              | Minting, listing, revoking, resolving, rate limiting.         |
-| `convex/http.ts`                                    | Mounts `/mcp`.                                                |
-| `apps/mobile/src/components/mcp-tokens-section.tsx` | The Settings → MCP access panel.                              |
+| File                                              | Role                                                          |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `convex/mcp/server.ts`                            | The HTTP action: JSON-RPC envelope, bearer check, dispatch.   |
+| `convex/mcp/tools.ts`                             | The tool catalog — schemas, scopes, argument coercion.        |
+| `convex/mcp/data.ts`                              | Internal queries and mutations keyed by an explicit `userId`. |
+| `convex/mcp/tokens.ts`                            | Minting, listing, revoking, resolving, rate limiting.         |
+| `convex/http.ts`                                  | Mounts `/mcp`.                                                |
+| `convex/api/rest.ts`                              | The REST API, which delegates to this same catalog.           |
+| `apps/mobile/src/components/api-keys-section.tsx` | The Settings → API & MCP panel.                               |
 
 The app's own Convex functions resolve the user from a session, which an agent
 holding a token does not have. Rather than loosening those, `convex/mcp/data.ts`
@@ -157,6 +165,9 @@ place to ask for either.
 3. Cover it in `convex/__tests__/mcpEndpoint.convex.test.ts`, which drives the
    real route through `t.fetch` — including what happens when the wrong scope
    calls it.
+4. Give it a REST route in `convex/api/rest.ts`. A test asserts every tool has
+   one, so skipping this fails the build rather than leaving the API quietly
+   the lesser door.
 
 Anything that deletes needs a conversation first, not a pull request.
 

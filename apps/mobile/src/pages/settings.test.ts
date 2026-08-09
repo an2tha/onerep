@@ -838,33 +838,42 @@ describe("AI subscription hint", () => {
 // ─── Agent access ─────────────────────────────────────────────────────────────
 
 describe("agent access is findable", () => {
-  const MCP_PANEL = readFileSync(
-    new URL("../components/mcp-tokens-section.tsx", import.meta.url),
+  const KEYS_PANEL = readFileSync(
+    new URL("../components/api-keys-section.tsx", import.meta.url),
     "utf8"
   )
 
-  test("minting a token is a top-level row, not buried in Data & account", () => {
+  test("minting a key is a top-level row, not buried in Data & account", () => {
     // It lived under Data & account first, four scrolls down past the export
     // and the delete-account box. Nobody was going to find it there.
-    assert.match(SETTINGS_SOURCE, /title="MCP access"/)
+    assert.match(SETTINGS_SOURCE, /title="API & MCP"/)
     assert.match(SETTINGS_SOURCE, /showView\("agents"\)/)
-    assert.match(SETTINGS_SOURCE, /agents: "MCP access"/)
+    assert.match(SETTINGS_SOURCE, /agents: "API & MCP"/)
   })
 
   test("the row says whether anything is connected before you open it", () => {
     assert.match(SETTINGS_SOURCE, /mcpTokenCount/)
-    assert.match(SETTINGS_SOURCE, /Connect Claude or another MCP client/)
+    assert.match(SETTINGS_SOURCE, /another MCP client/)
   })
 
-  test("both scopes can be minted, and read-only is offered first", () => {
-    const readOnly = MCP_PANEL.indexOf("New read-only token")
-    const readWrite = MCP_PANEL.indexOf("New read & write token")
+  test("both doors get an address, not just the protocol one", () => {
+    assert.match(SETTINGS_SOURCE, /apiBaseUrl/)
+    assert.match(SETTINGS_SOURCE, /\/v1`/)
+    assert.match(SETTINGS_SOURCE, /\/mcp`/)
+    assert.match(KEYS_PANEL, /API base URL/)
+    assert.match(KEYS_PANEL, /MCP endpoint/)
+  })
+
+  test("both scopes can be minted, and read-only is the default", () => {
+    assert.match(KEYS_PANEL, /useState<Scope>\("read"\)/)
+    const readOnly = KEYS_PANEL.indexOf('label: "Read only"')
+    const readWrite = KEYS_PANEL.indexOf('label: "Read & write"')
     assert.ok(readOnly > -1 && readWrite > -1)
     assert.ok(readOnly < readWrite)
   })
 
   test("the plaintext is presented as shown-once, and revocation is one tap", () => {
-    assert.match(MCP_PANEL, /only time it will be shown/i)
-    assert.match(MCP_PANEL, /revokeToken\(/)
+    assert.match(KEYS_PANEL, /only time it will be shown/i)
+    assert.match(KEYS_PANEL, /revokeKey\(/)
   })
 })

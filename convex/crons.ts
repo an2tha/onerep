@@ -40,4 +40,29 @@ crons.interval(
   {},
 );
 
+// Coach outreach. Hourly because Sunday evening arrives at twenty-four
+// different moments and a cron only knows UTC; each sweep selects the handful
+// of timezones for which it is now the right time. Every one of these is a
+// no-op unless COACH_PROACTIVE_ENABLED is set.
+crons.interval(
+  "generate due weekly reviews",
+  { hours: 1 },
+  internal.ai.weeklyReview.enqueueDue,
+  {},
+);
+
+crons.interval(
+  "send due coach nudges",
+  { hours: 1 },
+  internal.ai.nudges.sweep,
+  {},
+);
+
+crons.interval(
+  "expire unanswered weekly reviews",
+  { hours: 12 },
+  internal.ai.weeklyReview.expireStale,
+  {},
+);
+
 export default crons;

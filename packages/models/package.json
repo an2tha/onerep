@@ -14,7 +14,9 @@
   },
   "private": true,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./moments": "./src/moments.ts",
+    "./one-rm": "./src/oneRm.ts"
   },
   "dependencies": {
     "mongodb": "^7.1.1"
