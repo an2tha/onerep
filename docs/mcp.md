@@ -72,7 +72,7 @@ like an empty account.
 
 ## The tools
 
-Ten of them. Coarse on purpose: forty thin wrappers around every backend
+Eleven of them. Coarse on purpose: forty thin wrappers around every backend
 function would fill a context window without describing what the app is for.
 
 ### Read (scope: `read`)
@@ -83,6 +83,7 @@ function would fill a context window without describing what the app is for.
 | `get_range`              | Per-day nutrition totals, workouts and rest days between two dates. Use this for weekly questions instead of seven `get_day` calls. |
 | `list_workouts`          | Recent sessions, newest first, with exercises, sets, reps and weights.                                                              |
 | `get_goals`              | Calorie and macro targets, water goal, weight unit, stated training goal.                                                           |
+| `get_training_insights`  | The server's conclusions: per-lift progression verdicts over twelve weeks, recovery against the user's own baseline, six monthly summaries. |
 | `list_body_measurements` | Recent weigh-ins, in kilograms and centimetres.                                                                                     |
 
 ### Write (scope: `write`)
