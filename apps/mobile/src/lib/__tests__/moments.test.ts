@@ -170,6 +170,47 @@ describe("trainingLapseTrigger", () => {
     ).toBeNull()
   })
 
+  test("does not count days marked as deliberate rest", () => {
+    expect(
+      trainingLapseTrigger({
+        workoutLogs: trained,
+        todayKey: "2026-04-15",
+        restDates: ["2026-04-13", "2026-04-14"],
+      })
+    ).toBeNull()
+  })
+
+  test("still fires when only part of the gap was planned", () => {
+    const result = trainingLapseTrigger({
+      workoutLogs: trained,
+      todayKey: "2026-04-17",
+      restDates: ["2026-04-13", "2026-04-14"],
+    })
+    expect(result?.idleDays).toBe(5)
+    expect(result?.daysSince).toBe(7)
+    expect(result?.idleDates).toEqual([
+      "2026-04-11",
+      "2026-04-12",
+      "2026-04-15",
+      "2026-04-16",
+      "2026-04-17",
+    ])
+  })
+
+  test("reports the gap it would mark as rest", () => {
+    const result = trainingLapseTrigger({
+      workoutLogs: trained,
+      todayKey: "2026-04-15",
+    })
+    expect(result?.idleDates).toEqual([
+      "2026-04-11",
+      "2026-04-12",
+      "2026-04-13",
+      "2026-04-14",
+      "2026-04-15",
+    ])
+  })
+
   test("re-arms weekly rather than daily", () => {
     const first = trainingLapseTrigger({
       workoutLogs: trained,
@@ -265,10 +306,74 @@ describe("buildWeeklyReport", () => {
     expect(report.body.latestWeightKg).toBe(79.4)
   })
 
+  test("returns all seven days, empty ones included", () => {
+    expect(report.days).toHaveLength(7)
+    expect(report.days.map((day) => day.date)).toEqual([
+      "2026-04-13",
+      "2026-04-14",
+      "2026-04-15",
+      "2026-04-16",
+      "2026-04-17",
+      "2026-04-18",
+      "2026-04-19",
+    ])
+    expect(report.days[1].sets).toBe(5)
+    expect(report.days[1].loggedFood).toBe(true)
+    expect(report.days[5].sets).toBe(0)
+    expect(report.days[5].loggedFood).toBe(false)
+  })
+
   test("labels the week and says something about it", () => {
     expect(report.weekKey).toBe("2026-W16")
     expect(report.headline).toContain("2 sessions")
     expect(report.highlights.length).toBeGreaterThan(0)
+  })
+})
+
+describe("a week with a target", () => {
+  const args = {
+    start: "2026-04-13",
+    end: "2026-04-19",
+    foodLogs: [],
+    workoutLogs: [workout("2026-04-14"), workout("2026-04-16")],
+    bodyMeasurements: [],
+    calorieTarget: 2000,
+    proteinTarget: 150,
+  }
+
+  test("leads with the promise when it was kept", () => {
+    const report = buildWeeklyReport({ ...args, target: 2 })
+    expect(report.metTarget).toBe(true)
+    expect(report.headline).toBe(
+      "You said 2. You did 2. Nothing further from me."
+    )
+  })
+
+  test("and when it was not", () => {
+    const report = buildWeeklyReport({ ...args, target: 4 })
+    expect(report.metTarget).toBe(false)
+    expect(report.headline).toContain("You said 4, you did 2")
+  })
+
+  test("says nothing about a target that was never set", () => {
+    const report = buildWeeklyReport(args)
+    expect(report.target).toBeNull()
+    expect(report.metTarget).toBeNull()
+  })
+
+  test("an empty week still reports when a target was set for it", () => {
+    expect(
+      weeklyReportTrigger({
+        todayKey: "2026-04-20",
+        nowMinutes: 10 * 60,
+        foodLogs: [],
+        workoutLogs: [],
+        bodyMeasurements: [],
+        calorieTarget: 2000,
+        proteinTarget: 150,
+        target: 3,
+      })
+    ).not.toBeNull()
   })
 })
 

@@ -669,6 +669,32 @@ export default function Workouts() {
     "logs.workouts.completion"
   )
 
+  /**
+   * Rest days, so a day the user deliberately took off reads as one rather
+   * than as an empty accusation. Ninety days covers everything the date
+   * picker can reach in practice.
+   */
+  const restSince = useMemo(() => offsetDateKey(todayKey, -90), [todayKey])
+  const restDates = useQuery(api.logs.restDays.listSince, {
+    since: restSince,
+  }) as string[] | undefined
+  const markRestDays = useMutation(api.logs.restDays.mark)
+  const unmarkRestDays = useMutation(api.logs.restDays.unmark)
+  const isRestDay = Boolean(restDates?.includes(dateKey))
+
+  async function toggleRestDay(date: string) {
+    hapticSelection()
+    try {
+      if (restDates?.includes(date)) {
+        await unmarkRestDays({ dates: [date] })
+      } else {
+        await markRestDays({ dates: [date], source: "manual" })
+      }
+    } catch {
+      toast.error("Couldn't save that. Try again.")
+    }
+  }
+
   async function persist(
     nextPresets: WorkoutPresetCard[],
     nextRoutine: Routine,
@@ -1247,13 +1273,28 @@ export default function Workouts() {
                   {dateLabel}
                 </p>
                 <h2 className="mt-1 text-[1.55rem] leading-none font-bold">
-                  {selectedWorkoutLog ? "Workout logged" : "No workout"}
+                  {selectedWorkoutLog
+                    ? "Workout logged"
+                    : isRestDay
+                      ? "Rest day"
+                      : "No workout"}
                 </h2>
                 <p className="mt-2 text-[15px] text-muted-foreground">
                   {selectedWorkoutLog
                     ? `${selectedWorkoutLog.exercises.length} exercises · ${fmtDuration(selectedWorkoutLog.durationSeconds)}`
-                    : "No completed training on this date."}
+                    : isRestDay
+                      ? "You called this one off on purpose."
+                      : "No completed training on this date."}
                 </p>
+                {!selectedWorkoutLog && (
+                  <button
+                    type="button"
+                    onClick={() => void toggleRestDay(dateKey)}
+                    className="mt-3 inline-flex min-h-11 items-center text-[14px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+                  >
+                    {isRestDay ? "Not a rest day" : "Mark as rest day"}
+                  </button>
+                )}
               </div>
               {selectedWorkoutLog && (
                 <button

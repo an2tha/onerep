@@ -172,19 +172,39 @@ export function missedLogTrigger({
   return { key: todayKey, usualMinutes }
 }
 
+/** The days between two keys, exclusive of `from` and inclusive of `to`. */
+export function daysAfter(from: string, to: string) {
+  const span = daysBetween(from, to)
+  if (span <= 0) return []
+  const start = localNoon(new Date(`${from}T12:00:00`))
+  return Array.from({ length: span }, (_, index) =>
+    dateToIso(subtractDays(start, -(index + 1)))
+  )
+}
+
 /**
  * "You have not trained in a while."
  *
- * The key re-arms once a week, so a long absence is one question every seven
- * days rather than one every morning.
+ * Days the user has marked as deliberate rest do not count toward the gap — a
+ * planned deload is not a lapse, and being asked about it every week is how
+ * an app teaches someone to ignore it. The key re-arms once a week, so a real
+ * absence is one question every seven days rather than one every morning.
  */
 export function trainingLapseTrigger({
   workoutLogs,
   todayKey,
+  restDates = [],
 }: {
   workoutLogs: MomentWorkoutLog[]
   todayKey: string
-}): { key: string; daysSince: number; lastWorkoutDate: string | null } | null {
+  restDates?: string[]
+}): {
+  key: string
+  daysSince: number
+  idleDays: number
+  idleDates: string[]
+  lastWorkoutDate: string | null
+} | null {
   const past = workoutLogs
     .map((log) => log.date)
     .filter((date) => date <= todayKey)
@@ -205,8 +225,21 @@ export function trainingLapseTrigger({
   const daysSince = daysBetween(lastWorkoutDate, todayKey)
   if (daysSince < LAPSE_DAYS) return null
 
-  const week = Math.floor(daysSince / 7)
-  return { key: `${lastWorkoutDate}:${week}`, daysSince, lastWorkoutDate }
+  const rested = new Set(restDates)
+  const idleDates = daysAfter(lastWorkoutDate, todayKey).filter(
+    (date) => !rested.has(date)
+  )
+  const idleDays = idleDates.length
+  if (idleDays < LAPSE_DAYS) return null
+
+  const week = Math.floor(idleDays / 7)
+  return {
+    key: `${lastWorkoutDate}:${week}`,
+    daysSince,
+    idleDays,
+    idleDates,
+    lastWorkoutDate,
+  }
 }
 
 // ── The week ─────────────────────────────────────────────────────────────────
@@ -259,12 +292,26 @@ export function completedWeek(todayKey: string, nowMinutes: number) {
   }
 }
 
+export type WeeklyReportDay = {
+  date: string
+  /** Single-letter weekday, for a strip seven columns wide on a phone. */
+  label: string
+  sets: number
+  workouts: number
+  calories: number
+  loggedFood: boolean
+}
+
 export type WeeklyReport = {
   weekKey: string
   start: string
   end: string
   rangeLabel: string
   headline: string
+  days: WeeklyReportDay[]
+  /** What they said they'd do, if they said anything, and whether they did. */
+  target: number | null
+  metTarget: boolean | null
   training: {
     workouts: number
     activeDays: number
@@ -325,16 +372,30 @@ function plural(count: number, one: string, many: string) {
 /**
  * The one line at the top. It is allowed to have an opinion; it is not allowed
  * to be cheerful about a week that did not happen.
+ *
+ * A target the user set themselves outranks every other reading of the week:
+ * they said the number, so the number is the story.
  */
 function headlineFor({
   workouts,
   previousWorkouts,
   loggedDays,
+  target,
 }: {
   workouts: number
   previousWorkouts: number
   loggedDays: number
+  target: number | null
 }) {
+  if (target !== null) {
+    if (workouts >= target) {
+      return `You said ${target}. You did ${workouts}. Nothing further from me.`
+    }
+    if (workouts === 0) {
+      return `You said ${target} sessions and did none of them. It happens; it should not happen twice.`
+    }
+    return `You said ${target}, you did ${workouts}. Closer than none, short of the plan.`
+  }
   if (workouts === 0 && loggedDays === 0) {
     return "Nothing logged, nothing trained. Weeks like this happen; two in a row is a decision."
   }
@@ -361,6 +422,7 @@ export function buildWeeklyReport({
   bodyMeasurements,
   calorieTarget,
   proteinTarget,
+  target = null,
 }: {
   start: string
   end: string
@@ -369,6 +431,8 @@ export function buildWeeklyReport({
   bodyMeasurements: MomentBodyMeasurement[]
   calorieTarget: number
   proteinTarget: number
+  /** Sessions the user committed to for this week, if they committed. */
+  target?: number | null
 }): WeeklyReport {
   const previousStart = dateToIso(
     subtractDays(localNoon(new Date(`${start}T12:00:00`)), 7)
@@ -433,6 +497,27 @@ export function buildWeeklyReport({
     onTargetDays,
   }
 
+  // Seven columns, always, including the days nothing happened. A strip that
+  // skips the empty days is a strip that hides the point.
+  const days: WeeklyReportDay[] = Array.from({ length: 7 }, (_, index) => {
+    const date = dateToIso(
+      subtractDays(localNoon(new Date(`${start}T12:00:00`)), -index)
+    )
+    const dayWorkouts = weekWorkouts.filter((log) => log.date === date)
+    const food = foodLogs.find((log) => log.date === date)
+    const entries = entriesOf(food)
+    return {
+      date,
+      label: new Intl.DateTimeFormat(undefined, { weekday: "narrow" }).format(
+        new Date(`${date}T12:00:00`)
+      ),
+      sets: sum(dayWorkouts.map(completedSets)),
+      workouts: dayWorkouts.length,
+      calories: sum(entries.map((entry) => entry.calories ?? 0)),
+      loggedFood: entries.length > 0,
+    }
+  })
+
   return {
     weekKey: isoWeekKey(start),
     start,
@@ -442,7 +527,11 @@ export function buildWeeklyReport({
       workouts: training.workouts,
       previousWorkouts: training.previousWorkouts,
       loggedDays: nutrition.loggedDays,
+      target,
     }),
+    days,
+    target,
+    metTarget: target === null ? null : training.workouts >= target,
     training,
     nutrition,
     body: { latestWeightKg, weightDeltaKg },
@@ -501,6 +590,7 @@ export function weeklyReportTrigger({
   bodyMeasurements,
   calorieTarget,
   proteinTarget,
+  target = null,
 }: {
   todayKey: string
   nowMinutes: number
@@ -509,6 +599,7 @@ export function weeklyReportTrigger({
   bodyMeasurements: MomentBodyMeasurement[]
   calorieTarget: number
   proteinTarget: number
+  target?: number | null
 }): { key: string; report: WeeklyReport } | null {
   const { start, end } = completedWeek(todayKey, nowMinutes)
   const report = buildWeeklyReport({
@@ -519,9 +610,16 @@ export function weeklyReportTrigger({
     bodyMeasurements,
     calorieTarget,
     proteinTarget,
+    target,
   })
 
-  if (report.training.workouts === 0 && report.nutrition.loggedDays === 0) {
+  // A week with nothing in it gets no screen — unless the user set a target
+  // for it, in which case the emptiness is the thing they asked to hear about.
+  if (
+    report.training.workouts === 0 &&
+    report.nutrition.loggedDays === 0 &&
+    target === null
+  ) {
     return null
   }
 

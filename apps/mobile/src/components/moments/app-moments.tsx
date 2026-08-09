@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useConvexAuth, useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
+import { dateToIso, localNoon, subtractDays } from "@/lib/training-consistency"
 import {
   useFullScreenEvent,
   useMomentPreview,
@@ -17,6 +18,7 @@ import {
   MOMENT_IDS,
   trainingLapseTrigger,
   weeklyReportTrigger,
+  weekStartOf,
   type MomentBodyMeasurement,
   type MomentFoodLog,
   type MomentWorkoutLog,
@@ -73,6 +75,11 @@ export function AppMoments() {
     () => isoWeekKey(completedWeek(todayKey, nowMinutes).start),
     [nowMinutes, todayKey]
   )
+  // Only rest days inside a plausible lapse matter; the rest is history.
+  const restCutoff = useMemo(
+    () => dateToIso(subtractDays(localNoon(new Date()), 90)),
+    []
+  )
 
   /** Which triggers are still unanswered, judged from bookkeeping alone. */
   const pending = useMemo(() => {
@@ -122,6 +129,25 @@ export function AppMoments() {
     api.users.users.getEffectiveGoals,
     needsWeekly ? {} : "skip"
   ) as { effective: { calories?: number; protein?: number } } | null | undefined
+  const restDates = useQuery(
+    api.logs.restDays.listSince,
+    needsLogs ? { since: restCutoff } : "skip"
+  ) as string[] | undefined
+  const weeklyTargets = useQuery(
+    api.users.weeklyTargets.listRecent,
+    needsWeekly ? {} : "skip"
+  ) as Array<{ weekKey: string; sessions: number }> | undefined
+
+  /** The week the report covers, and the one the user is being asked about. */
+  const reportedTarget =
+    weeklyTargets?.find((row) => row.weekKey === weekKey)?.sessions ?? null
+  const currentWeekKey = useMemo(
+    () => isoWeekKey(weekStartOf(todayKey)),
+    [todayKey]
+  )
+  const nextTarget =
+    weeklyTargets?.find((row) => row.weekKey === currentWeekKey)?.sessions ??
+    null
 
   const missed = useMemo(
     () =>
@@ -133,15 +159,16 @@ export function AppMoments() {
 
   const lapse = useMemo(
     () =>
-      workoutLogs && pending?.lapse
-        ? trainingLapseTrigger({ workoutLogs, todayKey })
+      workoutLogs && restDates && pending?.lapse
+        ? trainingLapseTrigger({ workoutLogs, todayKey, restDates })
         : null,
-    [pending?.lapse, todayKey, workoutLogs]
+    [pending?.lapse, restDates, todayKey, workoutLogs]
   )
 
   const weekly = useMemo(() => {
     if (!foodLogs || !workoutLogs || !pending?.weekly) return null
     if (bodyMeasurements === undefined || goals === undefined) return null
+    if (weeklyTargets === undefined) return null
     return weeklyReportTrigger({
       todayKey,
       nowMinutes,
@@ -150,6 +177,7 @@ export function AppMoments() {
       bodyMeasurements,
       calorieTarget: goals?.effective.calories ?? 2000,
       proteinTarget: goals?.effective.protein ?? 150,
+      target: reportedTarget,
     })
   }, [
     bodyMeasurements,
@@ -157,7 +185,9 @@ export function AppMoments() {
     goals,
     nowMinutes,
     pending?.weekly,
+    reportedTarget,
     todayKey,
+    weeklyTargets,
     workoutLogs,
   ])
 
@@ -177,6 +207,7 @@ export function AppMoments() {
       bodyMeasurements: bodyMeasurements ?? [],
       calorieTarget: goals?.effective.calories ?? 2000,
       proteinTarget: goals?.effective.protein ?? 150,
+      target: reportedTarget,
     })
   }, [
     bodyMeasurements,
@@ -184,6 +215,7 @@ export function AppMoments() {
     goals,
     nowMinutes,
     previewId,
+    reportedTarget,
     todayKey,
     workoutLogs,
   ])
@@ -219,7 +251,14 @@ export function AppMoments() {
     // In a preview the data is still arriving; the screen follows it in.
     const shown = weekly?.report ?? previewReport
     if (shown) {
-      return <WeeklyReportMoment report={shown} onClose={report.close} />
+      return (
+        <WeeklyReportMoment
+          report={shown}
+          nextWeekKey={currentWeekKey}
+          existingNextTarget={nextTarget}
+          onClose={report.close}
+        />
+      )
     }
   }
 
@@ -228,6 +267,7 @@ export function AppMoments() {
       <CheckInMoment
         variant="missed-log"
         todayKey={todayKey}
+        workoutLogs={workoutLogs ?? []}
         onClose={missedLog.close}
       />
     )
@@ -239,6 +279,8 @@ export function AppMoments() {
         variant="training-lapse"
         todayKey={todayKey}
         daysSince={lapse?.daysSince ?? daysSinceLastSession}
+        idleDates={lapse?.idleDates ?? []}
+        workoutLogs={workoutLogs ?? []}
         onClose={trainingLapse.close}
       />
     )
