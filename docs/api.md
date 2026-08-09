@@ -69,6 +69,7 @@ timezone, pass the date rather than trusting that default near midnight.
 | `GET /v1`              | The route list, filtered to this key's scopes.                          |
 | `GET /v1/me`           | This key's scopes and hourly budget.                                    |
 | `GET /v1/goals`        | Calorie and macro targets, water goal, weight unit, stated goal.        |
+| `GET /v1/insights`     | Computed analysis: progression verdicts per lift, recovery vs baseline, six monthly summaries. Optional `?date=` anchors the windows. |
 | `GET /v1/days/{date}`  | Everything logged on one date.                                          |
 | `GET /v1/days`         | Per-day totals between `?start=` and `?end=`, inclusive. Both required. |
 | `GET /v1/workouts`     | Recent sessions, newest first. Optional `?limit=` up to 50.             |
