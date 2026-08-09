@@ -12,6 +12,7 @@ import {
   ForkKnife,
   GearFine,
   Heartbeat,
+  Key,
   Moon,
   ShieldCheck,
   SlidersHorizontal,
@@ -172,6 +173,7 @@ type SettingsView =
   | "privacy"
   | "health"
   | "data"
+  | "agents"
   | "walkthrough"
   | "developer"
 
@@ -197,6 +199,7 @@ const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   privacy: "Privacy & sync",
   health: "Health & wearables",
   data: "Data & account",
+  agents: "MCP access",
   walkthrough: "App walkthrough",
   developer: "Developer",
 }
@@ -331,6 +334,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const clearOnboarding = useMutation(api.users.onboarding.clear)
   const resetShownTooltips = useMutation(api.users.tooltips.resetShownTooltips)
   const clearMomentHistory = useMutation(api.users.moments.clearHistory)
+  // Only for the count on the overview row; the panel loads its own list.
+  const mcpTokens = useQuery(api.mcp.tokens.list)
+  const mcpTokenCount = mcpTokens?.length ?? 0
   const { startPreview } = useMomentPreview()
   const tour = useTour()
   const deleteMyDataBatch = useMutation(api.users.users.deleteMyDataBatch)
@@ -1185,6 +1191,19 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Export, reset, or delete your data"
                     leading={<Database size={20} weight="regular" />}
                     onClick={() => showView("data")}
+                  />
+                  <DisclosureRow
+                    title="MCP access"
+                    detail={
+                      mcpTokenCount > 0
+                        ? `${mcpTokenCount} active ${mcpTokenCount === 1 ? "token" : "tokens"}`
+                        : "Connect Claude or another MCP client"
+                    }
+                    value={
+                      mcpTokenCount > 0 ? String(mcpTokenCount) : undefined
+                    }
+                    leading={<Key size={20} weight="regular" />}
+                    onClick={() => showView("agents")}
                   />
                   <DisclosureRow
                     title="App walkthrough"
@@ -2262,12 +2281,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 </GroupedList>
 
                 <SettingsSectionLabel
-                  title="Agent access"
-                  detail="Let an AI assistant read and write your log over MCP"
-                />
-                <McpTokensSection endpoint={mcpEndpointUrl} />
-
-                <SettingsSectionLabel
                   title="Permanent actions"
                   detail="These changes cannot be undone"
                   danger
@@ -2313,6 +2326,17 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       : "Permanently delete account"}
                   </button>
                 </section>
+              </>
+            )}
+
+            {activeView === "agents" && (
+              <>
+                <SettingsSectionIntro>
+                  Give an AI assistant a key to your log over the Model Context
+                  Protocol. Read-only unless you say otherwise, revocable, and
+                  nothing it can delete.
+                </SettingsSectionIntro>
+                <McpTokensSection endpoint={mcpEndpointUrl} />
               </>
             )}
 

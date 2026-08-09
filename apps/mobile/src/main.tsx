@@ -24,7 +24,10 @@ import { captureFeatureUsage, routePattern, trackUmami } from "@/lib/analytics"
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react"
 import { convexClient } from "@/lib/convex"
 import { providerAuthClient, signOutApp } from "@/lib/auth-client"
-import { safeAuthRedirectPath } from "@/lib/auth-session"
+import {
+  loginPathForAuthRedirect,
+  safeAuthRedirectPath,
+} from "@/lib/auth-session"
 import { WidgetDataSync } from "@/components/widget-data-sync"
 import { HealthSync } from "@/components/health-sync"
 import { MealCategorySync } from "@/components/meal-category-sync"
@@ -212,6 +215,7 @@ const ROUTE_MIN_READY_MS = 80
 const ROUTE_FONT_WAIT_MS = 220
 const ROUTE_IMAGE_WAIT_MS = 300
 const ROUTE_LOADING_MARKER_WAIT_MS = 500
+const AUTH_CALLBACK_TIMEOUT_MS = 12_000
 
 type RouteTransitionState = {
   from: ReactNode
@@ -596,6 +600,22 @@ function AuthCallback() {
   const method = searchParams.get("method")
   const isNewUser = searchParams.get("new") === "1"
   const capturedRef = useRef(false)
+  const [stalled, setStalled] = useState(false)
+
+  // The callback has no reason to spin forever. If the token handoff never
+  // lands — a dropped connection mid-redirect is the usual culprit — offer a
+  // way out instead of an eternal spinner.
+  useEffect(() => {
+    if (convexAuth.isAuthenticated) {
+      setStalled(false)
+      return
+    }
+    const timeout = window.setTimeout(
+      () => setStalled(true),
+      AUTH_CALLBACK_TIMEOUT_MS
+    )
+    return () => window.clearTimeout(timeout)
+  }, [convexAuth.isAuthenticated])
 
   useEffect(() => {
     if (!convexAuth.isAuthenticated) return
@@ -635,10 +655,31 @@ function AuthCallback() {
         </header>
 
         <section className="rounded-[28px] border border-border/70 bg-card p-4 text-center shadow-[0_24px_70px_rgba(15,23,42,0.07)] dark:shadow-black/30 short-phone:rounded-[24px] short-phone:p-3.5">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
-          <p className="mt-4 text-[14px] font-semibold tracking-tight">
-            Finishing sign in...
-          </p>
+          {stalled ? (
+            <>
+              <p className="text-[14px] font-semibold tracking-tight">
+                Sign-in didn’t finish
+              </p>
+              <p className="mt-2 text-[13px] text-muted-foreground">
+                Your connection dropped before your account came through. Try
+                again once you have signal.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate(loginPathForAuthRedirect(nextPath))}
+                className="native-primary-button mt-4 w-full"
+              >
+                Back to sign in
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-foreground" />
+              <p className="mt-4 text-[14px] font-semibold tracking-tight">
+                Finishing sign in...
+              </p>
+            </>
+          )}
         </section>
       </main>
     </div>

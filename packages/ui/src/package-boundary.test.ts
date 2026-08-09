@@ -81,8 +81,20 @@ describe("@repo/ui package boundary", () => {
       // Backdates a workout against the app's local-date and preset helpers,
       // with haptics on the day strip.
       "log-past-workout-sheet.tsx",
+      // Mints and revokes MCP tokens over Convex, and reaches for the
+      // clipboard. The panel itself is grouped-list primitives from @repo/ui.
+      "mcp-tokens-section.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
+      // Full-screen moments: triggers read Convex history, answers write
+      // through Convex mutations, and both navigate. The chrome they wear
+      // (MomentScreen, MomentRow, WeekStrip) is presentational and lives in
+      // @repo/ui — nothing in here draws anything the package could.
+      "moments/app-moments.tsx",
+      "moments/check-in-moment.tsx",
+      "moments/quick-food-step.tsx",
+      "moments/quick-log-step.tsx",
+      "moments/weekly-report-moment.tsx",
       "offline-sync-indicator.tsx",
       // Renders null; drives the native OTA plugin's check/apply/rollback
       // lifecycle.

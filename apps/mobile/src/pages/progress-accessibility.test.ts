@@ -72,8 +72,12 @@ describe("Progress page accessibility contract", () => {
       "clientId: entryClientId ?? crypto.randomUUID()"
     )
     expect(PROGRESS_SOURCE).toContain(
-      "Already logged · changes update this entry"
+      "Logged today · saving updates this entry"
     )
+    expect(PROGRESS_SOURCE).toContain('aria-label="Decrease weight"')
+    expect(PROGRESS_SOURCE).toContain('aria-label="Increase weight"')
+    expect(PROGRESS_SOURCE).toContain("Add measurements")
+    expect(PROGRESS_SOURCE).toContain("Add a note")
     expect(PROGRESS_SOURCE).toContain("waistCm: enteredWaist")
     expect(PROGRESS_SOURCE).toContain("hipsCm: enteredHips")
     expect(PROGRESS_SOURCE).toContain("chestCm: enteredChest")
@@ -87,7 +91,7 @@ describe("Progress page accessibility contract", () => {
     expect(PROGRESS_SOURCE).toContain('minHeight="0"')
     expect(PROGRESS_SOURCE).toContain('maxHeight="88vh"')
     expect(PROGRESS_SOURCE).toContain(
-      'panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[42rem]"'
+      'panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[26rem]"'
     )
     expect(PROGRESS_SOURCE).toContain("sm:px-6")
   })

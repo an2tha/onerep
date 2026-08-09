@@ -1,19 +1,19 @@
 import { useState } from "react"
 import { useMutation } from "convex/react"
 import { Minus, Plus } from "@phosphor-icons/react"
-import { toast } from "@repo/ui"
+import {
+  MomentPrimaryAction,
+  MomentScreen,
+  MomentSecondaryAction,
+  WeekStrip,
+  toast,
+} from "@repo/ui"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { logDevWarn } from "@/lib/utils"
 import type { WeeklyReport } from "@/lib/moments"
 import type { FullScreenEventOutcome } from "@/lib/full-screen-events"
-import {
-  MomentPrimaryAction,
-  MomentScreen,
-  MomentSecondaryAction,
-} from "@/components/moments/moment-screen"
-import { WeekStrip } from "@/components/moments/week-strip"
 
 /** The range a weekly session target is allowed to be. Matches the mutation. */
 const MIN_TARGET = 1

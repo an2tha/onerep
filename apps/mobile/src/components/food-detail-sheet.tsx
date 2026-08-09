@@ -20,7 +20,11 @@ import {
   defaultMeal,
   defaultFoodPortion,
   foodPortionLabel,
+  foodServingLabel,
+  foodServingMultiplier,
   gramsFromFoodPortion,
+  isNamedFoodServing,
+  stepFoodServingMultiplier,
   logMicrosFromFoodDetail,
   readAllMealCategories,
   readCustomCategories,
@@ -64,6 +68,15 @@ function initialFoodDetail(item: FoodResult): FoodDetail | null {
   return Array.isArray(maybeDetail.nutrients) ? (item as FoodDetail) : null
 }
 
+/** The portion the sheet opens on: the food's own serving where it has one. */
+function initialSelectedPortion(item: FoodResult, detail: Detail) {
+  return defaultFoodPortion(
+    detail?.servingLabel ?? item.serving,
+    item.name,
+    detail?.servingGrams ?? 100
+  )
+}
+
 const VOLUME_UNITS = new Set<FoodPortionUnit>(["ml", "fl_oz"])
 const LIQUID_TEXT_RE =
   /\b(?:ml|millilit(?:er|re)s?|l|lit(?:er|re)s?|cl|fl\s*oz|fluid\s*ounces?)\b/i
@@ -91,11 +104,23 @@ function foodLooksLiquid(
 // ─── Portion picker ───────────────────────────────────────────────────────────
 
 type Preset = {
+  key: string
   label: string
   grams: number
   unit?: FoodPortionUnit
-  sub?: string
+  /** "food" presets come from the food's own label and can be multiplied. */
+  source: "food" | "generic"
 }
+
+/** The food's own serving reads as a unit in the dropdown, prefixed to keep
+ * it apart from the real units. */
+const SERVING_OPTION_PREFIX = "serving:"
+
+/** Portions the food itself declared wear the food accent; our own generic
+ * grams and cups stay neutral. The label pulls a fifth of the way toward the
+ * foreground so 12px stays readable on the tint in both themes. */
+const SERVING_ACCENT = APP_ACCENT_COLORS.food
+const SERVING_ACCENT_TEXT = `color-mix(in srgb, ${SERVING_ACCENT} 78%, var(--foreground))`
 
 function stepFor(g: number) {
   if (g < 10) return 1
@@ -109,15 +134,24 @@ function PortionPicker({
   unit,
   onChange,
   presets,
+  activeServing,
+  onPickPreset,
+  onPickUnit,
   showVolumeUnits,
 }: {
   grams: number
   unit: FoodPortionUnit
   onChange: (g: number, unit?: FoodPortionUnit) => void
   presets: Preset[]
+  /** The named serving currently being counted, if the user is counting one. */
+  activeServing: Preset | null
+  onPickPreset: (preset: Preset) => void
+  onPickUnit: (next: FoodPortionUnit | Preset) => void
   showVolumeUnits: boolean
 }) {
-  const amount = amountFromFoodPortionGrams(grams, unit)
+  const amount = activeServing
+    ? foodServingMultiplier(grams, activeServing.grams)
+    : amountFromFoodPortionGrams(grams, unit)
   const [inputVal, setInputVal] = useState(formatInputAmount(amount))
   const [focused, setFocused] = useState(false)
 
@@ -133,11 +167,18 @@ function PortionPicker({
       .replace(/(\.\d*?)0+$/, "$1")
   }
 
+  /** Counting servings, the typed number is a multiplier, not a measurement. */
+  function toGrams(value: number) {
+    return activeServing
+      ? Math.max(0.1, Math.round(value * activeServing.grams * 10) / 10)
+      : gramsFromFoodPortion(value, unit)
+  }
+
   function commit(raw: string) {
     const cleaned = raw.replace(/[^\d.]/g, "")
     const n = parseFloat(cleaned)
     if (!isNaN(n) && n > 0 && n <= 9999) {
-      onChange(gramsFromFoodPortion(n, unit))
+      onChange(toGrams(n))
     } else {
       setInputVal(formatInputAmount(amount))
     }
@@ -154,14 +195,17 @@ function PortionPicker({
     // field shows a stale number while grams and calories move underneath.
     const typed = focused ? Number(inputVal.replace(",", ".")) : NaN
     const base = Number.isFinite(typed) && typed > 0 ? typed : amount
-    const nextAmount = Math.max(configuredStep, base + dir * configuredStep)
+    const nextAmount = activeServing
+      ? stepFoodServingMultiplier(base, dir)
+      : Math.max(configuredStep, base + dir * configuredStep)
     if (focused) setInputVal(formatInputAmount(nextAmount))
-    onChange(gramsFromFoodPortion(nextAmount, unit))
+    onChange(toGrams(nextAmount))
   }
 
   const visibleUnits = showVolumeUnits
     ? FOOD_PORTION_UNITS
     : FOOD_PORTION_UNITS.filter((option) => !VOLUME_UNITS.has(option.id))
+  const servingOptions = presets.filter((p) => p.source === "food")
 
   return (
     <section className="mx-4 mt-2 rounded-3xl border border-border bg-card p-4">
@@ -173,32 +217,51 @@ function PortionPicker({
 
       <div className="mb-3 flex gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
         {presets.map((p) => {
-          const active = Math.abs(grams - p.grams) < 0.1 && p.unit === unit
+          const counting = activeServing?.key === p.key
+          const active =
+            counting ||
+            (!activeServing &&
+              Math.abs(grams - p.grams) < 0.1 &&
+              p.unit === unit)
+          const fromFood = p.source === "food"
           return (
             <button
-              key={`${p.label}-${p.grams}-${p.unit ?? ""}`}
+              key={p.key}
               type="button"
-              onClick={() => onChange(p.grams, p.unit)}
+              onClick={() => onPickPreset(p)}
               aria-pressed={active}
               className="flex min-h-10 max-w-36 shrink-0 items-center rounded-full border px-3 text-left text-[12px] font-semibold transition-colors active:bg-muted"
               style={
-                active
-                  ? {
-                      borderColor:
-                        "color-mix(in srgb, var(--foreground) 72%, transparent)",
-                      backgroundColor: "var(--foreground)",
-                      color: "var(--background)",
-                    }
-                  : {
-                      borderColor:
-                        "color-mix(in srgb, var(--border) 76%, transparent)",
-                      backgroundColor: "var(--background)",
-                      color: "var(--foreground)",
-                    }
+                fromFood
+                  ? active
+                    ? {
+                        borderColor: SERVING_ACCENT,
+                        backgroundColor: SERVING_ACCENT,
+                        // The accent is dark enough that white reads in both themes.
+                        color: "#fff",
+                      }
+                    : {
+                        borderColor: `color-mix(in srgb, ${SERVING_ACCENT} 42%, transparent)`,
+                        backgroundColor: tint(SERVING_ACCENT, 12),
+                        color: SERVING_ACCENT_TEXT,
+                      }
+                  : active
+                    ? {
+                        borderColor:
+                          "color-mix(in srgb, var(--foreground) 72%, transparent)",
+                        backgroundColor: "var(--foreground)",
+                        color: "var(--background)",
+                      }
+                    : {
+                        borderColor:
+                          "color-mix(in srgb, var(--border) 76%, transparent)",
+                        backgroundColor: "var(--background)",
+                        color: "var(--foreground)",
+                      }
               }
             >
               <span className="max-w-full truncate leading-none">
-                {p.label}
+                {counting ? foodServingLabel(amount, p.label) : p.label}
               </span>
             </button>
           )
@@ -237,13 +300,31 @@ function PortionPicker({
         </div>
 
         <select
-          value={unit}
-          onChange={(event) =>
-            onChange(grams, event.target.value as FoodPortionUnit)
+          value={
+            activeServing
+              ? `${SERVING_OPTION_PREFIX}${activeServing.key}`
+              : unit
           }
+          onChange={(event) => {
+            const value = event.target.value
+            const serving = servingOptions.find(
+              (p) => `${SERVING_OPTION_PREFIX}${p.key}` === value
+            )
+            onPickUnit(serving ?? (value as FoodPortionUnit))
+          }}
           aria-label="Serving unit"
-          className="rounded-xl bg-muted/35 px-2 text-[13px] font-semibold outline-none"
+          className="max-w-[7rem] min-w-0 truncate rounded-xl bg-muted/35 px-2 text-[13px] font-semibold outline-none"
+          style={activeServing ? { color: SERVING_ACCENT_TEXT } : undefined}
         >
+          {servingOptions.map((p) => (
+            <option
+              key={p.key}
+              value={`${SERVING_OPTION_PREFIX}${p.key}`}
+              className="text-foreground"
+            >
+              {p.label}
+            </option>
+          ))}
           {visibleUnits.map((option) => (
             <option key={option.id} value={option.id}>
               {option.label}
@@ -508,9 +589,17 @@ export function FoodDetailSheet({
 }: Props) {
   const [detail, setDetail] = useState<Detail>(() => initialFoodDetail(item))
   const [loading, setLoading] = useState(() => !initialFoodDetail(item))
-  const [grams, setGrams] = useState(100)
+  // Seed from the embedded detail rather than a bare 100 g, so a food whose
+  // serving is counted does not flash a fractional multiplier on first paint.
+  const [grams, setGrams] = useState(
+    () => initialSelectedPortion(item, initialFoodDetail(item)).grams
+  )
   const [unit, setUnit] = useState<FoodPortionUnit>(
-    () => defaultFoodPortion(item.serving, item.name).unit
+    () => initialSelectedPortion(item, initialFoodDetail(item)).unit
+  )
+  // undefined means "untouched" — the food's own serving is counted by default.
+  const [servingKey, setServingKey] = useState<string | null | undefined>(
+    undefined
   )
   const [showExtra, setShowExtra] = useState(false)
   const [ctaVisualState, setCtaVisualState] = useState<
@@ -552,12 +641,9 @@ export function FoodDetailSheet({
   useEffect(() => {
     const embeddedDetail = initialFoodDetail(item)
     setShowExtra(false)
+    setServingKey(undefined)
     if (embeddedDetail) {
-      const nextPortion = defaultFoodPortion(
-        embeddedDetail.servingLabel ?? item.serving,
-        item.name,
-        embeddedDetail.servingGrams ?? 100
-      )
+      const nextPortion = initialSelectedPortion(item, embeddedDetail)
       setDetail(embeddedDetail)
       setUnit(nextPortion.unit)
       setGrams(nextPortion.grams)
@@ -569,11 +655,7 @@ export function FoodDetailSheet({
     getFoodDetail(item.id)
       .then((d) => {
         setDetail(d)
-        const nextPortion = defaultFoodPortion(
-          d?.servingLabel ?? item.serving,
-          item.name,
-          d?.servingGrams ?? 100
-        )
+        const nextPortion = initialSelectedPortion(item, d)
         setUnit(nextPortion.unit)
         setGrams(nextPortion.grams)
         setLoading(false)
@@ -604,25 +686,34 @@ export function FoodDetailSheet({
 
   const presets: Preset[] = []
   const seenPresets = new Set<string>()
-  const addPreset = (next: FoodPortion, label?: string, sub?: string) => {
+  const addPreset = (
+    next: FoodPortion,
+    label?: string,
+    source: Preset["source"] = "generic"
+  ) => {
     const key = `${Math.round(next.grams * 10) / 10}-${next.unit}`
     if (seenPresets.has(key)) return
     seenPresets.add(key)
     presets.push({
+      key,
       label: label ?? foodPortionLabel(next),
-      sub,
       grams: next.grams,
       unit: next.unit,
+      source,
     })
   }
 
-  const servingPortion = defaultFoodPortion(
-    detail?.servingLabel ?? item.serving,
-    item.name,
-    detail?.servingGrams ?? 100
-  )
+  const servingLabel = detail?.servingLabel ?? item.serving
+  const servingPortion = initialSelectedPortion(item, detail)
   const showVolumeUnits = foodLooksLiquid(item, detail, servingPortion)
-  addPreset(servingPortion, detail?.servingLabel ?? item.serving)
+  // A serving of "100 g" is just grams — only a serving the units cannot spell
+  // earns its own colour and its own counter.
+  const servingIsNamed = isNamedFoodServing(servingLabel, servingPortion)
+  addPreset(
+    servingPortion,
+    servingIsNamed ? servingLabel : undefined,
+    servingIsNamed ? "food" : "generic"
+  )
 
   const presetLabels = [
     "50 g",
@@ -637,18 +728,32 @@ export function FoodDetailSheet({
     addPreset(defaultFoodPortion(label, item.name))
   }
 
+  // ── Named serving counter ─────────────────────────────────────────────────
+
+  const namedServings = presets.filter((p) => p.source === "food")
+  const activeServing =
+    (servingKey === undefined
+      ? namedServings[0]
+      : namedServings.find((p) => p.key === servingKey)) ?? null
+  const portionSummary = activeServing
+    ? foodServingLabel(
+        foodServingMultiplier(grams, activeServing.grams),
+        activeServing.label
+      )
+    : foodPortionLabel(portion)
+
   const ctaLabel = saving
     ? "Logging..."
     : added
       ? (addedLabel?.(mealCfg.label, portion) ?? `✓ Logged to ${mealCfg.label}`)
       : (actionLabel?.(grams, mealCfg.label, portion) ??
-        `Log ${foodPortionLabel(portion)} to ${mealCfg.label}`)
+        `Log ${portionSummary} to ${mealCfg.label}`)
   const ctaContent =
     saving || added || actionLabel ? (
       ctaLabel
     ) : (
       <>
-        Log {foodPortionLabel(portion)}{" "}
+        Log {portionSummary}{" "}
         <span key={meal} className="food-log-meal-transition inline-block">
           to {mealCfg.label}
         </span>
@@ -763,6 +868,23 @@ export function FoodDetailSheet({
               if (nextUnit) setUnit(nextUnit)
             }}
             presets={presets}
+            activeServing={activeServing}
+            onPickPreset={(preset) => {
+              setGrams(preset.grams)
+              if (preset.unit) setUnit(preset.unit)
+              setServingKey(preset.source === "food" ? preset.key : null)
+            }}
+            onPickUnit={(next) => {
+              // Switching to the food's own serving keeps the grams and starts
+              // counting them; switching to a real unit stops counting.
+              if (typeof next === "string") {
+                setUnit(next)
+                setServingKey(null)
+                return
+              }
+              if (next.unit) setUnit(next.unit)
+              setServingKey(next.key)
+            }}
             showVolumeUnits={showVolumeUnits}
           />
 

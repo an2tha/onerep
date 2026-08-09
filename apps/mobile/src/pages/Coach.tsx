@@ -38,6 +38,7 @@ import {
   TrendDown,
   TrendUp,
   TrashSimple,
+  VideoCamera,
   WarningCircle,
   X,
 } from "@phosphor-icons/react"
@@ -62,6 +63,20 @@ import {
 import { normalizeScheduleRoutines, type Day } from "@/lib/workout-sync"
 import { searchExercises, type Exercise } from "@/lib/exercise-catalog"
 import { useCoachContext, type CoachContext } from "@/lib/coach-context"
+import {
+  FORM_COACH_AI_COST,
+  matchFormCoachExercise,
+  type FormCoachExercise,
+} from "@/lib/form-coach"
+import {
+  clearFormCoachDraft,
+  startFormCoachDraft,
+  useFormCoachDraft,
+} from "@/lib/form-coach-clips"
+import { subscribeToFormCoachMessages } from "@/lib/form-coach-message"
+import { FormCoachRecorder } from "@/components/form-coach-recorder"
+import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
+import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
 import {
   hapticHeavy,
   hapticMedium,
@@ -399,6 +414,106 @@ function CoachSheet({
   )
 }
 
+/**
+ * Asks which lift the coach is about to be shown.
+ *
+ * The recorder needs an exercise before it can name what it is filming. The
+ * workout screen has one to hand; the composer does not, so the button stops
+ * here once and then gets out of the way.
+ */
+function FormCoachPicker({
+  supported,
+  onPick,
+}: {
+  supported: FormCoachExercise[] | undefined
+  onPick: (exercise: Exercise, movement: FormCoachExercise) => void
+}) {
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<Exercise[]>([])
+  const [searching, setSearching] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setSearching(true)
+    // The first list is wanted immediately; everything after it is a keystroke
+    // and can wait for the user to stop typing.
+    const timer = window.setTimeout(
+      () => {
+        void searchExercises({
+          query,
+          categories: ["strength", "core", "mobility"],
+          limit: 14,
+        })
+          .then((found) => {
+            if (cancelled) return
+            setResults(found)
+            setSearching(false)
+          })
+          .catch(() => {
+            if (!cancelled) setSearching(false)
+          })
+      },
+      query ? 220 : 0
+    )
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [query])
+
+  return (
+    <>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Pick the lift. You’ll film up to three angles, and the coach measures
+        the joints rather than taking your word for it.
+      </p>
+      <input
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="Search exercises"
+        aria-label="Search exercises to film"
+        className="mt-3 min-h-11 w-full rounded-xl border border-border/60 bg-card px-3 text-[12px] outline-none"
+      />
+      {results.length === 0 ? (
+        <p className="py-8 text-center text-[12px] text-muted-foreground">
+          {searching ? "Looking…" : "Nothing by that name."}
+        </p>
+      ) : (
+        <div className="mt-2 divide-y divide-border/45">
+          {results.map((exercise) => {
+            // Null only while the movement catalog is still loading, which is
+            // the one state in which starting a draft would have no slug.
+            const movement = matchFormCoachExercise(exercise.name, supported)
+            return (
+              <button
+                key={exercise.id}
+                type="button"
+                disabled={!movement}
+                onClick={() => movement && onPick(exercise, movement)}
+                className="flex min-h-14 w-full items-center gap-3 py-3 text-left disabled:opacity-45"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-bold">
+                    {exercise.name}
+                  </span>
+                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
+                    {exercise.muscle}
+                  </span>
+                </span>
+                <VideoCamera
+                  size={15}
+                  weight="fill"
+                  className="shrink-0 text-muted-foreground"
+                />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function Coach() {
   const { context, loading } = useCoachContext()
   const navigate = useSmoothNavigate()
@@ -438,6 +553,7 @@ export default function Coach() {
   const [showHistory, setShowHistory] = useState(false)
   const [historySearch, setHistorySearch] = useState("")
   const [showMemory, setShowMemory] = useState(false)
+  const [showFormCoach, setShowFormCoach] = useState(false)
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference")
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
@@ -492,10 +608,16 @@ export default function Coach() {
       recipeCustomization?: RecipeCustomization
       guidedIntent?: GuidedCoachIntent
       initialInput?: string
+      /** Ask it on arrival rather than leaving it sitting in the composer. */
+      autoSend?: boolean
     } | null
+    if (!state?.coachMode) return
+    // A handoff carries either a subject to work on, or a question to ask.
+    // Anything else is a plain navigation that should not touch this state.
     if (
-      !state?.coachMode ||
-      (!state.recipeCustomization && !state.guidedIntent)
+      !state.recipeCustomization &&
+      !state.guidedIntent &&
+      !state.initialInput
     )
       return
     recipeHandoffHandled.current = true
@@ -504,19 +626,63 @@ export default function Coach() {
     setRecipeCustomizationClosing(false)
     setRecipeCustomization(state.recipeCustomization ?? null)
     setGuidedIntent(state.guidedIntent ?? null)
-    setInput(state.initialInput ?? "")
+    setInput(state.autoSend ? "" : (state.initialInput ?? ""))
+    if (state.autoSend && state.initialInput) {
+      setPendingAutoSend(state.initialInput)
+      return
+    }
     requestAnimationFrame(() => composerRef.current?.focus())
   }, [location.state])
+
+  /**
+   * Sent from the effect below rather than the one above, so the send happens
+   * on a render where the loaded conversation is already state. Submitting
+   * inside the handoff would post the question against whatever history the
+   * previous render was holding.
+   */
+  const [pendingAutoSend, setPendingAutoSend] = useState<string | null>(null)
+  useEffect(() => {
+    if (pendingAutoSend === null) return
+    setPendingAutoSend(null)
+    // `submit` gates on AI access itself, so a free account gets the paywall
+    // rather than a silent no-op.
+    void submit(pendingAutoSend)
+  }, [pendingAutoSend])
   const saveCheckIn = useMutation(api.ai.coachState.saveCheckIn)
   const saveWeeklyPlan = useMutation(api.ai.coachState.saveWeeklyPlan)
   const saveCoachGoal = useMutation(api.ai.coachGoals.save)
   const setCoachGoalPinned = useMutation(api.ai.coachGoals.setPinned)
   const setDashboardWidgetPinned = useMutation(api.dashboardWidgets.setPinned)
-  const { requireAiAccess, aiAccessModal, aiUsage } = useAiFeatureGate()
+  const { requireAiAccess, aiAccessModal, aiAccessLoading, aiUsage } =
+    useAiFeatureGate()
   const dictation = useCoachDictation({
     value: input,
     onChange: updateComposer,
   })
+
+  const formCoachMovements = useQuery(api.ai.formCoach.listSupported, {})
+  const formCoachDraft = useFormCoachDraft()
+  // A form analysis spends more than one AI request, so affordability is
+  // checked as the camera opens rather than at send time — being told the
+  // coach cannot be paid for after filming would waste the take.
+  const formCoachOpening =
+    formCoachDraft?.phase === "recording" && formCoachDraft.clips.length === 0
+  useEffect(() => {
+    if (!formCoachOpening || aiAccessLoading) return
+    if (!requireAiAccess(FORM_COACH_AI_COST, "form_coach"))
+      clearFormCoachDraft()
+  }, [formCoachOpening, aiAccessLoading, requireAiAccess])
+
+  // The report is written into the conversation by the pose confirmation, which
+  // has no idea a coach is on screen. Take delivery directly, or the persist
+  // effect below would write this page's stale history back over it.
+  useEffect(
+    () =>
+      subscribeToFormCoachMessages((message) => {
+        setMessages((current) => [...current, message].slice(-20))
+      }),
+    []
+  )
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
@@ -1495,7 +1661,9 @@ export default function Coach() {
       mode: activeMode,
       turn: nextMessages.length,
       has_image: Boolean(selectedAttachment),
-      intent: guidedIntent?.kind ?? (recipeCustomization ? "customize_recipe" : "free"),
+      intent:
+        guidedIntent?.kind ??
+        (recipeCustomization ? "customize_recipe" : "free"),
       allowance: aiUsage
         ? usageBucket(aiUsage.remaining, aiUsage.limit)
         : "unknown",
@@ -2247,6 +2415,21 @@ export default function Coach() {
                     onClick={openImagePicker}
                     disabled={loading || busy}
                   />
+                  {activeMode !== "chef" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        hapticTap()
+                        setShowFormCoach(true)
+                      }}
+                      disabled={loading || busy}
+                      aria-label="Check my form"
+                      title="Check my form"
+                      className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35"
+                    >
+                      <VideoCamera size={18} weight="bold" />
+                    </button>
+                  )}
                   <textarea
                     ref={composerRef}
                     value={input}
@@ -2512,6 +2695,37 @@ export default function Coach() {
           </div>
         )}
       </CoachSheet>
+      <CoachSheet
+        title="Check my form"
+        open={showFormCoach}
+        onClose={() => setShowFormCoach(false)}
+        mode={activeMode}
+      >
+        <FormCoachPicker
+          supported={formCoachMovements}
+          onPick={(exercise, movement) => {
+            hapticTap()
+            setShowFormCoach(false)
+            startFormCoachDraft({
+              exerciseId: exercise.id,
+              exerciseName: exercise.name,
+              slug: movement.slug,
+            })
+          }}
+        />
+      </CoachSheet>
+      {/* The Coach canvas is an isolated, clipped stacking context sitting
+          below the app chrome, so these have to leave it the same way the
+          sheets above do — inside `main` they render underneath the page. */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <>
+            <FormCoachRecorder />
+            <FormCoachReviewSheet />
+            <FormCoachPoseConfirm />
+          </>,
+          document.body
+        )}
       {aiAccessModal}
     </main>
   )

@@ -120,7 +120,9 @@ export function FormCoachPoseConfirm() {
       // says, so it lands as a message rather than a screen of its own.
       appendFormCoachMessage({ report: { ...report, reportId }, frames })
       clearFormCoachDraft()
-      navigate("/coach")
+      // Filmed from the coach's own composer there is nowhere to go, and
+      // pushing the route we are already on only costs the user a back press.
+      if (window.location.pathname !== "/coach") navigate("/coach")
     } catch (error) {
       // Keep the draft so a failed send does not cost the user their angles.
       logDevError("Form coach submission failed", error)

@@ -85,11 +85,32 @@ export function buildFormCoachBlocks(
 }
 
 /**
+ * Coach pages that are already on screen when a report lands.
+ *
+ * Storage is the delivery route for a report filmed from the workout, where the
+ * coach is not mounted and will read its history when the user arrives. Filmed
+ * from the coach's own composer, that route is worse than useless: the page is
+ * mounted, so it would not notice the write, and its own persist effect would
+ * overwrite it on the next keystroke. A live listener takes the message instead.
+ */
+const liveListeners = new Set<(message: CoachMessage) => void>()
+
+export function subscribeToFormCoachMessages(
+  listener: (message: CoachMessage) => void
+) {
+  liveListeners.add(listener)
+  return () => {
+    liveListeners.delete(listener)
+  }
+}
+
+/**
  * Drops the report into the coach conversation and returns nothing.
  *
- * Written straight to the store `Coach.tsx` reads on mount, because the coach
- * keeps its history in local storage rather than the database — so a message
- * added here is simply there when the user arrives.
+ * Handed to a mounted coach when there is one; otherwise written straight to
+ * the store `Coach.tsx` reads on mount, because the coach keeps its history in
+ * local storage rather than the database — so a message added here is simply
+ * there when the user arrives.
  */
 export function appendFormCoachMessage(input: {
   report: FormCoachReport
@@ -99,6 +120,11 @@ export function appendFormCoachMessage(input: {
     role: "assistant",
     content: input.report.summary,
     uiBlocks: buildFormCoachBlocks(input.report, input.frames),
+  }
+
+  if (liveListeners.size > 0) {
+    for (const listener of liveListeners) listener(message)
+    return
   }
 
   let history: CoachMessage[] = []

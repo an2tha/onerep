@@ -30,6 +30,7 @@ import {
   DisclosureRow,
   FormField,
   GroupedList,
+  ListRow,
   PrimaryButton,
   ToolbarButton,
 } from "@repo/ui"
@@ -48,6 +49,10 @@ import {
   formatProgressWeight,
 } from "@repo/ui"
 
+function formatWeightValue(value: number) {
+  return value.toFixed(1).replace(/\.0$/, "")
+}
+
 export default function Progress() {
   const navigate = useSmoothNavigate()
   const progressHeaderRef = useTourAnchor("progress-header")
@@ -65,6 +70,8 @@ export default function Progress() {
   const [hips, setHips] = useState("")
   const [chest, setChest] = useState("")
   const [notes, setNotes] = useState("")
+  const [showMeasurements, setShowMeasurements] = useState(false)
+  const [showNote, setShowNote] = useState(false)
   const [entryClientId, setEntryClientId] = useState<string | null>(null)
   const [entryPrepared, setEntryPrepared] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
@@ -150,16 +157,12 @@ export default function Progress() {
     customMetrics === undefined
 
   const prepareEntry = useCallback(() => {
+    const toDisplayWeight = (weightKg: number | null | undefined) =>
+      weightKg == null
+        ? ""
+        : formatWeightValue(unit === "lbs" ? weightKg * 2.20462 : weightKg)
     if (todayMeasurement) {
-      const displayWeight =
-        todayMeasurement.weightKg == null
-          ? ""
-          : unit === "lbs"
-            ? todayMeasurement.weightKg * 2.20462
-            : todayMeasurement.weightKg
-      setWeight(
-        displayWeight === "" ? "" : displayWeight.toFixed(1).replace(/\.0$/, "")
-      )
+      setWeight(toDisplayWeight(todayMeasurement.weightKg))
       setBodyFat(
         todayMeasurement.bodyFatPct == null
           ? ""
@@ -175,19 +178,30 @@ export default function Progress() {
         todayMeasurement.chestCm == null ? "" : String(todayMeasurement.chestCm)
       )
       setNotes(todayMeasurement.notes ?? "")
+      setShowMeasurements(
+        todayMeasurement.bodyFatPct != null ||
+          todayMeasurement.waistCm != null ||
+          todayMeasurement.hipsCm != null ||
+          todayMeasurement.chestCm != null
+      )
+      setShowNote(Boolean(todayMeasurement.notes))
       setEntryClientId(todayMeasurement.clientId)
     } else {
-      setWeight("")
+      // Start from the last known weight so a normal day is confirm-and-done
+      // rather than typing the same number again.
+      setWeight(toDisplayWeight(previousMeasurement?.weightKg))
       setBodyFat("")
       setWaist("")
       setHips("")
       setChest("")
       setNotes("")
+      setShowMeasurements(false)
+      setShowNote(false)
       setEntryClientId(null)
     }
     setEntryError("")
     setEntryPrepared(true)
-  }, [todayMeasurement, unit])
+  }, [previousMeasurement, todayMeasurement, unit])
 
   function selectMetric(nextMetric: "body" | "nutrition" | "training") {
     if (nextMetric === metric) return
@@ -248,6 +262,8 @@ export default function Progress() {
       setHips("")
       setChest("")
       setNotes("")
+      setShowMeasurements(false)
+      setShowNote(false)
       setEntryClientId(null)
       setEntryError("")
       setEntryPrepared(false)
@@ -255,6 +271,19 @@ export default function Progress() {
       prepareEntry()
     }
     setEntryOpen(true)
+  }
+
+  function nudgeWeight(direction: 1 | -1) {
+    hapticSelection()
+    const parsed = Number(weight.trim().replace(",", "."))
+    const hasValue = weight.trim().length > 0 && Number.isFinite(parsed)
+    const next = hasValue
+      ? Math.max(1, Math.round((parsed + direction * 0.1) * 10) / 10)
+      : unit === "lbs"
+        ? 150
+        : 70
+    setWeight(formatWeightValue(next))
+    if (entryError) setEntryError("")
   }
 
   function closeEntry() {
@@ -349,6 +378,8 @@ export default function Progress() {
       setHips("")
       setChest("")
       setNotes("")
+      setShowMeasurements(false)
+      setShowNote(false)
       setEntryClientId(null)
       setEntryPrepared(false)
       setEntryOpen(false)
@@ -701,7 +732,7 @@ export default function Progress() {
           minHeight="0"
           maxHeight="88vh"
           ariaLabel="Today’s check-in"
-          panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[42rem]"
+          panelClassName="!w-[calc(100%_-_1.5rem)] !max-w-[26rem]"
           bottom={
             <div className="border-t border-border bg-background px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
               <PrimaryButton
@@ -722,16 +753,13 @@ export default function Progress() {
         >
           <form
             id="today-check-in-form"
-            className="grid gap-6 px-4 pt-1 pb-6 sm:px-6"
+            className="grid gap-5 px-4 pt-1 pb-6 sm:px-6"
             onSubmit={handleEntrySubmit}
           >
-            <header className="flex items-start gap-4 border-b border-border pb-5">
-              <div className="min-w-0 flex-1">
-                <p className="native-supporting">{formatProgressDate(today)}</p>
-                <h2 className="mt-0.5 text-[24px] leading-tight font-semibold tracking-tight">
-                  Today’s check-in
-                </h2>
-              </div>
+            <header className="flex items-center justify-between gap-4">
+              <h2 className="text-[22px] leading-tight font-semibold tracking-tight">
+                Today’s check-in
+              </h2>
               <ToolbarButton
                 type="button"
                 onClick={closeEntry}
@@ -741,130 +769,166 @@ export default function Progress() {
               </ToolbarButton>
             </header>
 
-            {(todayMeasurement || previousMeasurement) && (
-              <section
-                className="border-y border-border py-3"
-                aria-label="Check-in context"
-              >
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <p className="native-row-title">
-                      {todayMeasurement ? "Today’s entry" : "Last entry"}
-                    </p>
-                    <p className="native-row-detail mt-0.5">
-                      {todayMeasurement
-                        ? "Already logged · changes update this entry"
-                        : formatProgressDate(
-                            previousMeasurement?.loggedAt.slice(0, 10) ?? null
-                          )}
-                    </p>
-                  </div>
-                  <p className="native-row-value">
-                    {formatProgressWeight(
-                      (todayMeasurement ?? previousMeasurement)?.weightKg ??
-                        null,
-                      unit
-                    )}
-                  </p>
+            <section
+              aria-label="Weight"
+              className="flex flex-col items-center gap-3 py-3"
+            >
+              <div className="flex w-full items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => nudgeWeight(-1)}
+                  aria-label="Decrease weight"
+                  className="onboarding-stepper-button"
+                >
+                  <Minus size={16} weight="bold" />
+                </button>
+                <div className="flex min-w-0 items-baseline justify-center gap-1.5">
+                  <input
+                    name="progress-weight"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    autoComplete="off"
+                    value={weight}
+                    onChange={(event) => {
+                      setWeight(event.target.value)
+                      if (entryError) setEntryError("")
+                    }}
+                    onFocus={(event) => event.currentTarget.select()}
+                    placeholder="0"
+                    aria-label={`Weight (${unit})`}
+                    required
+                    className="w-32 border-b-2 border-transparent bg-transparent text-center text-[44px] leading-none font-semibold tracking-tight tabular-nums outline-none placeholder:text-muted-foreground/40 focus-visible:border-foreground/40"
+                  />
+                  <span className="text-[15px] font-semibold text-muted-foreground">
+                    {unit}
+                  </span>
                 </div>
-              </section>
+                <button
+                  type="button"
+                  onClick={() => nudgeWeight(1)}
+                  aria-label="Increase weight"
+                  className="onboarding-stepper-button"
+                >
+                  <Plus size={16} weight="bold" />
+                </button>
+              </div>
+              <p className="native-row-detail text-center">
+                {todayMeasurement
+                  ? "Logged today · saving updates this entry"
+                  : previousMeasurement
+                    ? `Last check-in ${formatProgressWeight(previousMeasurement.weightKg, unit)} · ${formatProgressDate(previousMeasurement.loggedAt.slice(0, 10))}`
+                    : "Your first check-in"}
+              </p>
+            </section>
+
+            {showMeasurements && (
+              <fieldset>
+                <legend className="native-field-label mb-3">
+                  Measurements
+                </legend>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    label="Body fat %"
+                    name="progress-body-fat"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={bodyFat}
+                    onChange={(event) => {
+                      setBodyFat(event.target.value)
+                      if (entryError) setEntryError("")
+                    }}
+                  />
+                  <FormField
+                    label="Waist (cm)"
+                    name="progress-waist"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={waist}
+                    onChange={(event) => {
+                      setWaist(event.target.value)
+                      if (entryError) setEntryError("")
+                    }}
+                  />
+                  <FormField
+                    label="Hips (cm)"
+                    name="progress-hips"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={hips}
+                    onChange={(event) => {
+                      setHips(event.target.value)
+                      if (entryError) setEntryError("")
+                    }}
+                  />
+                  <FormField
+                    label="Chest (cm)"
+                    name="progress-chest"
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={chest}
+                    onChange={(event) => {
+                      setChest(event.target.value)
+                      if (entryError) setEntryError("")
+                    }}
+                  />
+                </div>
+              </fieldset>
             )}
 
-            <fieldset>
-              <legend className="native-section-title mb-3">Body</legend>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  label={`Weight (${unit})`}
-                  name="progress-weight"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={weight}
-                  onChange={(event) => {
-                    setWeight(event.target.value)
-                    if (entryError) setEntryError("")
-                  }}
-                  hint="Required"
-                  className="text-[18px] font-semibold tabular-nums"
-                  autoFocus
-                  required
+            {showNote && (
+              <label className="native-field">
+                <span className="native-field-label">Journal note</span>
+                <textarea
+                  name="progress-notes"
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Training, sleep, appetite, or anything worth remembering…"
+                  className="native-input min-h-24 resize-y py-3 leading-6"
                 />
-                <FormField
-                  label="Body fat %"
-                  name="progress-body-fat"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={bodyFat}
-                  onChange={(event) => {
-                    setBodyFat(event.target.value)
-                    if (entryError) setEntryError("")
-                  }}
-                  hint="Optional"
-                />
-              </div>
-            </fieldset>
+              </label>
+            )}
 
-            <fieldset>
-              <legend className="native-section-title mb-1">
-                Circumference
-              </legend>
-              <p className="native-row-detail mb-3">Optional · centimeters</p>
-              <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-3">
-                <FormField
-                  label="Waist"
-                  name="progress-waist"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={waist}
-                  onChange={(event) => {
-                    setWaist(event.target.value)
-                    if (entryError) setEntryError("")
-                  }}
-                />
-                <FormField
-                  label="Hips"
-                  name="progress-hips"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={hips}
-                  onChange={(event) => {
-                    setHips(event.target.value)
-                    if (entryError) setEntryError("")
-                  }}
-                />
-                <FormField
-                  label="Chest"
-                  name="progress-chest"
-                  type="text"
-                  inputMode="decimal"
-                  pattern="[0-9]*[.,]?[0-9]*"
-                  value={chest}
-                  onChange={(event) => {
-                    setChest(event.target.value)
-                    if (entryError) setEntryError("")
-                  }}
-                />
-              </div>
-            </fieldset>
-
-            <label className="native-field">
-              <span className="native-field-label">Journal note</span>
-              <textarea
-                name="progress-notes"
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                maxLength={500}
-                rows={3}
-                placeholder="Training, sleep, appetite, or anything worth remembering…"
-                className="native-input min-h-24 resize-y py-3 leading-6"
-              />
-              <span className="native-field-hint text-right">
-                {notes.length}/500
-              </span>
-            </label>
+            {(!showMeasurements || !showNote) && (
+              <GroupedList label="Optional details">
+                {!showMeasurements && (
+                  <ListRow
+                    title="Add measurements"
+                    detail="Body fat, waist, hips, chest"
+                    onClick={() => setShowMeasurements(true)}
+                    trailing={
+                      <Plus
+                        size={16}
+                        weight="bold"
+                        className="text-muted-foreground"
+                        aria-hidden
+                      />
+                    }
+                  />
+                )}
+                {!showNote && (
+                  <ListRow
+                    title="Add a note"
+                    detail="Training, sleep, appetite"
+                    onClick={() => setShowNote(true)}
+                    trailing={
+                      <Plus
+                        size={16}
+                        weight="bold"
+                        className="text-muted-foreground"
+                        aria-hidden
+                      />
+                    }
+                  />
+                )}
+              </GroupedList>
+            )}
 
             {entryError && (
               <p

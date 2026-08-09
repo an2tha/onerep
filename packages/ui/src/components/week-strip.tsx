@@ -1,7 +1,5 @@
-import type { WeeklyReportDay } from "@/lib/moments"
-
 /**
- * The week, seven columns wide.
+ * A week of training, seven columns wide.
  *
  * Two measures, so two rows rather than one plot with two scales: sets per day
  * as bars against a shared maximum, and whether food was logged as a filled or
@@ -11,15 +9,35 @@ import type { WeeklyReportDay } from "@/lib/moments"
  *
  * Only the best day is labelled. A number over every bar is noise on a screen
  * nobody asked to see.
+ *
+ * Presentational: the caller supplies the days already summarised.
  */
-export function WeekStrip({ days }: { days: WeeklyReportDay[] }) {
+
+export type WeekStripDay = {
+  /** Only used as a React key; the strip does no date arithmetic. */
+  date: string
+  /** Single-letter weekday, for seven columns on a phone. */
+  label: string
+  sets: number
+  loggedFood: boolean
+}
+
+export function WeekStrip({
+  days,
+  title = "Sets per day",
+  footnote = "Filled dot: food logged that day.",
+}: {
+  days: WeekStripDay[]
+  title?: string
+  footnote?: string
+}) {
   const peak = Math.max(...days.map((day) => day.sets), 0)
   const peakIndex = peak > 0 ? days.findIndex((day) => day.sets === peak) : -1
 
   return (
     <figure className="m-0">
       <figcaption className="mb-2 flex items-baseline justify-between px-0.5">
-        <span className="text-[13px] font-semibold">Sets per day</span>
+        <span className="text-[13px] font-semibold">{title}</span>
         <span className="text-[12px] text-muted-foreground">
           {peak > 0 ? `peak ${peak}` : "nothing logged"}
         </span>
@@ -76,9 +94,11 @@ export function WeekStrip({ days }: { days: WeeklyReportDay[] }) {
         })}
       </div>
 
-      <p className="mt-2 px-0.5 text-[12px] text-muted-foreground">
-        Filled dot: food logged that day.
-      </p>
+      {footnote && (
+        <p className="mt-2 px-0.5 text-[12px] text-muted-foreground">
+          {footnote}
+        </p>
+      )}
     </figure>
   )
 }
