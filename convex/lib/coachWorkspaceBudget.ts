@@ -15,7 +15,14 @@ type Sized = Record<string, unknown>;
 type TrimStep = {
   /** Reported in `truncated` so the model can say history is partial. */
   field: string;
-  apply: (workspace: Sized) => void;
+  /**
+   * Returns whether anything was actually removed.
+   *
+   * A step that found nothing to cut must not be reported: `truncated` is what
+   * tells the model to hedge its claims, and naming a field that was empty all
+   * along makes it apologise for missing history the user never had.
+   */
+  apply: (workspace: Sized) => boolean;
 };
 
 function cap(workspace: Sized, key: string, limit: number) {
@@ -64,39 +71,72 @@ function drop(workspace: Sized, key: string) {
 const TRIM_STEPS: TrimStep[] = [
   {
     field: "recipes.ingredients",
-    apply: (w) => void capNested(w, "recipes", "ingredients", 4),
+    apply: (w) => capNested(w, "recipes", "ingredients", 4),
   },
   {
     field: "presets.items",
     apply: (w) => {
       const presets = w.presets;
-      if (!Array.isArray(presets)) return;
+      if (!Array.isArray(presets)) return false;
+      let changed = false;
       for (const preset of presets) {
         const snapshot = (preset as Sized)?.snapshot as Sized | undefined;
-        if (snapshot && Array.isArray(snapshot.items)) {
+        if (snapshot && Array.isArray(snapshot.items) && snapshot.items.length > 4) {
           snapshot.items = snapshot.items.slice(0, 4);
+          changed = true;
         }
       }
+      return changed;
     },
   },
-  { field: "foodEntries", apply: (w) => void cap(w, "foodEntries", 20) },
-  { field: "recentActions", apply: (w) => void cap(w, "recentActions", 10) },
+  { field: "foodEntries", apply: (w) => cap(w, "foodEntries", 20) },
+  { field: "recentActions", apply: (w) => cap(w, "recentActions", 10) },
   {
     field: "progressMetrics.entries",
-    apply: (w) => void capNested(w, "progressMetrics", "entries", 5),
+    apply: (w) => capNested(w, "progressMetrics", "entries", 5),
   },
   {
     field: "bodyMeasurements",
-    apply: (w) => void cap(w, "bodyMeasurements", 10),
+    apply: (w) => cap(w, "bodyMeasurements", 10),
   },
-  { field: "memories", apply: (w) => void cap(w, "memories", 20) },
-  { field: "recentWorkouts", apply: (w) => void cap(w, "recentWorkouts", 10) },
-  { field: "checkIns", apply: (w) => void cap(w, "checkIns", 7) },
-  { field: "water", apply: (w) => void drop(w, "water") },
-  { field: "fasting", apply: (w) => void drop(w, "fasting") },
+  { field: "memories", apply: (w) => cap(w, "memories", 20) },
+  {
+    // The lifts are ordered most-trained first, so the tail is the accessory
+    // work nobody is programming around. The deload verdict and the weekly
+    // volume survive: they are two lines that carry the whole analysis.
+    field: "programming.lifts",
+    apply: (w) => {
+      const programming = w.programming as Sized | null | undefined;
+      if (!programming || !Array.isArray(programming.lifts)) return false;
+      if (programming.lifts.length <= 4) return false;
+      programming.lifts = programming.lifts.slice(0, 4);
+      return true;
+    },
+  },
+  {
+    // The signals are four small objects; the notes are the sentences a coach
+    // would actually say. Dropping the raw numbers keeps the meaning.
+    field: "recovery.signals",
+    apply: (w) => {
+      const recovery = w.recovery as Sized | null | undefined;
+      if (!recovery) return false;
+      let changed = false;
+      for (const key of ["steps", "hrv", "restingHeartRate", "sleep"]) {
+        if (recovery[key] !== undefined) {
+          delete recovery[key];
+          changed = true;
+        }
+      }
+      return changed;
+    },
+  },
+  { field: "recentWorkouts", apply: (w) => cap(w, "recentWorkouts", 10) },
+  { field: "checkIns", apply: (w) => cap(w, "checkIns", 7) },
+  { field: "water", apply: (w) => drop(w, "water") },
+  { field: "fasting", apply: (w) => drop(w, "fasting") },
   {
     field: "supplementAdherence",
-    apply: (w) => void drop(w, "supplementAdherence"),
+    apply: (w) => drop(w, "supplementAdherence"),
   },
 ];
 
@@ -116,8 +156,7 @@ export function fitWorkspaceToBudget<T extends object>(
   }
 
   for (const step of TRIM_STEPS) {
-    step.apply(working);
-    truncated.push(step.field);
+    if (step.apply(working)) truncated.push(step.field);
     if (JSON.stringify(working).length <= maxChars) break;
   }
 

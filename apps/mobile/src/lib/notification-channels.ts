@@ -17,6 +17,12 @@ export const NOTIFICATION_CHANNELS = {
   reminders: "reminders",
   /** The ongoing workout status notification. Silent by design. */
   workoutStatus: "workout-status",
+  /**
+   * Coach speaking first: the Sunday review and the two nudges. Its own
+   * channel because it is the one category a user might want gone while
+   * keeping every alarm they set themselves.
+   */
+  coach: "coach",
 } as const
 
 export type NotificationChannelId =
@@ -75,6 +81,17 @@ async function createChannels() {
       importance: 2,
       visibility: 1,
       vibration: false,
+    })
+
+    await LocalNotifications.createChannel({
+      id: NOTIFICATION_CHANNELS.coach,
+      name: "Coach",
+      description:
+        "Your weekly review, and the occasional nudge when you go quiet.",
+      // DEFAULT: it is worth a glance, never worth interrupting a meeting for.
+      importance: 3,
+      visibility: 1,
+      vibration: true,
     })
   } catch (error) {
     // A missing channel degrades to the plugin default; it should not take the

@@ -22,6 +22,15 @@ const app = defineApp({
     RESEND_API_KEY: v.optional(v.string()),
     AUTH_EMAIL_FROM: v.optional(v.string()),
     AUTH_EMAIL_LOGO_URL: v.optional(v.string()),
+    // Coach outreach. The kill switch is separate from the credentials on
+    // purpose: a deployment can hold working push keys and still be forbidden
+    // from speaking first, which is what every environment except production
+    // wants.
+    COACH_PROACTIVE_ENABLED: v.optional(v.string()),
+    COACH_REVIEW_PRO_ONLY: v.optional(v.string()),
+    FCM_PROJECT_ID: v.optional(v.string()),
+    FCM_CLIENT_EMAIL: v.optional(v.string()),
+    FCM_PRIVATE_KEY: v.optional(v.string()),
   },
 });
 app.use(crons);

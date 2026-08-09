@@ -23,6 +23,25 @@ export type ExerciseSource = {
   instructions: string[];
 };
 
+/**
+ * The exercise browser loads the whole global catalog at once so search and
+ * filtering can happen locally. `instructions` is ~83% of the catalog's bytes
+ * and nothing in a list row needs it, so this shape drops it; the detail view
+ * fetches the full row for the one exercise the user actually opened.
+ */
+export type CatalogExercise = {
+  id: string;
+  name: string;
+  category: ExerciseCategory;
+  level?: string;
+  mechanic?: string | null;
+  equipment?: string | null;
+  force?: string | null;
+  primaryMuscles: string[];
+  secondaryMuscles: string[];
+  custom?: boolean;
+};
+
 export type ClientExercise = {
   id: string;
   name: string;
@@ -34,6 +53,7 @@ export type ClientExercise = {
   level?: string;
   mechanic?: string | null;
   equipment?: string | null;
+  force?: string | null;
   primaryMuscles?: string[];
   secondaryMuscles?: string[];
   instructions?: string[];
@@ -102,7 +122,7 @@ function categoryColor(category: ExerciseCategory) {
 
 export function toClientExercise(
   id: string,
-  source: ExerciseSource,
+  source: ExerciseSource & { force?: string },
   options: { custom?: boolean } = {},
 ): ClientExercise {
   const category = categoryOf(source);
@@ -117,9 +137,29 @@ export function toClientExercise(
     level: source.level,
     mechanic: source.mechanic ?? null,
     equipment: source.equipment ?? null,
+    force: source.force ?? null,
     primaryMuscles: source.primaryMuscles,
     secondaryMuscles: source.secondaryMuscles,
     instructions: source.instructions,
+    ...(options.custom ? { custom: true } : {}),
+  };
+}
+
+export function toCatalogExercise(
+  id: string,
+  source: ExerciseSource & { force?: string },
+  options: { custom?: boolean } = {},
+): CatalogExercise {
+  return {
+    id,
+    name: source.name,
+    category: categoryOf(source),
+    level: source.level,
+    mechanic: source.mechanic ?? null,
+    equipment: source.equipment ?? null,
+    force: source.force ?? null,
+    primaryMuscles: source.primaryMuscles,
+    secondaryMuscles: source.secondaryMuscles,
     ...(options.custom ? { custom: true } : {}),
   };
 }

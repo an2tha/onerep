@@ -111,6 +111,7 @@ export async function deleteUserDataBatch(
     ["diaryShares", "by_ownerUserId", "ownerUserId"],
     // Health, nutrition, training, Coach, and onboarding state.
     ["healthWorkouts", "by_userId_and_externalId"],
+    ["healthMetrics", "by_userId"],
     ["healthProfiles", "by_userId"],
     ["bodyMeasurements", "by_userId"],
     ["dailyCheckIns", "by_userId"],
@@ -139,6 +140,12 @@ export async function deleteUserDataBatch(
     ["coachActionEvents", "by_userId"],
     ["coachOperationRuns", "by_userId"],
     ["coachWeeklyPlans", "by_userId"],
+    ["coachMonthlySummaries", "by_userId"],
+    ["coachReviews", "by_userId"],
+    ["coachTouches", "by_userId"],
+    // The device rows go with the account: a token left behind is a phone that
+    // keeps getting coached for someone who deleted themselves.
+    ["pushTokens", "by_userId"],
     ["coachGoalTasks", "by_userId"],
     ["coachGoals", "by_userId"],
     ["walkthroughProgress", "by_userId"],

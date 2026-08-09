@@ -247,6 +247,70 @@ describe("coachWorkspace.loadForModel", () => {
     ]);
   });
 
+  test("reads a stall from history the two-week window cannot show", async () => {
+    const t = convexTest(schema, modules);
+    await seedUser(t, "user-stalled");
+
+    // Four sessions at the same numbers, spread across ten weeks — entirely
+    // outside the 14-day window `recentWorkouts` covers.
+    await t.run(async (ctx) => {
+      for (const date of [
+        "2026-05-26",
+        "2026-06-16",
+        "2026-07-07",
+        "2026-07-28",
+      ]) {
+        await ctx.db.insert("workoutLogs", {
+          userId: "user-stalled",
+          date,
+          exercises: [
+            {
+              id: "ex-bench",
+              name: "Bench Press",
+              sets: [
+                { type: "warmup", reps: 5, weight: 200, completed: true },
+                { type: "normal", reps: 5, weight: 80, completed: true },
+                { type: "normal", reps: 5, weight: 80, completed: true },
+              ],
+            },
+          ],
+          durationSeconds: 3000,
+          completedAt: Date.now(),
+        });
+      }
+    });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-stalled",
+      today: TODAY,
+    });
+
+    const bench = workspace.programming!.lifts.find(
+      (lift: { name: string }) => lift.name === "Bench Press",
+    );
+    expect(bench.status).toBe("stalled");
+    expect(bench.sessions).toBe(4);
+    // The 200kg warm-up must not become this user's best-ever bench.
+    expect(bench.bestE1rm).toBeLessThan(100);
+  });
+
+  test("a user with no logged training gets null, not an empty verdict", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userPreferences", {
+        userId: "user-untrained",
+        lastActiveTimezone: "UTC",
+        updatedAt: Date.now(),
+      });
+    });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-untrained",
+      today: TODAY,
+    });
+    expect(workspace.programming).toBeNull();
+  });
+
   test("the privacy gate drops behaviour but never allergies or safety flags", async () => {
     const t = convexTest(schema, modules);
     await seedUser(t, "user-private", { personalizedInsights: false });
@@ -266,6 +330,8 @@ describe("coachWorkspace.loadForModel", () => {
       "water",
       "fasting",
       "supplementAdherence",
+      // The most pointed inference in the workspace goes with the rest of it.
+      "programming",
     ]) {
       expect(workspace).not.toHaveProperty(dropped);
       expect(workspace.omitted).toContain(dropped);

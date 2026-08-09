@@ -53,12 +53,31 @@ type HealthWorkoutQuery = {
   daysBack?: number
 }
 
+/**
+ * One local day of ambient recovery signals.
+ *
+ * Every field is optional because every field is a different sensor with a
+ * different failure mode. A phone with no paired watch reports steps and
+ * nothing else, which is an ordinary row rather than a broken one.
+ */
+export type HealthDailyMetrics = {
+  date: string
+  sleepMinutes?: number
+  steps?: number
+  restingHeartRateBpm?: number
+  hrvMs?: number
+  activeEnergyKcal?: number
+}
+
 type HealthPlugin = {
   isAvailable(): Promise<HealthAvailability>
   requestAuthorization(): Promise<HealthAuthorization>
   getRecentWorkouts(
     options?: HealthWorkoutQuery
   ): Promise<{ workouts: HealthWorkout[] }>
+  getDailyMetrics?(options?: {
+    daysBack?: number
+  }): Promise<{ days: HealthDailyMetrics[] }>
   saveWorkout(options: {
     startedAt: number
     endedAt: number
@@ -123,6 +142,30 @@ export async function getRecentHealthWorkouts(
     limit: options.limit ?? 12,
   })
   return workouts
+}
+
+/**
+ * Daily recovery signals, oldest first.
+ *
+ * Optional on the plugin interface so a device running an app build older than
+ * the native one degrades to no recovery data rather than a crash — the OTA
+ * channel ships JS without the native layer, so that skew is routine here
+ * rather than theoretical.
+ */
+export async function getHealthDailyMetrics(
+  options: { daysBack?: number } = {}
+): Promise<HealthDailyMetrics[]> {
+  const active = plugin()
+  if (!active?.getDailyMetrics) return []
+  try {
+    const { days } = await active.getDailyMetrics({
+      daysBack: options.daysBack ?? 30,
+    })
+    return Array.isArray(days) ? days : []
+  } catch {
+    // A permission the user declined on one signal must not lose the others.
+    return []
+  }
 }
 
 /**

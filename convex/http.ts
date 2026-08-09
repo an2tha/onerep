@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { stripeWebhook } from "./billing/webhooks";
 import { mcpEndpoint } from "./mcp/server";
+import { restApi } from "./api/rest";
 import {
   authComponent,
   createAuth,
@@ -68,5 +69,13 @@ http.route({
 // deliberately sits outside the auth component's CORS-scoped routes.
 http.route({ path: "/mcp", method: "POST", handler: mcpEndpoint });
 http.route({ path: "/mcp", method: "OPTIONS", handler: mcpEndpoint });
+
+// The REST API, same keys and the same reasoning about CORS. The bare "/v1"
+// has to be spelled out separately: a prefix route only matches what comes
+// after the slash, and the index would otherwise 404.
+for (const method of ["GET", "POST", "OPTIONS"] as const) {
+  http.route({ path: "/v1", method, handler: restApi });
+  http.route({ pathPrefix: "/v1/", method, handler: restApi });
+}
 
 export default http;

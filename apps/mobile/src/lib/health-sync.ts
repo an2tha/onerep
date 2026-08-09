@@ -13,6 +13,17 @@ export const HEALTH_SYNC_MIN_INTERVAL_MS = 6 * 60 * 60 * 1000
 export const HEALTH_SYNC_DAYS_BACK = 30
 export const HEALTH_SYNC_LIMIT = 50
 
+/**
+ * How far back the recovery pull reaches.
+ *
+ * Longer than the workout window because a baseline needs a month to mean
+ * anything, and cheaper than it looks: the rows are upserted per local day, so
+ * re-reading the same fortnight is idempotent. That repetition is the point —
+ * a watch writes last night's sleep several hours after the fact, so the first
+ * read of any given day is usually the incomplete one.
+ */
+export const HEALTH_METRICS_DAYS_BACK = 35
+
 export type HealthSyncState = {
   supported: boolean
   consentGranted: boolean

@@ -139,6 +139,23 @@ export const MCP_TOOLS: McpTool[] = [
     run: (ctx, userId) => ctx.runQuery(internal.mcp.data.getGoals, { userId }),
   },
   {
+    name: "get_training_insights",
+    title: "Get training insights",
+    description:
+      "The server's computed analysis: per-lift progression verdicts over twelve weeks (progressing/stalled/regressing, with suggestions and a deload recommendation), measured recovery versus the user's own baseline (sleep, resting heart rate, HRV), and six months of monthly training/nutrition summaries. Read-only conclusions, not raw logs.",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: { date: dateProperty("Anchor for the windows. Defaults to today (UTC).") },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.progressInsights.forUser, {
+        userId,
+        today: requireDate(args.date),
+      }),
+  },
+  {
     name: "list_body_measurements",
     title: "List body measurements",
     description:

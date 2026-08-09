@@ -108,7 +108,7 @@ export const mcpEndpoint = httpAction(async (ctx, request) => {
   if (!presented) {
     return unauthorized(
       id,
-      "Missing bearer token. Create one in OneRep → Settings → Data & account.",
+      "Missing bearer token. Create one in OneRep → Settings → API & MCP.",
     );
   }
 

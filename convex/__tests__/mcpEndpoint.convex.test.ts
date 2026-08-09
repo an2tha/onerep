@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { convexTest } from "convex-test";
 import schema from "../schema";
 import { api, internal } from "../_generated/api";
+import { KEY_RATE_LIMITS } from "../mcp/tokens";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -234,6 +235,61 @@ describe("the MCP endpoint", () => {
     const t = convexTest(schema, modules);
     const { status } = await rpc(t, "notifications/initialized");
     expect(status).toBe(202);
+  });
+
+  test("a spent budget comes back as a tool error, not a dead transport", async () => {
+    const t = convexTest(schema, modules);
+    await grantToken(t, "skint", ["read", "write"]);
+    const token = await t.query(internal.mcp.tokens.resolve, {
+      tokenHash: await hashOf("skint"),
+    });
+
+    // Sixty real writes to prove a counter would be a slow test.
+    const windowStart =
+      Math.floor(Date.now() / KEY_RATE_LIMITS.windowMs) *
+      KEY_RATE_LIMITS.windowMs;
+    await t.run(async (ctx) => {
+      await ctx.db.insert("rateLimitBuckets", {
+        key: `mcp:write:${token!.id}:${token!.userId}:${windowStart}`,
+        userId: token!.userId,
+        action: `mcp:write:${token!.id}`,
+        windowStart,
+        count: KEY_RATE_LIMITS.write,
+        expiresAt: windowStart + KEY_RATE_LIMITS.windowMs * 2,
+      });
+    });
+
+    const { status, body } = await rpc(
+      t,
+      "tools/call",
+      { name: "log_water", arguments: { amountMl: 250 } },
+      "skint",
+    );
+
+    // 200 with isError: the model should read this and stop, not retry a
+    // transport failure it cannot interpret.
+    expect(status).toBe(200);
+    expect(body.result.isError).toBe(true);
+    expect(toolPayload(body).error).toMatch(/budget for the hour/i);
+
+    // Reads are a separate bucket, so the agent can still look at the log.
+    const read = await rpc(
+      t,
+      "tools/call",
+      { name: "get_goals", arguments: {} },
+      "skint",
+    );
+    expect(read.body.result.isError).toBe(false);
+  });
+
+  test("answers a preflight without asking for a token", async () => {
+    const t = convexTest(schema, modules);
+    const response = await t.fetch("/mcp", { method: "OPTIONS" });
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Headers")).toContain(
+      "Authorization",
+    );
   });
 
   test("an unknown method is reported as such", async () => {

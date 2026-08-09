@@ -500,6 +500,64 @@ export const setLiveWorkoutStatus = mutation({
   },
 });
 
+/**
+ * Whether Coach may speak first, and when.
+ *
+ * Kept apart from `setPushReminders`: those are alarms the user set for
+ * themselves, this is permission for the app to start a conversation. Merging
+ * the two switches would mean silencing an unwanted Sunday review also
+ * silences the 9am supplement reminder somebody actually wanted.
+ */
+export const setCoachOutreach = mutation({
+  args: {
+    enabled: v.boolean(),
+    weeklyReview: v.boolean(),
+    nudges: v.boolean(),
+    quietHours: v.optional(
+      v.object({ startMinutes: v.number(), endMinutes: v.number() }),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    const clampMinutes = (value: number) =>
+      Math.min(1439, Math.max(0, Math.trunc(value)));
+    const coachOutreach = {
+      enabled: args.enabled,
+      weeklyReview: args.weeklyReview,
+      nudges: args.nudges,
+      ...(args.quietHours
+        ? {
+            quietHours: {
+              startMinutes: clampMinutes(args.quietHours.startMinutes),
+              endMinutes: clampMinutes(args.quietHours.endMinutes),
+            },
+          }
+        : {}),
+    };
+
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        coachOutreach,
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("userPreferences", {
+        userId: user._id,
+        lastActiveTimezone: "UTC",
+        coachOutreach,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return coachOutreach;
+  },
+});
+
 export const setMacroCycling = mutation({
   args: {
     enabled: v.boolean(),
@@ -660,11 +718,15 @@ export const exportMyData = query({
       supplementItems,
       supplementIntakeLogs,
       bodyMeasurements,
+      healthMetrics,
       dailyCheckIns,
       coachMemories,
       coachCheckIns,
       coachActionEvents,
       coachWeeklyPlans,
+      coachMonthlySummaries,
+      coachTouches,
+      coachReviews,
       coachGoals,
       coachGoalTasks,
       coachUploads,
@@ -736,6 +798,10 @@ export const exportMyData = query({
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
+        .query("healthMetrics")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
         .query("dailyCheckIns")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
@@ -753,6 +819,18 @@ export const exportMyData = query({
         .collect(),
       ctx.db
         .query("coachWeeklyPlans")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachMonthlySummaries")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachTouches")
+        .withIndex("by_userId", (q) => q.eq("userId", user._id))
+        .collect(),
+      ctx.db
+        .query("coachReviews")
         .withIndex("by_userId", (q) => q.eq("userId", user._id))
         .collect(),
       ctx.db
@@ -834,11 +912,15 @@ export const exportMyData = query({
         supplementItems,
         supplementIntakeLogs,
         bodyMeasurements,
+        healthMetrics,
         dailyCheckIns,
         coachMemories,
         coachCheckIns,
         coachActionEvents,
         coachWeeklyPlans,
+        coachMonthlySummaries,
+        coachTouches,
+        coachReviews,
         coachGoals,
         coachGoalTasks,
         coachUploads,

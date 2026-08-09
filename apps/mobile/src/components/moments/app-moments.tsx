@@ -25,10 +25,15 @@ import {
 } from "@/lib/moments"
 import { CheckInMoment } from "@/components/moments/check-in-moment"
 import { WeeklyReportMoment } from "@/components/moments/weekly-report-moment"
+import {
+  WeeklyReviewMoment,
+  type CoachReview,
+} from "@/components/moments/weekly-review-moment"
 
 const MISSED_LOG_ID = MOMENT_IDS.missedLog
 const LAPSE_ID = MOMENT_IDS.trainingLapse
 const WEEKLY_REPORT_ID = MOMENT_IDS.weeklyReport
+const WEEKLY_REVIEW_ID = MOMENT_IDS.weeklyReview
 
 /** A lapse nudge answered inside this window is still fresh enough to count. */
 const LAPSE_COOLDOWN_MS = 7 * 86_400_000
@@ -230,10 +235,40 @@ export function AppMoments() {
     return last ? daysBetween(last, todayKey) : 0
   }, [todayKey, workoutLogs])
 
+  /**
+   * The coach's own review of the week, written server-side on Sunday evening.
+   *
+   * Always queried when signed in — it is one indexed lookup returning at most
+   * one row, and unlike the local triggers there is no cheaper bookkeeping
+   * question to ask first. A pending review outranks everything else here: it
+   * is the only screen the user was actually told to expect.
+   */
+  const coachReview = useQuery(
+    api.ai.coachReviews.latest,
+    isAuthenticated ? {} : "skip"
+  ) as CoachReview | null | undefined
+
+  const review = useFullScreenEvent({
+    id: WEEKLY_REVIEW_ID,
+    key: coachReview?.weekKey ?? null,
+    priority: 40,
+  })
+
   // The week outranks the nudges: it is the one that is actually news.
+  //
+  // Unless the coach already wrote about that same week, in which case the
+  // built-in report stands down entirely rather than showing the user two
+  // full-screen summaries of one seven-day period. `undefined` means the query
+  // is still in flight, and holding off is cheaper than flashing the wrong one.
+  const reportKey =
+    coachReview === undefined
+      ? null
+      : coachReview?.weekKey === weekly?.key
+        ? null
+        : (weekly?.key ?? null)
   const report = useFullScreenEvent({
     id: WEEKLY_REPORT_ID,
-    key: weekly?.key ?? null,
+    key: reportKey,
     priority: 30,
   })
   const missedLog = useFullScreenEvent({
@@ -246,6 +281,10 @@ export function AppMoments() {
     key: lapse?.key ?? null,
     priority: 10,
   })
+
+  if (review.active && coachReview) {
+    return <WeeklyReviewMoment review={coachReview} onClose={review.close} />
+  }
 
   if (report.active) {
     // In a preview the data is still arriving; the screen follows it in.

@@ -9,6 +9,17 @@ import { listCustomMetricsWithEntries } from "../lib/customProgressMetrics";
 import { getHealthProfile } from "../lib/healthProfiles";
 import { getLatestOnboardingProfile } from "../lib/onboardingProfiles";
 import { fitWorkspaceToBudget } from "../lib/coachWorkspaceBudget";
+import {
+  PROGRAMMING_WINDOW_DAYS,
+  summarizeProgramming,
+} from "../lib/programming";
+import { listRecoveryWindow } from "../lib/healthMetrics";
+import { summarizeRecovery } from "../lib/recovery";
+import { buildHistoryBlock, HISTORY_MONTHS, recentMonthKeys } from "../lib/history";
+import {
+  MAX_STORED_MEMORIES,
+  orderMemoriesForContext,
+} from "../lib/memoryConsolidation";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
@@ -18,6 +29,19 @@ const WINDOW_DAYS = 14;
 const MAX_PRESET_ITEMS = 12;
 const MAX_RECIPE_INGREDIENTS = 12;
 const MAX_WORKOUT_EXERCISES = 12;
+/**
+ * Ceiling on the logs read for progression analysis.
+ *
+ * Twelve weeks of two-a-day training is about 170 sessions; this covers the
+ * committed and bounds the pathological. The rows never leave the server — they
+ * are collapsed into `programming` before the workspace is assembled.
+ */
+const MAX_PROGRAMMING_LOGS = 200;
+/** Memories shown to the model, after ranking. */
+const MAX_CONTEXT_MEMORIES = 40;
+/** Form-check reports carried into context. Recent ones only; a form issue
+ * from months ago is stale advice about a body that has since adapted. */
+const MAX_FORM_REPORTS = 5;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -80,6 +104,7 @@ export async function buildCoachWorkspace(
     checkIns,
     goals,
     workouts,
+    programmingLogs,
     actions,
     schedule,
     metricsWithEntries,
@@ -92,6 +117,9 @@ export async function buildCoachWorkspace(
     supplementIntake,
     healthProfile,
     onboarding,
+    recoveryRows,
+    monthlySummaries,
+    formReports,
   ] = await Promise.all([
     ctx.db
       .query("presets")
@@ -110,11 +138,18 @@ export async function buildCoachWorkspace(
       )
       .order("desc")
       .take(14),
+    // Every stored memory, not the 40 newest. Ordering happens below, and
+    // ordering a pre-filtered list is useless: a user's "bad shoulder" written
+    // a year ago would never be fetched to be ranked in the first place. The
+    // bound is 3× the storage ceiling, matching what consolidation itself
+    // reads — protected memories may lawfully exceed the ceiling ("the
+    // ceiling bends"), and fetching exactly the ceiling would re-create the
+    // very bug the ranking exists to fix, one layer down.
     ctx.db
       .query("coachMemories")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
       .order("desc")
-      .take(40),
+      .take(MAX_STORED_MEMORIES * 3),
     ctx.db
       .query("coachCheckIns")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -132,6 +167,19 @@ export async function buildCoachWorkspace(
       .withIndex("by_userId_date", (q) => q.eq("userId", args.userId))
       .order("desc")
       .take(30),
+    // A second, longer read of the same table. The 30 above are shown to the
+    // model as sessions; these are only ever reduced to a handful of verdicts
+    // by `summarizeProgramming`, and never shipped raw — a stall takes twelve
+    // weeks to become visible and two weeks of logs cannot show one.
+    ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_date", (q) =>
+        q
+          .eq("userId", args.userId)
+          .gte("date", shiftDate(args.today, -(PROGRAMMING_WINDOW_DAYS - 1))),
+      )
+      .order("desc")
+      .take(MAX_PROGRAMMING_LOGS),
     ctx.db
       .query("coachActionEvents")
       .withIndex("by_userId", (q) => q.eq("userId", args.userId))
@@ -161,6 +209,19 @@ export async function buildCoachWorkspace(
     listSupplementIntakeWindow(ctx, args.userId, since, args.today),
     getHealthProfile(ctx, args.userId),
     getLatestOnboardingProfile(ctx, args.userId),
+    listRecoveryWindow(ctx, args.userId, args.today),
+    // Six months of precomputed monthly rows. Six documents, not six months of
+    // logs — the whole reason these are stored rather than derived.
+    ctx.db
+      .query("coachMonthlySummaries")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(HISTORY_MONTHS * 2),
+    ctx.db
+      .query("formCoachReports")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(MAX_FORM_REPORTS),
   ]);
 
   // Absent settings mean "on": that is what the Settings screen shows by
@@ -366,11 +427,22 @@ export async function buildCoachWorkspace(
           fatPer100: item.fatPer100,
         })),
     })),
-    memories: memories.map(({ key, category, value }) => ({
-      key,
-      category,
-      value,
-    })),
+    // Ordered rather than merely taken: the size budget trims this list from
+    // the end, so a user's own constraints must lead it. Otherwise a fortnight
+    // of the model's own observations about breakfast can push "I have a bad
+    // shoulder" out of context entirely.
+    memories: orderMemoriesForContext(
+      memories.map((memory) => ({
+        id: String(memory._id),
+        key: memory.key,
+        category: memory.category,
+        value: memory.value,
+        source: memory.source,
+        updatedAt: memory.updatedAt,
+      })),
+    )
+      .slice(0, MAX_CONTEXT_MEMORIES)
+      .map(({ key, category, value }) => ({ key, category, value })),
     goals: goalsWithTasks,
     progressMetrics: progressMetricsView,
     dashboardWidgets: dashboardWidgets.map((widget) => ({
@@ -410,6 +482,14 @@ export async function buildCoachWorkspace(
     }),
   };
 
+  // Sensor readings the user never typed in. Computed once here because both
+  // the recovery block and the deload verdict inside `programming` read it.
+  const recovery = summarizeRecovery(recoveryRows, args.today);
+  // Rows are taken newest-first with slack, so a user who skipped a few months
+  // does not push the recent ones out; this is the filter that keeps the block
+  // to the window it claims to cover.
+  const wantedMonths = new Set(recentMonthKeys(args.today, HISTORY_MONTHS));
+
   // Inferred behaviour, as opposed to content the user authored. This is the
   // line the privacy toggle draws.
   const personalSources = {
@@ -446,6 +526,70 @@ export async function buildCoachWorkspace(
     water: waterView,
     fasting: fastingView,
     supplementAdherence,
+    /**
+     * Twelve weeks of training, reduced to verdicts.
+     *
+     * Gated with the rest of the behavioural sources because it is inference
+     * about what someone has been doing — the most pointed inference in the
+     * workspace, in fact. `null` when there is nothing in the window, which is
+     * different from a user who trained and got nowhere.
+     */
+    programming: summarizeProgramming(
+      programmingLogs.map((log) => ({
+        date: log.date,
+        exercises: Array.isArray(log.exercises) ? log.exercises : [],
+      })),
+      args.today,
+      PROGRAMMING_WINDOW_DAYS,
+      // The deload call reads this: a stall from a spent programme and a stall
+      // from three weeks of bad sleep want opposite responses, and until the
+      // watch data arrived there was no way to tell them apart.
+      recovery,
+    ),
+    recovery,
+    /**
+     * What the form coach measured, compressed to what chat can act on.
+     *
+     * The full reports carry per-finding evidence and drill lists; the coach
+     * needs the headline, the severity, and the date — enough to say "your
+     * squat check found the knees caving on the last reps, want the drills?"
+     * and route the user back to the report, not enough to re-litigate it.
+     */
+    formChecks: formReports.map((report) => ({
+      date: report.date,
+      exercise: report.exerciseName,
+      summary: report.summary.slice(0, 200),
+      findings: (report.findings ?? [])
+        .filter((finding) => finding.severity !== "strength")
+        .slice(0, 3)
+        .map((finding) => ({
+          title: finding.title,
+          severity: finding.severity,
+        })),
+    })),
+    /**
+     * Six months, in about as many lines.
+     *
+     * The raw windows answer "what should I do on Thursday". This answers "am
+     * I actually getting anywhere", which is the question a coach who has
+     * known someone for a season can answer and a fortnight of logs cannot.
+     */
+    history: buildHistoryBlock(
+      monthlySummaries
+        .filter((row) => wantedMonths.has(row.month))
+        .map((row) => ({
+          month: row.month,
+          sessions: row.sessions,
+          activeDays: row.activeDays,
+          sets: row.sets,
+          loggedFoodDays: row.loggedFoodDays,
+          daysInMonth: row.daysInMonth,
+          avgCalories: row.avgCalories,
+          avgProtein: row.avgProtein,
+          weightStartKg: row.weightStartKg,
+          weightEndKg: row.weightEndKg,
+        })),
+    ),
   };
 
   const omitted = personalized ? [] : Object.keys(personalSources);

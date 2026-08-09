@@ -34,19 +34,51 @@ describe("bottom bar accessibility contract", () => {
     expect(SOURCE).toContain('aria-current={tab.active ? "page" : undefined}')
   })
 
-  test("primary navigation exposes five stable labeled destinations", () => {
+  test("primary navigation exposes its stable labeled destinations", () => {
     for (const label of [
       "Today",
       "Nutrition",
       "Training",
+      "Exercises",
       "Progress",
       "Coach",
     ]) {
       expect(SOURCE).toContain(`label: "${label}"`)
     }
-    expect(SOURCE).toContain(
-      '"mx-auto grid h-[4.25rem] max-w-xl grid-cols-5 px-1"'
+  })
+
+  test("the slide order matches the order the tabs are drawn in", () => {
+    const tabs = readFileSync(
+      new URL("./bottom-bar.tsx", import.meta.url),
+      "utf8"
     )
+    const navigation = readFileSync(
+      new URL("../lib/navigation.ts", import.meta.url),
+      "utf8"
+    )
+
+    function quotedStrings(source: string) {
+      return [...source.matchAll(/"([^"]+)"/g)].map((match) => match[1])
+    }
+
+    const drawn = quotedStrings(
+      tabs.match(/const TABS = \[([\s\S]*?)\] as const/)?.[1] ?? ""
+    ).filter((value) => value.startsWith("/"))
+    const slideOrder = quotedStrings(
+      navigation.match(/PRIMARY_TAB_ORDER = \[([\s\S]*?)\]/)?.[1] ?? ""
+    )
+
+    // The transition direction is the difference between two indexes in
+    // PRIMARY_TAB_ORDER. Out of order, pressing a tab slides the page the
+    // wrong way.
+    assert.deepEqual(slideOrder, drawn)
+  })
+
+  test("the tab grid tracks the tab count instead of a hardcoded column class", () => {
+    expect(SOURCE).toContain(
+      "gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`"
+    )
+    expect(SOURCE).not.toContain("grid-cols-5")
   })
 
   test("Coach navigation stays light in light mode and dark in dark mode", () => {

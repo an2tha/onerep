@@ -35,6 +35,7 @@ import {
   ToolbarButton,
 } from "@repo/ui"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { TrainingInsightsPanel } from "@/components/training-insights-panel"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -467,12 +468,15 @@ export default function Progress() {
               />
             )}
             {metric === "training" && (
-              <TrainingProgress
-                summary={summary}
-                onOpenTraining={() =>
-                  navigate("/workouts", { motion: "switch" })
-                }
-              />
+              <>
+                <TrainingProgress
+                  summary={summary}
+                  onOpenTraining={() =>
+                    navigate("/workouts", { motion: "switch" })
+                  }
+                />
+                <TrainingInsightsPanel />
+              </>
             )}
 
             {customMetrics.length > 0 && (

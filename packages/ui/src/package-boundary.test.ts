@@ -60,6 +60,9 @@ describe("@repo/ui package boundary", () => {
       "../../../apps/mobile/src/components"
     )
     const allowedModules = new Set([
+      // Mints and revokes API keys over Convex, and reaches for the clipboard.
+      // The panel itself is grouped-list primitives from @repo/ui.
+      "api-keys-section.tsx",
       "auth-guard.tsx",
       "auth-shell.tsx",
       "bottom-bar.tsx",
@@ -75,15 +78,21 @@ describe("@repo/ui package boundary", () => {
       "form-coach-pose-confirm.tsx",
       "form-coach-recorder.tsx",
       "form-coach-review-sheet.tsx",
+      // Renders null; registers this device for Coach's outbound push and
+      // routes a tapped notification.
+      "coach-push-registration.tsx",
+      // free-exercise-db illustrations: steps through the dataset's start and
+      // finish stills, with haptics on the frame switch.
+      "exercise-art.tsx",
+      // The coach between sets: one question, one Convex action, rendered in
+      // the shared MobileSheet chrome.
+      "in-workout-coach.tsx",
       // Renders null; pulls platform health workouts into Convex on
       // foreground — HealthKit on iOS, Health Connect on Android.
       "health-sync.tsx",
       // Backdates a workout against the app's local-date and preset helpers,
       // with haptics on the day strip.
       "log-past-workout-sheet.tsx",
-      // Mints and revokes MCP tokens over Convex, and reaches for the
-      // clipboard. The panel itself is grouped-list primitives from @repo/ui.
-      "mcp-tokens-section.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       // Full-screen moments: triggers read Convex history, answers write
@@ -95,6 +104,9 @@ describe("@repo/ui package boundary", () => {
       "moments/quick-food-step.tsx",
       "moments/quick-log-step.tsx",
       "moments/weekly-report-moment.tsx",
+      // The server-written Sunday review: applies proposed operations through
+      // the same Convex action Coach chat uses.
+      "moments/weekly-review-moment.tsx",
       "offline-sync-indicator.tsx",
       // Renders null; drives the native OTA plugin's check/apply/rollback
       // lifecycle.
@@ -107,6 +119,9 @@ describe("@repo/ui package boundary", () => {
       "walkthrough/tour-anchor.tsx",
       "walkthrough/tour-context.tsx",
       "walkthrough/tour-provider.tsx",
+      // The coach's computed lift verdicts and recovery read-out on Progress,
+      // straight from a Convex query.
+      "training-insights-panel.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
     ])

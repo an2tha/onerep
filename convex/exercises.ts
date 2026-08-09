@@ -4,6 +4,7 @@ import type { QueryCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { safeGetAuthUser } from "./lib/auth";
 import {
+  type CatalogExercise,
   type ClientExercise,
   type ExerciseCategory,
   categoryOf,
@@ -11,12 +12,15 @@ import {
   customExerciseDocId,
   exerciseCategoryValidator,
   isCustomExerciseId,
+  toCatalogExercise,
   toClientExercise,
 } from "./lib/exerciseShape";
 
 const GLOBAL_EXERCISE_USER_ID = "__global__";
 const MAX_LIMIT = 50;
 const MAX_CUSTOM_MATCHES = 50;
+/** The bundled catalog is ~900 rows. The ceiling is a guard, not a page size. */
+const MAX_CATALOG = 3000;
 
 type ExerciseDoc = Doc<"exercises">;
 type CustomExerciseDoc = Doc<"customExercises">;
@@ -139,6 +143,28 @@ export const search = query({
       if (result.length >= limit) break;
     }
     return result;
+  },
+});
+
+/**
+ * The whole global catalog, minus instructions, sorted by name.
+ *
+ * The browser filters and searches this client-side: the catalog is immutable
+ * between imports, so paying for one ~140 KB read beats round-tripping a search
+ * query on every keystroke. Custom exercises are deliberately excluded — they
+ * change per user, and `logs.customExercises.list` already streams them.
+ */
+export const catalog = query({
+  args: {},
+  handler: async (ctx): Promise<CatalogExercise[]> => {
+    const docs = await ctx.db
+      .query("exercises")
+      .withIndex("by_userId", (q) => q.eq("userId", GLOBAL_EXERCISE_USER_ID))
+      .take(MAX_CATALOG);
+
+    return docs
+      .map((doc) => toCatalogExercise(doc.exerciseId, doc))
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
 });
 

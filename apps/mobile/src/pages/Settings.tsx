@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react"
+import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
 import {
   Compass,
   ArrowLeft,
@@ -24,6 +24,10 @@ import {
 import { useMutation, useQuery } from "convex/react"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import {
+  registeredPushToken,
+  unregisterForCoachPush,
+} from "@/lib/coach-push"
+import {
   getHealthAvailability,
   getRecentHealthWorkouts,
   healthProvider,
@@ -46,6 +50,21 @@ import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
 import type { TourChapter } from "@/lib/walkthrough/types"
 import type { Id } from "../../../../convex/_generated/dataModel"
+
+/** "21:30" ↔ minutes-of-day, for the quiet-hours inputs. */
+function minutesToTimeValue(minutes: number) {
+  const clamped = Math.min(1439, Math.max(0, Math.trunc(minutes)))
+  const hour = String(Math.floor(clamped / 60)).padStart(2, "0")
+  const minute = String(clamped % 60).padStart(2, "0")
+  return `${hour}:${minute}`
+}
+
+function timeValueToMinutes(value: string): number | null {
+  const match = /^(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return null
+  return Number(match[1]) * 60 + Number(match[2])
+}
+
 import {
   cn,
   safeLocalStorageGet,
@@ -127,15 +146,16 @@ import { billingErrorMessage, hasOneRepPro, useBilling } from "@/lib/billing"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useMomentPreview } from "@/lib/full-screen-events"
 import { MOMENT_IDS, type MomentId } from "@/lib/moments"
-import { McpTokensSection } from "@/components/mcp-tokens-section"
+import { ApiKeysSection } from "@/components/api-keys-section"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
 
-/** Where an MCP client points. Shown so nobody has to guess the hostname. */
-const mcpSiteUrl = resolveConvexSiteUrl(
+/** Where a script or an MCP client points. Shown so nobody guesses the host. */
+const apiSiteUrl = resolveConvexSiteUrl(
   import.meta.env.VITE_CONVEX_SITE_URL,
   import.meta.env.VITE_CONVEX_URL
 )
-const mcpEndpointUrl = mcpSiteUrl ? `${mcpSiteUrl}/mcp` : undefined
+const apiBaseUrl = apiSiteUrl ? `${apiSiteUrl}/v1` : undefined
+const mcpEndpointUrl = apiSiteUrl ? `${apiSiteUrl}/mcp` : undefined
 import {
   CompactSwitch,
   AiUsageProgress,
@@ -199,7 +219,7 @@ const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   privacy: "Privacy & sync",
   health: "Health & wearables",
   data: "Data & account",
-  agents: "MCP access",
+  agents: "API & MCP",
   walkthrough: "App walkthrough",
   developer: "Developer",
 }
@@ -323,6 +343,17 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     "users.users.setWorkoutAdjustment"
   )
   const setLiveWorkoutStatus = useMutation(api.users.users.setLiveWorkoutStatus)
+  const setCoachOutreach = useMutation(api.users.users.setCoachOutreach)
+  const unregisterPushToken = useMutation(api.push.tokens.unregister)
+
+  // Best-effort, before the session dies: revoking needs auth, and a token
+  // left behind keeps receiving coaching for an account somebody walked away
+  // from. Failure must never block the sign-out itself.
+  const revokeCoachPush = useCallback(async () => {
+    const token = registeredPushToken()
+    if (token) await unregisterPushToken({ token }).catch(() => undefined)
+    await unregisterForCoachPush().catch(() => undefined)
+  }, [unregisterPushToken])
   const setPushReminders = useOfflineMutation(
     api.users.users.setPushReminders,
     "users.users.setPushReminders"
@@ -390,6 +421,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [pushReminders, setPushRemindersState] = useState<ReminderSettings>(
     mergeReminderSettings(null)
   )
+  // Mirrors the server defaults in convex/lib/outreach.ts: outreach is on
+  // until the user says otherwise, which is the only way a feature that speaks
+  // first ever reaches anyone.
+  const [coachOutreach, setCoachOutreachState] = useState({
+    enabled: true,
+    weeklyReview: true,
+    nudges: true,
+    quietHours: { startMinutes: 21 * 60 + 30, endMinutes: 8 * 60 },
+  })
   const [analyticsEnabled, setAnalyticsEnabled] = useState(() => {
     if (typeof window === "undefined") return false
     return safeLocalStorageGet("onerep:analytics-enabled") === "true"
@@ -535,6 +575,17 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           body: preferences.pushReminders?.body ?? preferences.bodyReminder,
         })
       )
+    }
+    if (preferences?.coachOutreach) {
+      setCoachOutreachState({
+        enabled: preferences.coachOutreach.enabled,
+        weeklyReview: preferences.coachOutreach.weeklyReview,
+        nudges: preferences.coachOutreach.nudges,
+        quietHours: preferences.coachOutreach.quietHours ?? {
+          startMinutes: 21 * 60 + 30,
+          endMinutes: 8 * 60,
+        },
+      })
     }
     if (preferences?.privacySettings) {
       setAnalyticsEnabled(preferences.privacySettings.analyticsEnabled)
@@ -731,6 +782,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
     setLoggingOut(true)
     try {
+      await revokeCoachPush()
       clearOfflineQueue()
       await signOutApp()
       safeLocalStorageRemove(PRELOGIN_SEEN_KEY)
@@ -1015,6 +1067,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         )
       }
 
+      await revokeCoachPush()
       clearOfflineQueue()
       await signOutApp().catch(() => undefined)
 
@@ -1193,11 +1246,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     onClick={() => showView("data")}
                   />
                   <DisclosureRow
-                    title="MCP access"
+                    title="API & MCP"
                     detail={
                       mcpTokenCount > 0
-                        ? `${mcpTokenCount} active ${mcpTokenCount === 1 ? "token" : "tokens"}`
-                        : "Connect Claude or another MCP client"
+                        ? `${mcpTokenCount} active ${mcpTokenCount === 1 ? "key" : "keys"}`
+                        : "Keys for your own scripts, Claude, or another MCP client"
                     }
                     value={
                       mcpTokenCount > 0 ? String(mcpTokenCount) : undefined
@@ -1726,6 +1779,118 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     reminder={pushReminders.supplement}
                     onChange={(patch) => updateReminder("supplement", patch)}
                   />
+                </GroupedList>
+
+                <SettingsSectionLabel title="Coach" />
+                <GroupedList label="When Coach reaches out">
+                  <SettingsRow
+                    label="Let Coach reach out"
+                    detail="Your weekly review, and the occasional nudge when you go quiet. Never during your quiet hours."
+                  >
+                    <CompactSwitch
+                      onInteract={hapticSelection}
+                      checked={coachOutreach.enabled}
+                      onChange={(next) => {
+                        const settings = { ...coachOutreach, enabled: next }
+                        setCoachOutreachState(settings)
+                        void setCoachOutreach(settings)
+                      }}
+                      label="Let Coach reach out"
+                    />
+                  </SettingsRow>
+                  {coachOutreach.enabled && (
+                    <>
+                      <SettingsRow
+                        label="Weekly review"
+                        detail="Sunday evening: what the week held, and what to change"
+                      >
+                        <CompactSwitch
+                          onInteract={hapticSelection}
+                          checked={coachOutreach.weeklyReview}
+                          onChange={(next) => {
+                            const settings = {
+                              ...coachOutreach,
+                              weeklyReview: next,
+                            }
+                            setCoachOutreachState(settings)
+                            void setCoachOutreach(settings)
+                          }}
+                          label="Weekly review"
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Nudges"
+                        detail="At most three a week, and only when you have gone quiet"
+                      >
+                        <CompactSwitch
+                          onInteract={hapticSelection}
+                          checked={coachOutreach.nudges}
+                          onChange={(next) => {
+                            const settings = { ...coachOutreach, nudges: next }
+                            setCoachOutreachState(settings)
+                            void setCoachOutreach(settings)
+                          }}
+                          label="Nudges"
+                        />
+                      </SettingsRow>
+                      <SettingsRow
+                        label="Quiet hours"
+                        detail="Coach stays silent between these times"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="time"
+                            aria-label="Quiet hours start"
+                            value={minutesToTimeValue(
+                              coachOutreach.quietHours.startMinutes
+                            )}
+                            onChange={(event) => {
+                              const startMinutes = timeValueToMinutes(
+                                event.target.value
+                              )
+                              if (startMinutes === null) return
+                              const settings = {
+                                ...coachOutreach,
+                                quietHours: {
+                                  ...coachOutreach.quietHours,
+                                  startMinutes,
+                                },
+                              }
+                              setCoachOutreachState(settings)
+                              void setCoachOutreach(settings)
+                            }}
+                            className="h-9 rounded-lg bg-muted/55 px-2 text-[13px] font-semibold tabular-nums"
+                          />
+                          <span className="text-[12px] text-muted-foreground">
+                            to
+                          </span>
+                          <input
+                            type="time"
+                            aria-label="Quiet hours end"
+                            value={minutesToTimeValue(
+                              coachOutreach.quietHours.endMinutes
+                            )}
+                            onChange={(event) => {
+                              const endMinutes = timeValueToMinutes(
+                                event.target.value
+                              )
+                              if (endMinutes === null) return
+                              const settings = {
+                                ...coachOutreach,
+                                quietHours: {
+                                  ...coachOutreach.quietHours,
+                                  endMinutes,
+                                },
+                              }
+                              setCoachOutreachState(settings)
+                              void setCoachOutreach(settings)
+                            }}
+                            className="h-9 rounded-lg bg-muted/55 px-2 text-[13px] font-semibold tabular-nums"
+                          />
+                        </div>
+                      </SettingsRow>
+                    </>
+                  )}
                 </GroupedList>
 
                 {supportsLiveWorkoutStatusSetting() && (
@@ -2332,11 +2497,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             {activeView === "agents" && (
               <>
                 <SettingsSectionIntro>
-                  Give an AI assistant a key to your log over the Model Context
-                  Protocol. Read-only unless you say otherwise, revocable, and
-                  nothing it can delete.
+                  Give a script, or an AI assistant, a key to your log — over
+                  the REST API or the Model Context Protocol. Read-only unless
+                  you say otherwise, revocable, and nothing it can delete.
                 </SettingsSectionIntro>
-                <McpTokensSection endpoint={mcpEndpointUrl} />
+                <ApiKeysSection
+                  apiBaseUrl={apiBaseUrl}
+                  mcpEndpoint={mcpEndpointUrl}
+                />
               </>
             )}
 
