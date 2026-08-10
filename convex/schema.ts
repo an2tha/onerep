@@ -943,9 +943,96 @@ export default defineSchema({
     createdAt: v.number(),
     lastUsedAt: v.optional(v.number()),
     revokedAt: v.optional(v.number()),
+    /**
+     * Set when the token came out of the OAuth token endpoint rather than the
+     * settings screen. Such a token belongs to a connected app, expires on its
+     * own, and is listed under connections rather than among personal keys.
+     */
+    clientId: v.optional(v.string()),
+    /** Absent means it never expires — which is true of every personal key. */
+    expiresAt: v.optional(v.number()),
   })
     .index("by_userId", ["userId"])
     .index("by_tokenHash", ["tokenHash"]),
+
+  /**
+   * OAuth clients allowed to ask for an MCP token on a user's behalf.
+   *
+   * Two ways in. A client can register itself at `/oauth/register` — the
+   * protocol expects that, and it is what lets Claude Desktop connect without
+   * anybody copying a credential around — or a user can mint one by hand in
+   * settings for a client that refuses to self-register and wants an ID and
+   * secret typed into a form.
+   *
+   * A self-registered client is not trusted for having registered. It gets
+   * nothing until a signed-in human approves it on the consent screen, and the
+   * approval is what the token is actually made of.
+   */
+  mcpOauthClients: defineTable({
+    clientId: v.string(),
+    /** SHA-256 hex. Absent means a public client, authorized by PKCE alone. */
+    clientSecretHash: v.optional(v.string()),
+    /** Whatever the client called itself. Shown on the consent screen, so it
+     * is treated as hostile text and truncated rather than trusted. */
+    clientName: v.string(),
+    /** Exact-match allowlist. A redirect this does not contain is refused. */
+    redirectUris: v.array(v.string()),
+    clientUri: v.optional(v.string()),
+    createdAt: v.number(),
+    /** Set only for clients minted by hand; self-registered ones have no owner. */
+    createdByUserId: v.optional(v.string()),
+    registration: v.union(v.literal("dynamic"), v.literal("manual")),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_clientId", ["clientId"])
+    .index("by_createdByUserId", ["createdByUserId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  /**
+   * Authorization codes, between the consent screen and the token endpoint.
+   *
+   * Single use and short lived, stored as a hash like every other credential
+   * here. The PKCE challenge is bound to the row so the code is worthless to
+   * anyone who intercepts it without also holding the verifier.
+   */
+  mcpAuthCodes: defineTable({
+    codeHash: v.string(),
+    clientId: v.string(),
+    userId: v.string(),
+    redirectUri: v.string(),
+    scopes: v.array(v.union(v.literal("read"), v.literal("write"))),
+    codeChallenge: v.string(),
+    expiresAt: v.number(),
+    /** Kept after use so a replay can be told apart from an unknown code. */
+    consumedAt: v.optional(v.number()),
+  })
+    .index("by_codeHash", ["codeHash"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /**
+   * Refresh tokens. Rotated on every use: presenting one mints a replacement
+   * and revokes the old, so a stolen token is good for at most one exchange
+   * and the theft shows up as the real client suddenly being logged out.
+   */
+  mcpRefreshTokens: defineTable({
+    tokenHash: v.string(),
+    clientId: v.string(),
+    userId: v.string(),
+    scopes: v.array(v.union(v.literal("read"), v.literal("write"))),
+    /**
+     * The access token minted alongside this one. Rotation revokes that token
+     * and no other: two installs of the same client are two grants, and one
+     * refreshing must not sign the other out.
+     */
+    accessTokenId: v.optional(v.id("mcpTokens")),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_tokenHash", ["tokenHash"])
+    .index("by_userId", ["userId"])
+    .index("by_expiresAt", ["expiresAt"]),
 
   /**
    * What the user said they'd do next week, taken at the end of the last one.
@@ -1224,6 +1311,7 @@ export default defineSchema({
       v.literal("body_progress_photo"),
       v.literal("form_coach_landmarks"),
       v.literal("coach_image"),
+      v.literal("data_import"),
     ),
     status: v.union(
       v.literal("pending"),

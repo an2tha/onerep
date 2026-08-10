@@ -7,7 +7,7 @@ add to it. This is the reference for using it and for working on it.
 - **Endpoint:** `POST https://<your-convex-deployment>.convex.site/mcp`
 - **Transport:** streamable HTTP, JSON-RPC 2.0, one response per request
 - **Protocol version:** `2025-06-18`
-- **Auth:** a bearer key you create in the app
+- **Auth:** OAuth 2.1, or a bearer key you create in the app
 
 The exact endpoint for your deployment is printed in the app under
 **Settings → API & MCP**, next to the button that mints the key. Copy it
@@ -17,7 +17,44 @@ The same tools are available over plain HTTP for anything that does not speak
 the protocol — see [the REST API](./api.md). Same keys, same scopes, same
 limits.
 
-## Getting a token
+## Connecting with OAuth
+
+Most clients — Claude Desktop's custom connectors among them — would rather ask
+for access than be handed a key. Give one the endpoint above and it will sort
+itself out: it reads the `401`, finds the discovery documents, registers
+itself, opens a browser, and you approve a screen with the app's name on it.
+Nothing is copied and pasted, and the connection appears under **Settings →
+API & MCP → Connected apps**, where one tap ends it.
+
+The endpoints, should you need to drive them yourself:
+
+| Path                                          | What it is                                    |
+| --------------------------------------------- | --------------------------------------------- |
+| `/.well-known/oauth-protected-resource`       | RFC 9728 — points at the authorization server |
+| `/.well-known/oauth-authorization-server`     | RFC 8414 — points at everything below         |
+| `/oauth/register`                             | RFC 7591 dynamic client registration          |
+| `/oauth/authorize`                            | Sends the browser to the consent screen       |
+| `/oauth/token`                                | `authorization_code` and `refresh_token`      |
+| `/oauth/revoke`                               | RFC 7009                                      |
+
+PKCE is required and only `S256` is accepted. Redirect URIs are matched as
+exact strings, so copy the one the client shows you rather than typing
+something that looks like it. Access tokens last seven days and the client
+renews them itself; refresh tokens last ninety and rotate on every use, which
+means a stolen one is good for a single exchange and the theft announces itself
+by logging the real client out.
+
+**If a client asks for a Client ID and Client Secret**, it is telling you it
+will not register itself. Mint a pair under **Settings → API & MCP → New OAuth
+client**, paste its redirect URI in, and paste the ID and secret back. The
+secret is shown once.
+
+An OAuth token is an ordinary key underneath — same hash, same scopes, same
+rate limits — so everything below about scopes and limits applies to it
+unchanged. It just expires, and it is listed under connections rather than
+among the keys you typed.
+
+## Getting a token by hand
 
 1. Open OneRep → **Settings → API & MCP**.
 2. Name it, choose **Read only** or **Read & write**, and create it.
@@ -141,7 +178,10 @@ A token is your whole log. Treat it like a password:
 | `convex/mcp/tools.ts`                             | The tool catalog — schemas, scopes, argument coercion.        |
 | `convex/mcp/data.ts`                              | Internal queries and mutations keyed by an explicit `userId`. |
 | `convex/mcp/tokens.ts`                            | Minting, listing, revoking, resolving, rate limiting.         |
-| `convex/http.ts`                                  | Mounts `/mcp`.                                                |
+| `convex/mcp/oauth.ts`                             | Clients, codes, grants, connections — the storage underneath. |
+| `convex/mcp/oauthServer.ts`                       | Discovery, registration, authorize, token, revoke.            |
+| `apps/mobile/src/pages/OAuthConsent.tsx`          | The consent screen `/oauth/authorize` redirects to.           |
+| `convex/http.ts`                                  | Mounts `/mcp` and the OAuth routes.                           |
 | `convex/api/rest.ts`                              | The REST API, which delegates to this same catalog.           |
 | `apps/mobile/src/components/api-keys-section.tsx` | The Settings → API & MCP panel.                               |
 

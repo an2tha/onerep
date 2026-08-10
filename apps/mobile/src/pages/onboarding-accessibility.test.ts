@@ -30,6 +30,7 @@ describe("Onboarding production contract", () => {
       "measurements",
       "activity",
       "safety",
+      "import",
       "assistant",
       "review",
     ]) {
@@ -49,6 +50,40 @@ describe("Onboarding production contract", () => {
     assert.match(source, /aria-label=\{`Edit answer: \$\{answer\}`\}/)
     assert.match(source, /function rewindTo\(index: number\)/)
     assert.match(source, /chatEndRef\.current\?\.scrollIntoView/)
+  })
+
+  test("respects impatience: typing can be skipped and never replays", () => {
+    // One tap anywhere in the chat completes the typewriter act.
+    assert.match(pageSource, /function fastForwardTyping/)
+    assert.match(pageSource, /onClick=\{fastForwardTyping\}/)
+    // A stage read once renders instantly on every revisit.
+    assert.match(pageSource, /seenStagesRef/)
+    // Reduced motion skips the staged typing delay and the smooth scroll.
+    assert.match(
+      pageSource,
+      /prefersReducedMotion\(\) \? "auto" : "smooth"/
+    )
+  })
+
+  test("an interrupted run resumes and an edit jumps back", () => {
+    // Answers persist locally as they are given, restore on return (even
+    // offline), and are cleared once the real save lands.
+    assert.match(pageSource, /onerep:onboarding-draft/)
+    assert.match(pageSource, /function parseOnboardingSnapshot/)
+    assert.match(
+      pageSource,
+      /safeLocalStorageRemove\(ONBOARDING_DRAFT_KEY\)/
+    )
+    // Editing an earlier answer returns in one tap, not a forced re-walk.
+    assert.match(pageSource, /setReturnStage/)
+    assert.match(
+      pageSource,
+      /returnStage !== null && returnStage > next \? returnStage : next/
+    )
+  })
+
+  test("the header says where you are in the journey", () => {
+    assert.match(pageSource, /\$\{stage \+ 1\} of \$\{stages\.length\}/)
   })
 
   test("types coach messages out and respects reduced motion", () => {

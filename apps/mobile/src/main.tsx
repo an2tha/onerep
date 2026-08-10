@@ -61,6 +61,7 @@ import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx"
 import VerifyEmailRequired from "./pages/VerifyEmailRequired.tsx"
+import OAuthConsent from "./pages/OAuthConsent.tsx"
 import Workouts from "./pages/Workouts.tsx"
 import NewPreset from "./pages/NewPreset.tsx"
 import ActiveWorkout from "./pages/ActiveWorkout.tsx"
@@ -1041,6 +1042,19 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Settings">
               <Settings onClose={() => window.history.back()} />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        // Where /oauth/authorize sends the browser. Behind the guard on
+        // purpose: an approval is only worth anything if we know whose it is,
+        // and the sign-in detour returns here with the query string intact.
+        path: "/oauth/consent",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Connect app">
+              <OAuthConsent />
             </ErrorBoundary>
           </AuthGuard>
         ),

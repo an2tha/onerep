@@ -136,6 +136,7 @@ import {
   type ReminderSettings,
 } from "@/lib/reminders"
 import {
+  detectPwaInstallPlatform,
   isPwaStandalone,
   pwaInstallCopy,
   subscribePwaInstallState,
@@ -468,9 +469,14 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     if (typeof window === "undefined") return false
     return isPwaStandalone(window)
   })
+  const [pwaPlatform] = useState(() => {
+    if (typeof window === "undefined") return "other" as const
+    return detectPwaInstallPlatform(window)
+  })
   const pwaCopy = pwaInstallCopy({
     hasPrompt: pwaInstallPrompt !== null,
     installed: pwaInstalled,
+    platform: pwaPlatform,
   })
   const offlineSyncStatus = offlineSyncStatusCopy({
     online: offlineOnline,

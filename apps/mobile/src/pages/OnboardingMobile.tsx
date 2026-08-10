@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Trophy,
   TrendDown,
+  UploadSimple,
   type Icon,
 } from "@phosphor-icons/react"
 import { useAction, useMutation, useQuery } from "convex/react"
@@ -56,10 +57,12 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { trackUmami } from "@/lib/analytics"
 import {
   createClientId,
+  safeLocalStorageGet,
   safeLocalStorageRemove,
   safeLocalStorageSet,
 } from "@/lib/utils"
 import { toast } from "@repo/ui"
+import { uploadOwnedFile } from "@/lib/owned-upload"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import {
   hapticHeavy,
@@ -76,6 +79,7 @@ const WEIGHT_KG_MIN = 35
 const WEIGHT_KG_MAX = 250
 const POST_SIGNUP_ONBOARDING_KEY = "onerep:post-signup-onboarding"
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
+const ONBOARDING_DRAFT_KEY = "onerep:onboarding-draft"
 
 const activities = [
   ["sedentary", "Sedentary", "Mostly seated", PersonSimpleRun],
@@ -230,6 +234,98 @@ function deriveSafetyMode(
   return "standard"
 }
 
+/** Answers recovered from an interrupted run. Absent fields mean "the saved
+ * value was missing or garbage — keep whatever the server said instead". */
+type OnboardingSnapshot = {
+  stage: number
+  nutritionGoal?: NutritionGoal
+  experienceLevel?: ExperienceLevel
+  sex?: Sex
+  age?: number
+  heightCm?: number
+  weightKg?: number
+  activityLevel?: ActivityLevel
+  safetyFlags?: string[]
+  weightUnit?: WeightUnit
+  waterGoalMl?: number
+  consent?: ConsentState
+}
+
+/**
+ * Ten answers in, the phone rings, the app dies, and without this the coach
+ * greets them at stage one like nothing happened. Every field is re-validated:
+ * localStorage survives app updates and whatever the user's other tabs did.
+ */
+function parseOnboardingSnapshot(raw: string | null): OnboardingSnapshot | null {
+  if (!raw) return null
+  let value: Record<string, unknown>
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== "object" || parsed === null) return null
+    value = parsed as Record<string, unknown>
+  } catch {
+    return null
+  }
+
+  const number = (input: unknown, min: number, max: number) =>
+    typeof input === "number" && Number.isFinite(input)
+      ? clamp(input, min, max)
+      : undefined
+  const consent = value.consent as Record<string, unknown> | undefined
+
+  return {
+    stage:
+      number(value.stage, 0, stages.length - 1) !== undefined
+        ? Math.round(number(value.stage, 0, stages.length - 1)!)
+        : 0,
+    ...(isNutritionGoal(value.nutritionGoal)
+      ? { nutritionGoal: value.nutritionGoal }
+      : {}),
+    ...(isExperienceLevel(value.experienceLevel)
+      ? { experienceLevel: value.experienceLevel }
+      : {}),
+    ...(value.sex === "male" || value.sex === "female"
+      ? { sex: value.sex }
+      : {}),
+    ...(number(value.age, AGE_MIN, AGE_MAX) !== undefined
+      ? { age: number(value.age, AGE_MIN, AGE_MAX) }
+      : {}),
+    ...(number(value.heightCm, HEIGHT_MIN, HEIGHT_MAX) !== undefined
+      ? { heightCm: number(value.heightCm, HEIGHT_MIN, HEIGHT_MAX) }
+      : {}),
+    ...(number(value.weightKg, WEIGHT_KG_MIN, WEIGHT_KG_MAX) !== undefined
+      ? { weightKg: number(value.weightKg, WEIGHT_KG_MIN, WEIGHT_KG_MAX) }
+      : {}),
+    ...(isActivityLevel(value.activityLevel)
+      ? { activityLevel: value.activityLevel }
+      : {}),
+    ...(Array.isArray(value.safetyFlags) &&
+    value.safetyFlags.every((flag) => typeof flag === "string")
+      ? { safetyFlags: value.safetyFlags as string[] }
+      : {}),
+    ...(value.weightUnit === "kg" || value.weightUnit === "lbs"
+      ? { weightUnit: value.weightUnit }
+      : {}),
+    ...(number(value.waterGoalMl, 0, 10000) !== undefined
+      ? { waterGoalMl: number(value.waterGoalMl, 0, 10000) }
+      : {}),
+    ...(consent &&
+    typeof consent.dataUse === "boolean" &&
+    typeof consent.weightData === "boolean" &&
+    typeof consent.foodLogging === "boolean" &&
+    typeof consent.wearableIntegrations === "boolean"
+      ? {
+          consent: {
+            dataUse: consent.dataUse,
+            weightData: consent.weightData,
+            foodLogging: consent.foodLogging,
+            wearableIntegrations: consent.wearableIntegrations,
+          },
+        }
+      : {}),
+  }
+}
+
 import { MultiSelectList, NumberQuestion } from "@repo/ui"
 
 /**
@@ -277,6 +373,7 @@ type StageId =
   | "measurements"
   | "activity"
   | "safety"
+  | "import"
   | "assistant"
   | "review"
 
@@ -289,9 +386,122 @@ const stages = [
   { id: "measurements", label: "Baseline" },
   { id: "activity", label: "Activity" },
   { id: "safety", label: "Health" },
+  { id: "import", label: "Your history" },
   { id: "assistant", label: "Coach setup" },
   { id: "review", label: "Review" },
 ] as const satisfies readonly { id: StageId; label: string }[]
+
+const IMPORT_MAX_FILES = 3
+const IMPORT_MAX_TOTAL_BYTES = 5 * 1024 * 1024
+
+type ImportFileKind = "workouts" | "measurements" | "unsupported"
+
+type ImportPreviewFileView = {
+  uploadId: Id<"fileUploads">
+  fileName: string
+  kind: ImportFileKind
+  note?: string
+  workouts: number
+  measurements: number
+  skippedRows: number
+  firstDate?: string
+  lastDate?: string
+  exerciseCount: number
+  plan: unknown
+}
+
+type ImportPreviewView = {
+  files: ImportPreviewFileView[]
+  totals: { workouts: number; measurements: number; skippedRows: number }
+}
+
+type ImportCommitView = {
+  workouts: number
+  workoutsSkipped: number
+  measurements: number
+}
+
+function countNoun(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`
+}
+
+function describeImportFile(file: ImportPreviewFileView): string {
+  if (file.kind === "unsupported") {
+    return file.note ?? "Not something I can file."
+  }
+  const parts: string[] = []
+  if (file.workouts > 0) parts.push(countNoun(file.workouts, "workout"))
+  if (file.measurements > 0) parts.push(countNoun(file.measurements, "check-in"))
+  if (parts.length === 0) return "Nothing usable in here."
+  const range =
+    file.firstDate && file.lastDate && file.firstDate !== file.lastDate
+      ? `, ${file.firstDate} to ${file.lastDate}`
+      : ""
+  return parts.join(" and ") + range
+}
+
+function describeImportResult(result: ImportCommitView): string {
+  const parts: string[] = []
+  if (result.workouts > 0) parts.push(countNoun(result.workouts, "workout"))
+  if (result.measurements > 0) {
+    parts.push(countNoun(result.measurements, "check-in"))
+  }
+  if (parts.length === 0) return "Nothing made it in."
+  return `Imported ${parts.join(" and ")}.`
+}
+
+/**
+ * Some browsers hand over a .csv with an empty MIME type. The upload pipeline
+ * validates by declared type, so an unlabelled file gets one from its
+ * extension before it goes anywhere.
+ */
+function withImportMimeType(file: File): File {
+  if (file.type) return file
+  const type = /\.json$/i.test(file.name) ? "application/json" : "text/csv"
+  return new File([file], file.name, { type })
+}
+
+// Static per stage, so effects can reason about message counts without waiting
+// for a render, and a revisited stage can be shown fully typed in one frame.
+const stageMessages: Record<StageId, string[]> = {
+  intro: [
+    "Hi, I'm your OneRep coach.",
+    "I'll set up your training and nutrition targets in about a minute",
+  ],
+  goal: ["First things first: what are you working toward?"],
+  experience: [
+    "Good choice. How much experience do you have with training and tracking?",
+  ],
+  coach: [
+    "One more thing before your numbers. Coach is the part of OneRep you talk to.",
+    "Ask about your day and you get an answer with your own numbers behind it. It only writes something after you say yes.",
+  ],
+  sex: [
+    "Now let's estimate your energy needs.",
+    "Which option suits you best?",
+  ],
+  measurements: [
+    "And your measurements. I use these to calculate your starting calorie budget.",
+  ],
+  activity: [
+    "How active is a typical week for you? Pick your usual, not your best week.",
+  ],
+  safety: [
+    "Almost done. Do any of these health considerations apply to you?",
+    "This is optional, and it helps me avoid unsuitable calorie recommendations.",
+  ],
+  import: [
+    "Were you tracking in another app before this? That history is worth keeping.",
+    "Export it as CSV or JSON — up to 5 MB — and I'll work out what's inside and file your workouts and weigh-ins where they belong. You see what I found before anything is saved.",
+  ],
+  assistant: [
+    "Want a head start? I can build it now: routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
+    "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first.",
+  ],
+  review: [
+    "That's everything I need. Here are your starting daily targets. These are estimates, not medical advice. You can change them any time in Settings.",
+  ],
+}
 
 const SETUP_MESSAGE_LIMIT = 5
 
@@ -428,6 +638,9 @@ export function OnboardingMobile() {
   const generateChat = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
+  const previewImportFiles = useAction(api.logs.dataImport.preview)
+  const commitImportFiles = useAction(api.logs.dataImport.commit)
+  const discardUpload = useMutation(api.uploads.discard)
   const applyCoachOperations = useAction(api.ai.coachOperations.applyApproved)
   const addFoodEntry = useMutation(api.logs.foodLogs.addEntry)
   const recordCoachAction = useMutation(api.ai.coachState.recordAction)
@@ -439,6 +652,12 @@ export function OnboardingMobile() {
 
   const [initialized, setInitialized] = useState(false)
   const [stage, setStage] = useState(() => (coachReplay ? coachStageIndex : 0))
+  // Where to jump back to after editing an earlier answer, so a correction
+  // costs one tap instead of a forced re-walk through every stage between.
+  const [returnStage, setReturnStage] = useState<number | null>(null)
+  // Stages whose messages have finished typing once. Revisits render
+  // instantly: the theatre is for the first reading, not the fifth.
+  const seenStagesRef = useRef<Set<number>>(new Set())
   // The denominator for every step and completion number below.
   useEffect(() => {
     trackUmami("onboarding_started", { replay: coachReplay })
@@ -501,6 +720,17 @@ export function OnboardingMobile() {
     clearAttachment: clearSetupAttachment,
     openImagePicker: openSetupImagePicker,
   } = useCoachAttachment()
+  const [importBusy, setImportBusy] = useState<
+    "reading" | "importing" | null
+  >(null)
+  const [importPreview, setImportPreview] = useState<ImportPreviewView | null>(
+    null
+  )
+  const [importResult, setImportResult] = useState<ImportCommitView | null>(
+    null
+  )
+  const [importError, setImportError] = useState<string | null>(null)
+  const importInputRef = useRef<HTMLInputElement | null>(null)
   const savingRef = useRef(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
 
@@ -570,55 +800,156 @@ export function OnboardingMobile() {
         ? preferences.weightUnit
         : "kg"
 
-    setDraft({ age: nextAge, heightCm: nextHeight, goal: nextGoal })
+    // An interrupted run beats anything the server remembers: the snapshot
+    // was written seconds before the app died, the server profile could be
+    // months old.
+    const snapshot = coachReplay
+      ? null
+      : parseOnboardingSnapshot(safeLocalStorageGet(ONBOARDING_DRAFT_KEY))
+
+    const mergedNutritionGoal =
+      snapshot?.nutritionGoal ??
+      (isNutritionGoal(onboardingProfile?.nutritionGoal)
+        ? onboardingProfile.nutritionGoal
+        : null)
+    const mergedGoal = snapshot?.nutritionGoal
+      ? nutritionGoalToOnboardingGoal(snapshot.nutritionGoal)
+      : nextGoal
+    const mergedAge = snapshot?.age ?? nextAge
+    const mergedHeight = snapshot?.heightCm ?? nextHeight
+
+    setDraft({ age: mergedAge, heightCm: mergedHeight, goal: mergedGoal })
     setProfile({
       sex:
-        healthProfile?.sex === "male" || healthProfile?.sex === "female"
+        snapshot?.sex ??
+        (healthProfile?.sex === "male" || healthProfile?.sex === "female"
           ? healthProfile.sex
-          : null,
-      age: nextAge,
-      weightKg: nextWeight,
-      heightCm: nextHeight,
-      activityLevel: nextActivity,
-      goal: nextGoal ? mapOnboardingGoalToCalorieGoal(nextGoal) : "maintain",
+          : null),
+      age: mergedAge,
+      weightKg: snapshot?.weightKg ?? nextWeight,
+      heightCm: mergedHeight,
+      activityLevel: snapshot?.activityLevel ?? nextActivity,
+      goal: mergedGoal ? mapOnboardingGoalToCalorieGoal(mergedGoal) : "maintain",
     })
     setConsent(
-      onboardingProfile?.consent ?? {
-        dataUse: false,
-        weightData: true,
-        foodLogging: true,
-        wearableIntegrations: false,
-      }
+      snapshot?.consent ??
+        onboardingProfile?.consent ?? {
+          dataUse: false,
+          weightData: true,
+          foodLogging: true,
+          wearableIntegrations: false,
+        }
     )
-    setNutritionGoal(
-      isNutritionGoal(onboardingProfile?.nutritionGoal)
-        ? onboardingProfile.nutritionGoal
-        : null
-    )
+    setNutritionGoal(mergedNutritionGoal)
     setExperienceLevel(
-      isExperienceLevel(onboardingProfile?.experienceLevel)
-        ? onboardingProfile.experienceLevel
-        : null
+      snapshot?.experienceLevel ??
+        (isExperienceLevel(onboardingProfile?.experienceLevel)
+          ? onboardingProfile.experienceLevel
+          : null)
     )
     setSafetyFlags(
-      Array.isArray(onboardingProfile?.safetyFlags) &&
-        onboardingProfile.safetyFlags.length > 0
-        ? onboardingProfile.safetyFlags
-        : ["none"]
+      snapshot?.safetyFlags && snapshot.safetyFlags.length > 0
+        ? snapshot.safetyFlags
+        : Array.isArray(onboardingProfile?.safetyFlags) &&
+            onboardingProfile.safetyFlags.length > 0
+          ? onboardingProfile.safetyFlags
+          : ["none"]
     )
-    setWeightUnit(nextUnit)
-    setWaterGoalMl(preferences?.waterGoalMl ?? 2500)
+    setWeightUnit(snapshot?.weightUnit ?? nextUnit)
+    setWaterGoalMl(snapshot?.waterGoalMl ?? preferences?.waterGoalMl ?? 2500)
+    if (snapshot && snapshot.stage > 0) {
+      // Resume where they were. Everything before renders already-typed; the
+      // current stage types once more so the coach re-asks the open question.
+      for (let index = 0; index < snapshot.stage; index += 1) {
+        seenStagesRef.current.add(index)
+      }
+      setStage(snapshot.stage)
+    }
     setInitialized(true)
-  }, [healthProfile, initialized, onboardingProfile, preferences])
+  }, [coachReplay, healthProfile, initialized, onboardingProfile, preferences])
+
+  // Every answer is written down the moment it is given. The final save can
+  // still fail, the app can still die — this is what makes either survivable.
+  useEffect(() => {
+    if (!initialized || coachReplay || complete) return
+    safeLocalStorageSet(
+      ONBOARDING_DRAFT_KEY,
+      JSON.stringify({
+        stage,
+        nutritionGoal,
+        experienceLevel,
+        sex: profile.sex,
+        age: profile.age,
+        heightCm: profile.heightCm,
+        weightKg: profile.weightKg,
+        activityLevel: profile.activityLevel,
+        safetyFlags,
+        weightUnit,
+        waterGoalMl,
+        consent,
+      })
+    )
+  }, [
+    complete,
+    coachReplay,
+    consent,
+    experienceLevel,
+    initialized,
+    nutritionGoal,
+    profile,
+    safetyFlags,
+    stage,
+    waterGoalMl,
+    weightUnit,
+  ])
 
   // If the queries never land — offline, dead socket — stop waiting and let the
   // user answer against local defaults. The guard above makes a late arrival a
-  // no-op, so nothing they typed can be overwritten after this fires.
+  // no-op, so nothing they typed can be overwritten after this fires. An
+  // interrupted run still resumes here: the snapshot is local and owes the
+  // socket nothing.
   useEffect(() => {
     if (initialized) return
-    const timer = window.setTimeout(() => setInitialized(true), 6000)
+    const timer = window.setTimeout(() => {
+      const snapshot = coachReplay
+        ? null
+        : parseOnboardingSnapshot(safeLocalStorageGet(ONBOARDING_DRAFT_KEY))
+      if (snapshot) {
+        if (snapshot.nutritionGoal) {
+          const goal = nutritionGoalToOnboardingGoal(snapshot.nutritionGoal)
+          setNutritionGoal(snapshot.nutritionGoal)
+          setDraft((current) => ({ ...current, goal }))
+        }
+        if (snapshot.experienceLevel) {
+          setExperienceLevel(snapshot.experienceLevel)
+        }
+        setProfile((current) => ({
+          ...current,
+          sex: snapshot.sex ?? current.sex,
+          age: snapshot.age ?? current.age,
+          heightCm: snapshot.heightCm ?? current.heightCm,
+          weightKg: snapshot.weightKg ?? current.weightKg,
+          activityLevel: snapshot.activityLevel ?? current.activityLevel,
+        }))
+        if (snapshot.safetyFlags && snapshot.safetyFlags.length > 0) {
+          setSafetyFlags(snapshot.safetyFlags)
+        }
+        if (snapshot.weightUnit) setWeightUnit(snapshot.weightUnit)
+        if (snapshot.waterGoalMl !== undefined) {
+          setWaterGoalMl(snapshot.waterGoalMl)
+        }
+        if (snapshot.consent) setConsent(snapshot.consent)
+        if (snapshot.stage > 0) {
+          for (let index = 0; index < snapshot.stage; index += 1) {
+            seenStagesRef.current.add(index)
+          }
+          setStage(snapshot.stage)
+        }
+      }
+      setInitialized(true)
+    }, 6000)
     return () => window.clearTimeout(timer)
-  }, [initialized])
+  }, [coachReplay, initialized])
 
   useEffect(() => {
     setDraft((current) => ({
@@ -633,6 +964,14 @@ export function OnboardingMobile() {
   }, [calorieGoal])
 
   useEffect(() => {
+    // A stage already read once, or a reader who asked for no motion, gets
+    // the words immediately. The typing pause is theatre, and theatre does
+    // not get an encore.
+    if (seenStagesRef.current.has(stage) || prefersReducedMotion()) {
+      setTyping(false)
+      setTypedCount(stageMessages[stages[stage].id].length)
+      return
+    }
     setTyping(true)
     setTypedCount(0)
     const timer = window.setTimeout(() => setTyping(false), 520)
@@ -640,7 +979,10 @@ export function OnboardingMobile() {
   }, [stage])
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    chatEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "end",
+    })
   }, [
     stage,
     typing,
@@ -688,44 +1030,6 @@ export function OnboardingMobile() {
   const weightMin = weightUnit === "kg" ? WEIGHT_KG_MIN : kgToLbs(WEIGHT_KG_MIN)
   const weightMax = weightUnit === "kg" ? WEIGHT_KG_MAX : kgToLbs(WEIGHT_KG_MAX)
 
-  const coachMessages = [
-    "One more thing before your numbers. Coach is the part of OneRep you talk to.",
-    "Ask about your day and you get an answer with your own numbers behind it. It only writes something after you say yes.",
-  ]
-
-  const stageMessages: Record<StageId, string[]> = {
-    intro: [
-      "Hi, I'm your OneRep coach.",
-      "I'll set up your training and nutrition targets in about a minute",
-    ],
-    goal: ["First things first: what are you working toward?"],
-    experience: [
-      "Good choice. How much experience do you have with training and tracking?",
-    ],
-    coach: coachMessages,
-    sex: [
-      "Now let's estimate your energy needs.",
-      "Which option suits you best?",
-    ],
-    measurements: [
-      "And your measurements. I use these to calculate your starting calorie budget.",
-    ],
-    activity: [
-      "How active is a typical week for you? Pick your usual, not your best week.",
-    ],
-    safety: [
-      "Almost done. Do any of these health considerations apply to you?",
-      "This is optional, and it helps me avoid unsuitable calorie recommendations.",
-    ],
-    assistant: [
-      "Want a head start? I can build it now: routines and presets on your week, recipes, goals, progress trackers, or your first logged meal.",
-      "Tell me what you want in your own words, or send a photo of your fridge, a menu, or a plan you already follow. You have 5 messages, and nothing gets saved without you seeing it first.",
-    ],
-    review: [
-      "That's everything I need. Here are your starting daily targets. These are estimates, not medical advice. You can change them any time in Settings.",
-    ],
-  }
-
   const stageAnswers: Partial<Record<StageId, string>> = {
     intro: "Let's go",
     goal: nutritionGoal
@@ -743,12 +1047,14 @@ export function OnboardingMobile() {
       : safetyFlags
           .map((flag) => selectedLabel(safetyOptions, flag))
           .join(", ") || "None of these",
+    import: importResult ? describeImportResult(importResult) : "Starting fresh",
     assistant: setupUsed > 0 ? "That's all for now" : "Skip for now",
   }
 
   function advance(fromStage: number) {
     setError(null)
     hapticMedium()
+    seenStagesRef.current.add(fromStage)
     // Onboarding is where accounts are won or abandoned, and the only way to
     // see where it happens is to count each step as it is left behind.
     trackUmami("onboarding_step", {
@@ -756,13 +1062,118 @@ export function OnboardingMobile() {
       index: fromStage,
       total: stages.length,
     })
-    setStage(Math.min(fromStage + 1, stages.length - 1))
+    const next = Math.min(fromStage + 1, stages.length - 1)
+    // After editing an earlier answer, one tap puts them back where they
+    // were. The stages between still hold their answers; nobody needs to
+    // watch themselves re-give them.
+    const target = returnStage !== null && returnStage > next ? returnStage : next
+    if (returnStage !== null && target >= returnStage) setReturnStage(null)
+    setStage(target)
   }
 
   function rewindTo(index: number) {
     hapticTap()
     setError(null)
+    seenStagesRef.current.add(stage)
+    setReturnStage((current) => Math.max(current ?? stage, stage))
     setStage(index)
+  }
+
+  /** One tap anywhere in the chat ends the typewriter act for this stage. */
+  function fastForwardTyping() {
+    const messages = stageMessages[stages[stage].id]
+    if (!typing && typedCount >= messages.length) return
+    seenStagesRef.current.add(stage)
+    setTyping(false)
+    setTypedCount(messages.length)
+  }
+
+  async function handleImportSelection(list: FileList | null) {
+    const files = Array.from(list ?? [])
+    if (files.length === 0 || importBusy) return
+    setImportError(null)
+    if (files.length > IMPORT_MAX_FILES) {
+      hapticHeavy()
+      setImportError(
+        `${IMPORT_MAX_FILES} files at most. Pick the ones that matter.`
+      )
+      return
+    }
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
+    if (totalBytes > IMPORT_MAX_TOTAL_BYTES) {
+      hapticHeavy()
+      setImportError(
+        "That's more than 5 MB together. Most apps can export a shorter date range."
+      )
+      return
+    }
+    hapticMedium()
+    setImportBusy("reading")
+    try {
+      const uploadIds: Id<"fileUploads">[] = []
+      for (const file of files) {
+        uploadIds.push(
+          await uploadOwnedFile(withImportMimeType(file), "data_import", file.name)
+        )
+      }
+      const result = (await previewImportFiles({
+        uploadIds,
+      })) as ImportPreviewView
+      setImportPreview(result)
+      hapticTap()
+    } catch (caught) {
+      hapticHeavy()
+      setImportError(
+        caught instanceof Error && caught.message
+          ? caught.message
+          : "I couldn't read those files. Try again, or skip this — the app works fine without them."
+      )
+    } finally {
+      setImportBusy(null)
+      if (importInputRef.current) importInputRef.current.value = ""
+    }
+  }
+
+  async function runImportCommit() {
+    if (!importPreview || importBusy) return
+    hapticMedium()
+    setImportBusy("importing")
+    setImportError(null)
+    try {
+      const result = (await commitImportFiles({
+        files: importPreview.files
+          .filter((file) => file.kind !== "unsupported")
+          .map(({ uploadId, plan }) => ({ uploadId, plan })),
+      })) as ImportCommitView
+      setImportResult(result)
+      setImportPreview(null)
+      trackUmami("onboarding_import", {
+        workouts: result.workouts,
+        measurements: result.measurements,
+        skipped: result.workoutsSkipped,
+      })
+      hapticTap()
+    } catch (caught) {
+      hapticHeavy()
+      setImportError(
+        caught instanceof Error && caught.message
+          ? caught.message
+          : "The import didn't go through. Nothing was half-written — try again."
+      )
+    } finally {
+      setImportBusy(null)
+    }
+  }
+
+  function abandonImportPreview() {
+    if (!importPreview || importBusy) return
+    hapticSelection()
+    for (const file of importPreview.files) {
+      // Best effort: an undiscarded upload expires on its own within a day.
+      void discardUpload({ uploadId: file.uploadId }).catch(() => {})
+    }
+    setImportPreview(null)
+    setImportError(null)
   }
 
   async function executeSetupOperations(operations: CoachOperation[]) {
@@ -1129,6 +1540,7 @@ export function OnboardingMobile() {
         }),
       ])
       safeLocalStorageRemove(POST_SIGNUP_ONBOARDING_KEY)
+      safeLocalStorageRemove(ONBOARDING_DRAFT_KEY)
       safeLocalStorageSet(COACH_ONBOARDING_SEEN_KEY, "true")
       trackUmami("onboarding_completed", {
         goal: draft.goal ?? "unset",
@@ -1339,6 +1751,117 @@ export function OnboardingMobile() {
             advance(stageIndex)
           }}
         />
+      )
+    }
+    if (stageId === "import") {
+      const importable =
+        importPreview?.files.some((file) => file.kind !== "unsupported") ??
+        false
+      return (
+        <>
+          <div className="onboarding-chat-card">
+            {importResult ? (
+              <p className="native-row-detail">
+                {describeImportResult(importResult)} It's in your history now.
+                {importResult.workoutsSkipped > 0 &&
+                  ` ${countNoun(importResult.workoutsSkipped, "workout")} didn't fit — two sessions a day is the ceiling.`}
+              </p>
+            ) : importPreview ? (
+              <>
+                <div>
+                  {importPreview.files.map((file) => (
+                    <div
+                      key={file.uploadId}
+                      className="flex min-h-12 items-center justify-between gap-4 border-b border-border py-2 last:border-b-0"
+                    >
+                      <span className="native-row-title break-all">
+                        {file.fileName}
+                      </span>
+                      <span className="native-row-detail shrink-0 text-right">
+                        {describeImportFile(file)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  className="onboarding-primary-button mt-4 w-full"
+                  onClick={() => void runImportCommit()}
+                  disabled={!importable || importBusy !== null}
+                  aria-busy={importBusy === "importing"}
+                >
+                  {importBusy === "importing" ? (
+                    "Filing it away…"
+                  ) : (
+                    <>
+                      Bring it in
+                      <Check size={16} weight="bold" />
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="onboarding-back-button mt-2 w-full"
+                  onClick={abandonImportPreview}
+                  disabled={importBusy !== null}
+                >
+                  Never mind
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  multiple
+                  accept=".csv,.json,text/csv,application/json"
+                  className="sr-only"
+                  aria-label="Choose export files"
+                  onChange={(event) =>
+                    void handleImportSelection(event.target.files)
+                  }
+                />
+                <button
+                  type="button"
+                  className="onboarding-primary-button w-full"
+                  disabled={importBusy !== null}
+                  aria-busy={importBusy === "reading"}
+                  onClick={() => {
+                    hapticSelection()
+                    importInputRef.current?.click()
+                  }}
+                >
+                  {importBusy === "reading" ? (
+                    "Reading your files…"
+                  ) : (
+                    <>
+                      Choose files
+                      <UploadSimple size={16} weight="bold" />
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+            {importError && (
+              <p
+                role="alert"
+                className="mt-3 border-l-2 border-destructive py-2 pl-3 text-[14px] font-medium text-destructive"
+              >
+                {importError}
+              </p>
+            )}
+          </div>
+          <QuickReplies
+            options={[
+              {
+                value: "continue",
+                label: importResult ? "Keep going" : "Start fresh",
+                icon: ArrowRight,
+              },
+            ]}
+            onChoose={() => advance(stageIndex)}
+          />
+        </>
       )
     }
     if (stageId === "assistant") {
@@ -1636,7 +2159,9 @@ export function OnboardingMobile() {
               <span className="onboarding-brand-name">OneRep</span>
             </div>
             <span className="onboarding-step-count tabular-nums">
-              {coachReplay ? "Coach onboarding preview" : stages[stage].label}
+              {coachReplay
+                ? "Coach onboarding preview"
+                : `${stages[stage].label} · ${stage + 1} of ${stages.length}`}
             </span>
           </div>
           {!coachReplay && (
@@ -1668,10 +2193,14 @@ export function OnboardingMobile() {
           )}
         </header>
 
+        {/* A click that lands on nothing interactive fast-forwards the
+            typewriter — impatience is a valid input. Real controls stop
+            propagation implicitly by handling the click first. */}
         <div
           className="onboarding-chat"
           role="log"
           aria-label="Setup conversation"
+          onClick={fastForwardTyping}
         >
           {visibleStages.map((item, index) => {
             const stageIndex = coachReplay ? coachStageIndex : index

@@ -50,11 +50,15 @@ minted in Settings → Data & account, stored only as a SHA-256 hash, scoped
 read or read-and-write, revocable, and rate limited per token so one looping
 agent cannot lock its owner out.
 
-What is left:
+OAuth 2.1 with dynamic client registration is shipped alongside that:
+discovery at both well-known paths, `/oauth/register`, `/oauth/authorize`,
+`/oauth/token`, `/oauth/revoke`, PKCE required and S256 only, refresh tokens
+rotated on use. A client that would rather ask than be handed a key can, and a
+client that insists on a client ID and secret can be minted one in Settings.
+What comes out the far end is the same `mcpTokens` row, so there is still only
+one kind of credential and one place to turn it off.
 
-**OAuth 2.1 with dynamic client registration.** Tokens are pasted into a
-client config today. That works and is testable; it is not what MCP clients
-expect long term. The token model is the same underneath, so this is additive.
+What is left:
 
 **AI-billed operations are not exposed.** Nothing in the tool list reaches the
 coach or snap, because whose quota an agent-invoked coach call spends is still
