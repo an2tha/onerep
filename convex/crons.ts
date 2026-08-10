@@ -18,6 +18,13 @@ crons.interval(
 );
 
 crons.interval(
+  "delete spent OAuth codes and refresh tokens",
+  { hours: 12 },
+  internal.mcp.oauth.purgeExpired,
+  {},
+);
+
+crons.interval(
   "delete expired rate limit buckets",
   { hours: 6 },
   internal.uploads.cleanupRateLimitBuckets,

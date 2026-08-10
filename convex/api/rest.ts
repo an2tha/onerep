@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { RATE_LIMITED } from "../lib/rateLimits";
 import { findTool, MCP_TOOLS, type ToolScope } from "../mcp/tools";
 import { KEY_RATE_LIMITS, sha256Hex } from "../mcp/tokens";
+import { RESOURCE_METADATA_URL } from "../mcp/oauthServer";
 
 /**
  * The public REST API: JSON in, JSON out, one bearer key.
@@ -224,7 +225,7 @@ function retryAfterSeconds() {
 
 function unauthorized(message: string) {
   return fail(401, "unauthorized", message, {
-    "WWW-Authenticate": 'Bearer realm="OneRep", error="invalid_token"',
+    "WWW-Authenticate": `Bearer realm="OneRep", error="invalid_token", resource_metadata="${RESOURCE_METADATA_URL}"`,
   });
 }
 

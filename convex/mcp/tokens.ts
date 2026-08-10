@@ -53,15 +53,41 @@ export async function sha256Hex(value: string) {
     .join("");
 }
 
-function mintToken() {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  const body = btoa(String.fromCharCode(...bytes))
+export function base64Url(bytes: Uint8Array) {
+  return btoa(String.fromCharCode(...bytes))
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/, "");
-  return `${TOKEN_PREFIX}${body}`;
 }
+
+/**
+ * PKCE compares base64url of the raw digest, not hex. Same hash, different
+ * alphabet, and getting it wrong fails in a way that looks like a client bug.
+ */
+export async function sha256Base64Url(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return base64Url(new Uint8Array(digest));
+}
+
+export function randomSecret(prefix: string, byteLength = 32) {
+  const bytes = new Uint8Array(byteLength);
+  crypto.getRandomValues(bytes);
+  return `${prefix}${base64Url(bytes)}`;
+}
+
+/** How much of a secret is kept in the clear, so a list can be read. */
+export function secretPrefix(secret: string, marker: string) {
+  return secret.slice(marker.length, marker.length + 6);
+}
+
+export function mintToken() {
+  return randomSecret(TOKEN_PREFIX);
+}
+
+export { TOKEN_PREFIX };
 
 export const list = query({
   args: {},
@@ -76,7 +102,10 @@ export const list = query({
       .collect();
 
     return rows
-      .filter((row) => row.revokedAt === undefined)
+      // Tokens with a clientId belong to a connected app, and are listed
+      // under connections instead — a key the user never typed has no
+      // business appearing in the list of keys they did.
+      .filter((row) => row.revokedAt === undefined && row.clientId === undefined)
       .map((row) => ({
         id: row._id,
         name: row.name,
@@ -94,7 +123,7 @@ export const create = action({
   handler: async (ctx, args): Promise<{ token: string; prefix: string }> => {
     const token = mintToken();
     const tokenHash = await sha256Hex(token);
-    const prefix = token.slice(TOKEN_PREFIX.length, TOKEN_PREFIX.length + 6);
+    const prefix = secretPrefix(token, TOKEN_PREFIX);
 
     await ctx.runMutation(internal.mcp.tokens.store, {
       name: args.name,
@@ -121,7 +150,9 @@ export const store = internalMutation({
       .query("mcpTokens")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
       .collect();
-    const live = existing.filter((row) => row.revokedAt === undefined);
+    const live = existing.filter(
+      (row) => row.revokedAt === undefined && row.clientId === undefined,
+    );
     if (live.length >= MAX_TOKENS) {
       throw new Error("You already have ten keys. Revoke one first.");
     }
@@ -165,6 +196,9 @@ export const resolve = internalQuery({
       .unique();
 
     if (!row || row.revokedAt !== undefined) return null;
+    // An expired OAuth token is refused here rather than swept by a cron, so
+    // the deadline is real the second it passes and not whenever we next look.
+    if (row.expiresAt !== undefined && row.expiresAt <= Date.now()) return null;
     return { id: row._id, userId: row.userId, scopes: row.scopes };
   },
 });

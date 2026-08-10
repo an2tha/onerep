@@ -88,6 +88,7 @@ describe("AI prompt bundle", () => {
       "coach_chat",
       "coach_in_workout",
       "coach_weekly_review",
+      "data_import",
       "food_match",
       "form_coach",
       "meal_description",

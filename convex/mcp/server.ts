@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { RATE_LIMITED } from "../lib/rateLimits";
 import { findTool, toolDescriptors, type ToolScope } from "./tools";
 import { sha256Hex } from "./tokens";
+import { RESOURCE_METADATA_URL } from "./oauthServer";
 
 /**
  * The MCP endpoint: JSON-RPC 2.0 over a single POST.
@@ -70,11 +71,12 @@ function bearerToken(request: Request) {
 
 function unauthorized(id: JsonRpcId, message: string) {
   const response = rpcError(id, -32001, message, 401);
-  // Points a compliant client at where to get one, rather than leaving it to
-  // guess that this is a token endpoint at all.
+  // `resource_metadata` is the thread a client pulls to discover that this
+  // deployment can hand out a token by asking the user, instead of leaving it
+  // to guess that pasting one is the only way in.
   response.headers.set(
     "WWW-Authenticate",
-    'Bearer realm="OneRep", error="invalid_token"',
+    `Bearer realm="OneRep", error="invalid_token", resource_metadata="${RESOURCE_METADATA_URL}"`,
   );
   return response;
 }

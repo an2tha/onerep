@@ -7,6 +7,7 @@ export type UploadPurpose =
   | "body_progress_photo"
   | "form_coach_landmarks"
   | "coach_image"
+  | "data_import"
 
 export async function uploadOwnedFile(
   file: Blob,

@@ -18,6 +18,17 @@ const PURPOSE_RULES = {
     maxBytes: 5 * MiB,
   },
   coach_image: { types: IMAGE_TYPES, maxBytes: 12 * MiB },
+  data_import: {
+    // Browsers label a .csv however the OS feels that day — text/csv if lucky,
+    // vnd.ms-excel on Windows, text/plain when nobody claimed the extension.
+    types: new Set([
+      "text/csv",
+      "application/json",
+      "application/vnd.ms-excel",
+      "text/plain",
+    ]),
+    maxBytes: 5 * MiB,
+  },
 } as const;
 
 const purposeValidator = v.union(
@@ -25,6 +36,7 @@ const purposeValidator = v.union(
   v.literal("body_progress_photo"),
   v.literal("form_coach_landmarks"),
   v.literal("coach_image"),
+  v.literal("data_import"),
 );
 
 function normalizedMimeType(value: string) {

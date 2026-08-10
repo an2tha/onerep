@@ -2,6 +2,15 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { stripeWebhook } from "./billing/webhooks";
 import { mcpEndpoint } from "./mcp/server";
+import {
+  authorize,
+  authorizationServerMetadata,
+  preflight,
+  protectedResourceMetadata,
+  register,
+  revoke,
+  token,
+} from "./mcp/oauthServer";
 import { restApi } from "./api/rest";
 import {
   authComponent,
@@ -69,6 +78,42 @@ http.route({
 // deliberately sits outside the auth component's CORS-scoped routes.
 http.route({ path: "/mcp", method: "POST", handler: mcpEndpoint });
 http.route({ path: "/mcp", method: "OPTIONS", handler: mcpEndpoint });
+
+/**
+ * OAuth 2.1, so a client can get a token by asking the user rather than by
+ * having one pasted into it.
+ *
+ * The two well-known paths are how a client finds any of the rest, and both
+ * spellings of the protected-resource path are served: the specification
+ * appends the resource path, older clients do not, and being right about which
+ * is not worth a support thread.
+ */
+http.route({
+  path: "/.well-known/oauth-protected-resource",
+  method: "GET",
+  handler: protectedResourceMetadata,
+});
+http.route({
+  path: "/.well-known/oauth-protected-resource/mcp",
+  method: "GET",
+  handler: protectedResourceMetadata,
+});
+http.route({
+  path: "/.well-known/oauth-authorization-server",
+  method: "GET",
+  handler: authorizationServerMetadata,
+});
+
+http.route({ path: "/oauth/authorize", method: "GET", handler: authorize });
+
+for (const [path, handler] of [
+  ["/oauth/register", register],
+  ["/oauth/token", token],
+  ["/oauth/revoke", revoke],
+] as const) {
+  http.route({ path, method: "POST", handler });
+  http.route({ path, method: "OPTIONS", handler: preflight });
+}
 
 // The REST API, same keys and the same reasoning about CORS. The bare "/v1"
 // has to be spelled out separately: a prefix route only matches what comes
