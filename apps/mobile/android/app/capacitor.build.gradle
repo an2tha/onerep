@@ -15,6 +15,7 @@ dependencies {
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-local-notifications')
     implementation project(':capacitor-preferences')
+    implementation project(':capacitor-push-notifications')
     implementation project(':capacitor-share')
     implementation project(':capgo-capacitor-speech-recognition')
     implementation project(':capgo-capacitor-updater')

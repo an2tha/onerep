@@ -20,6 +20,9 @@ project(':capacitor-local-notifications').projectDir = new File('../../../node_m
 include ':capacitor-preferences'
 project(':capacitor-preferences').projectDir = new File('../../../node_modules/.bun/@capacitor+preferences@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/preferences/android')
 
+include ':capacitor-push-notifications'
+project(':capacitor-push-notifications').projectDir = new File('../../../node_modules/.bun/@capacitor+push-notifications@8.1.2+767ac80cbab8ae50/node_modules/@capacitor/push-notifications/android')
+
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File('../../../node_modules/.bun/@capacitor+share@8.0.1+767ac80cbab8ae50/node_modules/@capacitor/share/android')
 

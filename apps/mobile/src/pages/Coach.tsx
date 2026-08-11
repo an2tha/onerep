@@ -2336,6 +2336,11 @@ export default function Coach() {
                                   onOpenWorkouts={() =>
                                     navigate("/workouts", { motion: "switch" })
                                   }
+                                  onStartWorkout={(presetId) =>
+                                    navigate(`/workout/active/${presetId}`, {
+                                      motion: "forward",
+                                    })
+                                  }
                                   onOpenNutrition={() =>
                                     navigate("/nutrition", { motion: "switch" })
                                   }

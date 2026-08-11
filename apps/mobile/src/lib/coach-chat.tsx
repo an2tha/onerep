@@ -917,6 +917,7 @@ export function CoachOperationResults({
   results,
   onOpenRecipe,
   onOpenWorkouts,
+  onStartWorkout,
   onOpenNutrition,
   onOpenProgress,
   onOpenSupplements,
@@ -929,6 +930,7 @@ export function CoachOperationResults({
   results?: CoachOperationResult[]
   onOpenRecipe: (id: string) => void
   onOpenWorkouts: () => void
+  onStartWorkout: (presetId: string) => void
   onOpenNutrition: () => void
   onOpenProgress: () => void
   onOpenSupplements: () => void
@@ -1266,17 +1268,23 @@ export function CoachOperationResults({
                 </span>
                 <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
                   {result.exerciseNames.join(" · ")}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
                   {result.scheduledDays.length > 0
-                    ? ` · ${result.scheduledDays.join(", ")}`
-                    : ""}
+                    ? `Every ${result.scheduledDays.join(", ")}`
+                    : "Not on your routine — start it whenever"}
                 </span>
               </span>
               <button
                 type="button"
-                onClick={onOpenWorkouts}
+                onClick={() =>
+                  result.scheduledDays.length > 0
+                    ? onOpenWorkouts()
+                    : onStartWorkout(result.presetId)
+                }
                 className="min-h-9 px-2 text-[10px] font-bold"
               >
-                Open
+                {result.scheduledDays.length > 0 ? "Open" : "Start"}
               </button>
               {result.actionId ? (
                 <button
@@ -1487,6 +1495,9 @@ export function CoachProposal({
     )
   }
 
+  // Plans are expanded server-side before they run; preview them the same way so a
+  // week of training shows its actual presets instead of one line of prose.
+  const previewOperations = expandWorkoutPlanOperations(operations)
   const assumptions = [
     ...new Set(operations.flatMap((item) => item.assumptions)),
   ]
@@ -1497,18 +1508,61 @@ export function CoachProposal({
         Review changes
       </p>
       <div className="mt-3 space-y-2">
-        {operations.map((operation, index) => (
-          <div
-            key={`${operation.type}-${index}`}
-            className="flex gap-2 text-[12px] font-semibold"
-          >
-            <CheckCircle
-              size={15}
-              className="mt-0.5 shrink-0 text-muted-foreground"
-            />
-            {operation.summary}
-          </div>
-        ))}
+        {previewOperations.map((operation, index) => {
+          if (operation.type === "create_workout_preset") {
+            const setCount = operation.exercises.reduce(
+              (total, exercise) => total + exercise.sets.length,
+              0
+            )
+            return (
+              <div
+                key={`${operation.type}-${index}`}
+                className="flex gap-2 text-[12px]"
+              >
+                <Barbell
+                  size={15}
+                  weight="bold"
+                  className="mt-0.5 shrink-0 text-muted-foreground"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{operation.name}</span>
+                  <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                    {operation.exercises.length} exercise
+                    {operation.exercises.length === 1 ? "" : "s"} · {setCount}{" "}
+                    set{setCount === 1 ? "" : "s"} ·{" "}
+                    {operation.scheduleDays.length > 0
+                      ? `every ${operation.scheduleDays.join(", ")}`
+                      : "one-off, not scheduled"}
+                  </span>
+                  {operation.exercises.map((exercise) => (
+                    <span
+                      key={exercise.name}
+                      className="mt-1 flex justify-between gap-3 text-[10px] text-muted-foreground"
+                    >
+                      <span className="truncate">{exercise.name}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {exercise.sets.length} ×{" "}
+                        {exercise.sets[0]?.reps || "—"}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              </div>
+            )
+          }
+          return (
+            <div
+              key={`${operation.type}-${index}`}
+              className="flex gap-2 text-[12px] font-semibold"
+            >
+              <CheckCircle
+                size={15}
+                className="mt-0.5 shrink-0 text-muted-foreground"
+              />
+              {operation.summary}
+            </div>
+          )
+        })}
       </div>
       {assumptions.length > 0 ? (
         <div className="mt-3 border-l border-border/70 pl-3">

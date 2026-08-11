@@ -1906,6 +1906,8 @@ export function OnboardingMobile() {
                     handleSetupUiAction("open_recipe_builder")
                   }
                   onOpenWorkouts={() => handleSetupUiAction("open_workouts")}
+                  // Nobody starts a session mid-setup; send them to the list.
+                  onStartWorkout={() => handleSetupUiAction("open_workouts")}
                   onOpenNutrition={() => handleSetupUiAction("open_nutrition")}
                   onOpenProgress={() => handleSetupUiAction("open_progress")}
                   onOpenSupplements={() =>

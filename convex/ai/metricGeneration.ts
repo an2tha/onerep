@@ -2420,7 +2420,7 @@ async function generateCoachChatWithOpenAi({
           {
             type: "create_workout_preset",
             confirmation: "auto | confirm",
-            summary: "exact change",
+            summary: "exact change; one single workout, emitted on its own",
             assumptions: [],
             warnings: [],
             presetId: "optional exact existing preset id",
@@ -2442,12 +2442,15 @@ async function generateCoachChatWithOpenAi({
                 ],
               },
             ],
-            scheduleDays: ["Mon"],
+            scheduleDays: [
+              "leave empty for a one-off workout; add weekday names such as Mon only when the user asked it to recur",
+            ],
           },
           {
             type: "create_workout_plan",
             confirmation: "auto | confirm",
-            summary: "create and organize the complete workout plan",
+            summary:
+              "create and organize the complete workout plan; multi-day splits only",
             assumptions: ["explicit reasonable defaults"],
             warnings: [],
             presets: [

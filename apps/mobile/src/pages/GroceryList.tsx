@@ -440,6 +440,19 @@ export function GroceryListDetail() {
 
   const [newItem, setNewItem] = useState("")
 
+  // Pop back to wherever the list was opened from instead of pushing the
+  // lists route — a push here and a navigate(-1) there traps the back button
+  // in a loop between the two grocery pages. The path is only a fallback for
+  // deep links and refreshes, where there is no history to pop.
+  function backToLists() {
+    const historyIndex = (window.history.state as { idx?: number } | null)?.idx
+    if (typeof historyIndex === "number" && historyIndex > 0) {
+      navigate(-1)
+    } else {
+      navigate("/nutrition/groceries", { replace: true, motion: "back" })
+    }
+  }
+
   const stored = (listQuery ?? undefined) as StoredList | null | undefined
   const items = useMemo(
     () => sortGroceryItems(stored?.items ?? []),
@@ -508,7 +521,7 @@ export function GroceryListDetail() {
           title="Grocery list"
           leading={
             <ToolbarButton
-              onClick={() => navigate("/nutrition/groceries")}
+              onClick={backToLists}
               aria-label="Back to grocery lists"
               className="-ml-2 px-0 text-muted-foreground"
             >
@@ -542,7 +555,7 @@ export function GroceryListDetail() {
         subtitle={stored ? `${remaining} left to buy` : undefined}
         leading={
           <ToolbarButton
-            onClick={() => navigate("/nutrition/groceries")}
+            onClick={backToLists}
             aria-label="Back to grocery lists"
             className="-ml-2 px-0 text-muted-foreground"
           >
