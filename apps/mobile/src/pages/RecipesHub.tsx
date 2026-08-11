@@ -637,6 +637,52 @@ const CATEGORIES = [
 ] as const
 const FAVORITES_KEY = "onerep.recipe-hub.favorites.v1"
 
+function starterSavePayload(recipe: StarterRecipe) {
+  const ingredientCount = recipe.ingredients.length
+  const calorieShare = recipe.calories / ingredientCount
+  const proteinShare = recipe.protein / ingredientCount
+  const remainingCalories = Math.max(0, recipe.calories - recipe.protein * 4)
+  const noCook =
+    recipe.tags.includes("no cook") ||
+    recipe.tags.includes("no bake") ||
+    /smoothie|overnight|chia pudding|yogurt bowl/i.test(recipe.name)
+  const carbsShare = (remainingCalories * 0.65) / 4 / ingredientCount
+  const fatShare = (remainingCalories * 0.35) / 9 / ingredientCount
+  return {
+    name: recipe.name,
+    recipeType: "detailed" as const,
+    description: recipe.description,
+    servings: 1,
+    prepMinutes: noCook
+      ? recipe.time
+      : Math.max(5, Math.round(recipe.time * 0.35)),
+    cookMinutes: noCook ? 0 : Math.max(1, Math.round(recipe.time * 0.65)),
+    category: recipe.category,
+    originCountry: recipe.origin,
+    notes: recipe.notes,
+    placeholderImage: "starter-kitchen",
+    tags: recipe.tags,
+    steps: recipe.steps,
+    photoUploadIds: [],
+    ingredients: recipe.ingredients.map((label, index) => {
+      const parsedAmount = Number(label.match(/[\d.]+/)?.[0] ?? 100)
+      const grams = /\bg\b/i.test(label) ? parsedAmount : 100
+      const name = label.replace(/^[\d.]+\s*(?:g|tbsp|serving)?\s*/i, "")
+      return {
+        id: `${recipe.id}-${index}`,
+        name,
+        grams,
+        displayAmount: grams,
+        displayUnit: "g",
+        caloriesPer100: (calorieShare * 100) / grams,
+        proteinPer100: (proteinShare * 100) / grams,
+        carbsPer100: (carbsShare * 100) / grams,
+        fatPer100: (fatShare * 100) / grams,
+      }
+    }),
+  }
+}
+
 function totals(recipe: Recipe) {
   const whole = recipe.ingredients.reduce(
     (sum, item) => ({
@@ -698,6 +744,7 @@ export default function RecipesHub() {
   const [ratingRecipe, setRatingRecipe] = useState<Recipe | null>(null)
   const [submittingRating, setSubmittingRating] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
+  const heartSavesInFlightRef = useRef<Set<string>>(new Set())
   const [closingOverlay, setClosingOverlay] = useState(false)
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
@@ -798,15 +845,37 @@ export default function RecipesHub() {
     (recipe) => country === "All countries" || recipe.originCountry === country
   )
 
-  function toggleFavorite(id: string) {
+  function toggleFavorite(recipe: StarterRecipe) {
     hapticTap()
+    const adding = !favorites.has(recipe.id)
     setFavorites((current) => {
       const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(recipe.id)) next.delete(recipe.id)
+      else next.add(recipe.id)
       safeLocalStorageSet(FAVORITES_KEY, JSON.stringify([...next]))
       return next
     })
+    // Hearting a recipe also saves it to my recipes; unhearting leaves the
+    // saved copy alone.
+    if (adding) void saveStarterQuietly(recipe)
+  }
+
+  async function saveStarterQuietly(recipe: StarterRecipe) {
+    const alreadySaved = savedRecipes.some(
+      (saved) => saved.name.trim().toLowerCase() === recipe.name.toLowerCase()
+    )
+    if (alreadySaved || heartSavesInFlightRef.current.has(recipe.id)) return
+    heartSavesInFlightRef.current.add(recipe.id)
+    try {
+      await saveRecipe(starterSavePayload(recipe))
+      toast.success(`${recipe.name} added to my recipes`)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save recipe"
+      )
+    } finally {
+      heartSavesInFlightRef.current.delete(recipe.id)
+    }
   }
 
   function askCoach(recipe: StarterRecipe) {
@@ -833,52 +902,7 @@ export default function RecipesHub() {
     setSavingId(recipe.id)
     hapticSelection()
     try {
-      const ingredientCount = recipe.ingredients.length
-      const calorieShare = recipe.calories / ingredientCount
-      const proteinShare = recipe.protein / ingredientCount
-      const remainingCalories = Math.max(
-        0,
-        recipe.calories - recipe.protein * 4
-      )
-      const noCook =
-        recipe.tags.includes("no cook") ||
-        recipe.tags.includes("no bake") ||
-        /smoothie|overnight|chia pudding|yogurt bowl/i.test(recipe.name)
-      const carbsShare = (remainingCalories * 0.65) / 4 / ingredientCount
-      const fatShare = (remainingCalories * 0.35) / 9 / ingredientCount
-      const recipeId = await saveRecipe({
-        name: recipe.name,
-        recipeType: "detailed",
-        description: recipe.description,
-        servings: 1,
-        prepMinutes: noCook
-          ? recipe.time
-          : Math.max(5, Math.round(recipe.time * 0.35)),
-        cookMinutes: noCook ? 0 : Math.max(1, Math.round(recipe.time * 0.65)),
-        category: recipe.category,
-        originCountry: recipe.origin,
-        notes: recipe.notes,
-        placeholderImage: "starter-kitchen",
-        tags: recipe.tags,
-        steps: recipe.steps,
-        photoUploadIds: [],
-        ingredients: recipe.ingredients.map((label, index) => {
-          const parsedAmount = Number(label.match(/[\d.]+/)?.[0] ?? 100)
-          const grams = /\bg\b/i.test(label) ? parsedAmount : 100
-          const name = label.replace(/^[\d.]+\s*(?:g|tbsp|serving)?\s*/i, "")
-          return {
-            id: `${recipe.id}-${index}`,
-            name,
-            grams,
-            displayAmount: grams,
-            displayUnit: "g",
-            caloriesPer100: (calorieShare * 100) / grams,
-            proteinPer100: (proteinShare * 100) / grams,
-            carbsPer100: (carbsShare * 100) / grams,
-            fatPer100: (fatShare * 100) / grams,
-          }
-        }),
-      })
+      const recipeId = await saveRecipe(starterSavePayload(recipe))
       hapticTap()
       toast.success(`${recipe.name} saved`)
       setSelected(null)
@@ -1355,7 +1379,7 @@ export default function RecipesHub() {
                             type="button"
                             onClick={() => {
                               hapticSelection()
-                              toggleFavorite(recipe.id)
+                              toggleFavorite(recipe)
                             }}
                             aria-label={`${favorites.has(recipe.id) ? "Remove" : "Add"} ${recipe.name} ${favorites.has(recipe.id) ? "from" : "to"} favorites`}
                             className="motion-tactile grid size-10 shrink-0 place-items-center rounded-full bg-muted/55 transition-transform active:scale-90"

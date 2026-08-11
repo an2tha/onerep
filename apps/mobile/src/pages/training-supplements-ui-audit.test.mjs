@@ -42,7 +42,7 @@ test("training and preset creation use task-oriented hierarchy", () => {
   assert.match(workouts, /Edit routine/)
   assert.match(workouts, /New preset/)
   assert.match(newPreset, /Workout name/)
-  assert.match(newPreset, /Import workout from text/)
+  assert.match(newPreset, /Paste a workout plan/)
 })
 
 test("supplements prioritizes adherence and labels library actions", () => {

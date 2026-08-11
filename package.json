@@ -4,6 +4,9 @@
   "scripts": {
     "build": "bun run prompts:check && turbo run build",
     "dev": "turbo run dev",
+    "build:ios": "bun run build --filter mobile -- --mode development",
+    "run:ios": "cd apps/mobile && bunx cap run ios",
+    "open:ios": "cd apps/mobile && bunx cap open ios",
     "exercises:prepare": "bun scripts/prepare-free-exercise-db.ts",
     "exercises:import": "bun run exercises:prepare && bunx convex import --table exercises --replace --format jsonArray --yes .cache/exercises/free-exercise-db.compact.json",
     "lint": "turbo run lint",

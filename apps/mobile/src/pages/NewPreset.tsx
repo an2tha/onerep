@@ -26,7 +26,7 @@ import {
   MagnifyingGlass,
   PencilSimple,
   Plus,
-  Sparkle,
+  ClipboardText,
   Timer,
   X,
 } from "@phosphor-icons/react"
@@ -1199,25 +1199,19 @@ function PastePresetSheet({
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-border/60" />
         <div className="px-5 pt-5">
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
-              <Sparkle size={17} weight="fill" />
-            </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-black tracking-[0.2em] text-muted-foreground uppercase">
-                AI preset builder
-              </p>
-              <h2 className="mt-1 text-[19px] leading-tight font-black tracking-tight">
+              <h2 className="text-[19px] leading-tight font-bold tracking-tight">
                 Paste a workout plan
               </h2>
               <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/70">
-                Drop in coach notes, a split from the web, or your own rough
-                plan. We'll match exercises and build editable sets.
+                Coach notes, a split you found, whatever. It gets turned into
+                sets you can edit.
               </p>
             </div>
             <button
               onClick={onClose}
               disabled={loading}
-              aria-label="Close AI preset builder"
+              aria-label="Close paste sheet"
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted/60 active:text-foreground disabled:opacity-40"
             >
               <X size={15} weight="bold" />
@@ -1261,13 +1255,11 @@ function PastePresetSheet({
               onClick={() => void onGenerate(text.trim(), mode)}
               disabled={!canGenerate}
               aria-busy={loading}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-black tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[14px] font-bold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-35"
             >
-              <Sparkle
-                size={15}
-                weight="fill"
-                className={loading ? "animate-spin" : ""}
-              />
+              {loading && (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-background/30 border-t-background" />
+              )}
               {loading ? "Building preset…" : "Create preset"}
             </button>
             <button
@@ -2091,12 +2083,8 @@ export default function NewPreset() {
               aria-busy={generatingPreset}
               className="app-button app-button-secondary min-h-12 w-full disabled:opacity-45"
             >
-              <Sparkle
-                size={14}
-                weight="fill"
-                className={generatingPreset ? "animate-spin" : ""}
-              />
-              Import workout from text
+              <ClipboardText size={15} weight="bold" />
+              {generatingPreset ? "Building preset…" : "Paste a workout plan"}
             </button>
           )}
         </div>
