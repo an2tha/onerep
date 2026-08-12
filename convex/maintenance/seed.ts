@@ -360,3 +360,44 @@ export const seedDemoHistory = internalMutation({
     return { workoutsWritten, foodDaysWritten, totalDays };
   },
 });
+
+/**
+ * Weigh-ins across the same 13 weeks. A slow cut with the usual water-weight
+ * noise, because a perfectly straight line is the one thing nobody's chart
+ * has ever looked like.
+ */
+export const seedBodyCheckins = internalMutation({
+  args: { userId: v.string(), seed: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rng = mulberry32(args.seed ?? 77_012);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const totalDays = WEEKS * 7;
+    const startMs = today.getTime() - totalDays * 86_400_000;
+
+    let written = 0;
+    // Every third or fourth morning, not religiously.
+    for (let dayIndex = 0; dayIndex <= totalDays; dayIndex += 3 + Math.floor(rng() * 2)) {
+      const dateMs = startMs + dayIndex * 86_400_000;
+      const dateStr = new Date(dateMs).toISOString().slice(0, 10);
+      const progress = dayIndex / totalDays;
+      const weightKg = 84.6 - 3.1 * progress + (rng() - 0.5) * 0.7;
+      const bodyFatPct = 18.4 - 2.6 * progress + (rng() - 0.5) * 0.4;
+      const waistCm = 84.5 - 3.4 * progress + (rng() - 0.5) * 0.6;
+
+      await ctx.db.insert("bodyMeasurements", {
+        userId: args.userId,
+        clientId: `seed-checkin-${dateStr}`,
+        loggedAt: dateStr,
+        weightKg: Math.round(weightKg * 10) / 10,
+        bodyFatPct: Math.round(bodyFatPct * 10) / 10,
+        waistCm: Math.round(waistCm * 10) / 10,
+        createdAt: dateMs + 7 * 3_600_000,
+        updatedAt: dateMs + 7 * 3_600_000,
+      });
+      written += 1;
+    }
+
+    return { written };
+  },
+});

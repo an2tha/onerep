@@ -1,13 +1,10 @@
-import React, { useCallback, useState, useEffect, useMemo, useRef } from "react"
+import React, { useCallback, useState, useEffect, useMemo } from "react"
 import {
   Compass,
   ArrowLeft,
-  ArrowsClockwise,
   Barbell,
   BellSimple,
   CaretRight,
-  CheckCircle,
-  CloudArrowUp,
   Database,
   ForkKnife,
   GearFine,
@@ -18,7 +15,6 @@ import {
   SlidersHorizontal,
   Sun,
   UserCircle,
-  Warning,
   X,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
@@ -66,7 +62,6 @@ function timeValueToMinutes(value: string): number | null {
 }
 
 import {
-  cn,
   safeLocalStorageGet,
   safeLocalStorageRemove,
   safeLocalStorageSet,
@@ -95,7 +90,6 @@ import {
   signOutApp,
   useAppAuth,
 } from "@/lib/auth-client"
-import { celebrateSubscription } from "@/lib/subscription-celebration"
 import {
   restBellEnabled,
   restVibrationEnabled,
@@ -143,7 +137,11 @@ import {
   takePwaInstallPrompt,
   type PwaBeforeInstallPromptEvent,
 } from "@/lib/pwa-install"
-import { billingErrorMessage, hasOneRepPro, useBilling } from "@/lib/billing"
+import { useBilling } from "@/lib/billing"
+import {
+  BillingSubscriptionPanel,
+  CheckoutResultOverlay,
+} from "@/components/billing"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { useMomentPreview } from "@/lib/full-screen-events"
 import { MOMENT_IDS, type MomentId } from "@/lib/moments"
@@ -201,13 +199,6 @@ type SettingsView =
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
 
-function clearCheckoutResultHash() {
-  window.history.replaceState(
-    window.history.state,
-    "",
-    `${window.location.pathname}${window.location.search}`
-  )
-}
 
 const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
   overview: "Settings",
@@ -446,7 +437,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [exporting, setExporting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState("")
-  const [checkoutFailed, setCheckoutFailed] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -495,40 +485,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           ? "Sync"
           : "Synced"
 
-  useEffect(() => {
-    function handleCheckoutResult() {
-      const checkoutResult = window.location.hash.slice(1).toLowerCase()
 
-      if (checkoutResult === "success") {
-        // Clear first so React Strict Mode cannot celebrate the same redirect
-        // twice when it remounts effects during development.
-        clearCheckoutResultHash()
-        trackUmami("checkout_completed")
-        celebrateSubscription()
-        toast.success("Welcome to OneRep Pro")
-      } else if (checkoutResult === "failed") {
-        trackUmami("checkout_abandoned")
-        setCheckoutFailed(true)
-      }
-    }
-
-    handleCheckoutResult()
-    window.addEventListener("hashchange", handleCheckoutResult)
-    return () => window.removeEventListener("hashchange", handleCheckoutResult)
-  }, [])
-
-  useEffect(() => {
-    if (!checkoutFailed) return
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return
-      setCheckoutFailed(false)
-      clearCheckoutResultHash()
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [checkoutFailed])
 
   useEffect(
     () =>
@@ -2625,52 +2582,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         )}
       </main>
       {aiAccessModal}
-      {checkoutFailed && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 px-4"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="checkout-failed-title"
-          aria-describedby="checkout-failed-description"
-          onClick={() => {
-            setCheckoutFailed(false)
-            clearCheckoutResultHash()
-          }}
-        >
-          <div
-            className="w-full max-w-sm rounded-[0.75rem] border border-border bg-card p-5 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <span
-              className="mb-4 flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive"
-              aria-hidden
-            >
-              <Warning size={24} weight="fill" />
-            </span>
-            <h2 id="checkout-failed-title" className="native-section-title">
-              Checkout didn’t complete
-            </h2>
-            <p
-              id="checkout-failed-description"
-              className="native-row-detail mt-2"
-            >
-              Your plan hasn’t changed. You can try again from Account whenever
-              you’re ready.
-            </p>
-            <button
-              type="button"
-              autoFocus
-              onClick={() => {
-                setCheckoutFailed(false)
-                clearCheckoutResultHash()
-              }}
-              className="mt-5 min-h-11 w-full rounded-[0.65rem] bg-foreground px-3 text-[15px] font-semibold text-background"
-            >
-              Return to settings
-            </button>
-          </div>
-        </div>
-      )}
+      <CheckoutResultOverlay />
     </div>
   )
 }
@@ -2718,286 +2630,3 @@ function ReminderRow({
   )
 }
 
-function BillingSubscriptionPanel({
-  billing,
-}: {
-  billing: ReturnType<typeof useBilling>
-}) {
-  const [action, setAction] = useState<
-    "purchase" | "refresh" | "cancel" | null
-  >(null)
-  const [confirmCancel, setConfirmCancel] = useState(false)
-  const cancelButtonRef = useRef<HTMLButtonElement>(null)
-  const active = billing.hasOneRepPro
-  const complimentary =
-    active &&
-    billing.customerInfo?.source === "manual" &&
-    billing.customerInfo.hasActiveSubscription === false
-  const canceling = action === "cancel"
-  const loading = billing.status === "loading"
-  const unsupported = billing.status === "unsupported"
-  const monthlyPrice = billing.monthlyPrice ?? "Monthly"
-  const subscriptionDiagnostic = billing.subscriptionDiagnostic
-  const disabled = unsupported || loading || action !== null
-  const purchaseDisabled = action !== null || !billing.canPurchase
-  // Pro is sold on the web only, so a native build offers no upgrade control —
-  // just the status above, which says where the subscription lives.
-  const showPrimaryAction = active || !billing.isNative
-  const refreshLabel =
-    action === "refresh"
-      ? "Checking..."
-      : subscriptionDiagnostic.canRetry
-        ? "Try again"
-        : "Refresh"
-
-  useEffect(() => {
-    if (!confirmCancel) return
-    cancelButtonRef.current?.focus()
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !canceling) {
-        setConfirmCancel(false)
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [canceling, confirmCancel])
-
-  async function runBillingAction(
-    nextAction: Exclude<typeof action, null>,
-    task: () => Promise<unknown>,
-    successMessage?: string
-  ) {
-    if (action) return
-    hapticMedium()
-    setAction(nextAction)
-    try {
-      const result = await task()
-      // Billing actions resolve to the verdict the server just gave, so this
-      // reflects the state that was actually reached rather than the reactive
-      // query's not-yet-updated value.
-      const customerInfo =
-        result && typeof result === "object" && "isActive" in result
-          ? (result as Parameters<typeof hasOneRepPro>[0])
-          : null
-      if (nextAction !== "cancel" && hasOneRepPro(customerInfo)) {
-        celebrateSubscription()
-        if (successMessage) toast.success(successMessage)
-      } else if (successMessage) {
-        toast.success(successMessage)
-      }
-    } catch (error) {
-      const message = billingErrorMessage(error, "Subscription action failed")
-      if (message !== "Purchase canceled") {
-        toast.error(message)
-      }
-    } finally {
-      setAction(null)
-    }
-  }
-
-  return (
-    <>
-      <div
-        className="profile-pro-card"
-        data-subscription-state={active ? "active" : "free"}
-      >
-        <div className="profile-pro-content">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="profile-pro-title">OneRep Pro</p>
-              <p className="profile-pro-description">
-                {active
-                  ? "AI meal analysis, workout generation, and progress insights are unlocked."
-                  : "Unlock AI meal analysis, workout generation, and progress insights. Core tracking stays free."}
-              </p>
-            </div>
-            <span className="profile-pro-status">
-              {active && <CheckCircle size={15} weight="fill" aria-hidden />}
-              {active ? "Active" : "Free"}
-            </span>
-          </div>
-
-          <div className="profile-pro-plan">
-            <span>
-              <span className="profile-pro-plan-label">Plan</span>
-              <span className="profile-pro-plan-name">
-                {complimentary ? "Complimentary" : "Monthly"}
-              </span>
-            </span>
-            <span className="profile-pro-price">
-              {complimentary ? "Included" : monthlyPrice}
-            </span>
-          </div>
-
-          <div
-            role="status"
-            aria-live={
-              subscriptionDiagnostic.tone === "attention"
-                ? "assertive"
-                : "polite"
-            }
-            className="profile-pro-diagnostic"
-            data-tone={subscriptionDiagnostic.tone}
-          >
-            {subscriptionDiagnostic.tone === "attention" ? (
-              <Warning size={16} weight="bold" className="mt-0.5 shrink-0" />
-            ) : subscriptionDiagnostic.tone === "success" ? (
-              <CheckCircle
-                size={16}
-                weight="bold"
-                className="mt-0.5 shrink-0"
-              />
-            ) : subscriptionDiagnostic.tone === "pending" ? (
-              <ArrowsClockwise
-                size={16}
-                weight="bold"
-                className="mt-0.5 shrink-0 animate-spin"
-              />
-            ) : (
-              <CloudArrowUp
-                size={16}
-                weight="bold"
-                className="mt-0.5 shrink-0"
-              />
-            )}
-            <span>
-              <span className="font-semibold">
-                {subscriptionDiagnostic.title}
-              </span>
-              {" · "}
-              {subscriptionDiagnostic.detail}
-            </span>
-          </div>
-
-          <div className="profile-pro-actions">
-            {showPrimaryAction && (
-              <button
-                type="button"
-                disabled={active ? complimentary || disabled : purchaseDisabled}
-                aria-busy={active ? action === "cancel" : action === "purchase"}
-                onClick={() => {
-                  if (active) {
-                    if (complimentary) return
-                    trackUmami("subscription_cancel_intent")
-                    hapticTap()
-                    setConfirmCancel(true)
-                    return
-                  }
-                  void runBillingAction("purchase", () =>
-                    billing.purchaseMonthly("settings")
-                  )
-                }}
-                className={cn(
-                  "profile-pro-primary-action",
-                  active && "profile-pro-management-action"
-                )}
-              >
-                {action === "purchase"
-                  ? "Starting checkout..."
-                  : active
-                    ? complimentary
-                      ? "Pro included"
-                      : action === "cancel"
-                        ? "Opening..."
-                        : "Manage subscription"
-                    : billing.canPurchase
-                      ? "Upgrade to Pro"
-                      : "Upgrade unavailable"}
-              </button>
-            )}
-
-            <div className="profile-pro-secondary-actions">
-              <button
-                type="button"
-                disabled={disabled}
-                aria-busy={action === "refresh"}
-                aria-label={
-                  subscriptionDiagnostic.canRetry
-                    ? "Check subscription status again"
-                    : "Refresh subscription status"
-                }
-                onClick={() =>
-                  void runBillingAction(
-                    "refresh",
-                    billing.refresh,
-                    "Subscription refreshed"
-                  )
-                }
-                className="profile-pro-secondary-action"
-              >
-                <ArrowsClockwise
-                  size={15}
-                  weight="bold"
-                  aria-hidden
-                  className={action === "refresh" ? "animate-spin" : undefined}
-                />
-                {refreshLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {confirmCancel && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 px-4"
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby="cancel-subscription-title"
-          aria-describedby="cancel-subscription-description"
-          onClick={() => {
-            if (!canceling) setConfirmCancel(false)
-          }}
-        >
-          <div
-            className="w-full max-w-sm rounded-[0.75rem] border border-border bg-card p-5 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="cancel-subscription-title" className="native-section-title">
-              Manage your subscription
-            </h3>
-            <p
-              id="cancel-subscription-description"
-              className="native-row-detail mt-2"
-            >
-              We’ll open Stripe, where you can change your plan, update your
-              payment method, download invoices, or cancel.
-            </p>
-            <div className="mt-4 grid gap-2">
-              <button
-                ref={cancelButtonRef}
-                type="button"
-                disabled={canceling}
-                aria-busy={canceling}
-                onClick={() =>
-                  void runBillingAction(
-                    "cancel",
-                    async () => {
-                      const result = await billing.openBillingManagement()
-                      setConfirmCancel(false)
-                      return result
-                    },
-                    undefined
-                  )
-                }
-                className="min-h-11 rounded-[0.65rem] bg-foreground px-3 text-[15px] font-semibold text-background disabled:opacity-50"
-              >
-                {canceling ? "Opening..." : "Continue to Stripe"}
-              </button>
-              <button
-                type="button"
-                disabled={canceling}
-                onClick={() => setConfirmCancel(false)}
-                className="min-h-11 rounded-[0.65rem] bg-muted px-3 text-[15px] font-semibold text-foreground"
-              >
-                Not now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  )
-}

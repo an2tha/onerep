@@ -1,0 +1,6 @@
+# Paths stripped from the public GitHub mirror by scripts/publish-github.sh.
+# One repo-relative path per line; blank lines and #-comments are skipped.
+# These exist in the internal repo's history — which is exactly why the mirror
+# gets a generated history instead of this one.
+convex/billing/_private
+apps/mobile/src/components/billing/_private

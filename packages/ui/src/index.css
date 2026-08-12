@@ -6926,8 +6926,70 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* ── Nutrition receipt ─────────────────────────────────────────────────────
+   The report renders as a thermal receipt: monospace, black on white,
+   dashed tear lines, everything uppercase. Same artefact on screen and on
+   paper, so what you print is exactly what you saw. */
+.nutrition-receipt {
+  font-family:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  background: #fff;
+  color: #000;
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+}
+
+.nutrition-receipt * {
+  color: #000;
+}
+
+.receipt-rule {
+  border: 0;
+  border-top: 1.5px dashed #000;
+  margin: 0;
+}
+
+.receipt-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.receipt-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.nutrition-receipt .print-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nutrition-receipt .print-table th,
+.nutrition-receipt .print-table td {
+  border: 0;
+  padding: 1px 0;
+}
+
+.receipt-barcode {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  height: 44px;
+}
+
+.receipt-barcode span {
+  background: #000;
+}
+
 /* ── Printable report ───────────────────────────────────────────────────────
-   The nutrition report is a normal page on screen and a clean document on
+   The nutrition report is a receipt on screen and the same receipt on
    paper: app chrome disappears, colours flatten to black on white, and
    sections are kept off page breaks. */
 @media print {
@@ -6991,6 +7053,28 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
   .print-table thead {
     display: table-header-group;
+  }
+
+  /* The receipt keeps its own look on paper: narrow, centred, no cell
+     borders — the dashed rules do the separating. */
+  .nutrition-receipt {
+    max-width: 96mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .nutrition-receipt .print-table th,
+  .nutrition-receipt .print-table td {
+    border: 0 !important;
+    padding: 1px 0;
+  }
+
+  .receipt-barcode span {
+    background: #000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 

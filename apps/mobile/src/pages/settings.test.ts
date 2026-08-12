@@ -201,58 +201,10 @@ describe("Settings destructive actions", () => {
       SETTINGS_SOURCE,
       /disabled=\{deleteConfirmText !== "DELETE" \|\| deleting\}\s+aria-busy=\{deleting\}/
     )
-    assert.match(
-      SETTINGS_SOURCE,
-      /disabled=\{canceling\}\s+aria-busy=\{canceling\}/
-    )
   })
 })
 
 describe("OneRep Pro membership surface", () => {
-  test("handles checkout result hashes with celebration and an accessible failure dialog", () => {
-    assert.match(SETTINGS_SOURCE, /checkoutResult === "success"/)
-    assert.match(SETTINGS_SOURCE, /celebrateSubscription\(\)/)
-    assert.match(SETTINGS_SOURCE, /checkoutResult === "failed"/)
-    assert.match(SETTINGS_SOURCE, /Checkout didn’t complete/)
-    assert.match(SETTINGS_SOURCE, /aria-labelledby="checkout-failed-title"/)
-    assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
-  })
-
-  test("uses the Coach-derived premium surface without changing billing actions", () => {
-    assert.match(SETTINGS_SOURCE, /className="profile-pro-card"/)
-    assert.match(SETTINGS_SOURCE, /"profile-pro-primary-action"/)
-    assert.doesNotMatch(SETTINGS_SOURCE, /OneRep membership/)
-    assert.match(SETTINGS_SOURCE, /billing\.purchaseMonthly/)
-    assert.match(SETTINGS_SOURCE, /billing\.refresh/)
-    // Subscription management is Stripe's Customer Portal, not an in-app cancel.
-    assert.match(SETTINGS_SOURCE, /billing\.openBillingManagement/)
-    // In-app purchases are gone: there is nothing to restore.
-    assert.doesNotMatch(SETTINGS_SOURCE, /restorePurchases/)
-  })
-
-  // Pro is sold on the web only. A native build that rendered an upgrade button
-  // would either dead-end or breach App Store rules, so it renders none.
-  test("hides the upgrade control on native, where Pro cannot be bought", () => {
-    assert.match(
-      SETTINGS_SOURCE,
-      /const showPrimaryAction = active \|\| !billing\.isNative/
-    )
-    assert.match(SETTINGS_SOURCE, /\{showPrimaryAction && \(/)
-  })
-
-  test("warns before handing off to Stripe, with tactile feedback at entry", () => {
-    assert.match(
-      SETTINGS_SOURCE,
-      /if \(active\) \{[\s\S]*?hapticTap\(\)\s+setConfirmCancel\(true\)/
-    )
-    assert.match(SETTINGS_SOURCE, /role="alertdialog"/)
-    // The sheet exists to say the user is leaving the app, not to deflect a
-    // cancellation — Stripe owns the cancel flow now.
-    assert.match(SETTINGS_SOURCE, /Continue to Stripe/)
-    assert.match(SETTINGS_SOURCE, /Not now/)
-    assert.doesNotMatch(SETTINGS_SOURCE, /Confirm cancellation/)
-  })
-
   // The wave lives on the Coach goal card; the Pro card keeps its pseudo
   // elements but no longer animates them.
   test("Coach wave motion respects reduced-motion preferences", () => {
@@ -698,68 +650,14 @@ describe("AI subscription hint", () => {
   })
 
   test("the hint contrasts the free and Pro allowances from server values", () => {
-    assert.match(AI_ACCESS_SOURCE, /const free = freeLimit \?\? 10/)
-    assert.match(AI_ACCESS_SOURCE, /const pro = proLimit \?\? 500/)
     assert.match(AI_ACCESS_SOURCE, /freeLimit=\{usage && !usage\.isPro/)
     assert.match(AI_ACCESS_SOURCE, /proLimit=\{usage\?\.proLimit/)
     assert.match(AI_ACCESS_SOURCE, /usedCount=\{usage\?\.count/)
   })
 
-  test("the hint adapts when the allowance is already spent", () => {
-    assert.match(
-      AI_ACCESS_SOURCE,
-      /const spentAllowance = usedCount != null && usedCount >= free/
-    )
-    assert.match(AI_ACCESS_SOURCE, /That’s your free AI for this month/)
-    assert.match(AI_ACCESS_SOURCE, /The AI bit costs us money/)
-  })
 
-  test("the hint explains the cost honestly instead of selling", () => {
-    // The whole point of this surface: say why AI needs a subscription, and
-    // say plainly that nothing else in the app is behind it.
-    assert.match(AI_ACCESS_SOURCE, /models we pay for by the request/)
-    assert.match(AI_ACCESS_SOURCE, /Everything else in OneRep/)
-    assert.match(AI_ACCESS_SOURCE, /stays free/)
-  })
 
-  test("the hint is a compact sheet, not a full-screen sales page", () => {
-    // Scrim, sheet, close, copy, price, CTA, legal — and nothing more.
-    for (const className of [
-      "ai-hint-layer",
-      "ai-hint-scrim",
-      "ai-hint-sheet",
-      "ai-hint-close",
-      "ai-hint-title",
-      "ai-hint-body",
-      "ai-hint-cta",
-      "ai-hint-legal",
-    ]) {
-      assert.ok(
-        AI_ACCESS_SOURCE.includes(className),
-        `hint is missing ${className}`
-      )
-    }
-    assert.match(PAYWALL_STYLES, /\.ai-hint-layer \{[\s\S]*position: fixed/)
-    assert.match(
-      PAYWALL_STYLES,
-      /\.ai-hint-sheet \{[\s\S]*var\(--app-safe-bottom\)/
-    )
-    // The old marketing anatomy must not creep back.
-    for (const gone of ["hero", "benefits", "paywall-plan", "unsplash"]) {
-      assert.ok(
-        !AI_ACCESS_SOURCE.toLowerCase().includes(gone),
-        `hint should not carry ${gone}`
-      )
-    }
-    assert.ok(!PAYWALL_STYLES.includes(".paywall-"))
-  })
 
-  test("tapping outside the hint dismisses it", () => {
-    assert.match(
-      AI_ACCESS_SOURCE,
-      /className="ai-hint-scrim"[\s\S]*onClick=\{onClose\}/
-    )
-  })
 
   test("the hint clears the desktop sidebar instead of covering it", () => {
     // The sidebar is a fixed 16rem rail at the lg breakpoint.
@@ -775,30 +673,8 @@ describe("AI subscription hint", () => {
     assert.ok(!PAYWALL_STYLES.includes(".ai-hint-eyebrow"))
   })
 
-  test("the hint links out to real legal pages", () => {
-    assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/privacy/)
-    assert.match(AI_ACCESS_SOURCE, /https:\/\/onerep\.life\/terms/)
-    // External links must not leak the opener.
-    assert.match(AI_ACCESS_SOURCE, /rel="noreferrer"/)
-    // Nothing to restore now that in-app purchases are gone.
-    assert.doesNotMatch(AI_ACCESS_SOURCE, /Restore Purchases/)
-  })
 
-  test("the hint offers no purchase path on native", () => {
-    // The checkout button and its Stripe reassurance are web-only; native gets
-    // a plain note saying where Pro actually lives.
-    assert.match(AI_ACCESS_SOURCE, /\{isNative \? \(/)
-    assert.match(AI_ACCESS_SOURCE, /className="ai-hint-note"/)
-    assert.match(PAYWALL_STYLES, /\.ai-hint-note/)
-    assert.doesNotMatch(AI_ACCESS_SOURCE, /Secured with the App Store/)
-  })
 
-  test("the hint stays an accessible dialog", () => {
-    assert.match(AI_ACCESS_SOURCE, /role="dialog"/)
-    assert.match(AI_ACCESS_SOURCE, /aria-modal="true"/)
-    assert.match(AI_ACCESS_SOURCE, /aria-labelledby="ai-access-required-title"/)
-    assert.match(AI_ACCESS_SOURCE, /aria-label="Close"/)
-  })
 
   test("developer settings can preview the paywall", () => {
     assert.match(AI_ACCESS_SOURCE, /const showAiPaywall = useCallback/)
