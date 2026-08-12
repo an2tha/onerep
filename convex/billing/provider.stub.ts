@@ -1,0 +1,45 @@
+import type { BillingProvider } from "./providerTypes";
+
+/**
+ * The billing provider that ships with the open repository.
+ *
+ * It implements the full `BillingProvider` interface and does exactly nothing
+ * with it: checkout and management throw, webhooks fail verification, and
+ * refresh reports that there was nothing to refresh. Every other part of the
+ * billing system — entitlement rollups, the schema, the client hooks — works
+ * unchanged; there is simply no way to create a paid subscription through this
+ * build. Set `BILLING_COMP_ALL_USERS=true` if you want every account treated
+ * as Pro, which is what a self-hosted deployment almost certainly wants
+ * anyway.
+ *
+ * `scripts/ensure-billing-provider.mjs` copies this file to
+ * `convex/billing/provider.ts` when no provider is present.
+ */
+
+const NOT_AVAILABLE =
+  "Billing is not available in this build. Set BILLING_COMP_ALL_USERS=true to comp Pro access instead.";
+
+export const provider: BillingProvider = {
+  async createCheckoutSession() {
+    throw new Error(NOT_AVAILABLE);
+  },
+
+  async createPortalSession() {
+    throw new Error(NOT_AVAILABLE);
+  },
+
+  async cancelSubscription() {
+    throw new Error(NOT_AVAILABLE);
+  },
+
+  async refreshSubscription() {
+    return { stored: false as const, reason: "billing-disabled" };
+  },
+
+  async handleWebhook() {
+    return {
+      verified: false as const,
+      message: "Billing webhooks are not handled in this build",
+    };
+  },
+};

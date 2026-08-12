@@ -29,6 +29,13 @@ import {
   shareOrDownloadJsonExport,
 } from "@/lib/data-export"
 
+// Decorative bar widths for the receipt footer. It scans as a barcode and
+// encodes nothing.
+const RECEIPT_BARCODE = [
+  3, 1, 2, 1, 1, 3, 1, 2, 4, 1, 1, 2, 1, 3, 1, 1, 2, 4, 1, 2, 1, 1, 3, 1, 2,
+  1, 4, 1, 1, 3,
+]
+
 export default function NutritionReport() {
   const navigate = useSmoothNavigate()
   const today = currentDateKey()
@@ -140,6 +147,12 @@ export default function NutritionReport() {
     (key) => (report.micros[key] ?? 0) > 0
   )
 
+  const goalPercent = report.goals?.calories
+    ? Math.round(
+        (report.averagesPerLoggedDay.calories / report.goals.calories) * 100
+      )
+    : null
+
   return (
     <div className="native-page print-sheet mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
       <div className="print-hidden">
@@ -219,110 +232,53 @@ export default function NutritionReport() {
           Building your report…
         </p>
       ) : (
-        <article className="motion-content-in px-[var(--app-page-x)] pb-8">
-          <header className="print-block border-b border-border pb-3">
-            <h1 className="text-[22px] font-semibold">Nutrition report</h1>
-            <p className="native-row-detail mt-1">
-              {formatReportRangeLabel(report.start, report.end)} ·{" "}
+        <article className="nutrition-receipt motion-content-in mx-[var(--app-page-x)] mb-8 rounded-[3px] px-5 py-8 shadow-lg">
+          <header className="print-block text-center">
+            <p className="text-[11px] tracking-[0.3em]">OneRep</p>
+            <h1 className="receipt-title mt-5">Nutrition receipt</h1>
+            <p className="mt-5">
+              {formatReportRangeLabel(report.start, report.end)}
+              <br />
               {report.daysLogged} of {report.daysInRange} days logged (
               {Math.round(report.loggingRate * 100)}%)
             </p>
           </header>
 
-          <section className="print-block pt-4" aria-label="Daily averages">
-            <h2 className="native-section-title">Daily averages</h2>
-            <p className="native-row-detail mt-1">
-              Across the {report.daysLogged} logged day
-              {report.daysLogged === 1 ? "" : "s"}.
-            </p>
-            <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums">
-              {(
-                [
-                  ["Calories", `${report.averagesPerLoggedDay.calories} kcal`],
-                  ["Protein", `${report.averagesPerLoggedDay.protein} g`],
-                  [
-                    carbLabel(carbMode),
-                    `${
-                      carbMode === "net"
-                        ? report.averagesPerLoggedDay.netCarbs
-                        : report.averagesPerLoggedDay.carbs
-                    } g`,
-                  ],
-                  ["Fat", `${report.averagesPerLoggedDay.fat} g`],
-                ] as const
-              ).map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-3">
-                  <dt className="native-row-detail">{label}</dt>
-                  <dd className="native-row-title">{value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="native-row-detail mt-2">
-              Energy split: protein {report.macroSplit.protein}%, carbs{" "}
-              {report.macroSplit.carbs}%, fat {report.macroSplit.fat}%.
-            </p>
-          </section>
-
-          {report.goals?.calories ? (
-            <section className="print-block pt-5" aria-label="Goal adherence">
-              <h2 className="native-section-title">Against goal</h2>
-              <p className="native-row-detail mt-1 tabular-nums">
-                Goal {report.goals.calories} kcal · {report.goals.protein} g
-                protein ·{" "}
-                {displayCarbGoal(
-                  report.goals.carbs ?? 0,
-                  goals?.health?.fiber,
-                  carbMode
-                )}{" "}
-                g {carbLabelLower(carbMode)} · {report.goals.fat} g fat
-              </p>
-              {report.goalAdherence && (
-                <p className="native-row-detail mt-1 tabular-nums">
-                  {report.goalAdherence.daysOnTarget} day
-                  {report.goalAdherence.daysOnTarget === 1 ? "" : "s"} within
-                  10% of target · {report.goalAdherence.daysUnder} under ·{" "}
-                  {report.goalAdherence.daysOver} over · average deviation{" "}
-                  {report.goalAdherence.averageDeviation}%
-                </p>
-              )}
-            </section>
-          ) : null}
-
-          <section className="print-block pt-5" aria-label="Daily totals">
-            <h2 className="native-section-title">Day by day</h2>
-            <table className="print-table mt-2 w-full text-[13px] tabular-nums">
+          <section className="print-block mt-5" aria-label="Daily totals">
+            <hr className="receipt-rule" aria-hidden />
+            <table className="print-table my-2">
               <thead>
-                <tr className="border-b border-border text-left">
-                  <th scope="col" className="py-1 font-semibold">
-                    Date
+                <tr className="text-left">
+                  <th scope="col" className="font-bold">
+                    Day
                   </th>
-                  <th scope="col" className="py-1 text-right font-semibold">
+                  <th scope="col" className="text-right font-bold">
                     kcal
                   </th>
-                  <th scope="col" className="py-1 text-right font-semibold">
+                  <th scope="col" className="w-10 text-right font-bold">
                     P
                   </th>
-                  <th scope="col" className="py-1 text-right font-semibold">
+                  <th scope="col" className="w-10 text-right font-bold">
                     C
                   </th>
-                  <th scope="col" className="py-1 text-right font-semibold">
+                  <th scope="col" className="w-10 text-right font-bold">
                     F
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {report.days.map((day) => (
-                  <tr key={day.date} className="border-b border-border/60">
-                    <th scope="row" className="py-1 font-normal">
+                  <tr key={day.date}>
+                    <th scope="row" className="text-left font-normal">
                       {formatReportDate(day.date)}
                     </th>
-                    <td className="py-1 text-right">
+                    <td className="text-right">
                       {day.logged ? Math.round(day.totals.calories) : "—"}
                     </td>
-                    <td className="py-1 text-right">
+                    <td className="text-right">
                       {day.logged ? Math.round(day.totals.protein) : "—"}
                     </td>
-                    <td className="py-1 text-right">
+                    <td className="text-right">
                       {day.logged
                         ? Math.round(
                             carbMode === "net"
@@ -331,136 +287,186 @@ export default function NutritionReport() {
                           )
                         : "—"}
                     </td>
-                    <td className="py-1 text-right">
+                    <td className="text-right">
                       {day.logged ? Math.round(day.totals.fat) : "—"}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            <hr className="receipt-rule" aria-hidden />
           </section>
 
+          <section className="print-block mt-4" aria-label="Daily averages">
+            <div className="receipt-row font-bold">
+              <span>Avg kcal</span>
+              <span>
+                {report.averagesPerLoggedDay.calories}
+                {report.goals?.calories ? ` / ${report.goals.calories}` : ""}
+              </span>
+            </div>
+            <div className="receipt-row font-bold">
+              <span>Protein</span>
+              <span>
+                {report.averagesPerLoggedDay.protein}g
+                {report.goals?.protein ? ` / ${report.goals.protein}g` : ""}
+              </span>
+            </div>
+            <div className="receipt-row font-bold">
+              <span>{carbLabel(carbMode)}</span>
+              <span>
+                {carbMode === "net"
+                  ? report.averagesPerLoggedDay.netCarbs
+                  : report.averagesPerLoggedDay.carbs}
+                g
+                {report.goals?.carbs
+                  ? ` / ${displayCarbGoal(
+                      report.goals.carbs,
+                      goals?.health?.fiber,
+                      carbMode
+                    )}g`
+                  : ""}
+              </span>
+            </div>
+            <div className="receipt-row font-bold">
+              <span>Fat</span>
+              <span>
+                {report.averagesPerLoggedDay.fat}g
+                {report.goals?.fat ? ` / ${report.goals.fat}g` : ""}
+              </span>
+            </div>
+            <p className="mt-2">
+              Energy split: protein {report.macroSplit.protein}% · carbs{" "}
+              {report.macroSplit.carbs}% · fat {report.macroSplit.fat}%
+            </p>
+            {report.goalAdherence && (
+              <p>
+                {report.goalAdherence.daysOnTarget} day
+                {report.goalAdherence.daysOnTarget === 1 ? "" : "s"} within 10%
+                of target · {report.goalAdherence.daysUnder} under ·{" "}
+                {report.goalAdherence.daysOver} over · avg deviation{" "}
+                {report.goalAdherence.averageDeviation}%
+              </p>
+            )}
+          </section>
+
+          {goalPercent !== null && (
+            <p
+              className="print-block mt-5 text-center font-bold"
+              aria-label="Goal adherence"
+            >
+              — {goalPercent}% of daily goal —
+            </p>
+          )}
+
           {report.meals.length > 0 && (
-            <section className="print-block pt-5" aria-label="Meal breakdown">
-              <h2 className="native-section-title">
-                Where the calories came from
-              </h2>
-              <ul className="mt-2 space-y-1 tabular-nums">
-                {report.meals.map((meal) => (
-                  <li
-                    key={meal.meal}
-                    className="flex items-baseline justify-between gap-3"
-                  >
-                    <span className="native-row-title">{meal.label}</span>
-                    <span className="native-row-detail">
-                      {meal.totals.calories} kcal · {meal.shareOfCalories}%
-                      {/* Planned vs actual: the daily budget times the number
-                          of logged days is the fair comparison for a range. */}
-                      {mealTargetByMeal.has(meal.meal)
-                        ? ` · planned ${Math.round(
-                            (mealTargetByMeal.get(meal.meal) ?? 0) *
-                              report.daysLogged
-                          )} kcal`
-                        : ""}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            <section className="print-block mt-4" aria-label="Meal breakdown">
+              <hr className="receipt-rule mb-3" aria-hidden />
+              <h2 className="font-bold">By meal</h2>
+              {report.meals.map((meal) => (
+                <div key={meal.meal} className="receipt-row">
+                  <span>{meal.label}</span>
+                  <span>
+                    {meal.totals.calories} kcal · {meal.shareOfCalories}%
+                    {/* Planned vs actual: the daily budget times the number
+                        of logged days is the fair comparison for a range. */}
+                    {mealTargetByMeal.has(meal.meal)
+                      ? ` · plan ${Math.round(
+                          (mealTargetByMeal.get(meal.meal) ?? 0) *
+                            report.daysLogged
+                        )}`
+                      : ""}
+                  </span>
+                </div>
+              ))}
             </section>
           )}
 
           {microRows.length > 0 && (
             <section
-              className="print-block pt-5"
+              className="print-block mt-4"
               aria-label="Micronutrient averages"
             >
-              <h2 className="native-section-title">
-                Micronutrients per logged day
-              </h2>
-              <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 tabular-nums">
-                {microRows.map((key) => {
-                  const meta = CUSTOM_FOOD_NUTRIENT_LABELS[key]
-                  return (
-                    <li
-                      key={key}
-                      className="flex items-baseline justify-between gap-3"
-                    >
-                      <span className="native-row-detail">{meta.label}</span>
-                      <span className="native-row-title">
-                        {report.microAverages[key]} {meta.unit}
-                      </span>
-                    </li>
-                  )
-                })}
-              </ul>
+              <h2 className="font-bold">Micros / logged day</h2>
+              {microRows.map((key) => {
+                const meta = CUSTOM_FOOD_NUTRIENT_LABELS[key]
+                return (
+                  <div key={key} className="receipt-row">
+                    <span>{meta.label}</span>
+                    <span>
+                      {report.microAverages[key]} {meta.unit}
+                    </span>
+                  </div>
+                )
+              })}
             </section>
           )}
 
           {report.topFoods.length > 0 && (
-            <section
-              className="print-block pt-5"
-              aria-label="Most logged foods"
-            >
-              <h2 className="native-section-title">Most logged foods</h2>
-              <ul className="mt-2 space-y-1 tabular-nums">
-                {report.topFoods.map((food) => (
-                  <li
-                    key={food.name}
-                    className="flex items-baseline justify-between gap-3"
-                  >
-                    <span className="native-row-title truncate">
-                      {food.name}
-                    </span>
-                    <span className="native-row-detail shrink-0">
-                      ×{food.count} · {food.calories} kcal
-                    </span>
-                  </li>
-                ))}
-              </ul>
+            <section className="print-block mt-4" aria-label="Most logged foods">
+              <h2 className="font-bold">Most logged</h2>
+              {report.topFoods.map((food) => (
+                <div key={food.name} className="receipt-row">
+                  <span className="min-w-0 truncate">{food.name}</span>
+                  <span className="shrink-0">
+                    ×{food.count} · {food.calories} kcal
+                  </span>
+                </div>
+              ))}
             </section>
           )}
 
           {includeEntries && (
             <section
-              className="print-break-before pt-5"
+              className="print-break-before mt-4"
               aria-label="Full food diary"
             >
-              <h2 className="native-section-title">Full diary</h2>
+              <hr className="receipt-rule mb-3" aria-hidden />
+              <h2 className="font-bold">Full diary</h2>
               {report.days
                 .filter((day) => day.logged)
                 .map((day) => (
-                  <div key={day.date} className="print-block mt-3">
-                    <h3 className="native-row-title border-b border-border pb-1">
-                      {formatReportDate(day.date)}:{" "}
-                      {Math.round(day.totals.calories)} kcal
+                  <div key={day.date} className="print-block mt-2">
+                    <h3 className="receipt-row font-bold">
+                      <span>{formatReportDate(day.date)}</span>
+                      <span>{Math.round(day.totals.calories)} kcal</span>
                     </h3>
-                    <ul className="mt-1 space-y-0.5">
-                      {day.entries.map((entry, index) => (
-                        <li
-                          key={entry.id ?? `${day.date}-${index}`}
-                          className="flex items-baseline justify-between gap-3 text-[13px]"
-                        >
-                          <span className="min-w-0 truncate">
-                            {entry.name}
-                            {entry.servingLabel
-                              ? ` (${entry.servingLabel})`
-                              : ""}
-                          </span>
-                          <span className="native-row-detail shrink-0 tabular-nums">
-                            {Math.round(entry.calories)} kcal
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    {day.entries.map((entry, index) => (
+                      <div
+                        key={entry.id ?? `${day.date}-${index}`}
+                        className="receipt-row"
+                      >
+                        <span className="min-w-0 truncate">
+                          {entry.name}
+                          {entry.servingLabel ? ` (${entry.servingLabel})` : ""}
+                        </span>
+                        <span className="shrink-0">
+                          {Math.round(entry.calories)}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
             </section>
           )}
 
-          <footer className="print-block mt-6 border-t border-border pt-3">
-            <p className="native-row-detail">
-              Generated by OneRep on {formatReportDate(today)}. Figures come
-              from self-reported logs and are estimates.
+          <footer className="print-block mt-6 text-center">
+            <hr className="receipt-rule mb-5" aria-hidden />
+            <div className="receipt-barcode" aria-hidden>
+              {RECEIPT_BARCODE.map((width, index) => (
+                <span
+                  key={index}
+                  style={{
+                    width: `${width}px`,
+                    marginRight: index === RECEIPT_BARCODE.length - 1 ? 0 : 2,
+                  }}
+                />
+              ))}
+            </div>
+            <p className="mt-5 text-[11px] tracking-[0.3em]">OneRep</p>
+            <p className="mt-3 text-[10px] normal-case">
+              Generated on {formatReportDate(today)}. Figures come from
+              self-reported logs and are estimates.
             </p>
           </footer>
         </article>
