@@ -64,6 +64,15 @@ describe("@repo/ui package boundary", () => {
       // The panel itself is grouped-list primitives from @repo/ui.
       "api-keys-section.tsx",
       "auth-guard.tsx",
+      // The payment UI seam. index.tsx is a gitignored re-export swapped by
+      // scripts/ensure-billing-provider.mjs: private builds get the checkout
+      // in _private/payment-ui.tsx, open clones get a copy of index.stub.tsx.
+      // All of it is billing state, checkout flow, and platform gating —
+      // app-side by nature, drawn with @repo/ui primitives.
+      "billing/index.tsx",
+      "billing/index.stub.tsx",
+      "billing/types.ts",
+      "billing/_private/payment-ui.tsx",
       "auth-shell.tsx",
       "bottom-bar.tsx",
       // Convex writes and haptics behind the shared sheet and button
