@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import {
   action,
@@ -83,7 +83,7 @@ export const setKey = action({
     const userId = (await getAuthUser(ctx))._id;
     const key = args.key.trim();
     if (!key.startsWith("sk-or-")) {
-      throw new Error(
+      throw new ConvexError(
         "That doesn't look like an OpenRouter key (they start with sk-or-)",
       );
     }
@@ -92,10 +92,10 @@ export const setKey = action({
       headers: { Authorization: `Bearer ${key}` },
     });
     if (response.status === 401 || response.status === 403) {
-      throw new Error("OpenRouter rejected this key. Check it and try again.");
+      throw new ConvexError("This API key is invalid. Check it and try again.");
     }
     if (!response.ok) {
-      throw new Error(
+      throw new ConvexError(
         `Couldn't verify the key with OpenRouter (status ${response.status}). Try again in a moment.`,
       );
     }

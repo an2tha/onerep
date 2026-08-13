@@ -18,6 +18,7 @@ import {
   X,
 } from "@phosphor-icons/react"
 import { useAction, useMutation, useQuery } from "convex/react"
+import { ConvexError } from "convex/values"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import {
   registeredPushToken,
@@ -1346,9 +1347,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                           trackUmami("byok_key_saved")
                         } catch (error) {
                           toast.error(
-                            error instanceof Error
-                              ? error.message
-                              : "Couldn't verify the key"
+                            error instanceof ConvexError
+                              ? String(error.data)
+                              : "This API key is invalid. Check it and try again."
                           )
                         } finally {
                           setByokBusy(false)
