@@ -36,6 +36,7 @@ type Env = {
   readonly COACH_REVIEW_PRO_ONLY: string | undefined;
   readonly DATASOURCE_API_TOKEN: string | undefined;
   readonly DATASOURCE_URL: string | undefined;
+  readonly EMAIL_VERIFICATION_REQUIRED: string | undefined;
   readonly FCM_CLIENT_EMAIL: string | undefined;
   readonly FCM_PRIVATE_KEY: string | undefined;
   readonly FCM_PROJECT_ID: string | undefined;

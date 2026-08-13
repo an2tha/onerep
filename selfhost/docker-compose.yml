@@ -8,8 +8,8 @@
 #   app         The OneRep client (responsive web app / PWA), static files
 #
 # The marketing site and private billing are deliberately absent; this mirrors
-# scripts/public-exclude.txt. Billing is stubbed and BILLING_COMP_ALL_USERS
-# gives every account Pro, which is the self-hosting answer.
+# scripts/public-exclude.txt. Billing is stubbed and every account has Pro by
+# default, which is the self-hosting answer.
 #
 # Run ./install.sh instead of `docker compose up` the first time: the backend
 # needs an admin key generated and functions deployed before the app is useful.

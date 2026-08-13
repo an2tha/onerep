@@ -51,6 +51,12 @@ function optionalString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+// Verification is opt-in: a fresh deployment has no Resend key, and requiring
+// a verification email nobody can send would lock every new account out at
+// the door. Production sets EMAIL_VERIFICATION_REQUIRED=true.
+const emailVerificationRequired =
+  process.env.EMAIL_VERIFICATION_REQUIRED === "true";
+
 export const createAuth = (ctx: GenericCtx<DataModel>) => {
   const options = {
     appName: "OneRep",
@@ -60,7 +66,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: emailVerificationRequired,
       minPasswordLength: 8,
       resetPasswordTokenExpiresIn: 60 * 60,
       sendResetPassword: async ({ user, url }) => {
@@ -74,8 +80,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       revokeSessionsOnPasswordReset: true,
     },
     emailVerification: {
-      sendOnSignUp: true,
-      sendOnSignIn: true,
+      sendOnSignUp: emailVerificationRequired,
+      sendOnSignIn: emailVerificationRequired,
       expiresIn: 60 * 60,
       sendVerificationEmail: async ({ user, url }) => {
         await sendAuthEmail({
