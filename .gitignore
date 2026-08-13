@@ -53,6 +53,11 @@ apps/server/data/raw
 # Local test-account credentials (never commit)
 test-user.txt
 
+# Local-only operator scripts. These read .env.production and deploy straight to
+# production without touching CI, which is not something a checkout should be
+# able to do by itself.
+scripts/*.local.sh
+
 # Generated billing seam files. scripts/ensure-billing-provider.mjs copies the
 # checked-in stubs into place when these are missing; on machines with the
 # private implementations they point at _private/ instead. The _private/
