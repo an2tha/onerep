@@ -8,16 +8,16 @@ import type { BillingProvider } from "./providerTypes";
  * refresh reports that there was nothing to refresh. Every other part of the
  * billing system — entitlement rollups, the schema, the client hooks — works
  * unchanged; there is simply no way to create a paid subscription through this
- * build. Set `BILLING_COMP_ALL_USERS=true` if you want every account treated
- * as Pro, which is what a self-hosted deployment almost certainly wants
- * anyway.
+ * build. Every account is treated as Pro unless `BILLING_COMP_ALL_USERS` is
+ * explicitly set to `false` — so in practice, nobody ever sees these errors
+ * unless they went looking for them.
  *
  * `scripts/ensure-billing-provider.mjs` copies this file to
  * `convex/billing/provider.ts` when no provider is present.
  */
 
 const NOT_AVAILABLE =
-  "Billing is not available in this build. Set BILLING_COMP_ALL_USERS=true to comp Pro access instead.";
+  "Billing is not available in this build. Unset BILLING_COMP_ALL_USERS (or set it to true) and every account gets Pro instead.";
 
 export const provider: BillingProvider = {
   async createCheckoutSession() {

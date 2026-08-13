@@ -5,16 +5,17 @@ explains how entitlement works, what is and isn't in this repository, and what
 to do about it — which for most deployments is one environment variable and
 then never thinking about billing again.
 
-## The one-variable answer
+## The zero-variable answer
+
+Do nothing. Every signed-in account is treated as Pro by default: the paywall
+never renders, the subscription card in Settings shows a complimentary plan,
+and no payment code runs. If you are self-hosting for yourself, your family,
+or your gym, this is the whole document. The rest is for people who want to
+charge money — which starts with
 
 ```bash
-bunx convex env set BILLING_COMP_ALL_USERS true
+bunx convex env set BILLING_COMP_ALL_USERS false
 ```
-
-Every signed-in account is treated as Pro. The paywall never renders, the
-subscription card in Settings shows a complimentary plan, and no payment code
-runs. If you are self-hosting for yourself, your family, or your gym, this is
-the whole document. The rest is for people who want to charge money.
 
 ## How entitlement works
 
@@ -83,12 +84,12 @@ Design notes your implementation should respect, learned the usual way:
 
 ## Environment variables
 
-| Variable                                                                | Purpose                                                                                     |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `BILLING_COMP_ALL_USERS`                                                | `true` grants Pro to every account. Wins over lapsed real subscriptions.                    |
-| `BILLING_MONTHLY_PRICE_LABEL`                                           | The price string the client displays.                                                       |
-| `BILLING_CHECKOUT_SUCCESS_URL` / `..._CANCEL_URL`                       | Where checkout returns to. The app watches for `#success` / `#failed` on the Settings page. |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_MONTHLY` | Used only by a Stripe-backed provider; the stub ignores them.                               |
+| Variable                                                                | Purpose                                                                                                                                                   |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BILLING_COMP_ALL_USERS`                                                | Unset or `true`: every account has Pro (the default). `false`: entitlement comes from stored subscriptions. The comp wins over lapsed real subscriptions. |
+| `BILLING_MONTHLY_PRICE_LABEL`                                           | The price string the client displays.                                                                                                                     |
+| `BILLING_CHECKOUT_SUCCESS_URL` / `..._CANCEL_URL`                       | Where checkout returns to. The app watches for `#success` / `#failed` on the Settings page.                                                               |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID_MONTHLY` | Used only by a Stripe-backed provider; the stub ignores them.                                                                                             |
 
 All are Convex deployment variables. None are exposed to the client bundle.
 

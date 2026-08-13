@@ -19,11 +19,16 @@ import {
  * exactly the users a comp is meant to protect. A flag covers every account
  * with certainty, costs no writes, and is reverted by unsetting the variable.
  *
- * Note this also covers accounts created *after* it is set. Set it to `false`
- * or remove it to restore normal store-backed entitlement checks.
+ * Note this also covers accounts created *after* it is set.
+ *
+ * The comp is ON when the variable is unset. That is the right default for
+ * everyone who clones this repository: the payment provider here is a stub,
+ * so a deployment that never thinks about billing gets an app that simply
+ * works. A deployment that actually sells subscriptions is the special case,
+ * and it opts in to gating by setting `BILLING_COMP_ALL_USERS=false`.
  */
 export function isProCompedForEveryone() {
-  return env.BILLING_COMP_ALL_USERS === "true";
+  return env.BILLING_COMP_ALL_USERS !== "false";
 }
 
 /**

@@ -1,23 +1,104 @@
-# OneRep
+<a id="readme-top"></a>
 
-OneRep is a fitness app that keeps training, nutrition, recovery, and progress in one place. The main client runs as a responsive web app, installable PWA, and Capacitor app for iOS and Android. Convex handles the database, realtime sync, authentication, scheduled work, and server-side integrations.
+<!-- PROJECT SHIELDS -->
 
-The production app lives at [app.onerep.life](https://app.onerep.life). The marketing site is [onerep.life](https://onerep.life).
+[![Contributors][contributors-shield]][contributors-url]
+[![Forks][forks-shield]][forks-url]
+[![Stargazers][stars-shield]][stars-url]
+[![Issues][issues-shield]][issues-url]
+[![License: PolyForm Noncommercial][license-shield]][license-url]
 
-## What is implemented
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://app.onerep.life">
+    <img src="apps/mobile/public/app-icon.svg" alt="OneRep" width="80" height="80">
+  </a>
 
-- **Daily dashboard:** calorie and macro targets, meals, water, supplements, scheduled training, Coach goals, and configurable widgets.
-- **Training:** exercise catalog, workout templates, weekly routines, two concurrent workout slots, rest timers, persisted active workouts, history, volume trends, and muscle-recovery estimates.
-- **Nutrition:** self-hosted USDA food search and nutrition details, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water, and supplement schedules.
-- **Progress:** body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, and user-defined metrics.
-- **Coach:** text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Generated changes are reviewed before they are applied when confirmation is required.
-- **Photo logging:** food detection through OpenRouter and its selected model provider, followed by a review step that matches detections to food records before logging them.
-- **Cross-platform support:** PWA updates, an offline mutation queue for common logging actions, Capacitor camera/haptics/notifications, and iOS widgets and Live Activities.
-- **Accounts and privacy:** Better Auth email/password accounts, email verification and password reset through Resend, analytics opt-in, data export, and account deletion.
+<h3 align="center">OneRep</h3>
 
-AI, food lookup, email, analytics, and subscriptions depend on their corresponding environment variables. The rest of the app can be developed without every optional integration configured.
+  <p align="center">
+    Training, nutrition, recovery, and progress in one place — with an AI coach that does the bookkeeping.
+    <br />
+    <a href="docs/architecture.md"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="https://app.onerep.life">Use the app</a>
+    &middot;
+    <a href="https://github.com/an2tha/onerep/issues/new?labels=bug">Report Bug</a>
+    &middot;
+    <a href="https://github.com/an2tha/onerep/issues/new?labels=enhancement">Request Feature</a>
+  </p>
+</div>
 
-## Repository layout
+> **Support the project:** OneRep has no investors, no ads, and no plan to acquire either. Development is funded by one thing — [the paid tier on the production app](https://app.onerep.life). If this code is useful to you, a subscription helps more than any number of stars. Stars are also nice.
+
+<!-- TABLE OF CONTENTS -->
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#about-the-project">About The Project</a>
+      <ul>
+        <li><a href="#built-with">Built With</a></li>
+        <li><a href="#repository-layout">Repository Layout</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+        <li><a href="#optional-integrations">Optional Integrations</a></li>
+      </ul>
+    </li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#documentation">Documentation</a></li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
+
+<!-- ABOUT THE PROJECT -->
+
+## About The Project
+
+OneRep is a fitness app that keeps training, nutrition, recovery, and progress in one place. One React codebase ships as a responsive web app, an installable PWA, and Capacitor apps for iOS and Android. Convex handles the database, realtime sync, authentication, scheduled work, and every server-side integration.
+
+The production app lives at [app.onerep.life](https://app.onerep.life).
+
+What's implemented, in the order you'd hit it:
+
+- **Daily dashboard** — calorie and macro targets, meals, water, supplements, scheduled training, Coach goals, configurable widgets.
+- **Training** — exercise catalog, workout templates, weekly routines, two concurrent workout slots, rest timers, persisted active workouts, history, volume trends, muscle-recovery estimates.
+- **Nutrition** — self-hosted USDA food search, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water and supplement schedules.
+- **Progress** — body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, user-defined metrics.
+- **Coach** — text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations — every AI write carries an undo payload.
+- **Photo logging** — food detection with a review step that matches detections to food records before anything is logged.
+- **Your data, over the wire** — a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
+- **Accounts and privacy** — email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
+
+AI, food lookup, email, and analytics each switch on with their own environment variables; the rest of the app develops fine without any of them. Payments are behind a seam and stubbed in this repository — see [`docs/billing.md`](docs/billing.md) for why that's a feature.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Built With
+
+- [![Bun][Bun-badge]][Bun-url]
+- [![React][React-badge]][React-url]
+- [![TypeScript][TS-badge]][TS-url]
+- [![Vite][Vite-badge]][Vite-url]
+- [![Tailwind CSS][Tailwind-badge]][Tailwind-url]
+- [![Convex][Convex-badge]][Convex-url]
+- [![Capacitor][Capacitor-badge]][Capacitor-url]
+- [![Turborepo][Turbo-badge]][Turbo-url]
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Repository Layout
 
 ```text
 .
@@ -32,7 +113,121 @@ AI, food lookup, email, analytics, and subscriptions depend on their correspondi
 └── docs/             # Architecture, billing, testing, API, and feature docs
 ```
 
-The marketing site (`apps/web`) is developed internally and is not part of this repository's published tree; nothing in the app depends on it.
+The mobile app talks directly to Convex; there is no API server in the middle. Secrets stay in the Convex deployment and are never exposed as `VITE_*` variables. `@repo/ui` is the presentation boundary — it renders props and raises callbacks, and does not know Convex exists.
+
+This repository is a one-way mirror of an internal OneDev instance: real commit history, minus the private payment implementations and the marketing site (`scripts/publish-github.sh` documents exactly which paths and why).
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- GETTING STARTED -->
+
+## Getting Started
+
+### Prerequisites
+
+- [Bun](https://bun.sh/) 1.3.4 or newer
+- Node.js 18 or newer, for the few Node-based scripts
+- A free [Convex](https://convex.dev/) account
+- Xcode or Android Studio, only if you're doing native work
+
+### Installation
+
+1. Clone and install:
+
+   ```sh
+   git clone https://github.com/an2tha/onerep.git
+   cd onerep
+   bun install
+   cp .env.example .env.local
+   ```
+
+2. Start Convex (keep it running while developing backend code):
+
+   ```sh
+   bunx convex dev
+   ```
+
+   The first run walks you through creating a development deployment and writes its URL into the local environment. The Vite app loads env files from the repository root, not from `apps/mobile`.
+
+3. Configure authentication. The client needs these in the root `.env.local`:
+
+   ```env
+   VITE_CONVEX_URL=https://your-deployment.convex.cloud
+   VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
+   ```
+
+   Better Auth runs inside Convex; give it a secret and the browser origin:
+
+   ```sh
+   bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
+   bunx convex env set SITE_URL http://localhost:5173
+   ```
+
+   Email verification is required for new accounts, so sign-up needs Resend:
+
+   ```sh
+   bunx convex env set RESEND_API_KEY your-key
+   bunx convex env set AUTH_EMAIL_FROM "OneRep <you@your-domain.example>"
+   ```
+
+4. Run it:
+
+   ```sh
+   bun run dev
+   ```
+
+   The app is at `http://localhost:5173`. For a quieter session, `cd apps/mobile && bun run dev`.
+
+5. That's it. Every account on your deployment has Pro by default — the paywall only exists when a deployment explicitly sets `BILLING_COMP_ALL_USERS=false` and wires up a real payment provider ([`docs/billing.md`](docs/billing.md)).
+
+### Optional Integrations
+
+Each of these switches on a feature and stays off without ceremony. Set backend secrets with `bunx convex env set NAME VALUE` — never behind a `VITE_` prefix.
+
+| Feature                  | Variables                                                       | Notes                                                                                                                           |
+| ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Food search & barcodes   | `DATASOURCE_URL`, `DATASOURCE_API_TOKEN`                        | Proxied through Convex to [`apps/datasource`](apps/datasource/README.md), with a server-side cache.                             |
+| AI Coach & photo logging | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`                        | AI fails closed without the key. Prompts are YAML under `convex/ai/prompts/`; run `bun run prompts:generate` after editing one. |
+| Google sign-in           | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                      | Redirect URI: `https://your-deployment.convex.site/api/auth/callback/google`. The button only renders once both are set.        |
+| Analytics                | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`, `VITE_PUBLIC_POSTHOG_HOST` | Client-visible, root `.env.local`. Opt-out by default; captures nothing until the user enables it.                              |
+| Payments                 | see [`docs/billing.md`](docs/billing.md)                        | Stubbed in this repository. `BILLING_COMP_ALL_USERS=true` is the self-hosting answer.                                           |
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- USAGE -->
+
+## Usage
+
+The commands you'll actually run:
+
+| Command                     | What it does                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------- |
+| `bun run dev`               | Run all workspace development tasks                                                                |
+| `bun run build`             | Check generated prompts, type-check, and build the workspaces                                      |
+| `bun run typecheck`         | Check generated prompts and TypeScript                                                             |
+| `bun run lint`              | Run workspace linters                                                                              |
+| `bun run test`              | Run package tests and the focused Convex unit suite                                                |
+| `bun run test:convex`       | Run the full Convex integration suite (the one that knows the most)                                |
+| `bun run prompts:generate`  | Regenerate `convex/ai/prompts.generated.ts`                                                        |
+| `bun run exercises:prepare` | Build the compact exercise import file                                                             |
+| `bun run exercises:import`  | Replace the selected deployment's exercise catalog (`--replace` — check `CONVEX_DEPLOYMENT` first) |
+
+The exercise catalog comes from [free-exercise-db](https://github.com/yuhonas/free-exercise-db); only compact metadata is imported.
+
+For native builds, build the web assets before syncing Capacitor:
+
+```sh
+cd apps/mobile
+bun run build
+bunx cap sync
+bunx cap open ios   # or android
+```
+
+Production mobile builds refuse placeholder or development Convex URLs by design.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- DOCUMENTATION -->
 
 ## Documentation
 
@@ -44,245 +239,90 @@ The marketing site (`apps/web`) is developed internally and is not part of this 
 - [`docs/coach-features.md`](docs/coach-features.md) / [`docs/ai-upgrade.md`](docs/ai-upgrade.md) — what the Coach does and what it still owes us
 - [`docs/backlog.md`](docs/backlog.md) — known debts, kept short on purpose
 
-The mobile app talks directly to Convex. Datasource, OpenRouter, Resend, and billing secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-`@repo/ui` is the presentation boundary: it owns primitives and reusable presenters, while `apps/mobile` owns routing, Convex calls, authentication, platform APIs, storage, and feature state. See [`packages/ui/README.md`](packages/ui/README.md) before adding shared UI.
+<!-- ROADMAP -->
 
-## Stack
+## Roadmap
 
-- Bun workspaces and Turborepo
-- React 19, TypeScript, React Router 7, Vite 7
-- Tailwind CSS 4, Radix/Base UI, shadcn-style components, Framer Motion
-- Convex with Better Auth and Convex crons
-- Capacitor 8 for iOS and Android
-- Bun's server and bundler for the marketing site
-- Bun Test, Vitest/convex-test, and Playwright
+- [ ] A Coach with initiative — briefings and check-ins that arrive without being summoned
+- [ ] A real progression engine: deloads, periodization, adaptation from logged results
+- [ ] Turning on the ~130 Convex test blocks that currently assert nothing (see the backlog; it's a story)
+- [ ] Android parity for the iOS widgets and Live Activities
 
-## Local development
+The longer, more honest versions live in [`docs/ai-upgrade.md`](docs/ai-upgrade.md) and [`docs/backlog.md`](docs/backlog.md). See the [open issues](https://github.com/an2tha/onerep/issues) for everything else.
 
-### Prerequisites
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-- [Bun](https://bun.sh/) 1.3.4 or newer
-- Node.js 18 or newer for the few Node-based scripts
-- A [Convex](https://convex.dev/) account
-- Xcode for iOS work or Android Studio for Android work
+<!-- CONTRIBUTING -->
 
-Docker is not required for the current app. Food search runs through Convex against `apps/datasource`, a self-hosted Bun service backed by USDA FoodData Central.
+## Contributing
 
-### 1. Install dependencies
+Contributions are welcome, with one logistical honesty: this repository is a mirror, so pull requests aren't merged here — they're reviewed here, applied to the internal repository, and flow back out in the next sync with your authorship preserved in the replayed commit.
 
-```bash
-bun install
-cp .env.example .env.local
-```
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Run the honest minimum before pushing: `bun run typecheck && bun run test && bun run test:convex`
+4. Push and open a pull request
 
-The Vite app loads environment files from the repository root, not from `apps/mobile`.
+Read [`docs/testing.md`](docs/testing.md) first — this codebase has source-contract tests that assert the actual words on the screen, and they will find you.
 
-### 2. Start Convex
+By submitting a contribution you agree it may be used in the Software under the project license and in the official OneRep deployment, which is a commercial service. Your authorship stays in the history either way.
 
-```bash
-bunx convex dev
-```
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-On the first run, follow the Convex setup prompt. It creates or selects a development deployment, updates the generated client files, and writes the deployment URL to the local environment.
+<!-- LICENSE -->
 
-Keep this command running while working on backend code.
+## License
 
-### 3. Configure authentication
+Licensed under the [PolyForm Strict License 1.0.0](LICENSE.md)
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-At minimum, the client needs these values in the root `.env.local`:
+<!-- CONTACT -->
 
-```env
-VITE_CONVEX_URL=https://your-deployment.convex.cloud
-VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
-```
+## Contact
 
-Better Auth runs inside Convex. Set its secret and the browser origin on the development deployment:
+OneRep — [support@onerep.life](mailto:support@onerep.life)
 
-```bash
-bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-bunx convex env set SITE_URL http://localhost:5173
-```
+Project link: [https://github.com/an2tha/onerep](https://github.com/an2tha/onerep)
 
-Email verification is required for new accounts, so sign-up and password-reset flows also need Resend:
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-```bash
-bunx convex env set RESEND_API_KEY your-key
-bunx convex env set AUTH_EMAIL_FROM "OneRep <you@your-domain.example>"
-```
+<!-- ACKNOWLEDGMENTS -->
 
-`AUTH_EMAIL_LOGO_URL` is optional. Convex provides its deployment HTTP URL as `CONVEX_SITE_URL`; the client-facing value must match it.
+## Acknowledgments
 
-Google sign-in is optional. Create an OAuth client (type "Web application") in the Google Cloud console, add `https://your-deployment.convex.site/api/auth/callback/google` as an authorized redirect URI, then set:
+- [free-exercise-db](https://github.com/yuhonas/free-exercise-db) — the exercise catalog
+- [USDA FoodData Central](https://fdc.nal.usda.gov/) — the food data
+- [wger](https://wger.de/) — exercise data served by the datasource
+- [Convex](https://convex.dev/), [Better Auth](https://better-auth.com/), and [shadcn/ui](https://ui.shadcn.com/) — the load-bearing walls
+- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) — this README's skeleton
 
-```bash
-bunx convex env set GOOGLE_CLIENT_ID your-client-id
-bunx convex env set GOOGLE_CLIENT_SECRET your-client-secret
-```
+<!-- MARKDOWN LINKS & IMAGES -->
 
-The "Continue with Google" button only renders once both are set. A Google login on an address that already has a password account links to that account rather than creating a second one. The Capacitor builds still hide the button, because Google refuses OAuth inside an embedded webview.
-
-### 4. Run the app
-
-Run every workspace development task:
-
-```bash
-bun run dev
-```
-
-This starts the app at `http://localhost:5173`. For a quieter mobile-only session:
-
-```bash
-cd apps/mobile
-bun run dev
-```
-
-Convex still runs in its own terminal.
-
-## Integrations
-
-Set backend secrets with `bunx convex env set NAME VALUE`. Do not put them behind a `VITE_` prefix.
-
-### Food search and barcodes
-
-```env
-DATASOURCE_URL=
-DATASOURCE_API_TOKEN=
-```
-
-Food search, details, and barcode requests pass through `convex/food/datasource.ts` to the self-hosted [`apps/datasource`](apps/datasource/README.md) service, which serves USDA FoodData Central over a Cloudflare tunnel. Responses are cached server-side for less than 24 hours and expired cache entries are removed.
-
-### AI Coach and photo logging
-
-```env
-OPENROUTER_API_KEY=
-OPENROUTER_MODEL=openai/gpt-5.6-luna
-```
-
-OneRep sends AI requests to OpenRouter, which routes them to the provider named
-by the provider-prefixed model ID (currently OpenAI). AI fails closed when the
-OpenRouter key is absent; a direct OpenAI key is never accepted as a fallback.
-Production also requires `AI_PROCESSOR_APPROVED=true`; leave it unset until the
-updated disclosure is published and processor-contract approval is complete.
-
-Prompts are source-controlled YAML files under `convex/ai/prompts/`. After editing one, regenerate the TypeScript bundle:
-
-```bash
-bun run prompts:generate
-```
-
-Builds, type checks, and tests fail if `convex/ai/prompts.generated.ts` is stale.
-
-### PostHog
-
-These are client-visible and belong in the root `.env.local`:
-
-```env
-VITE_PUBLIC_POSTHOG_PROJECT_TOKEN=
-VITE_PUBLIC_POSTHOG_HOST=
-```
-
-The app opts out by default and only captures events after the user enables analytics.
-
-### Subscriptions
-
-OneRep Pro is sold through Stripe Checkout on the web only — there is no in-app purchase path on iOS or Android, and the apps ship no store billing SDK. Convex owns entitlement and reads it back from Stripe's API and webhook.
-
-```env
-STRIPE_SECRET_KEY=
-STRIPE_WEBHOOK_SECRET=
-STRIPE_PRICE_ID_MONTHLY=
-BILLING_MONTHLY_PRICE_LABEL="$9.99/month"
-BILLING_CHECKOUT_SUCCESS_URL=https://app.onerep.life/settings#success
-BILLING_CHECKOUT_CANCEL_URL=https://app.onerep.life/settings#failed
-# Optional: grants Pro to every account, for testing or an incident comp.
-BILLING_COMP_ALL_USERS=
-```
-
-All of these are Convex deployment variables. Point the Stripe webhook at `/billing/stripe/webhook` on your Convex HTTP URL.
-
-In this repository the payment provider itself is a stub: checkout and subscription management report that billing is not available, and nothing else notices. A self-hosted deployment does not need any of the Stripe variables — set `BILLING_COMP_ALL_USERS=true` and every account is Pro. The seam, the stub, and what it takes to put a real provider behind it are documented in [`docs/billing.md`](docs/billing.md).
-
-## Native apps
-
-The native projects are checked in under `apps/mobile/ios` and `apps/mobile/android`. Build the web assets before syncing Capacitor:
-
-```bash
-cd apps/mobile
-bun run build
-bunx cap sync
-```
-
-Then open the platform project:
-
-```bash
-bunx cap open ios
-# or
-bunx cap open android
-```
-
-A production mobile build requires real `VITE_CONVEX_URL` and `VITE_CONVEX_SITE_URL` values. The Vite config rejects placeholder URLs and rejects development Convex deployments in production mode.
-
-## Exercise catalog
-
-The global catalog comes from [free-exercise-db](https://github.com/yuhonas/free-exercise-db). Only compact exercise metadata is imported; images are not stored in Convex.
-
-```bash
-# Write .cache/exercises/free-exercise-db.compact.json
-bun run exercises:prepare
-
-# Replace the exercises table in the selected Convex deployment
-bun run exercises:import
-```
-
-Check the selected `CONVEX_DEPLOYMENT` before running the import because it uses `--replace`.
-
-## Commands
-
-| Command                     | What it does                                                    |
-| --------------------------- | --------------------------------------------------------------- |
-| `bun run dev`               | Run all workspace development tasks                             |
-| `bun run build`             | Check generated prompts, type-check, and build the workspaces   |
-| `bun run typecheck`         | Check generated prompts and TypeScript                          |
-| `bun run lint`              | Run workspace linters                                           |
-| `bun run format`            | Format TypeScript, Markdown, JSON, and YAML                     |
-| `bun run test`              | Run package tests and the focused Convex unit suite             |
-| `bun run test:convex`       | Run the full Convex test suite with Vitest and `convex-test`    |
-| `bun run test:watch`        | Run Bun tests in watch mode, excluding Convex integration tests |
-| `bun run test:coverage`     | Run Bun tests with coverage                                     |
-| `bun run prompts:generate`  | Regenerate `convex/ai/prompts.generated.ts`                     |
-| `bun run prompts:check`     | Check that generated prompts are current                        |
-| `bun run exercises:prepare` | Build the compact exercise import file                          |
-| `bun run exercises:import`  | Replace the selected deployment's exercise catalog              |
-
-Visual regression tests live in the mobile workspace:
-
-```bash
-cd apps/mobile
-bun run test:visual
-```
-
-Authenticated screenshots require `E2E_STORAGE_STATE` to point to a signed-in Playwright storage-state file.
-
-## Deployment
-
-Development happens on an internal OneDev instance; this GitHub repository is a one-way mirror of it (real commits, minus a few private paths — see `scripts/publish-github.sh` for exactly which and why). Pushes to `main` internally trigger the `Deploy Cloudflare Pages` job in [`.onedev-buildspec.yml`](.onedev-buildspec.yml), which builds the static sites and deploys them to Cloudflare Pages. Add these secrets under the OneDev project's build settings before running it:
-
-- `TURBO_TOKEN`
-- `TURBO_TEAM`
-- `DEV_CONVEX_DEPLOYMENT`
-- `DEV_VITE_CONVEX_URL`
-- `DEV_VITE_CONVEX_SITE_URL`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-
-The job uses a sequential deployment group so two production deployments cannot run at the same time. It can also be started manually from any commit in OneDev. Convex deployment is managed separately; this job does not push backend functions or environment variables.
-
-Before opening a pull request, run:
-
-```bash
-bun run typecheck
-bun run test
-bun run test:convex
-bun run build
-```
+[contributors-shield]: https://img.shields.io/github/contributors/an2tha/onerep.svg?style=for-the-badge
+[contributors-url]: https://github.com/an2tha/onerep/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/an2tha/onerep.svg?style=for-the-badge
+[forks-url]: https://github.com/an2tha/onerep/network/members
+[stars-shield]: https://img.shields.io/github/stars/an2tha/onerep.svg?style=for-the-badge
+[stars-url]: https://github.com/an2tha/onerep/stargazers
+[issues-shield]: https://img.shields.io/github/issues/an2tha/onerep.svg?style=for-the-badge
+[issues-url]: https://github.com/an2tha/onerep/issues
+[license-shield]: https://img.shields.io/badge/License-PolyForm_Noncommercial_1.0.0-blue?style=for-the-badge
+[license-url]: LICENSE.md
+[Bun-badge]: https://img.shields.io/badge/Bun-000000?style=for-the-badge&logo=bun&logoColor=white
+[Bun-url]: https://bun.sh/
+[React-badge]: https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
+[React-url]: https://react.dev/
+[TS-badge]: https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white
+[TS-url]: https://www.typescriptlang.org/
+[Vite-badge]: https://img.shields.io/badge/Vite_7-646CFF?style=for-the-badge&logo=vite&logoColor=white
+[Vite-url]: https://vite.dev/
+[Tailwind-badge]: https://img.shields.io/badge/Tailwind_4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white
+[Tailwind-url]: https://tailwindcss.com/
+[Convex-badge]: https://img.shields.io/badge/Convex-EE342F?style=for-the-badge
+[Convex-url]: https://convex.dev/
+[Capacitor-badge]: https://img.shields.io/badge/Capacitor_8-119EFF?style=for-the-badge&logo=capacitor&logoColor=white
+[Capacitor-url]: https://capacitorjs.com/
+[Turbo-badge]: https://img.shields.io/badge/Turborepo-EF4444?style=for-the-badge&logo=turborepo&logoColor=white
+[Turbo-url]: https://turbo.build/

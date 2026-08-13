@@ -1,6 +1,7 @@
 {
   "name": "onerep",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "billing:ensure": "node scripts/ensure-billing-provider.mjs",
     "build": "bun run billing:ensure && bun run prompts:check && turbo run build",
