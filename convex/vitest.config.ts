@@ -4,6 +4,10 @@ export default defineConfig({
   test: {
     include: ["convex/__tests__/*.convex.test.ts"],
     environment: "edge-runtime",
+    // Pro is comped for everyone when this variable is unset — the right
+    // default for a deployment, and the wrong one for these tests, which
+    // exist to prove the gating works when someone actually turns it on.
+    env: { BILLING_COMP_ALL_USERS: "false" },
     // Every file imports the whole `convex/**` graph through convex-test's
     // module glob. Isolating each file makes each one pay that import and
     // transform cost again, which on a shared CI box pushed the first test in
