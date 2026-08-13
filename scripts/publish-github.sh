@@ -1,106 +1,61 @@
 #!/usr/bin/env bash
 #
-# Publish the internal repo to the public GitHub mirror, one real commit at a
-# time.
+# Publish the internal repo to the public GitHub mirror with full history —
+# branches, merges, and all — minus the paths in scripts/public-exclude.txt.
 #
-# The mirror never shares object history with the internal repo. Instead,
-# every internal commit after $baseline is REPLAYED: its tracked tree is
-# exported (git archive — untracked local junk can't leak), the paths in
-# scripts/public-exclude.txt are deleted, and the result is committed with the
-# original message, author, and dates, plus an Internal-Source trailer that
-# records where to resume next run. Public history therefore looks like what
-# it is — real development — while structurally never containing a private
-# blob.
+# Each run makes a fresh local clone of main, runs git filter-repo to strip
+# the excluded paths from every commit, and pushes the result. filter-repo is
+# deterministic: unchanged history prefixes rewrite to identical hashes, so
+# after the first force-push every subsequent publish is a fast-forward.
+# Commits left empty by the stripping (marketing-only work) are pruned.
 #
-# Merge commits are linearized (--first-parent): a merged branch lands as one
-# public commit carrying the merge's tree.
+# The excluded paths never exist in any published object, past or present.
+# That is the entire security model, so public-exclude.txt is the one file to
+# think hard about before editing.
 #
 # Usage:
-#   scripts/publish-github.sh          # replay new commits, push if a remote
-#                                      # named "github" is configured
-#   ONEREP_PUBLIC_MIRROR=/path ...     # override the mirror location
+#   scripts/publish-github.sh                # rewrite and push
+#   ONEREP_PUBLIC_REMOTE=<url> ...           # override the destination
 #
-# First-time setup for pushing:
-#   git -C .public-mirror remote add github git@github.com:<you>/<repo>.git
-
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)"
-mirror="${ONEREP_PUBLIC_MIRROR:-$root/.public-mirror}"
 exclude_list="$root/scripts/public-exclude.txt"
+remote="${ONEREP_PUBLIC_REMOTE:-git@github.com:an2tha/onerep.git}"
 
-if [ ! -d "$mirror/.git" ]; then
-  git init -q -b main "$mirror"
-fi
+command -v git-filter-repo >/dev/null || {
+  echo "git-filter-repo is required: brew install git-filter-repo" >&2
+  exit 1
+}
 
-# Resume after the last replayed commit; with no trailer the mirror is empty
-# (or from the old squash era) and the whole history gets replayed from the
-# root.
-last_internal="$({ git -C "$mirror" log -1 --format=%B 2>/dev/null || true; } |
-  sed -n 's/^Internal-Source: //p' | tail -1)"
-rebuilt=0
-if [ -z "$last_internal" ]; then
-  git -C "$mirror" update-ref -d refs/heads/main 2>/dev/null || true
-  git -C "$mirror" symbolic-ref HEAD refs/heads/main
-  range="HEAD"
-  rebuilt=1
-else
-  range="$last_internal..HEAD"
-fi
+# Build the --path arguments from the exclude list.
+path_args=()
+while IFS= read -r path; do
+  case "$path" in ""|\#*) continue ;; esac
+  case "$path" in
+    /*|*..*) echo "refusing suspicious exclude path: $path" >&2; exit 1 ;;
+  esac
+  path_args+=(--path "$path")
+done < "$exclude_list"
 
-published=0
-for rev in $(git -C "$root" rev-list --reverse --first-parent "$range"); do
+tmp="$(mktemp -d /tmp/onerep-public.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
 
-  # Replace the mirror's working tree with the tracked tree at $rev.
-  find "$mirror" -mindepth 1 -maxdepth 1 -not -name .git -exec rm -rf {} +
-  git -C "$root" archive "$rev" | tar -x -C "$mirror"
+git clone -q --single-branch --branch main "$root" "$tmp/repo"
+# --force because the hardlinked local clone trips filter-repo's fresh-clone
+# heuristic; the clone one line up is as fresh as they come.
+git -C "$tmp/repo" filter-repo --quiet --force --invert-paths "${path_args[@]}"
 
-  # Strip the private paths.
-  while IFS= read -r path; do
-    case "$path" in ""|\#*) continue ;; esac
-    case "$path" in
-      /*|*..*) echo "refusing suspicious exclude path: $path" >&2; exit 1 ;;
-    esac
-    rm -rf "${mirror:?}/$path"
-  done < "$exclude_list"
-
-  # Belt and suspenders: nothing named _private leaves the building.
-  leftover="$(find "$mirror" -name '_private' -not -path "$mirror/.git/*" | head -1)"
-  if [ -n "$leftover" ]; then
-    echo "a _private path survived the exclude list: $leftover" >&2
+# Belt and suspenders: no excluded path may appear anywhere in the rewrite.
+while IFS= read -r path; do
+  case "$path" in ""|\#*) continue ;; esac
+  if [ -n "$(git -C "$tmp/repo" log --all --format= --name-only -- "$path" | head -1)" ]; then
+    echo "excluded path survived the rewrite: $path" >&2
     exit 1
   fi
+done < "$exclude_list"
 
-  git -C "$mirror" add -A
-  # A commit that only touched excluded paths leaves nothing to say.
-  if git -C "$mirror" rev-parse -q --verify HEAD >/dev/null &&
-    git -C "$mirror" diff --cached --quiet; then
-    continue
-  fi
+count="$(git -C "$tmp/repo" rev-list --count main)"
+echo "rewrote history: $count public commits from internal @ $(git -C "$root" rev-parse --short HEAD)"
 
-  GIT_AUTHOR_NAME="$(git -C "$root" log -1 --format=%an "$rev")" \
-  GIT_AUTHOR_EMAIL="$(git -C "$root" log -1 --format=%ae "$rev")" \
-  GIT_AUTHOR_DATE="$(git -C "$root" log -1 --format=%aI "$rev")" \
-  GIT_COMMITTER_DATE="$(git -C "$root" log -1 --format=%aI "$rev")" \
-    git -C "$mirror" commit -q \
-      -m "$(git -C "$root" log -1 --format=%B "$rev")" \
-      -m "Internal-Source: $rev"
-  published=$((published + 1))
-done
-
-if [ "$published" -eq 0 ]; then
-  echo "mirror already matches internal @ $(git -C "$root" rev-parse --short HEAD) — nothing to publish"
-  exit 0
-fi
-echo "replayed $published commit(s), mirror now at internal @ $(git -C "$root" rev-parse --short HEAD)"
-
-if git -C "$mirror" remote get-url github >/dev/null 2>&1; then
-  if [ "$rebuilt" -eq 1 ]; then
-    git -C "$mirror" push --force github main
-  else
-    git -C "$mirror" push github main
-  fi
-else
-  echo "no 'github' remote configured in $mirror — skipping push."
-  echo "add one with: git -C $mirror remote add github <url>"
-fi
+git -C "$tmp/repo" push --force "$remote" main
