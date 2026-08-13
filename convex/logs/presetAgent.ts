@@ -149,9 +149,11 @@ async function draftWithOpenAi(
   text: string,
   fallbackName: string,
   context: PlanContext,
+  apiKey: string | null,
 ) {
-  if (!hasOpenAiApiKey()) return null;
+  if (!hasOpenAiApiKey(apiKey)) return null;
   const content = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("workout_preset", {
       max_exercises: MAX_EXERCISES,
       max_sets_per_exercise: MAX_SETS_PER_EXERCISE,
@@ -178,19 +180,24 @@ export const createFromText = action({
       throw new Error("Paste a workout plan with at least one exercise.");
     }
 
-    await consumeAiUsageOrThrow(ctx, user._id, "workout_preset");
+    const quota = await consumeAiUsageOrThrow(ctx, user._id, "workout_preset");
 
     const fallback = fallbackDraftFromText(text);
 
     try {
-      const aiDraft = await draftWithOpenAi(text, fallback.name, {
-        experienceLevel: clampText(args.experienceLevel, 24) || undefined,
-        safetyMode: clampText(args.safetyMode, 24) || undefined,
-        safetyFlags: (args.safetyFlags ?? [])
-          .slice(0, 16)
-          .map((flag) => clampText(flag, 64))
-          .filter(Boolean),
-      });
+      const aiDraft = await draftWithOpenAi(
+        text,
+        fallback.name,
+        {
+          experienceLevel: clampText(args.experienceLevel, 24) || undefined,
+          safetyMode: clampText(args.safetyMode, 24) || undefined,
+          safetyFlags: (args.safetyFlags ?? [])
+            .slice(0, 16)
+            .map((flag) => clampText(flag, 64))
+            .filter(Boolean),
+        },
+        quota.apiKey,
+      );
       if (aiDraft) return aiDraft;
     } catch (error) {
       console.warn("Falling back to local workout text parser", error);

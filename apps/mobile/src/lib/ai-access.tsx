@@ -34,10 +34,13 @@ export function useAiFeatureGate() {
   })
   const hasPro = billing.hasOneRepPro
   const usage = useQuery(api.ai.usage.getMonthlyUsage, {})
+  // A user on their own OpenRouter key (BYOK) has no monthly cap to hit, so
+  // the paywall never applies to them.
+  const hasByok = usage?.byok === true
   // Free accounts get a monthly AI allowance before the paywall appears; the
   // server enforces the real limit, so this only decides when to interrupt.
   const freeRequestsLeft = usage && !usage.isPro ? usage.remaining : 0
-  const hasAiAccess = hasPro || freeRequestsLeft > 0
+  const hasAiAccess = hasPro || hasByok || freeRequestsLeft > 0
   const isLoading =
     billing.status === "loading" ||
     billing.status === "idle" ||
@@ -54,7 +57,7 @@ export function useAiFeatureGate() {
    */
   const requireAiAccess = useCallback(
     (cost = 1, feature = "unknown") => {
-      if (hasPro) return true
+      if (hasPro || hasByok) return true
       if (isLoading) {
         toast.message("Checking your access…")
         return false

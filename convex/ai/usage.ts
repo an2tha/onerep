@@ -3,6 +3,7 @@ import { internal } from "../_generated/api";
 import { internalMutation, query, type ActionCtx } from "../_generated/server";
 import { safeGetAuthUser } from "../lib/auth";
 import { hasActiveProEntitlement } from "../billing/entitlement";
+import { byokKeyFor } from "./byok";
 
 /** Monthly AI requests included without a OneRep Pro subscription. */
 export const AI_FREE_MONTHLY_REQUEST_LIMIT = 10;
@@ -55,6 +56,12 @@ export type AiUsageQuota = {
   limit: number;
   month: string;
   isPro: boolean;
+  /**
+   * True when the user runs AI on their own OpenRouter key. Their requests
+   * cost OneRep nothing, so the monthly limit does not apply; usage is still
+   * counted so the number on the settings page stays honest.
+   */
+  byok: boolean;
   /** Advertised so clients can show the upgrade value without hardcoding it. */
   proLimit: number;
 };
@@ -75,11 +82,12 @@ export const getMonthlyUsage = query({
         limit: AI_FREE_MONTHLY_REQUEST_LIMIT,
         month,
         isPro: false,
+        byok: false,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
       };
     }
 
-    const [existing, isPro] = await Promise.all([
+    const [existing, isPro, byokKey] = await Promise.all([
       ctx.db
         .query("aiUsage")
         .withIndex("by_userId_month", (q) =>
@@ -87,6 +95,7 @@ export const getMonthlyUsage = query({
         )
         .unique(),
       hasActiveProEntitlement(ctx, user._id),
+      byokKeyFor(ctx, user._id),
     ]);
     const count = existing?.count ?? 0;
     const limit = aiMonthlyRequestLimit(isPro);
@@ -97,6 +106,7 @@ export const getMonthlyUsage = query({
       limit,
       month,
       isPro,
+      byok: byokKey !== null,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
     };
   },
@@ -115,9 +125,9 @@ export const consumeMonthlyQuota = internalMutation({
       v.literal("data_import"),
     ),
   },
-  handler: async (ctx, args): Promise<AiUsageQuota> => {
+  handler: async (ctx, args): Promise<AiUsageQuota & { apiKey: string | null }> => {
     const month = utcMonthKey();
-    const [existing, isPro] = await Promise.all([
+    const [existing, isPro, byokKey] = await Promise.all([
       ctx.db
         .query("aiUsage")
         .withIndex("by_userId_month", (q) =>
@@ -125,15 +135,18 @@ export const consumeMonthlyQuota = internalMutation({
         )
         .unique(),
       hasActiveProEntitlement(ctx, args.userId),
+      byokKeyFor(ctx, args.userId),
     ]);
+    const byok = byokKey !== null;
     const limit = aiMonthlyRequestLimit(isPro);
     const cost = aiUsageCost(args.source);
     const count = existing?.count ?? 0;
 
     // Rejected rather than clamped: a request that cannot be paid for in full
     // must not run at all, or a user with one left would get a two-cost
-    // analysis for the price of one.
-    if (count + cost > limit) {
+    // analysis for the price of one. A BYOK user is spending their own
+    // OpenRouter credit, so the limit is theirs to worry about, not ours.
+    if (!byok && count + cost > limit) {
       return {
         allowed: false,
         count,
@@ -141,6 +154,8 @@ export const consumeMonthlyQuota = internalMutation({
         limit,
         month,
         isPro,
+        byok,
+        apiKey: null,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
       };
     }
@@ -170,6 +185,8 @@ export const consumeMonthlyQuota = internalMutation({
       limit,
       month,
       isPro,
+      byok,
+      apiKey: byokKey,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
     };
   },
@@ -240,12 +257,17 @@ export const resetMonthlyUsageOnce = internalMutation({
   },
 });
 
+/**
+ * Charges the request against the monthly allowance and hands back the user's
+ * own OpenRouter key when they have one — `apiKey` is non-null exactly when
+ * the request should run on their credential instead of the deployment's.
+ */
 export async function consumeAiUsageOrThrow(
   ctx: ActionCtx,
   userId: string,
   source: AiUsageSource,
 ) {
-  const quota: AiUsageQuota = await ctx.runMutation(
+  const quota: AiUsageQuota & { apiKey: string | null } = await ctx.runMutation(
     internal.ai.usage.consumeMonthlyQuota,
     { userId, source },
   );
@@ -262,7 +284,7 @@ export async function consumeAiUsageOrThrow(
     throw new Error(
       quota.isPro
         ? `${reason}. Try again next month.`
-        : `${reason}. Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, or try again next month.`,
+        : `${reason}. Upgrade to OneRep Pro for ${AI_PRO_MONTHLY_REQUEST_LIMIT} a month, add your own OpenRouter key in Settings, or try again next month.`,
     );
   }
 

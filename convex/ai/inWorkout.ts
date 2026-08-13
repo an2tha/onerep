@@ -151,7 +151,11 @@ export const ask = action({
     const user = await getAuthUser(ctx);
     const question = args.question.trim().slice(0, MAX_QUESTION_CHARS);
     if (question.length < 2) throw new Error("Ask a question.");
-    if (!hasOpenAiApiKey()) {
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: user._id },
+    );
+    if (!hasOpenAiApiKey(userKey)) {
       return {
         reply: "Coach is offline right now. Trust the plan you walked in with.",
         suggestion: null,
@@ -159,7 +163,7 @@ export const ask = action({
       };
     }
 
-    await consumeAiUsageOrThrow(ctx, user._id, "in_workout");
+    const quota = await consumeAiUsageOrThrow(ctx, user._id, "in_workout");
 
     const context = await ctx.runQuery(internal.ai.inWorkout.loadContext, {
       userId: user._id,
@@ -169,6 +173,7 @@ export const ask = action({
 
     try {
       const content = await requestOpenAiJson({
+        apiKey: quota.apiKey,
         system: renderSystemPrompt("coach_in_workout"),
         user: JSON.stringify({ question, context }),
         maxTokens: MAX_REPLY_TOKENS,

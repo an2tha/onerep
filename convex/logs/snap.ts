@@ -331,8 +331,10 @@ async function searchOpenFoodFacts(
 
 async function analyzeFoodDescriptionWithOpenAi(
   text: string,
+  apiKey: string | null,
 ): Promise<AnalyzeResult> {
   const content = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("meal_description"),
     user: JSON.stringify({
       description: text,
@@ -367,8 +369,10 @@ function normalizeAnalyzeResult(value: unknown): AnalyzeResult {
 
 async function analyzeImageWithOpenAi(
   imageData: string,
+  apiKey: string | null,
 ): Promise<AnalyzeResult> {
   const content = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("meal_image"),
     user: `Analyze this meal image for logging. Split plates, bowls, and mixed meals into visible foods where possible. Return JSON only with the exact keys: "foodName", "estimatedQuantity", "searchQueries", "ingredients". Use null for unused single-food fields and [] for no ingredients or search queries.`,
     image: { url: imageData, detail: "high" },
@@ -382,6 +386,7 @@ async function chooseBestFoodsWithOpenAi(
     detection: SnapSearchDetection;
     candidates: FoodResult[];
   }>,
+  apiKey: string | null,
 ) {
   const candidatesForPrompt = groups.map(({ detection, candidates }) => ({
     detectionIndex: detection.index,
@@ -400,6 +405,7 @@ async function chooseBestFoodsWithOpenAi(
   }));
 
   const rawContent = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("food_match"),
     user: JSON.stringify({
       responseShape: {
@@ -435,6 +441,7 @@ async function chooseBestFoodsWithOpenAi(
 async function buildFoodMatches(
   ctx: ActionCtx,
   aiResult: AnalyzeResult,
+  apiKey: string | null,
   language?: string,
 ): Promise<FoodMatchResult[]> {
   const detections = detectionsFromAnalysis(aiResult);
@@ -460,7 +467,7 @@ async function buildFoodMatches(
   let selectedByDetection = new Map<number, string | null>();
   if (groups.some((group) => group.candidates.length > 0)) {
     try {
-      selectedByDetection = await chooseBestFoodsWithOpenAi(groups);
+      selectedByDetection = await chooseBestFoodsWithOpenAi(groups, apiKey);
     } catch (error) {
       console.warn("Falling back to first snap search result", error);
     }
@@ -539,13 +546,15 @@ function utcDateKey() {
 async function runAiMealAnalysis({
   ctx,
   aiResult,
+  apiKey,
   language,
 }: {
   ctx: ActionCtx;
   aiResult: AnalyzeResult;
+  apiKey: string | null;
   language?: string;
 }) {
-  const matches = await buildFoodMatches(ctx, aiResult, language);
+  const matches = await buildFoodMatches(ctx, aiResult, apiKey, language);
   return {
     aiResult,
     matches,
@@ -565,7 +574,13 @@ export const snap = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    if (!hasOpenAiApiKey()) throw new Error("Photo analysis is not configured");
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: user._id },
+    );
+    if (!hasOpenAiApiKey(userKey)) {
+      throw new Error("Photo analysis is not configured");
+    }
 
     const mimeType = args.mimeType ?? "image/jpeg";
     if (!ALLOWED_MIME_TYPES.has(mimeType)) {
@@ -585,13 +600,14 @@ export const snap = action({
 
     // One app-level AI usage count covers both provider calls in this action:
     // photo parsing first, then candidate selection from search results.
-    await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
+    const usage = await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
     const imageData = `data:${mimeType};base64,${args.base64Image}`;
-    const aiResult = await analyzeImageWithOpenAi(imageData);
+    const aiResult = await analyzeImageWithOpenAi(imageData, usage.apiKey);
     return await runAiMealAnalysis({
       ctx,
       aiResult,
+      apiKey: usage.apiKey,
       language: args.language,
     });
   },
@@ -606,7 +622,11 @@ export const describeText = action({
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
-    if (!hasOpenAiApiKey()) {
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: user._id },
+    );
+    if (!hasOpenAiApiKey(userKey)) {
       throw new Error("Meal description AI is not configured");
     }
 
@@ -615,12 +635,13 @@ export const describeText = action({
 
     // One app-level AI usage count covers description parsing plus candidate
     // selection from search results.
-    await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
+    const usage = await consumeAiUsageOrThrow(ctx, user._id, "food_snap");
 
-    const aiResult = await analyzeFoodDescriptionWithOpenAi(text);
+    const aiResult = await analyzeFoodDescriptionWithOpenAi(text, usage.apiKey);
     return await runAiMealAnalysis({
       ctx,
       aiResult,
+      apiKey: usage.apiKey,
       language: args.language,
     });
   },

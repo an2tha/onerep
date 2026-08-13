@@ -112,6 +112,8 @@ export type AiUsageView = {
   limit: number
   month: string
   isPro?: boolean
+  /** The user runs AI on their own OpenRouter key; the monthly cap is off. */
+  byok?: boolean
   proLimit?: number
 }
 
@@ -128,6 +130,28 @@ function formatUsageMonth(month: string) {
 export function AiUsageProgress({ usage }: { usage?: AiUsageView | null }) {
   const limit = usage?.limit ?? 10
   const count = usage?.count ?? 0
+  // On a user's own key there is no allowance to run down, so the meter
+  // becomes a plain counter instead of a countdown.
+  if (usage?.byok) {
+    return (
+      <div className="px-[var(--app-page-x)] py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="native-row-title">
+              Monthly coach questions · Your key
+            </p>
+            <p className="native-row-detail mt-0.5">
+              {formatUsageMonth(usage.month)} · no monthly cap
+            </p>
+          </div>
+          <p className="native-row-value shrink-0">{count}</p>
+        </div>
+        <p className="native-row-detail mt-2">
+          AI runs on your OpenRouter key, billed by OpenRouter at their rates.
+        </p>
+      </div>
+    )
+  }
   const remaining = usage?.remaining ?? limit
   const percent =
     limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : 0
