@@ -275,7 +275,7 @@ By submitting a contribution you agree it may be used in the Software under the 
 
 ## License
 
-Licensed under the [PolyForm Strict License 1.0.0](LICENSE.md)
+Licensed under the [PolyForm Noncomercial License 1.0.0](LICENSE.md)
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- CONTACT -->
