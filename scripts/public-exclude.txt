@@ -4,3 +4,5 @@
 # gets a generated history instead of this one.
 convex/billing/_private
 apps/mobile/src/components/billing/_private
+# The marketing site stays internal; the public repo is the app, not the pitch.
+apps/web
