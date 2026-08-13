@@ -20,6 +20,7 @@ const app = defineApp({
     DATASOURCE_URL: v.optional(v.string()),
     DATASOURCE_API_TOKEN: v.optional(v.string()),
     RESEND_API_KEY: v.optional(v.string()),
+    EMAIL_VERIFICATION_REQUIRED: v.optional(v.string()),
     AUTH_EMAIL_FROM: v.optional(v.string()),
     AUTH_EMAIL_LOGO_URL: v.optional(v.string()),
     // Coach outreach. The kill switch is separate from the credentials on

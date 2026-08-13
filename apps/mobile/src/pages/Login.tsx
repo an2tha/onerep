@@ -288,6 +288,13 @@ export default function Login() {
         }
 
         captureFeatureUsage(posthog, "user_signed_up", { method: "email" })
+        // When the deployment does not require email verification, sign-up
+        // returns an active session and the verify screen would be a dead end.
+        const session = await authClient.getSession()
+        if (session.data?.session) {
+          setMessage("Account created. Opening OneRep…")
+          return
+        }
         rememberPendingVerification(trimmedEmail, "/onboarding")
         navigate("/verify-email-required", { replace: true })
         return

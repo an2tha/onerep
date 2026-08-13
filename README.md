@@ -78,10 +78,11 @@ What's implemented, in the order you'd hit it:
 - **Progress** — body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, user-defined metrics.
 - **Coach** — text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations — every AI write carries an undo payload.
 - **Photo logging** — food detection with a review step that matches detections to food records before anything is logged.
+- **Bring your own key** — paste your own OpenRouter key in Settings and Coach runs on your credential instead of the deployment's: validated against OpenRouter before it saves, stored server-side only, shown as its last four characters, and exempt from the monthly allowance — you're paying for the inference, so nobody meters it.
 - **Your data, over the wire** — a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
 - **Accounts and privacy** — email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
 
-AI, food lookup, email, and analytics each switch on with their own environment variables; the rest of the app develops fine without any of them. Payments are behind a seam and stubbed in this repository — see [`docs/billing.md`](docs/billing.md) for why that's a feature.
+AI, food lookup, email, and analytics each switch on with their own environment variables; the rest of the app develops fine without any of them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less — any user can supply their own key in Settings and Coach works for them alone. Payments are behind a seam and stubbed in this repository — see [`docs/billing.md`](docs/billing.md) for why that's a feature.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -164,12 +165,15 @@ This repository is a one-way mirror of an internal OneDev instance: real commit 
    bunx convex env set SITE_URL http://localhost:5173
    ```
 
-   Email verification is required for new accounts, so sign-up needs Resend:
+   Email verification is off by default, so accounts work without an email provider. To require it (recommended once real users show up), add a [Resend](https://resend.com/) key and turn the gate on:
 
    ```sh
    bunx convex env set RESEND_API_KEY your-key
    bunx convex env set AUTH_EMAIL_FROM "OneRep <you@your-domain.example>"
+   bunx convex env set EMAIL_VERIFICATION_REQUIRED true
    ```
+
+   Password reset also depends on Resend, so accounts on a mail-less deployment should not forget their passwords.
 
 4. Run it:
 

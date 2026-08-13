@@ -11,10 +11,12 @@
 #   5. builds and starts the datasource and the app
 #
 # Optional env vars before running (all have localhost defaults):
-#   PUBLIC_HOST     hostname clients will use              (default 127.0.0.1)
+#   PUBLIC_HOST          hostname clients will use         (default 127.0.0.1)
 #   OPENROUTER_API_KEY   enables the Coach and photo logging
-#   RESEND_API_KEY       enables auth email; without it, check the backend
-#                        logs for magic links instead
+#
+# Email verification is off by default, so no email provider is needed.
+# Anything beyond that (Google sign-in, email, billing) is configured later
+# with `convex env set` — see the repository README.
 #
 # Re-running is safe: secrets are kept, deploys are idempotent.
 
@@ -56,10 +58,6 @@ BETTER_AUTH_SECRET=$(openssl rand -hex 32)
 
 # Optional integrations. Fill in and re-run ./install.sh to apply.
 OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-RESEND_API_KEY=${RESEND_API_KEY:-}
-AUTH_EMAIL_FROM=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
 EOF
 else
   say "Keeping existing selfhost/.env"
@@ -104,13 +102,8 @@ set_env SITE_URL              "$APP_URL"
 set_env BETTER_AUTH_SECRET    "$BETTER_AUTH_SECRET"
 set_env DATASOURCE_URL        "http://datasource:3100"
 set_env DATASOURCE_API_TOKEN  "$DATASOURCE_API_TOKEN"
-set_env BILLING_COMP_ALL_USERS "true"
 set_env OPENROUTER_API_KEY    "${OPENROUTER_API_KEY:-}"
 set_env AI_PROCESSOR_APPROVED "${OPENROUTER_API_KEY:+true}"
-set_env RESEND_API_KEY        "${RESEND_API_KEY:-}"
-set_env AUTH_EMAIL_FROM       "${AUTH_EMAIL_FROM:-}"
-set_env GOOGLE_CLIENT_ID      "${GOOGLE_CLIENT_ID:-}"
-set_env GOOGLE_CLIENT_SECRET  "${GOOGLE_CLIENT_SECRET:-}"
 
 # ---------- 5. everything else ----------------------------------------------
 
