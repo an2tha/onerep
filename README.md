@@ -110,6 +110,7 @@ AI, food lookup, email, and analytics each switch on with their own environment 
 │   ├── models/       # Shared TypeScript models and Coach operation contracts
 │   └── ui/           # Shared presentation components and Tailwind styles
 ├── scripts/          # Prompt generation, exercise-catalog prep, mirror publishing
+├── selfhost/         # One-command Docker self-hosting: install.sh + docker-compose.yml
 └── docs/             # Architecture, billing, testing, API, and feature docs
 ```
 
@@ -179,6 +180,22 @@ This repository is a one-way mirror of an internal OneDev instance: real commit 
    The app is at `http://localhost:5173`. For a quieter session, `cd apps/mobile && bun run dev`.
 
 5. That's it. Every account on your deployment has Pro by default — the paywall only exists when a deployment explicitly sets `BILLING_COMP_ALL_USERS=false` and wires up a real payment provider ([`docs/billing.md`](docs/billing.md)).
+
+### Self-Hosting
+
+The steps above use a Convex cloud deployment. If you'd rather own the whole
+stack — backend, dashboard, food datasource, and the app — there is one script
+for that:
+
+```sh
+cd selfhost && ./install.sh
+```
+
+It writes a `.env` with generated secrets, brings up a self-hosted Convex
+backend in Docker, deploys the functions, and starts everything else. The app
+lands on `http://127.0.0.1:8081`, the dashboard on `:6791`, and the script
+prints the admin key and the food-database import commands when it's done.
+Details and knobs live in [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml).
 
 ### Optional Integrations
 
