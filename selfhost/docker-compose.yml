@@ -1,0 +1,99 @@
+# Self-hosted OneRep: the whole public stack in one file.
+#
+#   backend     Convex (database, functions, auth, crons) — the entire backend
+#   dashboard   Convex dashboard, so you can see what the backend is doing
+#   datasource  USDA food + wger exercise search (Bun + SQLite), Convex-only,
+#               never exposed to the host — Convex reaches it on the compose
+#               network as http://datasource:3100
+#   app         The OneRep client (responsive web app / PWA), static files
+#
+# The marketing site and private billing are deliberately absent; this mirrors
+# scripts/public-exclude.txt. Billing is stubbed and BILLING_COMP_ALL_USERS
+# gives every account Pro, which is the self-hosting answer.
+#
+# Run ./install.sh instead of `docker compose up` the first time: the backend
+# needs an admin key generated and functions deployed before the app is useful.
+
+name: onerep-selfhost
+
+services:
+  backend:
+    image: ghcr.io/get-convex/convex-backend:latest
+    stop_grace_period: 10s
+    environment:
+      - INSTANCE_NAME=${CONVEX_INSTANCE_NAME:-onerep}
+      - INSTANCE_SECRET=${CONVEX_INSTANCE_SECRET:?run install.sh to generate .env}
+      # The URLs clients use to reach this backend. Change them in .env if the
+      # host is not localhost, then rebuild the app (they are baked in).
+      - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
+      - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
+      - DISABLE_BEACON=${CONVEX_DISABLE_BEACON:-true}
+    ports:
+      - "3210:3210" # Convex client API
+      - "3211:3211" # HTTP actions (v1 API, MCP, webhooks)
+    volumes:
+      - convex-data:/convex/data
+    healthcheck:
+      test: curl -f http://localhost:3210/version
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:latest
+    environment:
+      - NEXT_PUBLIC_DEPLOYMENT_URL=${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
+    ports:
+      - "6791:6791"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  datasource:
+    build:
+      context: ..
+      dockerfile_inline: |
+        FROM oven/bun:1.3.4-alpine
+        WORKDIR /app
+        COPY apps/datasource .
+        ENV HOST=0.0.0.0 PORT=3100 DATA_DIR=/data
+        EXPOSE 3100
+        CMD ["bun", "src/index.ts"]
+    environment:
+      - API_TOKEN=${DATASOURCE_API_TOKEN:?run install.sh to generate .env}
+    # No host port on purpose: Convex is the only client this service has ever
+    # had, and the compose network is as far as it needs to travel.
+    expose:
+      - "3100"
+    volumes:
+      - datasource-data:/data
+    healthcheck:
+      test: wget -qO- http://localhost:3100/health
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  app:
+    build:
+      context: ..
+      dockerfile: apps/mobile/Dockerfile
+      args:
+        # Baked into the static bundle at build time; changing any of these
+        # means `docker compose build app` again.
+        VITE_CONVEX_URL: ${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
+        VITE_CONVEX_SITE_URL: ${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
+        VITE_APP_URL: ${APP_URL:-http://127.0.0.1:8081}
+        VITE_SITE_URL: ${APP_URL:-http://127.0.0.1:8081}
+    ports:
+      - "8081:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  convex-data:
+  datasource-data:
