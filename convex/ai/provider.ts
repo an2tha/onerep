@@ -25,10 +25,18 @@ type AiJsonRequest = {
   image?: AiImage;
   maxTokens: number;
   temperature?: number;
+  /**
+   * A user's own OpenRouter key (BYOK). When set, the request runs on their
+   * credential instead of the deployment's, and a missing server key stops
+   * mattering. AI_PROCESSOR_APPROVED still gates both paths: it is the
+   * operator's attestation that AI processing is allowed at all, not a
+   * statement about whose key pays for it.
+   */
+  apiKey?: string | null;
 };
 
-function resolveOpenRouterConfig() {
-  const apiKey = env.OPENROUTER_API_KEY?.trim() ?? "";
+function resolveOpenRouterConfig(userApiKey?: string | null) {
+  const apiKey = userApiKey?.trim() || env.OPENROUTER_API_KEY?.trim() || "";
   // OPENAI_MODEL is accepted for one widened-schema release only. Credentials
   // never receive a corresponding fallback: an OpenAI key must not be sent to
   // the OpenRouter endpoint.
@@ -50,8 +58,8 @@ function resolveOpenRouterConfig() {
   });
 }
 
-export function hasOpenAiApiKey() {
-  return resolveOpenRouterConfig() !== null;
+export function hasOpenAiApiKey(userApiKey?: string | null) {
+  return resolveOpenRouterConfig(userApiKey) !== null;
 }
 
 /**
@@ -114,6 +122,7 @@ export async function runOpenAiAgent<T>({
   schema,
   maxSteps,
   maxTokens,
+  apiKey,
 }: {
   system: string;
   user: string;
@@ -127,8 +136,10 @@ export async function runOpenAiAgent<T>({
   schema: z.ZodType<T>;
   maxSteps: number;
   maxTokens: number;
+  /** See AiJsonRequest.apiKey. */
+  apiKey?: string | null;
 }): Promise<AgentResult<T>> {
-  const config = resolveOpenRouterConfig();
+  const config = resolveOpenRouterConfig(apiKey);
   if (!config) throw new Error("AI is not configured");
 
   if (!Number.isInteger(maxTokens) || maxTokens < 1) {
@@ -244,8 +255,9 @@ export async function requestOpenAiJson({
   image,
   maxTokens,
   temperature,
+  apiKey,
 }: AiJsonRequest) {
-  const config = resolveOpenRouterConfig();
+  const config = resolveOpenRouterConfig(apiKey);
   if (!config) throw new Error("AI is not configured");
 
   if (!Number.isInteger(maxTokens) || maxTokens < 1) {

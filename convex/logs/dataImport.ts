@@ -131,8 +131,12 @@ async function loadFiles(
   return files;
 }
 
-async function planWithModel(file: LoadedFile): Promise<ImportPlan> {
+async function planWithModel(
+  file: LoadedFile,
+  apiKey: string | null,
+): Promise<ImportPlan> {
   const result = await runOpenAiAgent({
+    apiKey,
     system: renderSystemPrompt("data_import", {}),
     user: buildPlanRequest(file.fileName, file.records),
     tools: {},
@@ -169,8 +173,16 @@ export const preview = action({
 
     // One credit spend covers every file in the batch — it is one import to
     // the user, however many exports the other app made them download.
-    const useModel = hasOpenAiApiKey();
-    if (useModel) await consumeAiUsageOrThrow(ctx, user._id, "data_import");
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: user._id },
+    );
+    const useModel = hasOpenAiApiKey(userKey);
+    let apiKey: string | null = null;
+    if (useModel) {
+      const quota = await consumeAiUsageOrThrow(ctx, user._id, "data_import");
+      apiKey = quota.apiKey;
+    }
 
     const previews: ImportPreviewFile[] = [];
     const totals = { workouts: 0, measurements: 0, skippedRows: 0 };
@@ -184,7 +196,7 @@ export const preview = action({
         };
       } else if (useModel) {
         try {
-          plan = await planWithModel(file);
+          plan = await planWithModel(file, apiKey);
         } catch (error) {
           console.warn("Falling back to header-based import plan", error);
           plan = fallbackPlan(headersOf(file.records));

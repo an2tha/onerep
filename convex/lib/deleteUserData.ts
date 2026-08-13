@@ -155,6 +155,8 @@ export async function deleteUserDataBatch(
     ["onboardingProfiles", "by_userId"],
     ["userPreferences", "by_userId"],
     ["aiUsage", "by_userId_month"],
+    // A stored BYOK credential must not outlive the account it belongs to.
+    ["aiKeys", "by_userId"],
     ["rateLimitBuckets", "by_userId"],
     ["snapUsage", "by_userId_date"],
     // Local billing mirrors and application identities are removed. The

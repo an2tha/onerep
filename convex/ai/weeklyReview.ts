@@ -33,6 +33,7 @@ import {
 } from "../../packages/models/src/moments";
 import { mergeOutreachSettings } from "../lib/outreach";
 import { hasActiveProEntitlement } from "../billing/entitlement";
+import { byokKeyFor } from "./byok";
 
 /** Users examined per sweep page. The cron runs hourly; there is no rush. */
 const SELECT_PAGE_SIZE = 200;
@@ -77,6 +78,9 @@ export const reviewEligibility = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, args) => ({
     isPro: await hasActiveProEntitlement(ctx, args.userId),
+    // A user paying the provider directly has already settled the economics
+    // the Pro gate exists to protect.
+    byok: (await byokKeyFor(ctx, args.userId)) !== null,
   }),
 });
 
@@ -333,7 +337,11 @@ export const generateForUser = internalAction({
   args: { userId: v.string(), today: v.string() },
   handler: async (ctx, args) => {
     if (!proactiveCoachEnabled()) return { generated: false };
-    if (!hasOpenAiApiKey()) return { generated: false };
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: args.userId },
+    );
+    if (!hasOpenAiApiKey(userKey)) return { generated: false };
 
     const weekStart = weekStartOf(args.today);
     const weekKey = isoWeekKey(weekStart);
@@ -358,11 +366,11 @@ export const generateForUser = internalAction({
     });
 
     if (reviewsProOnly()) {
-      const eligibility: { isPro: boolean } = await ctx.runQuery(
+      const eligibility: { isPro: boolean; byok: boolean } = await ctx.runQuery(
         internal.ai.weeklyReview.reviewEligibility,
         { userId: args.userId },
       );
-      if (!eligibility.isPro) return { generated: false };
+      if (!eligibility.isPro && !eligibility.byok) return { generated: false };
     }
 
     const workspace: CoachWorkspace = await ctx.runQuery(
@@ -399,6 +407,7 @@ export const generateForUser = internalAction({
     let parsed: ReturnType<typeof normalizeReview> = null;
     try {
       const content = await requestOpenAiJson({
+        apiKey: userKey,
         system: renderSystemPrompt("coach_weekly_review"),
         user: JSON.stringify({
           weekStart,

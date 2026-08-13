@@ -1353,6 +1353,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_month", ["userId", "month"]),
 
+  // ── Bring-your-own-key: a user's own OpenRouter credential ───────────────
+  // The key never leaves server functions; clients only ever see `last4`.
+  aiKeys: defineTable({
+    userId: v.string(),
+    key: v.string(),
+    last4: v.string(),
+    updatedAt: v.number(),
+  }).index("by_userId", ["userId"]),
+
   rateLimitBuckets: defineTable({
     key: v.string(),
     userId: v.string(),

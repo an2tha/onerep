@@ -2093,16 +2093,19 @@ async function generateWithOpenAi({
   prompt,
   catalog,
   maxResults,
+  apiKey,
 }: {
   subapp: MetricSubapp;
   prompt: string;
   catalog: MetricCatalogItem[];
   maxResults: number;
+  apiKey: string | null;
 }) {
-  if (!hasOpenAiApiKey()) return null;
+  if (!hasOpenAiApiKey(apiKey)) return null;
 
   const allowedIds = new Set(catalog.map((metric) => metric.id));
   const content = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("metric_selection"),
     user: JSON.stringify({
       subapp,
@@ -2121,9 +2124,13 @@ async function generateWithOpenAi({
   return normalizeOpenAiResult(JSON.parse(content), allowedIds, maxResults);
 }
 
-async function generateCoachAdviceWithOpenAi(context: CoachContext) {
-  if (!hasOpenAiApiKey()) return null;
+async function generateCoachAdviceWithOpenAi(
+  context: CoachContext,
+  apiKey: string | null,
+) {
+  if (!hasOpenAiApiKey(apiKey)) return null;
   const content = await requestOpenAiJson({
+    apiKey,
     system: renderSystemPrompt("coach_advice"),
     user: JSON.stringify({
       context,
@@ -2151,6 +2158,7 @@ async function generateCoachChatWithOpenAi({
   focusInsight,
   workspace,
   imageUrl,
+  apiKey,
 }: {
   context: CoachContext;
   message: string;
@@ -2160,8 +2168,9 @@ async function generateCoachChatWithOpenAi({
   /** Always the server-built workspace — see `LegacyClientWorkspace`. */
   workspace?: CoachWorkspace;
   imageUrl?: string;
+  apiKey: string | null;
 }) {
-  if (!hasOpenAiApiKey()) return null;
+  if (!hasOpenAiApiKey(apiKey)) return null;
   const normalizedMessage = message.toLowerCase();
   const domain =
     coachMode === "chef" ||
@@ -2190,6 +2199,7 @@ async function generateCoachChatWithOpenAi({
       "Act as the coordinating coach. Answer directly and only propose a write operation when the user clearly asks to save or change something.",
   } as const;
   const content = await requestOpenAiJson({
+    apiKey,
     system: `${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
     user: JSON.stringify({
       context,
@@ -2682,7 +2692,11 @@ export const generateCustomProgressMetric = action({
     const user = await getAuthUser(ctx);
     const request = args.request.trim().slice(0, 400);
     if (request.length < 3) throw new Error("Describe what you want to track.");
-    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
+    const quota = await consumeAiUsageOrThrow(
+      ctx,
+      user._id,
+      "progress_metrics",
+    );
 
     const fallback = () => {
       const lower = request.toLowerCase();
@@ -2726,10 +2740,11 @@ export const generateCustomProgressMetric = action({
       };
     };
 
-    if (!hasOpenAiApiKey())
+    if (!hasOpenAiApiKey(quota.apiKey))
       return { ...fallback(), source: "fallback" as const };
     try {
       const content = await requestOpenAiJson({
+        apiKey: quota.apiKey,
         system:
           "You design safe, simple fitness progress trackers. Return one JSON tracker definition. Use kind counter for increment buttons, number for decimal input, or toggle for yes/no. Never create diagnostic or medication dosing trackers.",
         user: JSON.stringify({
@@ -2820,7 +2835,11 @@ export const generateMetricSet = action({
       DEFAULT_MAX_RESULTS,
     );
 
-    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
+    const quota = await consumeAiUsageOrThrow(
+      ctx,
+      user._id,
+      "progress_metrics",
+    );
 
     if (catalog.length === 0) {
       return {
@@ -2836,6 +2855,7 @@ export const generateMetricSet = action({
         prompt,
         catalog,
         maxResults,
+        apiKey: quota.apiKey,
       });
       if (aiResult) return { ...aiResult, source: "openai" };
     } catch (error) {
@@ -2919,10 +2939,14 @@ export const generateCoachAdvice = action({
     const user = await getAuthUser(ctx);
     const context = sanitizeCoachContext(args.context);
 
-    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
+    const quota = await consumeAiUsageOrThrow(
+      ctx,
+      user._id,
+      "progress_metrics",
+    );
 
     try {
-      const advice = await generateCoachAdviceWithOpenAi(context);
+      const advice = await generateCoachAdviceWithOpenAi(context, quota.apiKey);
       if (advice) return { advice, source: "openai" };
     } catch (error) {
       console.warn("Falling back to server coach advice", error);
@@ -3067,7 +3091,11 @@ export const generateCoachChatMessage = action({
       });
     }
 
-    await consumeAiUsageOrThrow(ctx, user._id, "progress_metrics");
+    const quota = await consumeAiUsageOrThrow(
+      ctx,
+      user._id,
+      "progress_metrics",
+    );
 
     try {
       const response = await generateCoachChatWithOpenAi({
@@ -3078,6 +3106,7 @@ export const generateCoachChatMessage = action({
         focusInsight,
         workspace,
         imageUrl: attachment?.url,
+        apiKey: quota.apiKey,
       });
       if (response) return { ...response, source: "openai" };
     } catch (error) {

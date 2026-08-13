@@ -1,4 +1,4 @@
-export const DEFAULT_MONTHLY_PRICE_LABEL = "$9.99/month";
+export const DEFAULT_MONTHLY_PRICE_LABEL = "€4/month";
 
 export function normalizeMonthlyPriceLabel(value: string | undefined) {
   const configured = value?.trim();

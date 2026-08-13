@@ -68,6 +68,7 @@ export const userDataRegistry = {
   pushTokens: "directly_user_owned",
   fileUploads: "directly_user_owned",
   aiUsage: "directly_user_owned",
+  aiKeys: "directly_user_owned",
   rateLimitBuckets: "directly_user_owned",
   migrationRuns: "global_non_user_data",
   snapUsage: "directly_user_owned",

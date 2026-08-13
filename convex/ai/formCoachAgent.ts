@@ -1220,7 +1220,13 @@ export const analyse = action({
   handler: async (ctx, args): Promise<{ reportId: string; report: Report }> => {
     const user = await getAuthUser(ctx);
     if (!user) throw new Error("Not authenticated");
-    if (!hasOpenAiApiKey()) throw new Error("Form analysis is not configured");
+    const userKey: string | null = await ctx.runQuery(
+      internal.ai.byok.getKeyForUser,
+      { userId: user._id },
+    );
+    if (!hasOpenAiApiKey(userKey)) {
+      throw new Error("Form analysis is not configured");
+    }
     if (args.landmarksStorageId !== undefined || !args.landmarksUploadId) {
       throw new Error(APP_UPDATE_REQUIRED);
     }
@@ -1246,7 +1252,7 @@ export const analyse = action({
 
     // One app-level credit covers the whole tool loop, matching how the photo
     // snap action counts one credit for its two provider calls.
-    await consumeAiUsageOrThrow(ctx, user._id, "form_coach");
+    const quota = await consumeAiUsageOrThrow(ctx, user._id, "form_coach");
 
     // How the catalog says this movement is performed. Best effort: a capture
     // of an exercise the catalog has never heard of is still analysed, just
@@ -1267,6 +1273,7 @@ export const analyse = action({
     }
 
     const result = await runOpenAiAgent({
+      apiKey: quota.apiKey,
       system: renderSystemPrompt("form_coach"),
       user: JSON.stringify({
         digest: buildDigest(capture, exerciseReference),

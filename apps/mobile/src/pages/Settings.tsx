@@ -17,7 +17,7 @@ import {
   UserCircle,
   X,
 } from "@phosphor-icons/react"
-import { useMutation, useQuery } from "convex/react"
+import { useAction, useMutation, useQuery } from "convex/react"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
 import {
   registeredPushToken,
@@ -239,6 +239,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const onboarding = useQuery(api.users.onboarding.get)
   const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
   const { showAiPaywall, aiAccessModal } = useAiFeatureGate()
+  const byokStatus = useQuery(api.ai.byok.getStatus, {})
+  const saveByokKey = useAction(api.ai.byok.setKey)
+  const removeByokKey = useMutation(api.ai.byok.removeKey)
+  const [byokInput, setByokInput] = useState("")
+  const [byokBusy, setByokBusy] = useState(false)
 
   const healthSync = preferences?.healthSync
   const wearableConsent =
@@ -1287,6 +1292,73 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <GroupedList label="AI usage">
                   <AiUsageProgress usage={aiUsage} />
                 </GroupedList>
+                <SettingsSectionLabel
+                  title="Your own AI key"
+                  detail="Add your OpenRouter API key and AI features run on it — no monthly cap, no Pro required. You pay OpenRouter directly for what you use."
+                />
+                {byokStatus?.configured ? (
+                  <GroupedList label="Your OpenRouter key">
+                    <ListRow
+                      title={`Key ending in ${byokStatus.last4}`}
+                      detail="AI requests use your key. Remove it to go back to the included allowance."
+                      value={byokBusy ? "Removing…" : "Remove"}
+                      disabled={byokBusy}
+                      onClick={() => {
+                        setByokBusy(true)
+                        void (async () => {
+                          try {
+                            await removeByokKey({})
+                            toast.success("Key removed")
+                          } catch (error) {
+                            toast.error(
+                              error instanceof Error
+                                ? error.message
+                                : "Couldn't remove the key"
+                            )
+                          } finally {
+                            setByokBusy(false)
+                          }
+                        })()
+                      }}
+                    />
+                  </GroupedList>
+                ) : (
+                  <div className="flex items-center gap-2 px-[var(--app-page-x)]">
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      placeholder="sk-or-…"
+                      value={byokInput}
+                      aria-label="OpenRouter API key"
+                      onChange={(event) => setByokInput(event.target.value)}
+                      className="h-11 flex-1 rounded-xl border border-border bg-transparent px-3 outline-none"
+                    />
+                    <PrimaryButton
+                      aria-label="Save OpenRouter key"
+                      disabled={byokBusy || !byokInput.trim().startsWith("sk-or-")}
+                      onClick={async () => {
+                        setByokBusy(true)
+                        try {
+                          // Verified against OpenRouter server-side before it saves.
+                          await saveByokKey({ key: byokInput.trim() })
+                          setByokInput("")
+                          toast.success("Key saved — AI now runs on your key")
+                          trackUmami("byok_key_saved")
+                        } catch (error) {
+                          toast.error(
+                            error instanceof Error
+                              ? error.message
+                              : "Couldn't verify the key"
+                          )
+                        } finally {
+                          setByokBusy(false)
+                        }
+                      }}
+                    >
+                      {byokBusy ? "Verifying…" : "Save"}
+                    </PrimaryButton>
+                  </div>
+                )}
                 <SettingsSectionLabel title="Subscription" />
                 <GroupedList
                   label="OneRep Pro subscription"

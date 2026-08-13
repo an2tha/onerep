@@ -81,9 +81,11 @@ function normalizeLogDraft(value: z.infer<typeof logSchema>): LogDraft | null {
 async function draftWithOpenAi(
   text: string,
   unit: WeightUnit,
+  apiKey: string | null,
 ): Promise<LogDraft | null> {
-  if (!hasOpenAiApiKey()) return null;
+  if (!hasOpenAiApiKey(apiKey)) return null;
   const result = await runOpenAiAgent({
+    apiKey,
     system: renderSystemPrompt("workout_log", {
       max_exercises: MAX_EXERCISES,
       max_sets_per_exercise: MAX_SETS_PER_EXERCISE,
@@ -125,12 +127,12 @@ export const draftLogFromText = action({
 
     const unit: WeightUnit = args.unit ?? "kg";
 
-    await consumeAiUsageOrThrow(ctx, user._id, "workout_log");
+    const quota = await consumeAiUsageOrThrow(ctx, user._id, "workout_log");
 
     const fallback = fallbackLogDraftFromText(text, unit);
 
     try {
-      const aiDraft = await draftWithOpenAi(text, unit);
+      const aiDraft = await draftWithOpenAi(text, unit, quota.apiKey);
       if (aiDraft) return aiDraft;
     } catch (error) {
       console.warn("Falling back to local workout log parser", error);

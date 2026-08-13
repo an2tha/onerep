@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ai_byok from "../ai/byok.js";
 import type * as ai_coachGoals from "../ai/coachGoals.js";
 import type * as ai_coachHistory from "../ai/coachHistory.js";
 import type * as ai_coachOperations from "../ai/coachOperations.js";
@@ -130,6 +131,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "ai/byok": typeof ai_byok;
   "ai/coachGoals": typeof ai_coachGoals;
   "ai/coachHistory": typeof ai_coachHistory;
   "ai/coachOperations": typeof ai_coachOperations;
