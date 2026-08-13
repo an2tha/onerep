@@ -12,7 +12,7 @@ The production app lives at [app.onerep.life](https://app.onerep.life). The mark
 - **Progress:** body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, and user-defined metrics.
 - **Coach:** text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Generated changes are reviewed before they are applied when confirmation is required.
 - **Photo logging:** food detection through OpenRouter and its selected model provider, followed by a review step that matches detections to food records before logging them.
-- **Cross-platform support:** PWA updates, an offline mutation queue for common logging actions, Capacitor camera/haptics/notifications, RevenueCat subscriptions, and iOS widgets and Live Activities.
+- **Cross-platform support:** PWA updates, an offline mutation queue for common logging actions, Capacitor camera/haptics/notifications, and iOS widgets and Live Activities.
 - **Accounts and privacy:** Better Auth email/password accounts, email verification and password reset through Resend, analytics opt-in, data export, and account deletion.
 
 AI, food lookup, email, analytics, and subscriptions depend on their corresponding environment variables. The rest of the app can be developed without every optional integration configured.
@@ -23,15 +23,26 @@ AI, food lookup, email, analytics, and subscriptions depend on their correspondi
 .
 ├── apps/
 │   ├── mobile/       # Main React app, PWA, and Capacitor iOS/Android projects
-│   ├── web/          # Bun + React marketing and legal site
 │   └── datasource/   # Self-hosted USDA food + wger exercise API (Bun + SQLite)
 ├── convex/           # Schema, auth, queries, mutations, actions, HTTP routes, and crons
 ├── packages/
 │   ├── models/       # Shared TypeScript models and Coach operation contracts
 │   └── ui/           # Shared presentation components and Tailwind styles
-├── scripts/          # Prompt generation and exercise-catalog preparation
-└── docs/             # Feature and UI implementation notes
+├── scripts/          # Prompt generation, exercise-catalog prep, mirror publishing
+└── docs/             # Architecture, billing, testing, API, and feature docs
 ```
+
+The marketing site (`apps/web`) is developed internally and is not part of this repository's published tree; nothing in the app depends on it.
+
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — how the pieces fit together, and where the seams are
+- [`docs/billing.md`](docs/billing.md) — the billing seam: what's stubbed here and how to live with or replace it
+- [`docs/testing.md`](docs/testing.md) — which test commands exist, what each one actually runs
+- [`docs/api.md`](docs/api.md) — the HTTP API for your own scripts and devices
+- [`docs/mcp.md`](docs/mcp.md) — the same data over Model Context Protocol
+- [`docs/coach-features.md`](docs/coach-features.md) / [`docs/ai-upgrade.md`](docs/ai-upgrade.md) — what the Coach does and what it still owes us
+- [`docs/backlog.md`](docs/backlog.md) — known debts, kept short on purpose
 
 The mobile app talks directly to Convex. Datasource, OpenRouter, Resend, and billing secrets stay in the Convex deployment and are never exposed as `VITE_*` variables.
 
@@ -42,7 +53,7 @@ The mobile app talks directly to Convex. Datasource, OpenRouter, Resend, and bil
 - Bun workspaces and Turborepo
 - React 19, TypeScript, React Router 7, Vite 7
 - Tailwind CSS 4, Radix/Base UI, shadcn-style components, Framer Motion
-- Convex with Better Auth, Convex crons, and Convex RevenueCat components
+- Convex with Better Auth and Convex crons
 - Capacitor 8 for iOS and Android
 - Bun's server and bundler for the marketing site
 - Bun Test, Vitest/convex-test, and Playwright
@@ -119,7 +130,7 @@ Run every workspace development task:
 bun run dev
 ```
 
-This starts the app at `http://localhost:5173` and the marketing site at `http://localhost:3000`. For a quieter mobile-only session:
+This starts the app at `http://localhost:5173`. For a quieter mobile-only session:
 
 ```bash
 cd apps/mobile
@@ -190,6 +201,8 @@ BILLING_COMP_ALL_USERS=
 
 All of these are Convex deployment variables. Point the Stripe webhook at `/billing/stripe/webhook` on your Convex HTTP URL.
 
+In this repository the payment provider itself is a stub: checkout and subscription management report that billing is not available, and nothing else notices. A self-hosted deployment does not need any of the Stripe variables — set `BILLING_COMP_ALL_USERS=true` and every account is Pro. The seam, the stub, and what it takes to put a real provider behind it are documented in [`docs/billing.md`](docs/billing.md).
+
 ## Native apps
 
 The native projects are checked in under `apps/mobile/ios` and `apps/mobile/android`. Build the web assets before syncing Capacitor:
@@ -253,7 +266,7 @@ Authenticated screenshots require `E2E_STORAGE_STATE` to point to a signed-in Pl
 
 ## Deployment
 
-Pushes to `main` trigger the `Deploy Cloudflare Pages` job in [`.onedev-buildspec.yml`](.onedev-buildspec.yml). The job builds both static sites and deploys them to Cloudflare Pages. Add these secrets under the OneDev project's build settings before running it:
+Development happens on an internal OneDev instance; this GitHub repository is a one-way mirror of it (real commits, minus a few private paths — see `scripts/publish-github.sh` for exactly which and why). Pushes to `main` internally trigger the `Deploy Cloudflare Pages` job in [`.onedev-buildspec.yml`](.onedev-buildspec.yml), which builds the static sites and deploys them to Cloudflare Pages. Add these secrets under the OneDev project's build settings before running it:
 
 - `TURBO_TOKEN`
 - `TURBO_TEAM`

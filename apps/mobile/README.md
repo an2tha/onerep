@@ -1,21 +1,39 @@
-# React + TypeScript + Vite + shadcn/ui
+# apps/mobile
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
+The OneRep client — one React codebase shipped three ways: responsive web app,
+installable PWA, and Capacitor shells for iOS and Android. If a user touches
+it, it lives here.
 
-## Adding components
+Setup, environment variables, and the development loop are documented in the
+[repository README](../../README.md); the system it fits into is in
+[`docs/architecture.md`](../../docs/architecture.md). What follows is only
+what is specific to this workspace.
 
-To add components to your app, run the following command:
+## Boundaries
+
+- Presentation primitives come from [`@repo/ui`](../../packages/ui/README.md).
+  This app owns routing, Convex calls, auth, platform APIs, storage, and
+  feature state; the package owns how things look. Keep it that way.
+- The payment UI is a seam: `src/components/billing/index.tsx` is generated
+  (gitignored) and defaults to the stub. See
+  [`docs/billing.md`](../../docs/billing.md).
+
+## Native work
 
 ```bash
-npx shadcn@latest add button
+bun run build        # build web assets first, always
+bunx cap sync
+bunx cap open ios    # or android
 ```
 
-This will place the ui components in the `src/components` directory.
+The iOS and Android projects are checked in under `ios/` and `android/`.
+Production builds refuse placeholder or development Convex URLs by design —
+if the build fails there, it is protecting you from shipping a client wired
+to your dev database.
 
-## Using components
+## Tests
 
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
-```
+Run from `src/` (`cd src && bun test`) to stay under the file-descriptor
+limit, and read [`docs/testing.md`](../../docs/testing.md) before trusting a
+green run — this suite has opinions, including source-contract tests that
+assert the actual words on the screen.
