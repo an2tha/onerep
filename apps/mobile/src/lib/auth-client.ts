@@ -4,6 +4,7 @@ import {
   crossDomainClient,
 } from "@convex-dev/better-auth/client/plugins"
 import type { AuthClient } from "@convex-dev/better-auth/react"
+import { genericOAuthClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
 
@@ -22,6 +23,7 @@ export const authClient = createAuthClient({
     crossDomainClient({
       storagePrefix: "onerep-auth",
     }),
+    genericOAuthClient(),
   ],
 })
 export const providerAuthClient = authClient as unknown as AuthClient
@@ -102,8 +104,14 @@ export function useAppAuth() {
  * HTTP rather than a Convex query because the Convex client holds queries
  * until a session exists, and the login screen has none.
  */
+export type SocialProviders = {
+  google: boolean
+  oidc: boolean
+  oidcName: string | null
+}
+
 export function useSocialProviders() {
-  const [providers, setProviders] = useState<{ google: boolean } | null>(null)
+  const [providers, setProviders] = useState<SocialProviders | null>(null)
 
   useEffect(() => {
     if (!convexSiteUrl) return
@@ -112,7 +120,15 @@ export function useSocialProviders() {
     fetch(`${convexSiteUrl}/auth-providers`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
-        if (data) setProviders({ google: data.google === true })
+        if (data)
+          setProviders({
+            google: data.google === true,
+            oidc: data.oidc === true,
+            oidcName:
+              typeof data.oidcName === "string" && data.oidcName.length > 0
+                ? data.oidcName
+                : null,
+          })
       })
       .catch(() => {
         // Offline or unreachable: the social buttons stay hidden and email

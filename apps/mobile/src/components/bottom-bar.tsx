@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import { useLocation } from "react-router"
+import { useTranslation } from "react-i18next"
 import {
   Barbell,
   Books,
@@ -58,22 +59,15 @@ export function useBottomBarAction(action?: BottomBarAction) {
 }
 
 const TABS = [
-  { path: "/", Icon: House, label: "Today" },
-  { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
-  { path: "/workouts", Icon: Barbell, label: "Training" },
-  { path: "/exercises", Icon: Books, label: "Exercises" },
-  { path: "/progress", Icon: ChartLine, label: "Progress" },
-  { path: "/coach", Icon: RocketLaunchIcon, label: "Coach" },
+  { path: "/", Icon: House, labelKey: "nav.today" },
+  { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
+  { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
+  { path: "/exercises", Icon: Books, labelKey: "nav.exercises" },
+  { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
+  { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
 ] as const
 
-const DESKTOP_TABS = [
-  { path: "/", Icon: House, label: "Today" },
-  { path: "/nutrition", Icon: ForkKnife, label: "Nutrition" },
-  { path: "/workouts", Icon: Barbell, label: "Training" },
-  { path: "/exercises", Icon: Books, label: "Exercises" },
-  { path: "/progress", Icon: ChartLine, label: "Progress" },
-  { path: "/coach", Icon: RocketLaunchIcon, label: "Coach" },
-] as const
+const DESKTOP_TABS = TABS
 
 function isNutritionPath(pathname: string) {
   return (
@@ -111,6 +105,7 @@ export function BottomBar({
   chromeState?: ChromeTransitionState
 }) {
   const navigate = useSmoothNavigate()
+  const { t } = useTranslation()
   const location = useLocation()
   const pathname = pathnameOverride ?? location.pathname
   const renderDesktopSidebar =
@@ -119,11 +114,11 @@ export function BottomBar({
   const coachActive = isActive(pathname, "/coach")
   const primaryNavRef = useTourAnchor("bottom-bar")
 
-  const tabs = TABS.map(({ path, Icon, label }) => {
+  const tabs = TABS.map(({ path, Icon, labelKey }) => {
     const active = isActive(pathname, path)
     return {
       id: path,
-      label,
+      label: t(labelKey),
       active,
       icon: <Icon size={22} weight={active ? "fill" : "regular"} />,
       onSelect: () => {
@@ -134,11 +129,11 @@ export function BottomBar({
       },
     }
   })
-  const desktopTabs = DESKTOP_TABS.map(({ path, Icon, label }) => {
+  const desktopTabs = DESKTOP_TABS.map(({ path, Icon, labelKey }) => {
     const active = isActive(pathname, path)
     return {
       id: path,
-      label,
+      label: t(labelKey),
       active,
       icon: <Icon size={17} weight={active ? "fill" : "regular"} />,
       onSelect: () => {
@@ -168,7 +163,7 @@ export function BottomBar({
             onClick={() => {
               if (!settingsActive) navigate("/settings", { motion: "switch" })
             }}
-            aria-label="Open profile and settings"
+            aria-label={t("nav.openProfileSettings")}
             aria-current={settingsActive ? "page" : undefined}
             className={cn(
               "flex h-11 w-full items-center gap-3 border-l-2 px-3 text-[15px] font-semibold transition-colors",
@@ -181,7 +176,7 @@ export function BottomBar({
               size={18}
               weight={settingsActive ? "fill" : "regular"}
             />
-            Profile & settings
+            {t("nav.profileSettings")}
           </button>
         </TourAnchor>
       }

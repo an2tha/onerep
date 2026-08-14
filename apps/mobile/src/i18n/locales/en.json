@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "today": "Today",
+    "nutrition": "Nutrition",
+    "training": "Training",
+    "exercises": "Exercises",
+    "progress": "Progress",
+    "coach": "Coach",
+    "profileSettings": "Profile & settings",
+    "openProfileSettings": "Open profile and settings"
+  },
+  "settings": {
+    "titles": {
+      "overview": "Settings",
+      "appearance": "Appearance",
+      "account": "Account",
+      "targets": "Daily targets",
+      "preferences": "Training & app",
+      "nutrition": "Nutrition strategy",
+      "reminders": "Reminders",
+      "privacy": "Privacy & sync",
+      "health": "Health & wearables",
+      "data": "Data & account",
+      "agents": "API & MCP",
+      "walkthrough": "App walkthrough",
+      "developer": "Developer"
+    },
+    "language": {
+      "label": "App language",
+      "detail": "Menus and labels. Logged data stays as you wrote it."
+    }
+  }
+}

@@ -121,22 +121,27 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [legalAccepted, setLegalAccepted] = useState(false)
   // Better Auth bounces failed social sign-ins back here with its own error
-  // code in the query, so any `error` param means the Google round trip broke.
+  // code in the query, so any `error` param means an OAuth round trip broke.
   const [error, setError] = useState<string | undefined>(
     searchParams.has("error")
-      ? "Google sign-in did not complete. Try again, or use your email and password."
+      ? "Sign-in did not complete. Try again, or use your email and password."
       : undefined
   )
   const [message, setMessage] = useState<string | undefined>()
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [oidcLoading, setOidcLoading] = useState(false)
   const authActionRef = useRef(false)
   const socialProviders = useSocialProviders()
   // Google's OAuth pages refuse to load inside an embedded webview, so the
   // button stays off in the Capacitor builds until native sign-in lands.
   const googleAvailable =
     socialProviders?.google === true && !Capacitor.isNativePlatform()
-  const submitting = loading || googleLoading
+  // Self-hosted identity providers do not carry Google's webview ban, so the
+  // OIDC button stays on everywhere.
+  const oidcAvailable = socialProviders?.oidc === true
+  const oidcName = socialProviders?.oidcName ?? "SSO"
+  const submitting = loading || googleLoading || oidcLoading
   const redirectingSignedInUser = authLoaded && isSignedIn
   const authenticatedHandoffReady =
     redirectingSignedInUser && convexAuth.isAuthenticated
@@ -224,6 +229,54 @@ export default function Login() {
     } finally {
       authActionRef.current = false
       setGoogleLoading(false)
+    }
+  }
+
+  async function handleOidcSignIn() {
+    if (redirectIfSignedIn()) return
+
+    setError(undefined)
+    setMessage(undefined)
+    if (mode === "signup" && !legalAccepted) {
+      setError("Confirm that you are at least 13 and accept the Terms")
+      return
+    }
+    if (authActionRef.current || submitting) return
+
+    authActionRef.current = true
+    setOidcLoading(true)
+
+    try {
+      const { error } = await withAuthActionTimeout(
+        "Sign in",
+        authClient.signIn.oauth2({
+          providerId: "oidc",
+          callbackURL: getSocialCallbackUrl(nextPath),
+          newUserCallbackURL: getSocialCallbackUrl("/onboarding", {
+            isNewUser: true,
+          }),
+          errorCallbackURL: getAuthCallbackUrl("/login"),
+        })
+      )
+      if (error) {
+        setError(betterAuthErrorMessage(error, `${oidcName} sign-in failed`))
+        return
+      }
+
+      // Same as Google: the browser is leaving for the identity provider, so
+      // keep the button busy until the page unloads.
+      setMessage(`Opening ${oidcName}…`)
+      return
+    } catch (error) {
+      setError(
+        betterAuthErrorMessage(
+          error,
+          `Could not reach ${oidcName}. Check your connection and try again.`
+        )
+      )
+    } finally {
+      authActionRef.current = false
+      setOidcLoading(false)
     }
   }
 
@@ -517,7 +570,7 @@ export default function Login() {
             </button>
           </form>
 
-          {googleAvailable && (
+          {(googleAvailable || oidcAvailable) && (
             <>
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
@@ -527,16 +580,34 @@ export default function Login() {
                 <span className="h-px flex-1 bg-border" />
               </div>
 
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                disabled={submitting}
-                aria-busy={googleLoading}
-                className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
-              >
-                <GoogleMark />
-                {googleLoading ? "Opening Google…" : "Continue with Google"}
-              </button>
+              <div className="space-y-3">
+                {googleAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={submitting}
+                    aria-busy={googleLoading}
+                    className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+                  >
+                    <GoogleMark />
+                    {googleLoading ? "Opening Google…" : "Continue with Google"}
+                  </button>
+                )}
+
+                {oidcAvailable && (
+                  <button
+                    type="button"
+                    onClick={handleOidcSignIn}
+                    disabled={submitting}
+                    aria-busy={oidcLoading}
+                    className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+                  >
+                    {oidcLoading
+                      ? `Opening ${oidcName}…`
+                      : `Continue with ${oidcName}`}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </AuthModeCard>

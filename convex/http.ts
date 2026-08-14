@@ -16,6 +16,8 @@ import {
   authComponent,
   createAuth,
   googleAuthConfigured,
+  oidcAuthConfigured,
+  oidcProviderName,
   trustedOrigins,
 } from "./lib/auth";
 
@@ -56,9 +58,14 @@ http.route({
     const headers = socialProvidersCorsHeaders(request);
     headers.set("Content-Type", "application/json");
     headers.set("Cache-Control", "public, max-age=300");
-    return new Response(JSON.stringify({ google: googleAuthConfigured }), {
-      headers,
-    });
+    return new Response(
+      JSON.stringify({
+        google: googleAuthConfigured,
+        oidc: oidcAuthConfigured,
+        oidcName: oidcAuthConfigured ? oidcProviderName : null,
+      }),
+      { headers },
+    );
   }),
 });
 

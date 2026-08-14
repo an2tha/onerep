@@ -175,6 +175,12 @@ import {
   SyncStatusIcon,
   ToolbarButton,
 } from "@repo/ui"
+import { useTranslation } from "react-i18next"
+import i18n, {
+  setUiLanguage,
+  storedUiLanguage,
+  type UiLanguage,
+} from "@/i18n"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
 
@@ -201,20 +207,20 @@ const SHOW_DEV_SETTINGS = import.meta.env.DEV
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
 
 
-const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
-  overview: "Settings",
-  appearance: "Appearance",
-  account: "Account",
-  targets: "Daily targets",
-  preferences: "Training & app",
-  nutrition: "Nutrition strategy",
-  reminders: "Reminders",
-  privacy: "Privacy & sync",
-  health: "Health & wearables",
-  data: "Data & account",
-  agents: "API & MCP",
-  walkthrough: "App walkthrough",
-  developer: "Developer",
+const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
+  overview: "settings.titles.overview",
+  appearance: "settings.titles.appearance",
+  account: "settings.titles.account",
+  targets: "settings.titles.targets",
+  preferences: "settings.titles.preferences",
+  nutrition: "settings.titles.nutrition",
+  reminders: "settings.titles.reminders",
+  privacy: "settings.titles.privacy",
+  health: "settings.titles.health",
+  data: "settings.titles.data",
+  agents: "settings.titles.agents",
+  walkthrough: "settings.titles.walkthrough",
+  developer: "settings.titles.developer",
 }
 
 /**
@@ -228,6 +234,10 @@ const SETTINGS_VIEW_TITLES: Record<SettingsView, string> = {
  */
 export default function Settings({ onClose }: { onClose: () => void }) {
   const navigate = useSmoothNavigate()
+  const { t } = useTranslation()
+  const [uiLanguage, setUiLanguageState] = useState<UiLanguage>(
+    () => storedUiLanguage() ?? (i18n.language.slice(0, 2) as UiLanguage)
+  )
   const { theme, setTheme } = useTheme()
   const { user } = useAppAuth()
   const billing = useBilling({
@@ -1077,7 +1087,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
     <div className="desktop-canvas min-h-svh bg-background text-foreground lg:pr-8 lg:pl-72">
       <main className="mx-auto min-h-svh w-full max-w-2xl pb-[calc(var(--app-safe-bottom-lg)+5rem)] md:pb-12">
         <NavigationBar
-          title={SETTINGS_VIEW_TITLES[activeView]}
+          title={t(SETTINGS_VIEW_TITLE_KEYS[activeView])}
           subtitle={
             activeView === "overview" ? "Your OneRep experience" : undefined
           }
@@ -1512,6 +1522,29 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       checked={simpleDashboard}
                       onChange={setSimpleDashboard}
                       label="Simple dashboard"
+                    />
+                  </SettingsRow>
+                  <SettingsRow
+                    label={t("settings.language.label")}
+                    detail={t("settings.language.detail")}
+                  >
+                    <SegmentedControl
+                      onInteract={hapticSelection}
+                      label={t("settings.language.label")}
+                      value={uiLanguage}
+                      onChange={(value) => {
+                        const language = value as UiLanguage
+                        setUiLanguageState(language)
+                        setUiLanguage(language)
+                      }}
+                      options={[
+                        { value: "en", label: "EN" },
+                        { value: "es", label: "ES" },
+                        { value: "fr", label: "FR" },
+                        { value: "de", label: "DE" },
+                        { value: "it", label: "IT" },
+                        { value: "pt", label: "PT" },
+                      ]}
                     />
                   </SettingsRow>
                   <SettingsRow label="Food search language">

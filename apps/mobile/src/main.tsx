@@ -34,6 +34,7 @@ import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
 
 import "./index.css"
+import "./i18n"
 
 declare global {
   interface Window {

@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "today": "Hoy",
+    "nutrition": "Nutrición",
+    "training": "Entrenamiento",
+    "exercises": "Ejercicios",
+    "progress": "Progreso",
+    "coach": "Coach",
+    "profileSettings": "Perfil y ajustes",
+    "openProfileSettings": "Abrir perfil y ajustes"
+  },
+  "settings": {
+    "titles": {
+      "overview": "Ajustes",
+      "appearance": "Apariencia",
+      "account": "Cuenta",
+      "targets": "Objetivos diarios",
+      "preferences": "Entrenamiento y app",
+      "nutrition": "Estrategia nutricional",
+      "reminders": "Recordatorios",
+      "privacy": "Privacidad y sincronización",
+      "health": "Salud y wearables",
+      "data": "Datos y cuenta",
+      "agents": "API y MCP",
+      "walkthrough": "Tour de la app",
+      "developer": "Desarrollador"
+    },
+    "language": {
+      "label": "Idioma de la app",
+      "detail": "Menús y etiquetas. Tus datos registrados no cambian."
+    }
+  }
+}
