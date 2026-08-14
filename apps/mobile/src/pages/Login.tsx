@@ -28,6 +28,7 @@ import {
   getSocialCallbackUrl,
   rememberPendingVerification,
 } from "@/lib/auth-redirects"
+import { ServerPicker, currentServerLabel } from "@/components/server-picker"
 
 type LoginMode = "signin" | "signup"
 
@@ -131,6 +132,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [oidcLoading, setOidcLoading] = useState(false)
+  const [serverPickerOpen, setServerPickerOpen] = useState(false)
   const authActionRef = useRef(false)
   const socialProviders = useSocialProviders()
   // Google's OAuth pages refuse to load inside an embedded webview, so the
@@ -630,6 +632,27 @@ export default function Login() {
           "Your data stays private and is never sold."
         )}
       </p>
+
+      <div className="mt-4 text-center">
+        <button
+          type="button"
+          onClick={() => {
+            hapticSelection()
+            setServerPickerOpen((open) => !open)
+          }}
+          disabled={submitting}
+          aria-expanded={serverPickerOpen}
+          className="text-[13px] leading-5 font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
+        >
+          Server: {currentServerLabel()}
+        </button>
+      </div>
+
+      {serverPickerOpen && (
+        <section aria-label="Choose a server" className="mt-4">
+          <ServerPicker disabled={submitting} />
+        </section>
+      )}
     </AuthLayout>
   )
 }

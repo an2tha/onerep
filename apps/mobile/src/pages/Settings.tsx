@@ -8,6 +8,7 @@ import {
   Database,
   ForkKnife,
   GearFine,
+  HardDrives,
   Heartbeat,
   Key,
   Moon,
@@ -148,12 +149,16 @@ import { useMomentPreview } from "@/lib/full-screen-events"
 import { MOMENT_IDS, type MomentId } from "@/lib/moments"
 import { ApiKeysSection } from "@/components/api-keys-section"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
+import { serverOverride } from "@/lib/server-config"
+import { ServerPicker, currentServerLabel } from "@/components/server-picker"
 
 /** Where a script or an MCP client points. Shown so nobody guesses the host. */
-const apiSiteUrl = resolveConvexSiteUrl(
-  import.meta.env.VITE_CONVEX_SITE_URL,
-  import.meta.env.VITE_CONVEX_URL
-)
+const apiSiteUrl =
+  serverOverride?.convexSiteUrl ??
+  resolveConvexSiteUrl(
+    import.meta.env.VITE_CONVEX_SITE_URL,
+    import.meta.env.VITE_CONVEX_URL
+  )
 const apiBaseUrl = apiSiteUrl ? `${apiSiteUrl}/v1` : undefined
 const mcpEndpointUrl = apiSiteUrl ? `${apiSiteUrl}/mcp` : undefined
 import {
@@ -200,6 +205,7 @@ type SettingsView =
   | "health"
   | "data"
   | "agents"
+  | "server"
   | "walkthrough"
   | "developer"
 
@@ -219,6 +225,7 @@ const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
   health: "settings.titles.health",
   data: "settings.titles.data",
   agents: "settings.titles.agents",
+  server: "settings.titles.server",
   walkthrough: "settings.titles.walkthrough",
   developer: "settings.titles.developer",
 }
@@ -1238,6 +1245,17 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     onClick={() => showView("agents")}
                   />
                   <DisclosureRow
+                    title="Server"
+                    detail={
+                      serverOverride
+                        ? "Connected to your self-hosted server"
+                        : "OneRep Cloud, the default"
+                    }
+                    value={serverOverride ? "Custom" : undefined}
+                    leading={<HardDrives size={20} weight="regular" />}
+                    onClick={() => showView("server")}
+                  />
+                  <DisclosureRow
                     title="App walkthrough"
                     detail="Replay the guided tour of each area"
                     leading={<Compass size={20} weight="regular" />}
@@ -1256,6 +1274,18 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                 <p className="native-row-detail px-[var(--app-page-x)] pt-7 text-center">
                   OneRep keeps core tracking available without Pro.
                 </p>
+              </>
+            )}
+
+            {activeView === "server" && (
+              <>
+                <SettingsSectionIntro>
+                  OneRep can run against the hosted service or an install you
+                  run yourself. Currently connected to {currentServerLabel()}.
+                </SettingsSectionIntro>
+                <div className="px-[var(--app-page-x)]">
+                  <ServerPicker />
+                </div>
               </>
             )}
 

@@ -1,6 +1,9 @@
 import { ConvexReactClient } from "convex/react"
+import { serverOverride } from "@/lib/server-config"
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined
+const convexUrl =
+  serverOverride?.convexUrl ??
+  (import.meta.env.VITE_CONVEX_URL as string | undefined)
 
 export const convexServiceConfigured = Boolean(convexUrl)
 export const convexClient = new ConvexReactClient(
