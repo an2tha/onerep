@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react"
-import { CheckCircle, Circle } from "@phosphor-icons/react"
+import { SettingsChoiceRow } from "@repo/ui/settings"
 import {
   applyServerOverride,
   clearServerOverride,
@@ -17,60 +17,6 @@ import {
 
 export function currentServerLabel() {
   return serverOverride ? serverOverride.input : "OneRep Cloud"
-}
-
-function OptionRow({
-  selected,
-  title,
-  detail,
-  badge,
-  disabled,
-  onSelect,
-}: {
-  selected: boolean
-  title: string
-  detail: string
-  badge?: string
-  disabled?: boolean
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      onClick={onSelect}
-      className={`flex w-full items-start gap-3 rounded-[0.8rem] border p-4 text-left transition-colors disabled:opacity-50 ${
-        selected
-          ? "border-foreground bg-[var(--surface-raised)]"
-          : "border-border hover:border-foreground/40"
-      }`}
-    >
-      <span className="mt-0.5 shrink-0 text-foreground">
-        {selected ? (
-          <CheckCircle size={20} weight="fill" />
-        ) : (
-          <Circle size={20} weight="regular" className="text-muted-foreground" />
-        )}
-      </span>
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="text-[15px] leading-5 font-semibold text-foreground">
-            {title}
-          </span>
-          {badge && (
-            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-              {badge}
-            </span>
-          )}
-        </span>
-        <span className="mt-1 block text-[13px] leading-5 break-all text-muted-foreground">
-          {detail}
-        </span>
-      </span>
-    </button>
-  )
 }
 
 export function ServerPicker({ disabled }: { disabled?: boolean }) {
@@ -116,7 +62,7 @@ export function ServerPicker({ disabled }: { disabled?: boolean }) {
 
   return (
     <div role="radiogroup" aria-label="Server" className="space-y-3">
-      <OptionRow
+      <SettingsChoiceRow
         selected={!customSelected}
         title="OneRep Cloud"
         badge="Default"
@@ -128,7 +74,7 @@ export function ServerPicker({ disabled }: { disabled?: boolean }) {
         disabled={busy}
         onSelect={selectDefault}
       />
-      <OptionRow
+      <SettingsChoiceRow
         selected={customSelected}
         title="Self-hosted server"
         detail="Your own OneRep install, reached by IP address or hostname."
