@@ -6,12 +6,15 @@ import {
 import type { AuthClient } from "@convex-dev/better-auth/react"
 import { genericOAuthClient } from "better-auth/client/plugins"
 import { createAuthClient } from "better-auth/react"
+import { serverOverride } from "@/lib/server-config"
 import { resolveConvexSiteUrl } from "@/lib/service-urls"
 
-const convexSiteUrl = resolveConvexSiteUrl(
-  import.meta.env.VITE_CONVEX_SITE_URL,
-  import.meta.env.VITE_CONVEX_URL
-)
+const convexSiteUrl =
+  serverOverride?.convexSiteUrl ??
+  resolveConvexSiteUrl(
+    import.meta.env.VITE_CONVEX_SITE_URL,
+    import.meta.env.VITE_CONVEX_URL
+  )
 const AUTH_LOAD_TIMEOUT_MS = 6500
 
 export const authServiceConfigured = Boolean(convexSiteUrl)
