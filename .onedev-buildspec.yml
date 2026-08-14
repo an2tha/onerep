@@ -148,6 +148,16 @@ jobs:
             value: https://app.onerep.life/ota/manifest.json
           - name: VITE_OTA_ORIGIN
             value: https://app.onerep.life
+          # Umami. Injected into index.html by the onerep-umami plugin only when
+          # both of these are set, so this is the one build that carries a
+          # tracker -- a self-hosted install sets nothing and ships nothing.
+          # Not secret: the script URL and website id are public by nature.
+          - name: VITE_UMAMI_SCRIPT_URL
+            value: https://umami.halmutturs.xyz/script.js
+          - name: VITE_UMAMI_WEBSITE_ID
+            value: 8816ef62-95da-4796-b26f-0a003731044c
+          - name: VITE_UMAMI_RECORDER
+            value: "true"
         useTTY: false
         condition: SUCCESSFUL
         optional: false

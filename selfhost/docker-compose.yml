@@ -87,6 +87,13 @@ services:
         VITE_CONVEX_SITE_URL: ${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
         VITE_APP_URL: ${APP_URL:-http://127.0.0.1:8081}
         VITE_SITE_URL: ${APP_URL:-http://127.0.0.1:8081}
+        # Anonymous usage telemetry. install.sh asks and writes the answer to
+        # UMAMI_* in selfhost/.env; the prompt defaults to yes. Here they are
+        # empty, and empty is the whole feature: with either one unset the build
+        # injects no analytics script at all, so a bare `docker compose build
+        # app` on a fresh clone that never ran install.sh phones nobody.
+        VITE_UMAMI_SCRIPT_URL: ${UMAMI_SCRIPT_URL:-}
+        VITE_UMAMI_WEBSITE_ID: ${UMAMI_WEBSITE_ID:-}
     ports:
       - "8081:3000"
     depends_on:

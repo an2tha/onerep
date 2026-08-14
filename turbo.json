@@ -17,6 +17,9 @@
         "VITE_PUBLIC_POSTHOG_HOST",
         "VITE_BUNDLE_VERSION",
         "VITE_BUNDLE_COMMIT",
+        "VITE_UMAMI_SCRIPT_URL",
+        "VITE_UMAMI_WEBSITE_ID",
+        "VITE_UMAMI_RECORDER",
         "VITE_OTA_MANIFEST_URL",
         "VITE_OTA_ORIGIN"
       ],
@@ -36,6 +39,9 @@
         "VITE_PUBLIC_POSTHOG_HOST",
         "VITE_BUNDLE_VERSION",
         "VITE_BUNDLE_COMMIT",
+        "VITE_UMAMI_SCRIPT_URL",
+        "VITE_UMAMI_WEBSITE_ID",
+        "VITE_UMAMI_RECORDER",
         "VITE_OTA_MANIFEST_URL",
         "VITE_OTA_ORIGIN"
       ],

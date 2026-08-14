@@ -21,9 +21,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="msapplication-TileColor" content="#f4f4f5" />
     <meta name="format-detection" content="telephone=no" />
-    <script defer src="https://umami.halmutturs.xyz/script.js" data-website-id="8816ef62-95da-4796-b26f-0a003731044c"></script>
-    <script defer src="https://umami.halmutturs.xyz/recorder.js" data-website-id="8816ef62-95da-4796-b26f-0a003731044c"></script>
-    
+    <!--
+      The Umami tags used to be hardcoded here, which meant every self-hosted
+      install quietly reported to a stranger's analytics instance. They are now
+      injected at build time by onerep-umami in vite.config.ts, only when
+      VITE_UMAMI_SCRIPT_URL and VITE_UMAMI_WEBSITE_ID are both set. Unconfigured
+      builds ship no tracker at all — that is the point, do not put them back.
+    -->
     <meta
       name="viewport"
       content="viewport-fit=cover, width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
