@@ -26,6 +26,7 @@ import type { DataModel } from "./dataModel.js";
  */
 type Env = {
   readonly AI_PROCESSOR_APPROVED: string | undefined;
+  readonly AI_USAGE_UNLIMITED: string | undefined;
   readonly AUTH_EMAIL_FROM: string | undefined;
   readonly AUTH_EMAIL_LOGO_URL: string | undefined;
   readonly BILLING_CHECKOUT_CANCEL_URL: string | undefined;
