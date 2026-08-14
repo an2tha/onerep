@@ -4,15 +4,19 @@
 # all via the docker-compose.yml sitting next to this script.
 #
 # What it does, in order:
-#   1. writes selfhost/.env with generated secrets (kept if it already exists)
-#   2. starts the Convex backend and waits for it to be healthy
-#   3. generates a deploy admin key
-#   4. deploys the Convex functions and sets the deployment's env vars
-#   5. builds and starts the datasource and the app
+#   1. asks once whether to enable anonymous telemetry (default: yes)
+#   2. writes selfhost/.env with generated secrets (kept if it already exists)
+#   3. starts the Convex backend and waits for it to be healthy
+#   4. generates a deploy admin key
+#   5. deploys the Convex functions and sets the deployment's env vars
+#   6. builds and starts the datasource and the app
 #
 # Optional env vars before running (all have localhost defaults):
 #   PUBLIC_HOST          hostname clients will use         (default 127.0.0.1)
 #   OPENROUTER_API_KEY   enables the Coach and photo logging
+#   ONEREP_TELEMETRY     yes|no, answers the telemetry prompt unattended
+#   UMAMI_SCRIPT_URL     report to your own Umami instead of the project's
+#   UMAMI_WEBSITE_ID     the website id on that instance
 #
 # Email verification is off by default, so no email provider is needed.
 # Anything beyond that (Google sign-in, email, billing) is configured later
@@ -40,7 +44,80 @@ else
   fail "bun or node is required on the host to run the Convex CLI (deploys functions)"
 fi
 
-# ---------- 1. .env ----------------------------------------------------------
+# ---------- 1. telemetry (asked plainly, defaults to on) ---------------------
+#
+# The app can report anonymous usage counts to an Umami instance: page views and
+# event names, cookieless, no identifier, no session replay. The question below
+# defaults to yes, so declining is a deliberate keystroke — and declining is
+# absolute: "off" means the build injects no analytics script at all, not a
+# script that sits there promising to behave.
+#
+# Answer once. The choice lands in selfhost/.env as UMAMI_* and is kept on every
+# re-run, like the secrets above it. To change your mind, edit those two lines
+# and re-run: the app image rebuilds and the tags go in or come out.
+#
+# For unattended installs, set ONEREP_TELEMETRY=yes|no beforehand — an install
+# with no terminal to ask at takes the same default as one that just hits enter.
+# To report to your own Umami rather than the project's, set UMAMI_SCRIPT_URL
+# and UMAMI_WEBSITE_ID and skip the question entirely.
+
+PROJECT_UMAMI_SCRIPT_URL="https://umami.halmutturs.xyz/script.js"
+PROJECT_UMAMI_WEBSITE_ID="8816ef62-95da-4796-b26f-0a003731044c"
+
+UMAMI_SCRIPT_URL="${UMAMI_SCRIPT_URL:-}"
+UMAMI_WEBSITE_ID="${UMAMI_WEBSITE_ID:-}"
+
+# An existing .env has already answered. Do not ask a second time.
+if [ -f .env ] && grep -q '^UMAMI_SCRIPT_URL=' .env; then
+  TELEMETRY_ANSWERED=1
+else
+  TELEMETRY_ANSWERED=0
+fi
+
+if [ "$TELEMETRY_ANSWERED" -eq 0 ] && [ -z "$UMAMI_SCRIPT_URL" ]; then
+  case "${ONEREP_TELEMETRY:-}" in
+    yes | y | true | 1)
+      reply=y
+      ;;
+    no | n | false | 0)
+      reply=n
+      ;;
+    *)
+      if [ -t 0 ]; then
+        cat <<'EOF'
+
+Anonymous usage telemetry
+  Sends page views and event names to the OneRep project's Umami instance.
+  Cookieless, no identifier, no session recording, nothing you log — no
+  workouts, no food, no body data, no account details. It exists so the
+  project can tell which screens people actually use.
+  Say no and the app is built with no analytics script whatsoever.
+EOF
+        printf '\n  Enable anonymous telemetry? [Y/n] '
+        read -r reply || reply=y
+        # A bare enter takes the default.
+        [ -n "$reply" ] || reply=y
+      else
+        # Nothing to ask at, so it takes the default the same as anyone else.
+        # ONEREP_TELEMETRY=no is the way to say otherwise from a script.
+        reply=y
+      fi
+      ;;
+  esac
+
+  case "$reply" in
+    y | Y | yes)
+      UMAMI_SCRIPT_URL="$PROJECT_UMAMI_SCRIPT_URL"
+      UMAMI_WEBSITE_ID="$PROJECT_UMAMI_WEBSITE_ID"
+      ;;
+    *)
+      UMAMI_SCRIPT_URL=""
+      UMAMI_WEBSITE_ID=""
+      ;;
+  esac
+fi
+
+# ---------- 2. .env ----------------------------------------------------------
 
 PUBLIC_HOST="${PUBLIC_HOST:-127.0.0.1}"
 
@@ -58,14 +135,36 @@ BETTER_AUTH_SECRET=$(openssl rand -hex 32)
 
 # Optional integrations. Fill in and re-run ./install.sh to apply.
 OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+
+# Anonymous usage telemetry. Empty means no analytics script is built into the
+# app at all. Fill both in (or blank both out) and re-run to change your mind.
+UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL}
+UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID}
 EOF
 else
   say "Keeping existing selfhost/.env"
+  # An .env from before telemetry became a question. It was never asked, so the
+  # answer recorded above is appended rather than assumed.
+  if ! grep -q '^UMAMI_SCRIPT_URL=' .env; then
+    cat >> .env <<EOF
+
+# Anonymous usage telemetry. Empty means no analytics script is built into the
+# app at all. Fill both in (or blank both out) and re-run to change your mind.
+UMAMI_SCRIPT_URL=${UMAMI_SCRIPT_URL}
+UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID}
+EOF
+  fi
 fi
 
 set -a; . ./.env; set +a
 
-# ---------- 2. backend up ----------------------------------------------------
+if [ -n "${UMAMI_SCRIPT_URL:-}" ] && [ -n "${UMAMI_WEBSITE_ID:-}" ]; then
+  say "Telemetry: on, reporting to ${UMAMI_SCRIPT_URL}"
+else
+  say "Telemetry: off — the app is built without any analytics script"
+fi
+
+# ---------- 3. backend up ----------------------------------------------------
 
 say "Starting Convex backend"
 docker compose up -d backend dashboard
@@ -74,7 +173,7 @@ until docker compose exec backend curl -sf http://localhost:3210/version >/dev/n
 done
 echo " up."
 
-# ---------- 3. admin key -----------------------------------------------------
+# ---------- 4. admin key -----------------------------------------------------
 
 say "Generating admin key"
 ADMIN_KEY="$(docker compose exec backend ./generate_admin_key.sh | tail -n 1 | tr -d '\r')"
@@ -83,7 +182,7 @@ ADMIN_KEY="$(docker compose exec backend ./generate_admin_key.sh | tail -n 1 | t
 export CONVEX_SELF_HOSTED_URL="http://127.0.0.1:3210"
 export CONVEX_SELF_HOSTED_ADMIN_KEY="$ADMIN_KEY"
 
-# ---------- 4. deploy functions + deployment env -----------------------------
+# ---------- 5. deploy functions + deployment env -----------------------------
 
 say "Installing dependencies and deploying Convex functions"
 (cd "$REPO_ROOT" && $INSTALL)
@@ -105,7 +204,7 @@ set_env DATASOURCE_API_TOKEN  "$DATASOURCE_API_TOKEN"
 set_env OPENROUTER_API_KEY    "${OPENROUTER_API_KEY:-}"
 set_env AI_PROCESSOR_APPROVED "${OPENROUTER_API_KEY:+true}"
 
-# ---------- 5. everything else ----------------------------------------------
+# ---------- 6. everything else ----------------------------------------------
 
 say "Building and starting the datasource and the app (the app build takes a while)"
 docker compose up -d --build datasource app

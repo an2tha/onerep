@@ -49,6 +49,58 @@ function versionStampPlugin(version: string, commit: string): Plugin {
   }
 }
 
+/**
+ * Injects the Umami tags into index.html, and only if asked to.
+ *
+ * They were hardcoded in the HTML once, which is fine for a build the project
+ * controls and indefensible for a self-hosted one: every install shipped a
+ * tracker pointed at somebody else's server, and nobody was ever asked. So the
+ * default is now nothing, and telemetry is something a build opts into by
+ * setting both VITE_UMAMI_SCRIPT_URL and VITE_UMAMI_WEBSITE_ID. Half a
+ * configuration is a misconfiguration and gets you the same nothing.
+ *
+ * The session recorder is a separate switch on purpose. "Anonymous usage
+ * counts" and "a replay of what you did in the app" are not the same promise,
+ * and selfhost/install.sh never turns the second one on.
+ */
+export function umamiPlugin(
+  scriptUrl: string | undefined,
+  websiteId: string | undefined,
+  recorder: boolean
+): Plugin {
+  const configured = Boolean(scriptUrl?.trim() && websiteId?.trim())
+  return {
+    name: "onerep-umami",
+    transformIndexHtml() {
+      if (!configured) return []
+      const src = scriptUrl!.trim()
+      const id = websiteId!.trim()
+      const tags = [
+        {
+          tag: "script",
+          injectTo: "head" as const,
+          attrs: { defer: true, src, "data-website-id": id },
+        },
+      ]
+      // recorder.js lives beside script.js on every Umami instance. If the URL
+      // has been pointed somewhere that does not follow that convention, skip
+      // the recorder rather than guessing at a 404.
+      if (recorder && src.endsWith("/script.js")) {
+        tags.push({
+          tag: "script",
+          injectTo: "head" as const,
+          attrs: {
+            defer: true,
+            src: src.replace(/\/script\.js$/, "/recorder.js"),
+            "data-website-id": id,
+          },
+        })
+      }
+      return tags
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig(({ command, mode }) => {
   for (const key of ["VITE_CONVEX_URL", "VITE_CONVEX_SITE_URL"] as const) {
@@ -98,6 +150,11 @@ export default defineConfig(({ command, mode }) => {
       versionStampPlugin(
         env.VITE_BUNDLE_VERSION?.trim() || "0.0.0",
         env.VITE_BUNDLE_COMMIT?.trim() || "unknown"
+      ),
+      umamiPlugin(
+        env.VITE_UMAMI_SCRIPT_URL,
+        env.VITE_UMAMI_WEBSITE_ID,
+        env.VITE_UMAMI_RECORDER?.trim() === "true"
       ),
     ],
     build: {
