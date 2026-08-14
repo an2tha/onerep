@@ -40,6 +40,7 @@
     <li>
       <a href="#about-the-project">About The Project</a>
       <ul>
+        <li><a href="#screenshots">Screenshots</a></li>
         <li><a href="#built-with">Built With</a></li>
         <li><a href="#repository-layout">Repository Layout</a></li>
       </ul>
@@ -85,6 +86,17 @@ What's implemented, in the order you'd hit it:
 - **Accounts and privacy** — email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
 
 Everything here runs on your own hardware: the Convex backend, the food datasource, and the app itself, brought up by one script. AI, food lookup, email, and analytics each switch on with their own environment variables and stay quiet without them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less — any user can supply their own key in Settings and Coach works for them alone.
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Screenshots
+
+A run through the app as it actually looks: the daily dashboard, nutrition,
+training, progress, and the Coach.
+
+<div align="center">
+  <img src="docs/media/onerep-tour.gif" alt="A walkthrough of OneRep: daily dashboard with calorie and macro rings, nutrition logging, training, progress charts, and the AI Coach" width="900">
+</div>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
