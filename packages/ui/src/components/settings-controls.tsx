@@ -1,4 +1,4 @@
-import { Minus, Plus } from "@phosphor-icons/react"
+import { CheckCircle, Circle, Minus, Plus } from "@phosphor-icons/react"
 import { useEffect, useRef, useState, type ReactNode } from "react"
 
 import { cn } from "../lib/utils"
@@ -22,6 +22,66 @@ export function SettingsRow({
       </span>
       <div className="ml-auto max-w-full overflow-x-auto">{children}</div>
     </div>
+  )
+}
+
+/**
+ * One option in a radiogroup that is too tall to be a segmented control —
+ * a title, an optional badge, and a line of explanation, with the whole card
+ * as the hit target. Pair with a `role="radiogroup"` wrapper.
+ */
+export function SettingsChoiceRow({
+  selected,
+  title,
+  detail,
+  badge,
+  disabled,
+  onSelect,
+}: {
+  selected: boolean
+  title: string
+  detail: string
+  badge?: string
+  disabled?: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onSelect}
+      className={cn(
+        "flex w-full items-start gap-3 rounded-[0.8rem] border p-4 text-left transition-colors disabled:opacity-50",
+        selected
+          ? "border-foreground bg-[var(--surface-raised)]"
+          : "border-border hover:border-foreground/40"
+      )}
+    >
+      <span className="mt-0.5 shrink-0 text-foreground">
+        {selected ? (
+          <CheckCircle size={20} weight="fill" />
+        ) : (
+          <Circle size={20} weight="regular" className="text-muted-foreground" />
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="text-[15px] leading-5 font-semibold text-foreground">
+            {title}
+          </span>
+          {badge && (
+            <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
+              {badge}
+            </span>
+          )}
+        </span>
+        <span className="mt-1 block text-[13px] leading-5 break-all text-muted-foreground">
+          {detail}
+        </span>
+      </span>
+    </button>
   )
 }
 

@@ -117,6 +117,10 @@ describe("@repo/ui package boundary", () => {
       // the same Convex action Coach chat uses.
       "moments/weekly-review-moment.tsx",
       "offline-sync-indicator.tsx",
+      // Points the app at a different backend: reads and writes the device's
+      // server override, then reloads. The choice rows and field chrome come
+      // from @repo/ui.
+      "server-picker.tsx",
       // Renders null; drives the native OTA plugin's check/apply/rollback
       // lifecycle.
       "ota-lifecycle.tsx",
