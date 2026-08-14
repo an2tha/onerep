@@ -1,6 +1,11 @@
 import { v } from "convex/values";
 import { internal } from "../_generated/api";
-import { internalMutation, query, type ActionCtx } from "../_generated/server";
+import {
+  env,
+  internalMutation,
+  query,
+  type ActionCtx,
+} from "../_generated/server";
 import { safeGetAuthUser } from "../lib/auth";
 import { hasActiveProEntitlement } from "../billing/entitlement";
 import { byokKeyFor } from "./byok";
@@ -64,7 +69,23 @@ export type AiUsageQuota = {
   byok: boolean;
   /** Advertised so clients can show the upgrade value without hardcoding it. */
   proLimit: number;
+  /**
+   * False when the deployment itself has no OpenRouter key — common on
+   * self-hosted installs. AI then only works for users who bring their own
+   * key, which is exactly what the client should hint at.
+   */
+  serverAiConfigured: boolean;
+  /**
+   * True when this deployment opted out of usage caps entirely
+   * (AI_USAGE_UNLIMITED=true). Meant for self-hosted installs, where the
+   * operator pays for their own inference; the hosted app never sets it.
+   */
+  unlimited: boolean;
 };
+
+function usageIsUnlimited() {
+  return env.AI_USAGE_UNLIMITED?.trim() === "true";
+}
 
 function utcMonthKey(date = new Date()) {
   return date.toISOString().slice(0, 7);
@@ -84,6 +105,8 @@ export const getMonthlyUsage = query({
         isPro: false,
         byok: false,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
+        serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+        unlimited: usageIsUnlimited(),
       };
     }
 
@@ -108,6 +131,8 @@ export const getMonthlyUsage = query({
       isPro,
       byok: byokKey !== null,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
+      serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+      unlimited: usageIsUnlimited(),
     };
   },
 });
@@ -138,6 +163,7 @@ export const consumeMonthlyQuota = internalMutation({
       byokKeyFor(ctx, args.userId),
     ]);
     const byok = byokKey !== null;
+    const unlimited = usageIsUnlimited();
     const limit = aiMonthlyRequestLimit(isPro);
     const cost = aiUsageCost(args.source);
     const count = existing?.count ?? 0;
@@ -145,8 +171,9 @@ export const consumeMonthlyQuota = internalMutation({
     // Rejected rather than clamped: a request that cannot be paid for in full
     // must not run at all, or a user with one left would get a two-cost
     // analysis for the price of one. A BYOK user is spending their own
-    // OpenRouter credit, so the limit is theirs to worry about, not ours.
-    if (!byok && count + cost > limit) {
+    // OpenRouter credit, so the limit is theirs to worry about, not ours —
+    // same for every user of an uncapped self-hosted deployment.
+    if (!byok && !unlimited && count + cost > limit) {
       return {
         allowed: false,
         count,
@@ -157,6 +184,8 @@ export const consumeMonthlyQuota = internalMutation({
         byok,
         apiKey: null,
         proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
+        serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+        unlimited,
       };
     }
 
@@ -188,6 +217,8 @@ export const consumeMonthlyQuota = internalMutation({
       byok,
       apiKey: byokKey,
       proLimit: AI_PRO_MONTHLY_REQUEST_LIMIT,
+      serverAiConfigured: Boolean(env.OPENROUTER_API_KEY?.trim()),
+      unlimited,
     };
   },
 });

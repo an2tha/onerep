@@ -10,6 +10,10 @@ const app = defineApp({
     OPENROUTER_API_KEY: v.optional(v.string()),
     OPENROUTER_MODEL: v.optional(v.string()),
     AI_PROCESSOR_APPROVED: v.optional(v.string()),
+    // "true" removes the monthly AI request caps for every account. For
+    // self-hosted installs paying for their own inference; never set on the
+    // hosted app.
+    AI_USAGE_UNLIMITED: v.optional(v.string()),
     STRIPE_SECRET_KEY: v.optional(v.string()),
     STRIPE_WEBHOOK_SECRET: v.optional(v.string()),
     STRIPE_PRICE_ID_MONTHLY: v.optional(v.string()),

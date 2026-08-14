@@ -635,6 +635,11 @@ export function OnboardingMobile() {
   const onboardingProfile = useQuery(api.users.onboarding.get, {})
   const healthProfile = useQuery(api.logs.calories.getProfile, {})
   const preferences = useQuery(api.users.users.getPreferences, {})
+  // Self-hosted deployments often run without a server OpenRouter key. The
+  // setup chat would just fail, so hint at BYOK instead of letting it.
+  const aiUsage = useQuery(api.ai.usage.getMonthlyUsage, {})
+  const aiUnavailable =
+    aiUsage !== undefined && !aiUsage.serverAiConfigured && !aiUsage.byok
   const generateChat = useAction(
     api.ai.metricGeneration.generateCoachChatMessage
   )
@@ -1868,6 +1873,16 @@ export function OnboardingMobile() {
       const remaining = SETUP_MESSAGE_LIMIT - setupUsed
       return (
         <div className="onboarding-setup-chat">
+          {aiUnavailable && (
+            <div className="onboarding-chat-bubble onboarding-chat-bubble-coach">
+              <span>
+                One catch: this server doesn't have an AI key of its own, so I
+                can't build anything just yet. After setup, paste your own
+                OpenRouter key in Settings and all of this works — on your
+                key, with no monthly cap.
+              </span>
+            </div>
+          )}
           {setupMessages.map((message, messageIndex) =>
             message.role === "user" ? (
               <div
@@ -1923,7 +1938,7 @@ export function OnboardingMobile() {
             )
           )}
           {setupBusy && <ThinkingIndicator />}
-          {setupMessages.length === 0 && !setupBusy && (
+          {setupMessages.length === 0 && !setupBusy && !aiUnavailable && (
             <div className="onboarding-setup-starters">
               {SETUP_STARTERS.map((starter) => (
                 <button
@@ -1939,7 +1954,7 @@ export function OnboardingMobile() {
               ))}
             </div>
           )}
-          {remaining > 0 && (
+          {remaining > 0 && !aiUnavailable && (
             <form
               className="onboarding-chat-composer-shell"
               onSubmit={(event) => {
@@ -1982,11 +1997,13 @@ export function OnboardingMobile() {
               </div>
             </form>
           )}
-          <p className="onboarding-setup-quota" aria-live="polite">
-            {remaining > 0
-              ? `${remaining} of ${SETUP_MESSAGE_LIMIT} messages left`
-              : "Message limit reached. You can keep chatting in Coach later."}
-          </p>
+          {!aiUnavailable && (
+            <p className="onboarding-setup-quota" aria-live="polite">
+              {remaining > 0
+                ? `${remaining} of ${SETUP_MESSAGE_LIMIT} messages left`
+                : "Message limit reached. You can keep chatting in Coach later."}
+            </p>
+          )}
           <QuickReplies
             options={[
               {

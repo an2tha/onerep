@@ -203,6 +203,9 @@ set_env DATASOURCE_URL        "http://datasource:3100"
 set_env DATASOURCE_API_TOKEN  "$DATASOURCE_API_TOKEN"
 set_env OPENROUTER_API_KEY    "${OPENROUTER_API_KEY:-}"
 set_env AI_PROCESSOR_APPROVED "${OPENROUTER_API_KEY:+true}"
+# You run the inference bill here, so the monthly AI request caps that protect
+# the hosted app's wallet have nothing to protect. Off by default on selfhost.
+set_env AI_USAGE_UNLIMITED    "true"
 
 # ---------- 6. everything else ----------------------------------------------
 
