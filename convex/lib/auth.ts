@@ -1,6 +1,7 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
 import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { genericOAuth } from "better-auth/plugins";
 import { components } from "../_generated/api";
 import type { DataModel } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
@@ -35,6 +36,23 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
  * button that can only fail.
  */
 export const googleAuthConfigured = Boolean(googleClientId && googleClientSecret);
+
+const oidcClientId = process.env.OIDC_CLIENT_ID?.trim();
+const oidcClientSecret = process.env.OIDC_CLIENT_SECRET?.trim();
+const oidcIssuer = process.env.OIDC_ISSUER?.trim()?.replace(/\/+$/, "");
+
+/**
+ * Generic OpenID Connect sign-in for self-hosters who already run an identity
+ * provider (Authentik, Keycloak, Pocket ID, ...). Same rule as Google: no
+ * credentials, no button. The issuer must serve the standard
+ * /.well-known/openid-configuration discovery document.
+ */
+export const oidcAuthConfigured = Boolean(
+  oidcClientId && oidcClientSecret && oidcIssuer,
+);
+
+/** Label the login button shows, e.g. "Continue with Authentik". */
+export const oidcProviderName = process.env.OIDC_PROVIDER_NAME?.trim() || "SSO";
 
 export type CurrentUser = {
   _id: string;
@@ -107,7 +125,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         // password account keeps its user id (and everything keyed by it)
         // instead of forking into a second account.
         enabled: true,
-        trustedProviders: ["google"],
+        // The OIDC issuer is configured by whoever runs the deployment, so an
+        // email it asserts is trusted the same way Google's is.
+        trustedProviders: ["google", ...(oidcAuthConfigured ? ["oidc"] : [])],
       },
     },
     user: {
@@ -115,7 +135,26 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
         enabled: true,
       },
     },
-    plugins: [crossDomain({ siteUrl }), convex({ authConfig })],
+    plugins: [
+      crossDomain({ siteUrl }),
+      convex({ authConfig }),
+      ...(oidcAuthConfigured
+        ? [
+            genericOAuth({
+              config: [
+                {
+                  providerId: "oidc",
+                  clientId: oidcClientId!,
+                  clientSecret: oidcClientSecret!,
+                  discoveryUrl: `${oidcIssuer}/.well-known/openid-configuration`,
+                  scopes: ["openid", "profile", "email"],
+                  pkce: true,
+                },
+              ],
+            }),
+          ]
+        : []),
+    ],
   } satisfies BetterAuthOptions;
 
   return betterAuth(options);

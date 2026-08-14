@@ -48,8 +48,10 @@
       <a href="#getting-started">Getting Started</a>
       <ul>
         <li><a href="#prerequisites">Prerequisites</a></li>
-        <li><a href="#installation">Installation</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="#load-the-food-database">Load the Food Database</a></li>
         <li><a href="#optional-integrations">Optional Integrations</a></li>
+        <li><a href="#developing-against-your-install">Developing Against Your Install</a></li>
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
@@ -82,7 +84,7 @@ What's implemented, in the order you'd hit it:
 - **Your data, over the wire** — a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
 - **Accounts and privacy** — email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
 
-AI, food lookup, email, and analytics each switch on with their own environment variables; the rest of the app develops fine without any of them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less — any user can supply their own key in Settings and Coach works for them alone. Payments are behind a seam and stubbed in this repository — see [`docs/billing.md`](docs/billing.md) for why that's a feature.
+Everything here runs on your own hardware: the Convex backend, the food datasource, and the app itself, brought up by one script. AI, food lookup, email, and analytics each switch on with their own environment variables and stay quiet without them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less — any user can supply their own key in Settings and Coach works for them alone.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -112,12 +114,12 @@ AI, food lookup, email, and analytics each switch on with their own environment 
 │   └── ui/           # Shared presentation components and Tailwind styles
 ├── scripts/          # Prompt generation, exercise-catalog prep, mirror publishing
 ├── selfhost/         # One-command Docker self-hosting: install.sh + docker-compose.yml
-└── docs/             # Architecture, billing, testing, API, and feature docs
+└── docs/             # Architecture, testing, API, and feature docs
 ```
 
 The mobile app talks directly to Convex; there is no API server in the middle. Secrets stay in the Convex deployment and are never exposed as `VITE_*` variables. `@repo/ui` is the presentation boundary — it renders props and raises callbacks, and does not know Convex exists.
 
-This repository is a one-way mirror of an internal OneDev instance: real commit history, minus the private payment implementations and the marketing site (`scripts/publish-github.sh` documents exactly which paths and why).
+This repository is a one-way mirror of an internal OneDev instance: real commit history, minus the hosted deployment's private bits and the marketing site (`scripts/publish-github.sh` documents exactly which paths and why).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -127,91 +129,94 @@ This repository is a one-way mirror of an internal OneDev instance: real commit 
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) 1.3.4 or newer
-- Node.js 18 or newer, for the few Node-based scripts
-- A free [Convex](https://convex.dev/) account
+- Docker with Compose v2 — it runs the backend, the dashboard, the datasource, and the app
+- [Bun](https://bun.sh/) 1.3.4 or newer on the host (Node.js 18+ also works); the installer needs it to deploy the Convex functions
+- Roughly 10 GB of disk if you intend to import the full USDA food database
 - Xcode or Android Studio, only if you're doing native work
 
-### Installation
-
-1. Clone and install:
-
-   ```sh
-   git clone https://github.com/an2tha/onerep.git
-   cd onerep
-   bun install
-   cp .env.example .env.local
-   ```
-
-2. Start Convex (keep it running while developing backend code):
-
-   ```sh
-   bunx convex dev
-   ```
-
-   The first run walks you through creating a development deployment and writes its URL into the local environment. The Vite app loads env files from the repository root, not from `apps/mobile`.
-
-3. Configure authentication. The client needs these in the root `.env.local`:
-
-   ```env
-   VITE_CONVEX_URL=https://your-deployment.convex.cloud
-   VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
-   ```
-
-   Better Auth runs inside Convex; give it a secret and the browser origin:
-
-   ```sh
-   bunx convex env set BETTER_AUTH_SECRET "$(openssl rand -base64 32)"
-   bunx convex env set SITE_URL http://localhost:5173
-   ```
-
-   Email verification is off by default, so accounts work without an email provider. To require it (recommended once real users show up), add a [Resend](https://resend.com/) key and turn the gate on:
-
-   ```sh
-   bunx convex env set RESEND_API_KEY your-key
-   bunx convex env set AUTH_EMAIL_FROM "OneRep <you@your-domain.example>"
-   bunx convex env set EMAIL_VERIFICATION_REQUIRED true
-   ```
-
-   Password reset also depends on Resend, so accounts on a mail-less deployment should not forget their passwords.
-
-4. Run it:
-
-   ```sh
-   bun run dev
-   ```
-
-   The app is at `http://localhost:5173`. For a quieter session, `cd apps/mobile && bun run dev`.
-
-5. That's it. Every account on your deployment has Pro by default — the paywall only exists when a deployment explicitly sets `BILLING_COMP_ALL_USERS=false` and wires up a real payment provider ([`docs/billing.md`](docs/billing.md)).
-
-### Self-Hosting
-
-The steps above use a Convex cloud deployment. If you'd rather own the whole
-stack — backend, dashboard, food datasource, and the app — there is one script
-for that:
+### Install
 
 ```sh
-cd selfhost && ./install.sh
+git clone https://github.com/an2tha/onerep.git
+cd onerep/selfhost
+./install.sh
 ```
 
-It writes a `.env` with generated secrets, brings up a self-hosted Convex
-backend in Docker, deploys the functions, and starts everything else. The app
-lands on `http://127.0.0.1:8081`, the dashboard on `:6791`, and the script
-prints the admin key and the food-database import commands when it's done.
-Details and knobs live in [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml).
+That's the whole installation. The script asks one question — anonymous
+telemetry, default yes, and no means no script is built into the app at all —
+then writes `selfhost/.env` with generated secrets, brings up the Convex
+backend, deploys the functions, sets the deployment's environment variables,
+and builds and starts the datasource and the app.
+
+When it finishes it prints your admin key and where things live:
+
+| Service   | URL                     |
+| --------- | ----------------------- |
+| App       | `http://127.0.0.1:8081` |
+| Dashboard | `http://127.0.0.1:6791` |
+
+Re-running is safe: the secrets are kept and the deploy is idempotent. To serve
+on a real domain, set `PUBLIC_HOST` before the first run, or edit
+`CONVEX_CLOUD_ORIGIN`, `CONVEX_SITE_ORIGIN`, and `APP_URL` in `selfhost/.env`,
+put TLS in front of ports 3210/3211/8081, and run `./install.sh` again. Every
+knob lives in [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml) and
+the comments at the top of [`selfhost/install.sh`](selfhost/install.sh).
+
+Accounts on your install are unlimited and unmetered — no plans, no paywall, no
+monthly AI cap. You're the one paying OpenRouter, so nothing meters you.
+
+### Load the Food Database
+
+The datasource starts empty, which means food search finds nothing until you
+feed it. From `selfhost/` (~3.1 GB download, a few minutes of import):
+
+```sh
+curl -O https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_csv_2025-12-18.zip
+unzip -q FoodData_Central_csv_2025-12-18.zip -d usda
+docker compose cp usda datasource:/tmp/usda
+docker compose exec datasource bun src/cli.ts import usda --csv-dir /tmp/usda/FoodData_Central_csv_2025-12-18
+docker compose exec datasource bun src/cli.ts import wger
+docker compose exec datasource rm -rf /tmp/usda
+```
+
+The install script prints these too, in case you closed this tab.
 
 ### Optional Integrations
 
-Each of these switches on a feature and stays off without ceremony. Set backend secrets with `bunx convex env set NAME VALUE` — never behind a `VITE_` prefix.
+Each of these switches on a feature and stays off without ceremony. Set backend secrets from the repository root with `bunx convex env set NAME VALUE` — never behind a `VITE_` prefix. The installer already set the datasource and AI variables for you if you gave it a key.
 
 | Feature                  | Variables                                                       | Notes                                                                                                                           |
 | ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Food search & barcodes   | `DATASOURCE_URL`, `DATASOURCE_API_TOKEN`                        | Proxied through Convex to [`apps/datasource`](apps/datasource/README.md), with a server-side cache.                             |
-| AI Coach & photo logging | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`                        | AI fails closed without the key. Prompts are YAML under `convex/ai/prompts/`; run `bun run prompts:generate` after editing one. Users can also bring their own OpenRouter key in Settings — their requests then run on their credential with no monthly cap. |
-| Google sign-in           | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                      | Redirect URI: `https://your-deployment.convex.site/api/auth/callback/google`. The button only renders once both are set.        |
-| Analytics                | `VITE_PUBLIC_POSTHOG_PROJECT_TOKEN`, `VITE_PUBLIC_POSTHOG_HOST` | Client-visible, root `.env.local`. Opt-out by default; captures nothing until the user enables it.                              |
-| Payments                 | see [`docs/billing.md`](docs/billing.md)                        | Stubbed in this repository. `BILLING_COMP_ALL_USERS=true` is the self-hosting answer.                                           |
+| AI Coach & photo logging | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`                        | Export it before running `install.sh` and the script wires it up. AI fails closed without a key. Prompts are YAML under `convex/ai/prompts/`; run `bun run prompts:generate` after editing one. Users can also bring their own key in Settings. |
+| Food search & barcodes   | `DATASOURCE_URL`, `DATASOURCE_API_TOKEN`                        | Set by the installer. Proxied through Convex to [`apps/datasource`](apps/datasource/README.md), with a server-side cache.       |
+| Email & verification     | `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `EMAIL_VERIFICATION_REQUIRED` | Off by default, so accounts work with no mail provider at all. Password reset needs it too — a mail-less install is one where nobody may forget a password. |
+| Google sign-in           | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                      | Redirect URI is your site origin plus `/api/auth/callback/google` (`http://127.0.0.1:3211/…` out of the box). The button only renders once both are set. |
+| OpenID Connect sign-in   | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_PROVIDER_NAME` | Any OIDC provider with standard discovery (Authentik, Keycloak, Pocket ID, …). Redirect URI: site origin plus `/api/auth/oauth2/callback/oidc`. `OIDC_PROVIDER_NAME` is the button label (defaults to "SSO"). |
+| Telemetry                | `ONEREP_TELEMETRY`, `UMAMI_SCRIPT_URL`, `UMAMI_WEBSITE_ID`      | Asked once at install. Off means no analytics script is built into the app; the Umami pair points it at your own instance instead of the project's. |
+
+### Developing Against Your Install
+
+The Docker app image is a production build. To hack on the frontend, point a Vite
+dev server at the backend you just brought up — from the repository root:
+
+```sh
+bun install
+cp .env.example .env.local
+```
+
+Fill in `VITE_CONVEX_URL=http://127.0.0.1:3210` and
+`VITE_CONVEX_SITE_URL=http://127.0.0.1:3211` (the Vite app reads env files from
+the repository root, not from `apps/mobile`), then:
+
+```sh
+bun run dev
+```
+
+The dev app is at `http://localhost:5173`; tell the backend it's a legitimate
+origin with `bunx convex env set SITE_URL http://localhost:5173`. Backend work
+needs the admin key and deploy URL the installer printed — export
+`CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY`, then `bunx convex
+dev` pushes function changes as you save them.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -244,7 +249,7 @@ bunx cap sync
 bunx cap open ios   # or android
 ```
 
-Production mobile builds refuse placeholder or development Convex URLs by design.
+Point `VITE_CONVEX_URL` at a hostname your phone can actually reach — `127.0.0.1` is the phone, not your laptop — and note that production mobile builds refuse placeholder or development Convex URLs by design.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -253,7 +258,7 @@ Production mobile builds refuse placeholder or development Convex URLs by design
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — how the pieces fit together, and where the seams are
-- [`docs/billing.md`](docs/billing.md) — the billing seam: what's stubbed here and how to live with or replace it
+- [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml) — every service, port, and volume the installer brings up
 - [`docs/testing.md`](docs/testing.md) — which test commands exist, what each one actually runs
 - [`docs/api.md`](docs/api.md) — the HTTP API for your own scripts and devices
 - [`docs/mcp.md`](docs/mcp.md) — the same data over Model Context Protocol

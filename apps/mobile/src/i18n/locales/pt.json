@@ -1,0 +1,33 @@
+{
+  "nav": {
+    "today": "Hoje",
+    "nutrition": "Nutrição",
+    "training": "Treino",
+    "exercises": "Exercícios",
+    "progress": "Progresso",
+    "coach": "Coach",
+    "profileSettings": "Perfil e definições",
+    "openProfileSettings": "Abrir perfil e definições"
+  },
+  "settings": {
+    "titles": {
+      "overview": "Definições",
+      "appearance": "Aparência",
+      "account": "Conta",
+      "targets": "Metas diárias",
+      "preferences": "Treino e app",
+      "nutrition": "Estratégia nutricional",
+      "reminders": "Lembretes",
+      "privacy": "Privacidade e sincronização",
+      "health": "Saúde e wearables",
+      "data": "Dados e conta",
+      "agents": "API e MCP",
+      "walkthrough": "Tour da app",
+      "developer": "Programador"
+    },
+    "language": {
+      "label": "Idioma da app",
+      "detail": "Menus e rótulos. Os teus registos ficam como estão."
+    }
+  }
+}
