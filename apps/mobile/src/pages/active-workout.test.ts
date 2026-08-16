@@ -573,17 +573,18 @@ describe("exercise picker search surface", () => {
 })
 
 describe("active workout Ask Coach", () => {
-  test("uses the main Coach with workout, recovery, goals, and memory context", () => {
+  test("uses the main Coach and sends only the live session state", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "api.ai.metricGeneration.generateCoachChatMessage"
     )
     expect(ACTIVE_WORKOUT_SOURCE).toContain("context: coachContext")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("memories: (coachMemories ?? [])")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("checkIns: (coachCheckIns ?? [])")
-    expect(ACTIVE_WORKOUT_SOURCE).toContain(
-      "recentWorkouts: (workoutHistory ?? [])"
-    )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain('id: "active-workout"')
+    // The memories, check-ins, and history ride the server-built workspace;
+    // shipping them from the client was bandwidth the server threw away.
+    expect(ACTIVE_WORKOUT_SOURCE).not.toContain("workspace:")
+    // The in-progress session is the one thing only this device knows, so it
+    // travels in the message itself.
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("The active session so far")
+    expect(ACTIVE_WORKOUT_SOURCE).toContain("JSON.stringify(activeExercises)")
   })
 
   test("previews a complete plan before replacing the active session", () => {

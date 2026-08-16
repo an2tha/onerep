@@ -490,6 +490,13 @@ export function buildFormCoachTools(capture: FormCoachCapture): ToolSet {
       },
     }),
 
+    get_point_cloud: tool({
+      description:
+        "The footage itself as coordinates: every joint's position, one sample per second, across the whole clip rather than only during the reps. Body-fixed frame shared across camera angles. This is the raw material every other tool derives from — fetch it for whole-clip questions the tools cannot answer, to sanity-check a surprising measurement, or when no reps were detected and you must work out what the body was doing yourself. It is large; fetch it once and only when you need it.",
+      inputSchema: z.object({}),
+      execute: async () => buildPointCloud(capture) ?? { unavailable: "no timeline samples in this capture" },
+    }),
+
     get_capture_quality: tool({
       description:
         "How good the footage was: camera view, tracking rate and rep count per angle. Check this before trusting a view-dependent measurement.",
@@ -1276,9 +1283,11 @@ export const analyse = action({
     const result = await runOpenAiAgent({
       apiKey: quota.apiKey,
       system: renderSystemPrompt("form_coach"),
+      // The point cloud used to ride here and be re-billed on every turn of
+      // the loop; it is now the get_point_cloud tool, paid for only when
+      // asked for.
       user: JSON.stringify({
         digest: buildDigest(capture, exerciseReference),
-        pointCloud: buildPointCloud(capture),
       }),
       // Ordered as the digest lists them, so "the second image" means something.
       images: (capture.stills ?? [])
@@ -1288,6 +1297,7 @@ export const analyse = action({
       schema: reportSchema,
       maxSteps: MAX_AGENT_STEPS,
       maxTokens: MAX_OUTPUT_TOKENS,
+      label: "form_coach.analyse",
     });
     const report = result.output;
 

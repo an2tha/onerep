@@ -2,7 +2,11 @@ import { v } from "convex/values";
 import { action } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUser } from "../lib/auth";
-import { hasOpenAiApiKey, requestOpenAiJson } from "./provider";
+import {
+  assertCatalogModel,
+  hasOpenAiApiKey,
+  requestOpenAiJson,
+} from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
 import type { CoachWorkspace } from "./coachWorkspace";
@@ -1726,13 +1730,23 @@ function normalizeCoachArtifacts(value: unknown): CoachArtifact[] {
 function normalizeCoachChatResponse(value: unknown, message: string) {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  const reply = clampText(input.reply, 280);
+  const uiBlocks = isCasualCoachMessage(message)
+    ? []
+    : normalizeCoachUiBlocks(input.uiBlocks);
+  let reply = clampText(input.reply, 280);
+  if (!reply) {
+    // Some catalog models put the whole answer in blocks and never write the
+    // orienting sentence the shape asks for. Blocks alone are still an answer;
+    // borrow the first block's own words rather than discarding the turn.
+    const first = uiBlocks[0] as
+      | { title?: string; detail?: string; label?: string }
+      | undefined;
+    reply = clampText(first?.title || first?.detail || first?.label, 280);
+  }
   if (!reply) return null;
   return {
     reply,
-    uiBlocks: isCasualCoachMessage(message)
-      ? []
-      : normalizeCoachUiBlocks(input.uiBlocks),
+    uiBlocks,
     operations: normalizeCoachOperations(input.operations),
     artifacts: isCasualCoachMessage(message)
       ? []
@@ -2150,6 +2164,58 @@ async function generateCoachAdviceWithOpenAi(
   return normalizeCoachAdvice(JSON.parse(content));
 }
 
+/**
+ * Workspace sections withheld per domain route. The chef has no business
+ * paying for programming logs, and the trainer none for recipe cards; the
+ * general route keeps everything and lets the size budget do its work.
+ */
+const DOMAIN_WITHHELD_SECTIONS = {
+  nutrition: [
+    "programming",
+    "recovery",
+    "formChecks",
+    "recentWorkouts",
+    "presets",
+    "dashboardWidgets",
+  ],
+  training: [
+    "recipes",
+    "foodEntries",
+    "water",
+    "fasting",
+    "supplements",
+    "dashboardWidgets",
+  ],
+  progress: ["recipes", "presets", "dashboardWidgets"],
+  general: [],
+} as const;
+
+function sliceWorkspaceForDomain(
+  workspace: CoachWorkspace | undefined,
+  domain: keyof typeof DOMAIN_WITHHELD_SECTIONS,
+) {
+  const sections: readonly string[] = DOMAIN_WITHHELD_SECTIONS[domain];
+  if (!workspace || sections.length === 0) return workspace;
+  const sliced: Record<string, unknown> = { ...workspace };
+  const withheld: string[] = [];
+  for (const key of sections) {
+    if (key in sliced) {
+      delete sliced[key];
+      withheld.push(key);
+    }
+  }
+  if (withheld.length === 0) return workspace;
+  return {
+    ...sliced,
+    // Without this the model reads an absent section as an empty life —
+    // "you haven't logged any food" to a user who logs every meal.
+    withheldSections: {
+      sections: withheld,
+      note: "these sections exist but were left out as off-topic for this question; never claim the user lacks this data",
+    },
+  };
+}
+
 async function generateCoachChatWithOpenAi({
   context,
   message,
@@ -2159,6 +2225,7 @@ async function generateCoachChatWithOpenAi({
   workspace,
   imageUrl,
   apiKey,
+  model,
 }: {
   context: CoachContext;
   message: string;
@@ -2169,6 +2236,8 @@ async function generateCoachChatWithOpenAi({
   workspace?: CoachWorkspace;
   imageUrl?: string;
   apiKey: string | null;
+  /** The user's pick from the shared model catalog; absent means the env default. */
+  model?: string;
 }) {
   if (!hasOpenAiApiKey(apiKey)) return null;
   const normalizedMessage = message.toLowerCase();
@@ -2200,10 +2269,12 @@ async function generateCoachChatWithOpenAi({
   } as const;
   const content = await requestOpenAiJson({
     apiKey,
+    model,
+    label: `coach_chat.${domain}`,
     system: `${renderSystemPrompt("coach_chat")}\n\nDOMAIN ROUTE: ${domain}\n${domainInstructions[domain]}`,
     user: JSON.stringify({
       context,
-      workspace,
+      workspace: sliceWorkspaceForDomain(workspace, domain),
       focusInsight,
       recentConversation: history.slice(-8),
       coachMode,
@@ -2676,7 +2747,18 @@ async function generateCoachChatWithOpenAi({
     temperature: 0.3,
     maxTokens: 3200,
   });
-  return normalizeCoachChatResponse(JSON.parse(content), message);
+  const normalized = normalizeCoachChatResponse(JSON.parse(content), message);
+  if (!normalized) {
+    // The provider answered, but with nothing a user could read — an empty
+    // reply, usually. Keep the evidence: without this line the only visible
+    // symptom is the canned fallback text, which looks like a working feature
+    // and is the hardest kind of broken to notice.
+    console.warn("coach chat reply unusable", {
+      model: model ?? "default",
+      content: content.slice(0, 400),
+    });
+  }
+  return normalized;
 }
 
 export const generateCustomProgressMetric = action({
@@ -3009,9 +3091,14 @@ export const generateCoachChatMessage = action({
         detail: v.string(),
       }),
     ),
+    /** The chat's model picker choice, an id from the shared catalog. */
+    model: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<CoachChatResult> => {
     const user = await getAuthUser(ctx);
+    // Checked before the credit spend: a made-up model id is a client bug,
+    // not a reason to charge the user a credit finding out.
+    if (args.model !== undefined) assertCatalogModel(args.model);
     const attachment: {
       url: string;
       mimeType: string;
@@ -3046,37 +3133,6 @@ export const generateCoachChatMessage = action({
           detail: clampText(args.focusInsight.detail, 240),
         }
       : undefined;
-    const legacyWorkspace = args.workspace
-      ? {
-          presets: args.workspace.presets.slice(0, 40).map((preset) => ({
-            name: clampText(preset.name, 40),
-            id: clampText(preset.id, 80),
-            ...(preset.updatedAt !== undefined
-              ? { updatedAt: preset.updatedAt }
-              : {}),
-            ...(preset.snapshot !== undefined
-              ? { snapshot: preset.snapshot }
-              : {}),
-          })),
-          ...(normalizeDate(args.workspace.today)
-            ? { today: normalizeDate(args.workspace.today) }
-            : {}),
-          recipes: (args.workspace.recipes ?? []).slice(0, 30),
-          foodEntries: (args.workspace.foodEntries ?? []).slice(0, 50),
-          memories: (args.workspace.memories ?? []).slice(0, 50),
-          checkIns: (args.workspace.checkIns ?? []).slice(0, 21),
-          goals: (args.workspace.goals ?? []).slice(0, 20),
-          recentWorkouts: (args.workspace.recentWorkouts ?? []).slice(0, 30),
-          recentActions: (args.workspace.recentActions ?? []).slice(0, 30),
-          routine: args.workspace.routine.slice(0, 7).map((entry) => ({
-            day: clampText(entry.day, 3),
-            presetId: entry.presetId ?? null,
-            presetName: entry.presetName
-              ? clampText(entry.presetName, 40)
-              : null,
-          })),
-        }
-      : undefined;
     const today =
       normalizeDate(args.today ?? args.workspace?.today ?? "") ??
       new Date().toISOString().slice(0, 10);
@@ -3084,9 +3140,12 @@ export const generateCoachChatMessage = action({
       internal.ai.coachWorkspace.loadForModel,
       { userId: user._id, today },
     );
-    if (legacyWorkspace && legacyWorkspace.today !== today) {
+    // The client-built workspace arg is accepted for old app versions but
+    // never read: the server-built workspace above is the only one the model
+    // sees, and has been since the migration.
+    if (args.workspace && normalizeDate(args.workspace.today) !== today) {
       console.warn("Ignoring stale client Coach workspace", {
-        clientToday: legacyWorkspace.today,
+        clientToday: args.workspace.today,
         serverToday: today,
       });
     }
@@ -3097,20 +3156,33 @@ export const generateCoachChatMessage = action({
       "progress_metrics",
     );
 
-    try {
-      const response = await generateCoachChatWithOpenAi({
-        context,
-        message,
-        coachMode,
-        history,
-        focusInsight,
-        workspace,
-        imageUrl: attachment?.url,
-        apiKey: quota.apiKey,
-      });
-      if (response) return { ...response, source: "openai" };
-    } catch (error) {
-      console.warn("Falling back to server coach chat", error);
+    // The picked model first; the deployment default as the understudy. A
+    // catalog model that errors or answers unusably should degrade to a real
+    // model's answer, not to the canned templates below — those are a last
+    // resort for "no provider at all", not a personality.
+    const modelAttempts: Array<string | undefined> = args.model
+      ? [args.model, undefined]
+      : [undefined];
+    for (const model of modelAttempts) {
+      try {
+        const response = await generateCoachChatWithOpenAi({
+          context,
+          message,
+          coachMode,
+          history,
+          focusInsight,
+          workspace,
+          imageUrl: attachment?.url,
+          apiKey: quota.apiKey,
+          model,
+        });
+        if (response) return { ...response, source: "openai" };
+      } catch (error) {
+        console.warn("Falling back to server coach chat", {
+          model: model ?? "default",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     const fallback = makeFallbackUiFirst(

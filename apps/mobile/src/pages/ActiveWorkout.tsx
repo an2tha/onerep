@@ -115,7 +115,6 @@ import {
   type CardioDistanceUnit,
   type CardioSourceProvider,
   type CardioWorkoutDetails,
-  normalizeScheduleRoutines,
 } from "@/lib/workout-sync"
 import {
   getRecentHealthWorkouts,
@@ -3887,8 +3886,6 @@ export default function ActiveWorkout() {
   )
   const workoutHistory = useQuery(api.logs.workouts.getHistory)
   const schedule = useQuery(api.users.schedules.get, {})
-  const coachMemories = useQuery(api.ai.coachState.listMemories, { limit: 40 })
-  const coachCheckIns = useQuery(api.ai.coachState.listCheckIns, { limit: 14 })
 
   // Active workout Convex sync
   const activeWorkout = useQuery(
@@ -4668,7 +4665,6 @@ export default function ActiveWorkout() {
     aiUpdatingRef.current = true
     setAiUpdating(true)
     try {
-      const routines = normalizeScheduleRoutines(schedule?.routine)
       const activeExercises = uniqueExerciseIds.map((exerciseId) => {
         const exercise = exerciseLookup[exerciseId]
         const state = exData[exerciseId]
@@ -4688,76 +4684,13 @@ export default function ActiveWorkout() {
             ? `They opened Coach from ${aiSheetTarget.exerciseName}, so adapt that exercise while preserving a coherent session.`
             : "Build or adapt the full active session based on this request.",
           "Treat completed sets in the active workout as fixed work that must be preserved; only plan the remaining work around them.",
+          // The server-built workspace covers everything durable; the live
+          // session state below is the one thing only this device knows.
+          `The active session so far (${Math.round(elapsed / 60)} minutes in): ${JSON.stringify(activeExercises)}`,
           "Use the same judgment, safety rules, memories, recovery check-ins, training history, goals, and routine context available in the main Coach.",
           "Return exactly one create_workout_preset operation containing the COMPLETE session that should replace the active workout after your recommendation. Do not schedule or save it as a preset. Keep the spoken reply concise and explain the main coaching decision.",
         ].join("\n"),
         history: [],
-        workspace: {
-          today: todayIso(),
-          presets: [
-            {
-              id: "active-workout",
-              name: "Current active workout",
-              updatedAt: Date.now(),
-              snapshot: {
-                status: "in_progress",
-                elapsedMinutes: Math.round(elapsed / 60),
-                exercises: activeExercises,
-              },
-            },
-            ...(presets ?? []).map((preset) => ({
-              id: String(preset._id),
-              name: preset.name,
-              updatedAt: preset.updatedAt,
-              snapshot: {
-                items: preset.items,
-                exerciseData: preset.exerciseData,
-                ...(preset.focus ? { focus: preset.focus } : {}),
-                ...(preset.duration ? { duration: preset.duration } : {}),
-                ...(preset.steps ? { steps: preset.steps } : {}),
-              },
-            })),
-          ],
-          memories: (coachMemories ?? []).map((memory) => ({
-            key: memory.key,
-            category: memory.category,
-            value: memory.value,
-          })),
-          checkIns: (coachCheckIns ?? []).map((checkIn) => ({
-            date: checkIn.date,
-            energy: checkIn.energy,
-            soreness: checkIn.soreness,
-            sleepQuality: checkIn.sleepQuality,
-            mood: checkIn.mood,
-          })),
-          recentWorkouts: (workoutHistory ?? [])
-            .slice(0, 30)
-            .map((workout) => ({
-              id: String(workout._id),
-              date: workout.date,
-              durationMinutes: Math.round(workout.durationSeconds / 60),
-              exercises: workout.exercises.map((exercise) => ({
-                id: exercise.id,
-                name: exercise.name,
-                completedSets: exercise.sets.filter((set) => set.completed)
-                  .length,
-                sets: exercise.sets,
-              })),
-            })),
-          routine: (
-            ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
-          ).map((day) => {
-            const assignedId = routines.primary[day]
-            return {
-              day,
-              presetId: assignedId ?? null,
-              presetName: assignedId
-                ? (presets?.find((preset) => String(preset._id) === assignedId)
-                    ?.name ?? null)
-                : null,
-            }
-          }),
-        },
       })
       const response = result as { reply?: unknown; operations?: unknown }
       const operation = Array.isArray(response.operations)
@@ -5857,9 +5790,7 @@ export default function ActiveWorkout() {
             !coachContextLoading &&
             presets !== undefined &&
             workoutHistory !== undefined &&
-            schedule !== undefined &&
-            coachMemories !== undefined &&
-            coachCheckIns !== undefined
+            schedule !== undefined
           }
           contextSummary={`${coachContext.workoutDays7} recent session${coachContext.workoutDays7 === 1 ? "" : "s"}, ${coachContext.hardSets7} completed sets, recovery check-ins, goals, routine, and saved preferences.`}
           onAsk={handleAskCoachForWorkout}

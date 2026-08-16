@@ -14,8 +14,10 @@ import {
   Barbell,
   ArrowClockwise,
   Brain,
+  CaretDown,
   Carrot,
   ChartLineUp,
+  Check,
   ChatCircleDots,
   ArrowLeft,
   CheckCircle,
@@ -44,6 +46,9 @@ import {
 } from "@phosphor-icons/react"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
+// The same file the backend validates against, so the picker can never offer
+// a model the server would turn away.
+import modelCatalog from "../../../../convex/ai/models.json"
 import { toast } from "@repo/ui"
 import {
   cn,
@@ -262,6 +267,16 @@ function timeGreeting() {
   if (hour < 12) return "Good morning."
   if (hour < 18) return "Good afternoon."
   return "Good evening."
+}
+
+/** Survives navigation and new chats: pick a model once, keep it. */
+const COACH_MODEL_KEY = "onerep:coach-model:v1"
+
+function storedCoachModel() {
+  const stored = safeLocalStorageGet(COACH_MODEL_KEY)
+  return modelCatalog.some((entry) => entry.id === stored)
+    ? (stored as string)
+    : modelCatalog[0].id
 }
 
 function coachConversationKey(mode: CoachMode) {
@@ -558,6 +573,29 @@ export default function Coach() {
   const [newMemoryValue, setNewMemoryValue] = useState("")
   const [savingMemory, setSavingMemory] = useState(false)
   const [activeMode, setActiveMode] = useState<CoachMode>("chat")
+  const [chatModel, setChatModel] = useState(storedCoachModel)
+  const [modelMenuOpen, setModelMenuOpen] = useState(false)
+  const modelMenuRef = useRef<HTMLDivElement>(null)
+
+  // A hand-rolled dropdown owes the two dismissals a native one gives for
+  // free: tap anywhere else, or Escape.
+  useEffect(() => {
+    if (!modelMenuOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (!modelMenuRef.current?.contains(event.target as Node)) {
+        setModelMenuOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setModelMenuOpen(false)
+    }
+    window.addEventListener("pointerdown", onPointerDown)
+    window.addEventListener("keydown", onKeyDown)
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown)
+      window.removeEventListener("keydown", onKeyDown)
+    }
+  }, [modelMenuOpen])
   const [modeSwipeDirection, setModeSwipeDirection] = useState<
     "forward" | "back"
   >("forward")
@@ -1676,6 +1714,7 @@ export default function Coach() {
         context,
         message: prompt,
         coachMode: activeMode,
+        model: chatModel,
         today: todayKey,
         ...(selectedAttachment?.id
           ? { attachmentId: selectedAttachment.id }
@@ -2019,6 +2058,74 @@ export default function Coach() {
               </h1>
             </div>
             <div className="flex items-center gap-1">
+              <div ref={modelMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    hapticSelection()
+                    setModelMenuOpen((open) => !open)
+                  }}
+                  aria-haspopup="listbox"
+                  aria-expanded={modelMenuOpen}
+                  aria-label="Coach model"
+                  className="coach-header-action flex min-h-10 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold text-muted-foreground active:bg-muted"
+                >
+                  <span className="max-w-36 truncate">
+                    {modelCatalog.find((entry) => entry.id === chatModel)
+                      ?.label ?? "Model"}
+                  </span>
+                  <CaretDown
+                    size={11}
+                    weight="bold"
+                    className={cn(
+                      "shrink-0 transition-transform",
+                      modelMenuOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+                {modelMenuOpen && (
+                  <div
+                    role="listbox"
+                    aria-label="Coach model"
+                    className="absolute top-full right-0 z-50 mt-1.5 w-60 rounded-xl border border-border/60 bg-card p-1 shadow-[0_18px_50px_color-mix(in_srgb,black_18%,transparent)]"
+                  >
+                    {modelCatalog.map((entry) => {
+                      const selected = entry.id === chatModel
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            hapticTap()
+                            setChatModel(entry.id)
+                            safeLocalStorageSet(COACH_MODEL_KEY, entry.id)
+                            setModelMenuOpen(false)
+                          }}
+                          className={cn(
+                            "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[13px] font-semibold",
+                            selected
+                              ? "text-foreground"
+                              : "text-muted-foreground active:bg-muted"
+                          )}
+                        >
+                          <span className="min-w-0 truncate">
+                            {entry.label}
+                          </span>
+                          {selected && (
+                            <Check
+                              size={13}
+                              weight="bold"
+                              className="shrink-0"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => {
@@ -2284,9 +2391,6 @@ export default function Coach() {
                             animationDelay: `${Math.min(index, 6) * 35}ms`,
                           }}
                         >
-                          <p className="mb-2 text-[10px] font-bold tracking-[0.1em] text-muted-foreground/48 uppercase">
-                            {mode.label}
-                          </p>
                           <div
                             className={cn(
                               "min-w-0 border-l-2 pl-4 text-[14px] leading-6",

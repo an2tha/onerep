@@ -14,9 +14,25 @@ import {
 // the Bun runtime, so import the namespace instead.
 import * as z from "zod";
 import { env } from "../_generated/server";
+import modelCatalog from "./models.json";
 
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-5.6-luna";
+
+/**
+ * The models a user may pick from, one file for both sides of the wire: the
+ * app renders the picker from it, and the server refuses ids that are not in
+ * it. Order matters only in the picker; the served default stays whatever the
+ * deployment's env says.
+ */
+export const AI_MODEL_CATALOG: ReadonlyArray<{ id: string; label: string }> =
+  modelCatalog;
+
+export function assertCatalogModel(id: string) {
+  if (!AI_MODEL_CATALOG.some((entry) => entry.id === id)) {
+    throw new Error("That model is not available");
+  }
+}
 
 type AiImage = {
   url: string;
@@ -29,6 +45,8 @@ type AiJsonRequest = {
   image?: AiImage;
   maxTokens: number;
   temperature?: number;
+  /** Names this caller in the `[ai-usage]` log lines. */
+  label?: string;
   /**
    * A user's own OpenRouter key (BYOK). When set, the request runs on their
    * credential instead of the deployment's, and a missing server key stops
@@ -37,14 +55,24 @@ type AiJsonRequest = {
    * statement about whose key pays for it.
    */
   apiKey?: string | null;
+  /**
+   * The user's pick from AI_MODEL_CATALOG, in place of the env default.
+   * Callers validate it with assertCatalogModel before it reaches here.
+   */
+  model?: string | null;
 };
 
-function resolveOpenRouterConfig(userApiKey?: string | null) {
+function resolveOpenRouterConfig(
+  userApiKey?: string | null,
+  modelOverride?: string | null,
+) {
   const apiKey = userApiKey?.trim() || env.OPENROUTER_API_KEY?.trim() || "";
   // OPENAI_MODEL is accepted for one widened-schema release only. Credentials
   // never receive a corresponding fallback: an OpenAI key must not be sent to
-  // the OpenRouter endpoint.
+  // the OpenRouter endpoint. A caller's override wins over all of it, but only
+  // after assertCatalogModel has vouched for it.
   const model =
+    modelOverride?.trim() ||
     env.OPENROUTER_MODEL?.trim() ||
     env.OPENAI_MODEL?.trim() ||
     DEFAULT_OPENROUTER_MODEL;
@@ -172,7 +200,15 @@ function userMessage(user: string, images?: AiImage[]) {
             { type: "text" as const, text: user },
             ...images.map((image) => ({
               type: "image_url" as const,
-              image_url: { url: image.url },
+              // `detail` reached this file for years and was silently dropped
+              // by the old SDK's message type, so every still went at the
+              // provider default. Honouring it is the single cheapest token
+              // cut in the codebase: low detail is a fixed small cost per
+              // image instead of thousands of tokens.
+              image_url: {
+                url: image.url,
+                ...(image.detail ? { detail: image.detail } : {}),
+              },
             })),
           ]
         : user,
@@ -185,6 +221,40 @@ function messageText(content: MessageContent) {
     .map((block) => ("text" in block ? String(block.text) : ""))
     .join("");
 }
+
+/**
+ * One line per model request, because "we send how many tokens?" was
+ * unanswerable until it was asked from a dashboard with no attribution.
+ * `cachedInput` is the part of `input` the provider served from its prompt
+ * cache — the loop's repeated prefix should show up there, and a run where it
+ * stays 0 is a run paying full price for the same payload every turn.
+ */
+function logUsage(label: string, message: AIMessage, model?: string) {
+  const usage = message.usage_metadata as
+    | {
+        input_tokens?: number;
+        output_tokens?: number;
+        input_token_details?: { cache_read?: number };
+      }
+    | undefined;
+  if (!usage) return;
+  console.log("[ai-usage]", {
+    label,
+    ...(model ? { model } : {}),
+    input: usage.input_tokens,
+    cachedInput: usage.input_token_details?.cache_read ?? 0,
+    output: usage.output_tokens,
+  });
+}
+
+/**
+ * Ceiling on one tool result as carried in the transcript. Every turn after a
+ * tool call re-sends that result, so an unbounded one is billed once per
+ * remaining step. Sized above the largest legitimate result (the point cloud,
+ * ~45K chars) — this is a guard against the pathological, not a trim of the
+ * normal.
+ */
+const MAX_TOOL_RESULT_CHARS = 60_000;
 
 function finishReasonOf(message: AIMessage) {
   const reason = (
@@ -204,6 +274,7 @@ export async function runOpenAiAgent<T>({
   maxSteps,
   maxTokens,
   apiKey,
+  label = "agent",
 }: {
   system: string;
   user: string;
@@ -219,6 +290,8 @@ export async function runOpenAiAgent<T>({
   maxTokens: number;
   /** See AiJsonRequest.apiKey. */
   apiKey?: string | null;
+  /** Names this caller in the `[ai-usage]` log lines. */
+  label?: string;
 }): Promise<AgentResult<T>> {
   const config = resolveOpenRouterConfig(apiKey);
   if (!config) throw new Error("AI is not configured");
@@ -283,6 +356,7 @@ export async function runOpenAiAgent<T>({
   const graph = new StateGraph(AgentState)
     .addNode("agent", async (state) => {
       const response = await agentModel.invoke(state.messages);
+      logUsage(`${label}#step${state.steps + 1}`, response);
       return { messages: [response], steps: 1 };
     })
     .addNode("tools", async (state) => {
@@ -295,10 +369,14 @@ export async function runOpenAiAgent<T>({
         const input = definition.inputSchema.parse(call.args);
         const output = await definition.execute(input as never);
         toolCalls.push({ tool: call.name, input, output });
+        const serialized = JSON.stringify(output) ?? "null";
         messages.push(
           new ToolMessage({
             tool_call_id: call.id ?? call.name,
-            content: JSON.stringify(output) ?? "null",
+            content:
+              serialized.length > MAX_TOOL_RESULT_CHARS
+                ? `${serialized.slice(0, MAX_TOOL_RESULT_CHARS)}… [truncated: result exceeded ${MAX_TOOL_RESULT_CHARS} characters]`
+                : serialized,
           }),
         );
       }
@@ -323,6 +401,7 @@ export async function runOpenAiAgent<T>({
         "Stop gathering evidence and answer now, using only what you have already looked at.",
       );
       const answer = await finishModel.invoke([...state.messages, nudge]);
+      logUsage(`${label}#finalize`, answer);
       if (finishReasonOf(answer) !== "stop") {
         throw new Error(
           `the model stopped early (${firstStop}, then ${finishReasonOf(answer)}) without producing a report`,
@@ -381,8 +460,10 @@ export async function requestOpenAiJson({
   maxTokens,
   temperature,
   apiKey,
+  model,
+  label = "json",
 }: AiJsonRequest) {
-  const config = resolveOpenRouterConfig(apiKey);
+  const config = resolveOpenRouterConfig(apiKey, model);
   if (!config) throw new Error("AI is not configured");
 
   if (!Number.isInteger(maxTokens) || maxTokens < 1) {
@@ -397,22 +478,55 @@ export async function requestOpenAiJson({
 
   // Matches with or without an OpenRouter `provider/` prefix.
   const isGpt5 = /(?:^|\/)gpt-5(?:[.-]|$)/i.test(config.model);
-  const model = chatModel(config, {
+  const chat = chatModel(config, {
     maxTokens,
     ...(temperature === undefined || isGpt5 ? {} : { temperature }),
   });
 
+  const messages = [
+    new SystemMessage(system),
+    userMessage(user, image ? [image] : undefined),
+  ];
   try {
-    const result = await model.invoke(
-      [new SystemMessage(system), userMessage(user, image ? [image] : undefined)],
-      { response_format: { type: "json_object" } },
-    );
-    const output: unknown = JSON.parse(messageText(result.content));
-    if (!output || typeof output !== "object") {
-      throw new Error("AI provider returned invalid JSON");
+    let result;
+    try {
+      result = await chat.invoke(messages, {
+        response_format: { type: "json_object" },
+      });
+    } catch (formatError) {
+      // `json_object` is an OpenAI-ism. Plenty of the models the catalog can
+      // now route to reject the parameter outright, and before this retry
+      // that rejection silently became the canned fallback reply — the worst
+      // answer in the codebase, dressed up as a working feature. Ask once
+      // more with no format constraint and salvage the JSON from the prose.
+      console.warn(`[ai] ${label}: retrying without response_format`, {
+        error:
+          formatError instanceof Error ? formatError.message : "unknown error",
+      });
+      result = await chat.invoke(messages);
     }
+    logUsage(label, result, config.model);
+    const output = extractJsonObject(messageText(result.content));
     return JSON.stringify(output);
   } catch (error) {
     throw new Error(`Model request failed: ${describeProviderError(error)}`);
   }
+}
+
+/**
+ * The JSON an instruction-following model actually sends: sometimes bare,
+ * sometimes wrapped in markdown fences, sometimes introduced by a sentence.
+ * Take everything between the first `{` and the last `}` and insist it parse.
+ */
+function extractJsonObject(text: string): object {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("AI provider returned invalid JSON");
+  }
+  const output: unknown = JSON.parse(text.slice(start, end + 1));
+  if (!output || typeof output !== "object") {
+    throw new Error("AI provider returned invalid JSON");
+  }
+  return output;
 }
