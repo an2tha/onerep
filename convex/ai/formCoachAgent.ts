@@ -1,5 +1,4 @@
 import { v } from "convex/values";
-import { tool, type ToolSet } from "ai";
 // Namespace import, not `import { z }`: zod v4 exposes `z` as a
 // self-referential `export * as z`, which Bun does not materialise, so the
 // named form is undefined at runtime under `bun` (as in CI, where the
@@ -18,7 +17,9 @@ import { getAuthUser } from "../lib/auth";
 import {
   hasOpenAiApiKey,
   runOpenAiAgent,
+  tool,
   type AgentToolCall,
+  type ToolSet,
 } from "./provider";
 import { renderSystemPrompt } from "./prompts.generated";
 import { matchFormCoachExercise } from "./formCoach";
