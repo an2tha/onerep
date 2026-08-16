@@ -10,40 +10,10 @@ import {
   type SubscriptionSource,
 } from "./types";
 
-/**
- * Whether OneRep Pro is currently comped for everyone.
- *
- * A single switch rather than a per-user backfill, deliberately: app tables key
- * on `tokenIdentifier` while the Better Auth component keys on `subject`, so
- * enumerating accounts and mapping them across that boundary would risk missing
- * exactly the users a comp is meant to protect. A flag covers every account
- * with certainty, costs no writes, and is reverted by unsetting the variable.
- *
- * Note this also covers accounts created *after* it is set.
- *
- * The comp is ON when the variable is unset. That is the right default for
- * everyone who clones this repository: the payment provider here is a stub,
- * so a deployment that never thinks about billing gets an app that simply
- * works. A deployment that actually sells subscriptions is the special case,
- * and it opts in to gating by setting `BILLING_COMP_ALL_USERS=false`.
- */
 export function isProCompedForEveryone() {
   return env.BILLING_COMP_ALL_USERS !== "false";
 }
 
-/**
- * Whether a stored platform subscription currently grants the entitlement.
- *
- * Stripe is the only platform that can grant Pro. In-app purchases were removed
- * outright, so App Store and Play rows left over from that era are inert here
- * regardless of what state they were last seen in; the purge migration in
- * `convex/migrations.ts` deletes them.
- *
- * Rows imported from the previous billing provider carry a
- * `grandfatheredUntil` timestamp. Inside that window they grant access even if
- * the platform now reports otherwise — wrongly revoking a paying customer is
- * far more expensive than a month of free access to a handful of ghost rows.
- */
 export function subscriptionGrantsAccess(
   subscription: Doc<"billingSubscriptions">,
   now: number,
