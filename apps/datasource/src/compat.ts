@@ -1,93 +1,77 @@
+import type { Exercise, Food } from "./core/types.ts";
+
 /**
- * Maps a `foods` row onto the Open Food Facts-shaped product the mobile app
- * already consumes, so replacing FatSecret needs no client changes.
+ * The wire format, and the only file allowed to care about it.
  *
- * USDA publishes every nutrient per 100 g in exactly the units this shape
- * expects (g, mg, mcg), so no unit conversion happens here.
+ * Responses are shaped like Open Food Facts because that is what the mobile app
+ * already parses, and replacing the upstream catalog was never supposed to
+ * require a client release. Providers normalise to {@link Food}; this maps that
+ * onto the legacy shape at the last possible moment, so the day the clients
+ * move on, this file is the only thing that has to change.
  */
-export type FoodRow = {
-  fdc_id: number;
-  name: string;
-  brand: string | null;
-  source: string;
-  barcode: string | null;
-  ingredients: string | null;
-  serving_text: string | null;
-  serving_grams: number | null;
-  kcal: number | null;
-  protein: number | null;
-  carbs: number | null;
-  fat: number | null;
-  fiber: number | null;
-  sugar: number | null;
-  saturated_fat: number | null;
-  trans_fat: number | null;
-  sodium: number | null;
-  cholesterol: number | null;
-  potassium: number | null;
-  calcium: number | null;
-  iron: number | null;
-  vitamin_a: number | null;
-  vitamin_c: number | null;
-  vitamin_d: number | null;
-};
 
-export type Portion = { amount: number | null; unit: string | null; gram_weight: number };
-
-function value(input: number | null | undefined): number {
+/** The client treats a missing nutrient as an absent key, not as zero. */
+function value(input: number | null): number {
   return typeof input === "number" && Number.isFinite(input) ? input : 0;
 }
 
-function describePortion(portion: Portion): string {
-  const parts = [portion.amount ? String(portion.amount) : null, portion.unit].filter(Boolean);
-  return parts.length > 0 ? parts.join(" ") : `${portion.gram_weight} g`;
-}
-
-export function toCompatProduct(row: FoodRow, portions: Portion[] = []) {
-  const portion = portions[0];
-  const servingText = row.serving_text ?? (portion ? describePortion(portion) : "100 g");
-  const servingGrams = row.serving_grams ?? portion?.gram_weight ?? undefined;
-
+export function toCompatProduct(food: Food) {
   return {
-    code: `usda:${row.fdc_id}`,
-    product_name: row.name,
-    brands: row.brand ?? undefined,
-    serving_size: servingText,
-    serving_quantity: servingGrams,
-    image_front_small_url: undefined,
-    ingredients_text: row.ingredients ?? undefined,
+    code: food.id,
+    product_name: food.name,
+    brands: food.brand ?? undefined,
+    serving_size: food.serving?.description ?? "100 g",
+    serving_quantity: food.serving?.grams ?? undefined,
+    image_front_small_url: food.imageUrl ?? undefined,
+    ingredients_text: food.ingredients ?? undefined,
     nutriments: {
-      "energy-kcal_100g": value(row.kcal),
-      proteins_100g: value(row.protein),
-      carbohydrates_100g: value(row.carbs),
-      fat_100g: value(row.fat),
-      fiber_100g: value(row.fiber),
-      sugars_100g: value(row.sugar),
-      "saturated-fat_100g": value(row.saturated_fat),
-      "trans-fat_100g": value(row.trans_fat),
-      sodium_100g: value(row.sodium),
+      "energy-kcal_100g": value(food.nutrients.kcal),
+      proteins_100g: value(food.nutrients.protein),
+      carbohydrates_100g: value(food.nutrients.carbs),
+      fat_100g: value(food.nutrients.fat),
+      fiber_100g: value(food.nutrients.fiber),
+      sugars_100g: value(food.nutrients.sugar),
+      "saturated-fat_100g": value(food.nutrients.saturatedFat),
+      "trans-fat_100g": value(food.nutrients.transFat),
+      sodium_100g: value(food.nutrients.sodium),
       sodium_unit: "mg",
-      cholesterol_100g: value(row.cholesterol),
+      cholesterol_100g: value(food.nutrients.cholesterol),
       cholesterol_unit: "mg",
-      potassium_100g: value(row.potassium),
+      potassium_100g: value(food.nutrients.potassium),
       potassium_unit: "mg",
-      calcium_100g: value(row.calcium),
+      calcium_100g: value(food.nutrients.calcium),
       calcium_unit: "mg",
-      iron_100g: value(row.iron),
+      iron_100g: value(food.nutrients.iron),
       iron_unit: "mg",
-      "vitamin-a_100g": value(row.vitamin_a),
+      "vitamin-a_100g": value(food.nutrients.vitaminA),
       "vitamin-a_unit": "mcg",
-      "vitamin-c_100g": value(row.vitamin_c),
+      "vitamin-c_100g": value(food.nutrients.vitaminC),
       "vitamin-c_unit": "mg",
-      "vitamin-d_100g": value(row.vitamin_d),
+      "vitamin-d_100g": value(food.nutrients.vitaminD),
       "vitamin-d_unit": "mcg",
     },
     // Extra context the FatSecret payload never carried.
-    source: row.source,
-    barcode: row.barcode ?? undefined,
-    servings: portions.map((item) => ({
-      description: describePortion(item),
-      grams: item.gram_weight,
+    source: food.variant ?? food.providerId,
+    barcode: food.barcode ?? undefined,
+    servings: food.servings.map((serving) => ({
+      description: serving.description,
+      grams: serving.grams,
     })),
+  };
+}
+
+/**
+ * Exercises were never modelled on Open Food Facts, so this is a straight
+ * rename of the normalised shape into the camelCase the client reads, minus the
+ * provider bookkeeping it has no use for.
+ */
+export function toCompatExercise(exercise: Exercise) {
+  const { providerId, id, uuid, ...rest } = exercise;
+  return {
+    // The client has always seen the provider's bare numeric id here, and the
+    // provider's own uuid — not the qualified `wger:123` form — beside it.
+    id: Number.parseInt(id.slice(id.indexOf(":") + 1), 10),
+    uuid,
+    ...rest,
   };
 }

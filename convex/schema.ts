@@ -605,6 +605,26 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId_date", ["userId", "date"]),
 
+  // ── Repeat meals (auto-logged at a local time of day) ─────────────────────
+  repeatMeals: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    /** Meal slot the entries land in ("breakfast", a custom id, …). */
+    meal: v.string(),
+    /** Local time of day, in the user's lastActiveTimezone. */
+    hour: v.number(),
+    minute: v.number(),
+    enabled: v.boolean(),
+    /** Food-entry templates; ids and loggedAt are re-minted at log time. */
+    entries: v.array(v.any()),
+    /** Last local date this was materialized into the food log. */
+    lastLoggedDate: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_enabled", ["enabled"]),
+
   // ── Water logs (one doc per user+date) ────────────────────────────────────
   waterLogs: defineTable({
     userId: v.string(),

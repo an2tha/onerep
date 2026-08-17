@@ -30,4 +30,18 @@ describe("deepLinkToPath", () => {
   test("handles the single-slash form some platforms deliver", () => {
     expect(deepLinkToPath("onerep:/nutrition")).toBe("/nutrition")
   })
+
+  test("routes a diary invite link to the accept page", () => {
+    expect(deepLinkToPath("onerep://shared/accept?token=abc")).toBe(
+      "/shared/accept?token=abc"
+    )
+    expect(deepLinkToPath("onerep:/shared/accept?token=abc")).toBe(
+      "/shared/accept?token=abc"
+    )
+    expect(deepLinkToPath("onerep://shared")).toBe("/shared")
+  })
+
+  test("subpaths on ordinary hosts are ignored rather than forwarded", () => {
+    expect(deepLinkToPath("onerep://workout/extra")).toBe("/workout/active")
+  })
 })

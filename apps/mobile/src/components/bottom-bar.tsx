@@ -88,12 +88,20 @@ function isTrainingPath(pathname: string) {
   return pathname === "/workouts" || pathname.startsWith("/workouts/")
 }
 
-function isActive(pathname: string, path: string) {
+/** Exported for the native iOS tab bar, so both bars share one route model. */
+export function isTabActive(pathname: string, path: string) {
   if (path === "/") return pathname === "/"
   if (path === "/nutrition") return isNutritionPath(pathname)
   if (path === "/workouts") return isTrainingPath(pathname)
   return pathname === path || pathname.startsWith(`${path}/`)
 }
+
+/** The tab that should read as selected for a pathname, if any. */
+export function activeTabPath(pathname: string): string | null {
+  return TABS.find((tab) => isTabActive(pathname, tab.path))?.path ?? null
+}
+
+const isActive = isTabActive
 
 type ChromeTransitionState = "previous" | "previous-ready" | "loading" | "ready"
 

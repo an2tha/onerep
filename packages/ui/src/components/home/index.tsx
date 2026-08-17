@@ -107,6 +107,150 @@ export function TodayHeader({
   )
 }
 
+/**
+ * A photograph the page rises out of.
+ *
+ * The photo is scenery and nothing more. What matters is the edge: the page's
+ * own background sweeps up across the bottom of the image on a curve, so the
+ * day's numbers are not sitting in a box on a picture — they are simply on the
+ * page, and the picture is what the page came from. Anything with a border and
+ * a corner radius here reads as a widget pasted over a wallpaper, which is the
+ * exact cheapness this replaces.
+ *
+ * The gradient behind the image is the real floor: a failed or offline photo
+ * degrades to a tinted backdrop rather than a white hole, which is why the
+ * image is a background layer and not the thing the text is positioned against.
+ */
+export function DashboardPhotoHero({
+  photoUrl,
+  dateLabel,
+  salutation,
+  firstName,
+  action,
+  children,
+}: {
+  /** Remote and therefore optional — the gradient is the real floor. */
+  photoUrl?: string
+  dateLabel: string
+  salutation: string
+  firstName: string
+  action?: ReactNode
+  /** The day's numbers, sitting on the page below the curve. */
+  children?: ReactNode
+}) {
+  /**
+   * The outgoing photo stays mounted underneath the incoming one so the fade
+   * has something to fade from. Two layers is the most that can ever be
+   * needed: the newest is pruned back to one the moment its fade finishes.
+   */
+  const [layers, setLayers] = useState<Array<{ id: number; src: string }>>([])
+  const nextLayerId = useRef(0)
+
+  useEffect(() => {
+    if (!photoUrl) return
+    setLayers((current) => {
+      if (current[current.length - 1]?.src === photoUrl) return current
+      return [...current, { id: nextLayerId.current++, src: photoUrl }].slice(
+        -2
+      )
+    })
+  }, [photoUrl])
+
+  return (
+    <section className="dashboard-photo-hero relative">
+      <div className="dashboard-photo-hero-frame relative isolate overflow-hidden">
+        {layers.map((layer, index) => (
+          <img
+            key={layer.id}
+            src={layer.src}
+            alt=""
+            aria-hidden="true"
+            loading="eager"
+            decoding="async"
+            // Only the topmost layer is animating; when it lands, the one
+            // underneath has nothing left to do.
+            onAnimationEnd={() => {
+              if (index === layers.length - 1) {
+                setLayers((current) => current.slice(-1))
+              }
+            }}
+            onError={() =>
+              setLayers((current) =>
+                current.filter((item) => item.id !== layer.id)
+              )
+            }
+            className="dashboard-photo-hero-photo"
+          />
+        ))}
+        {/* Legibility, not decoration: the copy above is white regardless of
+            what the photo happens to be doing behind it. */}
+        <div
+          className="dashboard-photo-hero-scrim absolute inset-0 -z-10"
+          aria-hidden="true"
+        />
+
+        <header className="dashboard-photo-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
+          <div className="min-w-0">
+            <p className="app-eyebrow truncate opacity-80">{dateLabel}</p>
+            <h1 className="app-title max-w-[18ch] md:max-w-none">
+              {salutation}, {firstName}.
+            </h1>
+          </div>
+          {action && <div className="shrink-0 pt-0.5">{action}</div>}
+        </header>
+
+        {/* The day's numbers, on the photograph rather than under it. */}
+        {children && (
+          <div className="dashboard-photo-hero-ledger relative mt-auto">
+            {children}
+          </div>
+        )}
+
+        {/* The page, cutting into the photograph. `preserveAspectRatio="none"`
+            lets one path stretch from a phone to a desktop without the curve
+            flattening or the fill pulling away from the edges. */}
+        <svg
+          className="dashboard-photo-hero-curve"
+          viewBox="0 0 1440 120"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <defs>
+            {/* The lit edge falls off towards both ends, so the curve reads as
+                a surface catching light rather than a stroked vector shape. */}
+            <linearGradient
+              id="dashboardHeroCurveEdge"
+              x1="0"
+              x2="1"
+              y1="0"
+              y2="0"
+            >
+              <stop offset="0" stopColor="#fff" stopOpacity="0" />
+              <stop offset="0.28" stopColor="#fff" stopOpacity="0.42" />
+              <stop offset="0.6" stopColor="#fff" stopOpacity="0.16" />
+              <stop offset="1" stopColor="#fff" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path
+            className="dashboard-photo-hero-curve-fill"
+            d="M0 56C260 92 520 99 780 80C1020 63 1240 57 1440 64L1440 120L0 120Z"
+          />
+          {/* `non-scaling-stroke` keeps the hairline one pixel wide; without it
+              `preserveAspectRatio="none"` smears it into a wedge. */}
+          <path
+            className="dashboard-photo-hero-curve-edge"
+            d="M0 56C260 92 520 99 780 80C1020 63 1240 57 1440 64"
+            fill="none"
+            stroke="url(#dashboardHeroCurveEdge)"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      </div>
+    </section>
+  )
+}
+
 function quickActionTone(tone: DashboardQuickAction["tone"]) {
   if (tone === "food")
     return "bg-[var(--accent-food-bg)] text-[var(--accent-food)]"
@@ -433,10 +577,13 @@ function CalorieRing({
   caloriesLeft,
   caloriesPct,
   overTarget,
+  onPhoto = false,
 }: {
   caloriesLeft: number
   caloriesPct: number
   overTarget: boolean
+  /** Laid over a photograph, so the theme's foreground colors don't apply. */
+  onPhoto?: boolean
 }) {
   const radius = 52
   const circumference = 2 * Math.PI * radius
@@ -466,7 +613,8 @@ function CalorieRing({
           r={radius}
           fill="none"
           strokeWidth="11"
-          className="stroke-foreground/[0.09]"
+          className={cn(!onPhoto && "stroke-foreground/[0.09]")}
+          style={onPhoto ? { stroke: "rgb(255 255 255 / 0.2)" } : undefined}
         />
         <circle
           cx="64"
@@ -485,15 +633,27 @@ function CalorieRing({
           style={{
             stroke: overTarget
               ? "var(--status-danger)"
-              : "color-mix(in srgb, var(--foreground) 52%, transparent)",
+              : onPhoto
+                ? "rgb(255 255 255 / 0.92)"
+                : "color-mix(in srgb, var(--foreground) 52%, transparent)",
           }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-[2rem] leading-none font-bold tracking-tight tabular-nums">
+        <span
+          className={cn(
+            "text-[2rem] leading-none font-bold tracking-tight tabular-nums",
+            onPhoto && "text-white"
+          )}
+        >
           {fmt(Math.abs(animatedLeft))}
         </span>
-        <span className="mt-1 text-[11px] font-medium text-muted-foreground">
+        <span
+          className={cn(
+            "mt-1 text-[11px] font-medium",
+            onPhoto ? "text-white/75" : "text-muted-foreground"
+          )}
+        >
           kcal {overTarget ? "over" : "left"}
         </span>
       </div>
@@ -506,6 +666,7 @@ export function DailyLedgerHero({
   caloriesTarget,
   macros = [],
   supplementCalories = 0,
+  onPhoto = false,
   className,
 }: {
   caloriesLeft: number
@@ -513,6 +674,12 @@ export function DailyLedgerHero({
   macros?: MacroProgress[]
   /** Folded into the totals above; shown so the figures reconcile with the meal list. */
   supplementCalories?: number
+  /**
+   * Laid over the hero photograph: no card chrome, and colors drawn from white
+   * rather than the theme, because the surface underneath is a photo and not
+   * the page.
+   */
+  onPhoto?: boolean
   className?: string
 }) {
   const consumed = Math.max(0, caloriesTarget - caloriesLeft)
@@ -521,13 +688,20 @@ export function DailyLedgerHero({
 
   return (
     <div className={cn("mx-[var(--app-page-x)] md:mx-8", className)}>
-      <section className="dashboard-ledger-card rounded-[22px] border border-border/70 px-4 py-5">
+      <section
+        className={cn(
+          "px-4 py-5",
+          !onPhoto &&
+            "dashboard-ledger-card rounded-[22px] border border-border/70"
+        )}
+      >
         {/* Calories + macros */}
         <div className="flex items-center gap-5">
           <CalorieRing
             caloriesLeft={caloriesLeft}
             caloriesPct={caloriesPct}
             overTarget={overTarget}
+            onPhoto={onPhoto}
           />
           <div className="flex min-w-0 flex-1 flex-col gap-3.5">
             {macros.map((macro) => {
@@ -535,19 +709,39 @@ export function DailyLedgerHero({
               return (
                 <div key={macro.label} className="min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">
+                    <span
+                      className={cn(
+                        "text-[11px] font-semibold tracking-[0.08em] uppercase",
+                        onPhoto ? "text-white/70" : "text-muted-foreground"
+                      )}
+                    >
                       {macro.shortLabel}
                     </span>
-                    <span className="text-[13px] font-semibold tabular-nums">
+                    <span
+                      className={cn(
+                        "text-[13px] font-semibold tabular-nums",
+                        onPhoto && "text-white"
+                      )}
+                    >
                       {fmt(macro.value)}
-                      <span className="font-medium text-muted-foreground">
+                      <span
+                        className={cn(
+                          "font-medium",
+                          onPhoto ? "text-white/65" : "text-muted-foreground"
+                        )}
+                      >
                         {" "}
                         / {fmt(macro.target)}
                         {macro.unit ?? "g"}
                       </span>
                     </span>
                   </div>
-                  <div className="mt-1.5 h-[5px] overflow-hidden rounded-full bg-foreground/[0.08]">
+                  <div
+                    className={cn(
+                      "mt-1.5 h-[5px] overflow-hidden rounded-full",
+                      onPhoto ? "bg-white/25" : "bg-foreground/[0.08]"
+                    )}
+                  >
                     <div
                       className="motion-bar-fill h-full w-full rounded-full"
                       style={{
@@ -564,7 +758,14 @@ export function DailyLedgerHero({
         {/* Without this, the totals disagree with the sum of the visible meal
             entries and read as a bug. */}
         {supplementCalories > 0 && (
-          <p className="mt-3.5 border-t border-border/50 pt-2.5 text-[11px] text-muted-foreground tabular-nums">
+          <p
+            className={cn(
+              "mt-3.5 border-t pt-2.5 text-[11px] tabular-nums",
+              onPhoto
+                ? "border-white/20 text-white/75"
+                : "border-border/50 text-muted-foreground"
+            )}
+          >
             Includes {fmt(Math.round(supplementCalories))} kcal from supplements
           </p>
         )}

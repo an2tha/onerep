@@ -403,7 +403,7 @@ function CoachSheet({
     >
       <div
         className={cn(
-          "coach-swoosh-surface max-h-[82svh] w-full origin-bottom overflow-y-auto overscroll-contain rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl lg:rounded-[26px] lg:pb-5",
+          "coach-swoosh-surface coach-sheet-surface max-h-[82svh] w-full origin-bottom overflow-y-auto overscroll-contain rounded-t-[26px] bg-background p-5 pb-[max(1.5rem,var(--app-safe-bottom))] shadow-2xl lg:mx-auto lg:max-w-xl lg:rounded-[26px] lg:pb-5",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
         data-coach-mode={mode}
@@ -2499,7 +2499,7 @@ export default function Coach() {
               event.preventDefault()
               void submit()
             }}
-            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+5.75rem)] lg:pb-4"
+            className="z-20 mx-auto w-full max-w-3xl min-w-0 shrink-0 border-t border-border/55 bg-transparent pt-3 pb-[calc(var(--app-safe-bottom)+4.25rem)] lg:pb-4"
           >
             <TourAnchor
               anchor="coach-composer"

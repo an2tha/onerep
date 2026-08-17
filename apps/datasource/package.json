@@ -10,9 +10,13 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
-  "devDependencies": { "@types/bun": "latest" },
-  "peerDependencies": { "typescript": "^5" },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
   "dependencies": {
-
+    "drizzle-orm": "^0.45.2"
   }
 }

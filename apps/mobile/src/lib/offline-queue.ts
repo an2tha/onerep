@@ -104,6 +104,9 @@ const MUTATION_REGISTRY = {
   "logs.mealPrep.remove": api.logs.mealPrep.remove,
   "logs.recipes.save": api.logs.recipes.save,
   "logs.recipes.remove": api.logs.recipes.remove,
+  "logs.repeatMeals.save": api.logs.repeatMeals.save,
+  "logs.repeatMeals.setEnabled": api.logs.repeatMeals.setEnabled,
+  "logs.repeatMeals.remove": api.logs.repeatMeals.remove,
 } as const
 
 const SINGLETON_COALESCE_MUTATIONS = new Set<OfflineMutationName>([

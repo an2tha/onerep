@@ -5,6 +5,7 @@ import {
   clampRangeToScope,
   NO_ACCESS_MESSAGE,
   resolveDiaryOwner,
+  safeResolveDiaryOwner,
 } from "../lib/diaryAccess";
 
 const MAX_RANGE_DAYS = 400;
@@ -104,13 +105,20 @@ export const getSharedGoals = query({
   },
 });
 
-/** Just enough to title the viewer's screen. */
+/**
+ * Just enough to title the viewer's screen.
+ *
+ * Returns null rather than throwing when there is no grant: this is the query
+ * the day view gates everything else on, and a revoked or mistyped link should
+ * land on a "no longer shared" state, not the error boundary.
+ */
 export const getSharedProfile = query({
   args: { ownerUserId: v.string() },
   handler: async (ctx, args) => {
-    const access = await resolveDiaryOwner(ctx, {
+    const access = await safeResolveDiaryOwner(ctx, {
       ownerUserId: args.ownerUserId,
     });
+    if (!access) return null;
     return {
       ownerUserId: access.ownerUserId,
       name: access.share?.ownerName,

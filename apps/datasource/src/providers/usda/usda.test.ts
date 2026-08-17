@@ -3,12 +3,13 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { toCompatProduct, type FoodRow } from "./compat.ts";
-import { livePath } from "./db.ts";
-import { barcodeKey, SEARCH_SQL, searchParams } from "./search.ts";
-import { importUsda } from "./usda.ts";
+import type { BuildContext } from "../../core/provider.ts";
+import { livePath } from "../../core/store.ts";
+import { barcodeKey } from "../../core/text.ts";
+import { UsdaProvider } from "./index.ts";
 
 const dirs: string[] = [];
+const open: UsdaProvider[] = [];
 
 function tempDir(): string {
   const dir = mkdtempSync(join(tmpdir(), "datasource-usda-"));
@@ -17,15 +18,25 @@ function tempDir(): string {
 }
 
 afterEach(() => {
+  for (const provider of open.splice(0)) provider.close();
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
+
+function context(csvDir: string, dataDir: string): BuildContext {
+  return {
+    dataDir,
+    cacheDir: join(dataDir, "cache"),
+    log: () => {},
+    flag: (name) => (name === "csv-dir" ? csvDir : undefined),
+  };
+}
 
 /** A miniature FoodData Central release covering each data type. */
 async function writeFixture(): Promise<string> {
   const dir = tempDir();
   await Bun.write(
     join(dir, "food.csv"),
-    'fdc_id,data_type,description\n' +
+    "fdc_id,data_type,description\n" +
       '1,foundation_food,"Chicken, breast, raw"\n' +
       "2,branded_food,Chicken Breast Chunks\n" +
       "3,sr_legacy_food,Butter\n" +
@@ -92,12 +103,20 @@ async function writeFixture(): Promise<string> {
 async function importFixture() {
   const csvDir = await writeFixture();
   const dataDir = tempDir();
-  const result = await importUsda({ csvDir, dataDir });
-  return { dataDir, result, db: new Database(livePath(dataDir, "usda"), { readonly: true }) };
+  const summary = await new UsdaProvider(dataDir).build(context(csvDir, dataDir));
+
+  const provider = new UsdaProvider(dataDir);
+  open.push(provider);
+  return {
+    dataDir,
+    summary,
+    provider,
+    db: new Database(livePath(dataDir, "usda"), { readonly: true }),
+  };
 }
 
 test("imports only the four catalog data types", async () => {
-  const { result, db } = await importFixture();
+  const { summary, db } = await importFixture();
   const names = (db.query("SELECT name FROM foods ORDER BY fdc_id").all() as { name: string }[])
     .map((row) => row.name);
   // The sample_food row is skipped, the duplicate GTIN is collapsed and the
@@ -108,76 +127,70 @@ test("imports only the four catalog data types", async () => {
     "Butter",
     "Macros Only Bar",
   ]);
-  expect(result.foods).toBe(4);
+  expect(summary.primary).toBe(4);
   db.close();
 });
 
 test("derives energy from macros when USDA omits it", async () => {
-  const { db } = await importFixture();
+  const { provider } = await importFixture();
   // 10g protein + 20g carbs + 5g fat = 40 + 80 + 45
-  expect(db.query("SELECT kcal FROM foods WHERE fdc_id = 7").get()).toEqual({ kcal: 165 });
-  db.close();
+  expect(provider.byId("7")?.nutrients.kcal).toBe(165);
 });
 
 test("drops foods carrying no nutrition at all", async () => {
-  const { db } = await importFixture();
-  expect(db.query("SELECT fdc_id FROM foods WHERE fdc_id = 6").get()).toBeNull();
-  db.close();
+  const { provider } = await importFixture();
+  expect(provider.byId("6")).toBeNull();
 });
 
 test("collapses republished GTINs onto the most complete row", async () => {
-  const { db } = await importFixture();
-  // fdc 5 repeats fdc 2's GTIN but carries no nutrients, so fdc 2 survives.
-  expect(db.query("SELECT fdc_id FROM foods WHERE fdc_id = 5").get()).toBeNull();
-  expect(db.query("SELECT canonical_fdc_id FROM aliases WHERE fdc_id = 5").get()).toEqual({
-    canonical_fdc_id: 2,
-  });
-  db.close();
+  const { provider } = await importFixture();
+  // fdc 5 repeats fdc 2's GTIN but carries no nutrients, so fdc 2 survives —
+  // and an id logged before the import still resolves through the alias.
+  expect(provider.byId("5")?.id).toBe("usda:2");
 });
 
 test("attaches branded metadata and gram servings", async () => {
-  const { db } = await importFixture();
-  const row = db.query("SELECT * FROM foods WHERE fdc_id = 2").get() as FoodRow;
-  expect(row.brand).toBe("ACME");
-  expect(row.barcode).toBe("0 - 00012345678905");
-  expect((row as unknown as { barcode_key: string }).barcode_key).toBe("12345678905");
-  expect(row.serving_text).toBe("2 chunks");
-  expect(row.serving_grams).toBe(56);
-  expect(row.ingredients).toBe("Chicken, salt");
-  db.close();
+  const { provider } = await importFixture();
+  const food = provider.byId("2");
+  expect(food?.brand).toBe("ACME");
+  expect(food?.barcode).toBe("0 - 00012345678905");
+  expect(food?.serving).toEqual({ description: "2 chunks", grams: 56 });
+  expect(food?.ingredients).toBe("Chicken, salt");
+  expect(food?.variant).toBe("branded");
 });
 
-test("maps nutrients onto per-100g columns", async () => {
-  const { db } = await importFixture();
-  const row = db.query("SELECT * FROM foods WHERE fdc_id = 1").get() as FoodRow;
-  expect(row.kcal).toBe(120);
-  expect(row.protein).toBe(22.5);
-  expect(db.query("SELECT sodium FROM foods WHERE fdc_id = 2").get()).toEqual({ sodium: 400 });
-  db.close();
+test("maps nutrients onto the normalised per-100g shape", async () => {
+  const { provider } = await importFixture();
+  expect(provider.byId("1")?.nutrients.kcal).toBe(120);
+  expect(provider.byId("1")?.nutrients.protein).toBe(22.5);
+  expect(provider.byId("2")?.nutrients.sodium).toBe(400);
 });
 
 test("falls back to Atwater energy when 1008 is absent", async () => {
-  const { db } = await importFixture();
-  expect(db.query("SELECT kcal FROM foods WHERE fdc_id = 3").get()).toEqual({ kcal: 717 });
-  db.close();
+  const { provider } = await importFixture();
+  expect(provider.byId("3")?.nutrients.kcal).toBe(717);
 });
 
 test("stores portions with resolved unit names", async () => {
-  const { db } = await importFixture();
-  const portions = db
-    .query("SELECT amount, unit, gram_weight FROM portions WHERE fdc_id = 1")
-    .all() as { amount: number; unit: string; gram_weight: number }[];
-  expect(portions).toEqual([{ amount: 1, unit: "cup cup diced", gram_weight: 140 }]);
-  db.close();
+  const { provider } = await importFixture();
+  expect(provider.byId("1")?.servings).toEqual([{ description: "1 cup cup diced", grams: 140 }]);
+});
+
+test("borrows a portion for serving text, then falls back to 100 g", async () => {
+  const { provider } = await importFixture();
+  // A generic food has no serving text of its own, so it takes the portion.
+  expect(provider.byId("1")?.serving).toEqual({ description: "1 cup cup diced", grams: 140 });
+  // ...and one with neither is described against the basis its nutrients use.
+  expect(provider.byId("7")?.serving).toEqual({ description: "1 bar", grams: 40 });
 });
 
 test("canonicalises GTINs so UPC and EAN forms resolve alike", async () => {
-  const { db } = await importFixture();
-  const lookup = db.query("SELECT fdc_id FROM foods WHERE barcode_key = ?");
+  const { provider } = await importFixture();
   for (const input of ["012345678905", "0012345678905", "12345678905", "0-0001-2345678905"]) {
-    expect(lookup.get(barcodeKey(input)!)).toEqual({ fdc_id: 2 });
+    expect(provider.byBarcode(input)?.id).toBe("usda:2");
   }
-  db.close();
+  expect(barcodeKey("00000")).toBeNull();
+  expect(provider.byBarcode("00000")).toBeNull();
 });
 
 test("never leaves an alias pointing at a dropped food", async () => {
@@ -193,34 +206,42 @@ test("never leaves an alias pointing at a dropped food", async () => {
 });
 
 test("ranks the generic food above the branded product", async () => {
-  const { db } = await importFixture();
-  const rows = db.query(SEARCH_SQL).all(searchParams("chicken breast", 10)!) as FoodRow[];
-  expect(rows.map((row) => row.source)).toEqual(["foundation", "branded"]);
-  db.close();
+  const { provider } = await importFixture();
+  const results = provider.search("chicken breast", 10);
+  expect(results.map((result) => result.item.variant)).toEqual(["foundation", "branded"]);
+  // Scores must fall away from the best match for the registry to merge on.
+  expect(results[0]!.score).toBeGreaterThan(results[1]!.score);
 });
 
-test("produces the compat product shape", async () => {
-  const { db } = await importFixture();
-  const row = db.query("SELECT * FROM foods WHERE fdc_id = 2").get() as FoodRow;
-  const product = toCompatProduct(row, [{ amount: 2, unit: "chunks", gram_weight: 56 }]);
-  expect(product.code).toBe("usda:2");
-  expect(product.product_name).toBe("Chicken Breast Chunks");
-  expect(product.brands).toBe("ACME");
-  expect(product.serving_size).toBe("2 chunks");
-  expect(product.serving_quantity).toBe(56);
-  expect(product.nutriments["energy-kcal_100g"]).toBe(165);
-  expect(product.nutriments.sodium_100g).toBe(400);
-  expect(product.nutriments.sodium_unit).toBe("mg");
-  // Missing nutrients must be 0 rather than null, as the mobile client expects.
-  expect(product.nutriments.proteins_100g).toBe(0);
-  db.close();
+test("returns nothing for a query with no searchable tokens", async () => {
+  const { provider } = await importFixture();
+  expect(provider.search("   ", 10)).toEqual([]);
+  expect(provider.search("!!!", 10)).toEqual([]);
+});
+
+test("reports import metadata once a build has landed", async () => {
+  const { provider } = await importFixture();
+  const stats = provider.stats();
+  expect(stats.imported).toBe(true);
+  expect(stats.foods).toBe("4");
+  expect(stats.imported_at).toBeString();
+});
+
+test("reads as not imported before the first build", () => {
+  const provider = new UsdaProvider(tempDir());
+  open.push(provider);
+  expect(provider.stats()).toEqual({ imported: false });
+  expect(provider.search("chicken", 10)).toEqual([]);
+  expect(provider.byId("1")).toBeNull();
+  expect(provider.byBarcode("012345678905")).toBeNull();
 });
 
 test("re-importing keeps a rollback copy and swaps the live database", async () => {
   const csvDir = await writeFixture();
   const dataDir = tempDir();
-  await importUsda({ csvDir, dataDir });
-  await importUsda({ csvDir, dataDir });
+  const provider = new UsdaProvider(dataDir);
+  await provider.build(context(csvDir, dataDir));
+  await provider.build(context(csvDir, dataDir));
   expect(await Bun.file(join(dataDir, "usda.previous.sqlite")).exists()).toBe(true);
   expect(await Bun.file(join(dataDir, "usda.next.sqlite")).exists()).toBe(false);
 });
@@ -229,9 +250,14 @@ test("refuses to promote when nutrient ids stop matching", async () => {
   const csvDir = await writeFixture();
   // Simulates a release that renumbers nutrients: the join would silently
   // produce foods with zero macros.
-  await Bun.write(join(csvDir, "nutrient.csv"), "id,name,unit_name,nutrient_nbr\n9001,Energy,KCAL,208\n");
+  await Bun.write(
+    join(csvDir, "nutrient.csv"),
+    "id,name,unit_name,nutrient_nbr\n9001,Energy,KCAL,208\n",
+  );
   const dataDir = tempDir();
-  await expect(importUsda({ csvDir, dataDir })).rejects.toThrow("nutrient.csv matched only");
+  await expect(new UsdaProvider(dataDir).build(context(csvDir, dataDir))).rejects.toThrow(
+    "nutrient.csv matched only",
+  );
   expect(await Bun.file(livePath(dataDir, "usda")).exists()).toBe(false);
 });
 
@@ -239,6 +265,20 @@ test("refuses to promote when the source has no usable foods", async () => {
   const csvDir = tempDir();
   await Bun.write(join(csvDir, "food.csv"), "fdc_id,data_type,description\n");
   const dataDir = tempDir();
-  await expect(importUsda({ csvDir, dataDir })).rejects.toThrow("no foods parsed");
+  await expect(new UsdaProvider(dataDir).build(context(csvDir, dataDir))).rejects.toThrow(
+    "no foods parsed",
+  );
   expect(await Bun.file(livePath(dataDir, "usda")).exists()).toBe(false);
+});
+
+test("requires the csv-dir flag", async () => {
+  const dataDir = tempDir();
+  await expect(
+    new UsdaProvider(dataDir).build({
+      dataDir,
+      cacheDir: dataDir,
+      log: () => {},
+      flag: () => undefined,
+    }),
+  ).rejects.toThrow("--csv-dir");
 });

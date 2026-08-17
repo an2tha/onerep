@@ -36,6 +36,9 @@
     },
     "apps/datasource": {
       "name": "datasource",
+      "dependencies": {
+        "drizzle-orm": "^0.45.2",
+      },
       "devDependencies": {
         "@types/bun": "latest",
       },

@@ -137,3 +137,37 @@ export function unreadComments(
       comment.authorUserId !== selfUserId
   )
 }
+
+/** The link a recipient opens to claim an invite. Opens the app directly. */
+export function diaryInviteLink(token: string): string {
+  return `onerep://shared/accept?token=${encodeURIComponent(token)}`
+}
+
+/**
+ * Hands the invite link to the native share sheet, falling back to the
+ * clipboard where sharing is unavailable (desktop, simulators). No email is
+ * sent server-side — this link IS the delivery mechanism.
+ */
+export async function shareDiaryInvite(
+  token: string,
+  inviteeEmail: string
+): Promise<"shared" | "copied" | "failed"> {
+  const link = diaryInviteLink(token)
+  const text = `I'm sharing my OneRep food diary with you (${inviteeEmail}). Open this link on a phone with OneRep installed: ${link}`
+  try {
+    const { Share } = await import("@capacitor/share")
+    await Share.share({
+      title: "OneRep diary invitation",
+      text,
+      dialogTitle: "Send your diary invitation",
+    })
+    return "shared"
+  } catch {
+    try {
+      await navigator.clipboard.writeText(text)
+      return "copied"
+    } catch {
+      return "failed"
+    }
+  }
+}

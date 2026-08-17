@@ -31,6 +31,15 @@ crons.interval(
   {},
 );
 
+// 15 minutes bounds how late an auto-logged meal can be; "log my oats at
+// 7:00" landing by 7:15 is fine, landing at noon is not.
+crons.interval(
+  "log due repeat meals",
+  { minutes: 15 },
+  internal.logs.repeatMeals.logDueMeals,
+  {},
+);
+
 // Webhooks are the fast path for subscription state; these sweeps are the
 // safety net that turns a dropped notification into a delay, not an outage.
 crons.interval(

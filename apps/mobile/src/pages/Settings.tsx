@@ -12,6 +12,7 @@ import {
   Heartbeat,
   Key,
   Moon,
+  PaperPlaneTilt,
   ShieldCheck,
   SlidersHorizontal,
   Sun,
@@ -111,9 +112,11 @@ import {
 } from "@/lib/offline-sync-status"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { mealLabel } from "@/lib/food-log"
+import { resetWelcomeNudge } from "@/lib/welcome-nudge"
 import {
   isValidInviteEmail,
   normalizeInviteEmail,
+  shareDiaryInvite,
   shareScopeLabel,
   type DiaryShare,
 } from "@/lib/shared-diary"
@@ -466,6 +469,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [resettingOnboarding, setResettingOnboarding] = useState(false)
   const [refreshingTooltips, setRefreshingTooltips] = useState(false)
   const [testingNotification, setTestingNotification] = useState(false)
+  const [sendingTestEmail, setSendingTestEmail] = useState<string | null>(null)
+  const sendTestEmail = useMutation(api.users.devEmails.sendTest)
   const [clearingMoments, setClearingMoments] = useState(false)
   const [activeView, setActiveView] = useState<SettingsView>("overview")
   const [hapticsOn, setHapticsOn] = useState(() => {
@@ -873,6 +878,24 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       navigate("/", { motion: "switch" })
     } catch {
       toast.error("Could not reset the walkthrough")
+    }
+  }
+
+  async function handleSendTestEmail(
+    kind: "verification" | "password-reset" | "diary-invite"
+  ) {
+    if (sendingTestEmail) return
+    hapticTap()
+    setSendingTestEmail(kind)
+    try {
+      await sendTestEmail({ kind })
+      toast.success("On its way — check your inbox")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not send the email"
+      )
+    } finally {
+      setSendingTestEmail(null)
     }
   }
 
@@ -2367,7 +2390,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                           scope: { diary: true, report: true, comments: true },
                         })
                         setInviteEmail("")
-                        toast.success("Invitation sent")
+                        toast.success(
+                          "Invitation created — send them the link below"
+                        )
                       } catch (error) {
                         toast.error(
                           error instanceof Error
@@ -2400,11 +2425,32 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                           </p>
                           <p className="native-row-detail mt-0.5">
                             {share.status === "pending"
-                              ? "Invite sent"
+                              ? "Waiting for them"
                               : "Active"}{" "}
                             · {shareScopeLabel(share.scope)}
                           </p>
                         </div>
+                        {share.status === "pending" && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const result = await shareDiaryInvite(
+                                share.token,
+                                share.inviteeEmail
+                              )
+                              if (result === "copied")
+                                toast.success("Invite link copied")
+                              if (result === "failed")
+                                toast.error(
+                                  "Could not share the invite link"
+                                )
+                            }}
+                            aria-label={`Send invite link to ${share.inviteeEmail}`}
+                            className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
+                          >
+                            <PaperPlaneTilt size={17} weight="bold" />
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={async () => {
@@ -2677,6 +2723,41 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       hapticSelection()
                       showAiPaywall()
                     }}
+                  />
+                  <ListRow
+                    title="Show the welcome nudge"
+                    detail="Forget today's dismissal and open the dashboard"
+                    onClick={() => {
+                      hapticSelection()
+                      resetWelcomeNudge()
+                      navigate("/")
+                    }}
+                  />
+                </GroupedList>
+
+                <SettingsSectionIntro>
+                  Every email the product sends, delivered to your own address
+                  with harmless links, so the templates can be judged where
+                  they live: an inbox.
+                </SettingsSectionIntro>
+                <GroupedList label="Test emails">
+                  <ListRow
+                    title="Send the verification email"
+                    detail="The confirm-your-email template"
+                    disabled={sendingTestEmail !== null}
+                    onClick={() => void handleSendTestEmail("verification")}
+                  />
+                  <ListRow
+                    title="Send the password-reset email"
+                    detail="The choose-a-new-password template"
+                    disabled={sendingTestEmail !== null}
+                    onClick={() => void handleSendTestEmail("password-reset")}
+                  />
+                  <ListRow
+                    title="Send the diary-invite email"
+                    detail="What an invitee receives when you share your diary"
+                    disabled={sendingTestEmail !== null}
+                    onClick={() => void handleSendTestEmail("diary-invite")}
                   />
                 </GroupedList>
 

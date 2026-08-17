@@ -19,7 +19,11 @@ const ROUTES: Record<string, string> = {
   progress: "/progress",
   coach: "/coach",
   settings: "/settings",
+  shared: "/shared",
 }
+
+/** Hosts whose subpath is meaningful, e.g. onerep://shared/accept?token=…. */
+const SUBPATH_HOSTS = new Set(["shared"])
 
 /**
  * Maps a deep link to an in-app path, preserving the query string.
@@ -39,13 +43,19 @@ export function deepLinkToPath(url: string): string | null {
 
   // "onerep://workout?x=1" parses with hostname "workout"; some platforms hand
   // back "onerep:/workout" instead, where the value lands in pathname.
-  const host = (parsed.hostname || parsed.pathname.replace(/^\/+/, "")).split(
-    "/"
-  )[0]
+  const raw = parsed.hostname
+    ? `${parsed.hostname}${parsed.pathname}`
+    : parsed.pathname.replace(/^\/+/, "")
+  const [host, ...restParts] = raw.split("/").filter(Boolean)
   if (!host || RESERVED_HOSTS.has(host)) return null
 
   const route = ROUTES[host]
   if (!route) return null
 
-  return `${route}${parsed.search}`
+  const rest =
+    SUBPATH_HOSTS.has(host) && restParts.length > 0
+      ? `/${restParts.join("/")}`
+      : ""
+
+  return `${route}${rest}${parsed.search}`
 }

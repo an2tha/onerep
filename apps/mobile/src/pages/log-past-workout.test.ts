@@ -25,7 +25,9 @@ const QUICK = read("./QuickLogPreset.tsx")
 const PRESET_LOG = read("../lib/preset-quick-log.ts")
 const RETRO = read("./ActiveWorkout.tsx")
 const ROUTES = read("../main.tsx")
-const DASHBOARD = read("../App.tsx")
+// The dashboard's workout tile — and its "log a past workout" button — moved
+// into the dashboard module when App.tsx was split up.
+const DASHBOARD = read("../dashboard/workout-small.tsx")
 
 describe("the sheet asks how before it asks anything else", () => {
   test("offers both paths, and only those", () => {

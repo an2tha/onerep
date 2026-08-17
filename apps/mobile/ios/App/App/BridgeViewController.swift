@@ -6,6 +6,7 @@ class BridgeViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(AppleHealthPlugin())
         bridge?.registerPluginInstance(WorkoutLiveActivityPlugin())
+        bridge?.registerPluginInstance(NativeTabBarPlugin())
 
         // The web app supplies its own controls. Remove Safari's large
         // previous/next/dismiss form accessory bar above the iOS keyboard.
