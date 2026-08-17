@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router"
 import { createPortal } from "react-dom"
 import {
   Aperture,
+  ArrowCounterClockwise,
   Barcode,
   BookBookmark,
   BowlFood,
@@ -2153,6 +2154,45 @@ export default function Nutrition() {
     </section>
   )
 
+  // The one-tap row for people who eat the same four things forever, which is
+  // everyone. The sheet keeps its own copy; this one skips the sheet entirely.
+  const quickRepeatRow =
+    quickRepeatFoods.length > 0 ? (
+      <section
+        className="progress-tab-enter -mx-5 mt-2 overflow-x-auto px-5"
+        aria-label="Log a recent food again"
+      >
+        <div className="flex w-max gap-2">
+          {quickRepeatFoods.map((food) => {
+            const busy = quickRepeatBusyKey === food.key
+            return (
+              <button
+                key={food.key}
+                type="button"
+                onClick={() => void repeatFood(food.entry, food.key)}
+                disabled={quickRepeatBusyKey !== null}
+                aria-busy={busy}
+                aria-label={`Log ${food.entry.name} again, ${fmt(
+                  food.entry.calories
+                )} kilocalories`}
+                className="app-button app-button-quiet min-h-10 shrink-0 gap-2 px-3"
+              >
+                {busy ? (
+                  <span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/70" />
+                ) : (
+                  <ArrowCounterClockwise size={15} weight="bold" />
+                )}
+                <span className="max-w-40 truncate">{food.entry.name}</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {fmt(food.entry.calories)} kcal
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    ) : null
+
   const fastingCard = (
     <TourAnchor
       anchor="nutrition-fasting-pill"
@@ -2667,6 +2707,7 @@ export default function Nutrition() {
             </SummaryBlock>
 
             {logMethods}
+            {quickRepeatRow}
 
             {smartMealSuggestion && (
               <div className="mt-3">

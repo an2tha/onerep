@@ -385,7 +385,11 @@ function RecordCell({
 
 // ─── Instructions pane ────────────────────────────────────────────────────────
 
-function InstructionsPane({ exercise }: { exercise: ClientExercise }) {
+/**
+ * Exported because the active workout shows the same content in a sheet —
+ * mid-session, a modal beats losing your place to a page navigation.
+ */
+export function InstructionsPane({ exercise }: { exercise: ClientExercise }) {
   const facts = [
     ["Equipment", exercise.equipment && titleCase(exercise.equipment)],
     [

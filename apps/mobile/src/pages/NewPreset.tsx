@@ -64,7 +64,10 @@ import {
 } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { AppleFitnessSetRow } from "@repo/ui"
-import { WeightSelectorSheet, type WeightSelectorChange } from "./ActiveWorkout"
+import {
+  WeightSelectorSheet,
+  type WeightSelectorChange,
+} from "./active-workout/weight-selector-sheet"
 import type { BarType } from "@/lib/workout-logging"
 
 // ─── Types ────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { Timer, X } from "@phosphor-icons/react"
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 
 import { cn } from "../lib/utils"
 
@@ -174,7 +175,10 @@ export function RestTimerSheet({
     setSeconds(next.seconds)
   }, [current])
 
-  return (
+  // Portaled because the sheet opens from inside exercise cards whose enter
+  // animations leave a transform behind — a transformed ancestor becomes the
+  // containing block for `fixed` and clips the overlay to the card.
+  return createPortal(
     <div
       className={cn(
         "sheet-overlay fixed inset-0 z-50 flex items-end justify-center",
@@ -302,7 +306,8 @@ export function RestTimerSheet({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
