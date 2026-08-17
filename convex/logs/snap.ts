@@ -564,6 +564,65 @@ async function runAiMealAnalysis({
   };
 }
 
+// The coach chat borrows the snap pipeline when a photo arrives: detect foods,
+// match them against the database, hand back a compact summary the model can
+// quote instead of guessing macros off vibes. Returns null when the image
+// doesn't look like food, so the coach can carry on with whatever it was.
+export type CoachMealPhotoAnalysis = {
+  foodName?: string;
+  estimatedQuantity?: string;
+  items: Array<{
+    detectedName: string;
+    match: {
+      name: string;
+      brand?: string;
+      serving: string;
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    } | null;
+  }>;
+};
+
+export async function analyzeMealPhotoForCoach(
+  ctx: ActionCtx,
+  args: { imageUrl: string; apiKey: string | null; language?: string },
+): Promise<CoachMealPhotoAnalysis | null> {
+  if (!hasOpenAiApiKey(args.apiKey)) return null;
+  const aiResult = await analyzeImageWithOpenAi(args.imageUrl, args.apiKey);
+  const hasFood =
+    Boolean(aiResult.foodName) || (aiResult.ingredients?.length ?? 0) > 0;
+  if (!hasFood) return null;
+
+  const matches = await buildFoodMatches(
+    ctx,
+    aiResult,
+    args.apiKey,
+    args.language,
+  );
+  return {
+    ...(aiResult.foodName ? { foodName: aiResult.foodName } : {}),
+    ...(aiResult.estimatedQuantity
+      ? { estimatedQuantity: aiResult.estimatedQuantity }
+      : {}),
+    items: matches.map((match) => ({
+      detectedName: match.detectedName,
+      match: match.food
+        ? {
+            name: match.food.name,
+            ...(match.food.brand ? { brand: match.food.brand } : {}),
+            serving: match.food.serving,
+            calories: match.food.calories,
+            protein: match.food.protein,
+            carbs: match.food.carbs,
+            fat: match.food.fat,
+          }
+        : null,
+    })),
+  };
+}
+
 export const snap = action({
   args: {
     base64Image: v.string(),

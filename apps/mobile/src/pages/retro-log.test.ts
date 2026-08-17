@@ -13,10 +13,15 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const PAGE = readFileSync(
-  new URL("./ActiveWorkout.tsx", import.meta.url),
-  "utf8"
-)
+const PAGE = [
+  "./ActiveWorkout.tsx",
+  // The exercise card (set defaults) and the sheets (dictation) were split
+  // out of the page; the retro contract spans all three.
+  "./active-workout/active-exercise-card.tsx",
+  "./active-workout/session-sheets.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 const LIB = readFileSync(
   new URL("../lib/workout-logging.ts", import.meta.url),
   "utf8"

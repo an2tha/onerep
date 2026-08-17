@@ -1,10 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { readFileSync } from "node:fs"
 
-const RETRO_SOURCE = readFileSync(
-  new URL("./ActiveWorkout.tsx", import.meta.url),
-  "utf8"
-)
+const RETRO_SOURCE = [
+  "./ActiveWorkout.tsx",
+  // The retro sheets (brain dump, save step) live in the sheets module.
+  "./active-workout/session-sheets.tsx",
+]
+  .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+  .join("\n")
 const APP_SOURCE = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
 
 describe("Retro log accessibility contract", () => {

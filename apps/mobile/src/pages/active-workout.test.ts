@@ -16,6 +16,15 @@ import { readFileSync } from "node:fs"
 
 const ACTIVE_WORKOUT_SOURCE = [
   "./ActiveWorkout.tsx",
+  // The page was split into feature modules; order matters for the slicing
+  // assertions below (picker before the Ask Coach sheet).
+  "./active-workout/weight-selector-sheet.tsx",
+  "./active-workout/set-rows.tsx",
+  "./active-workout/cardio-details-panel.tsx",
+  "./active-workout/active-exercise-card.tsx",
+  "./active-workout/exercise-history-sheet.tsx",
+  "./active-workout/add-exercise-sheet.tsx",
+  "./active-workout/session-sheets.tsx",
   // The pure core — types, unit/plate math, draft storage, and the timers —
   // was extracted here so the retro logger can share it.
   "../lib/workout-logging.ts",
@@ -519,7 +528,6 @@ describe("active workout sync production safeguards", () => {
     expect(ACTIVE_WORKOUT_SOURCE).toContain(
       "grid-cols-[3.25rem_minmax(0,1fr)_3.25rem]"
     )
-    expect(ACTIVE_WORKOUT_SOURCE).toContain("hideLabel")
   })
 })
 

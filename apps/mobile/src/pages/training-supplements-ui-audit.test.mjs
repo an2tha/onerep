@@ -6,7 +6,11 @@ function source(name) {
   return readFileSync(new URL(`./${name}`, import.meta.url), "utf8")
 }
 
-const activeWorkout = source("ActiveWorkout.tsx")
+const activeWorkout = [
+  "ActiveWorkout.tsx",
+  "active-workout/set-rows.tsx",
+  "active-workout/active-exercise-card.tsx",
+].map(source).join("\n")
 const workouts = source("Workouts.tsx")
 const newPreset = source("NewPreset.tsx")
 const supplements = source("Supplements.tsx")

@@ -11,6 +11,10 @@ import { renderSystemPrompt } from "./prompts.generated";
 import { consumeAiUsageOrThrow } from "./usage";
 import type { CoachWorkspace } from "./coachWorkspace";
 import {
+  analyzeMealPhotoForCoach,
+  type CoachMealPhotoAnalysis,
+} from "../logs/snap";
+import {
   COACH_SUPPLEMENT_CATEGORIES,
   COACH_SUPPLEMENT_FORMS,
   COACH_SUPPLEMENT_NUTRIENT_KEYS,
@@ -2224,6 +2228,7 @@ async function generateCoachChatWithOpenAi({
   focusInsight,
   workspace,
   imageUrl,
+  mealPhoto,
   apiKey,
   model,
 }: {
@@ -2235,14 +2240,17 @@ async function generateCoachChatWithOpenAi({
   /** Always the server-built workspace — see `LegacyClientWorkspace`. */
   workspace?: CoachWorkspace;
   imageUrl?: string;
+  /** Food-database matches for an attached meal photo, when it was one. */
+  mealPhoto?: CoachMealPhotoAnalysis | null;
   apiKey: string | null;
   /** The user's pick from the shared model catalog; absent means the env default. */
   model?: string;
 }) {
   if (!hasOpenAiApiKey(apiKey)) return null;
   const normalizedMessage = message.toLowerCase();
-  const domain =
-    coachMode === "chef" ||
+  const domain = mealPhoto
+    ? "nutrition"
+    : coachMode === "chef" ||
     /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(
       normalizedMessage,
     )
@@ -2276,6 +2284,12 @@ async function generateCoachChatWithOpenAi({
       context,
       workspace: sliceWorkspaceForDomain(workspace, domain),
       focusInsight,
+      mealPhoto: mealPhoto
+        ? {
+            note: "Foods detected in the attached photo, matched against the food database. Build an interactive_card to log the meal from these matched entries — use their macros as the base, scale by the estimated quantity with a quantity stepper, and state assumptions. Fall back to your own estimate only for items with no match.",
+            ...mealPhoto,
+          }
+        : undefined,
       recentConversation: history.slice(-8),
       coachMode,
       message,
@@ -3156,6 +3170,23 @@ export const generateCoachChatMessage = action({
       "progress_metrics",
     );
 
+    // A photo of food should get database-matched macros, not a guess. This
+    // rides the snap pipeline; if the image isn't food (or anything in the
+    // pipeline fails), the coach just answers with the image alone as before.
+    let mealPhoto: CoachMealPhotoAnalysis | null = null;
+    if (attachment?.mimeType.startsWith("image/")) {
+      try {
+        mealPhoto = await analyzeMealPhotoForCoach(ctx, {
+          imageUrl: attachment.url,
+          apiKey: quota.apiKey,
+        });
+      } catch (error) {
+        console.warn("Coach meal photo analysis failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
     // The picked model first; the deployment default as the understudy. A
     // catalog model that errors or answers unusably should degrade to a real
     // model's answer, not to the canned templates below — those are a last
@@ -3173,6 +3204,7 @@ export const generateCoachChatMessage = action({
           focusInsight,
           workspace,
           imageUrl: attachment?.url,
+          mealPhoto,
           apiKey: quota.apiKey,
           model,
         });
