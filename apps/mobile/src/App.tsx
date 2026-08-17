@@ -120,6 +120,7 @@ import {
 } from "@repo/ui"
 import { hapticHeavy, hapticMedium, hapticSelection } from "@/lib/haptics"
 import { useStreakMilestone } from "@/lib/use-streak-milestone"
+import { calcStreak, calcWorkoutsThisWeek } from "@/lib/training-consistency"
 import { useAnimatedNumber, useReplayKey } from "@repo/ui"
 import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { isTrendMetric, type TrendMetric } from "@repo/ui"
@@ -183,8 +184,6 @@ type ActiveWorkoutCandidate = {
 const MIN_DAY_OFFSET = -6 // how far back history goes
 const ABORTED_WORKOUT_SLOT_KEY = "onerep:aborted-workout-slot"
 const DASHBOARD_EMPTY_ICON_CLASS = "size-7 shrink-0 md:size-6"
-const DASHBOARD_TILE_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
-const DASHBOARD_METRIC_ICON_CLASS = "size-8 shrink-0 md:size-6"
 const DASHBOARD_SMALL_METRIC_ICON_CLASS = "size-[22px] shrink-0 md:size-5"
 const COMPLETE_COLOR = APP_ACCENT_COLORS.complete
 const COMPLETE_BG = tint(COMPLETE_COLOR, 13)
@@ -193,6 +192,7 @@ const CAUTION_COLOR = APP_ACCENT_COLORS.caution
 const DANGER_COLOR = APP_ACCENT_COLORS.danger
 const FOOD_COLOR = APP_ACCENT_COLORS.food
 const FOOD_BG = tint(FOOD_COLOR, 10)
+const WORKOUT_COLOR = APP_ACCENT_COLORS.workout
 const WATER_COLOR = APP_ACCENT_COLORS.water
 const WATER_BG = tint(WATER_COLOR, 13)
 
@@ -1214,23 +1214,23 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
   }
 
   return (
-    <Card>
-      <div className="px-4 py-2.5">
+    <Card className="h-full">
+      <div className="flex h-full flex-col px-3.5 py-2.5">
         {/* Header */}
         <div className="mb-2 flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Water</CardTitle>
           <button
             onClick={() => navigate("/nutrition")}
-            className="flex min-h-10 items-center gap-1 rounded-lg px-2 text-[10.5px] font-medium text-muted-foreground/45 active:bg-muted/45 active:text-muted-foreground/70"
+            aria-label="Open water log"
+            className="-mr-1 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
           >
-            Open
-            <CaretRight size={10} weight="bold" />
+            <CaretRight size={11} weight="bold" />
           </button>
         </div>
 
         {/* 2×4 glass grid */}
         <div
-          className="grid grid-cols-4 gap-2"
+          className="grid grid-cols-4 gap-1.5"
           onPointerLeave={() => setHoveredGlass(null)}
         >
           {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
@@ -1244,7 +1244,7 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
                 onFocus={() => setHoveredGlass(i)}
                 onBlur={() => setHoveredGlass(null)}
                 className={cn(
-                  "flex items-center justify-center rounded-xl py-2.5 transition-all active:scale-[0.985]",
+                  "flex items-center justify-center rounded-lg py-2 transition-all active:scale-[0.985]",
                   previewFilled ? "" : "bg-muted/25"
                 )}
                 style={
@@ -1257,11 +1257,11 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
                 }
               >
                 <PintGlass
-                  size={22}
+                  size={17}
                   weight={previewFilled ? "fill" : "regular"}
                   style={{ color: previewFilled ? WATER_COLOR : undefined }}
                   className={cn(
-                    DASHBOARD_TILE_ICON_CLASS,
+                    "size-[17px] shrink-0",
                     !previewFilled && "text-muted-foreground/20"
                   )}
                 />
@@ -1271,15 +1271,16 @@ function WaterWidget({ dateKey }: { dateKey: string }) {
         </div>
 
         {/* Summary + more button */}
-        <div className="mt-2 flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground/40 tabular-nums">
+        <div className="mt-auto flex items-center justify-between gap-1.5 pt-2">
+          <p className="min-w-0 truncate text-[11px] font-medium text-muted-foreground/45 tabular-nums">
             {fmtWater(totalMl)} / {fmtWater(goalMl)}
           </p>
           <button
             onClick={addGlass}
-            className="min-h-10 rounded-lg bg-muted/40 px-3 text-[10.5px] font-medium text-muted-foreground/60 active:bg-muted/70"
+            aria-label="Add more water"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground/60 active:bg-muted/70"
           >
-            + More water
+            <Plus size={11} weight="bold" />
           </button>
         </div>
       </div>
@@ -1317,107 +1318,89 @@ function StreakCard({
   const active = streak > 0
   const milestoneActive = useStreakMilestone(streak)
   const animatedStreak = useAnimatedNumber(streak)
-
   const fireColor = active
-    ? FOOD_COLOR
+    ? WORKOUT_COLOR
     : "color-mix(in srgb, var(--foreground) 18%, transparent)"
 
   return (
-    <Card>
-      <div className="px-4 py-2.5">
-        {/* Header */}
-        <div className="mb-3 flex items-center justify-between">
+    <Card className="h-full">
+      <div className="flex h-full flex-col px-3.5 py-2.5">
+        <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Streak</CardTitle>
-          {streak > 1 && (
-            <span
-              className="text-[10px] font-semibold tabular-nums"
-              style={{ color: FOOD_COLOR }}
-            >
-              {streak} days
-            </span>
+          <Fire
+            size={17}
+            weight={active ? "fill" : "regular"}
+            style={{ color: fireColor }}
+            className="size-[17px] shrink-0"
+          />
+        </div>
+
+        <div
+          className={cn(
+            "mt-1 flex items-baseline gap-1.5",
+            milestoneActive && "streak-milestone"
           )}
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Flame + count */}
-          <div
-            className={cn(
-              "flex shrink-0 flex-col items-center gap-0.5",
-              milestoneActive && "streak-milestone"
-            )}
-            role={milestoneActive ? "status" : undefined}
-            aria-label={
-              milestoneActive ? `${streak} day streak milestone` : undefined
-            }
+          role={milestoneActive ? "status" : undefined}
+          aria-label={
+            milestoneActive ? `${streak} day streak milestone` : undefined
+          }
+        >
+          <span
+            className="text-[26px] leading-none font-bold tracking-tight tabular-nums"
+            style={{
+              color: active
+                ? WORKOUT_COLOR
+                : "color-mix(in srgb, var(--foreground) 30%, transparent)",
+            }}
           >
-            <Fire
-              size={32}
-              weight={active ? "fill" : "regular"}
-              style={{ color: fireColor }}
-              className={DASHBOARD_METRIC_ICON_CLASS}
-            />
-            <span
-              className="text-[22px] leading-none font-bold tracking-tight tabular-nums"
-              style={{
-                color: active
-                  ? FOOD_COLOR
-                  : "color-mix(in srgb, var(--foreground) 30%, transparent)",
-              }}
-            >
-              {animatedStreak}
-            </span>
-          </div>
-
-          {/* Divider */}
-          <div className="h-10 w-px bg-border/30" />
-
-          {/* Week dots */}
-          <div className="flex flex-1 items-end justify-between gap-1">
-            {weekDays.map((iso, i) => {
-              const isToday = iso === today.toISOString().slice(0, 10)
-              const isFuture = iso > today.toISOString().slice(0, 10)
-              const done = workoutDates.has(iso)
-              return (
-                <div key={iso} className="flex flex-col items-center gap-1">
-                  <div
-                    className={cn(
-                      "h-5 w-5 rounded-full transition-colors",
-                      done ? "" : isFuture ? "bg-muted/20" : "bg-muted/40"
-                    )}
-                    style={
-                      done
-                        ? { backgroundColor: FOOD_COLOR }
-                        : isToday
-                          ? {
-                              boxShadow:
-                                "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)",
-                            }
-                          : undefined
-                    }
-                  />
-                  <span
-                    className={cn(
-                      "text-[8.5px] font-medium",
-                      isToday
-                        ? "text-foreground/60"
-                        : "text-muted-foreground/30"
-                    )}
-                  >
-                    {WEEK_LABELS[i]}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+            {animatedStreak}
+          </span>
+          <span className="text-[11px] font-medium text-muted-foreground/50">
+            {streak === 1 ? "day" : "days"}
+          </span>
         </div>
 
-        {/* Footer label */}
-        <p className="mt-2.5 text-[10px] text-muted-foreground/35">
-          {workoutsThisWeek === 0
-            ? "No workouts logged this week yet"
-            : workoutsThisWeek === 1
-              ? "1 workout this week"
-              : `${workoutsThisWeek} workouts this week`}
+        {/* Week dots */}
+        <div className="mt-3 flex items-end justify-between gap-0.5">
+          {weekDays.map((iso, i) => {
+            const isToday = iso === today.toISOString().slice(0, 10)
+            const isFuture = iso > today.toISOString().slice(0, 10)
+            const done = workoutDates.has(iso)
+            return (
+              <div key={iso} className="flex flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    "h-3 w-3 rounded-full transition-colors",
+                    done ? "" : isFuture ? "bg-muted/20" : "bg-muted/40"
+                  )}
+                  style={
+                    done
+                      ? { backgroundColor: WORKOUT_COLOR }
+                      : isToday
+                        ? {
+                            boxShadow:
+                              "inset 0 0 0 1.5px color-mix(in srgb, var(--foreground) 20%, transparent)",
+                          }
+                        : undefined
+                  }
+                />
+                <span
+                  className={cn(
+                    "text-[10px] font-medium",
+                    isToday ? "text-foreground/60" : "text-muted-foreground/35"
+                  )}
+                >
+                  {WEEK_LABELS[i]}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        <p className="mt-auto truncate pt-2 text-[11px] font-medium text-muted-foreground/45 tabular-nums">
+          {workoutsThisWeek === 1
+            ? "1 workout this week"
+            : `${workoutsThisWeek} workouts this week`}
         </p>
       </div>
     </Card>
@@ -2998,6 +2981,23 @@ export default function App() {
   // 28-day consistency grid. A day counts as "full" when it was genuinely
   // tracked (2+ meals logged), "partial" when there was some activity that day
   // (one meal, or a workout with no food logged).
+  const workoutDates = useMemo(
+    () =>
+      new Set(
+        ((workoutHistoryQuery ?? []) as unknown as CachedWorkoutLog[])
+          .map((log) => log.date)
+          .filter(Boolean)
+      ),
+    [workoutHistoryQuery]
+  )
+  const trainingStatsDate = useMemo(() => {
+    const date = new Date()
+    date.setUTCHours(12, 0, 0, 0)
+    return date
+  }, [])
+  const trainingStreak = calcStreak(workoutDates, trainingStatsDate)
+  const workoutsThisWeek = calcWorkoutsThisWeek(workoutDates, trainingStatsDate)
+
   const consistency = useMemo(() => {
     const foodDays = new Map<string, number>()
     for (const day of (consistencyFoodLogs ?? []) as Array<{
@@ -3586,6 +3586,16 @@ export default function App() {
                 supplementCalories={supplementCalories}
               />
             </TourAnchor>
+
+            <div className="mx-[var(--app-page-x)] mt-4 grid grid-cols-2 items-stretch gap-2 md:mx-8">
+              <StreakCard
+                streak={trainingStreak}
+                workoutsThisWeek={workoutsThisWeek}
+                workoutDates={workoutDates}
+                today={trainingStatsDate}
+              />
+              <WaterWidget dateKey={selectedDate} />
+            </div>
 
             <TourAnchor
               anchor="today-workout"

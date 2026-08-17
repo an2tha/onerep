@@ -1240,17 +1240,6 @@ export default function Workouts() {
         <header className="app-header" ref={trainingHeaderRef}>
           <div className="min-w-0">
             <h1 className="app-title">Training</h1>
-            <button
-              type="button"
-              onClick={() => {
-                hapticSelection()
-                navigate("/routines", { motion: "forward" })
-              }}
-              className="mt-1 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
-            >
-              Routines
-              <CaretRight size={12} weight="bold" className="shrink-0" />
-            </button>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
