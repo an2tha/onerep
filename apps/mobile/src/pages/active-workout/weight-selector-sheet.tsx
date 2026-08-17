@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
-import { Barbell, Minus, Plus, X } from "@phosphor-icons/react"
+import { Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
 import {
   BAR_PROFILES,
@@ -270,20 +270,15 @@ export function WeightSelectorSheet({
           <div className="h-1 w-10 rounded-full bg-muted/70" />
         </div>
         <div className="flex shrink-0 items-center justify-between px-5 py-3 md:pt-5">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[18px] bg-muted/55 text-foreground/70">
-              <Barbell size={17} weight="bold" />
-            </span>
-            <div>
-              <p className="text-[15px] font-semibold tracking-tight">Weight</p>
-              <p className="text-[13px] text-muted-foreground">
-                {lastWeightLabel
-                  ? `Last set ${lastWeightLabel}`
-                  : hasBar
-                    ? `${activeBarLabel} + plates`
-                    : `Total load in ${unit}`}
-              </p>
-            </div>
+          <div>
+            <p className="text-[15px] font-semibold tracking-tight">Weight</p>
+            <p className="text-[13px] text-muted-foreground">
+              {lastWeightLabel
+                ? `Last set ${lastWeightLabel}`
+                : hasBar
+                  ? `${activeBarLabel} + plates`
+                  : `Total load in ${unit}`}
+            </p>
           </div>
           <button
             onClick={dismiss}
