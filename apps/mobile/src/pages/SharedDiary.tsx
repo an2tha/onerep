@@ -4,6 +4,7 @@ import { TourAnchor } from "@/components/walkthrough/tour-anchor"
 import {
   ArrowLeft,
   ChatCircle,
+  PaperPlaneTilt,
   Printer,
   Trash,
   Users,
@@ -35,6 +36,7 @@ import {
 import {
   dateWithinScope,
   groupCommentsByEntry,
+  shareDiaryInvite,
   shareScopeLabel,
   type DiaryComment,
   type DiaryShare,
@@ -55,6 +57,11 @@ export default function SharedDiary() {
 
   const incomingQuery = useQuery(api.sharing.diaryShares.listIncoming, {})
   const outgoingQuery = useQuery(api.sharing.diaryShares.listOutgoing, {})
+  // Comments people left on the caller's own diary. This page is where the
+  // dashboard's "new comments" notice lands, so it must actually show them.
+  const myCommentsQuery = useQuery(api.sharing.diaryComments.listRecent, {
+    limit: 20,
+  })
 
   const leaveShare = useOfflineMutation(
     api.sharing.diaryShares.leaveShare,
@@ -64,12 +71,32 @@ export default function SharedDiary() {
     api.sharing.diaryShares.revoke,
     "sharing.diaryShares.revoke"
   )
+  const markRead = useOfflineMutation(
+    api.sharing.diaryComments.markRead,
+    "sharing.diaryComments.markRead"
+  )
+
+  // Seeing the list is reading it: clears the dashboard badge.
+  const commentsLoaded = myCommentsQuery !== undefined
+  useEffect(() => {
+    if (!commentsLoaded) return
+    void markRead({}).catch(() => {
+      // The badge just stays until the next visit.
+    })
+  }, [commentsLoaded, markRead])
 
   const incoming = (incomingQuery ?? []) as DiaryShare[]
   const outgoing = (outgoingQuery ?? []) as DiaryShare[]
+  const myComments = (myCommentsQuery ?? []) as DiaryComment[]
 
   const accepted = incoming.filter((share) => share.status === "accepted")
   const pending = incoming.filter((share) => share.status === "pending")
+
+  async function sendInviteLink(share: DiaryShare) {
+    const result = await shareDiaryInvite(share.token, share.inviteeEmail)
+    if (result === "copied") toast.success("Invite link copied")
+    if (result === "failed") toast.error("Could not share the invite link")
+  }
 
   return (
     <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
@@ -115,6 +142,30 @@ export default function SharedDiary() {
                   <span className="text-[14px] font-semibold text-[var(--accent-food)]">
                     Review
                   </span>
+                </button>
+              ))}
+            </GroupedList>
+          </>
+        )}
+
+        {myComments.length > 0 && (
+          <>
+            <SectionHeader title="Comments on your diary" />
+            <GroupedList label="Comments on your diary">
+              {myComments.map((comment) => (
+                <button
+                  key={comment.id ?? comment._id}
+                  type="button"
+                  onClick={() => navigate(`/nutrition?date=${comment.date}`)}
+                  aria-label={`Open your diary on ${formatDay(comment.date)}`}
+                  className="w-full px-1 py-2.5 text-left active:opacity-70"
+                >
+                  <p className="native-row-detail">
+                    {comment.authorName ?? "Someone"} · {formatDay(comment.date)}
+                  </p>
+                  <p className="native-row-title mt-0.5 whitespace-pre-wrap">
+                    {comment.body}
+                  </p>
                 </button>
               ))}
             </GroupedList>
@@ -199,6 +250,16 @@ export default function SharedDiary() {
                     {shareScopeLabel(share.scope)}
                   </p>
                 </div>
+                {share.status === "pending" && (
+                  <button
+                    type="button"
+                    onClick={() => void sendInviteLink(share)}
+                    aria-label={`Send invite link to ${share.inviteeEmail}`}
+                    className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
+                  >
+                    <PaperPlaneTilt size={17} weight="bold" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={async () => {
@@ -249,21 +310,26 @@ export function SharedDiaryDay() {
     api.sharing.sharedDiary.getSharedProfile,
     ownerUserId ? { ownerUserId } : "skip"
   )
+  // null means no grant (revoked, declined, or a stale link). Everything below
+  // waits for the profile so a dead share renders a message, not a crash.
+  const hasAccess = Boolean(profile)
   const inScope = profile
     ? dateWithinScope(dateKey, profile.startDate, profile.endDate)
     : true
 
   const day = useQuery(
     api.sharing.sharedDiary.getSharedDay,
-    ownerUserId && inScope ? { ownerUserId, date: dateKey } : "skip"
+    ownerUserId && hasAccess && inScope
+      ? { ownerUserId, date: dateKey }
+      : "skip"
   )
   const goals = useQuery(
     api.sharing.sharedDiary.getSharedGoals,
-    ownerUserId ? { ownerUserId } : "skip"
+    ownerUserId && hasAccess ? { ownerUserId } : "skip"
   )
   const commentsQuery = useQuery(
     api.sharing.diaryComments.listForDay,
-    ownerUserId ? { ownerUserId, date: dateKey } : "skip"
+    ownerUserId && hasAccess ? { ownerUserId, date: dateKey } : "skip"
   )
 
   const addComment = useOfflineMutation(
@@ -276,11 +342,11 @@ export function SharedDiaryDay() {
   )
 
   useEffect(() => {
-    if (!ownerUserId || commentsQuery === undefined) return
+    if (!ownerUserId || !hasAccess || commentsQuery === undefined) return
     void markRead({ ownerUserId }).catch(() => {
       // Not worth surfacing: the badge just stays until the next visit.
     })
-  }, [ownerUserId, commentsQuery, markRead])
+  }, [ownerUserId, hasAccess, commentsQuery, markRead])
 
   const entries = useMemo(() => (day?.entries ?? []) as FoodLogEntry[], [day])
   const comments = useMemo(
@@ -385,7 +451,13 @@ export function SharedDiaryDay() {
           </ToolbarButton>
         </div>
 
-        {!inScope ? (
+        {profile === null ? (
+          <EmptyState
+            icon={Users}
+            title="This diary is no longer shared with you"
+            detail="Access was revoked or the link is out of date."
+          />
+        ) : !inScope ? (
           <EmptyState
             icon={Users}
             title="Outside the dates you were given"

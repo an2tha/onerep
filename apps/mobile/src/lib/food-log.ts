@@ -1298,3 +1298,16 @@ export type Recipe = {
   photoUrls?: Array<string | null>
   ingredients: RecipeIngredient[]
 }
+
+/** A saved set of foods the server logs automatically at a local time. */
+export type RepeatMeal = {
+  _id: string
+  id?: string
+  name: string
+  meal: MealType
+  hour: number
+  minute: number
+  enabled: boolean
+  entries: FoodLogEntry[]
+  lastLoggedDate?: string
+}

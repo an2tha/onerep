@@ -78,6 +78,7 @@ export const userDataRegistry = {
   billingIdentities: "legally_retained_billing_or_audit",
   billingCheckouts: "legally_retained_billing_or_audit",
   activeWorkouts: "directly_user_owned",
+  repeatMeals: "directly_user_owned",
   supportedExercises: "global_non_user_data",
   formCoachSessions: "directly_user_owned",
   formCoachReports: "dependent_on_user_content",

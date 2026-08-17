@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 
@@ -95,7 +96,8 @@ export const invite = mutation({
     }
 
     const now = Date.now();
-    return await ctx.db.insert("diaryShares", {
+    const token = createToken();
+    const id = await ctx.db.insert("diaryShares", {
       ownerUserId: user._id,
       ownerEmail: user.email,
       ownerName: user.name,
@@ -104,10 +106,21 @@ export const invite = mutation({
       scope: args.scope,
       startDate: args.startDate,
       endDate: args.endDate,
-      token: createToken(),
+      token,
       invitedAt: now,
       updatedAt: now,
     });
+
+    // Delivery is scheduled, not awaited: mutations cannot fetch, and a mail
+    // outage must not fail the share. The in-app link is the fallback.
+    await ctx.scheduler.runAfter(0, internal.sharing.emails.sendInvite, {
+      to: inviteeEmail,
+      ownerName: user.name ?? undefined,
+      ownerEmail: user.email ?? undefined,
+      token,
+    });
+
+    return id;
   },
 });
 

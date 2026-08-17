@@ -6181,7 +6181,9 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     display: none;
   }
 
-  .coach-swoosh-surface {
+  /* The page goes transparent so its animated backdrop can show through. A
+     sheet has no such backdrop of its own — it would just show the page. */
+  .coach-swoosh-surface:not(.coach-sheet-surface) {
     background: transparent;
     box-shadow: none;
   }
@@ -6874,6 +6876,321 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   .recipes-card {
     transition: none !important;
   }
+}
+
+/* ── Dashboard photo hero ─────────────────────────────────────────────────── */
+
+/* The hero sits outside the reading column, as a direct child of the dashboard
+   root, so below `lg` — where that root has no gutters — it is already the full
+   width of the window and needs no viewport-unit trickery to get there.
+
+   From `lg` the root carries the desktop gutters: `pl-72` (18rem) to clear a
+   16rem sidebar, and `pr-8`. Cancelling both lands the photograph exactly
+   between the sidebar's edge and the window's, at any width. */
+@media (min-width: 1024px) {
+  .dashboard-photo-hero {
+    margin-left: -2rem;
+    margin-right: -2rem;
+  }
+
+  /* Puts the greeting and the numbers back on the page's column. The photo and
+     the curve are absolutely positioned, so this padding moves the words
+     without moving the picture. */
+  .dashboard-photo-hero-frame {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+/* The photo goes edge to edge; the words in front of it do not. They stay in
+   the same column as everything further down the page. */
+.dashboard-photo-hero-header,
+.dashboard-photo-hero-ledger {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .dashboard-photo-hero-header,
+  .dashboard-photo-hero-ledger {
+    max-width: 72rem;
+  }
+}
+
+.dashboard-photo-hero-frame {
+  /* Tall enough to hold the greeting, the day's numbers, and still read as a
+     photograph rather than a texture. */
+  min-height: 25rem;
+  /* Reserved for the curve, so the numbers never sit on top of it. */
+  padding-bottom: 5.5rem;
+  display: flex;
+  flex-direction: column;
+  /* The floor when the remote photo is slow, blocked, or offline. Tinted with
+     the app's own accents so the fallback still looks deliberate. */
+  background-color: var(--muted);
+  background-image:
+    radial-gradient(
+      95% 70% at 15% 0%,
+      color-mix(in srgb, var(--accent-workout, #6366f1) 55%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      85% 75% at 95% 25%,
+      color-mix(in srgb, var(--accent-food, #f97316) 45%, transparent),
+      transparent 72%
+    ),
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--foreground) 70%, transparent),
+      color-mix(in srgb, var(--foreground) 92%, transparent)
+    );
+}
+
+/* Deliberately full-bleed at every width. A rounded, inset photograph is a
+   card, and a card is what this stopped being. */
+@media (min-width: 768px) {
+  .dashboard-photo-hero-frame {
+    min-height: 28rem;
+    padding-bottom: 7rem;
+  }
+}
+
+/* Dark at both ends and open through the middle: the greeting rides the top
+   band, the calorie ring and macros ride the bottom one, and the photograph
+   still gets to be a photograph in between. */
+.dashboard-photo-hero-scrim {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.5) 0%,
+    rgb(0 0 0 / 0.18) 30%,
+    rgb(0 0 0 / 0.3) 55%,
+    rgb(0 0 0 / 0.7) 82%,
+    rgb(0 0 0 / 0.8) 100%
+  );
+}
+
+.dashboard-photo-hero-header {
+  padding-top: calc(var(--app-safe-top) + 0.5rem);
+  padding-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+  .dashboard-photo-hero-header {
+    padding-top: 2.75rem;
+  }
+}
+
+/*
+ * The numbers used to get their own radial pool of shade here. It had to go:
+ * the gradient was still opaque where the pseudo-element's box ended, so the
+ * box edge showed as a hard horizontal seam straight across the photograph.
+ * The frame's scrim now carries that weight instead — it spans the whole frame
+ * and fades at both ends, so it has no edge to give away.
+ */
+
+/* ── The curve ────────────────────────────────────────────────────────────── */
+
+.dashboard-photo-hero-curve {
+  position: absolute;
+  right: 0;
+  bottom: -1px; /* Kills the hairline seam sub-pixel rounding leaves behind. */
+  left: 0;
+  width: 100%;
+  /* The path's amplitude is fixed in user units, so this height is the amplitude
+     control: the shorter the box, the shallower the sweep. Deep enough to read
+     as a curve, nowhere near deep enough to eat the photograph. */
+  height: 4rem;
+  display: block;
+  /* Above the photograph, below the numbers. */
+  z-index: 1;
+}
+
+@media (min-width: 768px) {
+  .dashboard-photo-hero-curve {
+    height: 5rem;
+  }
+}
+
+/* The page itself, which is why this is --background and not a panel color:
+   the curve is a boundary, not a container. */
+.dashboard-photo-hero-curve-fill {
+  fill: var(--background);
+  /* Lifts the page off the photograph. Without it the curve is a flat cut and
+     the whole thing reads as clip art. */
+  filter: drop-shadow(0 -8px 16px rgb(0 0 0 / 0.38));
+}
+
+/* ── Crossfading photographs ──────────────────────────────────────────────── */
+
+.dashboard-photo-hero-photo {
+  position: absolute;
+  inset: 0;
+  z-index: -10;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* `both` matters: the outgoing layer holds its finished state instead of
+     snapping back to transparent while the new one fades in over it. */
+  animation: dashboardHeroPhotoIn 900ms var(--motion-ease-out, ease-out) both;
+}
+
+@keyframes dashboardHeroPhotoIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-photo-hero-photo {
+    /* Not zero: the animation still has to end, because its `animationend` is
+       what prunes the stale layer. */
+    animation-duration: 1ms;
+  }
+}
+
+.dashboard-photo-hero-curve-edge {
+  /* The stroke's color comes from the gradient in the markup; the opacity is
+     here so the lit edge stays a suggestion rather than chrome trim. */
+  opacity: 0.9;
+}
+
+/* ── Light mode ───────────────────────────────────────────────────────────── */
+
+/*
+ * Everything above is tuned for a dark page, where black shadows and heavy
+ * scrims disappear into the background. On a near-white page the same values
+ * are grubby: the drop shadow becomes a grey smear along the curve, and the
+ * scrim ends the photograph in a muddy band right where it meets the paper.
+ * So light mode gets its own, much quieter, numbers.
+ */
+:root:not(.dark) .dashboard-photo-hero-curve-fill {
+  filter: drop-shadow(0 -5px 12px rgb(0 0 0 / 0.13));
+}
+
+/* A white edge on a white page is invisible, and the dark end of the
+   photograph is what the curve is cutting into — so the lit edge is dialled
+   back rather than recoloured. */
+:root:not(.dark) .dashboard-photo-hero-curve-edge {
+  opacity: 0.55;
+}
+
+:root:not(.dark) .dashboard-photo-hero-scrim {
+  background-image: linear-gradient(
+    to bottom,
+    rgb(0 0 0 / 0.42) 0%,
+    rgb(0 0 0 / 0.14) 32%,
+    rgb(0 0 0 / 0.26) 55%,
+    rgb(0 0 0 / 0.56) 84%,
+    rgb(0 0 0 / 0.64) 100%
+  );
+}
+
+/* Everything laid over the photo is white, because the photo is not. */
+.dashboard-photo-hero-frame .app-title,
+.dashboard-photo-hero-frame .app-eyebrow {
+  color: #fff;
+}
+
+.dashboard-photo-hero-frame .app-title {
+  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
+}
+
+.dashboard-photo-hero-frame .native-toolbar-button {
+  color: #fff;
+  background-color: rgb(255 255 255 / 0.16);
+  border-color: rgb(255 255 255 / 0.22);
+  backdrop-filter: blur(12px);
+}
+
+.dashboard-photo-hero-frame .native-toolbar-button:active {
+  background-color: rgb(255 255 255 / 0.28);
+}
+
+/* The date stepper and calendar trigger are plain buttons carrying muted-
+   foreground utilities; on a photograph those read as smudges. */
+.dashboard-photo-hero-header button {
+  color: #fff;
+}
+
+/* The numbers sit on the photograph, above the curve. */
+.dashboard-photo-hero-ledger {
+  z-index: 2;
+}
+
+/* ── Ambient page tint ────────────────────────────────────────────────────── */
+
+/*
+ * Registering the custom property is the whole trick. An unregistered `--x` is
+ * just a string, so reassigning it snaps the colour instantly; declared as a
+ * `<color>`, it interpolates, and the `transition` below can carry the page
+ * from one photograph's palette to the next in step with the crossfade.
+ *
+ * Browsers without `@property` ignore this block and the tint changes abruptly
+ * instead of gradually, which is a downgrade rather than a defect.
+ */
+@property --dashboard-ambient {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+.dashboard-home {
+  /* Matches the photo crossfade in `.dashboard-photo-hero-photo`. */
+  transition: --dashboard-ambient 900ms var(--motion-ease-out, ease-out);
+}
+
+/*
+ * A wash of the current photograph's colour, strongest just under the curve and
+ * gone by the time the eye reaches the tiles. It sits at z-0 while every child
+ * of the dashboard is z-10, so it colours the page without touching content.
+ */
+.dashboard-home::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    130% 38% at 50% 0%,
+    color-mix(in srgb, var(--dashboard-ambient) 26%, transparent),
+    transparent 72%
+  );
+}
+
+/* The same colour reads far heavier on paper than it does on a dark page. */
+:root:not(.dark) .dashboard-home::before {
+  background-image: radial-gradient(
+    130% 36% at 50% 0%,
+    color-mix(in srgb, var(--dashboard-ambient) 15%, transparent),
+    transparent 70%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-home {
+    transition: none;
+  }
+}
+
+/* ── Dashboard tiles ──────────────────────────────────────────────────────── */
+
+/*
+ * The base card ships `py-6` and `gap-6`. The dashboard tiles lay out their own
+ * insides and bring their own padding, so on top of the card's they were
+ * carrying about three rems of vertical space nobody asked for — invisible
+ * enough on a phone, absurd once a tile is the width of a desktop column.
+ *
+ * Unlayered on purpose: Tailwind's utilities live in `@layer utilities`, and
+ * unlayered rules outrank every layer, so this beats `py-6` without resorting
+ * to `!important` or to guessing at class order.
+ */
+.dashboard-tile {
+  padding-block: 0;
+  gap: 0;
 }
 
 /* ── Dashboard daily ledger ───────────────────────────────────────────────── */

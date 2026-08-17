@@ -96,6 +96,32 @@ describe("sharing discoverability", () => {
     expect(APP_SOURCE).toContain('aria-label="Dismiss diary comment notice"')
   })
 
+  test("the page the badge lands on shows the comments and clears the badge", () => {
+    // The dashboard notice navigates to /shared; without these, the owner
+    // could never read what was said and the badge never went away.
+    expect(SHARED_SOURCE).toContain("api.sharing.diaryComments.listRecent")
+    expect(SHARED_SOURCE).toContain("Comments on your diary")
+    expect(SHARED_SOURCE).toContain("void markRead({})")
+  })
+
+  test("a pending invite has a deliverable link", () => {
+    // No invitation email exists server-side; the shareable deep link is the
+    // only delivery mechanism, so both share lists must offer it.
+    expect(SHARED_SOURCE).toContain("shareDiaryInvite(")
+    expect(SETTINGS_SOURCE).toContain("shareDiaryInvite(")
+    expect(SHARED_SOURCE).toContain(
+      "aria-label={`Send invite link to ${share.inviteeEmail}`}"
+    )
+    expect(SETTINGS_SOURCE).toContain(
+      "aria-label={`Send invite link to ${share.inviteeEmail}`}"
+    )
+  })
+
+  test("a revoked grant degrades to a message, not a crash", () => {
+    expect(SHARED_SOURCE).toContain("This diary is no longer shared with you")
+    expect(SHARED_SOURCE).toContain("profile === null")
+  })
+
   test("the report can render a shared range for a coach", () => {
     expect(REPORT_SOURCE).toContain("api.sharing.sharedDiary.getSharedRange")
     expect(REPORT_SOURCE).toContain('searchParams.get("ownerUserId")')

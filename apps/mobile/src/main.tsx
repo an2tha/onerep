@@ -105,7 +105,12 @@ import {
 import { OfflineSyncIndicator } from "./components/offline-sync-indicator"
 import { OtaLifecycle } from "./components/ota-lifecycle"
 import { OnboardingMobile } from "./pages/OnboardingMobile.tsx"
-import { BottomBar, BottomBarActionProvider } from "./components/bottom-bar"
+import {
+  BottomBar,
+  BottomBarActionProvider,
+  isTabActive,
+} from "./components/bottom-bar"
+import { useNativeTabBar } from "./lib/native-tab-bar"
 import {
   clearRouteMotion,
   getRouteMotion,
@@ -366,6 +371,18 @@ function NavSync() {
   const edge = 28
   const threshold = 72
   const showBottomBar = shouldShowBottomBar(location.pathname)
+  // On iOS the floating native bar replaces the web one entirely; the web app
+  // keeps routing, the native layer only draws and reports taps.
+  const nativeTabBarActive = useNativeTabBar({
+    pathname: location.pathname,
+    visible: showBottomBar,
+    onSelect: (path) => {
+      if (location.pathname === path) return
+      navigate(path, {
+        motion: isTabActive(location.pathname, path) ? "back" : "switch",
+      })
+    },
+  })
   const matches = useMatches()
   // The deepest match is the one holding the params; the layout route has none.
   const screen = routePattern(
@@ -582,7 +599,7 @@ function NavSync() {
               </div>
             </div>
           </div>
-          {showBottomBar && (
+          {showBottomBar && !nativeTabBarActive && (
             <BottomBar
               pathname={location.pathname}
               chromeState={currentChromeState}

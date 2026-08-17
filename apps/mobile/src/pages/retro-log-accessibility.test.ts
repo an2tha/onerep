@@ -8,7 +8,11 @@ const RETRO_SOURCE = [
 ]
   .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
   .join("\n")
-const APP_SOURCE = readFileSync(new URL("../App.tsx", import.meta.url), "utf8")
+// The dashboard's nudges moved out of App.tsx when it was split up.
+const APP_SOURCE = readFileSync(
+  new URL("../dashboard/nudges.tsx", import.meta.url),
+  "utf8"
+)
 
 describe("Retro log accessibility contract", () => {
   test("both retro sheets are labelled dialogs", () => {

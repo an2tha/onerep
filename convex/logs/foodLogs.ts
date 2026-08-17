@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 
-const foodLogEntryValidator = v.object({
+export const foodLogEntryValidator = v.object({
   id: v.string(),
   name: v.string(),
   calories: v.number(),
