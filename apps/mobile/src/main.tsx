@@ -84,6 +84,12 @@ import Supplements from "./pages/Supplements.tsx"
 import NewRecipe from "./pages/NewRecipe.tsx"
 import RoutinesHub from "./pages/RoutinesHub.tsx"
 import Progress from "./pages/Progress.tsx"
+import Health from "./pages/Health.tsx"
+import HealthSleep from "./pages/health/Sleep.tsx"
+import HealthRecovery from "./pages/health/Recovery.tsx"
+import HealthActivity from "./pages/health/Activity.tsx"
+import HealthHeart from "./pages/health/Heart.tsx"
+import HealthTrends from "./pages/health/Trends.tsx"
 import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
@@ -1015,6 +1021,66 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Progress">
               <Progress />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health">
+              <Health />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/sleep",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health sleep">
+              <HealthSleep />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/recovery",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health recovery">
+              <HealthRecovery />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/activity",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health activity">
+              <HealthActivity />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/heart",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health heart">
+              <HealthHeart />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/trends",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health trends">
+              <HealthTrends />
             </ErrorBoundary>
           </AuthGuard>
         ),

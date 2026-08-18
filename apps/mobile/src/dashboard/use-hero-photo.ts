@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { randomHeroPhoto } from "./hero-photo"
 import { prefetchHeroPhotos, resolveHeroPhoto } from "./hero-photo-cache"
-import { sampleAmbientColor } from "./hero-photo-color"
 
 /** Matches the crossfade in `.dashboard-photo-hero-photo`. */
 const CROSSFADE_MS = 900
@@ -20,8 +19,6 @@ async function decoded(src: string): Promise<string> {
 export type HeroPhoto = {
   /** A `blob:` or network URL, or `undefined` before the first photo lands. */
   src?: string
-  /** A colour sampled from `src`, for tinting the page beneath the hero. */
-  ambient?: string
 }
 
 /**
@@ -35,7 +32,6 @@ export type HeroPhoto = {
  */
 export function useHeroPhoto(): HeroPhoto {
   const [src, setSrc] = useState<string>()
-  const [ambient, setAmbient] = useState<string>()
   // The original Unsplash URL of what is showing. `src` may be a blob: URL, so
   // it cannot be compared against the rotation list.
   const showingRef = useRef<string | undefined>(undefined)
@@ -73,11 +69,6 @@ export function useHeroPhoto(): HeroPhoto {
       displayed = resolved
       showingRef.current = photo
       setSrc(resolved)
-
-      // Sampled after the photo is committed, never before: the picture is the
-      // point, and the page tint is a courtesy that must not delay it.
-      const tint = await sampleAmbientColor(resolved)
-      if (!cancelled && tint) setAmbient(tint)
     }
 
     function scheduleNext() {
@@ -115,5 +106,5 @@ export function useHeroPhoto(): HeroPhoto {
     }
   }, [])
 
-  return { src, ambient }
+  return { src }
 }

@@ -57,6 +57,8 @@ import type * as lib_exerciseShape from "../lib/exerciseShape.js";
 import type * as lib_fastingSessions from "../lib/fastingSessions.js";
 import type * as lib_healthMetrics from "../lib/healthMetrics.js";
 import type * as lib_healthProfiles from "../lib/healthProfiles.js";
+import type * as lib_healthScore from "../lib/healthScore.js";
+import type * as lib_healthSeries from "../lib/healthSeries.js";
 import type * as lib_history from "../lib/history.js";
 import type * as lib_mealTargets from "../lib/mealTargets.js";
 import type * as lib_memoryConsolidation from "../lib/memoryConsolidation.js";
@@ -183,6 +185,8 @@ declare const fullApi: ApiFromModules<{
   "lib/fastingSessions": typeof lib_fastingSessions;
   "lib/healthMetrics": typeof lib_healthMetrics;
   "lib/healthProfiles": typeof lib_healthProfiles;
+  "lib/healthScore": typeof lib_healthScore;
+  "lib/healthSeries": typeof lib_healthSeries;
   "lib/history": typeof lib_history;
   "lib/mealTargets": typeof lib_mealTargets;
   "lib/memoryConsolidation": typeof lib_memoryConsolidation;

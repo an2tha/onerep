@@ -6394,6 +6394,19 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   view-transition-name: coach-page;
 }
 
+/* Mounted inside the workout sheet, Coach is a panel rather than a route: the
+   sheet already owns the entrance, and a page-level view transition here would
+   snapshot the workout behind it. */
+[data-coach-embedded="true"] .coach-page-slide {
+  view-transition-name: none;
+}
+[data-coach-embedded="true"] .coach-chrome-enter,
+[data-coach-embedded="true"] .coach-mode-tabs,
+[data-coach-embedded="true"] .coach-swoosh-backdrop,
+[data-coach-embedded="true"] .coach-background-layer {
+  animation: none;
+}
+
 /* Carousel clones are clipped to the Coach content column. Disable animations
    rather than pausing them: pausing an entrance animation with `fill: both`
    freezes cloned UI at its invisible first frame. */
@@ -6481,8 +6494,13 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 /* New chat is one continuous gesture: frost, draw inward, dissolve. */
 .coach-new-chat-ritual {
-  background: rgba(2, 8, 23, 0.18);
-  backdrop-filter: blur(0) saturate(1);
+  /* The blur is set once and faded in with opacity. Animating the blur radius
+     itself re-blurs the whole screen every frame, which is what made this
+     stutter. */
+  background: rgba(2, 8, 23, 0.34);
+  backdrop-filter: blur(20px) saturate(0.72);
+  opacity: 0;
+  will-change: opacity;
   animation: coach-new-chat-frost 280ms ease-out forwards;
 }
 
@@ -6495,6 +6513,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   color: rgba(255, 255, 255, 0.82);
   opacity: 0;
   transform: scale(0.9);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
   animation: coach-new-chat-mark-in 360ms cubic-bezier(0.22, 0.72, 0.18, 1)
     forwards;
 }
@@ -6515,26 +6535,27 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: coach-new-chat-glint 520ms 300ms ease-out both;
 }
 
-[data-new-chat-phase="open"] .coach-new-chat-bin {
+.coach-new-chat-ritual[data-new-chat-phase="open"] .coach-new-chat-bin {
   transform: scale(1.04);
   transition: transform 260ms ease-out;
 }
 
 [data-new-chat-phase="suck"] .coach-conversation-content {
   transform-origin: 50% 48%;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
   animation: coach-new-chat-suck 620ms cubic-bezier(0.64, 0, 0.78, 0.2) both;
 }
-[data-new-chat-phase="suck"] .coach-new-chat-bin {
+.coach-new-chat-ritual[data-new-chat-phase="suck"] .coach-new-chat-bin {
   animation: coach-new-chat-receive 620ms ease-in-out both;
 }
-[data-new-chat-phase="out"] .coach-new-chat-ritual {
+.coach-new-chat-ritual[data-new-chat-phase="out"] {
   animation: coach-new-chat-out 340ms ease-in both;
 }
 
 @keyframes coach-new-chat-frost {
   to {
-    background: rgba(2, 8, 23, 0.34);
-    backdrop-filter: blur(20px) saturate(0.72);
+    opacity: 1;
   }
 }
 @keyframes coach-new-chat-mark-in {
@@ -6559,18 +6580,15 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 @keyframes coach-new-chat-suck {
   0% {
     opacity: 1;
-    filter: blur(0);
-    transform: scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
   }
   70% {
     opacity: 0.35;
-    filter: blur(3px);
-    transform: scale(0.18);
+    transform: translate3d(0, 0, 0) scale(0.18);
   }
   100% {
     opacity: 0;
-    filter: blur(7px);
-    transform: scale(0.01);
+    transform: translate3d(0, 0, 0) scale(0.04);
   }
 }
 @keyframes coach-new-chat-receive {
@@ -6590,7 +6608,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 @keyframes coach-new-chat-out {
   to {
     opacity: 0;
-    backdrop-filter: blur(0);
   }
 }
 
@@ -7015,9 +7032,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 /* The page itself, which is why this is --background and not a panel color:
    the curve is a boundary, not a container. */
 .dashboard-photo-hero-curve-fill {
-  /* Not `--background`: the curve is the page arriving, and the page is tinted.
-     Filling it flat is what put a hard band across the top of the dashboard. */
-  fill: var(--dashboard-field, var(--background));
+  fill: var(--background);
   /* Lifts the page off the photograph. Without it the curve is a flat cut and
      the whole thing reads as clip art. */
   filter: drop-shadow(0 -8px 16px rgb(0 0 0 / 0.38));
@@ -7121,181 +7136,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 /* The numbers sit on the photograph, above the curve. */
 .dashboard-photo-hero-ledger {
   z-index: 2;
-}
-
-/* ── Ambient page tint ────────────────────────────────────────────────────── */
-
-/*
- * Registering the custom property is the whole trick. An unregistered `--x` is
- * just a string, so reassigning it snaps the colour instantly; declared as a
- * `<color>`, it interpolates, and the `transition` below can carry the page
- * from one photograph's palette to the next in step with the crossfade.
- *
- * Browsers without `@property` ignore this block and the tint changes abruptly
- * instead of gradually, which is a downgrade rather than a defect.
- */
-@property --dashboard-ambient {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: transparent;
-}
-
-.dashboard-home {
-  /* Matches the photo crossfade in `.dashboard-photo-hero-photo`. */
-  transition: --dashboard-ambient 900ms var(--motion-ease-out, ease-out);
-
-  /*
-   * The floor. `--dashboard-ambient` is set inline from the hero photograph,
-   * but the photograph can be slow, blocked, or grey, and a page whose whole
-   * character depends on a network image is a page that is usually plain. The
-   * app's own training accent holds the field until the picture has an opinion.
-   */
-  --dashboard-ambient: var(--accent-workout, #5b5bd6);
-
-  /*
-   * The single value the whole page is mixed from. The curve at the top of the
-   * dashboard is filled with exactly this, which is the only reason the tint
-   * appears to start above the fold instead of beginning at a hard horizontal
-   * edge under the photograph.
-   */
-  --dashboard-field: color-mix(
-    in srgb,
-    var(--dashboard-ambient) 14%,
-    var(--background)
-  );
-}
-
-:root:not(.dark) .dashboard-home {
-  /* Colour reads heavier on paper than it does on a dark page. */
-  --dashboard-field: color-mix(
-    in srgb,
-    var(--dashboard-ambient) 9%,
-    var(--background)
-  );
-}
-
-/*
- * The field: the tint the page sits on, at full strength behind the hero and
- * spent by the time the eye is a screen and a half down. Anchored in `rem` and
- * not in percentages, because percentages resolve against the whole scrolling
- * height and a long day of food logs would stretch the fade into invisibility.
- *
- * z-0 while every child of the dashboard is z-10, so it colours the page
- * without touching content.
- */
-.dashboard-home::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image: linear-gradient(
-    to bottom,
-    var(--dashboard-field) 0,
-    var(--dashboard-field) 26rem,
-    color-mix(in srgb, var(--dashboard-field) 55%, var(--background)) 44rem,
-    var(--background) 78rem
-  );
-}
-
-/*
- * Three enormous, soft lobes drifting across the field. Two of them are the
- * app's own accents rather than the photograph's colour, which is what keeps
- * the page from collapsing back to one flat wash every time the hero happens
- * to be a picture of a road at night.
- *
- * The lobes are positioned in percentages on purpose — unlike the fade above,
- * they should spread down whatever length the page turns out to be — and the
- * first sits well below the curve so it cannot fight the seam.
- */
-.dashboard-home::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
-  background-size:
-    140px 140px,
-    120vmax 120vmax,
-    100vmax 100vmax,
-    130vmax 130vmax;
-  background-position:
-    0 0,
-    -34vmax 22%,
-    calc(100% + 26vmax) 55%,
-    36% 94%;
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E"),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--dashboard-ambient) 26%, transparent),
-      transparent 100%
-    ),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--accent-food, #b55324) 20%, transparent),
-      transparent 100%
-    ),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--accent-water, #1673b1) 22%, transparent),
-      transparent 100%
-    );
-  animation: dashboard-ambient-drift 52s ease-in-out infinite alternate;
-}
-
-:root:not(.dark) .dashboard-home::after {
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--dashboard-ambient) 15%, transparent),
-      transparent 100%
-    ),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--accent-food, #b55324) 11%, transparent),
-      transparent 100%
-    ),
-    radial-gradient(
-      closest-side circle,
-      color-mix(in srgb, var(--accent-water, #1673b1) 12%, transparent),
-      transparent 100%
-    );
-}
-
-/*
- * Grain, at three or four percent. It is doing more work than it looks like:
- * two overlapping washes this wide band into visible steps on an 8-bit display,
- * and the noise is what breaks the bands up.
- */
-
-@keyframes dashboard-ambient-drift {
-  from {
-    background-position:
-      0 0,
-      -34vmax 22%,
-      calc(100% + 26vmax) 55%,
-      36% 94%;
-  }
-  to {
-    background-position:
-      0 0,
-      -24vmax 29%,
-      calc(100% + 15vmax) 47%,
-      52% 87%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dashboard-home {
-    transition: none;
-  }
-
-  .dashboard-home::after {
-    animation: none;
-  }
 }
 
 /* ── Dashboard tiles ──────────────────────────────────────────────────────── */
@@ -7761,9 +7601,102 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* ── Nutrition hero wash ──────────────────────────────────────────────────
+   Anchored to the top of the page, not to the hero panel: the title row, the
+   dials and the log buttons all sit inside one field, and it fades out well
+   into the diary below so there is no seam anywhere. `--hero-fill` is the
+   day's calorie progress, so the wash spreads and warms as the day fills up —
+   the background is reporting, not decorating. */
+.nutrition-hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.nutrition-hero-wash {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  /* Past the dials and the button row, into the first rows of the diary. */
+  height: min(38rem, 68svh);
+  pointer-events: none;
+  background:
+    radial-gradient(
+      115% calc(52% + var(--hero-fill, 0) * 0.16%) at 50% 34%,
+      color-mix(
+          in srgb,
+          var(--accent-food) calc(13% + var(--hero-fill, 0) * 0.08%),
+          transparent
+        )
+        0%,
+      transparent 74%
+    ),
+    radial-gradient(
+      74% 46% at 12% 6%,
+      color-mix(in srgb, var(--foreground) 6%, transparent) 0%,
+      transparent 78%
+    );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 46%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(180deg, #000 0%, #000 46%, transparent 100%);
+  animation: nutrition-hero-drift 26s ease-in-out infinite alternate;
+}
+
+.nutrition-hero > *:not(.nutrition-hero-wash) {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes nutrition-hero-drift {
+  from {
+    background-position:
+      0% 0%,
+      0% 0%;
+  }
+  to {
+    background-position:
+      0% 5%,
+      4% -3%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nutrition-hero-wash {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .moment-layer,
   .moment-body {
     animation: none;
+  }
+}
+
+/* Clearing a conversation should still read as deliberate here, so the frost
+   and the mark stay put while the shrinking transcript is simply cut. */
+@media (prefers-reduced-motion: reduce) {
+  .coach-new-chat-ritual,
+  .coach-new-chat-bin,
+  .coach-new-chat-sparkle,
+  .coach-new-chat-ritual[data-new-chat-phase="open"] .coach-new-chat-bin,
+  .coach-new-chat-ritual[data-new-chat-phase="suck"] .coach-new-chat-bin,
+  .coach-new-chat-ritual[data-new-chat-phase="out"],
+  [data-new-chat-phase="suck"] .coach-conversation-content {
+    animation: none;
+    transition: none;
+  }
+  .coach-new-chat-ritual,
+  .coach-new-chat-bin {
+    opacity: 1;
+    transform: none;
+  }
+  [data-new-chat-phase="suck"] .coach-conversation-content {
+    opacity: 0;
   }
 }

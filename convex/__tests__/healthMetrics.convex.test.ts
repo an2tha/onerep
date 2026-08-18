@@ -194,3 +194,99 @@ describe("recovery reaching the coach", () => {
     expect(workspace.recovery).toBeNull();
   });
 });
+
+describe("the health dashboard query", () => {
+  /** A fortnight of ordinary days, so the baselines have something to stand on. */
+  async function seedWindow(
+    t: ReturnType<typeof convexTest>,
+    userId: string,
+  ) {
+    await t.run(async (ctx) => {
+      for (let index = 20; index >= 0; index -= 1) {
+        const date = new Date(`${TODAY}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - index);
+        await ctx.db.insert("healthMetrics", {
+          userId,
+          date: date.toISOString().slice(0, 10),
+          provider: "apple_health",
+          sleepMinutes: 400,
+          steps: 6_000,
+          activeEnergyKcal: 300,
+          restingHeartRateBpm: 55,
+          hrvMs: 60,
+          syncedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    });
+  }
+
+  test("scores the window and totals exercise minutes from the health store", async () => {
+    const t = convexTest(schema, modules);
+    const subject = "user_dashboard";
+    await seedWindow(t, subject);
+
+    await t.run(async (ctx) => {
+      // Two sessions inside the week, and one a month ago that must not count.
+      for (const [offset, minutes] of [
+        [1, 45],
+        [3, 30],
+        [40, 90],
+      ] as const) {
+        const date = new Date(`${TODAY}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - offset);
+        const day = date.toISOString().slice(0, 10);
+        await ctx.db.insert("healthWorkouts", {
+          userId: subject,
+          provider: "apple_health",
+          externalId: `session-${offset}`,
+          activityType: "running",
+          activityName: "Run",
+          date: day,
+          startedAt: date.getTime(),
+          endedAt: date.getTime() + minutes * 60_000,
+          durationSeconds: minutes * 60,
+          importedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    });
+
+    const result = await asUser(t, subject).query(
+      api.logs.healthMetrics.dashboard,
+      { today: TODAY },
+    );
+
+    expect(result).not.toBeNull();
+    const exercise = result!.pillars.find((pillar) => pillar.id === "exercise");
+    expect(exercise!.value).toBe(75); // 45 + 30, not the 90 from last month
+    expect(result!.score).toBeGreaterThan(0);
+    expect(result!.days).toHaveLength(7);
+
+    // Steps sit at 6,000 against an 8,000 target, so the page has something
+    // concrete to ask for rather than a shrug.
+    const titles = result!.recommendations.map((item) => item.title);
+    expect(titles).toContain("Walk 2,000 more steps a day");
+  });
+
+  test("one user's readings never reach another", async () => {
+    const t = convexTest(schema, modules);
+    await seedWindow(t, "user_owner");
+
+    const result = await asUser(t, "user_stranger").query(
+      api.logs.healthMetrics.dashboard,
+      { today: TODAY },
+    );
+
+    expect(result!.score).toBeNull();
+    expect(result!.days).toEqual([]);
+  });
+
+  test("signed-out callers get nothing", async () => {
+    const t = convexTest(schema, modules);
+    await seedWindow(t, "user_owner");
+    expect(
+      await t.query(api.logs.healthMetrics.dashboard, { today: TODAY }),
+    ).toBeNull();
+  });
+});
