@@ -68,6 +68,7 @@ import {
 import { normalizeScheduleRoutines, type Day } from "@/lib/workout-sync"
 import { searchExercises, type Exercise } from "@/lib/exercise-catalog"
 import { useCoachContext, type CoachContext } from "@/lib/coach-context"
+import type { AgentWorkoutDraft } from "@/lib/workout-logging"
 import {
   FORM_COACH_AI_COST,
   matchFormCoachExercise,
@@ -529,7 +530,64 @@ function FormCoachPicker({
   )
 }
 
-export default function Coach() {
+/**
+ * The coach, whole. Normally a route of its own; `embedded` lets the live
+ * workout mount the same screen inside a sheet, because a lifter mid-session
+ * needs the real thing — memories, history, the mode tabs — and cannot afford
+ * a navigation that would tear down the running workout.
+ */
+/**
+ * Elapsed seconds for the analytics on a reply. The clock is read here, at
+ * module scope, rather than inside the component: a bare `Date.now()` in a
+ * component body reads as impure render work to the compiler even when it only
+ * ever runs from an event handler.
+ */
+function startReplyTimer() {
+  const started = Date.now()
+  return () => Math.round((Date.now() - started) / 1000)
+}
+
+/**
+ * A coach workout operation, rewritten as the draft the live workout speaks.
+ * Same shape the active-workout Ask Coach path already applies.
+ */
+function workoutDraftFromOperation(
+  operation: CoachOperation
+): AgentWorkoutDraft | null {
+  if (operation.type !== "create_workout_preset") return null
+  const exercises = (operation.exercises ?? [])
+    .filter((exercise) => exercise.name?.trim())
+    .map((exercise) => ({
+      name: exercise.name.trim(),
+      sets: (exercise.sets ?? []).map((set) => ({
+        type: set.type,
+        weight: set.weight,
+        reps: set.reps,
+        restSeconds: set.restSeconds,
+      })),
+    }))
+  if (exercises.length === 0) return null
+  return { name: operation.name?.trim() || "Coach's workout", exercises }
+}
+
+export default function Coach({
+  embedded = false,
+  onClose,
+  activeWorkout,
+}: {
+  embedded?: boolean
+  onClose?: () => void
+  /**
+   * Present when Coach is open over a running session. It carries the live
+   * state (which only this device knows) into the prompt, and takes back any
+   * plan Coach proposes for the remaining work.
+   */
+  activeWorkout?: {
+    summary: string
+    applying: boolean
+    onApply: (draft: AgentWorkoutDraft) => Promise<void> | void
+  }
+} = {}) {
   const { context, loading } = useCoachContext()
   const navigate = useSmoothNavigate()
   const coachHeaderRef = useTourAnchor("coach-header")
@@ -604,6 +662,8 @@ export default function Coach() {
     "idle" | "out" | "in"
   >("idle")
   const coachSwipeStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [workoutPlanDraft, setWorkoutPlanDraft] =
+    useState<AgentWorkoutDraft | null>(null)
   const [newChatPhase, setNewChatPhase] = useState<
     "idle" | "appear" | "open" | "suck" | "out"
   >("idle")
@@ -1692,7 +1752,7 @@ export default function Coach() {
     if (guidedIntent) setGuidedIntent(null)
     setBusy(true)
 
-    const startedAt = Date.now()
+    const elapsedSeconds = startReplyTimer()
     // Every field here is a shape, never content: how the request was framed,
     // not a word of what was asked.
     const requestShape = {
@@ -1712,7 +1772,15 @@ export default function Coach() {
     try {
       const result = await generateChat({
         context,
-        message: prompt,
+        message: activeWorkout
+          ? [
+              prompt,
+              "",
+              `The user is mid-workout right now. ${activeWorkout.summary}`,
+              "Treat completed sets as fixed work that must be preserved; only plan the remaining work around them.",
+              "If they are asking you to change this session, return exactly one create_workout_preset operation containing the COMPLETE session that should replace it, and keep the spoken reply short. Otherwise just answer.",
+            ].join("\n")
+          : prompt,
         coachMode: activeMode,
         model: chatModel,
         today: todayKey,
@@ -1729,7 +1797,20 @@ export default function Coach() {
         operations?: unknown
         artifacts?: unknown
       }
-      const operations = normalizeCoachOperations(response.operations)
+      const allOperations = normalizeCoachOperations(response.operations)
+      // Over a live session a workout plan means "change what I am doing now".
+      // Saving it as a preset instead would be the wrong verb entirely.
+      const workoutPlan = activeWorkout
+        ? allOperations.find(
+            (operation) => operation.type === "create_workout_preset"
+          )
+        : undefined
+      const operations = workoutPlan
+        ? allOperations.filter((operation) => operation !== workoutPlan)
+        : allOperations
+      setWorkoutPlanDraft(
+        workoutPlan ? workoutDraftFromOperation(workoutPlan) : null
+      )
       if (selectedAttachment) clearAttachment()
       const needsConfirmation = operations.some(
         (operation) =>
@@ -1743,7 +1824,7 @@ export default function Coach() {
           : []
       trackUmami("coach_reply", {
         mode: activeMode,
-        seconds: Math.round((Date.now() - startedAt) / 1000),
+        seconds: elapsedSeconds(),
         operations: operations.length,
         needs_confirmation: needsConfirmation,
         reply_chars: response.reply.length,
@@ -1766,7 +1847,7 @@ export default function Coach() {
       const message = error instanceof Error ? error.message : ""
       trackUmami("coach_failed", {
         mode: activeMode,
-        seconds: Math.round((Date.now() - startedAt) / 1000),
+        seconds: elapsedSeconds(),
         reason: /limit reached/i.test(message) ? "allowance_spent" : "error",
       })
       hapticHeavy()
@@ -1865,7 +1946,9 @@ export default function Coach() {
     }
     const showMode = async (mode: CoachMode) => {
       document.documentElement.dataset.coachSwipe = direction
-      if (!transitionDocument.startViewTransition) {
+      // Embedded in a sheet there is a whole workout behind this panel, and a
+      // document-level view transition would snapshot and animate that too.
+      if (embedded || !transitionDocument.startViewTransition) {
         commitModeChange(mode)
         return
       }
@@ -1971,6 +2054,15 @@ export default function Coach() {
       clip.remove()
     }
 
+    // In a sheet the carousel would clone the panel over the workout and the
+    // background choreography would drag a mode switch past a second. Embedded
+    // mode swaps modes outright.
+    if (embedded) {
+      commitModeChange(nextMode)
+      setModeTransitioning(false)
+      return
+    }
+
     void (async () => {
       try {
         // Commit the fade before measuring or cloning anything. Without the
@@ -1997,8 +2089,14 @@ export default function Coach() {
   const mode = COACH_MODES.find((item) => item.id === activeMode)!
   return (
     <main
-      className="coach-mobile-immersive coach-swoosh-surface desktop-canvas relative isolate h-svh overflow-hidden bg-background lg:pl-64"
+      className={cn(
+        "coach-mobile-immersive coach-swoosh-surface relative isolate bg-background",
+        embedded
+          ? "flex h-full min-h-0 flex-col overflow-hidden"
+          : "desktop-canvas h-svh overflow-hidden lg:pl-64"
+      )}
       data-coach-mode={activeMode}
+      data-coach-embedded={embedded ? "true" : undefined}
       data-new-chat-phase={newChatPhase}
       data-carousel-background={carouselBackgroundPhase}
     >
@@ -2032,7 +2130,12 @@ export default function Coach() {
         <div className="coach-background-layer" aria-hidden="true">
           <div className="coach-swoosh-backdrop coach-swoosh-backdrop--mobile" />
         </div>
-        <div className="relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] pt-[var(--app-safe-top)] md:px-8 lg:pt-0">
+        <div
+          className={cn(
+            "relative z-10 mx-auto flex h-full w-full max-w-5xl flex-col px-[var(--app-page-x)] md:px-8",
+            embedded ? "pt-0" : "pt-[var(--app-safe-top)] lg:pt-0"
+          )}
+        >
           <header
             ref={coachHeaderRef}
             className="coach-chrome-enter z-20 flex min-h-16 shrink-0 items-center justify-between gap-4 border-b border-border/55 bg-transparent"
@@ -2040,14 +2143,20 @@ export default function Coach() {
             <div className="flex min-w-0 items-center gap-1">
               {/* Form advice arrives here mid-set, so getting back to the
                   workout should not mean hunting through the tab bar. */}
-              {hasActiveWorkout && (
+              {(embedded || hasActiveWorkout) && (
                 <button
                   type="button"
                   onClick={() => {
                     hapticSelection()
+                    if (embedded) {
+                      onClose?.()
+                      return
+                    }
                     navigate("/workout/active", { motion: "back" })
                   }}
-                  aria-label="Back to your workout"
+                  aria-label={
+                    embedded ? "Close coach" : "Back to your workout"
+                  }
                   className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                 >
                   <ArrowLeft size={16} weight="bold" />
@@ -2494,6 +2603,44 @@ export default function Coach() {
             </div>
           </section>
 
+          {/* A plan for the session someone is standing in the middle of gets
+              confirmed here, in the conversation, rather than silently rewriting
+              their remaining sets. */}
+          {activeWorkout && workoutPlanDraft && (
+            <div className="z-20 mx-auto mb-2 w-full max-w-3xl shrink-0 rounded-2xl border border-border bg-card px-4 py-3">
+              <p className="text-[15px] font-semibold">
+                Update this workout?
+              </p>
+              <p className="mt-0.5 text-[13px] text-muted-foreground">
+                {(workoutPlanDraft.exercises ?? []).length} exercise
+                {(workoutPlanDraft.exercises ?? []).length === 1
+                  ? ""
+                  : "s"} · completed sets are kept
+              </p>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  type="button"
+                  disabled={activeWorkout.applying}
+                  aria-busy={activeWorkout.applying}
+                  onClick={() => {
+                    const draft = workoutPlanDraft
+                    setWorkoutPlanDraft(null)
+                    void activeWorkout.onApply(draft)
+                  }}
+                  className="motion-tactile min-h-11 flex-1 rounded-xl bg-foreground px-4 text-[14px] font-semibold text-background disabled:opacity-45"
+                >
+                  Use this plan
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkoutPlanDraft(null)}
+                  className="motion-tactile min-h-11 rounded-xl border border-border px-4 text-[14px] font-semibold text-muted-foreground"
+                >
+                  Keep mine
+                </button>
+              </div>
+            </div>
+          )}
           <form
             onSubmit={(event) => {
               event.preventDefault()
@@ -2641,26 +2788,33 @@ export default function Coach() {
           </form>
         </div>
       </div>
-      {newChatPhase !== "idle" && (
-        <div
-          className="coach-new-chat-ritual fixed inset-0 z-[80] flex items-center justify-center"
-          aria-hidden="true"
-        >
-          <div className="coach-new-chat-bin">
-            <Sparkle
-              className="coach-new-chat-sparkle coach-new-chat-sparkle--one"
-              size={12}
-              weight="fill"
-            />
-            <TrashSimple size={42} weight="thin" />
-            <Sparkle
-              className="coach-new-chat-sparkle coach-new-chat-sparkle--two"
-              size={8}
-              weight="fill"
-            />
-          </div>
-        </div>
-      )}
+      {/* Portaled to <body>: embedded in the workout sheet this sits inside a
+          transformed, clipped panel, where a fixed overlay is measured against
+          the panel instead of the screen and stutters with it. */}
+      {newChatPhase !== "idle" &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="coach-new-chat-ritual fixed inset-0 z-[80] flex items-center justify-center"
+            data-new-chat-phase={newChatPhase}
+            aria-hidden="true"
+          >
+            <div className="coach-new-chat-bin">
+              <Sparkle
+                className="coach-new-chat-sparkle coach-new-chat-sparkle--one"
+                size={12}
+                weight="fill"
+              />
+              <TrashSimple size={42} weight="thin" />
+              <Sparkle
+                className="coach-new-chat-sparkle coach-new-chat-sparkle--two"
+                size={8}
+                weight="fill"
+              />
+            </div>
+          </div>,
+          document.body
+        )}
       <CoachSheet
         title="Coach activity"
         open={showHistory}

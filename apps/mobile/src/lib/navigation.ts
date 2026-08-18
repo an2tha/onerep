@@ -37,6 +37,7 @@ export const PRIMARY_TAB_ORDER = [
   "/nutrition",
   "/workouts",
   "/progress",
+  "/health",
   "/coach",
 ]
 
@@ -70,6 +71,10 @@ export function shouldShowBottomBar(pathname: string) {
     pathname === "/recipes" ||
     pathname === "/workouts" ||
     pathname === "/progress" ||
+    pathname === "/health" ||
+    // The health detail pages are browsing destinations, not tasks — the
+    // chrome stays so the desktop sidebar does not vanish mid-read.
+    pathname.startsWith("/health/") ||
     pathname === "/supplements" ||
     pathname === "/coach" ||
     // A single exercise is a browsing destination, not a task. Keeping the

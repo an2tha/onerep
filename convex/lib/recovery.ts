@@ -20,6 +20,8 @@ export type DailyMetrics = {
   steps?: number;
   restingHeartRateBpm?: number;
   hrvMs?: number;
+  /** Read by the health score rather than by the recovery summary. */
+  activeEnergyKcal?: number;
 };
 
 /** Days of history the baseline is drawn from. */

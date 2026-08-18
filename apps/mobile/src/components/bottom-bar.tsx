@@ -12,6 +12,7 @@ import {
   Barbell,
   ChartLine,
   ForkKnife,
+  HeartbeatIcon,
   House,
   RocketLaunchIcon,
   UserCircle,
@@ -62,6 +63,7 @@ const TABS = [
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
+  { path: "/health", Icon: HeartbeatIcon, labelKey: "nav.health" },
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
 ] as const
 

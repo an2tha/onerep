@@ -29,7 +29,6 @@ import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
-import { SummaryBlock } from "@repo/ui"
 import { SlideToDeleteRow } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
@@ -367,6 +366,136 @@ function ProgressLine({
     </div>
   )
 }
+
+// ─── The day, as three dials ───────────────────────────────────────────────
+// Protein takes the centre and the larger ring because it is the number people
+// actually chase; calories and fat flank it, tucked behind its edges so the
+// three read as one instrument rather than three widgets in a row.
+const DIAL_RADIUS = 44
+const DIAL_CIRCUMFERENCE = 2 * Math.PI * DIAL_RADIUS
+
+function MacroDial({
+  name,
+  value,
+  target,
+  suffix,
+  color,
+  size,
+  stroke,
+  emphasis = false,
+  className,
+  style,
+  rainKey = 0,
+}: {
+  name: string
+  value: number
+  target: number
+  suffix: string
+  color: string
+  size: number
+  stroke: number
+  /** The centre dial states its goal outright; the flanking two stay terse. */
+  emphasis?: boolean
+  className?: string
+  style?: CSSProperties
+  rainKey?: number
+}) {
+  const reached = target > 0 ? Math.min(1, value / target) : 0
+  return (
+    <div
+      className={cn(
+        // The halo sits a hair outside the drawn ring, so where two dials
+        // overlap the front one cuts a clean gap instead of colliding.
+        "relative shrink-0 rounded-full shadow-[0_0_0_4px_var(--background)]",
+        className
+      )}
+      style={{ width: size, height: size, ...style }}
+      role="img"
+      aria-label={`${name}: ${fmt(value)} of ${fmt(target)}${suffix}, ${target > 0 ? pct(value, target) : 0}% of goal`}
+    >
+      {rainKey > 0 && (
+        <span
+          key={rainKey}
+          className="water-rain nutrient-micro-rain"
+          style={{ "--nutrient-rain-color": color } as CSSProperties}
+          aria-hidden
+        >
+          {Array.from({ length: 7 }, (_, index) => (
+            <span key={index} />
+          ))}
+        </span>
+      )}
+      <svg
+        viewBox="0 0 100 100"
+        className="h-full w-full -rotate-90"
+        aria-hidden="true"
+      >
+        <circle
+          cx="50"
+          cy="50"
+          r={DIAL_RADIUS}
+          fill="var(--background)"
+          stroke="var(--foreground)"
+          strokeOpacity={0.08}
+          strokeWidth={stroke}
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r={DIAL_RADIUS}
+          fill="none"
+          stroke={color}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={DIAL_CIRCUMFERENCE}
+          strokeDashoffset={DIAL_CIRCUMFERENCE * (1 - reached)}
+          className="transition-[stroke-dashoffset] duration-700 ease-out"
+        />
+      </svg>
+      <div className="absolute inset-[18%] flex flex-col items-center justify-center overflow-hidden">
+        <p
+          className={cn(
+            "leading-none font-extrabold tabular-nums",
+            emphasis ? "text-[2rem]" : "text-[1.15rem]"
+          )}
+          aria-hidden="true"
+        >
+          <span key={value} className="motion-number-refresh inline-block">
+            {fmt(value)}
+          </span>
+          <span
+            className={cn(
+              "font-bold",
+              emphasis ? "text-[15px]" : "text-[12px]"
+            )}
+            style={{ color }}
+          >
+            {suffix}
+          </span>
+        </p>
+        <p
+          className={cn(
+            "mt-1 leading-tight text-muted-foreground",
+            emphasis ? "text-[12px]" : "text-[11px]"
+          )}
+          aria-hidden="true"
+        >
+          {name}
+        </p>
+        {emphasis && (
+          <p
+            className="text-[11px] leading-tight text-muted-foreground/80 tabular-nums"
+            aria-hidden="true"
+          >
+            of {fmt(target)}
+            {suffix}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 
 function MicroBreakdown({
   open,
@@ -1681,6 +1810,7 @@ export default function Nutrition() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
   const [microsOpen, setMicrosOpen] = useState(false)
+  const [showAllFood, setShowAllFood] = useState(false)
   const [customWaterOpen, setCustomWaterOpen] = useState(false)
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false)
   const [customWaterAmount, setCustomWaterAmount] = useState(350)
@@ -2013,9 +2143,11 @@ export default function Nutrition() {
   }, [calorieTarget, caloriesLeft, entries, goals, intakeTotals, isToday])
 
   const loggedToday = entries.length + waterEntries.length + supplementDone
-  const recentFood = [...entries]
-    .sort((a, b) => b.loggedAt.localeCompare(a.loggedAt))
-    .slice(0, 3)
+  const sortedFood = useMemo(
+    () => [...entries].sort((a, b) => b.loggedAt.localeCompare(a.loggedAt)),
+    [entries]
+  )
+  const recentFood = showAllFood ? sortedFood : sortedFood.slice(0, 3)
   const quickRepeatFoods = useMemo(
     () => buildQuickRepeatFoods(recentFoodLogDays),
     [recentFoodLogDays]
@@ -2348,7 +2480,7 @@ export default function Nutrition() {
   // today and past-day branches rendering the same thing.
   const logMethods = (
     <section
-      className="gap-2 grid grid-cols-4 mt-3 progress-tab-enter"
+      className="mt-4 grid grid-cols-4 gap-2 progress-tab-enter"
       aria-label="Log a meal"
     >
       {[
@@ -2382,9 +2514,11 @@ export default function Nutrition() {
             if (requiresAiAccess && !requireAiAccess(1, "nutrition_action")) return
             action()
           }}
-          className="flex-col gap-1.5 px-1 min-h-18 app-button app-button-quiet"
+          className="motion-tactile flex flex-col items-center gap-2 rounded-xl px-1 py-1 text-[13px] font-semibold"
         >
-          <Icon size={20} weight="bold" />
+          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors active:bg-muted">
+            <Icon size={21} weight="bold" />
+          </span>
           <span>{label}</span>
         </button>
       ))}
@@ -2576,7 +2710,27 @@ export default function Nutrition() {
   )
 
   return (
-    <div className="bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas">
+    <div
+      className={cn(
+        "bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas",
+        // The wash starts at the very top of the page, so the title row and the
+        // log buttons sit inside it rather than on either side of a seam.
+        isToday && "nutrition-hero"
+      )}
+      style={
+        isToday
+          ? ({
+              "--hero-fill": Math.min(
+                100,
+                calorieTarget > 0
+                  ? Math.round((intakeTotals.calories / calorieTarget) * 100)
+                  : 0
+              ),
+            } as CSSProperties)
+          : undefined
+      }
+    >
+      {isToday && <span className="nutrition-hero-wash" aria-hidden="true" />}
       <main className="app-page">
         <header className="app-header" ref={nutritionHeaderRef}>
           <div className={cn("min-w-0")}>
@@ -2861,62 +3015,90 @@ export default function Nutrition() {
 
         {!isToday ? null : (
           <>
-            <SummaryBlock
-              className="progress-tab-enter"
-              title={
-                visibleMetrics.calories ? "Energy remaining" : "Meals logged"
-              }
-              value={
-                visibleMetrics.calories ? (
-                  <span
-                    key={caloriesLeft}
-                    className="inline-block motion-number-refresh"
-                  >
-                    {caloriesLeft >= 0 ? "" : "+"}
-                    {fmt(Math.abs(caloriesLeft))} kcal
-                  </span>
-                ) : (
-                  loggedToday
-                )
-              }
-              detail={
-                visibleMetrics.calories
-                  ? `${fmt(intakeTotals.calories)} of ${fmt(calorieTarget)} kcal · ${loggedToday} entries`
-                  : `${nutritionPlan?.trackingMode ?? "habit"} tracking mode`
-              }
-              tone="food"
-            >
-              <div className="space-y-2.5">
-                {(Object.keys(macroTargets) as MacroKey[])
-                  .filter((key) =>
-                    visibleMetrics.macros
-                      ? true
-                      : key === "protein" && visibleMetrics.protein
-                  )
-                  .map((key) => (
-                    <ProgressLine
-                      key={key}
-                      label={key[0].toUpperCase() + key.slice(1)}
-                      value={intakeTotals[key]}
-                      target={macroTargets[key]}
-                      suffix="g"
-                      color={MACRO_COLORS[key]}
-                      animateChanges={true}
-                      rainKey={
-                        key === "protein"
-                          ? nutrientRainKeys.protein
-                          : key === "carbs"
-                            ? nutrientRainKeys.carbs
-                            : nutrientRainKeys.fat
-                      }
-                    />
-                  ))}
-                {!visibleMetrics.macros && !visibleMetrics.protein && (
-                  <p className="text-[14px] text-muted-foreground leading-5">
-                    Non-numeric mode: log meals and focus on consistency.
+            {/* The hero runs edge to edge, leads with the one number the page
+                exists to answer, and sits on a wash that shifts with the day's
+                own numbers before fading out into the page — a soft edge
+                instead of a drawn one. */}
+            <section className="relative pt-1 pb-2 text-center progress-tab-enter">
+              {visibleMetrics.calories ? (
+                <>
+                  <p className="flex items-baseline justify-center gap-1.5">
+                    <span
+                      key={caloriesLeft}
+                      className="motion-number-refresh text-[3.25rem] leading-none font-extrabold tracking-tight tabular-nums"
+                    >
+                      {fmt(Math.abs(caloriesLeft))}
+                    </span>
+                    <span className="text-[1.05rem] font-semibold text-muted-foreground">
+                      kcal {caloriesLeft >= 0 ? "left" : "over"}
+                    </span>
                   </p>
-                )}
-              </div>
+                  <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
+                    {fmt(intakeTotals.calories)} of {fmt(calorieTarget)} kcal ·{" "}
+                    {loggedToday} entries
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[2.4rem] leading-none font-extrabold tabular-nums">
+                    {loggedToday}
+                  </p>
+                  <p className="mt-1.5 text-[13px] text-muted-foreground">
+                    logged today · {nutritionPlan?.trackingMode ?? "habit"}{" "}
+                    tracking mode
+                  </p>
+                </>
+              )}
+
+              {visibleMetrics.calories ||
+              visibleMetrics.macros ||
+              visibleMetrics.protein ? (
+                <div className="relative mt-5 flex items-center justify-center pb-1">
+                  {visibleMetrics.calories && (
+                    <MacroDial
+                      name="Calories"
+                      value={intakeTotals.calories}
+                      target={calorieTarget}
+                      suffix=""
+                      color={APP_ACCENT_COLORS.food}
+                      size={104}
+                      stroke={7}
+                      className="z-0 -mr-3.5"
+                    />
+                  )}
+                  {(visibleMetrics.macros || visibleMetrics.protein) && (
+                    <MacroDial
+                      name="Protein"
+                      value={intakeTotals.protein}
+                      target={macroTargets.protein}
+                      suffix="g"
+                      color={MACRO_COLORS.protein}
+                      size={158}
+                      stroke={8}
+                      emphasis
+                      className="z-10"
+                      rainKey={nutrientRainKeys.protein}
+                    />
+                  )}
+                  {visibleMetrics.macros && (
+                    <MacroDial
+                      name="Fat"
+                      value={intakeTotals.fat}
+                      target={macroTargets.fat}
+                      suffix="g"
+                      color={MACRO_COLORS.fat}
+                      size={104}
+                      stroke={7}
+                      className="z-0 -ml-3.5"
+                      rainKey={nutrientRainKeys.fat}
+                    />
+                  )}
+                </div>
+              ) : (
+                <p className="mt-4 pb-2 text-[14px] leading-5 text-muted-foreground">
+                  Log meals and focus on consistency.
+                </p>
+              )}
 
               {isTrainingDay && visibleMetrics.calories && (
                 <button
@@ -2942,7 +3124,7 @@ export default function Nutrition() {
                   />
                 </button>
               )}
-            </SummaryBlock>
+            </section>
 
             {logMethods}
             {quickRepeatRow}
@@ -3005,6 +3187,28 @@ export default function Nutrition() {
                           </span>
                         </SlideToDeleteRow>
                       ))}
+                      {entries.length > 3 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllFood((value) => !value)}
+                          aria-expanded={showAllFood}
+                          className="flex justify-center items-center gap-1.5 -mx-1 w-full min-h-11 font-semibold text-[13px] text-muted-foreground active:text-foreground transition-colors"
+                        >
+                          <span>
+                            {showAllFood
+                              ? "Show less"
+                              : `Show all ${entries.length}`}
+                          </span>
+                          <CaretDown
+                            size={14}
+                            weight="bold"
+                            className={cn(
+                              "transition-transform",
+                              showAllFood && "rotate-180"
+                            )}
+                          />
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <p className="text-[14px] text-muted-foreground leading-5">

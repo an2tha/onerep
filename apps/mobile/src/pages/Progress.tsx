@@ -69,7 +69,7 @@ export default function Progress() {
   const navigate = useSmoothNavigate()
   const progressHeaderRef = useTourAnchor("progress-header")
   const progressTabsRef = useTourAnchor("progress-tabs")
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const [metric, setMetric] = useState<ProgressTab>(() =>
     searchParams.get("tab") === "exercises" ? "exercises" : "body"
   )
@@ -219,17 +219,6 @@ export default function Progress() {
   function selectMetric(nextMetric: ProgressTab) {
     if (nextMetric === metric) return
     hapticSelection()
-    // The library is the one tab worth linking back to — coming out of an
-    // exercise page should return to the list, not to body weight.
-    setSearchParams(
-      (current) => {
-        const next = new URLSearchParams(current)
-        if (nextMetric === "exercises") next.set("tab", "exercises")
-        else next.delete("tab")
-        return next
-      },
-      { replace: true, preventScrollReset: true }
-    )
     const transitionDocument = document as Document & {
       startViewTransition?: (update: () => void) => { finished: Promise<void> }
     }

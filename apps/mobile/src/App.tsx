@@ -382,9 +382,8 @@ export default function App() {
   const firstName = user?.name?.trim().split(/\s+/)[0] ?? user?.email ?? "there"
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   // Scenery: a photo at random, crossfading to another every twenty seconds,
-  // served from the device once the first launch has stored it. `ambient` is a
-  // colour lifted from that photo, which tints the page underneath it.
-  const { src: heroPhotoUrl, ambient: heroAmbient } = useHeroPhoto()
+  // served from the device once the first launch has stored it.
+  const { src: heroPhotoUrl } = useHeroPhoto()
   const selectedDateLabel = dayOffsetLabel(dayOffset, activeTimezone)
   const dateLabel = `${dateKeyToCalendarDate(selectedDate).toLocaleDateString(
     "en-US",
@@ -1210,16 +1209,7 @@ export default function App() {
     supplementOverview !== undefined
 
   return (
-    <div
-      className="dashboard-home desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72"
-      // Registered as a <color> in CSS, so assigning it animates rather than
-      // snapping — the page re-tints in step with the photo crossfade.
-      style={
-        heroAmbient
-          ? ({ "--dashboard-ambient": heroAmbient } as React.CSSProperties)
-          : undefined
-      }
-    >
+    <div className="dashboard-home desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
       {quickWaterBurst.active && (
         <span
           key={quickWaterBurst.key}

@@ -12,8 +12,21 @@
 import { v } from "convex/values";
 import { internalQuery, mutation, query } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
-import { summarizeRecovery } from "../lib/recovery";
-import { listRecoveryWindow } from "../lib/healthMetrics";
+import { RECOVERY_WINDOW_DAYS, summarizeRecovery } from "../lib/recovery";
+import {
+  exerciseMinutesByDate,
+  listRecoveryWindow,
+} from "../lib/healthMetrics";
+import {
+  HEALTH_SCORE_WINDOW_DAYS,
+  computeHealthScore,
+} from "../lib/healthScore";
+import {
+  RANGE_DAYS,
+  buildHealthSeries,
+  shiftDate,
+  type HealthRange,
+} from "../lib/healthSeries";
 
 /** One sync should never carry more than a month; anything more is a bug. */
 const MAX_DAYS_PER_SYNC = 45;
@@ -135,4 +148,91 @@ export const recovery = query({
 export const listForUser = internalQuery({
   args: { userId: v.string(), today: v.string() },
   handler: (ctx, args) => listRecoveryWindow(ctx, args.userId, args.today),
+});
+
+/**
+ * Everything the Health page draws, in one round trip.
+ *
+ * Deliberately one query rather than four. The page shows a single composite
+ * number built out of all of these, and four independently-arriving
+ * subscriptions would let it render a score that never existed — sleep from
+ * this second, exercise minutes from the last one.
+ */
+export const dashboard = query({
+  args: { today: v.string() },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    if (!isDateKey(args.today)) return null;
+
+    const window = await listRecoveryWindow(ctx, user._id, args.today);
+    const recovery = summarizeRecovery(window, args.today);
+
+    const since = shiftDate(args.today, -(HEALTH_SCORE_WINDOW_DAYS - 1));
+    const scoringDays = window.filter((row) => row.date >= since);
+
+    return {
+      today: args.today,
+      windowDays: HEALTH_SCORE_WINDOW_DAYS,
+      recovery,
+      /** Oldest first, for the sparklines. */
+      days: scoringDays,
+      ...computeHealthScore({
+        days: scoringDays,
+        exerciseMinutesByDate: await exerciseMinutesByDate(
+          ctx,
+          user._id,
+          since,
+          args.today,
+        ),
+        recovery,
+      }),
+    };
+  },
+});
+
+/**
+ * History for the trends screens.
+ *
+ * Reads twice the requested range plus a baseline run-up, because every figure
+ * on those screens is a comparison: the range itself, the preceding period of
+ * equal length to compare it against, and — for the recovery series — the 28
+ * days each daily score was computed from.
+ */
+export const series = query({
+  args: {
+    today: v.string(),
+    range: v.union(v.literal("W"), v.literal("M"), v.literal("Y")),
+  },
+  handler: async (ctx, args) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    if (!isDateKey(args.today)) return null;
+
+    const range = args.range as HealthRange;
+    const days = RANGE_DAYS[range];
+    const start = shiftDate(args.today, -(days - 1));
+    const earliest = shiftDate(start, -(days + RECOVERY_WINDOW_DAYS));
+
+    const rows = await listRecoveryWindow(
+      ctx,
+      user._id,
+      args.today,
+      // listRecoveryWindow counts back from today, so the window has to span
+      // the range, the comparison period, and the baseline run-up.
+      days * 2 + RECOVERY_WINDOW_DAYS,
+    );
+
+    return buildHealthSeries({
+      rows,
+      exerciseMinutesByDate: await exerciseMinutesByDate(
+        ctx,
+        user._id,
+        earliest,
+        args.today,
+      ),
+      today: args.today,
+      range,
+    });
+  },
 });
