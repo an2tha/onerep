@@ -40,6 +40,7 @@ import { hapticMedium, hapticSelection } from "@/lib/haptics"
 import { toast } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
+import { ExerciseLibrary } from "@/components/exercise-library"
 
 import {
   BodyProgress,
@@ -50,6 +51,16 @@ import {
   formatProgressWeight,
 } from "@repo/ui"
 
+/**
+ * The library is a tab here rather than a bottom-bar destination: browsing
+ * movements is something you do while looking at your own numbers, not a
+ * fifth place to live.
+ */
+type ProgressTab = "body" | "nutrition" | "training" | "exercises"
+
+/** Tabs that own a custom-metric surface. The library has nothing to chart. */
+type MetricTab = Exclude<ProgressTab, "exercises">
+
 function formatWeightValue(value: number) {
   return value.toFixed(1).replace(/\.0$/, "")
 }
@@ -58,9 +69,9 @@ export default function Progress() {
   const navigate = useSmoothNavigate()
   const progressHeaderRef = useTourAnchor("progress-header")
   const progressTabsRef = useTourAnchor("progress-tabs")
-  const [searchParams] = useSearchParams()
-  const [metric, setMetric] = useState<"body" | "nutrition" | "training">(
-    "body"
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [metric, setMetric] = useState<ProgressTab>(() =>
+    searchParams.get("tab") === "exercises" ? "exercises" : "body"
   )
   const [entryOpen, setEntryOpen] = useState(
     () => searchParams.get("checkIn") === "1"
@@ -90,8 +101,9 @@ export default function Progress() {
   const setCustomMetricValue = useMutation(api.customProgressMetrics.setValue)
   const removeCustomMetric = useMutation(api.customProgressMetrics.remove)
   const today = currentDateKey()
+  const metricTab: MetricTab = metric === "exercises" ? "body" : metric
   const customMetrics = useQuery(api.customProgressMetrics.list, {
-    tab: metric,
+    tab: metricTab,
     days: 30,
   })
   const bodyMeasurements = useQuery(api.bodyProgress.list) as
@@ -204,9 +216,20 @@ export default function Progress() {
     setEntryPrepared(true)
   }, [previousMeasurement, todayMeasurement, unit])
 
-  function selectMetric(nextMetric: "body" | "nutrition" | "training") {
+  function selectMetric(nextMetric: ProgressTab) {
     if (nextMetric === metric) return
     hapticSelection()
+    // The library is the one tab worth linking back to — coming out of an
+    // exercise page should return to the list, not to body weight.
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        if (nextMetric === "exercises") next.set("tab", "exercises")
+        else next.delete("tab")
+        return next
+      },
+      { replace: true, preventScrollReset: true }
+    )
     const transitionDocument = document as Document & {
       startViewTransition?: (update: () => void) => { finished: Promise<void> }
     }
@@ -228,7 +251,10 @@ export default function Progress() {
     setGeneratingMetric(true)
     setMetricBuilderError("")
     try {
-      const generated = await generateCustomMetric({ tab: metric, request })
+      const generated = await generateCustomMetric({
+        tab: metricTab,
+        request,
+      })
       await saveCustomMetric({
         title: generated.title,
         description: generated.description,
@@ -361,7 +387,8 @@ export default function Progress() {
           : {}),
         ...(todayMeasurement?.photoUploadId
           ? {
-              photoUploadId: todayMeasurement.photoUploadId as Id<"fileUploads">,
+              photoUploadId:
+                todayMeasurement.photoUploadId as Id<"fileUploads">,
             }
           : {}),
         ...(todayMeasurement?.photoTakenAt != null
@@ -402,7 +429,10 @@ export default function Progress() {
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
           <h1 className="app-title">Progress</h1>
-          <div className="flex items-center gap-1">
+          <div
+            className="flex items-center gap-1"
+            hidden={metric === "exercises"}
+          >
             <button
               type="button"
               onClick={() => {
@@ -411,7 +441,7 @@ export default function Progress() {
                 setMetricBuilderOpen(true)
               }}
               className="native-toolbar-button"
-              aria-label={`Ask Coach to create a ${metric} metric`}
+              aria-label={`Ask Coach to create a ${metricTab} metric`}
             >
               <Sparkle size={20} weight="bold" />
             </button>
@@ -430,24 +460,28 @@ export default function Progress() {
 
         <div
           ref={progressTabsRef}
-          className="app-segmented mb-5 grid grid-cols-3"
+          className="app-segmented mb-5 grid grid-cols-4"
           aria-label="Progress metric"
         >
-          {(["body", "nutrition", "training"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              data-active={metric === item}
-              aria-pressed={metric === item}
-              onClick={() => selectMetric(item)}
-              className="app-segmented-button capitalize"
-            >
-              {item}
-            </button>
-          ))}
+          {(["body", "nutrition", "training", "exercises"] as const).map(
+            (item) => (
+              <button
+                key={item}
+                type="button"
+                data-active={metric === item}
+                aria-pressed={metric === item}
+                onClick={() => selectMetric(item)}
+                className="app-segmented-button capitalize"
+              >
+                {item}
+              </button>
+            )
+          )}
         </div>
 
-        {loading ? (
+        {metric === "exercises" ? (
+          <ExerciseLibrary />
+        ) : loading ? (
           <ProgressLoading />
         ) : (
           <div className="progress-tab-content grid gap-6">
@@ -480,7 +514,7 @@ export default function Progress() {
             )}
 
             {customMetrics.length > 0 && (
-              <section aria-label={`Custom ${metric} metrics`}>
+              <section aria-label={`Custom ${metricTab} metrics`}>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="native-section-title">Your metrics</p>
                   <button

@@ -10,7 +10,6 @@ import { useLocation } from "react-router"
 import { useTranslation } from "react-i18next"
 import {
   Barbell,
-  Books,
   ChartLine,
   ForkKnife,
   House,
@@ -62,7 +61,6 @@ const TABS = [
   { path: "/", Icon: House, labelKey: "nav.today" },
   { path: "/nutrition", Icon: ForkKnife, labelKey: "nav.nutrition" },
   { path: "/workouts", Icon: Barbell, labelKey: "nav.training" },
-  { path: "/exercises", Icon: Books, labelKey: "nav.exercises" },
   { path: "/progress", Icon: ChartLine, labelKey: "nav.progress" },
   { path: "/coach", Icon: RocketLaunchIcon, labelKey: "nav.coach" },
 ] as const
@@ -82,10 +80,18 @@ function isNutritionPath(pathname: string) {
   )
 }
 
-// `/exercises` used to alias here, back when it rendered the Training page. It
-// is its own destination now, so it gets its own highlight.
 function isTrainingPath(pathname: string) {
   return pathname === "/workouts" || pathname.startsWith("/workouts/")
+}
+
+// The library lives inside Progress now, so a single exercise lights up the
+// Progress tab rather than orphaning the highlight entirely.
+function isProgressPath(pathname: string) {
+  return (
+    pathname === "/progress" ||
+    pathname.startsWith("/progress/") ||
+    pathname.startsWith("/exercises")
+  )
 }
 
 /** Exported for the native iOS tab bar, so both bars share one route model. */
@@ -93,6 +99,7 @@ export function isTabActive(pathname: string, path: string) {
   if (path === "/") return pathname === "/"
   if (path === "/nutrition") return isNutritionPath(pathname)
   if (path === "/workouts") return isTrainingPath(pathname)
+  if (path === "/progress") return isProgressPath(pathname)
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 

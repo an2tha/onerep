@@ -39,7 +39,6 @@ describe("bottom bar accessibility contract", () => {
       "Today",
       "Nutrition",
       "Training",
-      "Exercises",
       "Progress",
       "Coach",
     ]) {

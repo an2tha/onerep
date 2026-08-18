@@ -56,7 +56,6 @@ if (posthogToken) {
   }
 }
 import App from "./App.tsx"
-import Exercises from "./pages/Exercises.tsx"
 import ExerciseDetail from "./pages/ExerciseDetail.tsx"
 import EmailVerified from "./pages/EmailVerified.tsx"
 import Login from "./pages/Login.tsx"
@@ -727,14 +726,10 @@ const router = createBrowserRouter([
         ),
       },
       {
+        // The library moved into the Progress tab strip. Old links, old
+        // shortcuts and anyone's muscle memory still land somewhere useful.
         path: "/exercises",
-        element: (
-          <AuthGuard>
-            <ErrorBoundary label="Exercises">
-              <Exercises />
-            </ErrorBoundary>
-          </AuthGuard>
-        ),
+        element: <Navigate to="/progress?tab=exercises" replace />,
       },
       {
         path: "/exercises/:exerciseId",

@@ -64,7 +64,7 @@ export default function ExerciseDetail() {
 
   function goBack() {
     hapticSelection()
-    navigate("/exercises", { motion: "back" })
+    navigate("/progress?tab=exercises", { motion: "back" })
   }
 
   const notFound = resolved !== undefined && !exercise

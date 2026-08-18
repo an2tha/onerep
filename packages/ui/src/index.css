@@ -7015,7 +7015,9 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 /* The page itself, which is why this is --background and not a panel color:
    the curve is a boundary, not a container. */
 .dashboard-photo-hero-curve-fill {
-  fill: var(--background);
+  /* Not `--background`: the curve is the page arriving, and the page is tinted.
+     Filling it flat is what put a hard band across the top of the dashboard. */
+  fill: var(--dashboard-field, var(--background));
   /* Lifts the page off the photograph. Without it the curve is a flat cut and
      the whole thing reads as clip art. */
   filter: drop-shadow(0 -8px 16px rgb(0 0 0 / 0.38));
@@ -7141,12 +7143,45 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 .dashboard-home {
   /* Matches the photo crossfade in `.dashboard-photo-hero-photo`. */
   transition: --dashboard-ambient 900ms var(--motion-ease-out, ease-out);
+
+  /*
+   * The floor. `--dashboard-ambient` is set inline from the hero photograph,
+   * but the photograph can be slow, blocked, or grey, and a page whose whole
+   * character depends on a network image is a page that is usually plain. The
+   * app's own training accent holds the field until the picture has an opinion.
+   */
+  --dashboard-ambient: var(--accent-workout, #5b5bd6);
+
+  /*
+   * The single value the whole page is mixed from. The curve at the top of the
+   * dashboard is filled with exactly this, which is the only reason the tint
+   * appears to start above the fold instead of beginning at a hard horizontal
+   * edge under the photograph.
+   */
+  --dashboard-field: color-mix(
+    in srgb,
+    var(--dashboard-ambient) 14%,
+    var(--background)
+  );
+}
+
+:root:not(.dark) .dashboard-home {
+  /* Colour reads heavier on paper than it does on a dark page. */
+  --dashboard-field: color-mix(
+    in srgb,
+    var(--dashboard-ambient) 9%,
+    var(--background)
+  );
 }
 
 /*
- * A wash of the current photograph's colour, strongest just under the curve and
- * gone by the time the eye reaches the tiles. It sits at z-0 while every child
- * of the dashboard is z-10, so it colours the page without touching content.
+ * The field: the tint the page sits on, at full strength behind the hero and
+ * spent by the time the eye is a screen and a half down. Anchored in `rem` and
+ * not in percentages, because percentages resolve against the whole scrolling
+ * height and a long day of food logs would stretch the fade into invisibility.
+ *
+ * z-0 while every child of the dashboard is z-10, so it colours the page
+ * without touching content.
  */
 .dashboard-home::before {
   content: "";
@@ -7154,25 +7189,112 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(
-    130% 38% at 50% 0%,
-    color-mix(in srgb, var(--dashboard-ambient) 26%, transparent),
-    transparent 72%
+  background-image: linear-gradient(
+    to bottom,
+    var(--dashboard-field) 0,
+    var(--dashboard-field) 26rem,
+    color-mix(in srgb, var(--dashboard-field) 55%, var(--background)) 44rem,
+    var(--background) 78rem
   );
 }
 
-/* The same colour reads far heavier on paper than it does on a dark page. */
-:root:not(.dark) .dashboard-home::before {
-  background-image: radial-gradient(
-    130% 36% at 50% 0%,
-    color-mix(in srgb, var(--dashboard-ambient) 15%, transparent),
-    transparent 70%
-  );
+/*
+ * Three enormous, soft lobes drifting across the field. Two of them are the
+ * app's own accents rather than the photograph's colour, which is what keeps
+ * the page from collapsing back to one flat wash every time the hero happens
+ * to be a picture of a road at night.
+ *
+ * The lobes are positioned in percentages on purpose — unlike the fade above,
+ * they should spread down whatever length the page turns out to be — and the
+ * first sits well below the curve so it cannot fight the seam.
+ */
+.dashboard-home::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: repeat, no-repeat, no-repeat, no-repeat;
+  background-size:
+    140px 140px,
+    120vmax 120vmax,
+    100vmax 100vmax,
+    130vmax 130vmax;
+  background-position:
+    0 0,
+    -34vmax 22%,
+    calc(100% + 26vmax) 55%,
+    36% 94%;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.055'/%3E%3C/svg%3E"),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--dashboard-ambient) 26%, transparent),
+      transparent 100%
+    ),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--accent-food, #b55324) 20%, transparent),
+      transparent 100%
+    ),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--accent-water, #1673b1) 22%, transparent),
+      transparent 100%
+    );
+  animation: dashboard-ambient-drift 52s ease-in-out infinite alternate;
+}
+
+:root:not(.dark) .dashboard-home::after {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--dashboard-ambient) 15%, transparent),
+      transparent 100%
+    ),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--accent-food, #b55324) 11%, transparent),
+      transparent 100%
+    ),
+    radial-gradient(
+      closest-side circle,
+      color-mix(in srgb, var(--accent-water, #1673b1) 12%, transparent),
+      transparent 100%
+    );
+}
+
+/*
+ * Grain, at three or four percent. It is doing more work than it looks like:
+ * two overlapping washes this wide band into visible steps on an 8-bit display,
+ * and the noise is what breaks the bands up.
+ */
+
+@keyframes dashboard-ambient-drift {
+  from {
+    background-position:
+      0 0,
+      -34vmax 22%,
+      calc(100% + 26vmax) 55%,
+      36% 94%;
+  }
+  to {
+    background-position:
+      0 0,
+      -24vmax 29%,
+      calc(100% + 15vmax) 47%,
+      52% 87%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-home {
     transition: none;
+  }
+
+  .dashboard-home::after {
+    animation: none;
   }
 }
 
