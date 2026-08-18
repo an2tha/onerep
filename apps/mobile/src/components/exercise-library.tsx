@@ -1,9 +1,10 @@
 /**
- * The exercise library.
+ * The exercise library, as it lives inside the Progress page's tab strip.
  *
  * The whole catalog arrives once and is filtered in the browser, so searching
  * ~900 movements never waits on a round trip. Tapping a row goes to
- * `/exercises/:id`, which is a page, not a modal — see ExerciseDetail.
+ * `/exercises/:id`, which is a page, not a modal — see ExerciseDetail. No page
+ * chrome here: Progress owns the header, the tabs, and the scroll container.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -92,9 +93,9 @@ function FilterPill({
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Library ──────────────────────────────────────────────────────────────────
 
-export default function Exercises() {
+export function ExerciseLibrary() {
   const navigate = useSmoothNavigate()
   const catalog = useQuery(api.exercises.catalog)
   const customExercises = useQuery(api.logs.customExercises.list) as
@@ -228,157 +229,150 @@ export default function Exercises() {
     muscle !== ANY_VALUE || equipment !== ANY_VALUE || category !== ANY_VALUE
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
-      <main className="app-page pb-28">
-        <header className="app-header">
-          <div className="min-w-0">
-            <h1 className="app-title">Exercises</h1>
-            <p className="mt-1 text-[14px] text-muted-foreground">
-              {loading
-                ? "Loading the catalog…"
-                : `${filtered.length} of ${exercises.length} movements`}
-            </p>
-          </div>
-        </header>
+    <section aria-label="Exercise library">
+      <div className="relative">
+        <MagnifyingGlass
+          size={15}
+          className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
+        />
+        <input
+          type="search"
+          name="exercise-library-query"
+          aria-label="Search exercises"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search exercises…"
+          className="h-11 w-full rounded-lg border border-border/60 bg-background pr-4 pl-10 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
+        />
+      </div>
 
-        <div className="relative mt-1">
-          <MagnifyingGlass
-            size={15}
-            className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="search"
-            name="exercise-library-query"
-            aria-label="Search exercises"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search exercises…"
-            className="h-11 w-full rounded-lg border border-border/60 bg-background pr-4 pl-10 text-[15px] outline-none placeholder:text-muted-foreground focus:border-foreground/50 focus:ring-2 focus:ring-foreground/10"
-          />
-        </div>
+      <div
+        role="group"
+        aria-label="Filter exercises"
+        className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
+      >
+        <FilterPill
+          label="Any muscle"
+          value={muscle}
+          options={muscleOptions}
+          onChange={setMuscle}
+        />
+        <FilterPill
+          label="Any equipment"
+          value={equipment}
+          options={equipmentOptions}
+          onChange={setEquipment}
+        />
+        <FilterPill
+          label="Any type"
+          value={category}
+          options={Object.entries(EXERCISE_CATEGORY_LABELS).map(
+            ([value, label]) => ({ value, label })
+          )}
+          onChange={setCategory}
+        />
+        {filtersActive && (
+          <button
+            type="button"
+            onClick={() => {
+              hapticSelection()
+              setMuscle(ANY_VALUE)
+              setEquipment(ANY_VALUE)
+              setCategory(ANY_VALUE)
+            }}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
+          >
+            <X size={11} weight="bold" />
+            Clear
+          </button>
+        )}
+      </div>
 
-        <div
-          role="group"
-          aria-label="Filter exercises"
-          className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
-        >
-          <FilterPill
-            label="Any muscle"
-            value={muscle}
-            options={muscleOptions}
-            onChange={setMuscle}
-          />
-          <FilterPill
-            label="Any equipment"
-            value={equipment}
-            options={equipmentOptions}
-            onChange={setEquipment}
-          />
-          <FilterPill
-            label="Any type"
-            value={category}
-            options={Object.entries(EXERCISE_CATEGORY_LABELS).map(
-              ([value, label]) => ({ value, label })
-            )}
-            onChange={setCategory}
-          />
-          {filtersActive && (
-            <button
-              type="button"
-              onClick={() => {
-                hapticSelection()
-                setMuscle(ANY_VALUE)
-                setEquipment(ANY_VALUE)
-                setCategory(ANY_VALUE)
-              }}
-              className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[14px] font-medium text-muted-foreground transition-colors active:text-foreground"
+      <p className="mt-2 text-[13px] text-muted-foreground">
+        {loading
+          ? "Loading the catalog…"
+          : `${filtered.length} of ${exercises.length} movements`}
+      </p>
+
+      {/*
+      Deliberately static. The router holds the outgoing page until the
+      incoming one stops reporting `animate-pulse` / `aria-busy`, so a
+      shimmering skeleton here would stall the tab transition for half a
+      second before anything moved.
+    */}
+      {loading ? (
+        <ul className="mt-4">
+          {Array.from({ length: 8 }, (_, index) => (
+            <li
+              key={index}
+              className="flex min-h-16 items-center gap-3 border-b border-border/50 py-3"
             >
-              <X size={11} weight="bold" />
-              Clear
-            </button>
+              <div className="h-11 w-11 shrink-0 rounded-full bg-foreground/[0.06]" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-3.5 w-40 rounded bg-foreground/[0.06]" />
+                <div className="h-3 w-24 rounded bg-foreground/[0.04]" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-20 text-center">
+          <MagnifyingGlass size={26} className="text-muted-foreground/40" />
+          <p className="text-[15px] font-semibold">Nothing matches that</p>
+          <p className="max-w-xs text-[14px] text-muted-foreground">
+            Loosen a filter, or spell it the way the dataset does.
+          </p>
+        </div>
+      ) : (
+        <div className="mt-4">
+          {sections.map(([letter, group]) => (
+            <section key={letter}>
+              <h2 className="sticky top-0 z-10 bg-background/95 py-1.5 text-[12px] font-bold tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
+                {letter}
+              </h2>
+              <ul>
+                {group.map((exercise) => (
+                  <li key={exercise.id}>
+                    <button
+                      type="button"
+                      onClick={() => openExercise(exercise.id)}
+                      className="flex min-h-16 w-full items-center gap-3 border-b border-border/50 py-3 text-left transition-colors active:bg-muted/40"
+                    >
+                      <ExerciseThumbnail exerciseId={exercise.id} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[15px] font-semibold">
+                          {exercise.name}
+                        </p>
+                        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                          {muscleSummary(exercise.primaryMuscles)}
+                        </p>
+                      </div>
+                      {exercise.custom ? (
+                        <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                          Yours
+                        </span>
+                      ) : exercise.level ? (
+                        <span className="shrink-0 text-[12px] text-muted-foreground/70">
+                          {titleCase(exercise.level)}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+          {hasMore && (
+            <div
+              ref={sentinelRef}
+              aria-hidden="true"
+              className="h-16"
+              // Deliberately no spinner: the router treats loading markers
+              // as "page not ready yet", and this one is below the fold.
+            />
           )}
         </div>
-
-        {/*
-          Deliberately static. The router holds the outgoing page until the
-          incoming one stops reporting `animate-pulse` / `aria-busy`, so a
-          shimmering skeleton here would stall the tab transition for half a
-          second before anything moved.
-        */}
-        {loading ? (
-          <ul className="mt-4">
-            {Array.from({ length: 8 }, (_, index) => (
-              <li
-                key={index}
-                className="flex min-h-16 items-center gap-3 border-b border-border/50 py-3"
-              >
-                <div className="h-11 w-11 shrink-0 rounded-full bg-foreground/[0.06]" />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <div className="h-3.5 w-40 rounded bg-foreground/[0.06]" />
-                  <div className="h-3 w-24 rounded bg-foreground/[0.04]" />
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-20 text-center">
-            <MagnifyingGlass size={26} className="text-muted-foreground/40" />
-            <p className="text-[15px] font-semibold">Nothing matches that</p>
-            <p className="max-w-xs text-[14px] text-muted-foreground">
-              Loosen a filter, or spell it the way the dataset does.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-4">
-            {sections.map(([letter, group]) => (
-              <section key={letter}>
-                <h2 className="sticky top-0 z-10 bg-background/95 py-1.5 text-[12px] font-bold tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
-                  {letter}
-                </h2>
-                <ul>
-                  {group.map((exercise) => (
-                    <li key={exercise.id}>
-                      <button
-                        type="button"
-                        onClick={() => openExercise(exercise.id)}
-                        className="flex min-h-16 w-full items-center gap-3 border-b border-border/50 py-3 text-left transition-colors active:bg-muted/40"
-                      >
-                        <ExerciseThumbnail exerciseId={exercise.id} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[15px] font-semibold">
-                            {exercise.name}
-                          </p>
-                          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
-                            {muscleSummary(exercise.primaryMuscles)}
-                          </p>
-                        </div>
-                        {exercise.custom ? (
-                          <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
-                            Yours
-                          </span>
-                        ) : exercise.level ? (
-                          <span className="shrink-0 text-[12px] text-muted-foreground/70">
-                            {titleCase(exercise.level)}
-                          </span>
-                        ) : null}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-            {hasMore && (
-              <div
-                ref={sentinelRef}
-                aria-hidden="true"
-                className="h-16"
-                // Deliberately no spinner: the router treats loading markers
-                // as "page not ready yet", and this one is below the fold.
-              />
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+      )}
+    </section>
   )
 }

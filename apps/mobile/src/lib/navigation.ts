@@ -36,7 +36,6 @@ export const PRIMARY_TAB_ORDER = [
   "/",
   "/nutrition",
   "/workouts",
-  "/exercises",
   "/progress",
   "/coach",
 ]
@@ -73,7 +72,6 @@ export function shouldShowBottomBar(pathname: string) {
     pathname === "/progress" ||
     pathname === "/supplements" ||
     pathname === "/coach" ||
-    pathname === "/exercises" ||
     // A single exercise is a browsing destination, not a task. Keeping the
     // chrome means the desktop sidebar does not vanish just because someone
     // wanted to read how a curl works.

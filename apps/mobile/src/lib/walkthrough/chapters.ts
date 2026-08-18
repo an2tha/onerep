@@ -8,7 +8,6 @@ import type { TourChapter } from "./types"
  */
 export const HIDDEN_DESTINATIONS = [
   "/camera",
-  "/exercises",
   "/foods/custom",
   "/foods/search",
   "/nutrition/fasting",
@@ -155,10 +154,9 @@ export const WALKTHROUGH_CHAPTERS: readonly TourChapter[] = [
         anchor: "training-header",
         kind: "discovery",
         title: "There's more inside",
-        body: "Ready-made routines and the full exercise library.",
+        body: "Ready-made routines, and a workout built the way you want it.",
         links: [
           { label: "Example routines", to: "/routines" },
-          { label: "Exercise library", to: "/exercises" },
           { label: "New workout", to: "/workouts/new" },
         ],
       },
@@ -174,8 +172,8 @@ export const WALKTHROUGH_CHAPTERS: readonly TourChapter[] = [
       {
         id: "progress.tabs",
         anchor: "progress-tabs",
-        title: "Three views",
-        body: "Body, nutrition, and training trends each get their own tab.",
+        title: "Four views",
+        body: "Body, nutrition, and training trends each get a tab — and the exercise library sits in the fourth.",
       },
       {
         id: "progress.checkIn",
