@@ -382,6 +382,7 @@ function MacroDial({
   color,
   size,
   stroke,
+  mirrored = false,
   emphasis = false,
   className,
   style,
@@ -394,6 +395,12 @@ function MacroDial({
   color: string
   size: number
   stroke: number
+  /**
+   * Mirrors the sweep so a flanking dial fills away from the centre one.
+   * Without it the arc runs straight under its neighbour and comes out the
+   * far side as a floating sliver.
+   */
+  mirrored?: boolean
   /** The centre dial states its goal outright; the flanking two stay terse. */
   emphasis?: boolean
   className?: string
@@ -427,7 +434,12 @@ function MacroDial({
       )}
       <svg
         viewBox="0 0 100 100"
-        className="h-full w-full -rotate-90"
+        className="h-full w-full"
+        style={{
+          transform: mirrored
+            ? "scaleX(-1) rotate(-90deg)"
+            : "rotate(-90deg)",
+        }}
         aria-hidden="true"
       >
         <circle
@@ -3060,9 +3072,10 @@ export default function Nutrition() {
                       value={intakeTotals.calories}
                       target={calorieTarget}
                       suffix=""
-                      color={APP_ACCENT_COLORS.food}
+                      color={APP_ACCENT_COLORS.neutral}
                       size={104}
                       stroke={7}
+                      mirrored
                       className="z-0 -mr-3.5"
                     />
                   )}

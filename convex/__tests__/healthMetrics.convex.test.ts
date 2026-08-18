@@ -290,3 +290,62 @@ describe("the health dashboard query", () => {
     ).toBeNull();
   });
 });
+
+describe("the series query", () => {
+  test("returns every metric over the requested range", async () => {
+    const t = convexTest(schema, modules);
+    const subject = "user_series";
+
+    await t.run(async (ctx) => {
+      for (let index = 40; index >= 0; index -= 1) {
+        const date = new Date(`${TODAY}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - index);
+        await ctx.db.insert("healthMetrics", {
+          userId: subject,
+          date: date.toISOString().slice(0, 10),
+          provider: "apple_health",
+          sleepMinutes: 420,
+          steps: index < 7 ? 9_000 : 6_000,
+          hrvMs: 60,
+          restingHeartRateBpm: 55,
+          syncedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    });
+
+    const week = await asUser(t, subject).query(api.logs.healthMetrics.series, {
+      today: TODAY,
+      range: "W",
+    });
+
+    expect(week!.metrics.steps.points).toHaveLength(7);
+    expect(week!.metrics.steps.average).toBe(9_000);
+    // The preceding week sat at 6,000, so the trend chip has something true
+    // to say rather than a shrug.
+    expect(week!.metrics.steps.previousAverage).toBe(6_000);
+    expect(week!.metrics.steps.deltaPercent).toBe(50);
+    expect(week!.metrics.recovery.points.at(-1)!.value).not.toBeNull();
+  });
+
+  test("a year range comes back bucketed rather than as 364 points", async () => {
+    const t = convexTest(schema, modules);
+    const result = await asUser(t, "user_year").query(
+      api.logs.healthMetrics.series,
+      { today: TODAY, range: "Y" },
+    );
+
+    expect(result!.bucketDays).toBe(7);
+    expect(result!.metrics.sleep.points).toHaveLength(52);
+  });
+
+  test("signed-out callers get nothing", async () => {
+    const t = convexTest(schema, modules);
+    expect(
+      await t.query(api.logs.healthMetrics.series, {
+        today: TODAY,
+        range: "W",
+      }),
+    ).toBeNull();
+  });
+});

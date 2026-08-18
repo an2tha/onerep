@@ -393,9 +393,14 @@ export function MetricBars({
     const highest = Math.max(...values)
     const lowest = Math.min(...values)
     // Bars are anchored below the lowest reading rather than at zero: resting
-    // heart rates all sit near 55, and a zero baseline would render every week
-    // as five identical full-height bars.
+    // heart rates all sit near 55, and a zero baseline would render a week of
+    // them as identical full-height bars with no visible variation.
     const span = highest - lowest
+    // A perfectly flat series has no spread to anchor against, so it falls
+    // back to a zero baseline and draws as one even row. Anchoring it the
+    // usual way would collapse every bar to the 4% minimum and read as a
+    // catastrophe rather than as consistency.
+    if (span === 0) return { max: highest, floor: 0 }
     return { max: highest, floor: Math.max(0, lowest - span * 0.6) }
   }, [points])
 
@@ -456,7 +461,7 @@ export function MetricBars({
             <p className="text-[13px] leading-none font-bold text-background tabular-nums">
               {active.value === null ? "No reading" : format(active.value)}
             </p>
-            <p className="mt-1 text-[10px] leading-none font-medium text-background/70">
+            <p className="mt-1 text-[11px] leading-none font-medium text-background/80">
               {active.span > 1
                 ? `week of ${formatShortDate(active.date)}`
                 : formatLongDate(active.date)}
@@ -465,7 +470,7 @@ export function MetricBars({
         )}
       </div>
 
-      <div className="mt-2 flex justify-between px-1 text-[10px] font-medium text-muted-foreground">
+      <div className="mt-2 flex justify-between px-1 text-[11px] font-medium text-muted-foreground">
         <span>{formatShortDate(points[0]?.date ?? "")}</span>
         <span>{formatShortDate(points[points.length - 1]?.date ?? "")}</span>
       </div>
@@ -499,12 +504,15 @@ export function MetricLine({
   const values = measured.map((point) => point.value as number)
   const max = values.length > 0 ? Math.max(...values) : 1
   const min = values.length > 0 ? Math.min(...values) : 0
-  const span = Math.max(1, max - min)
+  const span = max - min
 
   const width = 100
   const x = (index: number) =>
     points.length <= 1 ? width / 2 : (index / (points.length - 1)) * width
-  const y = (value: number) => 92 - ((value - min) / span) * 84
+  // A flat series is drawn down the middle rather than pinned to the floor,
+  // which is where dividing by a zero span would otherwise put it.
+  const y = (value: number) =>
+    span === 0 ? 50 : 92 - ((value - min) / span) * 84
 
   // Gaps break the line rather than being interpolated across: a straight
   // segment over three missing days is a claim about days nobody measured.
@@ -528,35 +536,57 @@ export function MetricLine({
         className="relative rounded-xl bg-foreground/[0.04] p-3"
         style={{ height }}
       >
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="h-full w-full"
-          aria-hidden="true"
-        >
-          {segments.map((segment, index) => (
-            <path
-              key={index}
-              d={segment}
-              fill="none"
-              stroke={tone}
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-          {measured.map((point) => (
-            <circle
-              key={point.date}
-              cx={x(point.index)}
-              cy={y(point.value as number)}
-              r={selected === point.index ? 2.6 : 1.4}
-              fill={tone}
-              vectorEffect="non-scaling-stroke"
-            />
-          ))}
-        </svg>
+        <div className="absolute inset-3">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            className="h-full w-full overflow-visible"
+            aria-hidden="true"
+          >
+            {segments.map((segment, index) => (
+              <path
+                key={index}
+                d={segment}
+                fill="none"
+                stroke={tone}
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+
+          {/*
+            The dots are positioned rather than drawn, because the svg above
+            stretches its viewBox non-uniformly to fill the card — a <circle>
+            inside it comes out as an oval. Percentages put them on the same
+            geometry without inheriting the distortion, and it lets an isolated
+            reading between two gaps still show up as a mark of its own.
+          */}
+          {measured.map((point) => {
+            const isSelected = selected === point.index
+            return (
+              <span
+                key={point.date}
+                aria-hidden="true"
+                className="absolute rounded-full transition-all duration-300"
+                style={{
+                  left: `${x(point.index)}%`,
+                  top: `${y(point.value as number)}%`,
+                  width: isSelected ? 9 : 5,
+                  height: isSelected ? 9 : 5,
+                  marginLeft: isSelected ? -4.5 : -2.5,
+                  marginTop: isSelected ? -4.5 : -2.5,
+                  backgroundColor: tone,
+                  boxShadow: isSelected
+                    ? "0 0 0 3px color-mix(in srgb, var(--card) 70%, transparent)"
+                    : undefined,
+                }}
+              />
+            )
+          })}
+        </div>
 
         {/* Hit targets sit above the svg so the line can stay hairline-thin. */}
         <div className="absolute inset-0 flex">
@@ -585,14 +615,14 @@ export function MetricLine({
             <p className="text-[13px] leading-none font-bold text-background tabular-nums">
               {active.value === null ? "No reading" : format(active.value)}
             </p>
-            <p className="mt-1 text-[10px] leading-none font-medium text-background/70">
+            <p className="mt-1 text-[11px] leading-none font-medium text-background/80">
               {formatLongDate(active.date)}
             </p>
           </div>
         )}
       </div>
 
-      <div className="mt-2 flex justify-between px-1 text-[10px] font-medium text-muted-foreground">
+      <div className="mt-2 flex justify-between px-1 text-[11px] font-medium text-muted-foreground">
         <span>{formatShortDate(points[0]?.date ?? "")}</span>
         <span>{formatShortDate(points[points.length - 1]?.date ?? "")}</span>
       </div>
