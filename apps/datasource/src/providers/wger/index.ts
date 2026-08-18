@@ -7,7 +7,8 @@ import type {
   Ranked,
 } from "../../core/provider.ts";
 import { LiveStore, livePath } from "../../core/store.ts";
-import { relevance, toMatchExpression } from "../../core/text.ts";
+import { relevance } from "../../core/ranking.ts";
+import { toMatchExpression } from "../../core/text.ts";
 import type { Exercise } from "../../core/types.ts";
 import { build } from "./import.ts";
 import { toExercise } from "./normalize.ts";

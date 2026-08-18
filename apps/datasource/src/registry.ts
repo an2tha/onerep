@@ -7,6 +7,7 @@ import {
   type Provider,
 } from "./core/provider.ts";
 import type { Exercise, Food } from "./core/types.ts";
+import { OpenFoodFactsProvider } from "./providers/off/index.ts";
 import { UsdaProvider } from "./providers/usda/index.ts";
 import { WgerProvider } from "./providers/wger/index.ts";
 
@@ -14,7 +15,7 @@ import { WgerProvider } from "./providers/wger/index.ts";
  * The one place that knows which providers exist.
  *
  * Everything above this file addresses catalogs by kind ("search foods") and
- * everything below it knows only its own upstream. Adding Open Food Facts is a
+ * everything below it knows only its own upstream. Adding a catalog is a
  * directory under `providers/` and a line in {@link createRegistry}.
  */
 
@@ -26,10 +27,27 @@ import { WgerProvider } from "./providers/wger/index.ts";
  */
 const WEIGHTS: Record<string, number> = {
   usda: 1,
+  // Deliberately 1, not a discount.
+  //
+  // The quality difference that matters is generic-vs-branded, and the tier
+  // prior in core/ranking.ts already encodes it: USDA's branded rows and every
+  // Open Food Facts row carry the same penalty, so they compete on how well
+  // they match. USDA branded is manufacturer label data exactly like OFF, so
+  // there is nothing left to prefer it for.
+  //
+  // A discount here is also far blunter than it looks, because these scores are
+  // already squashed into roughly 0.65..0.99 — an 0.85 multiplier was enough to
+  // put USDA's "Nutella sandwich on white bread" above Open Food Facts' actual
+  // Nutella. Tune the tier prior instead; it is in interpretable units.
+  off: 1,
 };
 
 export function createRegistry(dataDir: string): Registry {
-  return new Registry([new UsdaProvider(dataDir), new WgerProvider(dataDir)]);
+  return new Registry([
+    new UsdaProvider(dataDir),
+    new OpenFoodFactsProvider(dataDir),
+    new WgerProvider(dataDir),
+  ]);
 }
 
 export class Registry {
@@ -125,8 +143,9 @@ function merge<T extends { providerId: string }>(
   results: { item: T; score: number }[][],
   limit: number,
 ): T[] {
-  // Flattening first and sorting once keeps the single-provider case — which is
-  // every case today — a no-op beyond one already-sorted pass.
+  // Exercises still come from a single provider, and a lone provider has
+  // already ranked its own results — re-sorting them would only risk perturbing
+  // a correct order for nothing.
   if (results.length === 1) return results[0]!.map((entry) => entry.item).slice(0, limit);
 
   return results

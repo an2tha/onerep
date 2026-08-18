@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { createIndexSql, createTableSql, schemaTables } from "./ddl.ts";
+import { schema as offSchema } from "../providers/off/schema.ts";
 import { schema as usdaSchema } from "../providers/usda/schema.ts";
 import { schema as wgerSchema } from "../providers/wger/schema.ts";
 
@@ -63,6 +64,7 @@ test("produces DDL SQLite actually accepts", () => {
  */
 test.each([
   ["usda", usdaSchema],
+  ["off", offSchema],
   ["wger", wgerSchema],
 ])("%s schema creates cleanly", (_name, schema) => {
   const db = new Database(":memory:");

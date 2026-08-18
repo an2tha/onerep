@@ -7,7 +7,8 @@ import type {
 } from "../../core/provider.ts";
 import { readMeta } from "../../core/meta.ts";
 import { LiveStore, livePath } from "../../core/store.ts";
-import { barcodeKey, nameKey, relevance, toMatchExpression } from "../../core/text.ts";
+import { relevance, TIER_PENALTY } from "../../core/ranking.ts";
+import { barcodeKey, nameKey, toMatchExpression } from "../../core/text.ts";
 import type { Food } from "../../core/types.ts";
 import { build } from "./import.ts";
 import { toFood, type PortionRow } from "./normalize.ts";
@@ -23,14 +24,6 @@ import { aliases, foods, portions, schema } from "./schema.ts";
  */
 const NAME_WEIGHT = 8.0;
 const BRAND_WEIGHT = 2.0;
-/**
- * Deliberately larger than EXACT_BONUS. Thousands of branded products are named
- * exactly "CHICKEN BREAST", so without a dominant tier prior they take every
- * exact-match bonus and bury the generic ingredient. Only foods matching all
- * query tokens are candidates, so tier ordering never suppresses a genuinely
- * better match — it only decides between comparably good ones.
- */
-const TIER_PENALTY = 6.0;
 const EXACT_BONUS = 12.0;
 const PREFIX_BONUS = 4.0;
 

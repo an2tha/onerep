@@ -1,9 +1,9 @@
 # OneRep datasource
 
 A small Bun HTTP service that replaces FatSecret. It serves USDA FoodData
-Central foods and the wger exercise catalog out of local SQLite databases,
-using FTS5 for search. Storage is `bun:sqlite` with Drizzle over the top; there
-is no DuckDB and no Open Food Facts import yet.
+Central foods, the Open Food Facts product catalog and the wger exercise
+catalog out of local SQLite databases, using FTS5 for search. Storage is
+`bun:sqlite` with Drizzle over the top.
 
 Responses use the Open Food Facts-shaped payload the mobile client already
 consumes, so Convex only has to forward requests.
@@ -18,9 +18,10 @@ speaks. Nothing outside a provider directory mentions its vocabulary, so
 
 ```text
 src/
-  core/        provider contract, normalised types, database lifecycle, DDL, CSV
+  core/        provider contract, normalised types, lifecycle, DDL, ranking, CSV/JSONL
   providers/
     usda/      schema.ts + import.ts + normalize.ts + index.ts
+    off/       Open Food Facts, same four files
     wger/      same four files
   registry.ts  the one place that knows which providers exist
   compat.ts    normalised types -> the wire format clients actually parse
@@ -116,6 +117,13 @@ DATA_DIR=./data bun src/cli.ts import usda --csv-dir usda/FoodData_Central_csv_2
 DATA_DIR=./data bun src/cli.ts import wger
 DATA_DIR=./data bun src/cli.ts rollback usda
 DATA_DIR=./data bun src/cli.ts stats
+
+# Open Food Facts: the gzipped JSONL dump is read as-is, never expanded
+curl -O https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+DATA_DIR=./data bun src/cli.ts import off --file openfoodfacts-products.jsonl.gz
+
+# ...or a partial import, which is the sane way to try it on a small box
+DATA_DIR=./data bun src/cli.ts import off --file openfoodfacts-products.jsonl.gz --limit 50000
 ```
 
 Run `bun src/cli.ts` with no arguments for usage; it is generated from the
@@ -126,7 +134,7 @@ loaded. A full import takes roughly 3.5 minutes and produces a ~1.2 GB database
 holding about 455,000 distinct products, cleaned down from 2,007,635 parsed
 rows.
 
-### Cleanup passes
+### USDA: cleanup passes
 
 After loading, the importer runs three passes:
 
@@ -149,20 +157,7 @@ Every retired `fdc_id` is recorded in the `aliases` table, and `GET
 /v1/foods/:id` falls back through it. A food logged before an import still
 resolves afterwards rather than 404ing.
 
-### Ranking
-
-Search is FTS5 BM25 over name and brand, adjusted by a data-type prior:
-Foundation, then SR Legacy, then Survey/FNDDS, then Branded. The prior is
-deliberately stronger than the exact-name bonus, because thousands of branded
-products are named exactly "CHICKEN BREAST" and would otherwise bury the
-generic ingredient. Only foods matching every query token are candidates, so
-the prior decides between comparable matches rather than suppressing better
-ones. Weights live at the top of `src/providers/usda/index.ts`.
-
-Names are additionally stored as a punctuation-free `name_key`, so USDA's
-comma-inverted "Chicken, breast, raw" still prefix-matches what a user types.
-
-### Two USDA gotchas worth remembering
+### USDA: two gotchas worth remembering
 
 `food_nutrient.nutrient_id` joins on `nutrient.id` (protein = 1003), **not** on
 `nutrient_nbr`, which holds the legacy SR numbering (protein = 203). Getting
@@ -173,6 +168,95 @@ expected.
 `fdc_id` is declared `INTEGER PRIMARY KEY` so it aliases the rowid. The branded
 and nutrient passes issue millions of `UPDATE ... WHERE fdc_id = ?` statements;
 without the rowid alias each one scans two million rows.
+
+### Open Food Facts
+
+The dump is one JSON object per line, ~12 GB gzipped. It is streamed and
+gunzipped in a single pass and the `.gz` is read directly, so it never has to be
+expanded onto disk. Measured on a 4 GB box: **3,187,767 products kept from
+4,686,548 scanned in ~20 minutes, peak 2.8 GB, 1.19 GB on disk.**
+
+Two things keep it inside that memory budget, and both were learned by watching
+it get OOM-killed. `core/jsonl.ts` decompresses through `node:zlib` rather than
+`DecompressionStream`, which ignores backpressure in Bun and queues the whole
+expanded dump. And rows are committed in batches (`commitEvery`), because Bun's
+SQLite build refuses `journal_mode = OFF` — it reports `delete` back however you
+set it — so an open transaction pins every dirty page it has touched.
+
+Imported with no country filter, so the catalog is global. A product is kept
+only if it has a barcode, a name, and some nutrition; the last of those is what
+does most of the size work — about a third of the dump is skeleton records with
+no nutrition panel yet.
+
+**Open Food Facts is mid-migration between two nutrition formats and both must
+be read.** Older records use the flat `nutriments` map; migrated ones leave it
+empty and fill `nutrition.input_sets`. Reading only the legacy map imports 21%
+of the catalog and silently loses Nutella. Note that the *API* still computes
+the legacy view, so verifying against `world.openfoodfacts.org/api` will not
+show you this — check a record from the dump itself.
+
+The newer format needs more care than a rename. Values carry their own unit
+(`g`, `mg`, `µg`, `kcal`, `kJ`) instead of being pre-normalised to grams, so the
+unit is honoured and `% DV` and `IU` are dropped rather than guessed — a
+percentage of a daily value needs a reference intake to invert and IU is
+substance-specific, and a plausible-looking wrong number on a nutrition label is
+worse than a gap. A record also carries several `input_sets`: per-serving and
+per-100ml variants, `prepared` variants, and sets holding nothing but scoring
+metadata. Coca-Cola's first per-100g set contains only `nova-group`, so
+preferring grams and stopping there drops the product; Nutella spreads its
+macros, fibre and vitamins across three sets. Every usable as-sold 100-unit set
+is therefore merged, first-declared value winning.
+
+The dump has no `image_front_small_url` either — that is computed by the API.
+Image URLs are assembled from `images.selected.front.<lang>.rev` and a barcode
+split into 3/3/3/rest. Repeated barcodes are collapsed onto
+the most complete row, and a handful of malformed lines are tolerated and
+counted — more than a thousand aborts the import as a truncated download.
+
+Names are stored in both the product's own language and English where a
+contributor supplied one, and both are indexed, so a French chocolate bar is
+found by "chocolat noir" and by "dark chocolate" alike. English is preferred
+for display; the original stays searchable.
+
+**Every OFF nutrient is published in grams**, whatever the label said —
+`sodium_100g: 0.0428` carries `sodium_unit: "g"`, and `vitamin-c_100g: 0.0543`
+means 54.3 mg. The normalised shape wants milligrams for minerals and
+micrograms for vitamins A and D, so `providers/off/normalize.ts` scales by 1e3
+and 1e6. Get a factor wrong and nothing looks broken — the numbers stay
+plausible and only the units are nonsense — which is why the scaling is a
+table rather than open-coded per field, and why it is tested against values
+taken verbatim from live records.
+
+Energy falls back from `energy-kcal_100g` to `energy_100g` (kilojoules, which
+is what EU labels carry) at 4.184 kJ per kcal, and sodium falls back to
+`salt_100g / 2.5` for the many European products that declare only salt.
+
+### Ranking
+
+Search is FTS5 BM25 over name and brand, adjusted by a data-type prior:
+Foundation, then SR Legacy, then Survey/FNDDS, then Branded. The prior is
+deliberately stronger than the exact-name bonus, because thousands of branded
+products are named exactly "CHICKEN BREAST" and would otherwise bury the
+generic ingredient. Only foods matching every query token are candidates, so
+the prior decides between comparable matches rather than suppressing better
+ones. Weights live at the top of `src/providers/usda/index.ts`.
+
+The tier prior itself lives in `src/core/ranking.ts`, not in either provider,
+because it is the one number two catalogs have to agree on. A provider's BM25
+weights are its own business; its *prior* is not. Open Food Facts is wholly
+branded packaged product and so enters the merge at the branded tier. Skipping
+that would score every OFF product as though it were a lab-measured generic
+food and push USDA's entire branded catalog — which does carry the penalty —
+out of results the moment OFF is imported.
+
+The resulting order is: USDA generic foods, then packaged products from either
+catalog, with the per-provider weight in `src/registry.ts` deciding between two
+packaged goods. OFF sits at 0.85 against USDA's 1.0, so a USDA branded row wins
+a near-tie; it is a tie-break, not a veto, and a clearly better OFF match still
+comes first. That weight is the knob to turn if EU packaged goods should lead.
+
+Names are additionally stored as a punctuation-free `name_key`, so USDA's
+comma-inverted "Chicken, breast, raw" still prefix-matches what a user types.
 
 ## Safe database promotion
 
@@ -193,3 +277,8 @@ renames stay atomic.
 USDA FoodData Central is public domain. The wger catalog is CC-BY-SA 4.0: the
 `license` and `licenseAuthor` fields come back on every exercise and must be
 displayed wherever an image or description is shown.
+
+Open Food Facts is under the Open Database License (ODbL), with product images
+under CC-BY-SA. Attribution is required wherever its data appears, which is why
+every response carries a `providers` array naming each catalog that contributed
+to it.

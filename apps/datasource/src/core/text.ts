@@ -53,15 +53,3 @@ export function barcodeKey(barcode: string): string | null {
   const digits = barcode.replace(/\D/g, "").replace(/^0+/, "");
   return digits.length > 0 ? digits : null;
 }
-
-/**
- * Maps a ranking expression onto 0..1, higher being better, so results from
- * different providers can be interleaved.
- *
- * BM25-derived scores are unbounded and negative-is-better; this is a monotonic
- * squash, not a calibration. Two providers returning 0.8 means "both thought
- * this was a good match", not that the matches are equally good.
- */
-export function relevance(score: number): number {
-  return 1 / (1 + Math.exp(score / 8));
-}

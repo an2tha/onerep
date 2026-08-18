@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useSearchParams } from "react-router"
+import { FoodAttribution } from "@repo/ui"
 import {
   ArrowLeft,
   CaretRight,
@@ -27,7 +28,7 @@ import {
   type FoodPortion,
   type LogMicros,
 } from "@/lib/food-log"
-import { searchFoodsAccurate } from "@/lib/openfoodfacts"
+import { foodSources, searchFoodsAccurate } from "@/lib/openfoodfacts"
 import { useSmoothNavigate } from "@/lib/navigation"
 import type { FoodDetail } from "@repo/models"
 import {
@@ -196,6 +197,12 @@ export default function SearchFoods() {
   }, [query, preferences?.foodSearchLanguage, retryNonce])
 
   const results = searchResults
+  // A search can span catalogs, so credit whichever ones actually answered it
+  // rather than naming one and hoping.
+  const resultSources = useMemo(
+    () => foodSources(results.map((result) => result.code)),
+    [results]
+  )
   const recipeResults = useMemo(() => {
     if (!completedQuery) return []
     const savedIds = new Set(savedRecipes.map((recipe) => String(recipe._id)))
@@ -552,17 +559,7 @@ export default function SearchFoods() {
                     )
                   })}
                 </div>
-                <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                  Food data from{" "}
-                  <a
-                    href="https://fdc.nal.usda.gov"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline underline-offset-2"
-                  >
-                    USDA FoodData Central
-                  </a>
-                </p>
+                <FoodAttribution sources={resultSources} className="mt-3" />
               </>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { barcodeKey, nameKey, relevance, toMatchExpression } from "./text.ts";
+import { barcodeKey, nameKey, toMatchExpression } from "./text.ts";
 
 test("builds an AND query with a prefix on the last token", () => {
   expect(toMatchExpression("chicken breast")).toBe('"chicken" AND "breast"*');
@@ -38,20 +38,4 @@ test("canonicalises barcodes and rejects unmatchable ones", () => {
   // A bad scan has no canonical form; the caller reports it as a miss.
   expect(barcodeKey("00000000000000")).toBeNull();
   expect(barcodeKey("---")).toBeNull();
-});
-
-test("maps better raw scores onto higher relevance, bounded to 0..1", () => {
-  // bm25-derived scores are negative-is-better and unbounded; merging results
-  // from two catalogs needs them on a common, monotonic scale.
-  expect(relevance(-40)).toBeGreaterThan(relevance(-10));
-  expect(relevance(-10)).toBeGreaterThan(relevance(10));
-  for (const score of [-1000, -8, 0, 8, 1000]) {
-    expect(relevance(score)).toBeGreaterThanOrEqual(0);
-    expect(relevance(score)).toBeLessThanOrEqual(1);
-  }
-  // Ranking scores in practice land within roughly ±40, where the curve still
-  // separates matches. Far outside that it saturates to 0 or 1 and ties, which
-  // only ever affects results that were already indistinguishably good or bad.
-  expect(relevance(-40)).toBeLessThan(1);
-  expect(relevance(40)).toBeGreaterThan(0);
 });

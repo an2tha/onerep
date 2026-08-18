@@ -12,6 +12,7 @@ import { AnimatedAccordion } from "@repo/ui"
 import {
   FoodMacroStack as MacroStack,
   FoodNutrientRow as NutrRow,
+  FoodAttribution,
   FoodProductHeader as ProductHeader,
 } from "@repo/ui"
 import {
@@ -38,7 +39,11 @@ import {
 import { api } from "../../../../convex/_generated/api"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import type { FoodResult, FoodDetail } from "@repo/models"
-import { getFoodDetail } from "@/lib/openfoodfacts"
+import {
+  expandedFoodImageUrl,
+  foodSources,
+  getFoodDetail,
+} from "@/lib/openfoodfacts"
 import { scaledFoodMacros } from "@/lib/food-search-nutrition"
 import { APP_ACCENT_COLORS, tint } from "@repo/ui"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
@@ -703,6 +708,11 @@ export function FoodDetailSheet({
     })
   }
 
+  // The fuller detail payload carries a photo the search row may not have had.
+  const imageUrl = detail?.imageUrl ?? item.imageUrl
+  // Credit whichever catalog this food is actually from, read off its id.
+  const sources = foodSources([item.code])
+
   const servingLabel = detail?.servingLabel ?? item.serving
   const servingPortion = initialSelectedPortion(item, detail)
   const showVolumeUnits = foodLooksLiquid(item, detail, servingPortion)
@@ -839,6 +849,8 @@ export function FoodDetailSheet({
         calories={calories}
         portionLabel={foodPortionLabel(portion)}
         presentation={presentation}
+        imageUrl={imageUrl}
+        expandedImageUrl={expandedFoodImageUrl(imageUrl)}
       />
 
       {loading ? (
@@ -1010,17 +1022,7 @@ export function FoodDetailSheet({
               <MealPicker value={meal} onChange={setMeal} />
             </div>
           )}
-          <p className="mx-4 mt-4 text-center text-[11px] text-muted-foreground">
-            Food data from{" "}
-            <a
-              href="https://fdc.nal.usda.gov"
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2"
-            >
-              USDA FoodData Central
-            </a>
-          </p>
+          <FoodAttribution sources={sources} className="mx-4 mt-4" />
         </>
       )}
     </MobileSheet>

@@ -164,6 +164,34 @@ test("interleaves several providers by score", () => {
   ]);
 });
 
+test("ranks on match quality, not on which catalog a result came from", () => {
+  // No provider carries a discount. The generic-vs-branded difference is
+  // already priced into the tier prior each provider applies to its own score,
+  // so a second thumb on the scale here only buries better matches: an 0.85
+  // multiplier was enough to put USDA's "Nutella sandwich on white bread" above
+  // Open Food Facts' actual Nutella.
+  const registry = new Registry([
+    new FakeFoods("usda", [{ localId: "1", name: "nutella sandwich", score: 0.8 }]),
+    new FakeFoods("off", [{ localId: "9", name: "nutella", score: 0.87 }]),
+  ]);
+  expect(registry.searchFoods("nutella", 10).map((f) => f.id)).toEqual(["off:9", "usda:1"]);
+});
+
+test("orders a mixed result set purely by score", () => {
+  const registry = new Registry([
+    new FakeFoods("usda", [
+      { localId: "1", name: "chicken a", score: 0.95 },
+      { localId: "2", name: "chicken b", score: 0.4 },
+    ]),
+    new FakeFoods("off", [{ localId: "9", name: "chicken c", score: 0.7 }]),
+  ]);
+  expect(registry.searchFoods("chicken", 10).map((f) => f.id)).toEqual([
+    "usda:1",
+    "off:9",
+    "usda:2",
+  ]);
+});
+
 test("honours the limit across providers", () => {
   const registry = new Registry([
     new FakeFoods("usda", [{ localId: "1", name: "chicken one", score: 0.9 }]),

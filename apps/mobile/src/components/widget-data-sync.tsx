@@ -6,9 +6,14 @@ import { currentDateKey, type FoodLogEntry } from "@/lib/food-log"
 import {
   normalizePresetCard,
   normalizeScheduleRoutines,
+  type CachedWorkoutLog,
   type WorkoutPresetCard,
 } from "@/lib/workout-sync"
 import { updateOneRepWidgets } from "@/lib/home-widgets"
+import { updateWatchToday, onWatchAction } from "@/lib/watch-sync"
+import { useOfflineMutation } from "@/lib/use-offline-mutation"
+import { calcStreak } from "@/lib/training-consistency"
+import { toast } from "@repo/ui"
 import { logDevWarn } from "@/lib/utils"
 
 export function WidgetDataSync() {
@@ -25,6 +30,16 @@ export function WidgetDataSync() {
   const foodLogs = useQuery(api.logs.foodLogs.getDay, user ? { date } : "skip")
   const schedule = useQuery(api.users.schedules.get, user ? {} : "skip")
   const presetDocs = useQuery(api.logs.presets.list, user ? {} : "skip")
+  // Only the watch shows these two; the home widgets never asked for them.
+  const waterLogs = useQuery(api.logs.water.getDay, user ? { date } : "skip")
+  const workoutHistory = useQuery(
+    api.logs.workouts.getHistory,
+    user ? {} : "skip"
+  )
+  const addWaterEntry = useOfflineMutation(
+    api.logs.water.addEntry,
+    "logs.water.addEntry"
+  )
 
   const payload = useMemo(() => {
     if (!user || !goals || !foodLogs || !presetDocs || schedule === undefined) {
@@ -118,6 +133,94 @@ export function WidgetDataSync() {
       logDevWarn("Failed to sync home-screen widgets", error)
     )
   }, [payload])
+
+  // The watch gets the same numbers plus water and the streak, which it has
+  // room for and a home-screen widget does not.
+  const watchPayload = useMemo(() => {
+    if (!payload || waterLogs === undefined || workoutHistory === undefined) {
+      return null
+    }
+    const entries = (waterLogs ?? []) as { amountMl: number }[]
+    const trainedDates = new Set(
+      ((workoutHistory ?? []) as unknown as CachedWorkoutLog[])
+        .map((log) => log.date)
+        .filter(Boolean)
+    )
+    const streakDate = new Date()
+    streakDate.setUTCHours(12, 0, 0, 0)
+
+    return {
+      calories: payload.calories,
+      calorieGoal: payload.calorieGoal,
+      caloriesLeft: payload.caloriesLeft,
+      protein: payload.protein,
+      proteinGoal: payload.proteinGoal,
+      carbs: payload.carbs,
+      carbsGoal: payload.carbsGoal,
+      fat: payload.fat,
+      fatGoal: payload.fatGoal,
+      waterMl: entries.reduce((sum, entry) => sum + entry.amountMl, 0),
+      waterGoalMl: preferences?.waterGoalMl ?? 2500,
+      streakDays: calcStreak(trainedDates, streakDate),
+      workoutBrief: payload.workoutBrief,
+    }
+  }, [payload, preferences?.waterGoalMl, waterLogs, workoutHistory])
+
+  useEffect(() => {
+    if (!watchPayload) return
+    void updateWatchToday(watchPayload).catch((error) =>
+      logDevWarn("Failed to sync the watch", error)
+    )
+  }, [watchPayload])
+
+  // Taps from the wrist, turned into the same mutations the app's own buttons
+  // call. The listener is registered once and torn down on unmount; `disposed`
+  // guards the window where the handle is still resolving.
+  useEffect(() => {
+    if (!user) return
+    let disposed = false
+    let remove: (() => void) | undefined
+
+    void onWatchAction((event) => {
+      if (event.action === "logWater") {
+        const amountMl = event.payload.amountMl ?? 250
+        void addWaterEntry({
+          date: currentDateKey(preferences?.lastActiveTimezone || "UTC"),
+          entry: {
+            id: crypto.randomUUID(),
+            amountMl,
+            loggedAt: new Date().toISOString(),
+          },
+        }).catch(() => toast.error("Could not log water from your watch"))
+        return
+      }
+
+      if (event.action === "logWorkout") {
+        // Nothing to create here. The watch already saved the session to
+        // Health, so the existing HealthKit sync will surface it as an
+        // unlogged workout — writing a second copy would double-count it.
+        const minutes = Math.round((event.payload.durationSeconds ?? 0) / 60)
+        toast.success(
+          minutes > 0
+            ? `Watch workout saved · ${minutes} min`
+            : "Watch workout saved"
+        )
+      }
+    })
+      .then((dispose) => {
+        if (disposed) dispose()
+        else remove = dispose
+      })
+      // A build without the native plugin — an older install, or Android —
+      // rejects here. Losing watch actions is survivable; an unhandled
+      // rejection on every launch is not.
+      .catch((error) => logDevWarn("Watch action listener unavailable", error))
+
+    return () => {
+      disposed = true
+      remove?.()
+    }
+  }, [addWaterEntry, preferences?.lastActiveTimezone, user])
 
   return null
 }

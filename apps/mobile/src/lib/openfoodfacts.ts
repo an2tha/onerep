@@ -643,3 +643,69 @@ export async function getFoodByBarcode(
   const detail = product ? productToDetail(product) : null
   return detail ? productToResult(detail.openFoodFacts) : null
 }
+
+/**
+ * Which catalog a food actually came from.
+ *
+ * The datasource serves several and prefixes every id with the provider that
+ * owns it, so the code is the only thing that reliably says where a row came
+ * from — the nutrition payload itself looks identical whatever the source. A
+ * Swedish kebab from Open Food Facts was being credited to USDA because the
+ * attribution line was hard-coded.
+ *
+ * Open Food Facts is ODbL, which requires both credit and a note of the
+ * licence, so its entry carries one. Anything with an unrecognised prefix
+ * returns null and is credited to nobody, which is the honest answer — better
+ * a missing line than a false claim about where a number came from.
+ */
+export type FoodSource = {
+  id: string
+  name: string
+  url: string
+  license?: { name: string; url: string }
+}
+
+const FOOD_SOURCES: Record<string, FoodSource> = {
+  usda: {
+    id: "usda",
+    name: "USDA FoodData Central",
+    url: "https://fdc.nal.usda.gov",
+  },
+  off: {
+    id: "off",
+    name: "Open Food Facts",
+    url: "https://world.openfoodfacts.org",
+    license: { name: "ODbL", url: "https://opendatacommons.org/licenses/odbl/" },
+  },
+}
+
+export function foodSource(code: string | undefined): FoodSource | null {
+  if (!code) return null
+  const separator = code.indexOf(":")
+  if (separator < 0) return null
+  return FOOD_SOURCES[code.slice(0, separator).toLowerCase()] ?? null
+}
+
+/** The distinct sources behind a list of results, in the order they appear. */
+export function foodSources(codes: (string | undefined)[]): FoodSource[] {
+  const seen = new Map<string, FoodSource>()
+  for (const code of codes) {
+    const source = foodSource(code)
+    if (source && !seen.has(source.id)) seen.set(source.id, source)
+  }
+  return [...seen.values()]
+}
+
+/**
+ * A larger variant of a product image, for when it is opened full-screen.
+ *
+ * Open Food Facts serves each photo at several widths under the same path, and
+ * the datasource stores the 200 px one because that is what a list row wants.
+ * Blowing that up to fill a phone screen looks awful, so the bigger file is
+ * requested instead — and the caller keeps the small URL as a fallback, since
+ * not every revision has every size.
+ */
+export function expandedFoodImageUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined
+  return /\.\d+\.200\.jpg$/.test(url) ? url.replace(/\.200\.jpg$/, ".400.jpg") : url
+}

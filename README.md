@@ -18,7 +18,7 @@
 <h3 align="center">OneRep</h3>
 
   <p align="center">
-    Training, nutrition, recovery, and progress in one place — with an AI coach that does the bookkeeping.
+    Training, nutrition, recovery, and progress in one place, with an AI coach that does the bookkeeping.
     <br />
     <a href="docs/architecture.md"><strong>Explore the docs »</strong></a>
     <br />
@@ -31,7 +31,7 @@
   </p>
 </div>
 
-> **Support the project:** OneRep has no investors, no ads, and no plan to acquire either. Development is funded by one thing — [the paid tier on the production app](https://app.onerep.life). If this code is useful to you, a subscription helps more than any number of stars. Stars are also nice.
+> **Support the project:** OneRep has no investors, no ads, and no plan to acquire either. Development is funded by exactly one thing: [the paid tier on the production app](https://app.onerep.life). If this code is useful to you, a subscription helps more than any number of stars. Stars are also nice.
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -51,6 +51,7 @@
         <li><a href="#prerequisites">Prerequisites</a></li>
         <li><a href="#install">Install</a></li>
         <li><a href="#load-the-food-database">Load the Food Database</a></li>
+        <li><a href="#install-the-ios-and-android-apps">Install the iOS and Android Apps</a></li>
         <li><a href="#optional-integrations">Optional Integrations</a></li>
         <li><a href="#developing-against-your-install">Developing Against Your Install</a></li>
       </ul>
@@ -75,17 +76,17 @@ The production app lives at [app.onerep.life](https://app.onerep.life).
 
 What's implemented, in the order you'd hit it:
 
-- **Daily dashboard** — calorie and macro targets, meals, water, supplements, scheduled training, Coach goals, configurable widgets.
-- **Training** — exercise catalog, workout templates, weekly routines, two concurrent workout slots, rest timers, persisted active workouts, history, volume trends, muscle-recovery estimates.
-- **Nutrition** — self-hosted USDA food search, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water and supplement schedules.
-- **Progress** — body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, user-defined metrics.
-- **Coach** — text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations — every AI write carries an undo payload.
-- **Photo logging** — food detection with a review step that matches detections to food records before anything is logged.
-- **Bring your own key** — paste your own OpenRouter key in Settings and Coach runs on your credential instead of the deployment's: validated against OpenRouter before it saves, stored server-side only, shown as its last four characters, and exempt from the monthly allowance — you're paying for the inference, so nobody meters it.
-- **Your data, over the wire** — a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
-- **Accounts and privacy** — email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
+- **Daily dashboard**: calorie and macro targets, meals, water, supplements, scheduled training, Coach goals, configurable widgets.
+- **Training**: exercise catalog, workout templates, weekly routines, two concurrent workout slots, rest timers, persisted active workouts, history, volume trends, muscle-recovery estimates.
+- **Nutrition**: self-hosted food search across USDA FoodData Central and Open Food Facts, barcode scanning, meal presets, recipes, quick repeat logging, custom macro targets, water and supplement schedules.
+- **Progress**: body measurements, body-fat and circumference check-ins, nutrition and training summaries, charts, user-defined metrics.
+- **Coach**: text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Every AI write carries an undo payload.
+- **Photo logging**: food detection with a review step that matches detections to food records before anything is logged.
+- **Bring your own key**: paste your own OpenRouter key in Settings and Coach runs on your credential instead of the deployment's. It gets validated against OpenRouter before it saves, stored server-side only, shown as its last four characters, and it's exempt from the monthly allowance, because you're the one paying for the inference.
+- **Your data, over the wire**: a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
+- **Accounts and privacy**: email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
 
-Everything here runs on your own hardware: the Convex backend, the food datasource, and the app itself, brought up by one script. AI, food lookup, email, and analytics each switch on with their own environment variables and stay quiet without them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less — any user can supply their own key in Settings and Coach works for them alone.
+Everything here runs on your own hardware: the Convex backend, the food datasource, and the app itself, brought up by one script. AI, food lookup, email, and analytics each switch on with their own environment variables and stay quiet without them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less; any user can supply their own key in Settings and Coach works for them alone.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -119,7 +120,7 @@ training, progress, and the Coach.
 .
 ├── apps/
 │   ├── mobile/       # Main React app, PWA, and Capacitor iOS/Android projects
-│   └── datasource/   # Self-hosted USDA food + wger exercise API (Bun + SQLite)
+│   └── datasource/   # Self-hosted food + exercise API: USDA, Open Food Facts, wger (Bun + SQLite)
 ├── convex/           # Schema, auth, queries, mutations, actions, HTTP routes, and crons
 ├── packages/
 │   ├── models/       # Shared TypeScript models and Coach operation contracts
@@ -129,7 +130,7 @@ training, progress, and the Coach.
 └── docs/             # Architecture, testing, API, and feature docs
 ```
 
-The mobile app talks directly to Convex; there is no API server in the middle. Secrets stay in the Convex deployment and are never exposed as `VITE_*` variables. `@repo/ui` is the presentation boundary — it renders props and raises callbacks, and does not know Convex exists.
+The mobile app talks directly to Convex; there is no API server in the middle. Secrets stay in the Convex deployment and are never exposed as `VITE_*` variables. `@repo/ui` is the presentation boundary: it renders props and raises callbacks, and does not know Convex exists.
 
 This repository is a one-way mirror of an internal OneDev instance: real commit history, minus the hosted deployment's private bits and the marketing site (`scripts/publish-github.sh` documents exactly which paths and why).
 
@@ -141,9 +142,9 @@ This repository is a one-way mirror of an internal OneDev instance: real commit 
 
 ### Prerequisites
 
-- Docker with Compose v2 — it runs the backend, the dashboard, the datasource, and the app
+- Docker with Compose v2. It runs the backend, the dashboard, the datasource, and the app
 - [Bun](https://bun.sh/) 1.3.4 or newer on the host (Node.js 18+ also works); the installer needs it to deploy the Convex functions
-- Roughly 10 GB of disk if you intend to import the full USDA food database
+- Roughly 10 GB of disk for the USDA food database, or ~25 GB if you also import the full Open Food Facts catalog
 - Xcode or Android Studio, only if you're doing native work
 
 ### Install
@@ -154,8 +155,8 @@ cd onerep/selfhost
 ./install.sh
 ```
 
-That's the whole installation. The script asks one question — anonymous
-telemetry, default yes, and no means no script is built into the app at all —
+That's the whole installation. The script asks one question (anonymous
+telemetry, default yes, and no means no script is built into the app at all),
 then writes `selfhost/.env` with generated secrets, brings up the Convex
 backend, deploys the functions, sets the deployment's environment variables,
 and builds and starts the datasource and the app.
@@ -174,34 +175,145 @@ put TLS in front of ports 3210/3211/8081, and run `./install.sh` again. Every
 knob lives in [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml) and
 the comments at the top of [`selfhost/install.sh`](selfhost/install.sh).
 
-Accounts on your install are unlimited and unmetered — no plans, no paywall, no
+Accounts on your install are unlimited and unmetered: no plans, no paywall, no
 monthly AI cap. You're the one paying OpenRouter, so nothing meters you.
 
 ### Load the Food Database
 
 The datasource starts empty, which means food search finds nothing until you
-feed it. From `selfhost/` (~3.1 GB download, a few minutes of import):
+feed it. Each catalog is independent: import one, two, or all three, and the
+service serves whatever is there.
+
+**USDA FoodData Central**: generic whole foods, lab-measured, public domain.
+Start here; it is what makes "chicken breast" return an ingredient rather than
+a supermarket SKU. From `selfhost/` (~3.1 GB download, a few minutes of
+import):
 
 ```sh
 curl -O https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_csv_2025-12-18.zip
 unzip -q FoodData_Central_csv_2025-12-18.zip -d usda
 docker compose cp usda datasource:/tmp/usda
 docker compose exec datasource bun src/cli.ts import usda --csv-dir /tmp/usda/FoodData_Central_csv_2025-12-18
-docker compose exec datasource bun src/cli.ts import wger
 docker compose exec datasource rm -rf /tmp/usda
 ```
 
-The install script prints these too, in case you closed this tab.
+**wger**: the exercise catalog, fetched straight from their API, no download
+step:
+
+```sh
+docker compose exec datasource bun src/cli.ts import wger
+```
+
+**Open Food Facts**: packaged products and barcodes, worldwide. This is the
+one that makes barcode scanning useful outside the US, and it ships product
+photos USDA has none of. The dump is large and the import is the long pole, so
+try a slice of it first:
+
+```sh
+curl -O https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+docker compose cp openfoodfacts-products.jsonl.gz datasource:/tmp/off.jsonl.gz
+
+# A partial import, enough to see it working (minutes rather than hours)
+docker compose exec datasource bun src/cli.ts import off --file /tmp/off.jsonl.gz --limit 50000
+
+# ...or the whole catalog
+docker compose exec datasource bun src/cli.ts import off --file /tmp/off.jsonl.gz
+docker compose exec datasource rm -f /tmp/off.jsonl.gz
+```
+
+The gzip is read as-is and never expanded onto disk, and the import streams, so
+it needs the download's worth of space rather than the ~50 GB it unpacks to.
+Products with no barcode, no name, or no nutrition are dropped on the way in.
+
+Imports never touch the database currently serving requests: each one builds a
+new file, checks it, and swaps it in, keeping the previous one for
+`bun src/cli.ts rollback <usda|off|wger>`. Check what landed with
+`docker compose exec datasource bun src/cli.ts stats`.
+
+The install script prints the USDA and wger commands too, in case you closed
+this tab. [`apps/datasource/README.md`](apps/datasource/README.md) documents
+the ranking, the de-duplication passes, and how search merges the catalogs.
+
+### Install the iOS and Android Apps
+
+There is no store listing to install from. You build your own client and point
+it at your own backend. Two routes, in order of effort:
+
+#### As a PWA (no toolchain, no build)
+
+Open your install in the phone's browser and add it to the home screen: Safari
+on iOS shares the page and offers **Add to Home Screen**; Chrome on Android
+offers **Install app**. It runs fullscreen, offline-caches, and updates when
+you reload.
+
+Browsers only offer this over HTTPS on a real hostname. `127.0.0.1` will not
+do from a phone; see the warning below, which applies just as much here.
+
+#### As native apps
+
+The iOS and Android projects are checked in under `apps/mobile/ios` and
+`apps/mobile/android`, so there is nothing to generate. You need Xcode
+(iOS) or Android Studio (Android), and a Bun install.
+
+> **Point the app at a reachable backend first.** The self-host default is
+> `http://127.0.0.1:3210`, which on a phone means *the phone itself*, so the app
+> installs, opens, and then fails to sign in. Nothing catches this for you: the
+> build only rejects obvious placeholders, and a loopback URL looks fine to it.
+>
+> Set `PUBLIC_HOST` before running `install.sh`, or edit `CONVEX_CLOUD_ORIGIN`,
+> `CONVEX_SITE_ORIGIN`, and `APP_URL` in `selfhost/.env` and re-run it. Then set
+> the matching values in the repository-root `.env`, which is where the app
+> build reads them from:
+>
+> ```sh
+> VITE_CONVEX_URL=https://convex.your-domain.tld
+> VITE_CONVEX_SITE_URL=https://convex-site.your-domain.tld
+> VITE_APP_URL=https://app.your-domain.tld
+> ```
+>
+> A LAN address such as `http://192.168.1.10:3210` is enough to test on a phone
+> on the same network. Anything you actually carry around wants TLS and a real
+> hostname.
+
+Build the web assets, copy them into the native projects, then open the IDE:
+
+```sh
+cd apps/mobile
+bun run build
+bunx cap sync
+bunx cap open ios      # or: bunx cap open android
+```
+
+Press Run in Xcode or Android Studio to install onto a simulator, emulator, or
+a connected device. Shipping to a real iPhone needs a signing team set on the
+target. Free Apple ID signing works, with the seven-day expiry Apple imposes.
+
+To skip the IDE once a device is attached:
+
+```sh
+bunx cap run ios       # or: bunx cap run android
+```
+
+For day-to-day iOS work there are shortcuts: `bun run build:ios`, `bun run
+run:ios` and `bun run open:ios` from the repository root, and `bun run dev:ios`
+in `apps/mobile`, which pairs a live Vite server with the simulator so web
+changes reload without rebuilding the shell. These build in development mode,
+which is handy for iterating but not what you want on a phone you actually use. Build that
+one with `bun run build` as above.
+
+Re-run `bun run build && bunx cap sync` after any web change: the native
+projects hold a copy of the built assets, not a link to them. Native specifics
+live in [`apps/mobile/README.md`](apps/mobile/README.md).
 
 ### Optional Integrations
 
-Each of these switches on a feature and stays off without ceremony. Set backend secrets from the repository root with `bunx convex env set NAME VALUE` — never behind a `VITE_` prefix. The installer already set the datasource and AI variables for you if you gave it a key.
+Each of these switches on a feature and stays off without ceremony. Set backend secrets from the repository root with `bunx convex env set NAME VALUE`, never behind a `VITE_` prefix. The installer already set the datasource and AI variables for you if you gave it a key.
 
 | Feature                  | Variables                                                       | Notes                                                                                                                           |
 | ------------------------ | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | AI Coach & photo logging | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`                        | Export it before running `install.sh` and the script wires it up. AI fails closed without a key. Prompts are YAML under `convex/ai/prompts/`; run `bun run prompts:generate` after editing one. Users can also bring their own key in Settings. |
-| Food search & barcodes   | `DATASOURCE_URL`, `DATASOURCE_API_TOKEN`                        | Set by the installer. Proxied through Convex to [`apps/datasource`](apps/datasource/README.md), with a server-side cache.       |
-| Email & verification     | `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `EMAIL_VERIFICATION_REQUIRED` | Off by default, so accounts work with no mail provider at all. Password reset needs it too — a mail-less install is one where nobody may forget a password. |
+| Food search & barcodes   | `DATASOURCE_URL`, `DATASOURCE_API_TOKEN`                        | Set by the installer. Proxied through Convex to [`apps/datasource`](apps/datasource/README.md), with a server-side cache. Which catalogs answer depends only on what you imported. |
+| Email & verification     | `RESEND_API_KEY`, `AUTH_EMAIL_FROM`, `EMAIL_VERIFICATION_REQUIRED` | Off by default, so accounts work with no mail provider at all. Password reset needs it too, so a mail-less install is one where nobody may forget a password. |
 | Google sign-in           | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`                      | Redirect URI is your site origin plus `/api/auth/callback/google` (`http://127.0.0.1:3211/…` out of the box). The button only renders once both are set. |
 | OpenID Connect sign-in   | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_PROVIDER_NAME` | Any OIDC provider with standard discovery (Authentik, Keycloak, Pocket ID, …). Redirect URI: site origin plus `/api/auth/oauth2/callback/oidc`. `OIDC_PROVIDER_NAME` is the button label (defaults to "SSO"). |
 | Telemetry                | `ONEREP_TELEMETRY`, `UMAMI_SCRIPT_URL`, `UMAMI_WEBSITE_ID`      | Asked once at install. Off means no analytics script is built into the app; the Umami pair points it at your own instance instead of the project's. |
@@ -209,7 +321,7 @@ Each of these switches on a feature and stays off without ceremony. Set backend 
 ### Developing Against Your Install
 
 The Docker app image is a production build. To hack on the frontend, point a Vite
-dev server at the backend you just brought up — from the repository root:
+dev server at the backend you just brought up. From the repository root:
 
 ```sh
 bun install
@@ -226,7 +338,7 @@ bun run dev
 
 The dev app is at `http://localhost:5173`; tell the backend it's a legitimate
 origin with `bunx convex env set SITE_URL http://localhost:5173`. Backend work
-needs the admin key and deploy URL the installer printed — export
+needs the admin key and deploy URL the installer printed: export
 `CONVEX_SELF_HOSTED_URL` and `CONVEX_SELF_HOSTED_ADMIN_KEY`, then `bunx convex
 dev` pushes function changes as you save them.
 
@@ -248,7 +360,7 @@ The commands you'll actually run:
 | `bun run test:convex`       | Run the full Convex integration suite (the one that knows the most)                                |
 | `bun run prompts:generate`  | Regenerate `convex/ai/prompts.generated.ts`                                                        |
 | `bun run exercises:prepare` | Build the compact exercise import file                                                             |
-| `bun run exercises:import`  | Replace the selected deployment's exercise catalog (`--replace` — check `CONVEX_DEPLOYMENT` first) |
+| `bun run exercises:import`  | Replace the selected deployment's exercise catalog (`--replace`; check `CONVEX_DEPLOYMENT` first) |
 
 The exercise catalog comes from [free-exercise-db](https://github.com/yuhonas/free-exercise-db); only compact metadata is imported.
 
@@ -261,7 +373,7 @@ bunx cap sync
 bunx cap open ios   # or android
 ```
 
-Point `VITE_CONVEX_URL` at a hostname your phone can actually reach — `127.0.0.1` is the phone, not your laptop — and note that production mobile builds refuse placeholder or development Convex URLs by design.
+Point `VITE_CONVEX_URL` at a hostname your phone can actually reach (`127.0.0.1` is the phone, not your laptop) and note that production mobile builds refuse placeholder or development Convex URLs by design.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -269,13 +381,13 @@ Point `VITE_CONVEX_URL` at a hostname your phone can actually reach — `127.0.0
 
 ## Documentation
 
-- [`docs/architecture.md`](docs/architecture.md) — how the pieces fit together, and where the seams are
-- [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml) — every service, port, and volume the installer brings up
-- [`docs/testing.md`](docs/testing.md) — which test commands exist, what each one actually runs
-- [`docs/api.md`](docs/api.md) — the HTTP API for your own scripts and devices
-- [`docs/mcp.md`](docs/mcp.md) — the same data over Model Context Protocol
-- [`docs/coach-features.md`](docs/coach-features.md) / [`docs/ai-upgrade.md`](docs/ai-upgrade.md) — what the Coach does and what it still owes us
-- [`docs/backlog.md`](docs/backlog.md) — known debts, kept short on purpose
+- [`docs/architecture.md`](docs/architecture.md): how the pieces fit together, and where the seams are
+- [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml): every service, port, and volume the installer brings up
+- [`docs/testing.md`](docs/testing.md): which test commands exist, what each one actually runs
+- [`docs/api.md`](docs/api.md): the HTTP API for your own scripts and devices
+- [`docs/mcp.md`](docs/mcp.md): the same data over Model Context Protocol
+- [`docs/coach-features.md`](docs/coach-features.md) / [`docs/ai-upgrade.md`](docs/ai-upgrade.md): what the Coach does and what it still owes us
+- [`docs/backlog.md`](docs/backlog.md): known debts, kept short on purpose
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -283,7 +395,7 @@ Point `VITE_CONVEX_URL` at a hostname your phone can actually reach — `127.0.0
 
 ## Roadmap
 
-- [ ] A Coach with initiative — briefings and check-ins that arrive without being summoned
+- [ ] A Coach with initiative: briefings and check-ins that arrive without being summoned
 - [ ] A real progression engine: deloads, periodization, adaptation from logged results
 - [ ] Turning on the ~130 Convex test blocks that currently assert nothing (see the backlog; it's a story)
 - [ ] Android parity for the iOS widgets and Live Activities
@@ -296,14 +408,14 @@ The longer, more honest versions live in [`docs/ai-upgrade.md`](docs/ai-upgrade.
 
 ## Contributing
 
-Contributions are welcome, with one logistical honesty: this repository is a mirror, so pull requests aren't merged here — they're reviewed here, applied to the internal repository, and flow back out in the next sync with your authorship preserved in the replayed commit.
+Contributions are welcome, with one logistical honesty: this repository is a mirror, so pull requests aren't merged here. They're reviewed here, applied to the internal repository, and flow back out in the next sync with your authorship preserved in the replayed commit.
 
 1. Fork the project
 2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
 3. Run the honest minimum before pushing: `bun run typecheck && bun run test && bun run test:convex`
 4. Push and open a pull request
 
-Read [`docs/testing.md`](docs/testing.md) first — this codebase has source-contract tests that assert the actual words on the screen, and they will find you.
+Read [`docs/testing.md`](docs/testing.md) first: this codebase has source-contract tests that assert the actual words on the screen, and they will find you.
 
 By submitting a contribution you agree it may be used in the Software under the project license and in the official OneRep deployment, which is a commercial service. Your authorship stays in the history either way.
 
@@ -320,7 +432,7 @@ Licensed under the [PolyForm Noncomercial License 1.0.0](LICENSE.md)
 
 ## Contact
 
-OneRep — [support@onerep.life](mailto:support@onerep.life)
+OneRep: [support@onerep.life](mailto:support@onerep.life)
 
 Project link: [https://github.com/an2tha/onerep](https://github.com/an2tha/onerep)
 
@@ -330,11 +442,12 @@ Project link: [https://github.com/an2tha/onerep](https://github.com/an2tha/onere
 
 ## Acknowledgments
 
-- [free-exercise-db](https://github.com/yuhonas/free-exercise-db) — the exercise catalog
-- [USDA FoodData Central](https://fdc.nal.usda.gov/) — the food data
-- [wger](https://wger.de/) — exercise data served by the datasource
-- [Convex](https://convex.dev/), [Better Auth](https://better-auth.com/), and [shadcn/ui](https://ui.shadcn.com/) — the load-bearing walls
-- [Best-README-Template](https://github.com/othneildrew/Best-README-Template) — this README's skeleton
+- [free-exercise-db](https://github.com/yuhonas/free-exercise-db) for the exercise catalog
+- [USDA FoodData Central](https://fdc.nal.usda.gov/) for public-domain food composition data
+- [Open Food Facts](https://world.openfoodfacts.org/) for the packaged-product and barcode catalog, under the [ODbL](https://opendatacommons.org/licenses/odbl/), with images under CC-BY-SA
+- [wger](https://wger.de/) for exercise data served by the datasource, under CC-BY-SA 4.0
+- [Convex](https://convex.dev/), [Better Auth](https://better-auth.com/), and [shadcn/ui](https://ui.shadcn.com/), the load-bearing walls
+- [Best-README-Template](https://github.com/othneildrew/Best-README-Template), this README's skeleton
 
 <!-- MARKDOWN LINKS & IMAGES -->
 

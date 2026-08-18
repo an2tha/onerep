@@ -7,7 +7,7 @@
  * backstop for the user with 40 presets, 30 recipes, and a year of logs.
  */
 
-/** Roughly 15k tokens — leaves room for the system prompt, history, and reply. */
+/** Roughly 15k tokens, leaves room for the system prompt, history, and reply. */
 export const MAX_WORKSPACE_CHARS = 60_000;
 
 type Sized = Record<string, unknown>;
