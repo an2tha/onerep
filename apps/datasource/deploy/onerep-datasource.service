@@ -1,0 +1,44 @@
+[Unit]
+Description=OneRep datasource (USDA + Open Food Facts)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=datasource
+Group=datasource
+WorkingDirectory=/opt/onerep-datasource
+EnvironmentFile=/etc/onerep-datasource/env
+ExecStart=/usr/local/bin/bun run /opt/onerep-datasource/src/index.ts
+Restart=always
+RestartSec=2
+
+# Sandboxing
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictSUIDSGID=true
+RestrictRealtime=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=true
+MemoryDenyWriteExecute=false
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+ReadWritePaths=/var/lib/onerep-datasource
+UMask=0077
+
+# Resource limits (4 GB box, 4 GB swap)
+MemoryMax=2G
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

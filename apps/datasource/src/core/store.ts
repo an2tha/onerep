@@ -48,15 +48,44 @@ export function openStaged<S extends Record<string, unknown>>(
   for (const suffix of ["", "-wal", "-shm"]) rmSync(`${path}${suffix}`, { force: true });
 
   const raw = new Database(path, { create: true, readwrite: true });
-  raw.exec("PRAGMA journal_mode = OFF");
-  raw.exec("PRAGMA synchronous = OFF");
-  raw.exec("PRAGMA temp_store = MEMORY");
+  // Pragmas are stepped with `.get()` rather than `.exec()`, because the ones
+  // that report a resulting value are not applied by `exec()` alone.
+  //
+  // `journal_mode = OFF` is requested but *not* relied on: Bun's SQLite build
+  // refuses it and reports `delete` back, whatever the call style. WAL,
+  // TRUNCATE and MEMORY all take, so this is specific to OFF. A rollback
+  // journal is therefore always in play during an import, which is exactly why
+  // the bulk loaders commit in batches instead of wrapping millions of rows in
+  // one transaction — see `commitEvery`.
+  raw.query("PRAGMA journal_mode = OFF").get();
+  raw.query("PRAGMA synchronous = OFF").get();
+  raw.query("PRAGMA temp_store = MEMORY").get();
   // Bounded so an import cannot page the 4 GB host into swap.
-  raw.exec("PRAGMA cache_size = -262144");
+  raw.query("PRAGMA cache_size = -262144").get();
 
   for (const table of schemaTables(schema)) raw.exec(createTableSql(table));
 
   return { db: drizzle(raw, { schema }), raw };
+}
+
+/**
+ * Runs a bulk load in batched transactions.
+ *
+ * A single transaction spanning millions of rows is the fast way to load
+ * SQLite right up until it isn't: the rollback journal that Bun's build will
+ * not let us disable forces the dirty pages of an open transaction to be held,
+ * and on the Open Food Facts import that reached the 2 GB cgroup limit within
+ * 250,000 products and was OOM-killed. Committing periodically bounds it.
+ *
+ * The staging database is a throwaway that is only promoted once the whole
+ * build succeeds, so a partial commit is never visible to anything — the
+ * atomicity that matters is the file swap, not the transaction.
+ */
+export function commitEvery(raw: Database, rows: number, batchSize = 50_000): void {
+  if (rows > 0 && rows % batchSize === 0) {
+    raw.exec("COMMIT");
+    raw.exec("BEGIN");
+  }
 }
 
 /** Creates every index declared on the provider's Drizzle schema. */

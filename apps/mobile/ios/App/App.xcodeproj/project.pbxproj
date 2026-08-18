@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1B2C0150000000000000015 /* WatchSyncPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C0140000000000000014 /* WatchSyncPlugin.swift */; };
+		A1B2C0110000000000000011 /* OneRep Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = A1B2C0020000000000000002 /* OneRep Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		184AF324302395AE009D4737 /* MotionBERT.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF323302395AE009D4737 /* MotionBERT.mlpackage */; };
 		184AF326302395B8009D4737 /* Yolo11nPose.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */; };
 		184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184AF327302395E5009D4737 /* NativePoseEstimation.swift */; };
@@ -29,6 +31,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		A1B2C0120000000000000012 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C0060000000000000006;
+			remoteInfo = OneRepWatch;
+		};
 		18D26E163008F1C500483600 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 504EC2FC1FED79650016851F /* Project object */;
@@ -39,6 +48,17 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		A1B2C0100000000000000010 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				A1B2C0110000000000000011 /* OneRep Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18D26E193008F1C500483600 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -53,6 +73,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1B2C0140000000000000014 /* WatchSyncPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPlugin.swift; sourceTree = "<group>"; };
+		A1B2C0020000000000000002 /* OneRep Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "OneRep Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		184AF323302395AE009D4737 /* MotionBERT.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = MotionBERT.mlpackage; sourceTree = "<group>"; };
 		184AF325302395B8009D4737 /* Yolo11nPose.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = Yolo11nPose.mlpackage; sourceTree = "<group>"; };
 		184AF327302395E5009D4737 /* NativePoseEstimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePoseEstimation.swift; sourceTree = "<group>"; };
@@ -78,6 +100,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		A1B2C0160000000000000016 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				OneRepWatch.entitlements,
+			);
+			target = A1B2C0060000000000000006 /* OneRepWatch */;
+		};
 		18D26E1C3008F1C500483600 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -88,10 +118,18 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		A1B2C0010000000000000001 /* OneRepWatch */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (A1B2C0160000000000000016 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = OneRepWatch; sourceTree = "<group>"; };
 		18D26E083008F1C500483600 /* OneRep */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (18D26E1C3008F1C500483600 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = OneRep; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		A1B2C0040000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18D26DFF3008F1C400483600 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -124,6 +162,7 @@
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
+				A1B2C0010000000000000001 /* OneRepWatch */,
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				18D26E083008F1C500483600 /* OneRep */,
@@ -135,6 +174,7 @@
 		504EC3051FED79650016851F /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C0020000000000000002 /* OneRep Watch App.app */,
 				504EC3041FED79650016851F /* App.app */,
 				18D26E023008F1C400483600 /* OneRepExtension.appex */,
 			);
@@ -144,6 +184,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C0140000000000000014 /* WatchSyncPlugin.swift */,
 				184AF336302398D2009D4737 /* PosePipeline.swift */,
 				184AF327302395E5009D4737 /* NativePoseEstimation.swift */,
 				1878F2C0300544250012B825 /* SceneDelegate.swift */,
@@ -168,6 +209,28 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		A1B2C0060000000000000006 /* OneRepWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C0090000000000000009 /* Build configuration list for PBXNativeTarget "OneRepWatch" */;
+			buildPhases = (
+				A1B2C0030000000000000003 /* Sources */,
+				A1B2C0040000000000000004 /* Frameworks */,
+				A1B2C0050000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A1B2C0010000000000000001 /* OneRepWatch */,
+			);
+			name = OneRepWatch;
+			packageProductDependencies = (
+			);
+			productName = OneRepWatch;
+			productReference = A1B2C0020000000000000002 /* OneRep Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		18D26E013008F1C400483600 /* OneRepExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 18D26E1D3008F1C500483600 /* Build configuration list for PBXNativeTarget "OneRepExtension" */;
@@ -198,11 +261,13 @@
 				504EC3011FED79650016851F /* Frameworks */,
 				504EC3021FED79650016851F /* Resources */,
 				18D26E193008F1C500483600 /* Embed Foundation Extensions */,
+				A1B2C0100000000000000010 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				18D26E173008F1C500483600 /* PBXTargetDependency */,
+				A1B2C0130000000000000013 /* PBXTargetDependency */,
 			);
 			name = App;
 			packageProductDependencies = (
@@ -222,6 +287,9 @@
 				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
+					A1B2C0060000000000000006 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 					18D26E013008F1C400483600 = {
 						CreatedOnToolsVersion = 27.0;
 					};
@@ -254,12 +322,20 @@
 			projectRoot = "";
 			targets = (
 				504EC3031FED79650016851F /* App */,
+				A1B2C0060000000000000006 /* OneRepWatch */,
 				18D26E013008F1C400483600 /* OneRepExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		A1B2C0050000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18D26E003008F1C400483600 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -283,6 +359,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		A1B2C0030000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		18D26DFE3008F1C400483600 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -294,6 +377,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1B2C0150000000000000015 /* WatchSyncPlugin.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				184AF328302395EA009D4737 /* NativePoseEstimation.swift in Sources */,
 				184AF337302398D4009D4737 /* PosePipeline.swift in Sources */,
@@ -309,6 +393,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		A1B2C0130000000000000013 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C0060000000000000006 /* OneRepWatch */;
+			targetProxy = A1B2C0120000000000000012 /* PBXContainerItemProxy */;
+		};
 		18D26E173008F1C500483600 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 18D26E013008F1C400483600 /* OneRepExtension */;
@@ -336,6 +425,67 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		A1B2C0070000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = OneRepWatch/OneRepWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OneRepWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.watchkitapp;
+				PRODUCT_NAME = "OneRep Watch App";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1B2C0080000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = OneRepWatch/OneRepWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 4DURGSKS8J;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OneRepWatch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ananthh.onerep.watchkitapp;
+				PRODUCT_NAME = "OneRep Watch App";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
 		18D26E1A3008F1C500483600 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -590,6 +740,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		A1B2C0090000000000000009 /* Build configuration list for PBXNativeTarget "OneRepWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C0070000000000000007 /* Debug */,
+				A1B2C0080000000000000008 /* Release */,
+			);
+			defaultConfigTypeIsDebug = YES;
+			defaultConfigurationName = Release;
+		};
 		18D26E1D3008F1C500483600 /* Build configuration list for PBXNativeTarget "OneRepExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

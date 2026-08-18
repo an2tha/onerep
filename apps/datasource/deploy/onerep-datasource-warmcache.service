@@ -1,0 +1,19 @@
+[Unit]
+Description=Keep the OneRep datasource SQLite databases in page cache
+Documentation=https://github.com/hoytech/vmtouch
+
+[Service]
+# usda.sqlite is 1.1 GB on a 4 GB box that also hosts the OneDev build agent.
+# Build containers are siblings via the docker socket, so their I/O can reclaim
+# the page cache; once the DB is evicted, food searches go from ~40 ms to 2-8 s
+# until it pages back in.
+#
+# mlock would be the airtight fix, but this is an unprivileged LXC container:
+# RLIMIT_MEMLOCK is capped at 8 MB by the host and cannot be raised from in
+# here, so "vmtouch -l" dies with ENOMEM. Re-reading the file on a timer keeps
+# it resident in practice and, unlike locking, degrades gracefully instead of
+# risking OOM if something else on the box needs the memory.
+Type=oneshot
+ExecStart=/usr/bin/vmtouch -t /var/lib/onerep-datasource/data/usda.sqlite /var/lib/onerep-datasource/data/off.sqlite /var/lib/onerep-datasource/data/wger.sqlite
+Nice=10
+IOSchedulingClass=idle

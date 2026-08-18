@@ -13,7 +13,10 @@
     "test": "bun test --max-concurrency 1 ./src ./capacitor-config.test.ts",
     "test:visual": "playwright test",
     "test:visual:update": "playwright test --update-snapshots",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "ios:watch": "./scripts/run-watch.sh",
+    "ios:watch:fast": "./scripts/run-watch.sh --no-build",
+    "dev:watch": "concurrently -n vite,sim -c blue,green \"vite --host\" \"wait-on tcp:5173 && ./scripts/run-watch.sh\""
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
