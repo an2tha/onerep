@@ -11,6 +11,7 @@ import {
   moveArrayItemByStep,
   useFlipReorderAnimation,
   toast,
+  WorkoutCoachMenu,
 } from "@repo/ui"
 import {
   Brain,
@@ -51,7 +52,6 @@ import {
 } from "@/lib/form-coach-clips"
 import { useFormCoachSupport } from "@/lib/form-coach"
 import { InWorkoutCoach } from "@/components/in-workout-coach"
-import { WorkoutCoachMenu } from "@/components/workout-coach-menu"
 import { WorkoutCoachSheet } from "@/components/workout-coach-sheet"
 import { FormCoachRecorder } from "@/components/form-coach-recorder"
 import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
