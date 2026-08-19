@@ -50,6 +50,44 @@ const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
 
 const NATIVE_TAB_BAR_PLATFORMS = new Set(["ios", "android"])
 
+/**
+ * Any open modal, whatever drew it. The native bar is a real view sitting on
+ * top of the web one, so a CSS backdrop cannot cover it and every sheet in the
+ * app would otherwise float a tab bar over itself. `aria-modal` is the one
+ * marker MobileSheet and the hand-rolled overlays already share.
+ */
+const MODAL_SELECTOR = '[aria-modal="true"]'
+
+function useModalOpen(enabled: boolean): boolean {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!enabled) return
+    let frame = 0
+    const sync = () => {
+      frame = 0
+      setOpen(document.querySelector(MODAL_SELECTOR) !== null)
+    }
+    // Coalesced: a subtree observer on <body> fires on every React commit, and
+    // the answer only has to be right by the next paint.
+    const schedule = () => {
+      if (frame === 0) frame = requestAnimationFrame(sync)
+    }
+    sync()
+    const observer = new MutationObserver(schedule)
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["aria-modal"],
+    })
+    return () => {
+      observer.disconnect()
+      if (frame !== 0) cancelAnimationFrame(frame)
+    }
+  }, [enabled])
+  return open
+}
+
 function resolvedDocumentTheme(): "light" | "dark" {
   return document.documentElement.classList.contains("dark") ? "dark" : "light"
 }
@@ -113,10 +151,13 @@ export function useNativeTabBar({
       .catch(() => undefined)
   }, [supported, pathname])
 
+  const modalOpen = useModalOpen(supported)
   useEffect(() => {
     if (!supported) return
-    void nativeTabBar.setVisible({ visible }).catch(() => undefined)
-  }, [supported, visible])
+    void nativeTabBar
+      .setVisible({ visible: visible && !modalOpen })
+      .catch(() => undefined)
+  }, [supported, visible, modalOpen])
 
   // The app's own theme, not the OS's: the theme provider writes the resolved
   // scheme onto <html>, and a user who set dark inside a phone set to light was
