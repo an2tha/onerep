@@ -28,6 +28,7 @@ import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { CoachSheet } from "@/components/coach-sheet"
 import { FastingSheet } from "@/components/fasting-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { SlideToDeleteRow } from "@repo/ui"
@@ -336,14 +337,14 @@ function ProgressLine({
           ))}
         </span>
       )}
-      <div className="flex justify-between items-baseline gap-2 mb-1">
-        <span className="font-semibold text-[13px] text-muted-foreground">
+      <div className="mb-1 flex items-baseline justify-between gap-2">
+        <span className="text-[13px] font-semibold text-muted-foreground">
           {label}
         </span>
         <span
           key={animateChanges ? value : undefined}
           className={cn(
-            "font-semibold tabular-nums text-[13px] text-foreground",
+            "text-[13px] font-semibold text-foreground tabular-nums",
             animateChanges && "motion-number-refresh"
           )}
         >
@@ -355,10 +356,10 @@ function ProgressLine({
           </span>
         </span>
       </div>
-      <div className="bg-foreground/[0.07] rounded-full h-1.5 overflow-hidden">
+      <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.07]">
         <div
           className={cn(
-            "rounded-full h-full transition-[width] duration-500 ease-out",
+            "h-full rounded-full transition-[width] duration-500 ease-out",
             animateChanges && "water-progress-refresh"
           )}
           style={{ width: `${pct(value, target)}%`, backgroundColor: color }}
@@ -448,9 +449,7 @@ function MacroDial({
         viewBox="0 0 100 100"
         className="h-full w-full"
         style={{
-          transform: mirrored
-            ? "scaleX(-1) rotate(-90deg)"
-            : "rotate(-90deg)",
+          transform: mirrored ? "scaleX(-1) rotate(-90deg)" : "rotate(-90deg)",
         }}
         aria-hidden="true"
       >
@@ -477,51 +476,50 @@ function MacroDial({
         />
       </svg>
       {!compact && (
-      <div className="absolute inset-[18%] flex flex-col items-center justify-center overflow-hidden">
-        <p
-          className={cn(
-            "leading-none font-extrabold tabular-nums",
-            emphasis ? "text-[2rem]" : "text-[1.15rem]"
-          )}
-          aria-hidden="true"
-        >
-          <span key={value} className="motion-number-refresh inline-block">
-            {fmt(value)}
-          </span>
-          <span
-            className={cn(
-              "font-bold",
-              emphasis ? "text-[15px]" : "text-[12px]"
-            )}
-            style={{ color }}
-          >
-            {suffix}
-          </span>
-        </p>
-        <p
-          className={cn(
-            "mt-1 leading-tight text-muted-foreground",
-            emphasis ? "text-[12px]" : "text-[11px]"
-          )}
-          aria-hidden="true"
-        >
-          {name}
-        </p>
-        {emphasis && (
+        <div className="absolute inset-[18%] flex flex-col items-center justify-center overflow-hidden">
           <p
-            className="text-[11px] leading-tight text-muted-foreground/80 tabular-nums"
+            className={cn(
+              "leading-none font-extrabold tabular-nums",
+              emphasis ? "text-[2rem]" : "text-[1.15rem]"
+            )}
             aria-hidden="true"
           >
-            of {fmt(target)}
-            {suffix}
+            <span key={value} className="motion-number-refresh inline-block">
+              {fmt(value)}
+            </span>
+            <span
+              className={cn(
+                "font-bold",
+                emphasis ? "text-[15px]" : "text-[12px]"
+              )}
+              style={{ color }}
+            >
+              {suffix}
+            </span>
           </p>
-        )}
-      </div>
+          <p
+            className={cn(
+              "mt-1 leading-tight text-muted-foreground",
+              emphasis ? "text-[12px]" : "text-[11px]"
+            )}
+            aria-hidden="true"
+          >
+            {name}
+          </p>
+          {emphasis && (
+            <p
+              className="text-[11px] leading-tight text-muted-foreground/80 tabular-nums"
+              aria-hidden="true"
+            >
+              of {fmt(target)}
+              {suffix}
+            </p>
+          )}
+        </div>
       )}
     </div>
   )
 }
-
 
 function MicroBreakdown({
   open,
@@ -548,17 +546,17 @@ function MicroBreakdown({
     .slice(0, 3)
 
   return (
-    <div className="mt-4 pt-3 border-border/35 border-t">
+    <div className="mt-4 border-t border-border/35 pt-3">
       <button
         type="button"
         onClick={onToggle}
-        className="flex justify-between items-center gap-3 w-full min-h-10 text-left"
+        className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={open}
       >
-        <span className="font-semibold text-[15px]">Micronutrients</span>
+        <span className="text-[15px] font-semibold">Micronutrients</span>
         <span className="flex items-center gap-2">
           {highlights.length > 0 && (
-            <span className="hidden min-[390px]:block max-w-[11rem] font-medium tabular-nums text-[13px] text-muted-foreground truncate">
+            <span className="hidden max-w-[11rem] truncate text-[13px] font-medium text-muted-foreground tabular-nums min-[390px]:block">
               {highlights
                 .map((row) => `${row.label} ${fmtMicro(row.value, row.unit)}`)
                 .join(" · ")}
@@ -585,11 +583,11 @@ function MicroBreakdown({
       >
         <div className="overflow-hidden">
           {loggedCount === 0 ? (
-            <p className="py-3 border-border border-t text-[14px] text-muted-foreground leading-5">
+            <p className="border-t border-border py-3 text-[14px] leading-5 text-muted-foreground">
               Nothing logged yet.
             </p>
           ) : (
-            <div className="border-border border-t divide-y divide-border">
+            <div className="divide-y divide-border border-t border-border">
               {rows.map((row) => {
                 const hasValue = row.value > 0
                 const progress = row.target ? pct(row.value, row.target) : null
@@ -597,21 +595,21 @@ function MicroBreakdown({
                   <div
                     key={row.key}
                     className={cn(
-                      "px-1 py-2.5 min-h-12",
+                      "min-h-12 px-1 py-2.5",
                       !hasValue && "opacity-60"
                     )}
                   >
-                    <div className="flex justify-between items-center gap-2">
-                      <span className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
                         <span
-                          className="rounded-full w-2.5 h-2.5 shrink-0"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: row.color }}
                         />
-                        <span className="font-medium text-[14px] truncate">
+                        <span className="truncate text-[14px] font-medium">
                           {row.label}
                         </span>
                       </span>
-                      <span className="font-semibold tabular-nums text-[14px] shrink-0">
+                      <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                         {fmtMicro(row.value, row.unit)}
                         {row.target && (
                           <span className="font-medium text-muted-foreground">
@@ -622,9 +620,9 @@ function MicroBreakdown({
                       </span>
                     </div>
                     {row.target && (
-                      <div className="bg-foreground/[0.07] mt-2 rounded-full h-1 overflow-hidden">
+                      <div className="mt-2 h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
                         <div
-                          className="rounded-full h-full transition-[width] duration-500 ease-out"
+                          className="h-full rounded-full transition-[width] duration-500 ease-out"
                           style={{
                             width: `${progress}%`,
                             backgroundColor: row.color,
@@ -668,17 +666,17 @@ function CustomWaterSheet({
       }}
     >
       <div className="px-5 pt-1 pb-4">
-        <p className="font-bold text-[17px]">Custom water</p>
-        <div className="flex justify-between items-center bg-muted/35 mt-4 p-1 rounded-[1rem]">
+        <p className="text-[17px] font-bold">Custom water</p>
+        <div className="mt-4 flex items-center justify-between rounded-[1rem] bg-muted/35 p-1">
           <button
             type="button"
             onClick={() => setClamped(amount - 50)}
             aria-label="Decrease custom water amount"
-            className="flex justify-center items-center bg-background rounded-[0.8rem] w-11 h-11 font-bold text-[18px]"
+            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
             −
           </button>
-          <label className="flex-1 px-3 min-w-0 text-center">
+          <label className="min-w-0 flex-1 px-3 text-center">
             <span className="sr-only">Water amount in milliliters</span>
             <input
               type="number"
@@ -689,9 +687,9 @@ function CustomWaterSheet({
               max={5000}
               value={amount}
               onChange={(event) => setClamped(Number(event.target.value) || 0)}
-              className="bg-transparent outline-none w-full font-extrabold tabular-nums text-[1.75rem] text-center leading-none"
+              className="w-full bg-transparent text-center text-[1.75rem] leading-none font-extrabold tabular-nums outline-none"
             />
-            <span className="block mt-1 font-medium text-[13px] text-muted-foreground">
+            <span className="mt-1 block text-[13px] font-medium text-muted-foreground">
               milliliters
             </span>
           </label>
@@ -699,18 +697,18 @@ function CustomWaterSheet({
             type="button"
             onClick={() => setClamped(amount + 50)}
             aria-label="Increase custom water amount"
-            className="flex justify-center items-center bg-background rounded-[0.8rem] w-11 h-11 font-bold text-[18px]"
+            className="flex h-11 w-11 items-center justify-center rounded-[0.8rem] bg-background text-[18px] font-bold"
           >
             +
           </button>
         </div>
-        <div className="gap-2 grid grid-cols-4 mt-3">
+        <div className="mt-3 grid grid-cols-4 gap-2">
           {[150, 250, 500, 1000].map((preset) => (
             <button
               key={preset}
               type="button"
               onClick={() => setClamped(preset)}
-              className="justify-center app-button app-button-quiet"
+              className="app-button app-button-quiet justify-center"
             >
               {fmtWater(preset)}
             </button>
@@ -719,7 +717,7 @@ function CustomWaterSheet({
         <button
           type="button"
           onClick={onAdd}
-          className="justify-center bg-foreground mt-4 w-full min-h-11 text-background app-button"
+          className="app-button mt-4 min-h-11 w-full justify-center bg-foreground text-background"
         >
           Add {fmtWater(amount)}
         </button>
@@ -751,29 +749,29 @@ function WaterGoalSheet({
       }}
     >
       <div className="px-4 pt-1 pb-2">
-        <div className="flex justify-between items-center mb-4">
-          <p className="font-semibold text-[15px]">Daily water goal</p>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[15px] font-semibold">Daily water goal</p>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close daily goal"
-            className="flex justify-center items-center active:bg-muted rounded-[10px] w-11 h-11 text-muted-foreground transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-[10px] text-muted-foreground transition-colors active:bg-muted"
           >
             <X size={12} weight="bold" />
           </button>
         </div>
 
-        <div className="flex justify-between items-center">
+        <div className="flex items-center justify-between">
           <div className="flex items-baseline gap-1">
-            <span className="font-medium text-[13px]">Water</span>
+            <span className="text-[13px] font-medium">Water</span>
             <span className="text-[13px] text-muted-foreground">ml</span>
           </div>
-          <div className="flex items-center bg-muted/50 p-0.5 rounded-xl">
+          <div className="flex items-center rounded-xl bg-muted/50 p-0.5">
             <button
               type="button"
               onClick={() => setDraft((value) => Math.max(250, value - 250))}
               aria-label="Decrease daily water goal"
-              className="flex justify-center items-center active:bg-background rounded-lg w-10 h-10 text-muted-foreground/60 active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">-</span>
             </button>
@@ -786,13 +784,13 @@ function WaterGoalSheet({
                 const next = Number.parseInt(event.target.value)
                 if (!Number.isNaN(next)) setDraft(Math.max(250, next))
               }}
-              className="bg-transparent outline-none w-20 h-10 font-semibold tabular-nums text-[13px] text-center"
+              className="h-10 w-20 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
             />
             <button
               type="button"
               onClick={() => setDraft((value) => value + 250)}
               aria-label="Increase daily water goal"
-              className="flex justify-center items-center active:bg-background rounded-lg w-10 h-10 text-muted-foreground/60 active:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
             >
               <span className="text-[15px] leading-none">+</span>
             </button>
@@ -807,7 +805,7 @@ function WaterGoalSheet({
             const saved = await onSave(draft)
             if (saved) onClose()
           }}
-          className="bg-foreground active:opacity-75 disabled:opacity-50 mt-4 py-3 rounded-xl w-full font-semibold text-[13px] text-background"
+          className="mt-4 w-full rounded-xl bg-foreground py-3 text-[13px] font-semibold text-background active:opacity-75 disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -851,9 +849,9 @@ function MealBudgetPanel({
 
   return (
     <div>
-      <p className="mb-2 app-section-title">Calories by meal</p>
+      <p className="app-section-title mb-2">Calories by meal</p>
       <div
-        className="border-border border-y divide-y divide-border"
+        className="divide-y divide-border border-y border-border"
         aria-label="Calories by meal"
       >
         {rows.map((target) => {
@@ -861,12 +859,12 @@ function MealBudgetPanel({
           const { ratio, state } = mealTargetProgress(consumed, target.calories)
           return (
             <div key={target.meal} className="px-1 py-2.5">
-              <div className="flex justify-between items-baseline gap-3">
+              <div className="flex items-baseline justify-between gap-3">
                 <span className="native-row-title">
                   {mealLabel(target.meal)}
                 </span>
                 <span
-                  className="tabular-nums native-row-detail"
+                  className="native-row-detail tabular-nums"
                   aria-label={`${mealLabel(target.meal)}: ${consumed} of ${
                     target.calories
                   } kcal`}
@@ -875,12 +873,12 @@ function MealBudgetPanel({
                 </span>
               </div>
               <div
-                className="bg-muted mt-1.5 rounded-full h-1 overflow-hidden"
+                className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted"
                 role="presentation"
               >
                 <div
                   className={cn(
-                    "rounded-full h-full transition-[width] duration-300",
+                    "h-full rounded-full transition-[width] duration-300",
                     state === "over" ? "bg-destructive" : "bg-foreground"
                   )}
                   style={{ width: `${Math.min(100, ratio * 100)}%` }}
@@ -921,14 +919,14 @@ function GoalsCardWrapper({
   }
 
   return (
-    <div className="mt-4 pt-3 border-border/35 border-t">
+    <div className="mt-4 border-t border-border/35 pt-3">
       <button
         type="button"
         onClick={() => setEditing((open) => !open)}
-        className="flex justify-between items-center gap-3 w-full min-h-10 text-left"
+        className="flex min-h-10 w-full items-center justify-between gap-3 text-left"
         aria-expanded={editing}
       >
-        <span className="font-semibold text-[15px]">Daily goals</span>
+        <span className="text-[15px] font-semibold">Daily goals</span>
         <CaretDown
           size={13}
           weight="bold"
@@ -952,20 +950,20 @@ function GoalsCardWrapper({
             {GOAL_FIELDS.map(({ key, label, unit, step, min }) => (
               <div
                 key={key}
-                className="flex justify-between items-center gap-3"
+                className="flex items-center justify-between gap-3"
               >
                 <div className="flex items-baseline gap-1">
-                  <span className="font-medium text-[13px]">{label}</span>
+                  <span className="text-[13px] font-medium">{label}</span>
                   <span className="text-[13px] text-muted-foreground">
                     {unit}
                   </span>
                 </div>
-                <div className="flex items-center bg-muted/50 p-0.5 rounded-[10px]">
+                <div className="flex items-center rounded-[10px] bg-muted/50 p-0.5">
                   <button
                     type="button"
                     onClick={() => adjust(key, -step)}
                     aria-label={`Decrease ${label.toLowerCase()} goal`}
-                    className="flex justify-center items-center active:bg-background rounded-lg w-10 h-10 text-muted-foreground/60 active:text-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">-</span>
                   </button>
@@ -983,13 +981,13 @@ function GoalsCardWrapper({
                         }))
                       }
                     }}
-                    className="bg-transparent outline-none w-16 h-10 font-semibold tabular-nums text-[13px] text-center"
+                    className="h-10 w-16 bg-transparent text-center text-[13px] font-semibold tabular-nums outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => adjust(key, step)}
                     aria-label={`Increase ${label.toLowerCase()} goal`}
-                    className="flex justify-center items-center active:bg-background rounded-lg w-10 h-10 text-muted-foreground/60 active:text-foreground"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/60 active:bg-background active:text-foreground"
                   >
                     <span className="text-[15px] leading-none">+</span>
                   </button>
@@ -1003,14 +1001,14 @@ function GoalsCardWrapper({
               fiber target from it.
             </p>
           )}
-          <div className="flex items-center gap-2 mt-3">
+          <div className="mt-3 flex items-center gap-2">
             <button
               type="button"
               onClick={() => {
                 void onSave(draft)
                 setEditing(false)
               }}
-              className="flex-1 justify-center bg-foreground text-background app-button"
+              className="app-button flex-1 justify-center bg-foreground text-background"
             >
               Save
             </button>
@@ -1074,31 +1072,31 @@ function SmartMealPresetCard({
     suggestion.kind === "save" ? suggestion.name : suggestion.preset.name
 
   return (
-    <section className="px-1 py-3 border-border border-y">
+    <section className="border-y border-border px-1 py-3">
       <div className="flex items-start gap-3">
         {isSave ? (
           <BookBookmark
             size={18}
-            className="mt-0.5 text-muted-foreground shrink-0"
+            className="mt-0.5 shrink-0 text-muted-foreground"
           />
         ) : (
           <ForkKnife
             size={18}
-            className="mt-0.5 text-muted-foreground shrink-0"
+            className="mt-0.5 shrink-0 text-muted-foreground"
           />
         )}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[13.5px] leading-snug">
+        <div className="min-w-0 flex-1">
+          <p className="text-[13.5px] leading-snug font-semibold">
             {isSave ? `Save usual ${meal}` : `Log usual ${meal}`}
           </p>
-          <p className="mt-0.5 text-[13px] text-muted-foreground truncate">
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {summary || fallbackName}
           </p>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 mt-1.5">
-            <span className="font-medium tabular-nums text-[13px] text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
               {Math.round(totals.calories)} kcal
             </span>
-            <span className="tabular-nums text-[13px] text-muted-foreground">
+            <span className="text-[13px] text-muted-foreground tabular-nums">
               P{Math.round(totals.protein)} C{Math.round(totals.carbs)} F
               {Math.round(totals.fat)}g
             </span>
@@ -1109,7 +1107,7 @@ function SmartMealPresetCard({
           onClick={onDismiss}
           disabled={busy}
           aria-label="Dismiss smart meal suggestion"
-          className="bg-transparent disabled:opacity-35 w-11 h-11 text-muted-foreground app-icon-button"
+          className="app-icon-button h-11 w-11 bg-transparent text-muted-foreground disabled:opacity-35"
         >
           <X size={10} weight="bold" />
         </button>
@@ -1123,7 +1121,7 @@ function SmartMealPresetCard({
           }}
           disabled={busy}
           aria-busy={busy}
-          className="disabled:opacity-55 min-h-10 font-semibold text-[13px] text-[var(--accent-food)]"
+          className="min-h-10 text-[13px] font-semibold text-[var(--accent-food)] disabled:opacity-55"
         >
           {busy
             ? isSave
@@ -1278,15 +1276,15 @@ function DescribeMealSheet({
         paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
       }}
     >
-      <div className="flex items-start gap-3 mb-4">
-        <div className="flex justify-center items-center bg-foreground rounded-2xl w-10 h-10 text-background shrink-0">
+      <div className="mb-4 flex items-start gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background">
           <Sparkle size={15} weight="fill" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-[15px] leading-snug">
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] leading-snug font-semibold">
             Describe meal
           </p>
-          <p className="mt-1 text-[13px] text-muted-foreground leading-5">
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
             AI creates a temporary recipe you can review before logging.
           </p>
         </div>
@@ -1294,7 +1292,7 @@ function DescribeMealSheet({
           type="button"
           onClick={onClose}
           disabled={busy}
-          className="disabled:opacity-40 w-9 h-9 app-icon-button"
+          className="app-icon-button h-9 w-9 disabled:opacity-40"
           aria-label="Close describe meal"
         >
           <X size={13} weight="bold" />
@@ -1307,7 +1305,7 @@ function DescribeMealSheet({
         disabled={busy}
         aria-label="Describe meal"
         placeholder="chicken burrito bowl with rice, beans, salsa, cheese, and guacamole"
-        className="bg-muted/35 disabled:opacity-60 px-4 py-3 border border-border focus:border-foreground rounded-[10px] outline-none w-full min-h-36 text-[14px] placeholder:text-muted-foreground leading-relaxed resize-none"
+        className="min-h-36 w-full resize-none rounded-[10px] border border-border bg-muted/35 px-4 py-3 text-[14px] leading-relaxed outline-none placeholder:text-muted-foreground focus:border-foreground disabled:opacity-60"
       />
 
       <button
@@ -1315,7 +1313,7 @@ function DescribeMealSheet({
         disabled={!canSubmit}
         aria-busy={busy}
         onClick={() => onSubmit(text.trim())}
-        className="flex justify-center items-center gap-2 bg-foreground active:opacity-80 disabled:opacity-35 mt-3 px-4 rounded-2xl w-full min-h-12 font-bold text-[14px] text-background transition-opacity"
+        className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
       >
         <Sparkle
           size={14}
@@ -1353,11 +1351,11 @@ function RecipeLogSheet({
         paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
       }}
     >
-      <p className="font-semibold text-[15px] leading-snug">Log to...</p>
-      <p className="mb-0.5 text-[13px] text-muted-foreground truncate">
+      <p className="text-[15px] leading-snug font-semibold">Log to...</p>
+      <p className="mb-0.5 truncate text-[13px] text-muted-foreground">
         {recipe.name}
       </p>
-      <p className="mb-3 tabular-nums text-[13px] text-muted-foreground">
+      <p className="mb-3 text-[13px] text-muted-foreground tabular-nums">
         {totals.calories} kcal · P{totals.protein} C{totals.carbs} F{totals.fat}
         g
       </p>
@@ -1366,7 +1364,7 @@ function RecipeLogSheet({
           type="button"
           onClick={onEdit}
           disabled={Boolean(savingMeal)}
-          className="flex justify-center items-center bg-muted active:opacity-75 disabled:opacity-50 mb-3 px-4 rounded-2xl w-full min-h-10 font-semibold text-[13px] text-foreground/75 transition-opacity"
+          className="mb-3 flex min-h-10 w-full items-center justify-center rounded-2xl bg-muted px-4 text-[13px] font-semibold text-foreground/75 transition-opacity active:opacity-75 disabled:opacity-50"
         >
           Edit recipe
         </button>
@@ -1383,7 +1381,7 @@ function RecipeLogSheet({
               onClick={() => {
                 void onLog(cat.id)
               }}
-              className="flex justify-between items-center disabled:opacity-55 px-4 py-3 rounded-2xl active:scale-[0.985] transition-all"
+              className="flex items-center justify-between rounded-2xl px-4 py-3 transition-all active:scale-[0.985] disabled:opacity-55"
               style={{
                 backgroundColor: cat.id === suggested ? cat.bg : "var(--muted)",
                 outline:
@@ -1392,7 +1390,7 @@ function RecipeLogSheet({
               }}
             >
               <span
-                className="font-semibold text-[13.5px]"
+                className="text-[13.5px] font-semibold"
                 style={{
                   color: cat.id === suggested ? cat.color : "var(--foreground)",
                   opacity: cat.id === suggested ? 1 : 0.75,
@@ -1402,7 +1400,7 @@ function RecipeLogSheet({
               </span>
               {cat.id === suggested && (
                 <span
-                  className="font-medium text-[13px]"
+                  className="text-[13px] font-medium"
                   style={{ color: cat.color }}
                 >
                   suggested
@@ -1435,10 +1433,10 @@ function RecipeManagementBox({
     <section
       className={cn(embedded ? "py-3" : "mt-4 border-y border-border py-4")}
     >
-      <div className="flex justify-between items-center gap-3 mb-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="app-section-title">Recipes</p>
-          <p className="mt-0.5 native-row-detail">
+          <p className="native-row-detail mt-0.5">
             {recipes.length === 0
               ? "No saved recipes"
               : `${recipes.length} saved`}
@@ -1447,7 +1445,7 @@ function RecipeManagementBox({
         <button
           type="button"
           onClick={onCreate}
-          className="hover:bg-card border-border native-toolbar-button"
+          className="native-toolbar-button border-border hover:bg-card"
         >
           <Plus size={16} weight="bold" />
           New
@@ -1458,7 +1456,7 @@ function RecipeManagementBox({
         <button
           type="button"
           onClick={onCreate}
-          className="flex items-center gap-3 active:bg-muted/20 px-1 border-border border-y w-full min-h-16 text-left transition-colors"
+          className="flex min-h-16 w-full items-center gap-3 border-y border-border px-1 text-left transition-colors active:bg-muted/20"
         >
           <BookBookmark size={20} className="text-muted-foreground" />
           <div className="text-left">
@@ -1480,12 +1478,12 @@ function RecipeManagementBox({
                   <img
                     src={recipe.photoUrls?.[0] ?? COACH_RECIPE_PLACEHOLDER}
                     alt=""
-                    className="rounded-xl size-12 object-cover shrink-0"
+                    className="size-12 shrink-0 rounded-xl object-cover"
                   />
                 )}
-                <div className="flex-1 min-w-0">
-                  <p className="truncate native-row-title">{recipe.name}</p>
-                  <p className="mt-0.5 tabular-nums native-row-detail">
+                <div className="min-w-0 flex-1">
+                  <p className="native-row-title truncate">{recipe.name}</p>
+                  <p className="native-row-detail mt-0.5 tabular-nums">
                     {totals.calories} kcal · {recipe.ingredients.length}{" "}
                     ingredient{recipe.ingredients.length === 1 ? "" : "s"}
                   </p>
@@ -1493,7 +1491,7 @@ function RecipeManagementBox({
                 <button
                   type="button"
                   onClick={() => onEdit(recipe)}
-                  className="px-0 w-11 h-11 text-muted-foreground native-toolbar-button"
+                  className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                   aria-label={`Edit ${recipe.name}`}
                 >
                   <PencilSimple size={17} weight="bold" />
@@ -1503,7 +1501,7 @@ function RecipeManagementBox({
                   onClick={() => onDelete(recipe)}
                   disabled={deleting || !recipe._id}
                   aria-busy={deleting}
-                  className="disabled:opacity-45 px-0 w-11 h-11 text-destructive native-toolbar-button"
+                  className="native-toolbar-button h-11 w-11 px-0 text-destructive disabled:opacity-45"
                   aria-label={`Delete ${recipe.name}`}
                 >
                   <Trash size={17} weight="bold" />
@@ -1664,7 +1662,7 @@ function RepeatMealBox({
               value={draftTime}
               onChange={(event) => setDraftTime(event.target.value)}
               aria-label="Time of day to log it"
-              className="h-11 rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none tabular-nums"
+              className="h-11 rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium tabular-nums outline-none"
             />
           </div>
           <p className="native-row-detail mt-2">
@@ -1761,16 +1759,16 @@ function GoalTile({
   complete: boolean
 }) {
   return (
-    <div className="flex items-center gap-3 px-1 py-3 w-full min-h-14">
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-[15px]">{label}</p>
-        <p className="mt-0.5 text-[13px] text-muted-foreground truncate">
+    <div className="flex min-h-14 w-full items-center gap-3 px-1 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-semibold">{label}</p>
+        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
           {detail} of target
         </p>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        <p className="font-semibold tabular-nums text-[17px]">{value}</p>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <p className="text-[17px] font-semibold tabular-nums">{value}</p>
 
         {complete && (
           <CheckCircle
@@ -1796,10 +1794,10 @@ function SupplementRow({
   const taken = plan.state === "taken"
   const skipped = plan.state === "skipped"
   return (
-    <div className="flex items-center gap-3 py-3 border-border/35 border-t first:border-t-0">
+    <div className="flex items-center gap-3 border-t border-border/35 py-3 first:border-t-0">
       <span
         className={cn(
-          "rounded-full w-2 h-2 shrink-0",
+          "h-2 w-2 shrink-0 rounded-full",
           taken
             ? "bg-(--status-complete)"
             : skipped
@@ -1807,9 +1805,9 @@ function SupplementRow({
               : "bg-(--status-caution)"
         )}
       />
-      <div className="flex-1 min-w-0">
-        <p className="font-bold text-[13px] truncate">{plan.item.name}</p>
-        <p className="mt-0.5 text-[13px] text-muted-foreground truncate">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-bold">{plan.item.name}</p>
+        <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
           {taken ? "Taken" : skipped ? "Skipped" : "Due"} ·{" "}
           {plan.item.servingLabel ?? "1 serving"}
         </p>
@@ -1862,6 +1860,7 @@ export default function Nutrition() {
     null
   )
   const [describeOpen, setDescribeOpen] = useState(false)
+  const [coachOpen, setCoachOpen] = useState(false)
   const [describeBusy, setDescribeBusy] = useState(false)
   const [loggingRecipe, setLoggingRecipe] = useState<Recipe | null>(null)
   const [savingRecipeMeal, setSavingRecipeMeal] = useState<string | null>(null)
@@ -1952,7 +1951,6 @@ export default function Nutrition() {
     [recipesQuery]
   )
 
-  
   const mealPresets = useMemo(
     () => (mealPresetsQuery ?? []) as unknown as MealPreset[],
     [mealPresetsQuery]
@@ -2309,6 +2307,16 @@ export default function Nutrition() {
     navigate("/camera")
   }
 
+  // The same sheet the live workout opens, over the diary instead of over a
+  // set: describing a meal in a textarea only ever produced a recipe, and
+  // half the things people type at it are questions.
+  function openCoach() {
+    // Ungated, exactly like the coach bubble in a live workout and the Coach
+    // tab itself: the screen behind the door decides who gets served.
+    setAddOpen(false)
+    setCoachOpen(true)
+  }
+
   function openDescribeMeal() {
     if (!requireAiAccess(1, "describe_meal")) return
     setAddOpen(false)
@@ -2517,7 +2525,7 @@ export default function Nutrition() {
   // today and past-day branches rendering the same thing.
   const logMethods = (
     <section
-      className="mt-6 grid grid-cols-4 gap-2 progress-tab-enter"
+      className="progress-tab-enter mt-6 grid grid-cols-4 gap-2"
       aria-label="Log a meal"
     >
       {[
@@ -2538,17 +2546,17 @@ export default function Nutrition() {
           action: openSnapCamera,
         },
         {
-          label: "Describe",
+          label: "Coach",
           Icon: Sparkle,
-          requiresAiAccess: true,
-          action: openDescribeMeal,
+          action: openCoach,
         },
       ].map(({ label, Icon, action, requiresAiAccess }) => (
         <button
           key={label}
           type="button"
           onClick={() => {
-            if (requiresAiAccess && !requireAiAccess(1, "nutrition_action")) return
+            if (requiresAiAccess && !requireAiAccess(1, "nutrition_action"))
+              return
             action()
           }}
           className="motion-tactile flex flex-col items-center gap-2 rounded-xl px-1 py-1 text-[13px] font-semibold"
@@ -2565,14 +2573,14 @@ export default function Nutrition() {
   const fastingCard = (
     <TourAnchor
       anchor="nutrition-fasting-pill"
-      className="block py-4 border-border border-y progress-tab-enter"
+      className="progress-tab-enter block border-y border-border py-4"
     >
-      <div className="flex justify-between items-center gap-3 mb-1">
+      <div className="mb-1 flex items-center justify-between gap-3">
         <p className="app-section-title">Fasting</p>
         <button
           type="button"
           onClick={() => navigate("/nutrition/fasting")}
-          className="px-0 text-muted-foreground native-toolbar-button"
+          className="native-toolbar-button px-0 text-muted-foreground"
           aria-label="Open the fasting timer"
         >
           <CaretRight size={16} weight="bold" />
@@ -2588,7 +2596,7 @@ export default function Nutrition() {
               )}, open the fasting timer`
             : "Start a fast"
         }
-        className="flex items-center gap-4 active:opacity-70 mt-2 w-full text-left"
+        className="mt-2 flex w-full items-center gap-4 text-left active:opacity-70"
       >
         <span className="relative size-19 shrink-0">
           <svg viewBox="0 0 76 76" className="size-full -rotate-90" aria-hidden>
@@ -2618,7 +2626,7 @@ export default function Nutrition() {
               />
             )}
           </svg>
-          <span className="absolute inset-0 place-items-center grid">
+          <span className="absolute inset-0 grid place-items-center">
             <Timer
               size={20}
               weight="bold"
@@ -2631,30 +2639,30 @@ export default function Nutrition() {
           </span>
         </span>
 
-        <span className="flex-1 min-w-0">
+        <span className="min-w-0 flex-1">
           {activeFast ? (
             <>
               <span
-                className="block font-bold tabular-nums text-[1.35rem] leading-none tracking-tight"
+                className="block text-[1.35rem] leading-none font-bold tracking-tight tabular-nums"
                 aria-live="polite"
               >
                 {formatFastDuration(fastElapsed)}
               </span>
-              <span className="block mt-1.5 native-row-detail">
+              <span className="native-row-detail mt-1.5 block">
                 {fastTargetSeconds === 0
                   ? "Open-ended"
                   : fastRemaining > 0
                     ? `${fmtFastRemaining(fastRemaining)} to go`
                     : "Target reached"}
               </span>
-              <span className="block native-row-detail">
+              <span className="native-row-detail block">
                 {activeFast.protocol} fast
               </span>
             </>
           ) : (
             <>
-              <span className="block native-row-title">Start a fast</span>
-              <span className="block mt-1 native-row-detail">
+              <span className="native-row-title block">Start a fast</span>
+              <span className="native-row-detail mt-1 block">
                 16:8, 18:6, or a window you set.
               </span>
             </>
@@ -2665,8 +2673,8 @@ export default function Nutrition() {
   )
 
   const foodLibrary = (
-    <div className="mt-4 pt-4 border-border border-t">
-      <div className="gap-2 grid grid-cols-3">
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="grid grid-cols-3 gap-2">
         {[
           {
             label: "My foods",
@@ -2688,7 +2696,7 @@ export default function Nutrition() {
             key={label}
             type="button"
             onClick={action}
-            className="gap-1.5 px-2 app-button app-button-quiet"
+            className="app-button app-button-quiet gap-1.5 px-2"
           >
             <Icon size={17} weight="bold" />
             <span className="truncate">{label}</span>
@@ -2710,7 +2718,7 @@ export default function Nutrition() {
   return (
     <div
       className={cn(
-        "bg-background lg:pr-8 lg:pl-72 min-h-svh desktop-canvas",
+        "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
         // The wash starts at the very top of the page, so the title row and the
         // log buttons sit inside it rather than on either side of a seam.
         isToday && "nutrition-hero"
@@ -2734,7 +2742,7 @@ export default function Nutrition() {
           <div className={cn("min-w-0")}>
             <h1 className="app-title">Nutrition</h1>
           </div>
-          <div className="flex items-center gap-1 ml-auto">
+          <div className="ml-auto flex items-center gap-1">
             <DateSelectorButton
               onInteract={hapticSelection}
               value={dateKey}
@@ -2759,7 +2767,7 @@ export default function Nutrition() {
               <>
                 <TourAnchor
                   anchor="nutrition-add"
-                  className="md:hidden inline-flex"
+                  className="inline-flex md:hidden"
                 >
                   <button
                     type="button"
@@ -2774,7 +2782,7 @@ export default function Nutrition() {
                 <button
                   type="button"
                   onClick={() => setAddOpen(true)}
-                  className="hidden md:inline-flex hover:bg-card native-toolbar-button"
+                  className="native-toolbar-button hidden hover:bg-card md:inline-flex"
                   aria-label="Add nutrition entry"
                 >
                   <Plus weight="bold" />
@@ -2786,11 +2794,11 @@ export default function Nutrition() {
         </header>
 
         {!isToday && (
-          <section className="py-4 border-border border-y progress-tab-enter">
-            <div className="flex justify-between items-start gap-3">
+          <section className="progress-tab-enter border-y border-border py-4">
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="native-supporting">{dateLabel}</p>
-                <p className="mt-1 font-extrabold tabular-nums text-[1.55rem] leading-none">
+                <p className="mt-1 text-[1.55rem] leading-none font-extrabold tabular-nums">
                   {fmt(intakeTotals.calories)} kcal
                 </p>
                 <p className="mt-1 text-[13px] text-muted-foreground">
@@ -2811,7 +2819,7 @@ export default function Nutrition() {
 
             <TourAnchor
               anchor="nutrition-macros"
-              className="block mt-4 border-border border-y divide-y divide-border"
+              className="mt-4 block divide-y divide-border border-y border-border"
             >
               <GoalTile
                 label="Protein"
@@ -2833,19 +2841,19 @@ export default function Nutrition() {
               />
             </TourAnchor>
 
-            <div className="space-y-4 mt-4 pt-4 border-border/35 border-t">
+            <div className="mt-4 space-y-4 border-t border-border/35 pt-4">
               {mealTargetsEnabled && (
                 <TourAnchor anchor="nutrition-meal-budget" className="block">
                   <MealBudgetPanel entries={entries} targets={mealTargets} />
                 </TourAnchor>
               )}
               <div>
-                <div className="flex justify-between items-center gap-3 mb-2">
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="app-section-title">Food</p>
                   <button
                     type="button"
                     onClick={openFoodSearch}
-                    className="px-3 h-11 native-toolbar-button"
+                    className="native-toolbar-button h-11 px-3"
                     aria-label="Add food"
                   >
                     <Plus size={16} weight="bold" />
@@ -2853,17 +2861,17 @@ export default function Nutrition() {
                   </button>
                 </div>
                 {entries.length > 0 ? (
-                  <div className="border-border border-y divide-y divide-border">
+                  <div className="divide-y divide-border border-y border-border">
                     {entries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="flex justify-between items-center gap-2 px-1 py-2.5 min-h-14"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
-                        <div className="flex-1 min-w-0">
-                          <p className="truncate native-row-title">
+                        <div className="min-w-0 flex-1">
+                          <p className="native-row-title truncate">
                             {entry.name}
                           </p>
-                          <p className="mt-0.5 native-row-detail">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)} · {fmt(entry.calories)}{" "}
                             kcal
                           </p>
@@ -2872,7 +2880,7 @@ export default function Nutrition() {
                           <button
                             type="button"
                             onClick={() => editRecipeFromLogEntry(entry)}
-                            className="px-0 w-11 h-11 text-muted-foreground native-toolbar-button"
+                            className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                             aria-label={`Edit recipe for ${entry.name}`}
                           >
                             <PencilSimple size={17} weight="bold" />
@@ -2881,7 +2889,7 @@ export default function Nutrition() {
                         <button
                           type="button"
                           onClick={() => removeFoodEntry(entry.id)}
-                          className="px-0 w-11 h-11 text-destructive native-toolbar-button"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${entry.name}`}
                         >
                           <Trash size={17} weight="bold" />
@@ -2890,43 +2898,43 @@ export default function Nutrition() {
                     ))}
                   </div>
                 ) : (
-                  <p className="py-3 text-[14px] text-muted-foreground leading-5">
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
                     No food was logged on this day.
                   </p>
                 )}
               </div>
 
               <div>
-                <div className="flex justify-between items-center gap-3 mb-2">
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="app-section-title">Water</p>
                   <button
                     type="button"
                     onClick={() => void addWater(250)}
                     disabled={loggingWaterAmount !== null}
-                    className="bg-card px-3 border border-border h-11 native-toolbar-button"
+                    className="native-toolbar-button h-11 border border-border bg-card px-3"
                   >
                     {loggingWaterAmount === 250 ? "Adding..." : "+250 ml"}
                   </button>
                 </div>
                 {waterEntries.length > 0 ? (
-                  <div className="border-border border-y divide-y divide-border">
+                  <div className="divide-y divide-border border-y border-border">
                     {waterEntries.map((entry) => (
                       <div
                         key={entry.id}
-                        className="flex justify-between items-center gap-2 px-1 py-2.5 min-h-14"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
                         <div>
                           <p className="native-row-title">
                             {fmtWater(entry.amountMl)}
                           </p>
-                          <p className="mt-0.5 native-row-detail">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => removeWaterEntry(entry.id)}
-                          className="px-0 w-11 h-11 text-destructive native-toolbar-button"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${fmtWater(entry.amountMl)}`}
                         >
                           <Trash size={17} weight="bold" />
@@ -2935,19 +2943,19 @@ export default function Nutrition() {
                     ))}
                   </div>
                 ) : (
-                  <p className="py-3 text-[14px] text-muted-foreground leading-5">
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
                     No water was logged on this day.
                   </p>
                 )}
               </div>
 
               <div>
-                <div className="flex justify-between items-center gap-3 mb-2">
+                <div className="mb-2 flex items-center justify-between gap-3">
                   <p className="app-section-title">Supplements</p>
                   <button
                     type="button"
                     onClick={() => navigate("/supplements")}
-                    className="px-3 h-11 native-toolbar-button"
+                    className="native-toolbar-button h-11 px-3"
                     aria-label="Manage supplements"
                   >
                     <Pill size={17} weight="bold" />
@@ -2955,17 +2963,17 @@ export default function Nutrition() {
                   </button>
                 </div>
                 {overview.logs.length + overview.legacyEntries.length > 0 ? (
-                  <div className="border-border border-y divide-y divide-border">
+                  <div className="divide-y divide-border border-y border-border">
                     {overview.logs.map((log) => (
                       <div
                         key={String(log._id)}
-                        className="flex justify-between items-center gap-2 px-1 py-2.5 min-h-14"
+                        className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
                         <div className="min-w-0">
-                          <p className="truncate native-row-title">
+                          <p className="native-row-title truncate">
                             {log.name}
                           </p>
-                          <p className="mt-0.5 native-row-detail">
+                          <p className="native-row-detail mt-0.5">
                             {timeLabel(log.loggedAt)} · {log.servingLabel}
                           </p>
                         </div>
@@ -2976,7 +2984,7 @@ export default function Nutrition() {
                               log._id as Id<"supplementIntakeLogs">
                             )
                           }
-                          className="px-0 w-11 h-11 text-destructive native-toolbar-button"
+                          className="native-toolbar-button h-11 w-11 px-0 text-destructive"
                           aria-label={`Remove ${log.name}`}
                         >
                           <Trash size={17} weight="bold" />
@@ -2984,18 +2992,18 @@ export default function Nutrition() {
                       </div>
                     ))}
                     {overview.legacyEntries.map((entry) => (
-                      <div key={entry.id} className="px-1 py-2.5 min-h-14">
-                        <p className="truncate native-row-title">
+                      <div key={entry.id} className="min-h-14 px-1 py-2.5">
+                        <p className="native-row-title truncate">
                           {entry.name ?? "Supplement"}
                         </p>
-                        <p className="mt-0.5 native-row-detail">
+                        <p className="native-row-detail mt-0.5">
                           {timeLabel(entry.loggedAt)}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="py-3 text-[14px] text-muted-foreground leading-5">
+                  <p className="py-3 text-[14px] leading-5 text-muted-foreground">
                     No supplements were logged on this day.
                   </p>
                 )}
@@ -3019,7 +3027,7 @@ export default function Nutrition() {
                 instead of a drawn one. */}
             <section
               className={cn(
-                "app-hero-frame relative flex flex-col justify-center pt-3 pb-4 progress-tab-enter",
+                "app-hero-frame progress-tab-enter relative flex flex-col justify-center pt-3 pb-4",
                 fastingHero ? "text-left" : "text-center"
               )}
             >
@@ -3199,14 +3207,14 @@ export default function Nutrition() {
                 <button
                   type="button"
                   onClick={() => navigate("/workouts", { motion: "switch" })}
-                  className="flex justify-between items-center gap-3 active:bg-muted/45 mt-3 px-1 py-2.5 border-border border-y w-full min-h-14 text-left transition-colors"
+                  className="mt-3 flex min-h-14 w-full items-center justify-between gap-3 border-y border-border px-1 py-2.5 text-left transition-colors active:bg-muted/45"
                   aria-label="Open today’s workout"
                 >
                   <div className="min-w-0">
-                    <p className="font-semibold text-[14px]">
+                    <p className="text-[14px] font-semibold">
                       Training-day target
                     </p>
-                    <p className="mt-0.5 tabular-nums text-[13px] text-muted-foreground leading-5">
+                    <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground tabular-nums">
                       {workoutAdjustmentEnabled
                         ? `+${fmt(workoutCalories)} kcal for training`
                         : "Fixed target, workout adjustment off"}
@@ -3215,7 +3223,7 @@ export default function Nutrition() {
                   <CaretRight
                     size={14}
                     weight="bold"
-                    className="text-muted-foreground shrink-0"
+                    className="shrink-0 text-muted-foreground"
                   />
                 </button>
               )}
@@ -3237,12 +3245,12 @@ export default function Nutrition() {
               </div>
             )}
 
-            <section className="gap-6 grid md:grid-cols-[1fr_0.82fr] mt-7">
+            <section className="mt-7 grid gap-6 md:grid-cols-[1fr_0.82fr]">
               <div
-                className="py-4 border-border border-y progress-tab-enter"
+                className="progress-tab-enter border-y border-border py-4"
                 style={{ animationDelay: "120ms" }}
               >
-                <p className="mb-3 app-section-title">Intake</p>
+                <p className="app-section-title mb-3">Intake</p>
                 <div>
                   {recentFood.length > 0 ? (
                     <div className="space-y-2">
@@ -3255,11 +3263,11 @@ export default function Nutrition() {
                           actionClassName="rounded-r-lg"
                           rowClassName="flex items-center justify-between gap-3 bg-background px-1"
                         >
-                          <div className="flex-1 min-w-0">
-                            <p className="truncate native-row-title">
+                          <div className="min-w-0 flex-1">
+                            <p className="native-row-title truncate">
                               {entry.name}
                             </p>
-                            <p className="mt-0.5 native-row-detail">
+                            <p className="native-row-detail mt-0.5">
                               {timeLabel(entry.loggedAt)}
                             </p>
                           </div>
@@ -3270,13 +3278,13 @@ export default function Nutrition() {
                                 event.stopPropagation()
                                 editRecipeFromLogEntry(entry)
                               }}
-                              className="px-0 w-11 h-11 text-muted-foreground native-toolbar-button"
+                              className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
                               aria-label={`Edit recipe for ${entry.name}`}
                             >
                               <PencilSimple size={17} weight="bold" />
                             </button>
                           )}
-                          <span className="font-semibold tabular-nums text-[14px] shrink-0">
+                          <span className="shrink-0 text-[14px] font-semibold tabular-nums">
                             {fmt(entry.calories)} kcal
                           </span>
                         </SlideToDeleteRow>
@@ -3286,7 +3294,7 @@ export default function Nutrition() {
                           type="button"
                           onClick={() => setShowAllFood((value) => !value)}
                           aria-expanded={showAllFood}
-                          className="flex justify-center items-center gap-1.5 -mx-1 w-full min-h-11 font-semibold text-[13px] text-muted-foreground active:text-foreground transition-colors"
+                          className="-mx-1 flex min-h-11 w-full items-center justify-center gap-1.5 text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
                         >
                           <span>
                             {showAllFood
@@ -3305,7 +3313,7 @@ export default function Nutrition() {
                       )}
                     </div>
                   ) : (
-                    <p className="text-[14px] text-muted-foreground leading-5">
+                    <p className="text-[14px] leading-5 text-muted-foreground">
                       Nothing logged yet. Pick a way to log above.
                     </p>
                   )}
@@ -3333,9 +3341,9 @@ export default function Nutrition() {
                 {foodLibrary}
               </div>
 
-              <div className="content-start self-start gap-6 grid">
+              <div className="grid content-start gap-6 self-start">
                 <div
-                  className="relative py-4 border-border border-y overflow-hidden progress-tab-enter"
+                  className="progress-tab-enter relative overflow-hidden border-y border-border py-4"
                   style={{ animationDelay: "160ms" }}
                 >
                   {waterRainKey > 0 && (
@@ -3349,12 +3357,12 @@ export default function Nutrition() {
                       ))}
                     </span>
                   )}
-                  <div className="z-10 relative flex justify-between items-center gap-3 mb-3">
+                  <div className="relative z-10 mb-3 flex items-center justify-between gap-3">
                     <p className="app-section-title">Water</p>
                     <button
                       type="button"
                       onClick={() => setWaterGoalOpen(true)}
-                      className="px-0 text-muted-foreground native-toolbar-button"
+                      className="native-toolbar-button px-0 text-muted-foreground"
                       aria-label="Edit water goal"
                     >
                       <PencilSimple size={17} weight="bold" />
@@ -3369,7 +3377,7 @@ export default function Nutrition() {
                     color={APP_ACCENT_COLORS.water}
                     animateChanges
                   />
-                  <div className="gap-2.5 grid grid-cols-2 mt-3">
+                  <div className="mt-3 grid grid-cols-2 gap-2.5">
                     {QUICK_WATER.map((amount) => (
                       <button
                         key={amount}
@@ -3377,7 +3385,7 @@ export default function Nutrition() {
                         disabled={loggingWaterAmount !== null}
                         aria-busy={loggingWaterAmount === amount}
                         onClick={() => void addWater(amount)}
-                        className="justify-center app-button app-button-quiet"
+                        className="app-button app-button-quiet justify-center"
                       >
                         {loggingWaterAmount === amount
                           ? "Adding..."
@@ -3388,7 +3396,7 @@ export default function Nutrition() {
                       type="button"
                       onClick={() => setCustomWaterOpen(true)}
                       disabled={loggingWaterAmount !== null}
-                      className="justify-center app-button app-button-quiet"
+                      className="app-button app-button-quiet justify-center"
                     >
                       Custom
                     </button>
@@ -3396,7 +3404,7 @@ export default function Nutrition() {
                 </div>
 
                 <div
-                  className="relative py-4 border-border border-y overflow-hidden progress-tab-enter"
+                  className="progress-tab-enter relative overflow-hidden border-y border-border py-4"
                   style={{ animationDelay: "200ms" }}
                 >
                   {supplementRainKey > 0 && (
@@ -3415,12 +3423,12 @@ export default function Nutrition() {
                       ))}
                     </span>
                   )}
-                  <div className="z-10 relative flex justify-between items-center gap-3 mb-1">
+                  <div className="relative z-10 mb-1 flex items-center justify-between gap-3">
                     <p className="app-section-title">Supplements</p>
                     <button
                       type="button"
                       onClick={() => navigate("/supplements")}
-                      className="px-0 text-muted-foreground native-toolbar-button"
+                      className="native-toolbar-button px-0 text-muted-foreground"
                       aria-label="Manage supplements"
                     >
                       <CaretRight size={16} weight="bold" />
@@ -3438,7 +3446,7 @@ export default function Nutrition() {
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-2 text-[14px] text-muted-foreground leading-5">
+                    <p className="mt-2 text-[14px] leading-5 text-muted-foreground">
                       No supplements planned.
                     </p>
                   )}
@@ -3454,14 +3462,14 @@ export default function Nutrition() {
       {waterGoalCelebration &&
         createPortal(
           <div
-            className="z-[200] fixed inset-0 flex justify-center items-center water-goal-celebration"
+            className="water-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
             role="status"
             onClick={() => setWaterGoalCelebration(false)}
             aria-live="assertive"
           >
             <button
               type="button"
-              className="top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 absolute place-items-center grid bg-white/10 rounded-full size-11 text-white"
+              className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
               aria-label="Dismiss hydration celebration"
               onClick={() => setWaterGoalCelebration(false)}
             >
@@ -3479,14 +3487,14 @@ export default function Nutrition() {
                 />
               ))}
             </div>
-            <div className="z-10 relative flex flex-col items-center gap-3 px-5 text-center">
+            <div className="relative z-10 flex flex-col items-center gap-3 px-5 text-center">
               <CheckCircle
                 size={42}
                 weight="fill"
-                className="text-emerald-400 water-goal-check"
+                className="water-goal-check text-emerald-400"
                 aria-hidden
               />
-              <p className="max-w-[18rem] font-semibold text-[clamp(1.25rem,4vw,2.25rem)] text-white tracking-tight water-goal-complete-text">
+              <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
                 Hydration goal complete
               </p>
             </div>
@@ -3497,14 +3505,14 @@ export default function Nutrition() {
       {calorieGoalCelebration &&
         createPortal(
           <div
-            className="z-[200] fixed inset-0 flex justify-center items-center water-goal-celebration calorie-goal-celebration"
+            className="water-goal-celebration calorie-goal-celebration fixed inset-0 z-[200] flex items-center justify-center"
             role="status"
             onClick={() => setCalorieGoalCelebration(false)}
             aria-live="assertive"
           >
             <button
               type="button"
-              className="top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 absolute place-items-center grid bg-white/10 rounded-full size-11 text-white"
+              className="absolute top-[calc(var(--app-safe-top)+1rem)] right-4 z-20 grid size-11 place-items-center rounded-full bg-white/10 text-white"
               aria-label="Dismiss calorie celebration"
               onClick={() => setCalorieGoalCelebration(false)}
             >
@@ -3522,14 +3530,14 @@ export default function Nutrition() {
                 />
               ))}
             </div>
-            <div className="z-10 relative flex flex-col items-center gap-3 px-5 text-center">
+            <div className="relative z-10 flex flex-col items-center gap-3 px-5 text-center">
               <CheckCircle
                 size={42}
                 weight="fill"
-                className="text-[var(--accent-food)] water-goal-check"
+                className="water-goal-check text-[var(--accent-food)]"
                 aria-hidden
               />
-              <p className="max-w-[18rem] font-semibold text-[clamp(1.25rem,4vw,2.25rem)] text-white tracking-tight water-goal-complete-text">
+              <p className="water-goal-complete-text max-w-[18rem] text-[clamp(1.25rem,4vw,2.25rem)] font-semibold tracking-tight text-white">
                 Calorie goal complete
               </p>
             </div>
@@ -3555,6 +3563,13 @@ export default function Nutrition() {
           saving={savingWaterGoal}
           onSave={saveWaterGoal}
           onClose={() => setWaterGoalOpen(false)}
+        />
+      )}
+
+      {coachOpen && (
+        <CoachSheet
+          onClose={() => setCoachOpen(false)}
+          initialInput="Create a recipe: "
         />
       )}
 
@@ -3608,12 +3623,12 @@ export default function Nutrition() {
           maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
         >
           <div className="px-5 pt-4 pb-4">
-            <div className="flex justify-between items-start gap-4 mb-5">
-              <h2 className="font-semibold text-[21px]">Add to diary</h2>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <h2 className="text-[21px] font-semibold">Add to diary</h2>
               <button
                 type="button"
                 onClick={() => setAddOpen(false)}
-                className="-mt-1 -mr-2 px-0 text-muted-foreground native-toolbar-button"
+                className="native-toolbar-button -mt-1 -mr-2 px-0 text-muted-foreground"
                 aria-label="Close add menu"
               >
                 <X size={17} weight="bold" />
@@ -3621,8 +3636,8 @@ export default function Nutrition() {
             </div>
             {quickRepeatFoods.length > 0 && (
               <section className="mb-5" aria-label="Recent foods">
-                <h3 className="mb-2 native-section-title">Log again</h3>
-                <div className="border-border border-y divide-y divide-border">
+                <h3 className="native-section-title mb-2">Log again</h3>
+                <div className="divide-y divide-border border-y border-border">
                   {quickRepeatFoods.map((food) => {
                     const busy = quickRepeatBusyKey === food.key
                     return (
@@ -3639,27 +3654,27 @@ export default function Nutrition() {
                             ? `; logged ${food.count} times recently`
                             : ""
                         }`}
-                        className="flex items-center gap-3 active:bg-muted disabled:opacity-55 px-1 w-full min-h-14 text-left transition-colors"
+                        className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted disabled:opacity-55"
                       >
-                        <span className="flex justify-center items-center w-6 h-6 text-muted-foreground">
+                        <span className="flex h-6 w-6 items-center justify-center text-muted-foreground">
                           {busy ? (
-                            <span className="border border-muted-foreground/20 border-t-muted-foreground/70 rounded-full w-3 h-3 animate-spin" />
+                            <span className="h-3 w-3 animate-spin rounded-full border border-muted-foreground/20 border-t-muted-foreground/70" />
                           ) : (
                             <ForkKnife size={17} weight="bold" />
                           )}
                         </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block truncate native-row-title">
+                        <span className="min-w-0 flex-1">
+                          <span className="native-row-title block truncate">
                             {food.entry.name}
                           </span>
-                          <span className="block tabular-nums native-row-detail">
+                          <span className="native-row-detail block tabular-nums">
                             {fmt(food.entry.calories)} kcal
                             {food.count > 1
                               ? ` · logged ${food.count} times recently`
                               : ""}
                           </span>
                         </span>
-                        <span className="font-semibold text-[14px] text-[var(--accent-food)]">
+                        <span className="text-[14px] font-semibold text-[var(--accent-food)]">
                           Log
                         </span>
                       </button>
@@ -3668,7 +3683,7 @@ export default function Nutrition() {
                 </div>
               </section>
             )}
-            <div className="border-border border-y divide-y divide-border">
+            <div className="divide-y divide-border border-y border-border">
               {[
                 {
                   label: "Search food",
@@ -3704,21 +3719,25 @@ export default function Nutrition() {
                     key={label}
                     type="button"
                     onClick={() => {
-                      if (requiresAiAccess && !requireAiAccess(1, "nutrition_action")) return
+                      if (
+                        requiresAiAccess &&
+                        !requireAiAccess(1, "nutrition_action")
+                      )
+                        return
                       setAddOpen(false)
                       action()
                     }}
                     className={cn(
-                      "flex justify-between items-center gap-3 active:bg-muted/35 px-1 py-3 w-full min-h-16 text-left transition-colors"
+                      "flex min-h-16 w-full items-center justify-between gap-3 px-1 py-3 text-left transition-colors active:bg-muted/35"
                     )}
                   >
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 text-muted-foreground shrink-0">
+                    <span className="flex min-w-0 items-center gap-3">
+                      <span className="w-6 shrink-0 text-muted-foreground">
                         <Icon size={19} weight="bold" />
                       </span>
                       <span className="min-w-0">
-                        <span className="block native-row-title">{label}</span>
-                        <span className="block native-row-detail">
+                        <span className="native-row-title block">{label}</span>
+                        <span className="native-row-detail block">
                           {detail}
                         </span>
                       </span>
@@ -3736,18 +3755,18 @@ export default function Nutrition() {
                     return (
                       <div
                         key={recipe._id ?? recipe.name}
-                        className="flex items-center gap-1 border-border border-t w-full min-h-14"
+                        className="flex min-h-14 w-full items-center gap-1 border-t border-border"
                       >
                         <button
                           type="button"
                           onClick={() => logRecipe(recipe)}
-                          className="flex flex-1 justify-between items-center gap-3 active:bg-muted/40 px-1 py-2 min-w-0 min-h-14 text-left transition-colors"
+                          className="flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 px-1 py-2 text-left transition-colors active:bg-muted/40"
                         >
                           <div className="min-w-0 text-left">
-                            <p className="truncate native-row-title">
+                            <p className="native-row-title truncate">
                               {recipe.name}
                             </p>
-                            <p className="mt-0.5 native-row-detail">
+                            <p className="native-row-detail mt-0.5">
                               {totals.calories} kcal ·{" "}
                               {recipe.ingredients.length} ingredient
                               {recipe.ingredients.length === 1 ? "" : "s"}
@@ -3755,7 +3774,7 @@ export default function Nutrition() {
                           </div>
                           <CaretRight
                             size={18}
-                            className="text-muted-foreground shrink-0"
+                            className="shrink-0 text-muted-foreground"
                           />
                         </button>
                         {recipe._id && (
@@ -3765,7 +3784,7 @@ export default function Nutrition() {
                               setAddOpen(false)
                               navigate(`/foods/recipe/${recipe._id}`)
                             }}
-                            className="px-0 w-11 h-11 text-muted-foreground native-toolbar-button shrink-0"
+                            className="native-toolbar-button h-11 w-11 shrink-0 px-0 text-muted-foreground"
                             aria-label={`Edit ${recipe.name}`}
                           >
                             <PencilSimple size={17} weight="bold" />

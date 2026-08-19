@@ -3,13 +3,12 @@ import {
   AUTH_CARD_CLASS,
   AuthLayout,
   AuthMark,
-  AuthModeCard,
   GoogleMark,
 } from "@/components/auth-shell"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
 import { Capacitor } from "@capacitor/core"
-import { Eye, EyeSlash } from "@phosphor-icons/react"
+import { CaretDown, Eye, EyeSlash } from "@phosphor-icons/react"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
   authClient,
@@ -61,12 +60,12 @@ async function withAuthActionTimeout<T>(label: string, action: Promise<T>) {
 function AuthRedirectFallback() {
   return (
     <AuthLayout>
-      <section aria-labelledby="auth-redirect-title" className="text-center">
-        <div className="mx-auto mb-6 h-6 w-6 animate-spin rounded-full border-2 border-foreground/20 border-t-foreground" />
-        <h1 id="auth-redirect-title" className="native-large-title">
+      <section aria-labelledby="auth-redirect-title">
+        <div className="mb-6 h-5 w-5 animate-spin rounded-full border-2 border-border border-t-foreground" />
+        <h1 id="auth-redirect-title" className="app-title">
           Opening OneRep
         </h1>
-        <p className="native-body mt-3 text-muted-foreground">
+        <p className="native-supporting mt-2">
           Your sign-in is ready. Sending you back to where you left off.
         </p>
       </section>
@@ -90,13 +89,10 @@ function ModeTab({
       type="button"
       role="tab"
       aria-selected={active}
+      data-active={active}
       disabled={disabled}
       onClick={onSelect}
-      className={`min-h-10 flex-1 rounded-[0.55rem] text-[14px] font-semibold transition-[background,color,box-shadow] disabled:opacity-50 ${
-        active
-          ? "bg-[var(--surface-raised)] text-foreground shadow-[0_1px_2px_rgba(0,0,0,0.14)]"
-          : "text-muted-foreground hover:text-foreground"
-      }`}
+      className="app-segmented-button motion-tactile disabled:opacity-50"
     >
       {children}
     </button>
@@ -373,20 +369,20 @@ export default function Login() {
 
   return (
     <AuthLayout>
-      <header className="mb-7 text-center">
+      <header className="text-center">
         <AuthMark />
         <div
           key={mode}
           data-transition-direction={modeDirection}
           className="auth-mode-panel"
         >
-          <h1 className="mt-5 text-[1.9rem] leading-[1.1] font-semibold tracking-[-0.04em]">
+          <h1 className="app-title mt-7">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
-          <p className="mt-2 text-[15px] leading-6 text-balance text-muted-foreground">
+          <p className="native-supporting mx-auto mt-2 max-w-[32ch] text-balance">
             {mode === "signin"
-              ? "Pick up where you left off."
-              : "Training. Nutrition. Progress. All in one place."}
+              ? "Sign in to pick up where you left off."
+              : "Training, nutrition, and progress in one place."}
           </p>
         </div>
       </header>
@@ -398,7 +394,7 @@ export default function Login() {
         <div
           role="tablist"
           aria-label="Sign in or create account"
-          className="mb-6 flex gap-1 rounded-[0.7rem] border border-border bg-[var(--surface-subtle)] p-1"
+          className="app-segmented mb-6 grid-cols-2"
         >
           <ModeTab
             active={mode === "signin"}
@@ -416,224 +412,202 @@ export default function Login() {
           </ModeTab>
         </div>
 
-        <AuthModeCard>
-          <form
-            key={mode}
-            data-transition-direction={modeDirection}
-            onSubmit={handleSubmit}
-            className="auth-mode-panel space-y-5"
-          >
-            {mode === "signup" ? (
-              <label className={FIELD_CLASS}>
-                <span className={LABEL_CLASS}>Name</span>
-                <input
-                  type="text"
-                  name="name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Your name"
-                  required
-                  autoComplete="name"
-                  disabled={submitting}
-                  className={INPUT_CLASS}
-                />
-              </label>
-            ) : null}
-
+        <form
+          key={mode}
+          data-transition-direction={modeDirection}
+          onSubmit={handleSubmit}
+          className="auth-mode-panel space-y-4"
+        >
+          {mode === "signup" ? (
             <label className={FIELD_CLASS}>
-              <span className={LABEL_CLASS}>Email</span>
+              <span className={LABEL_CLASS}>Name</span>
               <input
-                type="email"
-                name="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
+                type="text"
+                name="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="Your name"
                 required
-                autoComplete="email"
+                autoComplete="name"
                 disabled={submitting}
                 className={INPUT_CLASS}
               />
             </label>
+          ) : null}
 
-            <label className={FIELD_CLASS}>
-              <span className="flex items-baseline justify-between gap-3">
-                <span className={LABEL_CLASS}>Password</span>
-                {mode === "signin" && (
-                  <button
-                    type="button"
-                    onClick={handlePasswordReset}
-                    disabled={submitting}
-                    className="text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
-                  >
-                    Forgot password?
-                  </button>
-                )}
-              </span>
-              <span className="relative block">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="••••••••"
-                  required
-                  minLength={mode === "signup" ? 8 : undefined}
-                  autoComplete={
-                    mode === "signin" ? "current-password" : "new-password"
-                  }
-                  disabled={submitting}
-                  className={`${INPUT_CLASS} pr-12`}
-                />
+          <label className={FIELD_CLASS}>
+            <span className={LABEL_CLASS}>Email</span>
+            <input
+              type="email"
+              name="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+              disabled={submitting}
+              className={INPUT_CLASS}
+            />
+          </label>
+
+          <label className={FIELD_CLASS}>
+            <span className="flex items-baseline justify-between gap-3">
+              <span className={LABEL_CLASS}>Password</span>
+              {mode === "signin" && (
                 <button
                   type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
+                  onClick={handlePasswordReset}
                   disabled={submitting}
-                  className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  aria-pressed={showPassword}
+                  className="text-[13px] font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
                 >
-                  {showPassword ? (
-                    <EyeSlash size={18} weight="bold" />
-                  ) : (
-                    <Eye size={18} weight="bold" />
-                  )}
+                  Forgot password?
                 </button>
-              </span>
-              {mode === "signup" && (
-                <span className="native-field-hint">At least 8 characters</span>
               )}
-            </label>
-
+            </span>
+            <span className="relative block">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={mode === "signup" ? 8 : undefined}
+                autoComplete={
+                  mode === "signin" ? "current-password" : "new-password"
+                }
+                disabled={submitting}
+                className={`${INPUT_CLASS} pr-12`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((visible) => !visible)}
+                disabled={submitting}
+                className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-40"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? (
+                  <EyeSlash size={18} weight="bold" />
+                ) : (
+                  <Eye size={18} weight="bold" />
+                )}
+              </button>
+            </span>
             {mode === "signup" && (
-              <label className="flex cursor-pointer items-start gap-3 text-[13px] leading-5 text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={legalAccepted}
-                  onChange={(event) => setLegalAccepted(event.target.checked)}
-                  required
-                  disabled={submitting}
-                  className="mt-0.5 size-4 shrink-0 accent-foreground"
-                />
-                <span>
-                  I confirm that I am at least 13 and agree to the{" "}
-                  <a
-                    href="https://onerep.life/terms"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                  >
-                    Terms and Conditions
-                  </a>
-                  . I acknowledge the{" "}
-                  <a
-                    href="https://onerep.life/privacy"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-semibold text-foreground underline decoration-border underline-offset-4"
-                  >
-                    Privacy Policy
-                  </a>
-                  .
-                </span>
-              </label>
+              <span className="native-field-hint">At least 8 characters</span>
             )}
+          </label>
 
-            {error && (
-              <p
-                role="alert"
-                className="border-l-2 border-destructive py-1.5 pl-3 text-[14px] leading-5 font-medium text-destructive"
-              >
-                {error}
-              </p>
-            )}
-
-            {message && (
-              <p
-                role="status"
-                className="border-l-2 border-border py-1.5 pl-3 text-[14px] leading-5 font-medium text-muted-foreground"
-              >
-                {message}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              aria-busy={loading}
-              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
-            >
-              {loading
-                ? mode === "signin"
-                  ? "Signing in…"
-                  : "Creating…"
-                : mode === "signin"
-                  ? "Sign in"
-                  : "Create account"}
-            </button>
-          </form>
-
-          {(googleAvailable || oidcAvailable) && (
-            <>
-              <div className="my-5 flex items-center gap-3">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-[12px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  or
-                </span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
-              <div className="space-y-3">
-                {googleAvailable && (
-                  <button
-                    type="button"
-                    onClick={handleGoogleSignIn}
-                    disabled={submitting}
-                    aria-busy={googleLoading}
-                    className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
-                  >
-                    <GoogleMark />
-                    {googleLoading ? "Opening Google…" : "Continue with Google"}
-                  </button>
-                )}
-
-                {oidcAvailable && (
-                  <button
-                    type="button"
-                    onClick={handleOidcSignIn}
-                    disabled={submitting}
-                    aria-busy={oidcLoading}
-                    className="native-secondary-button min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
-                  >
-                    {oidcLoading
-                      ? `Opening ${oidcName}…`
-                      : `Continue with ${oidcName}`}
-                  </button>
-                )}
-              </div>
-            </>
+          {mode === "signup" && (
+            <label className="flex cursor-pointer items-start gap-3 text-[13px] leading-5 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={legalAccepted}
+                onChange={(event) => setLegalAccepted(event.target.checked)}
+                required
+                disabled={submitting}
+                className="mt-0.5 size-4 shrink-0 accent-foreground"
+              />
+              <span>
+                I confirm that I am at least 13 and agree to the{" "}
+                <a
+                  href="https://onerep.life/terms"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                >
+                  Terms and Conditions
+                </a>
+                . I acknowledge the{" "}
+                <a
+                  href="https://onerep.life/privacy"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-foreground underline decoration-border underline-offset-4"
+                >
+                  Privacy Policy
+                </a>
+                .
+              </span>
+            </label>
           )}
-        </AuthModeCard>
+
+          {error && (
+            <p
+              role="alert"
+              className="native-field-error border-y border-border py-3"
+            >
+              {error}
+            </p>
+          )}
+
+          {message && (
+            <p
+              role="status"
+              className="native-supporting border-y border-border py-3"
+            >
+              {message}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            aria-busy={loading}
+            className="native-primary-button mt-2 min-h-12 w-full rounded-[0.8rem]"
+          >
+            {loading
+              ? mode === "signin"
+                ? "Signing in…"
+                : "Creating…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
+          </button>
+        </form>
+
+        {(googleAvailable || oidcAvailable) && (
+          <>
+            <div className="my-5 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="native-row-detail">or</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="space-y-3">
+              {googleAvailable && (
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={submitting}
+                  aria-busy={googleLoading}
+                  className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
+                >
+                  <GoogleMark />
+                  {googleLoading ? "Opening Google…" : "Continue with Google"}
+                </button>
+              )}
+
+              {oidcAvailable && (
+                <button
+                  type="button"
+                  onClick={handleOidcSignIn}
+                  disabled={submitting}
+                  aria-busy={oidcLoading}
+                  className="native-secondary-button min-h-12 w-full rounded-[0.8rem]"
+                >
+                  {oidcLoading
+                    ? `Opening ${oidcName}…`
+                    : `Continue with ${oidcName}`}
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </section>
 
-      <p className="mt-6 text-center text-[13px] leading-5 text-muted-foreground">
-        {mode === "signin" ? (
-          <>
-            New here?{" "}
-            <button
-              type="button"
-              onClick={() => switchMode("signup")}
-              disabled={submitting}
-              className="font-semibold text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground active:opacity-60 disabled:opacity-50"
-            >
-              Create an account
-            </button>
-          </>
-        ) : (
-          "Your data stays private and is never sold."
-        )}
-      </p>
-
-      <div className="mt-4 text-center">
+      <footer className="mt-9 border-t border-border pt-2">
         <button
           type="button"
           onClick={() => {
@@ -642,17 +616,53 @@ export default function Login() {
           }}
           disabled={submitting}
           aria-expanded={serverPickerOpen}
-          className="text-[13px] leading-5 font-semibold text-muted-foreground transition-colors hover:text-foreground active:opacity-60 disabled:opacity-50"
+          aria-controls="server-picker"
+          className="motion-tactile flex min-h-12 w-full items-center justify-between gap-3 text-left disabled:opacity-50"
         >
-          Server: {currentServerLabel()}
+          <span className="native-row-title">Server</span>
+          <span className="flex items-center gap-1.5">
+            <span className="native-row-value text-muted-foreground">
+              {currentServerLabel()}
+            </span>
+            <CaretDown
+              size={14}
+              weight="bold"
+              className={`text-muted-foreground transition-transform duration-200 ${
+                serverPickerOpen ? "rotate-180" : ""
+              }`}
+            />
+          </span>
         </button>
-      </div>
 
-      {serverPickerOpen && (
-        <section aria-label="Choose a server" className="mt-4">
-          <ServerPicker disabled={submitting} />
-        </section>
-      )}
+        {/*
+          A grid whose single row animates between 0fr and 1fr: the panel
+          measures itself, so the open height is never hard-coded and never
+          goes stale the way a JS-measured height does. It stays mounted so
+          the transition has something to run on, and `inert` keeps the
+          collapsed copy out of the tab order and off screen readers.
+        */}
+        <div
+          id="server-picker"
+          className={`grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+            serverPickerOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div
+              inert={!serverPickerOpen}
+              className={`pt-1 pb-4 transition-opacity duration-200 motion-reduce:transition-none ${
+                serverPickerOpen ? "opacity-100" : "opacity-0"
+              }`}
+            >
+              <ServerPicker disabled={submitting} />
+            </div>
+          </div>
+        </div>
+
+        <p className="native-row-detail border-t border-border py-4 text-center">
+          Your data stays private and is never sold.
+        </p>
+      </footer>
     </AuthLayout>
   )
 }

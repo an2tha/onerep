@@ -1,13 +1,14 @@
 /**
- * Bridge to the native iOS floating tab bar (NativeTabBarPlugin.swift).
+ * Bridge to the native floating tab bar (NativeTabBarPlugin.swift /
+ * NativeTabBarPlugin.kt).
  *
  * The web app remains the router: the native bar only reports taps and
- * mirrors selection/visibility pushed from here. On Android, the web, and on
- * iOS binaries that pre-date the plugin (OTA-updated JS inside an old shell),
+ * mirrors selection/visibility pushed from here. On the web, and on binaries
+ * that pre-date the plugin (OTA-updated JS inside an old shell),
  * `useNativeTabBar` reports unsupported and the web bar renders as before.
  */
 
-import { useEffect, useMemo, useRef } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Capacitor, registerPlugin } from "@capacitor/core"
 import type { PluginListenerHandle } from "@capacitor/core"
 import { logDevWarn } from "@/lib/utils"
@@ -15,7 +16,7 @@ import { activeTabPath, isTabActive } from "@/components/bottom-bar"
 
 type NativeTabBarItem = {
   id: string
-  /** SF Symbol name. */
+  /** SF Symbol name; Android maps it onto a vector drawable. */
   symbol: string
   label: string
   prominent?: boolean
@@ -47,9 +48,15 @@ const NATIVE_TAB_ITEMS: NativeTabBarItem[] = [
   { id: "/coach", symbol: "sparkles", label: "Coach", prominent: true },
 ]
 
+const NATIVE_TAB_BAR_PLATFORMS = new Set(["ios", "android"])
+
+function resolvedDocumentTheme(): "light" | "dark" {
+  return document.documentElement.classList.contains("dark") ? "dark" : "light"
+}
+
 export function isNativeTabBarSupported(): boolean {
   return (
-    Capacitor.getPlatform() === "ios" &&
+    NATIVE_TAB_BAR_PLATFORMS.has(Capacitor.getPlatform()) &&
     Capacitor.isPluginAvailable("NativeTabBar")
   )
 }
@@ -111,16 +118,31 @@ export function useNativeTabBar({
     void nativeTabBar.setVisible({ visible }).catch(() => undefined)
   }, [supported, visible])
 
-  // Coach paints its own dark backdrop in either theme, so the bar has to be
-  // told to stay dark there or its icons turn black on a black gradient.
+  // The app's own theme, not the OS's: the theme provider writes the resolved
+  // scheme onto <html>, and a user who set dark inside a phone set to light was
+  // getting a white bar under a black app. Coach is the exception — it paints
+  // its own dark backdrop either way, or its icons turn black on black.
+  const [documentTheme, setDocumentTheme] = useState(resolvedDocumentTheme)
+  useEffect(() => {
+    if (!supported) return
+    const observer = new MutationObserver(() =>
+      setDocumentTheme(resolvedDocumentTheme())
+    )
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+    return () => observer.disconnect()
+  }, [supported])
+
   useEffect(() => {
     if (!supported) return
     void nativeTabBar
       .setAppearance({
-        style: isTabActive(pathname, "/coach") ? "dark" : "system",
+        style: isTabActive(pathname, "/coach") ? "dark" : documentTheme,
       })
       .catch(() => undefined)
-  }, [supported, pathname])
+  }, [supported, pathname, documentTheme])
 
   return supported
 }

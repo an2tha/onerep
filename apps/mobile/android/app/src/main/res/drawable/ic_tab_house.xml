@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tab bar glyph for NativeTabBarPlugin. Drawn on a 24dp grid, stroked so it
+     sits next to the rest of the app's line iconography; tinted at runtime. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FF000000">
+    <path
+        android:pathData="M3.4,10.1L12,3.6l8.6,6.5v9.1a1.2,1.2 0 0 1 -1.2,1.2h-4.2v-6h-6.4v6H4.6a1.2,1.2 0 0 1 -1.2,-1.2z"
+        android:strokeWidth="1.7"
+        android:strokeColor="#FF000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+</vector>

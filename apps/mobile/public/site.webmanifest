@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "theme_color": "#f4f4f5",
-  "background_color": "#f4f4f5",
+  "theme_color": "#f4f3ef",
+  "background_color": "#f4f3ef",
   "categories": ["health", "fitness", "lifestyle"],
   "prefer_related_applications": false,
   "icons": [

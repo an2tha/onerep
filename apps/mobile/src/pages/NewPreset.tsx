@@ -891,6 +891,9 @@ function SearchSheet({
           "sheet-panel sheet-panel-fullscreen flex h-full w-full flex-col bg-background md:mt-12 md:h-auto md:max-h-[76vh] md:max-w-lg md:self-start md:overflow-hidden md:rounded-2xl md:border md:border-border/60 md:shadow-2xl",
           closing ? "sheet-panel-exit" : "sheet-panel-enter"
         )}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add exercise"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search bar row */}

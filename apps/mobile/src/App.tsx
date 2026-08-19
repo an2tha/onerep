@@ -1371,7 +1371,7 @@ export default function App() {
               </section>
             )}
             {showWelcomeNudge && (
-              <div className="mx-[var(--app-page-x)] mb-4 md:mx-8">
+              <div className="mx-[var(--app-page-x)] md:mx-8">
                 <WelcomeNudge
                   scheduledWorkout={scheduledWorkout}
                   workoutLogged={workoutLogs.length > 0}
@@ -1558,17 +1558,34 @@ export default function App() {
                 </div>
               )}
 
-              <div className="mx-[var(--app-page-x)] mt-2 md:mx-8">
+              {/* This row is the only way into the recipe library from here,
+                  and it used to be a grey line of text under a wall of
+                  photographs. It is a destination, so it looks like one. */}
+              <div className="mx-[var(--app-page-x)] mt-3 md:mx-8">
                 <button
                   type="button"
                   onClick={() => {
                     hapticSelection()
                     navigate("/recipes", { motion: "forward" })
                   }}
-                  className="flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl text-[13px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+                  className="motion-tactile flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-card px-3.5 text-left transition-colors active:bg-muted/40"
                 >
-                  More recipes
-                  <CaretRight size={14} />
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--accent-food-bg)] text-[var(--accent-food)]">
+                    <ForkKnife size={17} weight="bold" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold tracking-tight">
+                      All recipes
+                    </span>
+                    <span className="block text-[12px] text-muted-foreground">
+                      Yours, saved, and suggested
+                    </span>
+                  </span>
+                  <CaretRight
+                    size={15}
+                    weight="bold"
+                    className="shrink-0 text-muted-foreground"
+                  />
                 </button>
               </div>
             </section>

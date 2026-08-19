@@ -49,3 +49,21 @@ export function hapticSelection() {
   if (!isNative() || !hapticsEnabled()) return
   Haptics.selectionChanged().catch(() => {})
 }
+
+/**
+ * Rain, as the vibration motor understands it: one medium impact for the
+ * splash, then a few lighter ones falling out of time with each other so it
+ * reads as scattered drops rather than a metronome. Timers are unowned by
+ * design — the whole thing is over in a third of a second, and cancelling a
+ * finished buzz helps nobody.
+ */
+export function hapticRain() {
+  if (!isNative() || !hapticsEnabled()) return
+  Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {})
+  for (const delay of [70, 135, 185, 260]) {
+    window.setTimeout(() => {
+      if (!hapticsEnabled()) return
+      Haptics.impact({ style: ImpactStyle.Light }).catch(() => {})
+    }, delay)
+  }
+}

@@ -1541,8 +1541,7 @@ export function CoachProposal({
                     >
                       <span className="truncate">{exercise.name}</span>
                       <span className="shrink-0 tabular-nums">
-                        {exercise.sets.length} ×{" "}
-                        {exercise.sets[0]?.reps || "—"}
+                        {exercise.sets.length} × {exercise.sets[0]?.reps || "—"}
                       </span>
                     </span>
                   ))}
@@ -2364,7 +2363,8 @@ export function CoachUiBlocks({
           // same tasks, so pinning either one closes off the other.
           const todayKey = `${goalKey}:today`
           const weekKey = `${goalKey}:7d`
-          const pinned = pinnedGoalKeys.has(todayKey) || pinnedGoalKeys.has(weekKey)
+          const pinned =
+            pinnedGoalKeys.has(todayKey) || pinnedGoalKeys.has(weekKey)
           return (
             <div key={`${block.type}-${index}`} className="py-4">
               <p className="text-[12px] font-bold text-foreground">
@@ -2456,7 +2456,7 @@ export function CoachUiBlocks({
                             ...(item.detail ? { detail: item.detail } : {}),
                             completed: Boolean(
                               item.done ||
-                                completedItems.has(`${index}-${item.label}`)
+                              completedItems.has(`${index}-${item.label}`)
                             ),
                           })),
                         })
@@ -2785,10 +2785,13 @@ export function CoachAttachButton({
   onClick,
   disabled,
   className,
+  /** Set when the button sits in a menu and has room to say what it does. */
+  label,
 }: {
   onClick: () => void
   disabled?: boolean
   className?: string
+  label?: string
 }) {
   return (
     <button
@@ -2797,11 +2800,13 @@ export function CoachAttachButton({
       disabled={disabled}
       aria-label="Attach a picture"
       className={cn(
-        "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35",
+        "motion-tactile flex shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35",
+        label ? "min-h-10" : "size-11",
         className
       )}
     >
-      <ImageSquare size={18} weight="bold" />
+      <ImageSquare size={label ? 16 : 18} weight="bold" />
+      {label}
     </button>
   )
 }

@@ -102,16 +102,13 @@ export function ServerPicker({ disabled }: { disabled?: boolean }) {
               className="native-input disabled:opacity-60"
             />
             <span className="native-field-hint">
-              An IP or hostname is enough — ports 3210 and 3211 are assumed,
-              the self-hosted defaults.
+              An IP or hostname is enough — ports 3210 and 3211 are assumed, the
+              self-hosted defaults.
             </span>
           </label>
 
           {error && (
-            <p
-              role="alert"
-              className="border-l-2 border-destructive py-1.5 pl-3 text-[14px] leading-5 font-medium text-destructive"
-            >
+            <p role="alert" className="native-field-error">
               {error}
             </p>
           )}
@@ -120,16 +117,16 @@ export function ServerPicker({ disabled }: { disabled?: boolean }) {
             type="submit"
             disabled={busy || input.trim().length === 0}
             aria-busy={switching}
-            className="native-primary-button min-h-12 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+            className="native-primary-button min-h-12 w-full rounded-[0.8rem]"
           >
             {switching ? "Switching…" : "Connect to this server"}
           </button>
         </form>
       )}
 
-      <p className="text-[13px] leading-5 text-muted-foreground">
-        Switching servers reloads the app and signs you out on this device.
-        Your data stays on whichever server holds your account.
+      <p className="native-row-detail">
+        Switching servers reloads the app and signs you out on this device. Your
+        data stays on whichever server holds your account.
       </p>
     </div>
   )

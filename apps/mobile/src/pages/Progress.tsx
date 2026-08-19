@@ -43,6 +43,7 @@ import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { ExerciseLibrary } from "@/components/exercise-library"
 import { ProgressRings } from "@/components/progress-hero"
+import { CoachSheet } from "@/components/coach-sheet"
 import { APP_ACCENT_COLORS } from "@repo/ui"
 
 import {
@@ -106,6 +107,7 @@ export default function Progress() {
   // What the body is currently showing. It trails the selection by however
   // long the new tab takes to render, rather than by a fixed delay.
   const [shownMetric, setShownMetric] = useState<ProgressTab>(metric)
+  const [coachOpen, setCoachOpen] = useState(false)
   const today = currentDateKey()
   const metricTab: MetricTab = metric === "exercises" ? "body" : metric
   const customMetrics = useQuery(api.customProgressMetrics.list, {
@@ -498,8 +500,7 @@ export default function Progress() {
               type="button"
               onClick={() => {
                 hapticSelection()
-                setMetricBuilderError("")
-                setMetricBuilderOpen(true)
+                setCoachOpen(true)
               }}
               className="native-toolbar-button"
               aria-label={`Ask Coach to create a ${metricTab} metric`}
@@ -783,6 +784,13 @@ export default function Progress() {
           </div>
         )}
       </main>
+
+      {coachOpen && (
+        <CoachSheet
+          onClose={() => setCoachOpen(false)}
+          initialInput={`Create a ${metricTab} metric: `}
+        />
+      )}
 
       {metricBuilderOpen && (
         <MobileSheet

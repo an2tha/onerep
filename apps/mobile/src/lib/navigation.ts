@@ -92,12 +92,20 @@ export function prefersReducedMotion() {
   )
 }
 
-function resetScrollAfterNavigation() {
+/**
+ * Puts the page back at the top *before* the route changes.
+ *
+ * The outgoing screen is taken out of flow for the transition — the router
+ * renders it as an absolutely positioned frame — so whatever the window was
+ * scrolled to is not its scroll any more, and it re-enters at its own top. If
+ * the reset happens after the navigation, you watch a page you had scrolled
+ * halfway down snap to its first row and only then start animating away. Doing
+ * it first costs nothing you can see and removes the jump entirely.
+ */
+function resetScrollBeforeNavigation() {
   if (typeof window === "undefined") return
-
-  window.requestAnimationFrame(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" })
-  })
+  if (window.scrollY === 0 && window.scrollX === 0) return
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" })
 }
 
 export function setRouteMotion(motion: RouteMotion, native = false) {
@@ -163,16 +171,14 @@ export function useSmoothNavigate(): SmoothNavigateFunction {
         clearRouteMotion()
       }
 
-      const result = navigate(to, {
+      if (!routerOptions.preventScrollReset) {
+        resetScrollBeforeNavigation()
+      }
+
+      return navigate(to, {
         ...routerOptions,
         viewTransition: false,
       })
-
-      if (!routerOptions.preventScrollReset) {
-        resetScrollAfterNavigation()
-      }
-
-      return result
     },
     [navigate]
   )

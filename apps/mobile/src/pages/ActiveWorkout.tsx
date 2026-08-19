@@ -52,7 +52,7 @@ import {
 } from "@/lib/form-coach-clips"
 import { useFormCoachSupport } from "@/lib/form-coach"
 import { InWorkoutCoach } from "@/components/in-workout-coach"
-import { WorkoutCoachSheet } from "@/components/workout-coach-sheet"
+import { CoachSheet } from "@/components/coach-sheet"
 import { FormCoachRecorder } from "@/components/form-coach-recorder"
 import { FormCoachReviewSheet } from "@/components/form-coach-review-sheet"
 import { FormCoachPoseConfirm } from "@/components/form-coach-pose-confirm"
@@ -2455,16 +2455,21 @@ export default function ActiveWorkout() {
           <>
             <button
               type="button"
-              aria-label="Ask your coach"
+              aria-label={coachMenuOpen ? "Close coach menu" : "Ask your coach"}
               aria-expanded={coachMenuOpen}
               aria-busy={aiUpdating}
+              data-open={coachMenuOpen ? "true" : "false"}
               onClick={() => {
                 hapticSelection()
                 setCoachMenuOpen((value) => !value)
               }}
-              className="motion-tactile fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-40 inline-flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-[0_10px_28px_rgba(0,0,0,0.28)]"
+              className="coach-fab-trigger motion-tactile fixed right-[max(1rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--app-safe-bottom-lg)+4.75rem)] z-50 inline-flex h-12 w-12 items-center justify-center rounded-full bg-foreground text-background shadow-[0_8px_22px_rgba(0,0,0,0.26)]"
             >
-              <Sparkle size={22} weight="fill" />
+              {coachMenuOpen ? (
+                <X size={17} weight="bold" />
+              ) : (
+                <Sparkle size={19} weight="fill" />
+              )}
             </button>
             {coachMenuOpen && (
               <WorkoutCoachMenu
@@ -2489,7 +2494,7 @@ export default function ActiveWorkout() {
               />
             )}
             {coachChatOpen && (
-              <WorkoutCoachSheet
+              <CoachSheet
                 onClose={() => setCoachChatOpen(false)}
                 activeWorkout={{
                   summary: liveSessionSummary,

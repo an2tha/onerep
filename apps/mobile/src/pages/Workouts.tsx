@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Barbell,
   CaretDown,
+  Check,
   CaretRight,
   ClockCounterClockwise,
   Copy,
@@ -52,7 +53,7 @@ import {
   buildCatalogMap,
   type MuscleSets,
 } from "@/lib/muscle-volume"
-import { MuscleRecoveryHeatmapCard } from "@repo/ui"
+import { MuscleRecoveryPanel } from "@repo/ui"
 import { PrimaryButton } from "@repo/ui"
 import {
   AnimatedAccordion,
@@ -1666,8 +1667,8 @@ export default function Workouts() {
                   </section>
                 )}
 
-                <section className="py-5">
-                  <div className="mb-3 flex items-center justify-between gap-3">
+                <section className="py-4">
+                  <div className="mb-2.5 flex items-center justify-between gap-3">
                     <div>
                       <p className="app-section-title">Routine</p>
                       <p className="app-section-subtitle">
@@ -1678,15 +1679,19 @@ export default function Workouts() {
                       <button
                         type="button"
                         onClick={() => setRoutineEditMode((value) => !value)}
+                        aria-label={
+                          routineEditMode ? "Done editing routine" : "Edit routine"
+                        }
                         className={cn(
-                          "app-button transition-colors",
-                          routineEditMode
-                            ? "app-button-primary"
-                            : "app-button-quiet",
-                          "sm:bg-none"
+                          "app-icon-button transition-colors",
+                          routineEditMode && "app-button-primary"
                         )}
                       >
-                        {routineEditMode ? "Done" : "Edit routine"}
+                        {routineEditMode ? (
+                          <Check size={16} weight="bold" />
+                        ) : (
+                          <PencilSimple size={16} weight="bold" />
+                        )}
                       </button>
                     </div>
                   </div>
@@ -1718,7 +1723,7 @@ export default function Workouts() {
                               slotRefs.current[day] = el
                             }}
                             className={cn(
-                              "motion-card relative flex min-h-[6rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-2 overflow-hidden rounded-[20px] border border-border/55 bg-card px-2 py-3 shadow-[0_8px_28px_rgba(0,0,0,0.05)] transition-[transform,background-color,border-color,box-shadow] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[6.25rem] md:basis-auto md:px-2 md:py-3.5",
+                              "motion-card relative flex min-h-[5.25rem] min-w-0 basis-[calc((100%-1rem)/3)] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[20px] border border-border/55 bg-card px-2 py-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.05)] transition-[transform,background-color,border-color,box-shadow] min-[430px]:basis-[calc((100%-1.5rem)/4)] md:min-h-[5.5rem] md:basis-auto md:px-2 md:py-3",
                               isToday &&
                                 !isOver &&
                                 "border-foreground/20 bg-foreground/[0.055] shadow-[0_10px_32px_rgba(0,0,0,0.075)]",
@@ -1817,7 +1822,7 @@ export default function Workouts() {
                                 Add
                               </button>
                             ) : (
-                              <span className="py-1.5 text-[13px] font-medium text-muted-foreground/70">
+                              <span className="py-0.5 text-[13px] font-medium text-muted-foreground/70">
                                 Rest
                               </span>
                             )}
@@ -1842,9 +1847,9 @@ export default function Workouts() {
                         Estimate from your latest completed sets
                       </p>
                     </div>
-                    <MuscleRecoveryHeatmapCard
-                      muscleRecovery={muscleRecovery}
-                    />
+                    <div className="px-1">
+                      <MuscleRecoveryPanel muscleRecovery={muscleRecovery} />
+                    </div>
                   </div>
                 </AnimatedAccordion>
               </div>

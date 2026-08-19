@@ -1,61 +1,75 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { type ReactNode } from "react"
 
 /**
  * Shared chrome for the unauthenticated screens (sign in, create account,
  * password reset) so they read as one flow rather than three pages.
+ *
+ * Laid out the way a login screen has always been laid out: the lockup at the
+ * top of a centred column, the form under it, the small print at the bottom.
+ * The type and the controls are the app's own, but the shape is the familiar
+ * one. This is the first screen anybody sees, and it is the wrong place to be
+ * clever — no ambient gradient, no floating panel, nothing to decode.
  */
-export const AUTH_BACKDROP_CLASS =
-  "relative min-h-svh bg-background text-foreground before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-[45svh] before:bg-[radial-gradient(120%_100%_at_50%_0%,var(--surface-raised),transparent_70%)]"
+export const AUTH_BACKDROP_CLASS = "min-h-svh bg-background text-foreground"
 
-export const AUTH_CARD_CLASS =
-  "rounded-[1.15rem] border border-border bg-[var(--surface-panel)] p-5 shadow-[0_12px_36px_rgba(0,0,0,0.14)] backdrop-blur-xl sm:p-6"
+/** Kept for the screens that ask for "the auth section". No longer a card. */
+export const AUTH_CARD_CLASS = "mt-8"
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className={AUTH_BACKDROP_CLASS}>
-      <main className="relative mx-auto flex min-h-svh w-full max-w-[27rem] flex-col justify-center px-6 pt-[calc(var(--app-safe-top)+2rem)] pb-[var(--app-safe-bottom-lg)]">
-        {children}
-      </main>
+      <div className="flex min-h-svh flex-col">
+        {/*
+          A fixed column, not `app-page`: that one widens to 76rem past 768px,
+          which is correct for a dashboard and ridiculous for a sign-in form —
+          on a laptop the fields ran the full width of the window.
+        */}
+        <main className="mx-auto my-auto w-full max-w-[25rem] px-[var(--app-page-x)] pt-[calc(var(--app-safe-top)+2rem)] pb-[var(--app-safe-bottom-lg)]">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
 
-export function AuthMark() {
+/**
+ * The mark, drawn bare rather than sitting in its launcher tile: on a screen
+ * this is a logo, not the app icon quoted back at you. The strokes are the
+ * ones `scripts/build-icons.mjs` generates every raster from.
+ */
+function OneRepMark({ className }: { className?: string }) {
   return (
-    <img
-      src="/app-icon.svg"
-      alt=""
-      className="mx-auto size-14 rounded-[1rem] border border-border bg-[var(--surface-raised)] p-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.16)]"
-    />
+    <svg
+      viewBox="0 0 512 512"
+      aria-hidden="true"
+      className={className}
+      fill="none"
+    >
+      <g
+        stroke="currentColor"
+        strokeWidth={25}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M152 204 C 146 144 179 120 230 120 C 281 120 313 144 307 204" />
+        <path d="M224 242 C 208 200 173 180 143 186 C 111 192 89 218 91 256 C 93 296 125 336 179 362 C 203 372 231 360 253 342" />
+        <path d="M224 242 C 241 202 275 184 305 192 C 329 200 341 220 335 240" />
+        <path d="M253 342 C 293 320 333 280 393 200" />
+        <path d="M359 280 C 359 324 343 370 303 404 C 271 430 243 436 227 418 C 213 402 219 382 235 378" />
+      </g>
+      <path d="M426 158 L 409 231 L 356 191 Z" fill="currentColor" />
+    </svg>
   )
 }
 
-/**
- * Animates its own height to match the swapping panel inside it, so the card
- * grows and shrinks with a mode change instead of snapping.
- */
-export function AuthModeCard({ children }: { children: ReactNode }) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const container = containerRef.current
-    const content = contentRef.current
-    if (!container || !content) return
-
-    const sync = () => {
-      container.style.height = `${content.offsetHeight}px`
-    }
-    sync()
-
-    const observer = new ResizeObserver(sync)
-    observer.observe(content)
-    return () => observer.disconnect()
-  }, [])
-
+/** Mark and wordmark, locked up. The app's name, said once, at the top. */
+export function AuthMark() {
   return (
-    <div ref={containerRef} className="auth-mode-card overflow-hidden">
-      <div ref={contentRef}>{children}</div>
+    <div className="flex items-center justify-center gap-2.5">
+      <OneRepMark className="size-9 shrink-0" />
+      <span className="text-[1.4rem] leading-none font-[720] tracking-[-0.03em]">
+        OneRep
+      </span>
     </div>
   )
 }
