@@ -102,6 +102,16 @@ describe("@repo/ui package boundary", () => {
       // Backdates a workout against the app's local-date and preset helpers,
       // with haptics on the day strip.
       "log-past-workout-sheet.tsx",
+      // The exercise catalog: a Convex query, a router push per row, and the
+      // client-side filtering that keeps ~900 movements searchable without a
+      // round trip. The rows and thumbnails it draws come from @repo/ui.
+      "exercise-library.tsx",
+      // Both of these mount a whole page inside a sheet — the fasting screen
+      // over the diary, the coach over a live workout — so that pressing one
+      // button does not cost a route change and tear the screen underneath
+      // down. A package cannot import an app's pages.
+      "fasting-sheet.tsx",
+      "workout-coach-sheet.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       // Full-screen moments: triggers read Convex history, answers write
