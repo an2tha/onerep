@@ -30,8 +30,16 @@
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: *
 
+# These names never change, so a plain max-age lets the CDN keep serving an old
+# mark for a week after a rebrand. Revalidate instead; the ETag makes it cheap.
 /icon-*.png
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, must-revalidate
 
 /apple-touch-icon.png
-  Cache-Control: public, max-age=604800
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/favicon-*.png
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, must-revalidate
