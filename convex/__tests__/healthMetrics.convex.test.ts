@@ -76,9 +76,9 @@ describe("syncing daily metrics", () => {
     });
 
     expect(result.written).toBe(0);
-    expect(await t.run((ctx) => ctx.db.query("healthMetrics").collect())).toEqual(
-      [],
-    );
+    expect(
+      await t.run((ctx) => ctx.db.query("healthMetrics").collect()),
+    ).toEqual([]);
   });
 
   test("one user's readings never reach another's baseline", async () => {
@@ -192,15 +192,197 @@ describe("recovery reaching the coach", () => {
       today: TODAY,
     });
     expect(workspace.recovery).toBeNull();
+    expect(workspace.health).toBeNull();
+  });
+
+  test("the coach gets the habit score, not just today's state", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-scored");
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-scored",
+      today: TODAY,
+    });
+
+    expect(workspace.health).not.toBeNull();
+    expect(typeof workspace.health.score).toBe("number");
+    expect(workspace.health.windowDays).toBe(7);
+    // Only pillars with readings behind them travel; a null score would give
+    // the coach a number to reason about that nobody measured.
+    expect(
+      workspace.health.pillars.every(
+        (pillar: { score: number | null }) => pillar.score !== null,
+      ),
+    ).toBe(true);
+    // The prose narrative stays on the page — the coach writes its own.
+    expect(workspace.health).not.toHaveProperty("narrative");
+  });
+
+  /** One run, in the health store, that OneRep was never told about. */
+  async function seedImportedRun(
+    t: ReturnType<typeof convexTest>,
+    userId: string,
+    options: { linked?: boolean; dismissed?: boolean } = {},
+  ) {
+    await t.run(async (ctx) => {
+      const startedAt = Date.parse(`${TODAY}T07:00:00Z`);
+      await ctx.db.insert("healthWorkouts", {
+        userId,
+        provider: "apple_health",
+        externalId: `run-${userId}`,
+        activityType: "running",
+        activityName: "Outdoor Run",
+        date: TODAY,
+        startedAt,
+        endedAt: startedAt + 32 * 60 * 1000,
+        durationSeconds: 32 * 60,
+        totalDistanceMeters: 6400,
+        avgHeartRateBpm: 152,
+        activeEnergyKcal: 410,
+        ...(options.linked ? { linkedSessionId: "session-1" } : {}),
+        ...(options.dismissed ? { dismissedAt: Date.now() } : {}),
+        importedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+  }
+
+  test("sessions the watch saw reach the coach as sessions, not as minutes", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-runner");
+    await seedImportedRun(t, "user-runner");
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-runner",
+      today: TODAY,
+    });
+
+    expect(workspace.healthSessions).toHaveLength(1);
+    const [run] = workspace.healthSessions;
+    expect(run.activity).toBe("Outdoor Run");
+    expect(run.minutes).toBe(32);
+    expect(run.distanceKm).toBe(6.4);
+    expect(run.avgHeartRateBpm).toBe(152);
+    // Nothing has promoted it into the training log, so counting it as
+    // training is the coach's job rather than a double-count.
+    expect(run.inTrainingLog).toBe(false);
+    // Provider ids and sync bookkeeping stay on the server.
+    expect(run).not.toHaveProperty("externalId");
+  });
+
+  test("a session already in the training log says so", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-runner-linked");
+    await seedImportedRun(t, "user-runner-linked", { linked: true });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-runner-linked",
+      today: TODAY,
+    });
+
+    expect(workspace.healthSessions[0].inTrainingLog).toBe(true);
+  });
+
+  test("a dismissed import is not quietly resurrected in the coach", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-runner-dismissed");
+    await seedImportedRun(t, "user-runner-dismissed", { dismissed: true });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-runner-dismissed",
+      today: TODAY,
+    });
+
+    expect(workspace.healthSessions).toHaveLength(0);
+  });
+
+  test("imported sessions sit behind the same privacy gate", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-runner-private");
+    await seedImportedRun(t, "user-runner-private");
+    await t.run(async (ctx) => {
+      const prefs = await ctx.db
+        .query("userPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", "user-runner-private"))
+        .unique();
+      await ctx.db.patch(prefs!._id, {
+        privacySettings: {
+          analyticsEnabled: true,
+          personalizedInsightsEnabled: false,
+        },
+      });
+    });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-runner-private",
+      today: TODAY,
+    });
+
+    expect(workspace).not.toHaveProperty("healthSessions");
+    expect(workspace.omitted).toContain("healthSessions");
+  });
+
+  test("active energy travels as a number, not only as a pillar score", async () => {
+    const t = convexTest(schema, modules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("userPreferences", {
+        userId: "user-energy",
+        lastActiveTimezone: "UTC",
+        updatedAt: Date.now(),
+      });
+      for (let index = 6; index >= 0; index -= 1) {
+        const date = new Date(`${TODAY}T12:00:00Z`);
+        date.setUTCDate(date.getUTCDate() - index);
+        await ctx.db.insert("healthMetrics", {
+          userId: "user-energy",
+          date: date.toISOString().slice(0, 10),
+          provider: "apple_health",
+          sleepMinutes: 430,
+          steps: 9000,
+          activeEnergyKcal: 500,
+          syncedAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
+    });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-energy",
+      today: TODAY,
+    });
+
+    expect(workspace.health.activeEnergy.avgKcal).toBe(500);
+    expect(workspace.health.activeEnergy.days).toBe(7);
+  });
+
+  test("the habit score is behind the same privacy gate as recovery", async () => {
+    const t = convexTest(schema, modules);
+    await seedTiredUser(t, "user-scored-private");
+    await t.run(async (ctx) => {
+      const prefs = await ctx.db
+        .query("userPreferences")
+        .withIndex("by_userId", (q) => q.eq("userId", "user-scored-private"))
+        .unique();
+      await ctx.db.patch(prefs!._id, {
+        privacySettings: {
+          analyticsEnabled: true,
+          personalizedInsightsEnabled: false,
+        },
+      });
+    });
+
+    const workspace = await t.query(internal.ai.coachWorkspace.loadForModel, {
+      userId: "user-scored-private",
+      today: TODAY,
+    });
+
+    expect(workspace).not.toHaveProperty("health");
   });
 });
 
 describe("the health dashboard query", () => {
   /** A fortnight of ordinary days, so the baselines have something to stand on. */
-  async function seedWindow(
-    t: ReturnType<typeof convexTest>,
-    userId: string,
-  ) {
+  async function seedWindow(t: ReturnType<typeof convexTest>, userId: string) {
     await t.run(async (ctx) => {
       for (let index = 20; index >= 0; index -= 1) {
         const date = new Date(`${TODAY}T12:00:00Z`);

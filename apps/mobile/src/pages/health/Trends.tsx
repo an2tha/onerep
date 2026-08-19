@@ -1,108 +1,115 @@
 import { useState } from "react"
 import { currentDateKey } from "@/lib/food-log"
-import { hapticSelection } from "@/lib/haptics"
-import { cn } from "@/lib/utils"
 import {
+  AREA_TONES,
   HealthDetailShell,
   MetricTrend,
+  RangeToggle,
   formatCount,
   formatHours,
   type HealthMetricId,
+  type RangeKey,
 } from "./shared"
 
 /**
- * Every series in one place, grouped the way people ask for them.
+ * Every series, over one window.
  *
- * The tabs are themes rather than metrics because "how is my sleep" is a
- * question about two charts, not one, and making someone visit a picker three
- * times to answer it is the kind of navigation that gets a screen abandoned.
+ * The tabs are gone. They split seven charts across three panels, which meant
+ * two taps to answer "did my sleep and my resting heart rate move together"
+ * — the one question a trends screen exists for, and the one the old layout
+ * made hardest. One range control drives all of them, because comparing
+ * signals over different windows is not a comparison.
  */
-const GROUPS = [
+const CHARTS: Array<{
+  metric: HealthMetricId
+  title: string
+  kind: "bars" | "line"
+  format: (value: number) => string
+  tone: string
+}> = [
   {
-    id: "recovery",
-    label: "Recovery",
-    charts: [
-      { metric: "recovery", title: "Recovery score", kind: "bars", format: formatCount },
-      { metric: "sleep", title: "Sleep", kind: "bars", format: formatHours },
-    ],
+    metric: "recovery",
+    title: "Recovery score",
+    kind: "bars",
+    format: formatCount,
+    tone: AREA_TONES.recovery,
   },
   {
-    id: "heart",
-    label: "Heart",
-    charts: [
-      {
-        metric: "hrv",
-        title: "Heart rate variability",
-        kind: "line",
-        format: (value: number) => `${formatCount(value)}ms`,
-      },
-      {
-        metric: "restingHeartRate",
-        title: "Resting heart rate",
-        kind: "line",
-        format: (value: number) => `${formatCount(value)}bpm`,
-      },
-    ],
+    metric: "sleep",
+    title: "Sleep",
+    kind: "bars",
+    format: formatHours,
+    tone: AREA_TONES.sleep,
   },
   {
-    id: "activity",
-    label: "Activity",
-    charts: [
-      { metric: "exercise", title: "Exercise minutes", kind: "bars", format: formatHours },
-      { metric: "steps", title: "Steps", kind: "bars", format: formatCount },
-      {
-        metric: "energy",
-        title: "Active calories",
-        kind: "bars",
-        format: (value: number) => `${formatCount(value)} kcal`,
-      },
-    ],
+    metric: "hrv",
+    title: "Heart rate variability",
+    kind: "line",
+    format: (value) => `${formatCount(value)}ms`,
+    tone: AREA_TONES.heart,
   },
-] as const
+  {
+    metric: "restingHeartRate",
+    title: "Resting heart rate",
+    kind: "line",
+    format: (value) => `${formatCount(value)}bpm`,
+    tone: AREA_TONES.heart,
+  },
+  {
+    metric: "exercise",
+    title: "Exercise minutes",
+    kind: "bars",
+    format: formatHours,
+    tone: AREA_TONES.activity,
+  },
+  {
+    metric: "steps",
+    title: "Steps",
+    kind: "bars",
+    format: formatCount,
+    tone: AREA_TONES.activity,
+  },
+  {
+    metric: "energy",
+    title: "Active calories",
+    kind: "bars",
+    format: (value) => `${formatCount(value)} kcal`,
+    tone: AREA_TONES.activity,
+  },
+]
+
+const RANGE_CAPTION: Record<RangeKey, string> = {
+  W: "the last seven days, one bar a day",
+  M: "the last thirty days, one bar a day",
+  Y: "the last year, averaged by week",
+}
 
 export default function HealthTrends() {
   const today = currentDateKey()
-  const [group, setGroup] = useState<(typeof GROUPS)[number]["id"]>("recovery")
-  const active = GROUPS.find((item) => item.id === group) ?? GROUPS[0]
+  const [range, setRange] = useState<RangeKey>("M")
 
   return (
     <HealthDetailShell title="Trends" subtitle="Against your own history">
-      <div
-        className="-mt-1 inline-flex gap-0.5 self-start rounded-full bg-foreground/[0.06] p-0.5"
-        role="tablist"
-        aria-label="Trend group"
-      >
-        {GROUPS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={group === item.id}
-            onClick={() => {
-              hapticSelection()
-              setGroup(item.id)
-            }}
-            className={cn(
-              "motion-tactile-subtle min-h-9 rounded-full px-3.5 text-[12px] font-semibold text-muted-foreground transition-colors",
-              group === item.id && "bg-foreground text-background"
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-1 py-4">
+        <p className="text-[13px] text-muted-foreground">
+          {RANGE_CAPTION[range]}
+        </p>
+        <RangeToggle range={range} onChange={setRange} />
       </div>
 
-      {/* Keyed on the group so the charts re-enter rather than morphing
-          between two unrelated units. */}
-      <div key={group} className="dashboard-intelligence-panel grid gap-5">
-        {active.charts.map((chart) => (
+      {/* Keyed on the range so the charts re-enter together rather than each
+          animating its own width change. */}
+      <div key={range} className="grid gap-5 lg:block lg:columns-2 lg:gap-8">
+        {CHARTS.map((chart) => (
           <MetricTrend
             key={chart.metric}
             today={today}
-            metric={chart.metric as HealthMetricId}
+            metric={chart.metric}
             kind={chart.kind}
             title={chart.title}
             format={chart.format}
+            tone={chart.tone}
+            range={range}
           />
         ))}
       </div>

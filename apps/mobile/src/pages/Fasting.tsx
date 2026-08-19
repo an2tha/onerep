@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import {
   ArrowLeft,
+  CaretDown,
   CheckCircle,
   PencilSimple,
   Timer,
@@ -62,7 +63,18 @@ function historyDate(dateKey: string): string {
   })
 }
 
-export default function Fasting() {
+/**
+ * The fasting timer. Normally a route; `embedded` lets the nutrition page open
+ * the same screen in a drawer, so starting or ending a fast costs no page
+ * transition at all.
+ */
+export default function Fasting({
+  embedded = false,
+  onClose,
+}: {
+  embedded?: boolean
+  onClose?: () => void
+} = {}) {
   const navigate = useSmoothNavigate()
   const today = currentDateKey()
 
@@ -91,6 +103,9 @@ export default function Fasting() {
   const [fastCelebration, setFastCelebration] = useState(false)
   const [customHours, setCustomHours] = useState(16)
   const [editingStart, setEditingStart] = useState(false)
+  // Starting or ending a fast is the whole job; the record of past ones is a
+  // reference and stays folded away until it is asked for.
+  const [recordOpen, setRecordOpen] = useState(false)
   const [startDraft, setStartDraft] = useState("")
 
   // Convex is authoritative, but its first result lands a beat after mount and
@@ -242,20 +257,40 @@ export default function Fasting() {
   }, [targetReached])
 
   return (
-    <div className="native-page mx-auto min-h-svh w-full max-w-xl pb-[calc(var(--app-safe-bottom)+6rem)] text-foreground">
-      <NavigationBar
-        title="Fasting"
-        subtitle="Track an intermittent fast"
-        leading={
+    <div
+      className={cn(
+        "native-page mx-auto w-full max-w-xl text-foreground",
+        embedded
+          ? "pb-[calc(var(--app-safe-bottom)+1rem)]"
+          : "min-h-svh pb-[calc(var(--app-safe-bottom)+6rem)]"
+      )}
+    >
+      {embedded ? (
+        <div className="flex items-center justify-between gap-3 px-[var(--app-page-x)] pt-1 pb-2">
+          <h2 className="text-[19px] font-bold tracking-tight">Fasting</h2>
           <ToolbarButton
-            onClick={() => navigate(-1)}
-            aria-label="Back to nutrition"
-            className="-ml-2 px-0 text-muted-foreground"
+            onClick={() => onClose?.()}
+            aria-label="Close fasting"
+            className="-mr-2 px-0 text-muted-foreground"
           >
-            <ArrowLeft size={19} weight="bold" />
+            <X size={19} weight="bold" />
           </ToolbarButton>
-        }
-      />
+        </div>
+      ) : (
+        <NavigationBar
+          title="Fasting"
+          subtitle="Track an intermittent fast"
+          leading={
+            <ToolbarButton
+              onClick={() => navigate(-1)}
+              aria-label="Back to nutrition"
+              className="-ml-2 px-0 text-muted-foreground"
+            >
+              <ArrowLeft size={19} weight="bold" />
+            </ToolbarButton>
+          }
+        />
+      )}
 
       <div className="px-[var(--app-page-x)] pt-2">
         {runningStartedAt ? (
@@ -404,7 +439,31 @@ export default function Fasting() {
           </>
         )}
 
-        <SectionHeader title="Your fasting" />
+        <button
+          type="button"
+          onClick={() => {
+            hapticTap()
+            setRecordOpen((open) => !open)
+          }}
+          aria-expanded={recordOpen}
+          aria-label="Your fasting record"
+          className="mt-6 flex min-h-12 w-full items-center justify-between gap-3 border-t border-border pt-4 text-left"
+        >
+          <span className="native-section-title">Your fasting</span>
+          <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            {stats.totalCompleted === 0
+              ? "No fasts yet"
+              : `${stats.currentStreakDays}d streak · ${stats.averageHours}h avg`}
+            <CaretDown
+              size={14}
+              weight="bold"
+              className={cn("transition-transform", recordOpen && "rotate-180")}
+            />
+          </span>
+        </button>
+
+        {recordOpen && (
+        <>
         {stats.totalCompleted === 0 ? (
           <EmptyState
             icon={Timer}
@@ -483,6 +542,8 @@ export default function Fasting() {
               )
             })}
           </GroupedList>
+        )}
+        </>
         )}
       </div>
 

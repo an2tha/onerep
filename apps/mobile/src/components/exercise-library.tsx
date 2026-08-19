@@ -327,7 +327,7 @@ export function ExerciseLibrary() {
         <div className="mt-4">
           {sections.map(([letter, group]) => (
             <section key={letter}>
-              <h2 className="sticky top-0 z-10 bg-background/95 py-1.5 text-[12px] font-bold tracking-wide text-muted-foreground uppercase backdrop-blur-sm">
+              <h2 className="list-index-sticky sticky top-0 z-10 py-1.5 text-[12px] font-bold tracking-wide text-muted-foreground uppercase">
                 {letter}
               </h2>
               <ul>

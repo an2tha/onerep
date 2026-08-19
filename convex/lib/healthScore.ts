@@ -51,6 +51,18 @@ export type HealthRecommendation = {
   title: string;
   /** Why this one is at the top of the list. */
   detail: string;
+  /**
+   * The same ask as `title`, split so a card can lead with the figure.
+   *
+   * A card that opens with a number and three words is read at a glance; the
+   * sentence form is kept for the detail pages, where there is room to explain
+   * and the reader has already chosen the subject.
+   */
+  amount: number;
+  /** "min", "steps", "kcal", "bpm", "%". Never a word longer than the number. */
+  unit: string;
+  /** Four or five words at the outside. Lowercase, no full stop. */
+  action: string;
   /** Points the overall score would gain if this pillar reached target. */
   potentialPoints: number;
 };
@@ -446,14 +458,20 @@ function buildRecommendations(
         recommendations.push({
           pillar: "sleep",
           title: `Go to bed ${Math.round(shortfall)} minutes earlier`,
-          detail: `You are averaging ${formatHours(context.sleepAvg)} a night. Moving lights-out earlier by ${Math.round(shortfall)} minutes gets you to ${formatHours(HEALTH_TARGETS.sleepMinutes)} without touching your alarm.`,
+          amount: Math.round(shortfall),
+          unit: "min",
+          action: "earlier to bed",
+          detail: `${formatHours(context.sleepAvg)} a night now. Same alarm, earlier lights-out.`,
           potentialPoints: points,
         });
       } else if (context.sleepAvg > 9 * 60) {
         recommendations.push({
           pillar: "sleep",
           title: "Pull your wake time forward",
-          detail: `${formatHours(context.sleepAvg)} a night is past the point of returns. A consistent wake time usually tightens this up within a fortnight.`,
+          amount: Math.round(context.sleepAvg - HEALTH_TARGETS.sleepMinutes),
+          unit: "min",
+          action: "over the useful range",
+          detail: `${formatHours(context.sleepAvg)} a night is past the point of returns.`,
           potentialPoints: points,
         });
       }
@@ -468,7 +486,10 @@ function buildRecommendations(
         recommendations.push({
           pillar: "exercise",
           title: `Add ${Math.round(shortfall)} minutes of training this week`,
-          detail: `You are at ${Math.round(context.exerciseWeekly)} of ${HEALTH_TARGETS.exerciseMinutesPerWeek} minutes. That is ${sessions} more ${sessions === 1 ? "session" : "sessions"} of around 30 minutes, at an effort where holding a conversation is work.`,
+          amount: Math.round(shortfall),
+          unit: "min",
+          action: "more training this week",
+          detail: `${sessions} more ${sessions === 1 ? "session" : "sessions"} of 30 minutes, hard enough that talking is work.`,
           potentialPoints: points,
         });
       }
@@ -481,7 +502,10 @@ function buildRecommendations(
         recommendations.push({
           pillar: "steps",
           title: `Walk ${number(shortfall)} more steps a day`,
-          detail: `About ${Math.max(1, Math.round(shortfall / 110))} minutes of walking, which is one lap of the block after lunch rather than a project.`,
+          amount: Math.round(shortfall),
+          unit: "steps",
+          action: "more a day",
+          detail: `About ${Math.max(1, Math.round(shortfall / 110))} minutes of walking.`,
           potentialPoints: points,
         });
       }
@@ -494,7 +518,10 @@ function buildRecommendations(
         recommendations.push({
           pillar: "energy",
           title: `Find ${number(shortfall)} more active kcal a day`,
-          detail: `Cycling, stairs, or carrying the shopping all count. Active energy responds faster than anything else here, which makes it the cheapest place to buy points.`,
+          amount: Math.round(shortfall),
+          unit: "kcal",
+          action: "more a day",
+          detail: "Cycling, stairs, carrying the shopping — all of it counts.",
           potentialPoints: points,
         });
       }
@@ -508,14 +535,20 @@ function buildRecommendations(
         recommendations.push({
           pillar: "cardio",
           title: "Take the intensity down for a few days",
-          detail: `Your resting heart rate is running ${Math.round(rhr.delta)}bpm above your own normal. That usually means load, alcohol, or something viral — easy aerobic work and an early night bring it back faster than pushing through.`,
+          amount: Math.round(rhr.delta),
+          unit: "bpm",
+          action: "above normal, ease off",
+          detail: `Resting heart rate is ${Math.round(rhr.delta)}bpm above your normal. Easy aerobic work, early night.`,
           potentialPoints: points,
         });
       } else if (hrv && hrv.delta < 0) {
         recommendations.push({
           pillar: "cardio",
           title: "Protect the next two nights",
-          detail: `Heart rate variability is ${Math.round((-hrv.delta / hrv.baseline) * 100)}% under your baseline. Sleep and a lighter session move this one; nothing else reliably does.`,
+          amount: Math.round((-hrv.delta / hrv.baseline) * 100),
+          unit: "%",
+          action: "under baseline, sleep on it",
+          detail: `HRV is ${Math.round((-hrv.delta / hrv.baseline) * 100)}% under baseline. Sleep moves this one; little else does.`,
           potentialPoints: points,
         });
       }
@@ -581,34 +614,25 @@ function buildNarrative(
   const best = ranked[0];
   const worst = ranked[ranked.length - 1];
 
-  const sentences: string[] = [
-    `Your health score is ${score} over the last ${HEALTH_SCORE_WINDOW_DAYS} days, built from ${measured.length} signal${measured.length === 1 ? "" : "s"} your watch is actually recording.`,
-  ];
+  // Deliberately terse. The score, the day count and the signal count are all
+  // already on screen next to this paragraph; restating them in prose is how a
+  // summary turns into a wall nobody reads twice.
+  const sentences: string[] = []
 
-  // With one pillar there is no "carrying" and no "dragging" — just the fact.
   if (measured.length === 1) {
-    sentences.push(
-      `That is ${best.label.toLowerCase()} alone: ${pillarValue(best)}.`,
-    );
+    sentences.push(`${best.label} is all that is measured: ${pillarValue(best)}.`);
   } else if (best.id === worst.id || (best.score ?? 0) - (worst.score ?? 0) < 12) {
-    sentences.push(
-      `Nothing stands out in either direction — ${best.label.toLowerCase()} at ${pillarValue(best)} is about where everything else sits.`,
-    );
+    sentences.push(`Nothing stands out either way — ${pillarValue(best)}.`);
   } else {
     sentences.push(
-      `${best.label} is carrying it at ${pillarValue(best)}.`,
-      `${worst.label} is the drag, at ${pillarValue(worst)}.`,
+      `${worst.label} is the drag, at ${pillarValue(worst)}. ${best.label} is carrying it at ${pillarValue(best)}.`,
     );
   }
 
-  // Recovery is a separate clock from the habit score, so it only earns a
-  // sentence when it disagrees with the headline.
+  // Recovery runs on a separate clock from the habit score, so it only earns a
+  // clause when it disagrees with the headline.
   if (recovery?.status === "compromised" && recovery.notes.length > 0) {
-    sentences.push(
-      `Separately, the last few days have been hard on you: ${recovery.notes[0].replace(/\.$/, "").toLowerCase()}.`,
-    );
-  } else if (band === "excellent") {
-    sentences.push("Keep doing the boring thing.");
+    sentences.push(recovery.notes[0]);
   }
 
   return { headline: HEADLINES[band], body: sentences.join(" ") };

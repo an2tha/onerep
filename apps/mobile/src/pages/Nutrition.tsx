@@ -28,6 +28,7 @@ import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { convexClient } from "@/lib/convex"
 import { MobileSheet } from "@/components/mobile-sheet"
+import { FastingSheet } from "@/components/fasting-sheet"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import { SlideToDeleteRow } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
@@ -384,6 +385,7 @@ function MacroDial({
   stroke,
   mirrored = false,
   emphasis = false,
+  compact = false,
   className,
   style,
   rainKey = 0,
@@ -403,11 +405,16 @@ function MacroDial({
   mirrored?: boolean
   /** The centre dial states its goal outright; the flanking two stay terse. */
   emphasis?: boolean
+  /** Shrunk to a bare ring, for when something else owns the hero. */
+  compact?: boolean
   className?: string
   style?: CSSProperties
   rainKey?: number
 }) {
   const reached = target > 0 ? Math.min(1, value / target) : 0
+  // The glass pane fills the ring exactly: the track's inner edge is the
+  // radius minus half its own stroke, in the same 100-unit space the svg uses.
+  const glassInset = `${50 - (DIAL_RADIUS - stroke / 2)}%`
   return (
     <div
       className={cn(
@@ -432,6 +439,11 @@ function MacroDial({
           ))}
         </span>
       )}
+      <span
+        className="macro-dial-glass"
+        style={{ inset: glassInset }}
+        aria-hidden="true"
+      />
       <svg
         viewBox="0 0 100 100"
         className="h-full w-full"
@@ -446,7 +458,7 @@ function MacroDial({
           cx="50"
           cy="50"
           r={DIAL_RADIUS}
-          fill="var(--background)"
+          fill="none"
           stroke="var(--foreground)"
           strokeOpacity={0.08}
           strokeWidth={stroke}
@@ -464,6 +476,7 @@ function MacroDial({
           className="transition-[stroke-dashoffset] duration-700 ease-out"
         />
       </svg>
+      {!compact && (
       <div className="absolute inset-[18%] flex flex-col items-center justify-center overflow-hidden">
         <p
           className={cn(
@@ -504,6 +517,7 @@ function MacroDial({
           </p>
         )}
       </div>
+      )}
     </div>
   )
 }
@@ -1822,6 +1836,7 @@ export default function Nutrition() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [addOpen, setAddOpen] = useState(false)
   const [microsOpen, setMicrosOpen] = useState(false)
+  const [fastingOpen, setFastingOpen] = useState(false)
   const [showAllFood, setShowAllFood] = useState(false)
   const [customWaterOpen, setCustomWaterOpen] = useState(false)
   const [dateSelectorOpen, setDateSelectorOpen] = useState(false)
@@ -2040,6 +2055,8 @@ export default function Nutrition() {
   const fastProgress =
     fastTargetSeconds > 0 ? Math.min(1, fastElapsed / fastTargetSeconds) : 0
   const fastRemaining = Math.max(0, fastTargetSeconds - fastElapsed)
+  // A running fast takes the hero: it is the thing with a deadline.
+  const fastingHero = Boolean(activeFast)
   const mealTargetsEnabled = effectiveGoals?.mealTargetsEnabled ?? false
   const mealTargets = useMemo(
     () => effectiveGoals?.mealTargets ?? [],
@@ -2068,6 +2085,14 @@ export default function Nutrition() {
   )
   const supplementDone = takenSupplements.length + overview.legacyEntries.length
   const supplementTarget = Math.max(scheduledSupplements.length, supplementDone)
+  // A quiet tail on the hero's context line. Silent when nothing is scheduled
+  // and nothing has been taken — an empty count is not a hint, it is noise.
+  const supplementHint =
+    supplementTarget === 0
+      ? ""
+      : supplementDone >= supplementTarget
+        ? `${supplementDone} supplement${supplementDone === 1 ? "" : "s"} taken`
+        : `${supplementDone} of ${supplementTarget} supplements`
   const dueSupplements = supplementPlan.filter(
     (plan) => plan.state === "due" || plan.state === "missed"
   )
@@ -2492,7 +2517,7 @@ export default function Nutrition() {
   // today and past-day branches rendering the same thing.
   const logMethods = (
     <section
-      className="mt-4 grid grid-cols-4 gap-2 progress-tab-enter"
+      className="mt-6 grid grid-cols-4 gap-2 progress-tab-enter"
       aria-label="Log a meal"
     >
       {[
@@ -2528,7 +2553,7 @@ export default function Nutrition() {
           }}
           className="motion-tactile flex flex-col items-center gap-2 rounded-xl px-1 py-1 text-[13px] font-semibold"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-card text-foreground transition-colors active:bg-muted">
+          <span className="app-translucent flex h-14 w-14 items-center justify-center rounded-full text-foreground transition-colors">
             <Icon size={21} weight="bold" />
           </span>
           <span>{label}</span>
@@ -2536,45 +2561,6 @@ export default function Nutrition() {
       ))}
     </section>
   )
-
-  // The one-tap row for people who eat the same four things forever, which is
-  // everyone. The sheet keeps its own copy; this one skips the sheet entirely.
-  const quickRepeatRow =
-    quickRepeatFoods.length > 0 ? (
-      <section
-        className="-mx-5 mt-2 px-5 overflow-x-auto progress-tab-enter"
-        aria-label="Log a recent food again"
-      >
-        <div className="flex gap-2 w-max">
-          {quickRepeatFoods.map((food) => {
-            const busy = quickRepeatBusyKey === food.key
-            return (
-              <button
-                key={food.key}
-                type="button"
-                onClick={() => void repeatFood(food.entry, food.key)}
-                disabled={quickRepeatBusyKey !== null}
-                aria-busy={busy}
-                aria-label={`Log ${food.entry.name} again, ${fmt(
-                  food.entry.calories
-                )} kilocalories`}
-                className="gap-2 px-3 min-h-10 app-button app-button-quiet shrink-0"
-              >
-                {busy ? (
-                  <span className="border border-muted-foreground/20 border-t-muted-foreground/70 rounded-full w-3 h-3 animate-spin" />
-                ) : (
-                  <ArrowCounterClockwise size={15} weight="bold" />
-                )}
-                <span className="max-w-40 truncate">{food.entry.name}</span>
-                <span className="tabular-nums text-muted-foreground">
-                  {fmt(food.entry.calories)} kcal
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-    ) : null
 
   const fastingCard = (
     <TourAnchor
@@ -2594,7 +2580,7 @@ export default function Nutrition() {
       </div>
       <button
         type="button"
-        onClick={() => navigate("/nutrition/fasting")}
+        onClick={() => setFastingOpen(true)}
         aria-label={
           activeFast
             ? `Fasting for ${formatFastDuration(
@@ -3031,8 +3017,102 @@ export default function Nutrition() {
                 exists to answer, and sits on a wash that shifts with the day's
                 own numbers before fading out into the page — a soft edge
                 instead of a drawn one. */}
-            <section className="relative pt-1 pb-2 text-center progress-tab-enter">
-              {visibleMetrics.calories ? (
+            <section
+              className={cn(
+                "app-hero-frame relative flex flex-col justify-center pt-3 pb-4 progress-tab-enter",
+                fastingHero ? "text-left" : "text-center"
+              )}
+            >
+              {fastingHero ? (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setFastingOpen(true)}
+                      className="motion-tactile -ml-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-[13px] font-semibold text-muted-foreground active:text-foreground"
+                      aria-label="Open the fasting timer"
+                    >
+                      <Timer size={15} weight="bold" aria-hidden="true" />
+                      Fasting
+                    </button>
+                    <p className="mt-1.5 flex items-baseline gap-1.5">
+                      <span
+                        key={Math.round(fastRemaining / 60)}
+                        className="motion-number-refresh text-[2.9rem] leading-none font-extrabold tracking-tight tabular-nums"
+                      >
+                        {fastTargetSeconds > 0
+                          ? fmtFastRemaining(fastRemaining)
+                          : formatFastDuration(fastElapsed)}
+                      </span>
+                      <span className="text-[1rem] font-semibold text-muted-foreground">
+                        {fastTargetSeconds > 0
+                          ? fastRemaining > 0
+                            ? "left"
+                            : "over"
+                          : "elapsed"}
+                      </span>
+                    </p>
+                    <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
+                      {formatFastDuration(fastElapsed)} in
+                      {fastTargetSeconds > 0
+                        ? ` of ${formatFastDuration(fastTargetSeconds)}`
+                        : ""}
+                      {visibleMetrics.calories
+                        ? ` · ${fmt(intakeTotals.calories)} kcal logged`
+                        : ""}
+                      {supplementHint ? ` · ${supplementHint}` : ""}
+                    </p>
+                  </div>
+
+                  {/* The macros are still true, just not the point while the
+                      clock is running: they shrink to grey rings and give the
+                      hero over to the fast. */}
+                  {(visibleMetrics.calories ||
+                    visibleMetrics.macros ||
+                    visibleMetrics.protein) && (
+                    <div
+                      className="flex shrink-0 items-center opacity-40 grayscale"
+                      aria-label={`Macros so far: ${fmt(intakeTotals.calories)} of ${fmt(calorieTarget)} calories, ${fmt(intakeTotals.protein)} of ${fmt(macroTargets.protein)} grams protein, ${fmt(intakeTotals.fat)} of ${fmt(macroTargets.fat)} grams fat`}
+                      role="img"
+                    >
+                      <MacroDial
+                        name="Calories"
+                        value={intakeTotals.calories}
+                        target={calorieTarget}
+                        suffix=""
+                        color={APP_ACCENT_COLORS.neutral}
+                        size={38}
+                        stroke={9}
+                        mirrored
+                        compact
+                        className="z-0 -mr-1.5"
+                      />
+                      <MacroDial
+                        name="Protein"
+                        value={intakeTotals.protein}
+                        target={macroTargets.protein}
+                        suffix="g"
+                        color={MACRO_COLORS.protein}
+                        size={52}
+                        stroke={9}
+                        compact
+                        className="z-10"
+                      />
+                      <MacroDial
+                        name="Fat"
+                        value={intakeTotals.fat}
+                        target={macroTargets.fat}
+                        suffix="g"
+                        color={MACRO_COLORS.fat}
+                        size={38}
+                        stroke={9}
+                        compact
+                        className="z-0 -ml-1.5"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : visibleMetrics.calories ? (
                 <>
                   <p className="flex items-baseline justify-center gap-1.5">
                     <span
@@ -3048,6 +3128,7 @@ export default function Nutrition() {
                   <p className="mt-1.5 text-[13px] text-muted-foreground tabular-nums">
                     {fmt(intakeTotals.calories)} of {fmt(calorieTarget)} kcal ·{" "}
                     {loggedToday} entries
+                    {supplementHint ? ` · ${supplementHint}` : ""}
                   </p>
                 </>
               ) : (
@@ -3058,14 +3139,15 @@ export default function Nutrition() {
                   <p className="mt-1.5 text-[13px] text-muted-foreground">
                     logged today · {nutritionPlan?.trackingMode ?? "habit"}{" "}
                     tracking mode
+                    {supplementHint ? ` · ${supplementHint}` : ""}
                   </p>
                 </>
               )}
 
-              {visibleMetrics.calories ||
-              visibleMetrics.macros ||
-              visibleMetrics.protein ? (
-                <div className="relative mt-5 flex items-center justify-center pb-1">
+              {fastingHero ? null : visibleMetrics.calories ||
+                visibleMetrics.macros ||
+                visibleMetrics.protein ? (
+                <div className="relative mt-7 flex items-center justify-center pb-2">
                   {visibleMetrics.calories && (
                     <MacroDial
                       name="Calories"
@@ -3140,7 +3222,6 @@ export default function Nutrition() {
             </section>
 
             {logMethods}
-            {quickRepeatRow}
 
             {smartMealSuggestion && (
               <div className="mt-3">
@@ -3156,7 +3237,7 @@ export default function Nutrition() {
               </div>
             )}
 
-            <section className="gap-6 grid md:grid-cols-[1fr_0.82fr] mt-5">
+            <section className="gap-6 grid md:grid-cols-[1fr_0.82fr] mt-7">
               <div
                 className="py-4 border-border border-y progress-tab-enter"
                 style={{ animationDelay: "120ms" }}
@@ -3700,6 +3781,7 @@ export default function Nutrition() {
         </MobileSheet>
       )}
 
+      {fastingOpen && <FastingSheet onClose={() => setFastingOpen(false)} />}
       {aiAccessModal}
     </div>
   )

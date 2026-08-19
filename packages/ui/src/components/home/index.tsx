@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react"
 import {
   ArrowRight,
   Barbell,
@@ -108,88 +114,46 @@ export function TodayHeader({
 }
 
 /**
- * A photograph the page rises out of.
+ * The field the page rises out of.
  *
- * The photo is scenery and nothing more. What matters is the edge: the page's
- * own background sweeps up across the bottom of the image on a curve, so the
- * day's numbers are not sitting in a box on a picture — they are simply on the
- * page, and the picture is what the page came from. Anything with a border and
- * a corner radius here reads as a widget pasted over a wallpaper, which is the
- * exact cheapness this replaces.
- *
- * The gradient behind the image is the real floor: a failed or offline photo
- * degrades to a tinted backdrop rather than a white hole, which is why the
- * image is a background layer and not the thing the text is positioned against.
+ * No photograph and no drawn edge: a soft gradient carries the greeting and
+ * the day's numbers, then dissolves into the page beneath them. The numbers
+ * are not sitting in a box on a picture — they are simply on the page, and the
+ * field is where the page started. Anything with a border and a corner radius
+ * here reads as a widget pasted over a wallpaper, which is the exact
+ * cheapness this replaces.
  */
-export function DashboardPhotoHero({
-  photoUrl,
+export function DashboardHero({
   dateLabel,
   salutation,
   firstName,
   action,
+  fill = 0,
   children,
 }: {
-  /** Remote and therefore optional — the gradient is the real floor. */
-  photoUrl?: string
   dateLabel: string
   salutation: string
   firstName: string
   action?: ReactNode
-  /** The day's numbers, sitting on the page below the curve. */
+  /**
+   * How far through the day's calories, 0-100. The field spreads and warms
+   * with it, the same way Nutrition's does — the background is reporting,
+   * not decorating.
+   */
+  fill?: number
+  /** The day's numbers, sitting in the field rather than under it. */
   children?: ReactNode
 }) {
-  /**
-   * The outgoing photo stays mounted underneath the incoming one so the fade
-   * has something to fade from. Two layers is the most that can ever be
-   * needed: the newest is pruned back to one the moment its fade finishes.
-   */
-  const [layers, setLayers] = useState<Array<{ id: number; src: string }>>([])
-  const nextLayerId = useRef(0)
-
-  useEffect(() => {
-    if (!photoUrl) return
-    setLayers((current) => {
-      if (current[current.length - 1]?.src === photoUrl) return current
-      return [...current, { id: nextLayerId.current++, src: photoUrl }].slice(
-        -2
-      )
-    })
-  }, [photoUrl])
-
   return (
-    <section className="dashboard-photo-hero relative">
-      <div className="dashboard-photo-hero-frame relative isolate overflow-hidden">
-        {layers.map((layer, index) => (
-          <img
-            key={layer.id}
-            src={layer.src}
-            alt=""
-            aria-hidden="true"
-            loading="eager"
-            decoding="async"
-            // Only the topmost layer is animating; when it lands, the one
-            // underneath has nothing left to do.
-            onAnimationEnd={() => {
-              if (index === layers.length - 1) {
-                setLayers((current) => current.slice(-1))
-              }
-            }}
-            onError={() =>
-              setLayers((current) =>
-                current.filter((item) => item.id !== layer.id)
-              )
-            }
-            className="dashboard-photo-hero-photo"
-          />
-        ))}
-        {/* Legibility, not decoration: the copy above is white regardless of
-            what the photo happens to be doing behind it. */}
-        <div
-          className="dashboard-photo-hero-scrim absolute inset-0 -z-10"
-          aria-hidden="true"
-        />
-
-        <header className="dashboard-photo-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
+    <section
+      className="dashboard-hero app-hero relative"
+      style={
+        { "--hero-fill": Math.max(0, Math.min(100, fill)) } as CSSProperties
+      }
+    >
+      <span className="dashboard-home-wash app-hero-wash" aria-hidden="true" />
+      <div className="dashboard-hero-frame relative flex flex-col">
+        <header className="dashboard-hero-header flex items-start justify-between gap-3 px-[var(--app-page-x)] md:px-8">
           <div className="min-w-0">
             <p className="app-eyebrow truncate opacity-80">{dateLabel}</p>
             <h1 className="app-title max-w-[18ch] md:max-w-none">
@@ -199,53 +163,11 @@ export function DashboardPhotoHero({
           {action && <div className="shrink-0 pt-0.5">{action}</div>}
         </header>
 
-        {/* The day's numbers, on the photograph rather than under it. */}
         {children && (
-          <div className="dashboard-photo-hero-ledger relative mt-auto">
+          <div className="dashboard-hero-ledger relative mt-auto">
             {children}
           </div>
         )}
-
-        {/* The page, cutting into the photograph. `preserveAspectRatio="none"`
-            lets one path stretch from a phone to a desktop without the curve
-            flattening or the fill pulling away from the edges. */}
-        <svg
-          className="dashboard-photo-hero-curve"
-          viewBox="0 0 1440 120"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <defs>
-            {/* The lit edge falls off towards both ends, so the curve reads as
-                a surface catching light rather than a stroked vector shape. */}
-            <linearGradient
-              id="dashboardHeroCurveEdge"
-              x1="0"
-              x2="1"
-              y1="0"
-              y2="0"
-            >
-              <stop offset="0" stopColor="#fff" stopOpacity="0" />
-              <stop offset="0.28" stopColor="#fff" stopOpacity="0.42" />
-              <stop offset="0.6" stopColor="#fff" stopOpacity="0.16" />
-              <stop offset="1" stopColor="#fff" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path
-            className="dashboard-photo-hero-curve-fill"
-            d="M0 56C260 92 520 99 780 80C1020 63 1240 57 1440 64L1440 120L0 120Z"
-          />
-          {/* `non-scaling-stroke` keeps the hairline one pixel wide; without it
-              `preserveAspectRatio="none"` smears it into a wedge. */}
-          <path
-            className="dashboard-photo-hero-curve-edge"
-            d="M0 56C260 92 520 99 780 80C1020 63 1240 57 1440 64"
-            fill="none"
-            stroke="url(#dashboardHeroCurveEdge)"
-            strokeWidth="1.5"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
       </div>
     </section>
   )
@@ -667,6 +589,7 @@ export function DailyLedgerHero({
   macros = [],
   supplementCalories = 0,
   onPhoto = false,
+  translucent = false,
   className,
 }: {
   caloriesLeft: number
@@ -674,6 +597,8 @@ export function DailyLedgerHero({
   macros?: MacroProgress[]
   /** Folded into the totals above; shown so the figures reconcile with the meal list. */
   supplementCalories?: number
+  /** Sitting on a hero field: a pane the gradient shows through, not a card. */
+  translucent?: boolean
   /**
    * Laid over the hero photograph: no card chrome, and colors drawn from white
    * rather than the theme, because the surface underneath is a photo and not
@@ -691,7 +616,9 @@ export function DailyLedgerHero({
       <section
         className={cn(
           "px-4 py-5",
-          !onPhoto &&
+          translucent && "app-translucent rounded-[22px]",
+          !translucent &&
+            !onPhoto &&
             "dashboard-ledger-card rounded-[22px] border border-border/70"
         )}
       >

@@ -2,15 +2,16 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import {
+  AREA_TONES,
+  DialHero,
+  MetricAbout,
   HealthDetailShell,
   MetricTrend,
   NoReadings,
-  ScoreDial,
   StatCell,
   StatGrid,
   formatCount,
   formatHours,
-  toneVar,
 } from "./shared"
 
 const STATUS_CAPTION: Record<string, string> = {
@@ -36,6 +37,67 @@ export default function HealthRecovery() {
     <HealthDetailShell
       title="Recovery"
       subtitle="Measured against your own baseline"
+      heroFill={data?.recoveryScore ?? null}
+      charts={
+        <>
+          <MetricTrend
+            today={today}
+            metric="recovery"
+            title="Recovery score"
+            format={formatCount}
+            tone={AREA_TONES.recovery}
+          />
+          <MetricTrend
+            today={today}
+            metric="sleep"
+            title="Sleep"
+            format={formatHours}
+            tone="var(--accent-health)"
+          />
+          <MetricTrend
+            today={today}
+            metric="hrv"
+            kind="line"
+            title="Heart rate variability"
+            format={(value) => `${formatCount(value)}ms`}
+            tone="var(--accent-water)"
+          />
+          <MetricTrend
+            today={today}
+            metric="restingHeartRate"
+            kind="line"
+            title="Resting heart rate"
+            format={(value) => `${formatCount(value)}bpm`}
+            tone="var(--accent-progress)"
+          />
+        </>
+      }
+      about={
+        <MetricAbout
+          items={[
+            {
+              term: "How the score is built",
+              detail:
+                "The mean of your last three days for each signal, against the median of your own last 28. Median, so one bad week does not move the baseline.",
+            },
+            {
+              term: "Why there are no target numbers",
+              detail:
+                "Resting heart rate and HRV vary enormously between healthy people. The signal is movement against your own normal, not a threshold you can pass or fail.",
+            },
+            {
+              term: "Ready, steady, compromised",
+              detail:
+                "Two independent signals have to agree before this says compromised. One signal moving is a bad night, and calling that under-recovery is how an app gets ignored.",
+            },
+            {
+              term: "When it stays quiet",
+              detail:
+                "A signal needs seven readings in the window before it gets a baseline. Below that it is left out rather than guessed at.",
+            },
+          ]}
+        />
+      }
     >
       {data === undefined ? (
         <div
@@ -44,15 +106,12 @@ export default function HealthRecovery() {
         />
       ) : (
         <>
-          <ScoreDial
+          <DialHero
+            tone={AREA_TONES.recovery}
             score={data.recoveryScore}
             caption={STATUS_CAPTION[recovery?.status ?? "unknown"]}
-            size={176}
-            ticks={48}
-          />
-
-          {recovery && recovery.status !== "unknown" ? (
-            <>
+          >
+            {recovery && recovery.status !== "unknown" ? (
               <StatGrid>
                 <StatCell
                   label="HRV"
@@ -90,43 +149,35 @@ export default function HealthRecovery() {
                   }
                 />
               </StatGrid>
+            ) : (
+              <NoReadings detail="Recovery needs about a week of readings before it can compare you with yourself." />
+            )}
+          </DialHero>
 
-              {recovery.notes.length > 0 && (
-                <section
-                  className="rounded-xl border border-border bg-card p-4"
-                  aria-label="What stands out"
-                >
-                  <p className="text-[14px] font-semibold">What stands out</p>
-                  <ul className="mt-2.5 space-y-2">
-                    {recovery.notes.map((note) => (
-                      <li
-                        key={note}
-                        className="flex items-baseline gap-2 text-[13px] leading-5 text-muted-foreground"
-                      >
-                        <span
-                          className="size-1.5 shrink-0 self-center rounded-full"
-                          style={{
-                            backgroundColor: toneVar(data.recoveryScore),
-                          }}
-                        />
-                        {note}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </>
-          ) : (
-            <NoReadings detail="Recovery needs about a week of readings before it can compare you with yourself." />
-          )}
-
-          <MetricTrend
-            today={today}
-            metric="recovery"
-            title="Recovery score"
-            format={formatCount}
-            tone={toneVar(data.recoveryScore)}
-          />
+          {recovery &&
+            recovery.status !== "unknown" &&
+            recovery.notes.length > 0 && (
+              <section
+                className="progress-tab-enter border-t border-border px-1 py-4"
+                aria-label="What stands out"
+              >
+                <p className="app-section-title">What stands out</p>
+                <ul className="mt-2.5 space-y-2">
+                  {recovery.notes.map((note) => (
+                    <li
+                      key={note}
+                      className="flex items-baseline gap-2 text-[13px] leading-5 text-muted-foreground"
+                    >
+                      <span
+                        className="size-1.5 shrink-0 self-center rounded-full"
+                        style={{ backgroundColor: AREA_TONES.recovery }}
+                      />
+                      {note}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
         </>
       )}
     </HealthDetailShell>

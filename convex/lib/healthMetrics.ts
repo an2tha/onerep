@@ -75,3 +75,56 @@ export async function exerciseMinutesByDate(
   }
   return minutes;
 }
+
+/**
+ * Sessions the health store recorded, oldest first.
+ *
+ * These reached the coach only as a minute count inside the activity pillar,
+ * which meant a user who ran four times a week appeared, to the one thing in
+ * the app that gives advice, to have not trained at all. The runs, rides and
+ * classes are most of some people's week; a coach that cannot see them is
+ * guessing.
+ *
+ * Projected here rather than in the workspace so the provider ids, the sync
+ * bookkeeping and the route metadata never leave the server.
+ */
+export async function listHealthSessionWindow(
+  ctx: Ctx,
+  userId: string,
+  since: string,
+  until: string,
+  limit: number,
+) {
+  const floor = Date.parse(`${shiftDate(since, -1)}T00:00:00Z`);
+  const rows = await ctx.db
+    .query("healthWorkouts")
+    .withIndex("by_userId_and_startedAt", (q) =>
+      q.eq("userId", userId).gte("startedAt", floor),
+    )
+    .collect();
+
+  return rows
+    .filter((row) => row.date >= since && row.date <= until && !row.dismissedAt)
+    .sort((a, b) => a.startedAt - b.startedAt)
+    .slice(-limit)
+    .map((row) => ({
+      date: row.date,
+      activity: row.activityName,
+      minutes: Math.round(row.durationSeconds / 60),
+      ...(row.totalDistanceMeters != null
+        ? { distanceKm: Math.round(row.totalDistanceMeters / 100) / 10 }
+        : {}),
+      ...(row.avgHeartRateBpm != null
+        ? { avgHeartRateBpm: Math.round(row.avgHeartRateBpm) }
+        : {}),
+      ...(row.activeEnergyKcal != null
+        ? { kcal: Math.round(row.activeEnergyKcal) }
+        : {}),
+      /**
+       * Whether this is already in the training log. Without it the coach
+       * double-counts: the same hour shows up once as a logged session and
+       * once as an imported one, and it congratulates the user twice.
+       */
+      inTrainingLog: Boolean(row.linkedSessionId),
+    }));
+}

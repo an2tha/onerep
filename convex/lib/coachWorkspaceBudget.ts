@@ -81,7 +81,11 @@ const TRIM_STEPS: TrimStep[] = [
       let changed = false;
       for (const preset of presets) {
         const snapshot = (preset as Sized)?.snapshot as Sized | undefined;
-        if (snapshot && Array.isArray(snapshot.items) && snapshot.items.length > 4) {
+        if (
+          snapshot &&
+          Array.isArray(snapshot.items) &&
+          snapshot.items.length > 4
+        ) {
           snapshot.items = snapshot.items.slice(0, 4);
           changed = true;
         }
@@ -128,6 +132,17 @@ const TRIM_STEPS: TrimStep[] = [
         }
       }
       return changed;
+    },
+  },
+  {
+    // Imported sessions are ordered oldest-first, so the tail is the recent
+    // week — the part a coach is actually asked about.
+    field: "healthSessions",
+    apply: (w) => {
+      const sessions = w.healthSessions;
+      if (!Array.isArray(sessions) || sessions.length <= 8) return false;
+      w.healthSessions = sessions.slice(-8);
+      return true;
     },
   },
   { field: "recentWorkouts", apply: (w) => cap(w, "recentWorkouts", 10) },
