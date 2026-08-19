@@ -3,6 +3,8 @@ import {
   useEffect,
   useMemo,
   useState,
+  startTransition,
+  type CSSProperties,
   type FormEvent,
 } from "react"
 import {
@@ -17,7 +19,6 @@ import {
 } from "@phosphor-icons/react"
 import { useAction, useMutation, useQuery } from "convex/react"
 import { useSearchParams } from "react-router"
-import { flushSync } from "react-dom"
 import { api } from "../../../../convex/_generated/api"
 import type { Id } from "../../../../convex/_generated/dataModel"
 import { currentDateKey, type FoodLogDaySnapshot } from "@/lib/food-log"
@@ -41,6 +42,8 @@ import { toast } from "@repo/ui"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
 import { ExerciseLibrary } from "@/components/exercise-library"
+import { ProgressRings } from "@/components/progress-hero"
+import { APP_ACCENT_COLORS } from "@repo/ui"
 
 import {
   BodyProgress,
@@ -100,6 +103,9 @@ export default function Progress() {
   const saveCustomMetric = useMutation(api.customProgressMetrics.saveDefinition)
   const setCustomMetricValue = useMutation(api.customProgressMetrics.setValue)
   const removeCustomMetric = useMutation(api.customProgressMetrics.remove)
+  // What the body is currently showing. It trails the selection by however
+  // long the new tab takes to render, rather than by a fixed delay.
+  const [shownMetric, setShownMetric] = useState<ProgressTab>(metric)
   const today = currentDateKey()
   const metricTab: MetricTab = metric === "exercises" ? "body" : metric
   const customMetrics = useQuery(api.customProgressMetrics.list, {
@@ -139,6 +145,62 @@ export default function Progress() {
       workoutHistory,
     ]
   )
+  // ── The week, as three tracks ────────────────────────────────────────────
+  // Body counts a day only when it was actually weighed; the other two come
+  // straight off the summary. Seven days, three answers, one instrument.
+  const bodyCheckInDays = useMemo(() => {
+    const window = new Set(summary.days.map((day) => day.date))
+    const seen = new Set<string>()
+    for (const measurement of bodyMeasurements ?? []) {
+      const date = measurement.loggedAt.slice(0, 10)
+      if (window.has(date)) seen.add(date)
+    }
+    return seen.size
+  }, [bodyMeasurements, summary.days])
+  const heroTracks = [
+    {
+      id: "nutrition",
+      name: "Nutrition",
+      days: summary.nutrition.loggedDays,
+      total: summary.days.length,
+      color: APP_ACCENT_COLORS.food,
+      size: 188,
+    },
+    {
+      id: "training",
+      name: "Training",
+      days: summary.training.activeDays,
+      total: summary.days.length,
+      color: APP_ACCENT_COLORS.workout,
+      size: 146,
+    },
+    {
+      id: "body",
+      name: "Body",
+      days: bodyCheckInDays,
+      total: summary.days.length,
+      color: APP_ACCENT_COLORS.progress,
+      size: 104,
+    },
+  ]
+  // A day counts as kept if anything at all was recorded on it. The rings
+  // hold the detail; this is the number you can carry around.
+  const daysKept = summary.days.filter(
+    (day) => day.nutrition.logged || day.training.workouts > 0
+  ).length
+  // The field takes the colour of whatever you're looking at, so switching
+  // tabs changes the temperature of the page and not just its contents.
+  const HERO_ACCENTS: Record<ProgressTab, string> = {
+    body: "var(--accent-progress)",
+    nutrition: "var(--accent-food)",
+    training: "var(--accent-workout)",
+    exercises: "var(--accent-training-hero)",
+  }
+  const keptFill =
+    summary.days.length > 0
+      ? Math.round((daysKept / summary.days.length) * 100)
+      : 0
+
   const unit: WeightUnit = preferences?.weightUnit === "lbs" ? "lbs" : "kg"
   const orderedMeasurements = useMemo(
     () =>
@@ -161,13 +223,16 @@ export default function Progress() {
         .find((measurement) => measurement.loggedAt.slice(0, 10) < today),
     [orderedMeasurements, today]
   )
+  // Deliberately not waiting on `customMetrics`: that query is keyed to the
+  // selected tab, so counting it here made every tab switch re-enter the
+  // loading state — the page tore itself down and rebuilt, which is what was
+  // kicking the tab strip up and back down mid-transition.
   const loading =
     bodyMeasurements === undefined ||
     workoutHistory === undefined ||
     foodHistory === undefined ||
     effectiveGoals === undefined ||
-    preferences === undefined ||
-    customMetrics === undefined
+    preferences === undefined
 
   const prepareEntry = useCallback(() => {
     const toDisplayWeight = (weightKg: number | null | undefined) =>
@@ -216,19 +281,17 @@ export default function Progress() {
     setEntryPrepared(true)
   }, [previousMeasurement, todayMeasurement, unit])
 
+  // Nothing waits on a timer here. The old shape — fade out, then swap on a
+  // 260ms setTimeout — meant every tap bought 260ms of nothing happening
+  // before the expensive tab render even started, and the fade-in then landed
+  // late. Now the press lands instantly (highlight, hero colour, the hero
+  // folding), the heavy swap is handed to React as non-urgent so it can't
+  // block that first frame, and the incoming tab fades up on arrival.
   function selectMetric(nextMetric: ProgressTab) {
     if (nextMetric === metric) return
     hapticSelection()
-    const transitionDocument = document as Document & {
-      startViewTransition?: (update: () => void) => { finished: Promise<void> }
-    }
-    if (!transitionDocument.startViewTransition) {
-      setMetric(nextMetric)
-      return
-    }
-    transitionDocument.startViewTransition(() => {
-      flushSync(() => setMetric(nextMetric))
-    })
+    setMetric(nextMetric)
+    startTransition(() => setShownMetric(nextMetric))
   }
 
   async function createCustomMetric() {
@@ -414,7 +477,16 @@ export default function Progress() {
   }, [checkInCelebration])
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
+    <div
+      className="desktop-canvas app-hero min-h-svh bg-background lg:pr-8 lg:pl-72"
+      style={
+        {
+          "--hero-fill": shownMetric === "exercises" ? 40 : keptFill,
+          "--hero-accent": HERO_ACCENTS[shownMetric],
+        } as CSSProperties
+      }
+    >
+      <span className="app-hero-wash" aria-hidden="true" />
       <main className="app-page pb-28">
         <header className="app-header" ref={progressHeaderRef}>
           <h1 className="app-title">Progress</h1>
@@ -447,9 +519,43 @@ export default function Progress() {
           </div>
         </header>
 
+        {/* Progress opens on the week itself, not on a tab bar. Nutrition
+             rings its dials in a row and Training rings them in a crown;
+             here the three tracks are nested, because they are three ways
+             through the same seven days rather than three separate readings.
+             The library gets the same hero with the instrument folded away —
+             it is the one tab that isn't about the week. */}
+        <section
+          className="progress-hero relative flex flex-col justify-center pt-1 pb-5 text-center"
+          aria-label="Week in review"
+        >
+          <p className="text-[13px] font-medium text-muted-foreground">
+            {shownMetric === "exercises"
+              ? "Exercise library"
+              : `Last ${summary.days.length} days`}
+          </p>
+          {shownMetric === "exercises" ? (
+            <p className="mt-1.5 text-[15px] text-muted-foreground tabular-nums">
+              {daysKept} of {summary.days.length} days kept this week
+            </p>
+          ) : null}
+          {/* The number lives inside the rings rather than above them —
+                the other two heroes lead with a headline, this one makes you
+                read the instrument to get it. The top margin lives inside the
+                fold, so it collapses with everything else instead of popping
+                out on the first frame. */}
+          <ProgressRings
+            tracks={heroTracks}
+            headline={String(daysKept)}
+            detail={`of ${summary.days.length} days kept`}
+            collapsed={shownMetric === "exercises"}
+            onSelect={(id) => selectMetric(id as ProgressTab)}
+          />
+        </section>
+
         <div
           ref={progressTabsRef}
-          className="app-segmented mb-5 grid grid-cols-4"
+          className="app-segmented mt-5 mb-5 grid grid-cols-4"
           aria-label="Progress metric"
         >
           {(["body", "nutrition", "training", "exercises"] as const).map(
@@ -468,13 +574,15 @@ export default function Progress() {
           )}
         </div>
 
-        {metric === "exercises" ? (
-          <ExerciseLibrary />
+        {shownMetric === "exercises" ? (
+          <div key="exercises" className="progress-tab-content">
+            <ExerciseLibrary />
+          </div>
         ) : loading ? (
           <ProgressLoading />
         ) : (
-          <div className="progress-tab-content grid gap-6">
-            {metric === "body" && (
+          <div key={shownMetric} className="progress-tab-content grid gap-6">
+            {shownMetric === "body" && (
               <BodyProgress
                 summary={summary}
                 measurements={bodyMeasurements}
@@ -482,7 +590,7 @@ export default function Progress() {
                 onAdd={openEntry}
               />
             )}
-            {metric === "nutrition" && (
+            {shownMetric === "nutrition" && (
               <NutritionProgress
                 summary={summary}
                 calorieTarget={calorieTarget}
@@ -490,7 +598,7 @@ export default function Progress() {
                 onOpenDiary={() => navigate("/nutrition", { motion: "switch" })}
               />
             )}
-            {metric === "training" && (
+            {shownMetric === "training" && (
               <>
                 <TrainingProgress
                   summary={summary}
@@ -502,7 +610,7 @@ export default function Progress() {
               </>
             )}
 
-            {customMetrics.length > 0 && (
+            {(customMetrics?.length ?? 0) > 0 && (
               <section aria-label={`Custom ${metricTab} metrics`}>
                 <div className="mb-2 flex items-center justify-between">
                   <p className="native-section-title">Your metrics</p>
@@ -518,7 +626,7 @@ export default function Progress() {
                   </button>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {customMetrics.map((customMetric, metricIndex) => {
+                  {(customMetrics ?? []).map((customMetric, metricIndex) => {
                     const todayEntry = customMetric.entries.find(
                       (entry) => entry.date === today
                     )

@@ -15,6 +15,7 @@ import {
   Trash,
   X,
 } from "@phosphor-icons/react"
+import type { CSSProperties } from "react"
 import { useSearchParams } from "react-router"
 import { cn } from "@/lib/utils"
 import { FormCoachPinnedCards } from "@/components/form-coach-card"
@@ -23,6 +24,10 @@ import { updateOneRepWidgets } from "@/lib/home-widgets"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { LogPastWorkoutSheet } from "@/components/log-past-workout-sheet"
 import { SwipeToStart, toast } from "@repo/ui"
+import {
+  HoldToStartDial,
+  TrainingStatDial,
+} from "@/components/training-hero-dials"
 import { TourAnchor, useTourAnchor } from "@/components/walkthrough/tour-anchor"
 import { DateSelectorButton } from "@repo/ui"
 import { useMutation, useQuery } from "convex/react"
@@ -71,6 +76,17 @@ import { offsetDateKey } from "@/lib/food-log"
 import { hapticMedium, hapticSelection } from "@/lib/haptics"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+/* The crown: four satellites spaced along the hold dial's lower arc, far
+   enough out that the ring in front cuts a clean gap through each. Angles are
+   screen-space degrees — 90° is straight down. */
+const HERO_ORBIT_RADIUS = 107
+const HERO_SATELLITES = [
+  { angle: 158, mirrored: true },
+  { angle: 114, mirrored: true },
+  { angle: 66, mirrored: false },
+  { angle: 22, mirrored: false },
+] as const
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const
 type Day = (typeof DAYS)[number]
@@ -1229,13 +1245,89 @@ export default function Workouts() {
       : nextWorkoutPreset
         ? `Start ${nextWorkoutPreset.name}`
         : "Start open workout"
+  // The week's own plan is the denominator: a five-day routine shouldn't be
+  // graded against seven. An empty schedule falls back to a plain five.
+  const scheduledDaysThisWeek =
+    DAYS.filter((day) => Boolean(routine[day])).length || 5
+  const weekFill = Math.min(
+    100,
+    Math.round((workoutsThisWeek / scheduledDaysThisWeek) * 100)
+  )
+  // Effective sets logged this week, against a plain twelve per scheduled
+  // session — enough to mean something, not so many it reads as a scolding.
+  const weeklyEffectiveSets = Math.round(
+    muscleVolume.reduce((sum, entry) => sum + entry.effectiveSets, 0)
+  )
+  const weeklySetTarget = scheduledDaysThisWeek * 12
+  // Muscles that have had time to come back. A muscle still marked `trained`
+  // is one you hit recently enough that it hasn't.
+  const recoveredMuscles = muscleRecovery.filter(
+    (entry) => entry.status !== "trained"
+  ).length
+  // Four readings hung on the lower arc of the hold dial. Order matters:
+  // they run left to right along the crown.
+  const heroStats = [
+    {
+      name: "Week",
+      value: workoutsThisWeek,
+      target: scheduledDaysThisWeek,
+      suffix: "",
+      color: APP_ACCENT_COLORS.neutral,
+    },
+    {
+      name: "Sets",
+      value: weeklyEffectiveSets,
+      target: weeklySetTarget,
+      suffix: "",
+      color: APP_ACCENT_COLORS.workout,
+    },
+    {
+      name: "Ready",
+      value: recoveredMuscles,
+      target: Math.max(1, muscleRecovery.length),
+      suffix: "",
+      color: APP_ACCENT_COLORS.complete,
+    },
+    {
+      name: "Streak",
+      value: trainingStreak,
+      target: Math.max(7, trainingStreak),
+      suffix: "d",
+      color: APP_ACCENT_COLORS.progress,
+    },
+  ]
+
+  // Days since the last completed session — the number that quietly explains
+  // why a streak of zero isn't the same as never having trained.
+  const daysSinceLastWorkout = (() => {
+    for (let back = 0; back <= 30; back++) {
+      if (workoutDates.has(offsetDateKey(todayKey, -back))) return back
+    }
+    return null
+  })()
   // ── Ghost ─────────────────────────────────────────────────────────────────
 
   const ghostPreset = drag ? presets.find((p) => p.id === drag.presetId) : null
   const GhostIcon = ghostPreset ? FOCUS_ICON[ghostPreset.focus] : null
 
   return (
-    <div className="desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72">
+    <div
+      className={cn(
+        "desktop-canvas min-h-svh bg-background lg:pr-8 lg:pl-72",
+        // The wash starts at the very top of the page so the title row sits
+        // inside the same field as the dials, and it deepens as the week fills.
+        isToday && "app-hero"
+      )}
+      style={
+        isToday
+          ? ({
+              "--hero-fill": weekFill,
+              "--hero-accent": "var(--accent-training-hero)",
+            } as CSSProperties)
+          : undefined
+      }
+    >
+      {isToday && <span className="app-hero-wash" aria-hidden="true" />}
       <main className="app-page">
         <header className="app-header" ref={trainingHeaderRef}>
           <div className="min-w-0">
@@ -1382,8 +1474,12 @@ export default function Workouts() {
 
         {!isToday ? null : (
           <>
+            {/* Same instrument as the nutrition hero, hung differently: the
+                thing you act on takes the middle and the two readings hang
+                off its lower edge, so the hold dial is the only thing at eye
+                level. The centre is held, not read. */}
             <section
-              className="border-y border-border py-5"
+              className="app-hero-frame progress-tab-enter relative flex flex-col justify-center pt-3 pb-4 text-center"
               aria-labelledby="next-training-title"
             >
               <p className="text-[13px] font-medium text-muted-foreground">
@@ -1391,49 +1487,95 @@ export default function Workouts() {
               </p>
               <h2
                 id="next-training-title"
-                className="mt-1 text-[1.75rem] leading-tight font-bold tracking-tight"
+                className="mt-1.5 text-[2.4rem] leading-none font-extrabold tracking-tight"
               >
                 {heroTitle}
               </h2>
-              <p className="mt-2 text-[15px] leading-6 text-muted-foreground">
+              <p className="mt-1.5 text-[13px] text-muted-foreground">
                 {heroDetail}
               </p>
+
+              {/* A crown, not a row: the thing you act on holds the centre
+                  at eye level and the four readings ring its lower arc, so
+                  the hero can carry twice the instrumentation without
+                  turning into a row of widgets. */}
+              <div
+                className="relative mx-auto mt-7 mb-1"
+                style={{ width: 280, height: 226 }}
+              >
+                {HERO_SATELLITES.map((satellite, index) => {
+                  const stat = heroStats[index]
+                  if (!stat) return null
+                  const radians = (satellite.angle * Math.PI) / 180
+                  return (
+                    <div
+                      key={stat.name}
+                      className="absolute z-0"
+                      style={{
+                        left: 140 + HERO_ORBIT_RADIUS * Math.cos(radians) - 39,
+                        top: 84 + HERO_ORBIT_RADIUS * Math.sin(radians) - 39,
+                      }}
+                    >
+                      <TrainingStatDial
+                        name={stat.name}
+                        value={stat.value}
+                        target={stat.target}
+                        suffix={stat.suffix}
+                        color={stat.color}
+                        size={78}
+                        stroke={6}
+                        mirrored={satellite.mirrored}
+                      />
+                    </div>
+                  )
+                })}
+                <div
+                  className="absolute z-10"
+                  style={{ left: 140 - 84, top: 0 }}
+                >
+                  {workoutLogs.length < 2 ? (
+                    <HoldToStartDial
+                      label={nextWorkoutAction}
+                      detail={
+                        nextWorkoutPreset
+                          ? nextWorkoutPreset.duration
+                          : undefined
+                      }
+                      onComplete={() => navigate(nextWorkoutHref)}
+                      size={168}
+                      stroke={9}
+                      color="var(--accent-training-hero)"
+                    />
+                  ) : (
+                    <TrainingStatDial
+                      name="Sessions"
+                      value={workoutLogs.length}
+                      target={2}
+                      color={APP_ACCENT_COLORS.complete}
+                      size={168}
+                      stroke={9}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <p className="mt-1 text-[13px] text-muted-foreground tabular-nums">
+                {daysSinceLastWorkout === null
+                  ? "No sessions in the last month"
+                  : daysSinceLastWorkout === 0
+                    ? "Last session today"
+                    : `Last session ${daysSinceLastWorkout} day${daysSinceLastWorkout === 1 ? "" : "s"} ago`}
+              </p>
+
               {workoutLogs.length < 2 && (
-                <div className="mt-4">
-                  <SwipeToStart
-                    label={nextWorkoutAction}
-                    onHaptic={(kind) => {
-                      if (kind === "complete") hapticMedium()
-                      else hapticSelection()
-                    }}
-                    onComplete={() => navigate(nextWorkoutHref)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => startRetroLog(offsetDateKey(todayKey, -1))}
-                    className="motion-tactile mt-2.5 h-11 w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
-                  >
-                    Log a past workout
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => startRetroLog(offsetDateKey(todayKey, -1))}
+                  className="motion-tactile mt-3 h-11 w-full rounded-[18px] text-[14px] font-semibold text-muted-foreground transition-colors active:bg-muted/35 active:text-foreground"
+                >
+                  Log a past workout
+                </button>
               )}
-              <dl className="mt-4 grid grid-cols-2 divide-x divide-border border-t border-border pt-4">
-                <div className="pr-4">
-                  <dt className="text-[13px] text-muted-foreground">
-                    This week
-                  </dt>
-                  <dd className="mt-1 text-[16px] font-semibold">
-                    {workoutsThisWeek} workout
-                    {workoutsThisWeek === 1 ? "" : "s"}
-                  </dd>
-                </div>
-                <div className="pl-4">
-                  <dt className="text-[13px] text-muted-foreground">Streak</dt>
-                  <dd className="mt-1 text-[16px] font-semibold">
-                    {trainingStreak} day{trainingStreak === 1 ? "" : "s"}
-                  </dd>
-                </div>
-              </dl>
             </section>
 
             <section className="mt-4 grid min-w-0 grid-cols-1 gap-4 lg:mt-3">

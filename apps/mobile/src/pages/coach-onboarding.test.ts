@@ -81,7 +81,10 @@ describe("Coach first-open experience", () => {
     expect(APP_CSS).toContain("@keyframes coach-page-new-forward")
     expect(APP_CSS).toContain("@keyframes coach-page-old-back")
     expect(APP_CSS).toContain("@keyframes coach-route-enter")
-    expect(APP_CSS).toContain("@keyframes coach-route-exit")
+    // Leaving is the arrival run backwards, not a second animation: one set of
+    // keyframes, so the two directions cannot drift apart.
+    expect(APP_CSS).toContain("animation: coach-route-enter 560ms")
+    expect(APP_CSS).toContain("var(--motion-ease-out) both reverse")
     expect(APP_CSS).toContain("repeating-linear-gradient")
     expect(APP_CSS).toContain("prefers-reduced-motion: reduce")
     expect(COACH_SOURCE).toContain("timeGreeting()")

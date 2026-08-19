@@ -783,7 +783,13 @@ export default function Coach({
   )
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    const end = messagesEndRef.current
+    // The outgoing copy of this page mounts a second time inside the router's
+    // exit frame, where this effect would smooth-scroll a transcript nobody
+    // can see — dragging the whole screen around as it slides away. That copy
+    // is inert; this one is not.
+    if (!end || end.closest("[inert]")) return
+    end.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [busy, messages.length])
 
   useEffect(() => {
@@ -2154,9 +2160,7 @@ export default function Coach({
                     }
                     navigate("/workout/active", { motion: "back" })
                   }}
-                  aria-label={
-                    embedded ? "Close coach" : "Back to your workout"
-                  }
+                  aria-label={embedded ? "Close coach" : "Back to your workout"}
                   className="-ml-2 flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted"
                 >
                   <ArrowLeft size={16} weight="bold" />
@@ -2608,14 +2612,11 @@ export default function Coach({
               their remaining sets. */}
           {activeWorkout && workoutPlanDraft && (
             <div className="z-20 mx-auto mb-2 w-full max-w-3xl shrink-0 rounded-2xl border border-border bg-card px-4 py-3">
-              <p className="text-[15px] font-semibold">
-                Update this workout?
-              </p>
+              <p className="text-[15px] font-semibold">Update this workout?</p>
               <p className="mt-0.5 text-[13px] text-muted-foreground">
                 {(workoutPlanDraft.exercises ?? []).length} exercise
-                {(workoutPlanDraft.exercises ?? []).length === 1
-                  ? ""
-                  : "s"} · completed sets are kept
+                {(workoutPlanDraft.exercises ?? []).length === 1 ? "" : "s"} ·
+                completed sets are kept
               </p>
               <div className="mt-2.5 flex gap-2">
                 <button

@@ -13,9 +13,22 @@ import {
   PROGRAMMING_WINDOW_DAYS,
   summarizeProgramming,
 } from "../lib/programming";
-import { listRecoveryWindow } from "../lib/healthMetrics";
+import {
+  listHealthSessionWindow,
+  listRecoveryWindow,
+} from "../lib/healthMetrics";
 import { summarizeRecovery } from "../lib/recovery";
-import { buildHistoryBlock, HISTORY_MONTHS, recentMonthKeys } from "../lib/history";
+import {
+  HEALTH_SCORE_WINDOW_DAYS,
+  computeHealthScore,
+} from "../lib/healthScore";
+import { exerciseMinutesByDate } from "../lib/healthMetrics";
+import { shiftDate } from "../lib/healthSeries";
+import {
+  buildHistoryBlock,
+  HISTORY_MONTHS,
+  recentMonthKeys,
+} from "../lib/history";
 import {
   MAX_STORED_MEMORIES,
   orderMemoriesForContext,
@@ -42,19 +55,22 @@ const MAX_CONTEXT_MEMORIES = 40;
 /** Form-check reports carried into context. Recent ones only; a form issue
  * from months ago is stale advice about a body that has since adapted. */
 const MAX_FORM_REPORTS = 5;
+/**
+ * Imported health-store sessions carried into context.
+ *
+ * Two a day for the window, which covers a commuter who cycles both ways and
+ * still bounds the user whose watch logs every walk to the kitchen.
+ */
+const MAX_HEALTH_SESSIONS = 28;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function shiftDate(dateIso: string, days: number): string {
-  const date = new Date(`${dateIso}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 function num(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
 /**
@@ -118,6 +134,8 @@ export async function buildCoachWorkspace(
     healthProfile,
     onboarding,
     recoveryRows,
+    healthSessions,
+    healthExerciseMinutes,
     monthlySummaries,
     formReports,
   ] = await Promise.all([
@@ -210,6 +228,23 @@ export async function buildCoachWorkspace(
     getHealthProfile(ctx, args.userId),
     getLatestOnboardingProfile(ctx, args.userId),
     listRecoveryWindow(ctx, args.userId, args.today),
+    // Runs, rides and classes the watch saw. The score already counts their
+    // minutes; this is what they actually were.
+    listHealthSessionWindow(
+      ctx,
+      args.userId,
+      since,
+      args.today,
+      MAX_HEALTH_SESSIONS,
+    ),
+    // Sessions the health store saw, for the exercise-minutes pillar. The runs
+    // and classes OneRep never hears about count toward the guideline too.
+    exerciseMinutesByDate(
+      ctx,
+      args.userId,
+      shiftDate(args.today, -(HEALTH_SCORE_WINDOW_DAYS - 1)),
+      args.today,
+    ),
     // Six months of precomputed monthly rows. Six documents, not six months of
     // logs — the whole reason these are stored rather than derived.
     ctx.db
@@ -227,13 +262,16 @@ export async function buildCoachWorkspace(
   // Absent settings mean "on": that is what the Settings screen shows by
   // default, and silently degrading every existing user's coach would be worse
   // than the privacy gain.
-  const personalized = preferences?.privacySettings?.personalizedInsightsEnabled ?? true;
+  const personalized =
+    preferences?.privacySettings?.personalizedInsightsEnabled ?? true;
 
   const presetNames = new Map(
     presets.map((preset) => [String(preset._id), preset.name]),
   );
   const routineRoot = isRecord(schedule?.routine) ? schedule.routine : {};
-  const primary = isRecord(routineRoot.primary) ? routineRoot.primary : routineRoot;
+  const primary = isRecord(routineRoot.primary)
+    ? routineRoot.primary
+    : routineRoot;
 
   const goalsWithTasks = await Promise.all(
     goals.map(async (goal) => ({
@@ -289,7 +327,8 @@ export async function buildCoachWorkspace(
   const fastingView = fastingSessions.map((session) => ({
     startDate: session.startDate,
     hours: session.endedAt
-      ? Math.round(((session.endedAt - session.startedAt) / 3_600_000) * 10) / 10
+      ? Math.round(((session.endedAt - session.startedAt) / 3_600_000) * 10) /
+        10
       : null,
     protocol: session.protocol,
     completed: session.endedAt != null,
@@ -315,7 +354,8 @@ export async function buildCoachWorkspace(
     if (log.status === "taken") {
       day.taken += 1;
       item.taken += 1;
-      if (!item.lastTaken || log.date > item.lastTaken) item.lastTaken = log.date;
+      if (!item.lastTaken || log.date > item.lastTaken)
+        item.lastTaken = log.date;
     } else {
       day.skipped += 1;
       item.skipped += 1;
@@ -370,6 +410,10 @@ export async function buildCoachWorkspace(
         sex: healthProfile?.sex,
         age: healthProfile?.age ?? onboarding?.age,
         heightCm: healthProfile?.heightCm ?? onboarding?.heightCm,
+        // The profile's own weight, which is what the calorie maths was built
+        // on. `bodyMeasurements` is the trend; this is the figure the targets
+        // were derived from, and the two disagreeing is itself worth seeing.
+        weightKg: healthProfile?.weightKg,
         activityLevel: healthProfile?.activityLevel,
         goal: healthProfile?.goal ?? onboarding?.goal,
         nutritionGoal: onboarding?.nutritionGoal,
@@ -485,6 +529,72 @@ export async function buildCoachWorkspace(
   // Sensor readings the user never typed in. Computed once here because both
   // the recovery block and the deload verdict inside `programming` read it.
   const recovery = summarizeRecovery(recoveryRows, args.today);
+
+  /**
+   * The habit score, so the coach can argue with it.
+   *
+   * `recovery` above answers "how is today"; this answers "how have the last
+   * seven days been", which is the question behind most of what a coach is
+   * asked. Reduced to the score, the pillar breakdown and the top two things
+   * worth changing — the prose narrative stays on the page, because the coach
+   * writes its own sentences and does not need ours.
+   */
+  const healthScoreWindowStart = shiftDate(
+    args.today,
+    -(HEALTH_SCORE_WINDOW_DAYS - 1),
+  );
+  const activeEnergyRows = recoveryRows.filter(
+    (row) =>
+      row.date >= healthScoreWindowStart &&
+      typeof row.activeEnergyKcal === "number",
+  );
+  const activeEnergySummary =
+    activeEnergyRows.length === 0
+      ? undefined
+      : {
+          days: activeEnergyRows.length,
+          avgKcal: Math.round(
+            activeEnergyRows.reduce(
+              (sum, row) => sum + (row.activeEnergyKcal ?? 0),
+              0,
+            ) / activeEnergyRows.length,
+          ),
+          latestKcal: Math.round(
+            activeEnergyRows[activeEnergyRows.length - 1]?.activeEnergyKcal ??
+              0,
+          ),
+        };
+  const healthScore = computeHealthScore({
+    days: recoveryRows.filter((row) => row.date >= healthScoreWindowStart),
+    exerciseMinutesByDate: healthExerciseMinutes,
+    recovery,
+  });
+  const health =
+    healthScore.score === null
+      ? null
+      : {
+          score: healthScore.score,
+          band: healthScore.band,
+          windowDays: HEALTH_SCORE_WINDOW_DAYS,
+          measuredDays: healthScore.measuredDays,
+          pillars: healthScore.pillars
+            .filter((pillar) => pillar.score !== null)
+            .map((pillar) => ({
+              id: pillar.id,
+              score: pillar.score,
+              detail: pillar.detail,
+            })),
+          suggestions: healthScore.recommendations
+            .slice(0, 2)
+            .map((item) => item.title),
+          /**
+           * Active energy, which until now only ever reached the model folded
+           * into a pillar score. It is the one health figure users quote at a
+           * coach directly — "I burned 700 yesterday" — so the coach should be
+           * able to see whether that is a normal day for them.
+           */
+          activeEnergy: activeEnergySummary,
+        };
   // Rows are taken newest-first with slack, so a user who skipped a few months
   // does not push the recent ones out; this is the filter that keeps the block
   // to the window it claims to cover.
@@ -501,13 +611,15 @@ export async function buildCoachWorkspace(
           .map((entry) => ({ ...entry, date: day.date })),
       )
       .slice(0, 50),
-    checkIns: checkIns.map(({ date, energy, soreness, sleepQuality, mood }) => ({
-      date,
-      energy,
-      soreness,
-      sleepQuality,
-      mood,
-    })),
+    checkIns: checkIns.map(
+      ({ date, energy, soreness, sleepQuality, mood }) => ({
+        date,
+        energy,
+        soreness,
+        sleepQuality,
+        mood,
+      }),
+    ),
     recentWorkouts: workouts.map((workout) => ({
       id: String(workout._id),
       date: workout.date,
@@ -547,6 +659,18 @@ export async function buildCoachWorkspace(
       recovery,
     ),
     recovery,
+    health,
+    /**
+     * Sessions the phone's health store recorded, whether or not OneRep ever
+     * heard about them. They reached the coach only as a minute count inside
+     * the activity pillar, so someone who runs four times a week read, to the
+     * one part of the app that gives advice, as someone who does not train.
+     *
+     * Gated with `recovery` and `health`: it is the same watch, and turning
+     * personalized insights off should not leave the coach quoting your runs
+     * back at you.
+     */
+    healthSessions,
     /**
      * What the form coach measured, compressed to what chat can act on.
      *

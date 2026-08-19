@@ -1413,12 +1413,14 @@
     transparent
   );
   --accent-workout: #686a64;
+  --accent-training-hero: #6b7a76;
   --accent-workout-bg: color-mix(
     in srgb,
     var(--accent-workout) 8%,
     transparent
   );
   --accent-progress: #716f76;
+  --accent-health: #6d7476;
   --accent-progress-bg: color-mix(
     in srgb,
     var(--accent-progress) 8%,
@@ -1513,6 +1515,31 @@
   pointer-events: none;
   opacity: 1;
   transform-origin: center;
+}
+
+/* The router keeps the outgoing page alive as a live React tree while it
+   animates away, which means everything inside it *mounts again* — and every
+   entrance animation in there duly replays. On Coach that meant the chrome
+   fading in, the mode tabs sliding up and the messages staggering in, all on
+   top of the exit. Nothing that is leaving gets to make an entrance.
+
+   `will-change` goes with them. Coach's backdrop keeps two full-screen
+   pseudo-elements permanently promoted, and compositing a stack of layers
+   while the frame above them animates is most of what the stutter was. A page
+   on its way out needs exactly one layer: its own. */
+.app-route-frame-previous *,
+.app-route-frame-previous *::before,
+.app-route-frame-previous *::after {
+  animation: none !important;
+  transition: none !important;
+  will-change: auto !important;
+}
+
+/* Nothing inside an outgoing frame can affect anything outside it, and saying
+   so lets the engine skip the parts of layout and paint it would otherwise
+   have to re-check while the frame slides. */
+.app-route-frame-previous {
+  contain: paint layout;
 }
 
 .app-route-frame-previous[data-route-ready="true"] {
@@ -2711,6 +2738,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 :root {
   --motion-fast: 160ms;
   --motion-medium: 230ms;
+  /* How long a Progress tab takes to arrive. */
+  --motion-tab-fade: 280ms;
   --motion-slow: 360ms;
   --motion-route: 260ms;
   --motion-panel: 320ms;
@@ -2719,6 +2748,10 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
   --motion-ease-emphasized: cubic-bezier(0.2, 0.85, 0.25, 1);
   --app-safe-top: max(1.25rem, calc(env(safe-area-inset-top, 0px) + 0.45rem));
+  /* One field height and one hero height, so Home and Nutrition open the same
+     way rather than nearly the same way. */
+  --app-hero-wash-h: min(46rem, 78svh);
+  --app-hero-min-h: 19rem;
   --app-safe-bottom: max(
     1.35rem,
     calc(env(safe-area-inset-bottom, 0px) + 0.45rem)
@@ -2766,12 +2799,17 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     transparent
   );
   --accent-workout: #5b5bd6;
+  /* The training hero's wash only. Indigo read as cold and administrative
+     under a field that large; jade carries the charge without raising its
+     voice — energy you could still fall asleep next to. */
+  --accent-training-hero: #1f8f7d;
   --accent-workout-bg: color-mix(
     in srgb,
     var(--accent-workout) 8%,
     transparent
   );
   --accent-progress: #9b4d96;
+  --accent-health: #1f7a86;
   --accent-progress-bg: color-mix(
     in srgb,
     var(--accent-progress) 8%,
@@ -2836,7 +2874,9 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --accent-water: #66b8ef;
   --accent-supplement: #80c786;
   --accent-workout: #a6a6ff;
+  --accent-training-hero: #4fc9ae;
   --accent-progress: #d69bd1;
+  --accent-health: #6fc9d6;
   --status-success: #78c993;
   --status-complete: var(--status-success);
   --status-warning: #efbd62;
@@ -5033,42 +5073,39 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* Progress tabs fade in on arrival — no fade-out, no timer. Fading the old
+   tab out first meant every tap bought a quarter-second of nothing before the
+   new one even began rendering, which read as lag rather than as motion. The
+   incoming tab is keyed, so this runs once per switch. */
 .progress-tab-content {
-  view-transition-name: progress-tab-content;
+  animation: progress-tab-fade-in var(--motion-tab-fade)
+    var(--motion-ease-standard) both;
 }
 
-::view-transition-group(progress-tab-content) {
-  animation-duration: 260ms;
-  animation-timing-function: ease-in-out;
-}
-
-::view-transition-old(progress-tab-content) {
-  animation: progress-tab-crossfade-out 260ms ease-in-out both;
-}
-
-::view-transition-new(progress-tab-content) {
-  animation: progress-tab-crossfade-in 260ms ease-in-out both;
-}
-
-@keyframes progress-tab-crossfade-out {
-  from {
-    opacity: 1;
-    filter: blur(0);
-  }
-  to {
-    opacity: 0;
-    filter: blur(2px);
-  }
-}
-
-@keyframes progress-tab-crossfade-in {
+@keyframes progress-tab-fade-in {
   from {
     opacity: 0;
-    filter: blur(2px);
   }
   to {
     opacity: 1;
-    filter: blur(0);
+  }
+}
+
+/* The instrument folds rather than vanishes: a measured height, since WebKit
+   will not interpolate anything more elegant. */
+.progress-hero-rings.is-armed {
+  transition:
+    height 380ms var(--motion-ease-standard),
+    opacity 240ms var(--motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-tab-content {
+    animation: none;
+  }
+
+  .progress-hero-rings.is-armed {
+    transition: none;
   }
 }
 
@@ -5251,9 +5288,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(progress-tab-content),
-  ::view-transition-new(progress-tab-content),
-  ::view-transition-group(progress-tab-content),
   .progress-tab-enter,
   .progress-chart-bar,
   .progress-chart-line,
@@ -6688,13 +6722,27 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: active-workout-timer-mode 620ms ease-in-out both;
 }
 
+.app-route-frame-current[data-route-path="/coach"] {
+  will-change: opacity, transform;
+}
+
 .app-route-frame-current[data-route-path="/coach"][data-route-ready="true"] {
   animation: coach-route-enter 560ms var(--motion-ease-out) both;
 }
 
-.app-route-frame-previous[data-route-path="/coach"][data-route-ready="true"] {
-  animation: coach-route-exit 360ms cubic-bezier(0.32, 0, 0.18, 1) both;
+/* The layer is claimed the moment the frame exists, not at the moment the
+   animation starts. Declaring `will-change` alongside the animation asks the
+   compositor to promote a full-screen gradient on the same frame it is being
+   asked to animate it, and it hitches on the first step every time. */
+.app-route-frame-previous[data-route-path="/coach"] {
   will-change: opacity, transform;
+}
+
+/* Leaving Coach is the arrival played backwards — same keyframes, same
+   easing, same 560ms — rather than a separate, faster exit that made the page
+   feel like it was being dismissed instead of stepped out of. */
+.app-route-frame-previous[data-route-path="/coach"][data-route-ready="true"] {
+  animation: coach-route-enter 560ms var(--motion-ease-out) both reverse;
 }
 
 .coach-route-exit-surface {
@@ -6715,21 +6763,6 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-@keyframes coach-route-exit {
-  from {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  55% {
-    opacity: 0.76;
-    transform: translate3d(0, -1px, 0);
-  }
-  to {
-    opacity: 0;
-    transform: translate3d(0, -5px, 0);
   }
 }
 
@@ -6895,246 +6928,182 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
-/* ── Dashboard photo hero ─────────────────────────────────────────────────── */
+/* ── Hero surfaces ────────────────────────────────────────────────────────
+   Anything sitting on a hero field is a pane over it, not a slab on top of it:
+   a wash of the foreground, a hairline, and enough blur that the gradient
+   still moves underneath. */
+.app-translucent {
+  background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+.app-translucent:active {
+  background-color: color-mix(in srgb, var(--foreground) 11%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .app-translucent {
+    background-color: color-mix(in srgb, var(--foreground) 9%, transparent);
+  }
+}
+
+/* Disclosure drawers animate a measured height rather than `0fr -> 1fr`:
+   same shape of motion, but one that WebKit will actually interpolate. The
+   `-animated` class is added a frame after mount so a drawer that starts open
+   doesn't unfold on arrival. */
+.accordion-drawer-animated {
+  transition:
+    height var(--motion-medium) var(--motion-ease-standard),
+    opacity var(--motion-medium) var(--motion-ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accordion-drawer-animated {
+    transition: none;
+  }
+}
+
+.hold-dial-arc {
+  transition: stroke-dashoffset var(--motion-medium) ease-out;
+}
+
+/* While the finger is down the arc tracks it frame by frame; a transition
+   here would only make the ring lag behind the hand. */
+.hold-dial-arc[data-holding="true"] {
+  transition: none;
+}
+
+/* The hold-to-start dial lights from the inside while it is held: the ring
+   reports the count, the pane reports the intent. */
+.hold-dial-charge {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    circle at 50% 55%,
+    color-mix(in srgb, var(--hold-color, var(--foreground)) 34%, transparent) 0%,
+    transparent 72%
+  );
+  transition: opacity 260ms ease-out;
+}
+
+.hold-dial-charge.is-holding {
+  opacity: 1;
+  animation: hold-dial-pulse 900ms ease-in-out infinite alternate;
+}
+
+@keyframes hold-dial-pulse {
+  from {
+    transform: scale(0.94);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hold-dial-charge.is-holding {
+    animation: none;
+  }
+}
+
+.app-hero-frame {
+  min-height: var(--app-hero-min-h);
+}
+
+/* The inside of a dial: a blurred pane rather than a punched-out disc, so the
+   hero field carries on through the ring instead of stopping at it. Glass needs
+   three things and a tint alone was only the first: a thin body, a lit top
+   edge, and a shadow where it lifts off the page. */
+.macro-dial-glass,
+.health-dial-pane {
+  position: absolute;
+  border-radius: 9999px;
+  background-image: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--foreground) 12%, transparent) 0%,
+    color-mix(in srgb, var(--foreground) 4%, transparent) 38%,
+    transparent 62%
+  );
+  background-color: color-mix(in srgb, var(--background) 32%, transparent);
+  backdrop-filter: blur(26px) saturate(1.45);
+  -webkit-backdrop-filter: blur(26px) saturate(1.45);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--foreground) 22%, transparent),
+    inset 0 -1px 1px color-mix(in srgb, var(--background) 55%, transparent),
+    0 10px 24px -12px color-mix(in srgb, #000 60%, transparent);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .macro-dial-glass,
+  .health-dial-pane {
+    background-color: color-mix(in srgb, var(--background) 86%, transparent);
+  }
+}
+
+/* ── Dashboard hero ───────────────────────────────────────────────────────── */
 
 /* The hero sits outside the reading column, as a direct child of the dashboard
    root, so below `lg` — where that root has no gutters — it is already the full
-   width of the window and needs no viewport-unit trickery to get there.
-
-   From `lg` the root carries the desktop gutters: `pl-72` (18rem) to clear a
-   16rem sidebar, and `pr-8`. Cancelling both lands the photograph exactly
-   between the sidebar's edge and the window's, at any width. */
+   width of the window. From `lg` the root carries the desktop gutters, and
+   cancelling both lands the field between the sidebar's edge and the window's. */
 @media (min-width: 1024px) {
-  .dashboard-photo-hero {
+  .dashboard-hero {
     margin-left: -2rem;
     margin-right: -2rem;
   }
 
-  /* Puts the greeting and the numbers back on the page's column. The photo and
-     the curve are absolutely positioned, so this padding moves the words
-     without moving the picture. */
-  .dashboard-photo-hero-frame {
+  .dashboard-hero-frame {
     padding-left: 2rem;
     padding-right: 2rem;
   }
 }
 
-/* The photo goes edge to edge; the words in front of it do not. They stay in
-   the same column as everything further down the page. */
-.dashboard-photo-hero-header,
-.dashboard-photo-hero-ledger {
+/* The field goes edge to edge; the words in front of it do not. */
+.dashboard-hero-header,
+.dashboard-hero-ledger {
   width: 100%;
   max-width: 32rem;
   margin-inline: auto;
 }
 
 @media (min-width: 768px) {
-  .dashboard-photo-hero-header,
-  .dashboard-photo-hero-ledger {
+  .dashboard-hero-header,
+  .dashboard-hero-ledger {
     max-width: 72rem;
   }
 }
 
-.dashboard-photo-hero-frame {
-  /* Tall enough to hold the greeting, the day's numbers, and still read as a
-     photograph rather than a texture. */
-  min-height: 25rem;
-  /* Reserved for the curve, so the numbers never sit on top of it. */
-  padding-bottom: 5.5rem;
+/* No photograph to hold open, so the hero is only as tall as the greeting and
+   the numbers it carries, plus room to breathe. */
+.dashboard-hero-frame {
   display: flex;
   flex-direction: column;
-  /* The floor when the remote photo is slow, blocked, or offline. Tinted with
-     the app's own accents so the fallback still looks deliberate. */
-  background-color: var(--muted);
-  background-image:
-    radial-gradient(
-      95% 70% at 15% 0%,
-      color-mix(in srgb, var(--accent-workout, #6366f1) 55%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      85% 75% at 95% 25%,
-      color-mix(in srgb, var(--accent-food, #f97316) 45%, transparent),
-      transparent 72%
-    ),
-    linear-gradient(
-      160deg,
-      color-mix(in srgb, var(--foreground) 70%, transparent),
-      color-mix(in srgb, var(--foreground) 92%, transparent)
-    );
+  gap: var(--space-7);
+  padding-bottom: var(--space-8);
+  min-height: var(--app-hero-min-h);
 }
 
-/* Deliberately full-bleed at every width. A rounded, inset photograph is a
-   card, and a card is what this stopped being. */
-@media (min-width: 768px) {
-  .dashboard-photo-hero-frame {
-    min-height: 28rem;
-    padding-bottom: 7rem;
-  }
-}
-
-/* Dark at both ends and open through the middle: the greeting rides the top
-   band, the calorie ring and macros ride the bottom one, and the photograph
-   still gets to be a photograph in between. */
-.dashboard-photo-hero-scrim {
-  background-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0.5) 0%,
-    rgb(0 0 0 / 0.18) 30%,
-    rgb(0 0 0 / 0.3) 55%,
-    rgb(0 0 0 / 0.7) 82%,
-    rgb(0 0 0 / 0.8) 100%
-  );
-}
-
-.dashboard-photo-hero-header {
-  padding-top: calc(var(--app-safe-top) + 0.5rem);
-  padding-bottom: 1rem;
+.dashboard-hero-header {
+  padding-top: var(--app-safe-top);
 }
 
 @media (min-width: 768px) {
-  .dashboard-photo-hero-header {
+  .dashboard-hero-header {
     padding-top: 2.75rem;
   }
 }
 
-/*
- * The numbers used to get their own radial pool of shade here. It had to go:
- * the gradient was still opaque where the pseudo-element's box ended, so the
- * box edge showed as a hard horizontal seam straight across the photograph.
- * The frame's scrim now carries that weight instead — it spans the whole frame
- * and fades at both ends, so it has no edge to give away.
- */
-
-/* ── The curve ────────────────────────────────────────────────────────────── */
-
-.dashboard-photo-hero-curve {
-  position: absolute;
-  right: 0;
-  bottom: -1px; /* Kills the hairline seam sub-pixel rounding leaves behind. */
-  left: 0;
-  width: 100%;
-  /* The path's amplitude is fixed in user units, so this height is the amplitude
-     control: the shorter the box, the shallower the sweep. Deep enough to read
-     as a curve, nowhere near deep enough to eat the photograph. */
-  height: 4rem;
-  display: block;
-  /* Above the photograph, below the numbers. */
-  z-index: 1;
+/* Home picks its accent; the geometry, height and bleed come from the shared
+   hero-field rule, so both pages open identically. */
+.dashboard-home-wash {
+  --hero-accent: var(--accent-workout);
 }
 
-@media (min-width: 768px) {
-  .dashboard-photo-hero-curve {
-    height: 5rem;
-  }
-}
-
-/* The page itself, which is why this is --background and not a panel color:
-   the curve is a boundary, not a container. */
-.dashboard-photo-hero-curve-fill {
-  fill: var(--background);
-  /* Lifts the page off the photograph. Without it the curve is a flat cut and
-     the whole thing reads as clip art. */
-  filter: drop-shadow(0 -8px 16px rgb(0 0 0 / 0.38));
-}
-
-/* ── Crossfading photographs ──────────────────────────────────────────────── */
-
-.dashboard-photo-hero-photo {
-  position: absolute;
-  inset: 0;
-  z-index: -10;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  /* `both` matters: the outgoing layer holds its finished state instead of
-     snapping back to transparent while the new one fades in over it. */
-  animation: dashboardHeroPhotoIn 900ms var(--motion-ease-out, ease-out) both;
-}
-
-@keyframes dashboardHeroPhotoIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dashboard-photo-hero-photo {
-    /* Not zero: the animation still has to end, because its `animationend` is
-       what prunes the stale layer. */
-    animation-duration: 1ms;
-  }
-}
-
-.dashboard-photo-hero-curve-edge {
-  /* The stroke's color comes from the gradient in the markup; the opacity is
-     here so the lit edge stays a suggestion rather than chrome trim. */
-  opacity: 0.9;
-}
-
-/* ── Light mode ───────────────────────────────────────────────────────────── */
-
-/*
- * Everything above is tuned for a dark page, where black shadows and heavy
- * scrims disappear into the background. On a near-white page the same values
- * are grubby: the drop shadow becomes a grey smear along the curve, and the
- * scrim ends the photograph in a muddy band right where it meets the paper.
- * So light mode gets its own, much quieter, numbers.
- */
-:root:not(.dark) .dashboard-photo-hero-curve-fill {
-  filter: drop-shadow(0 -5px 12px rgb(0 0 0 / 0.13));
-}
-
-/* A white edge on a white page is invisible, and the dark end of the
-   photograph is what the curve is cutting into — so the lit edge is dialled
-   back rather than recoloured. */
-:root:not(.dark) .dashboard-photo-hero-curve-edge {
-  opacity: 0.55;
-}
-
-:root:not(.dark) .dashboard-photo-hero-scrim {
-  background-image: linear-gradient(
-    to bottom,
-    rgb(0 0 0 / 0.42) 0%,
-    rgb(0 0 0 / 0.14) 32%,
-    rgb(0 0 0 / 0.26) 55%,
-    rgb(0 0 0 / 0.56) 84%,
-    rgb(0 0 0 / 0.64) 100%
-  );
-}
-
-/* Everything laid over the photo is white, because the photo is not. */
-.dashboard-photo-hero-frame .app-title,
-.dashboard-photo-hero-frame .app-eyebrow {
-  color: #fff;
-}
-
-.dashboard-photo-hero-frame .app-title {
-  text-shadow: 0 1px 14px rgb(0 0 0 / 0.35);
-}
-
-.dashboard-photo-hero-frame .native-toolbar-button {
-  color: #fff;
-  background-color: rgb(255 255 255 / 0.16);
-  border-color: rgb(255 255 255 / 0.22);
-  backdrop-filter: blur(12px);
-}
-
-.dashboard-photo-hero-frame .native-toolbar-button:active {
-  background-color: rgb(255 255 255 / 0.28);
-}
-
-/* The date stepper and calendar trigger are plain buttons carrying muted-
-   foreground utilities; on a photograph those read as smudges. */
-.dashboard-photo-hero-header button {
-  color: #fff;
-}
-
-/* The numbers sit on the photograph, above the curve. */
-.dashboard-photo-hero-ledger {
+.dashboard-hero-ledger {
   z-index: 2;
 }
 
@@ -7607,26 +7576,36 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
    into the diary below so there is no seam anywhere. `--hero-fill` is the
    day's calorie progress, so the wash spreads and warms as the day fills up —
    the background is reporting, not decorating. */
-.nutrition-hero {
+/*
+ * Shared by every page that opens on a field: only the accent differs, so the
+ * page sets `--hero-accent` and the geometry, the mask and the drift stay in
+ * one place. Health, Progress and Training all render `.app-hero-wash`; with
+ * only the nutrition selector here those pages were emitting a span with no
+ * rule behind it, which is a hero with no field at all.
+ */
+.nutrition-hero,
+.app-hero {
   position: relative;
   isolation: isolate;
 }
 
-.nutrition-hero-wash {
+.nutrition-hero-wash,
+.app-hero-wash {
   position: absolute;
   z-index: 0;
   top: 0;
   right: 0;
   left: 0;
   /* Past the dials and the button row, into the first rows of the diary. */
-  height: min(38rem, 68svh);
+  height: var(--app-hero-wash-h, min(38rem, 68svh));
   pointer-events: none;
   background:
     radial-gradient(
       115% calc(52% + var(--hero-fill, 0) * 0.16%) at 50% 34%,
       color-mix(
           in srgb,
-          var(--accent-food) calc(13% + var(--hero-fill, 0) * 0.08%),
+          var(--hero-accent, var(--accent-food))
+            calc(13% + var(--hero-fill, 0) * 0.08%),
           transparent
         )
         0%,
@@ -7647,7 +7626,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation: nutrition-hero-drift 26s ease-in-out infinite alternate;
 }
 
-.nutrition-hero > *:not(.nutrition-hero-wash) {
+.nutrition-hero > *:not(.nutrition-hero-wash),
+.app-hero > *:not(.app-hero-wash) {
   position: relative;
   z-index: 1;
 }
@@ -7666,7 +7646,8 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nutrition-hero-wash {
+  .nutrition-hero-wash,
+  .app-hero-wash {
     animation: none;
   }
 }
@@ -7698,5 +7679,97 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
   [data-new-chat-phase="suck"] .coach-conversation-content {
     opacity: 0;
+  }
+}
+
+/* Sticky index letters in a long list. No fill at all: any tint, however
+   slight, draws a visible band across the hero wash — the gradient behind it
+   is smooth enough that a rectangle of very-slightly-different grey reads as a
+   seam. Blur alone smears whatever scrolls under the letter without changing
+   the colour of the field it sits on. */
+.list-index-sticky {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Without a backdrop filter the letter would sit on top of moving rows, so
+   there it takes the fill it cannot otherwise afford. */
+@supports not (backdrop-filter: blur(1px)) {
+  .list-index-sticky {
+    background-color: var(--background);
+  }
+}
+
+/* A dial that navigates has to look like it navigates. The caret badge is the
+   explicit cue; the lift and the press are the ones you feel rather than read. */
+.health-dial-button {
+  transition:
+    transform 180ms var(--motion-ease-standard),
+    opacity 180ms var(--motion-ease-standard);
+}
+
+.health-dial-button-cue {
+  transition:
+    transform 180ms var(--motion-ease-standard),
+    border-color 180ms var(--motion-ease-standard);
+}
+
+@media (hover: hover) {
+  .health-dial-button:hover {
+    transform: translateY(-2px);
+  }
+
+  .health-dial-button:hover .health-dial-button-cue {
+    transform: translateX(1px) scale(1.08);
+    border-color: color-mix(in srgb, var(--foreground) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .health-dial-button,
+  .health-dial-button:hover,
+  .health-dial-button:hover .health-dial-button-cue {
+    transform: none;
+  }
+}
+
+/*
+ * The health action cards.
+ *
+ * One ask each, led by its figure. Flat rather than gradient-filled: a bloom
+ * behind a number is decoration pretending to be information, and four of them
+ * in a row read as the same card printed four times.
+ *
+ * What distinguishes them instead is a line-art motif, one per card, drawn in
+ * the ink of the card itself at low opacity. Same surface, same border, same
+ * type — different mark. Set `--action-tone` per card to tint the mark.
+ */
+.health-action-card {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 1.1rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.health-action-motif {
+  position: absolute;
+  z-index: -1;
+  right: -16%;
+  bottom: -26%;
+  width: 54%;
+  aspect-ratio: 1;
+  color: var(--action-tone, var(--foreground));
+  /* Faint enough to read as texture rather than as content. At anything above
+     about a fifth it stops being a mark on the card and becomes wallpaper the
+     figure has to compete with. */
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+@media (prefers-contrast: more) {
+  .health-action-motif {
+    display: none;
   }
 }

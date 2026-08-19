@@ -18,8 +18,7 @@ export type DashboardSettings = {
   simpleMode?: boolean
 }
 
-export type DashboardWidgetId =
-  "intelligence" | "weekPlan" | "progress" | "goals"
+export type DashboardWidgetId = "weekPlan" | "progress" | "goals"
 
 export type DashboardWidgetLayoutItem = {
   id: DashboardWidgetId
@@ -29,14 +28,12 @@ export type DashboardWidgetLayoutItem = {
 }
 
 export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidgetLayoutItem[] = [
-  { id: "intelligence", size: "full", pinned: true },
   { id: "weekPlan", size: "full" },
   { id: "progress", size: "full" },
   { id: "goals", size: "full" },
 ]
 
 export const DASHBOARD_WIDGET_LABELS: Record<DashboardWidgetId, string> = {
-  intelligence: "Weekly intelligence",
   weekPlan: "This week's plan",
   progress: "Progress snapshot",
   goals: "Coach goals",

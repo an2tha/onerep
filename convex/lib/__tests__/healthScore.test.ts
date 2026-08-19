@@ -134,6 +134,29 @@ describe("recommendations", () => {
     expect(titles).toContain("Add 90 minutes of training this week");
   });
 
+  test("each one carries a figure a card can lead with", () => {
+    const rows = window({ ...ON_TARGET, sleepMinutes: 6 * 60, steps: 5_000 });
+    const result = computeHealthScore({
+      days: rows.slice(-7),
+      exerciseMinutesByDate: exerciseWeek(60),
+      recovery: summarizeRecovery(rows, TODAY),
+    });
+
+    expect(result.recommendations.length).toBeGreaterThan(0);
+    for (const item of result.recommendations) {
+      expect(Number.isFinite(item.amount)).toBe(true);
+      expect(item.unit).not.toBe("");
+      // The action line is a glance, not a sentence.
+      expect(item.action.split(" ").length).toBeLessThanOrEqual(5);
+      expect(item.action).not.toMatch(/\.$/);
+      expect(item.action[0]).toBe(item.action[0].toLowerCase());
+    }
+
+    const steps = result.recommendations.find((i) => i.pillar === "steps");
+    expect(steps!.amount).toBe(3_000);
+    expect(steps!.unit).toBe("steps");
+  });
+
   test("ranked by points recoverable, and never more than four", () => {
     const rows = window({
       sleepMinutes: 5 * 60,
@@ -216,7 +239,29 @@ describe("the narrative", () => {
       recovery: summarizeRecovery(rows, TODAY),
     });
 
-    expect(result.narrative!.body).toContain("the last few days have been hard");
+    // The recovery note is carried verbatim rather than wrapped in a preamble:
+    // it is already a finished sentence, and introducing it twice is the kind
+    // of padding this paragraph exists to avoid.
+    const note = summarizeRecovery(rows, TODAY)!.notes[0];
+    expect(note).toBeTruthy();
+    expect(result.narrative!.body).toContain(note);
+  });
+
+  test("the paragraph never restates what the dial already shows", () => {
+    const rows = window({ ...ON_TARGET, steps: 1_200 });
+    const result = computeHealthScore({
+      days: rows.slice(-7),
+      exerciseMinutesByDate: exerciseWeek(
+        HEALTH_TARGETS.exerciseMinutesPerWeek,
+      ),
+      recovery: summarizeRecovery(rows, TODAY),
+    });
+
+    const body = result.narrative!.body;
+    expect(body).not.toContain("health score is");
+    expect(body).not.toContain("signals");
+    // Two sentences at the outside, and short ones.
+    expect(body.length).toBeLessThan(160);
   });
 });
 

@@ -2,17 +2,22 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { flushSync } from "react-dom"
 import {
   Aperture,
+  ArrowsInLineVertical,
   Barcode,
+  BookBookmark,
   CaretDown,
   CaretRight,
   Check,
   Clock,
+  Eye,
+  EyeSlash,
   ForkKnife,
   Lightning,
   MagnifyingGlass,
   PencilSimple,
   Pill,
   Plus,
+  PushPin,
   SlidersHorizontal,
   Sparkle,
   UserCircle,
@@ -30,9 +35,9 @@ import { useSmoothNavigate } from "@/lib/navigation"
 import { useBottomBarAction } from "@/components/bottom-bar"
 import {
   DailyLedgerHero,
-  DashboardPhotoHero,
+  DashboardHero,
+  DashboardWeekRings,
   DashboardProgressPanels,
-  DashboardIntelligence,
   CoachDashboardWidgets,
   CoachGoalCards,
   TrainingWeekCard,
@@ -118,7 +123,6 @@ import {
   totalsForRecipe,
 } from "@/dashboard/helpers"
 import { DateNav } from "@/dashboard/date-nav"
-import { useHeroPhoto } from "@/dashboard/use-hero-photo"
 import { WorkoutCard } from "@/dashboard/workout-card"
 import { StreakCard, WaterWidget } from "@/dashboard/water-streak"
 import { UnloggedWorkoutNudge, WelcomeNudge } from "@/dashboard/nudges"
@@ -383,7 +387,6 @@ export default function App() {
   const salutation = greeting(hourInTimeZone(now, activeTimezone))
   // Scenery: a photo at random, crossfading to another every twenty seconds,
   // served from the device once the first launch has stored it.
-  const { src: heroPhotoUrl } = useHeroPhoto()
   const selectedDateLabel = dayOffsetLabel(dayOffset, activeTimezone)
   const dateLabel = `${dateKeyToCalendarDate(selectedDate).toLocaleDateString(
     "en-US",
@@ -837,6 +840,12 @@ export default function App() {
     workoutHistoryQuery,
   ])
 
+  // The health page's headline number, so the week reads as one picture rather
+  // than sending people to another tab to find out how they are doing.
+  const healthDashboard = useQuery(api.logs.healthMetrics.dashboard, {
+    today: selectedDate,
+  })
+
   const dashboardReadiness = useMemo(
     () =>
       computeReadiness({
@@ -859,6 +868,61 @@ export default function App() {
       ].slice(0, 3),
     [recentFoodLogs]
   )
+
+  /**
+   * Repeats and saved recipes, merged into one list. A repeat that is also a
+   * saved recipe is the same tap either way, so it appears once — showing it
+   * twice was an artefact of them being two separate rows.
+   */
+  const quickLogRows = useMemo(() => {
+    const rows: Array<{
+      kind: "repeat" | "recipe"
+      name: string
+      detail: string
+      onLog: () => void
+    }> = []
+    const seen = new Set<string>()
+
+    for (const meal of recentMealNames) {
+      const key = meal.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      const recipe = recipes.find((item) => item.name === meal)
+      rows.push({
+        kind: "repeat",
+        name: meal,
+        detail: recipe
+          ? `Recent · ${totalsForRecipe(recipe.ingredients).calories} kcal`
+          : "Recent",
+        onLog: () => {
+          hapticSelection()
+          if (recipe) logRecipeFromQuickAdd(recipe)
+          else
+            navigate(`/foods/search?q=${encodeURIComponent(meal)}`, {
+              motion: "forward",
+            })
+        },
+      })
+    }
+
+    for (const recipe of recipes) {
+      const key = recipe.name.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      const totals = totalsForRecipe(recipe.ingredients)
+      rows.push({
+        kind: "recipe",
+        name: recipe.name,
+        detail: `Recipe · ${totals.calories} kcal`,
+        onLog: () => {
+          hapticSelection()
+          logRecipeFromQuickAdd(recipe)
+        },
+      })
+    }
+
+    return rows.slice(0, 5)
+  }, [recentMealNames, recipes, navigate])
 
   function openRecipePreview(recipe: StarterRecipe) {
     const transitionDocument = document as Document & {
@@ -1062,70 +1126,6 @@ export default function App() {
 
   function renderDashboardWidget(widget: DashboardWidgetLayoutItem) {
     const compactClass = widget.size === "small" ? "md:max-w-xl" : undefined
-    if (widget.id === "intelligence") {
-      // Nothing to narrate yet — the widget earns its place with data.
-      if (
-        dashboardWeeklyStory.workouts === 0 &&
-        dashboardWeeklyStory.nutritionDays === 0
-      )
-        return null
-      return (
-        <div key={widget.id} className={compactClass}>
-          <DashboardIntelligence
-            story={dashboardWeeklyStory}
-            readiness={dashboardReadiness}
-            recentMeals={recentMealNames}
-            onOpenProgress={() => navigate("/progress", { motion: "switch" })}
-            onOpenTraining={() =>
-              navigate("/coach", {
-                motion: "forward",
-                state: {
-                  coachMode: "personal_trainer",
-                  guidedIntent: {
-                    kind: "modify_workout",
-                    title: "Adjust today’s training",
-                    detail:
-                      "Tell Coach what feels different and it will preserve the useful work while adjusting the rest.",
-                    examples: [
-                      "I’m sore but still want to train",
-                      "Cut this session to 30 minutes",
-                      "Replace lower-body work today",
-                    ],
-                  },
-                },
-              })
-            }
-            onRepeatMeal={(name) => {
-              const recipe = recipes.find((item) => item.name === name)
-              if (recipe) logRecipeFromQuickAdd(recipe)
-              else
-                navigate(`/foods/search?q=${encodeURIComponent(name)}`, {
-                  motion: "forward",
-                })
-            }}
-            onAskCoach={() =>
-              navigate("/coach", {
-                motion: "forward",
-                state: {
-                  coachMode: "chat",
-                  guidedIntent: {
-                    kind: "plan_week",
-                    title: "Shape the next seven days",
-                    detail:
-                      "Coach will balance training, meals, and recovery around what is realistic for you.",
-                    examples: [
-                      "Plan around three training days",
-                      "Prioritize protein and simple dinners",
-                      "Make next week lighter than this one",
-                    ],
-                  },
-                },
-              })
-            }
-          />
-        </div>
-      )
-    }
     if (widget.id === "weekPlan") {
       // An empty shell is worse than absence — the widget only appears once
       // Coach has actually saved a plan for this week.
@@ -1210,6 +1210,10 @@ export default function App() {
 
   return (
     <div className="dashboard-home desktop-canvas relative min-h-svh overflow-hidden bg-background lg:pr-8 lg:pl-72">
+      {/* Picks up where the curve leaves off: the page below the photograph
+          carries a little of its warmth down through the first cards instead
+          of starting as a flat slab. */}
+      <span className="dashboard-home-wash" aria-hidden="true" />
       {quickWaterBurst.active && (
         <span
           key={quickWaterBurst.key}
@@ -1228,15 +1232,19 @@ export default function App() {
           ))}
         </span>
       )}
-      {/* Outside the reading column on purpose: the photograph answers to the
+      {/* Outside the reading column on purpose: the field answers to the
           window, not to the text measure. Its own header and ledger are put
           back onto the column's grid in CSS. */}
       <div className="relative z-10">
-        <DashboardPhotoHero
-          photoUrl={heroPhotoUrl}
+        <DashboardHero
           dateLabel={dateLabel}
           salutation={salutation}
           firstName={firstName}
+          fill={
+            caloriesTarget > 0
+              ? Math.round((intakeTotals.calories / caloriesTarget) * 100)
+              : 0
+          }
           action={
             <div className="flex items-center gap-1">
               <DateNav
@@ -1268,7 +1276,7 @@ export default function App() {
           {homeBodyReady && (
             <TourAnchor anchor="today-ledger" className="block">
               <DailyLedgerHero
-                onPhoto
+                translucent
                 caloriesLeft={caloriesLeft}
                 caloriesTarget={caloriesTarget}
                 macros={heroMacros}
@@ -1276,12 +1284,92 @@ export default function App() {
               />
             </TourAnchor>
           )}
-        </DashboardPhotoHero>
+          {homeBodyReady && (
+            <div className="mx-[var(--app-page-x)] mt-6 md:mx-8">
+              <StreakCard
+                translucent
+                streak={trainingStreak}
+                workoutsThisWeek={workoutsThisWeek}
+                workoutDates={workoutDates}
+                today={trainingStatsDate}
+              />
+              <DashboardWeekRings
+                className="mt-6"
+                readiness={dashboardReadiness}
+                story={dashboardWeeklyStory}
+                health={
+                  healthDashboard
+                    ? {
+                        score: healthDashboard.score ?? null,
+                        band: healthDashboard.band ?? undefined,
+                      }
+                    : null
+                }
+                onOpenTraining={() => navigate("/coach", { motion: "forward" })}
+                onOpenHealth={() => navigate("/health", { motion: "switch" })}
+                onOpenProgress={() =>
+                  navigate("/progress", { motion: "switch" })
+                }
+              />
+            </div>
+          )}
+        </DashboardHero>
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-lg flex-col pb-[calc(var(--app-safe-bottom-lg)+6.5rem)] md:max-w-6xl md:pb-10">
         {homeBodyReady ? (
           <div className="motion-content-in mt-4 flex min-w-0 flex-col">
+            {/* One list, one direction. Repeats, saved recipes and water were
+                three different shapes here — two of them scrolling sideways
+                with their contents cut off at the screen edge. They are the
+                same job, so they are the same row: what it is on the left,
+                the button that logs it on the right. */}
+            {(recentMealNames.length > 0 || recipes.length > 0) && (
+              <section
+                className="mx-[var(--app-page-x)] mb-4 md:mx-8"
+                aria-label="Quick log"
+              >
+                <div className="flex items-center justify-between gap-3 pb-1">
+                  <p className="app-section-title">Quick log</p>
+                  {recipes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate("/recipes", { motion: "forward" })
+                      }
+                      className="motion-tactile -mr-2 inline-flex min-h-11 items-center gap-1 px-2 text-[12px] font-semibold text-muted-foreground active:text-foreground"
+                    >
+                      All recipes
+                      <CaretRight size={12} weight="bold" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                <div className="divide-y divide-border/60 border-y border-border/60">
+                  {quickLogRows.map((row) => (
+                    <button
+                      key={`${row.kind}-${row.name}`}
+                      type="button"
+                      onClick={row.onLog}
+                      aria-label={`Log ${row.name}`}
+                      className="flex min-h-14 w-full items-center gap-3 px-1 text-left transition-colors active:bg-muted/40"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="native-row-title truncate">{row.name}</p>
+                        <p className="native-row-detail mt-0.5 truncate">
+                          {row.detail}
+                        </p>
+                      </div>
+                      <span
+                        aria-hidden="true"
+                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted/60 text-foreground"
+                      >
+                        <Plus size={15} weight="bold" />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
             {showWelcomeNudge && (
               <div className="mx-[var(--app-page-x)] mb-4 md:mx-8">
                 <WelcomeNudge
@@ -1318,13 +1406,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            <div className="mx-[var(--app-page-x)] grid grid-cols-2 items-stretch gap-2 md:mx-8">
-              <StreakCard
-                streak={trainingStreak}
-                workoutsThisWeek={workoutsThisWeek}
-                workoutDates={workoutDates}
-                today={trainingStatsDate}
-              />
+            <div className="mx-[var(--app-page-x)] md:mx-8">
               <WaterWidget dateKey={selectedDate} />
             </div>
 
@@ -1525,16 +1607,16 @@ export default function App() {
                   )
                   .filter((widget) => !widget.hidden)
                   .map(renderDashboardWidget)}
-                <div className="mx-[var(--app-page-x)] mt-1 md:mx-8">
+                <div className="mx-[var(--app-page-x)] mt-2 md:mx-8">
                   <button
                     type="button"
                     onClick={() => {
                       hapticSelection()
                       setDashboardCustomizeOpen(true)
                     }}
-                    className="flex min-h-11 w-full items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground transition-colors active:text-foreground"
+                    className="app-translucent motion-tactile mx-auto flex min-h-11 items-center justify-center gap-1.5 rounded-full px-4 text-[12px] font-semibold transition-colors"
                   >
-                    <SlidersHorizontal size={15} />
+                    <SlidersHorizontal size={15} weight="bold" />
                     Customize dashboard
                   </button>
                 </div>
@@ -1571,129 +1653,156 @@ export default function App() {
 
       {dashboardCustomizeOpen && (
         <MobileSheet
+          ariaLabel="Customize dashboard"
           onClose={() => setDashboardCustomizeOpen(false)}
           overlayClassName="bg-black/45"
-          panelClassName="sheet-panel mx-auto w-full max-w-md rounded-t-2xl border-t border-border bg-card"
+          panelClassName="mx-auto w-full max-w-md"
         >
-          <div className="px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="app-eyebrow">Today</p>
-                <h2 className="mt-1 text-[20px] font-bold">
+          {/* Three bordered text buttons per row read as a form to fill in.
+              Each section is one line now: what it is, where it sits, and the
+              controls as icons that show their own state. */}
+          <div className="px-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="flex items-start justify-between gap-4 pb-1">
+              <div className="min-w-0">
+                <h2 className="text-[19px] font-bold tracking-tight">
                   Customize dashboard
                 </h2>
-                <p className="mt-1 text-[12px] text-muted-foreground">
-                  Reorder, resize, hide, or pin dashboard sections.
+                <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+                  Reorder, resize, hide, or pin the sections below the hero.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setDashboardCustomizeOpen(false)}
                 aria-label="Close dashboard customization"
-                className="native-toolbar-button -mt-1 -mr-2 px-0"
+                className="-mt-1 -mr-2 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
               >
-                <X size={14} weight="bold" />
+                <X size={18} weight="bold" />
               </button>
             </div>
-            <div className="mt-5 divide-y divide-border border-y border-border">
-              {dashboardWidgetLayout.map((widget, index) => (
-                <div key={widget.id} className="py-3">
-                  <div className="flex items-center gap-3">
+
+            <div className="mt-4 flex flex-col divide-y divide-border/60 border-y border-border/60">
+              {dashboardWidgetLayout.map((widget, index) => {
+                const label = DASHBOARD_WIDGET_LABELS[widget.id]
+                const patch = (
+                  next: Partial<DashboardWidgetLayoutItem>,
+                  exclusive = false
+                ) =>
+                  updateDashboardLayout(
+                    dashboardWidgetLayout.map((item) =>
+                      item.id === widget.id
+                        ? { ...item, ...next }
+                        : exclusive
+                          ? { ...item, pinned: false }
+                          : item
+                    )
+                  )
+                const move = (delta: number) => {
+                  const next = [...dashboardWidgetLayout]
+                  const target = index + delta
+                  ;[next[index], next[target]] = [next[target], next[index]]
+                  updateDashboardLayout(next)
+                }
+
+                return (
+                  <div
+                    key={widget.id}
+                    className="flex min-h-16 items-center gap-2 py-2"
+                  >
+                    <div className="flex shrink-0 flex-col">
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        aria-label={`Move ${label} up`}
+                        onClick={() => move(-1)}
+                        className="flex h-6 w-8 items-center justify-center rounded-md text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-20"
+                      >
+                        <CaretDown
+                          size={13}
+                          weight="bold"
+                          className="rotate-180"
+                        />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={index === dashboardWidgetLayout.length - 1}
+                        aria-label={`Move ${label} down`}
+                        onClick={() => move(1)}
+                        className="flex h-6 w-8 items-center justify-center rounded-md text-muted-foreground active:bg-muted active:text-foreground disabled:opacity-20"
+                      >
+                        <CaretDown size={13} weight="bold" />
+                      </button>
+                    </div>
+
                     <div className="min-w-0 flex-1">
-                      <p className="text-[13px] font-semibold">
-                        {DASHBOARD_WIDGET_LABELS[widget.id]}
+                      <p
+                        className={cn(
+                          "truncate text-[15px] font-semibold",
+                          widget.hidden && "text-muted-foreground"
+                        )}
+                      >
+                        {label}
                       </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                         {widget.hidden
                           ? "Hidden"
-                          : `${widget.size === "small" ? "Compact" : "Full width"}${widget.pinned ? " · Pinned first" : ""}`}
+                          : widget.size === "small"
+                            ? "Compact"
+                            : "Full width"}
+                        {widget.pinned && !widget.hidden ? " · Pinned" : ""}
                       </p>
                     </div>
+
                     <button
                       type="button"
-                      disabled={index === 0}
-                      aria-label={`Move ${DASHBOARD_WIDGET_LABELS[widget.id]} up`}
-                      onClick={() => {
-                        const next = [...dashboardWidgetLayout]
-                        ;[next[index - 1], next[index]] = [
-                          next[index],
-                          next[index - 1],
-                        ]
-                        updateDashboardLayout(next)
-                      }}
-                      className="native-toolbar-button size-10 px-0 disabled:opacity-25"
+                      aria-label={`${widget.size === "full" ? "Make" : "Undo"} ${label} compact`}
+                      aria-pressed={widget.size === "small"}
+                      onClick={() =>
+                        patch({
+                          size: widget.size === "full" ? "small" : "full",
+                        })
+                      }
+                      className={cn(
+                        "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted",
+                        widget.size === "small" && "bg-muted text-foreground"
+                      )}
                     >
-                      <CaretDown size={14} className="rotate-180" />
+                      <ArrowsInLineVertical size={17} weight="bold" />
                     </button>
                     <button
                       type="button"
-                      disabled={index === dashboardWidgetLayout.length - 1}
-                      aria-label={`Move ${DASHBOARD_WIDGET_LABELS[widget.id]} down`}
-                      onClick={() => {
-                        const next = [...dashboardWidgetLayout]
-                        ;[next[index], next[index + 1]] = [
-                          next[index + 1],
-                          next[index],
-                        ]
-                        updateDashboardLayout(next)
-                      }}
-                      className="native-toolbar-button size-10 px-0 disabled:opacity-25"
+                      aria-label={`${widget.pinned ? "Unpin" : "Pin"} ${label}`}
+                      aria-pressed={Boolean(widget.pinned)}
+                      onClick={() => patch({ pinned: !widget.pinned }, true)}
+                      className={cn(
+                        "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted",
+                        widget.pinned && "bg-muted text-foreground"
+                      )}
                     >
-                      <CaretDown size={14} />
+                      <PushPin
+                        size={17}
+                        weight={widget.pinned ? "fill" : "bold"}
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${widget.hidden ? "Show" : "Hide"} ${label}`}
+                      aria-pressed={Boolean(widget.hidden)}
+                      onClick={() => patch({ hidden: !widget.hidden })}
+                      className={cn(
+                        "flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted",
+                        widget.hidden && "bg-muted text-foreground"
+                      )}
+                    >
+                      {widget.hidden ? (
+                        <EyeSlash size={17} weight="bold" />
+                      ) : (
+                        <Eye size={17} weight="bold" />
+                      )}
                     </button>
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateDashboardLayout(
-                          dashboardWidgetLayout.map((item) =>
-                            item.id === widget.id
-                              ? { ...item, hidden: !item.hidden }
-                              : item
-                          )
-                        )
-                      }
-                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
-                    >
-                      {widget.hidden ? "Show" : "Hide"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateDashboardLayout(
-                          dashboardWidgetLayout.map((item) =>
-                            item.id === widget.id
-                              ? {
-                                  ...item,
-                                  size: item.size === "full" ? "small" : "full",
-                                }
-                              : item
-                          )
-                        )
-                      }
-                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
-                    >
-                      {widget.size === "full" ? "Make compact" : "Make full"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateDashboardLayout(
-                          dashboardWidgetLayout.map((item) =>
-                            item.id === widget.id
-                              ? { ...item, pinned: !item.pinned }
-                              : { ...item, pinned: false }
-                          )
-                        )
-                      }
-                      className="min-h-9 rounded-lg border border-border px-3 text-[10px] font-semibold"
-                    >
-                      {widget.pinned ? "Unpin" : "Pin first"}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </MobileSheet>

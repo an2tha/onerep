@@ -1,5 +1,11 @@
 import { useState } from "react"
-import { CaretRight, Fire, PintGlass, Plus } from "@phosphor-icons/react"
+import {
+  ArrowCounterClockwise,
+  CaretRight,
+  Fire,
+  PintGlass,
+  Plus,
+} from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
 import { Card, CardTitle, useAnimatedNumber, tint } from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
@@ -32,7 +38,6 @@ type WaterEntry = { id: string; amountMl: number; loggedAt: string }
  */
 export function WaterWidget({ dateKey }: { dateKey: string }) {
   const navigate = useSmoothNavigate()
-  const [hoveredGlass, setHoveredGlass] = useState<number | null>(null)
   const preferences = useQuery(api.users.users.getPreferences)
   const goalMl = preferences?.waterGoalMl ?? 2500
 
@@ -46,10 +51,6 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
-  const previewFilledCount =
-    hoveredGlass === null
-      ? filledCount
-      : Math.max(filledCount, hoveredGlass + 1)
 
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
@@ -69,10 +70,6 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
     addWater(waterAmountNeededForGlass(totalMl, goalMl, filledCount + 1))
   }
 
-  function fillToGlass(index: number) {
-    addWater(waterAmountNeededForGlass(totalMl, goalMl, index + 1))
-  }
-
   function removeLastEntry() {
     if (entries.length === 0) return
     const sorted = [...entries].sort((a, b) =>
@@ -82,75 +79,57 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   }
 
   return (
-    <Card className="dashboard-tile h-full">
-      <div className="flex h-full flex-col px-3.5 py-2.5">
-        {/* Header */}
-        <div className="mb-2 flex items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Water</CardTitle>
-          <button
-            onClick={() => navigate("/nutrition")}
-            aria-label="Open water log"
-            className="-mr-1 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground/40 active:bg-muted/45 active:text-muted-foreground/70"
-          >
-            <CaretRight size={11} weight="bold" />
-          </button>
-        </div>
-
-        {/* 2×4 glass grid */}
-        <div
-          className="grid grid-cols-4 gap-1.5"
-          onPointerLeave={() => setHoveredGlass(null)}
+    <Card className="dashboard-tile">
+      {/* The same row shape as the quick-log list above it: what it is, where
+          it stands, and the button that moves it. The eight-segment bar was a
+          third idiom on a screen that already had two. */}
+      <div className="flex min-h-14 items-center gap-3 px-3.5 py-2.5">
+        <button
+          type="button"
+          onClick={() => navigate("/nutrition")}
+          aria-label="Open water log"
+          className="min-w-0 flex-1 text-left"
         >
-          {Array.from({ length: WATER_GLASS_COUNT }, (_, i) => {
-            const filled = i < filledCount
-            const previewFilled = i < previewFilledCount
-            return (
-              <button
-                key={i}
-                onClick={filled ? removeLastEntry : () => fillToGlass(i)}
-                onPointerEnter={() => setHoveredGlass(i)}
-                onFocus={() => setHoveredGlass(i)}
-                onBlur={() => setHoveredGlass(null)}
-                className={cn(
-                  "flex items-center justify-center rounded-lg py-2 transition-all active:scale-[0.985]",
-                  previewFilled ? "" : "bg-muted/25"
-                )}
-                style={
-                  previewFilled ? { backgroundColor: WATER_BG } : undefined
-                }
-                aria-label={
-                  filled
-                    ? "Remove last water entry"
-                    : `Fill to ${fmtWater(waterGlassTargetMl(goalMl, i + 1))}`
-                }
-              >
-                <PintGlass
-                  size={17}
-                  weight={previewFilled ? "fill" : "regular"}
-                  style={{ color: previewFilled ? WATER_COLOR : undefined }}
-                  className={cn(
-                    "size-[17px] shrink-0",
-                    !previewFilled && "text-muted-foreground/20"
-                  )}
-                />
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Summary + more button */}
-        <div className="mt-auto flex items-center justify-between gap-1.5 pt-2">
-          <p className="min-w-0 truncate text-[11px] font-medium text-muted-foreground/45 tabular-nums">
-            {fmtWater(totalMl)} / {fmtWater(goalMl)}
+          <p className="native-row-title">Water</p>
+          <p className="native-row-detail mt-0.5 tabular-nums">
+            {fmtWater(totalMl)} of {fmtWater(goalMl)}
           </p>
+        </button>
+
+        {/* The day as a slim bar rather than eight tap targets: one glance,
+            and the adding happens on the button beside it. */}
+        <span
+          className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted/60 sm:w-24"
+          aria-hidden="true"
+        >
+          <span
+            className="block h-full rounded-full transition-[width] duration-500 ease-out"
+            style={{
+              width: `${Math.min(100, Math.round((totalMl / Math.max(1, goalMl)) * 100))}%`,
+              backgroundColor: WATER_COLOR,
+            }}
+          />
+        </span>
+
+        {totalMl > 0 && (
           <button
-            onClick={addGlass}
-            aria-label="Add more water"
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted/40 text-muted-foreground/60 active:bg-muted/70"
+            type="button"
+            onClick={removeLastEntry}
+            aria-label="Remove last water entry"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground active:bg-muted active:text-foreground"
           >
-            <Plus size={11} weight="bold" />
+            <ArrowCounterClockwise size={15} weight="bold" />
           </button>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={addGlass}
+          aria-label={`Add ${fmtWater(mlPerGlass)} of water`}
+          className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
+        >
+          <Plus size={16} weight="bold" />
+        </button>
       </div>
     </Card>
   )
@@ -162,11 +141,14 @@ export function StreakCard({
   workoutsThisWeek,
   workoutDates,
   today,
+  translucent = false,
 }: {
   streak: number
   workoutsThisWeek: number
   workoutDates: Set<string>
   today: Date
+  /** On the hero field the tile becomes a pane the gradient shows through. */
+  translucent?: boolean
 }) {
   // Build Mon–Sun for the current week
   const todayDow = today.getUTCDay() // 0=Sun … 6=Sat
@@ -187,9 +169,8 @@ export function StreakCard({
     ? WORKOUT_COLOR
     : "color-mix(in srgb, var(--foreground) 18%, transparent)"
 
-  return (
-    <Card className="dashboard-tile h-full">
-      <div className="flex h-full flex-col px-3.5 py-2.5">
+  const card = (
+    <div className="flex h-full flex-col px-3.5 py-2.5">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold">Streak</CardTitle>
           <Fire
@@ -266,10 +247,81 @@ export function StreakCard({
           {workoutsThisWeek === 1
             ? "1 workout this week"
             : `${workoutsThisWeek} workouts this week`}
-        </p>
-      </div>
-    </Card>
+      </p>
+    </div>
   )
+
+  // On the hero field there is no card: the streak is a line of the hero, so
+  // it drops the surface, the title and the footnote and keeps the two things
+  // that carry meaning — the count, and the week behind it.
+  if (translucent) {
+    return (
+      <div className="flex items-center justify-between gap-4">
+        <div
+          className={cn(
+            "flex items-baseline gap-1.5",
+            milestoneActive && "streak-milestone"
+          )}
+          role={milestoneActive ? "status" : undefined}
+          aria-label={
+            milestoneActive ? `${streak} day streak milestone` : undefined
+          }
+        >
+          <span
+            className="text-[22px] leading-none font-bold tracking-tight tabular-nums"
+            style={{
+              color: active
+                ? WORKOUT_COLOR
+                : "color-mix(in srgb, var(--foreground) 35%, transparent)",
+            }}
+          >
+            {animatedStreak}
+          </span>
+          <span className="text-[13px] font-medium text-muted-foreground">
+            {streak === 1 ? "day streak" : "day streak"}
+          </span>
+        </div>
+
+        <div className="flex items-end gap-2.5">
+          {weekDays.map((iso, i) => {
+            const isToday = iso === today.toISOString().slice(0, 10)
+            const isFuture = iso > today.toISOString().slice(0, 10)
+            const done = workoutDates.has(iso)
+            return (
+              <div
+                key={iso}
+                className="flex min-h-11 flex-col items-center justify-center gap-1"
+              >
+                <Fire
+                  size={14}
+                  weight={done ? "fill" : "regular"}
+                  aria-hidden="true"
+                  className="size-[14px] shrink-0"
+                  style={{
+                    color: done
+                      ? WORKOUT_COLOR
+                      : `color-mix(in srgb, var(--foreground) ${
+                          isToday ? 34 : isFuture ? 14 : 22
+                        }%, transparent)`,
+                  }}
+                />
+                <span
+                  className={cn(
+                    "text-[11px] font-medium",
+                    isToday ? "text-foreground/70" : "text-muted-foreground/60"
+                  )}
+                >
+                  {WEEK_LABELS[i]}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  return <Card className="dashboard-tile h-full">{card}</Card>
 }
 
 /** The half-width water tile, for the compact widget grid. */

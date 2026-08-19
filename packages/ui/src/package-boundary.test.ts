@@ -132,6 +132,14 @@ describe("@repo/ui package boundary", () => {
       "walkthrough/tour-anchor.tsx",
       "walkthrough/tour-context.tsx",
       "walkthrough/tour-provider.tsx",
+      // Progress's nested week rings: the key doubles as the page's tab
+      // switcher, so it drives page state and fires haptics on the way.
+      "progress-hero.tsx",
+      // The training hero's dials: the centre one is a native haptic
+      // instrument first — the ring only reports what the taptic engine is
+      // already saying — so it stays on the side of the fence that can talk
+      // to the phone.
+      "training-hero-dials.tsx",
       // The coach's computed lift verdicts and recovery read-out on Progress,
       // straight from a Convex query.
       "training-insights-panel.tsx",

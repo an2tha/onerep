@@ -117,9 +117,11 @@ describe("app motion CSS", () => {
   })
 
   test("animates all accordion disclosures without scale motion", () => {
-    expect(animatedAccordion).toContain("grid-rows-[1fr] opacity-100")
-    expect(animatedAccordion).toContain("grid-rows-[0fr] opacity-0")
-    expect(animatedAccordion).toContain("motion-reduce:transition-none")
+    // Height is measured rather than expressed as `0fr -> 1fr`, which WebKit
+    // will not interpolate — that is the whole reason these drawers snapped.
+    expect(animatedAccordion).toContain("accordion-drawer-animated")
+    expect(animatedAccordion).toContain("height: open ? bodyHeight : 0")
+    expect(css).toContain(".accordion-drawer-animated {")
     expect(animatedAccordion).toContain('open && "rotate-180"')
     expect(css).toContain(
       "animation: accordion-down var(--motion-medium) var(--motion-ease-standard)"

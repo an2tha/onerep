@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react"
-import { ArrowRight, ForkKnife, ShareNetwork } from "@phosphor-icons/react"
+import { useEffect, useState, type ReactNode } from "react"
+import {
+  ArrowRight,
+  ForkKnife,
+  ShareNetwork,
+  SlidersHorizontal,
+} from "@phosphor-icons/react"
 import { cn } from "../../lib/utils"
 
 export type DashboardWeeklyStory = {
@@ -33,7 +38,20 @@ const READINESS_TONES: Record<DashboardReadiness["label"], string> = {
   Recover: "var(--status-danger)",
 }
 
-function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
+function ScoreRing({
+  score,
+  tone,
+  size = 76,
+  stroke = 6,
+  children,
+}: {
+  score: number
+  tone: string
+  size?: number
+  stroke?: number
+  /** What reads in the middle. Defaults to the score the arc is drawing. */
+  children?: ReactNode
+}) {
   const [drawn, setDrawn] = useState(false)
   useEffect(() => {
     const frame = requestAnimationFrame(() => setDrawn(true))
@@ -44,14 +62,22 @@ function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
   const swept = circumference * (Math.max(0, Math.min(100, score)) / 100)
 
   return (
-    <div className="relative size-[76px] shrink-0" aria-hidden="true">
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+    >
+      <span
+        className="macro-dial-glass"
+        style={{ inset: `${(stroke / 76) * 100}%` }}
+      />
       <svg viewBox="0 0 76 76" className="h-full w-full -rotate-90">
         <circle
           cx="38"
           cy="38"
           r={radius}
           fill="none"
-          strokeWidth="6"
+          strokeWidth={stroke}
           className="stroke-foreground/[0.08]"
         />
         <circle
@@ -59,7 +85,7 @@ function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
           cy="38"
           r={radius}
           fill="none"
-          strokeWidth="6"
+          strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={drawn ? circumference - swept : circumference}
@@ -71,7 +97,9 @@ function ReadinessGauge({ score, tone }: { score: number; tone: string }) {
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
-        <span className="text-[21px] font-bold tabular-nums">{score}</span>
+        {children ?? (
+          <span className="text-[21px] font-bold tabular-nums">{score}</span>
+        )}
       </div>
     </div>
   )
@@ -118,6 +146,9 @@ export function DashboardIntelligence({
   onOpenTraining,
   onRepeatMeal,
   onAskCoach,
+  health,
+  onOpenHealth,
+  onCustomize,
   className,
 }: {
   story: DashboardWeeklyStory
@@ -127,9 +158,13 @@ export function DashboardIntelligence({
   onOpenTraining: () => void
   onRepeatMeal: (name: string) => void
   onAskCoach: () => void
+  /** From the health dashboard; null until a week of readings exists. */
+  health?: { score: number | null; band?: string } | null
+  onOpenHealth?: () => void
+  onCustomize?: () => void
   className?: string
 }) {
-  const [active, setActive] = useState<"week" | "readiness">("week")
+  const weekPct = Math.round((story.nutritionDays / 7) * 100)
   const storyLine =
     story.workouts === 0
       ? "No sessions yet. One repeatable workout is enough to start the week."
@@ -168,185 +203,100 @@ export function DashboardIntelligence({
     >
       <div className="flex items-center justify-between gap-3">
         <p className="app-section-title">Your week</p>
-        <button
-          type="button"
-          onClick={onAskCoach}
-          className="motion-tactile min-h-11 text-[12px] font-semibold text-muted-foreground active:text-foreground"
-        >
-          Ask Coach
-        </button>
+        <div className="flex items-center gap-1">
+          {onCustomize && (
+            <button
+              type="button"
+              onClick={onCustomize}
+              aria-label="Customize dashboard"
+              className="app-translucent motion-tactile inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[12px] font-semibold"
+            >
+              <SlidersHorizontal size={14} weight="bold" />
+              Customize
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onAskCoach}
+            className="motion-tactile min-h-11 px-2 text-[12px] font-semibold text-muted-foreground active:text-foreground"
+          >
+            Ask Coach
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 overflow-hidden rounded-xl border border-border bg-card">
-        <div
-          className="m-4 mb-0 inline-flex max-w-full gap-0.5 rounded-full bg-foreground/[0.06] p-0.5"
-          role="tablist"
-          aria-label="Weekly insight"
-        >
-          {(["week", "readiness"] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              role="tab"
-              aria-selected={active === item}
-              onClick={() => setActive(item)}
-              className={cn(
-                "motion-tactile-subtle min-h-9 rounded-full px-3.5 text-[12px] font-semibold text-muted-foreground transition-colors",
-                active === item && "bg-foreground text-background"
-              )}
-            >
-              {item === "week" ? "Story" : "Readiness"}
-            </button>
-          ))}
-        </div>
+        <div className="px-4 pt-4 pb-4">
+          <p className="text-[13px] leading-5">
+            {storyLine}
+            {story.weightChange != null && (
+              <span className="text-muted-foreground">
+                {" "}
+                Weight moved {story.weightChange > 0 ? "+" : ""}
+                {story.weightChange.toFixed(1)} {story.weightUnit}.
+              </span>
+            )}
+          </p>
 
-        <div key={active} className="dashboard-intelligence-panel p-4">
-          {active === "week" ? (
-            <>
-              <div className="grid grid-cols-4 gap-3">
-                <WeekMetric
-                  value={String(story.workouts)}
-                  label="Sessions"
-                  muted={story.workouts === 0}
-                />
-                <WeekMetric
-                  value={String(story.completedSets)}
-                  label="Sets"
-                  muted={story.completedSets === 0}
-                />
-                <WeekMetric
-                  value={String(story.nutritionDays)}
-                  suffix="/7"
-                  label="Logged"
-                  muted={story.nutritionDays === 0}
-                />
-                <WeekMetric
-                  value={String(Math.round(story.proteinAdherence))}
-                  suffix="%"
-                  label="Protein"
-                  muted={story.proteinAdherence === 0}
-                />
-              </div>
-              <p className="mt-4 text-[13px] leading-5">
-                {storyLine}
-                {story.weightChange != null && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    Weight moved {story.weightChange > 0 ? "+" : ""}
-                    {story.weightChange.toFixed(1)} {story.weightUnit}.
-                  </span>
-                )}
-              </p>
-              {story.records && story.records.length > 0 && (
-                <div className="mt-3.5 space-y-2 border-t border-border/60 pt-3.5">
-                  {story.records.map((record, index) => (
-                    <div
-                      key={`${record.label}-${index}`}
-                      className="dashboard-record-in flex items-baseline gap-2 text-[12px]"
-                      style={{ animationDelay: `${index * 55}ms` }}
-                    >
-                      <span className="size-1.5 shrink-0 self-center rounded-full bg-[var(--accent-progress)]" />
-                      <span className="font-semibold">{record.label}</span>
-                      <span className="truncate text-muted-foreground">
-                        {record.detail}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="mt-4 flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={onOpenProgress}
-                  className="group inline-flex min-h-10 items-center gap-1.5 text-[12px] font-semibold"
+          <div className="mt-3.5 grid grid-cols-3 gap-3 border-t border-border/60 pt-3.5">
+            <WeekMetric
+              value={String(story.workouts)}
+              label="Sessions"
+              muted={story.workouts === 0}
+            />
+            <WeekMetric
+              value={String(story.completedSets)}
+              label="Sets"
+              muted={story.completedSets === 0}
+            />
+            <WeekMetric
+              value={String(Math.round(story.proteinAdherence))}
+              suffix="%"
+              label="Protein"
+              muted={story.proteinAdherence === 0}
+            />
+          </div>
+
+          {story.records && story.records.length > 0 && (
+            <div className="mt-3.5 space-y-2 border-t border-border/60 pt-3.5">
+              {story.records.map((record, index) => (
+                <div
+                  key={`${record.label}-${index}`}
+                  className="dashboard-record-in flex items-baseline gap-2 text-[12px]"
+                  style={{ animationDelay: `${index * 55}ms` }}
                 >
-                  See full progress{" "}
-                  <ArrowRight
-                    size={13}
-                    className="transition-transform group-active:translate-x-0.5"
-                  />
-                </button>
-                {typeof navigator !== "undefined" && "share" in navigator && (
-                  <button
-                    type="button"
-                    onClick={() => void shareWeeklyStory()}
-                    className="motion-tactile inline-flex min-h-10 items-center gap-1.5 text-[12px] font-medium text-muted-foreground active:text-foreground"
-                  >
-                    <ShareNetwork size={13} /> Share
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-4">
-                <ReadinessGauge
-                  score={readiness.score}
-                  tone={READINESS_TONES[readiness.label]}
-                />
-                <div className="min-w-0">
-                  <p
-                    className="text-[17px] font-bold tracking-tight"
-                    style={{ color: READINESS_TONES[readiness.label] }}
-                  >
-                    {readiness.label}
-                  </p>
-                  <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
-                    {readiness.advice}
-                  </p>
+                  <span className="size-1.5 shrink-0 self-center rounded-full bg-[var(--accent-progress)]" />
+                  <span className="font-semibold">{record.label}</span>
+                  <span className="truncate text-muted-foreground">
+                    {record.detail}
+                  </span>
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
 
-              <div className="mt-4 space-y-3.5 border-t border-border/60 pt-4">
-                {readiness.components.map((component, index) => (
-                  <div
-                    key={component.id}
-                    className="dashboard-record-in"
-                    style={{ animationDelay: `${index * 60}ms` }}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-[13px] font-semibold">
-                        {component.label}
-                        {component.score !== null && component.weight > 0 && (
-                          <span className="ml-1.5 text-[11px] font-medium text-muted-foreground tabular-nums">
-                            {Math.round(component.weight * 100)}% of score
-                          </span>
-                        )}
-                      </p>
-                      <p className="shrink-0 text-[13px] font-semibold tabular-nums">
-                        {component.score === null
-                          ? "—"
-                          : Math.round(component.score)}
-                      </p>
-                    </div>
-                    <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-foreground/[0.07]">
-                      <div
-                        className="h-full rounded-full transition-[width] duration-500 ease-out"
-                        style={{
-                          width: `${component.score ?? 0}%`,
-                          backgroundColor: READINESS_TONES[readiness.label],
-                        }}
-                      />
-                    </div>
-                    <p className="mt-1 text-[12px] leading-4 text-muted-foreground">
-                      {component.detail}
-                    </p>
-                  </div>
-                ))}
-              </div>
+          <div className="mt-4 flex items-center gap-4">
+            <button
+              type="button"
+              onClick={onOpenProgress}
+              className="group inline-flex min-h-10 items-center gap-1.5 text-[12px] font-semibold"
+            >
+              See full progress{" "}
+              <ArrowRight
+                size={13}
+                className="transition-transform group-active:translate-x-0.5"
+              />
+            </button>
+            {typeof navigator !== "undefined" && "share" in navigator && (
               <button
                 type="button"
-                onClick={onOpenTraining}
-                className="group mt-4 inline-flex min-h-10 items-center gap-1.5 text-[12px] font-semibold"
+                onClick={() => void shareWeeklyStory()}
+                className="motion-tactile inline-flex min-h-10 items-center gap-1.5 text-[12px] font-medium text-muted-foreground active:text-foreground"
               >
-                Adjust today’s training{" "}
-                <ArrowRight
-                  size={13}
-                  className="transition-transform group-active:translate-x-0.5"
-                />
+                <ShareNetwork size={13} /> Share
               </button>
-            </>
-          )}
+            )}
+          </div>
         </div>
 
         {recentMeals.length > 0 && (
@@ -372,4 +322,97 @@ export function DashboardIntelligence({
       </div>
     </section>
   )
+}
+
+/**
+ * The week's three readings, compressed for the hero: a ring each, the number
+ * inside it, and — the part that was missing — a line saying what the number
+ * actually measures. A dial nobody can read is decoration.
+ */
+export function DashboardWeekRings({
+  readiness,
+  story,
+  health,
+  onOpenTraining,
+  onOpenHealth,
+  onOpenProgress,
+  className,
+}: {
+  readiness: DashboardReadiness
+  story: DashboardWeeklyStory
+  health?: { score: number | null; band?: string } | null
+  onOpenTraining: () => void
+  onOpenHealth?: () => void
+  onOpenProgress: () => void
+  className?: string
+}) {
+  const rings = [
+    {
+      id: "readiness",
+      value: String(readiness.score),
+      label: readiness.label,
+      hint: "to train today",
+      tone: READINESS_TONES[readiness.label],
+      score: readiness.score,
+      onOpen: onOpenTraining,
+      describe: `Readiness ${readiness.score} of 100, ${readiness.label}: how recovered you are for training today. ${readiness.advice}`,
+    },
+    {
+      id: "health",
+      value: health?.score == null ? "—" : String(health.score),
+      label: health?.band ? titleCase(health.band) : "Health",
+      hint: "7-day signals",
+      tone: "var(--accent-progress)",
+      score: health?.score ?? 0,
+      onOpen: onOpenHealth,
+      describe:
+        health?.score == null
+          ? "Health score: needs about a week of readings from Apple Health or Health Connect."
+          : `Health ${health.score} of 100: sleep, activity, heart and recovery over the last week.`,
+    },
+    {
+      id: "logged",
+      value: `${story.nutritionDays}/7`,
+      label: "Logged",
+      hint: "days this week",
+      tone: "var(--accent-food)",
+      score: Math.round((story.nutritionDays / 7) * 100),
+      onOpen: onOpenProgress,
+      describe: `Logged ${story.nutritionDays} of 7 days: how many days this week you recorded food.`,
+    },
+  ]
+
+  return (
+    <div
+      className={cn("flex items-start justify-between gap-2", className)}
+      aria-label="Your week at a glance"
+    >
+      {rings.map((ring) => (
+        <button
+          key={ring.id}
+          type="button"
+          onClick={ring.onOpen}
+          disabled={!ring.onOpen}
+          aria-label={ring.describe}
+          className="motion-tactile flex min-w-0 flex-1 flex-col items-center gap-1 disabled:opacity-100"
+        >
+          <ScoreRing score={ring.score} tone={ring.tone} size={46} stroke={4}>
+            <span className="text-[13px] font-bold tabular-nums">
+              {ring.value}
+            </span>
+          </ScoreRing>
+          <span className="max-w-full truncate text-[11.5px] font-semibold">
+            {ring.label}
+          </span>
+          <span className="max-w-full truncate text-[11px] text-muted-foreground">
+            {ring.hint}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }

@@ -2,14 +2,15 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { currentDateKey } from "@/lib/food-log"
 import {
+  AREA_TONES,
+  DialHero,
+  MetricAbout,
   HealthDetailShell,
   MetricTrend,
-  ScoreDial,
   StatCell,
   StatGrid,
   formatCount,
   formatHours,
-  toneVar,
 } from "./shared"
 
 /**
@@ -33,80 +34,25 @@ export default function HealthActivity() {
   )
 
   return (
-    <HealthDetailShell title="Activity" subtitle="Against public guidance">
-      {data === undefined ? (
-        <div
-          className="mx-auto size-44 animate-pulse rounded-full bg-muted"
-          data-route-loading="true"
-        />
-      ) : (
+    <HealthDetailShell
+      title="Activity"
+      subtitle="Against public guidance"
+      heroFill={exercise?.score ?? null}
+      charts={
         <>
-          <ScoreDial
-            score={exercise?.score ?? null}
-            caption={
-              exercise?.value == null
-                ? "no reading"
-                : `${Math.round(exercise.value)} of ${exercise.target} min`
-            }
-            size={176}
-            ticks={48}
-          />
-
-          <StatGrid>
-            <StatCell
-              label="Exercise"
-              value={
-                exercise?.value == null ? "—" : `${Math.round(exercise.value)}m`
-              }
-              caption={`of ${exercise?.target ?? 150}m weekly`}
-              tone={toneVar(exercise?.score ?? null)}
-            />
-            <StatCell
-              label="Steps"
-              value={steps?.value == null ? "—" : formatCount(steps.value)}
-              caption={`of ${formatCount(steps?.target ?? 8000)} daily`}
-              tone={toneVar(steps?.score ?? null)}
-            />
-            <StatCell
-              label="Active kcal"
-              value={energy?.value == null ? "—" : formatCount(energy.value)}
-              caption={`of ${formatCount(energy?.target ?? 400)} daily`}
-              tone={toneVar(energy?.score ?? null)}
-            />
-          </StatGrid>
-
-          {advice && advice.length > 0 && (
-            <section className="grid gap-2.5" aria-label="How to move it">
-              {advice.map((item, index) => (
-                <div
-                  key={item.title}
-                  className="dashboard-record-in rounded-xl border border-border bg-card p-4"
-                  style={{ animationDelay: `${index * 60}ms` }}
-                >
-                  <p className="text-[14px] leading-5 font-semibold">
-                    {item.title}
-                  </p>
-                  <p className="mt-1.5 text-[12px] leading-[1.5] text-muted-foreground">
-                    {item.detail}
-                  </p>
-                </div>
-              ))}
-            </section>
-          )}
-
           <MetricTrend
             today={today}
             metric="exercise"
             title="Exercise minutes"
             format={formatHours}
-            tone={toneVar(exercise?.score ?? null)}
+            tone={AREA_TONES.activity}
           />
           <MetricTrend
             today={today}
             metric="steps"
             title="Steps"
             format={formatCount}
-            tone="var(--accent-progress)"
+            tone="var(--accent-health)"
           />
           <MetricTrend
             today={today}
@@ -115,6 +61,95 @@ export default function HealthActivity() {
             format={(value) => `${formatCount(value)} kcal`}
             tone="var(--accent-food)"
           />
+        </>
+      }
+      about={
+        <MetricAbout
+          items={[
+            {
+              term: "150 minutes a week",
+              detail:
+                "The World Health Organization guideline for moderate aerobic activity in adults. Read from the health store, so runs, classes and rides count even when OneRep never saw them.",
+            },
+            {
+              term: "Why 8,000 steps, not 10,000",
+              detail:
+                "The 10,000 figure came from the brand name of a 1960s Japanese pedometer, not from research. Cohort studies since put most of the mortality benefit between 7,000 and 8,000, with returns flattening after.",
+            },
+            {
+              term: "Active calories",
+              detail:
+                "Energy burned above what you would have spent lying still. Device estimates vary a lot between makes, so the trend is worth more than any single day.",
+            },
+            {
+              term: "Minutes beat steps",
+              detail:
+                "Exercise minutes carry more of this score than steps do, because sustained effort and ambient walking are not interchangeable however similar the totals look.",
+            },
+          ]}
+        />
+      }
+    >
+      {data === undefined ? (
+        <div
+          className="mx-auto size-44 animate-pulse rounded-full bg-muted"
+          data-route-loading="true"
+        />
+      ) : (
+        <>
+          <DialHero
+            tone={AREA_TONES.activity}
+            score={exercise?.score ?? null}
+            caption={
+              exercise?.value == null
+                ? "no reading"
+                : `${Math.round(exercise.value)} of ${exercise.target} min`
+            }
+          >
+            <StatGrid>
+              <StatCell
+                label="Exercise"
+                value={
+                  exercise?.value == null
+                    ? "—"
+                    : `${Math.round(exercise.value)}m`
+                }
+                caption={`of ${exercise?.target ?? 150}m weekly`}
+              />
+              <StatCell
+                label="Steps"
+                value={steps?.value == null ? "—" : formatCount(steps.value)}
+                caption={`of ${formatCount(steps?.target ?? 8000)} daily`}
+              />
+              <StatCell
+                label="Active kcal"
+                value={energy?.value == null ? "—" : formatCount(energy.value)}
+                caption={`of ${formatCount(energy?.target ?? 400)} daily`}
+              />
+            </StatGrid>
+          </DialHero>
+
+          {advice && advice.length > 0 && (
+            <section aria-label="How to move it">
+              <p className="app-section-title mb-2">How to move it</p>
+              <ul className="divide-y divide-border border-t border-border">
+                {advice.map((item, index) => (
+                  <li
+                    key={item.title}
+                    className="progress-tab-enter px-1 py-3"
+                    style={{ animationDelay: `${index * 60}ms` }}
+                  >
+                    <p className="text-[15px] leading-5 font-semibold">
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 text-[13px] leading-[1.45] text-muted-foreground">
+                      {item.detail}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       )}
     </HealthDetailShell>
