@@ -457,62 +457,51 @@ function PickSecondWorkoutSheet({
   onPick: (presetId: string) => void
   onClose: () => void
 }) {
-  const FOCUS_ICON_LOCAL = FOCUS_ICON
-
   return (
-    <div
-      className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-[3px]"
-      onClick={onClose}
+    <MobileSheet
+      onClose={onClose}
+      ariaLabel={title}
+      overlayClassName="bg-black/50 backdrop-blur-[8px]"
+      panelClassName="sheet-panel mx-auto w-full max-w-sm overflow-hidden rounded-t-[24px] bg-card shadow-[0_-12px_60px_rgba(0,0,0,0.22)]"
+      panelStyle={{
+        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+      }}
+      maxHeight="calc(100svh - var(--app-safe-top) - 0.75rem)"
     >
-      <div
-        className="sheet-panel w-full max-w-sm overflow-hidden rounded-t-3xl bg-card shadow-2xl"
-        style={{
-          paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="h-1 w-10 rounded-full bg-foreground/[0.12]" />
-        </div>
-        <div className="flex items-center justify-between px-5 py-3">
-          <p className="text-[15px] font-semibold tracking-tight">{title}</p>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground transition-colors active:bg-muted"
-          >
-            <X size={12} weight="bold" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1.5 px-4 pb-1">
-          {presets.map((preset) => {
-            const Icon = FOCUS_ICON_LOCAL[preset.focus]
-            return (
-              <button
-                key={preset.id}
-                onClick={() => onPick(preset.id)}
-                className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted/70"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
-                  <Icon
-                    size={14}
-                    weight="duotone"
-                    className="text-foreground/60"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold">{preset.name}</p>
-                  <p className="text-[13px] text-muted-foreground">
-                    {preset.steps.length} exercises · {preset.duration}
-                  </p>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+      <div className="flex items-center justify-between px-5 py-3">
+        <p className="text-[15px] font-semibold tracking-tight">{title}</p>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="app-icon-button h-10 w-10 bg-muted/60 text-muted-foreground"
+        >
+          <X size={12} weight="bold" />
+        </button>
       </div>
-    </div>
+
+      <div className="flex flex-col gap-1.5 overflow-y-auto px-4 pb-1">
+        {presets.map((preset) => {
+          const Icon = FOCUS_ICON[preset.focus]
+          return (
+            <button
+              key={preset.id}
+              onClick={() => onPick(preset.id)}
+              className="flex items-center gap-3 rounded-2xl bg-muted/40 px-4 py-3.5 text-left transition-colors active:bg-muted/70"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background/70">
+                <Icon size={14} weight="duotone" className="text-foreground/60" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold">{preset.name}</p>
+                <p className="text-[13px] text-muted-foreground">
+                  {preset.steps.length} exercises · {preset.duration}
+                </p>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </MobileSheet>
   )
 }
 

@@ -22,10 +22,7 @@ import {
 import { useAction, useMutation, useQuery } from "convex/react"
 import { ConvexError } from "convex/values"
 import { supportsLiveWorkoutStatusSetting } from "@/lib/workout-live-activity"
-import {
-  registeredPushToken,
-  unregisterForCoachPush,
-} from "@/lib/coach-push"
+import { registeredPushToken, unregisterForCoachPush } from "@/lib/coach-push"
 import {
   getHealthAvailability,
   getRecentHealthWorkouts,
@@ -184,11 +181,7 @@ import {
   ToolbarButton,
 } from "@repo/ui"
 import { useTranslation } from "react-i18next"
-import i18n, {
-  setUiLanguage,
-  storedUiLanguage,
-  type UiLanguage,
-} from "@/i18n"
+import i18n, { setUiLanguage, storedUiLanguage, type UiLanguage } from "@/i18n"
 
 const PRELOGIN_SEEN_KEY = "onerep:prelogin-onboarding-seen"
 
@@ -214,7 +207,6 @@ type SettingsView =
 
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
 const COACH_ONBOARDING_SEEN_KEY = "onerep:coach-onboarding-seen"
-
 
 const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
   overview: "settings.titles.overview",
@@ -512,8 +504,6 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         : offlineQueueTotal > 0
           ? "Sync"
           : "Synced"
-
-
 
   useEffect(
     () =>
@@ -1399,7 +1389,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     />
                     <PrimaryButton
                       aria-label="Save OpenRouter key"
-                      disabled={byokBusy || !byokInput.trim().startsWith("sk-or-")}
+                      disabled={
+                        byokBusy || !byokInput.trim().startsWith("sk-or-")
+                      }
                       onClick={async () => {
                         setByokBusy(true)
                         try {
@@ -2213,51 +2205,54 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                       </p>
                     )}
 
-                    <PrimaryButton
-                      disabled={healthBusy || !healthSyncEnabled}
-                      onClick={async () => {
-                        setHealthBusy(true)
-                        setHealthError(null)
-                        try {
-                          const authorization =
-                            await requestHealthAuthorization()
-                          if (!authorization.granted) {
-                            setHealthError("Permission was denied.")
-                            return
+                    <div className="px-[var(--app-page-x)] pt-4">
+                      <PrimaryButton
+                        className="w-full"
+                        disabled={healthBusy || !healthSyncEnabled}
+                        onClick={async () => {
+                          setHealthBusy(true)
+                          setHealthError(null)
+                          try {
+                            const authorization =
+                              await requestHealthAuthorization()
+                            if (!authorization.granted) {
+                              setHealthError("Permission was denied.")
+                              return
+                            }
+                            const workouts = await getRecentHealthWorkouts({
+                              daysBack: HEALTH_SYNC_DAYS_BACK,
+                              limit: HEALTH_SYNC_LIMIT,
+                            })
+                            const provider = healthProvider()
+                            if (!provider) return
+                            const result = await importHealthWorkouts({
+                              provider,
+                              workouts: workouts.map((workout) =>
+                                healthWorkoutToImport(
+                                  workout,
+                                  preferences?.lastActiveTimezone || "UTC"
+                                )
+                              ),
+                            })
+                            toast.success(
+                              result.imported > 0
+                                ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
+                                : "Already up to date"
+                            )
+                          } catch (error) {
+                            setHealthError(
+                              error instanceof Error
+                                ? error.message
+                                : "Sync failed"
+                            )
+                          } finally {
+                            setHealthBusy(false)
                           }
-                          const workouts = await getRecentHealthWorkouts({
-                            daysBack: HEALTH_SYNC_DAYS_BACK,
-                            limit: HEALTH_SYNC_LIMIT,
-                          })
-                          const provider = healthProvider()
-                          if (!provider) return
-                          const result = await importHealthWorkouts({
-                            provider,
-                            workouts: workouts.map((workout) =>
-                              healthWorkoutToImport(
-                                workout,
-                                preferences?.lastActiveTimezone || "UTC"
-                              )
-                            ),
-                          })
-                          toast.success(
-                            result.imported > 0
-                              ? `Imported ${result.imported} workout${result.imported === 1 ? "" : "s"}`
-                              : "Already up to date"
-                          )
-                        } catch (error) {
-                          setHealthError(
-                            error instanceof Error
-                              ? error.message
-                              : "Sync failed"
-                          )
-                        } finally {
-                          setHealthBusy(false)
-                        }
-                      }}
-                    >
-                      {healthBusy ? "Syncing…" : "Sync now"}
-                    </PrimaryButton>
+                        }}
+                      >
+                        {healthBusy ? "Syncing…" : "Sync now"}
+                      </PrimaryButton>
+                    </div>
 
                     <SettingsSectionLabel
                       title="Recent imports"
@@ -2441,9 +2436,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                               if (result === "copied")
                                 toast.success("Invite link copied")
                               if (result === "failed")
-                                toast.error(
-                                  "Could not share the invite link"
-                                )
+                                toast.error("Could not share the invite link")
                             }}
                             aria-label={`Send invite link to ${share.inviteeEmail}`}
                             className="native-toolbar-button h-11 w-11 px-0 text-muted-foreground"
@@ -2737,8 +2730,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
                 <SettingsSectionIntro>
                   Every email the product sends, delivered to your own address
-                  with harmless links, so the templates can be judged where
-                  they live: an inbox.
+                  with harmless links, so the templates can be judged where they
+                  live: an inbox.
                 </SettingsSectionIntro>
                 <GroupedList label="Test emails">
                   <ListRow
@@ -2846,4 +2839,3 @@ function ReminderRow({
     </div>
   )
 }
-
