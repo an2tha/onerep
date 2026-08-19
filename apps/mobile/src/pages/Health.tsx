@@ -227,12 +227,12 @@ function HealthHub({ data }: { data: Dashboard }) {
 
       {data.recommendations.length > 0 && (
         <section className="mt-5" aria-label="How to move it">
-          <p className="app-section-title mb-2.5">How to move it</p>
+          <p className="app-section-title mb-3">How to move it</p>
           {/* Centred and wrapping rather than a grid: there are two to four of
               these depending on what is measured, and a four-column grid
               holding three cards leaves a hole on the right. The cards keep
               their own width instead of stretching, so the row centres. */}
-          <ul className="flex flex-wrap justify-center gap-3">
+          <ul className="flex flex-wrap justify-center gap-3 sm:gap-4">
             {data.recommendations.map((recommendation, index) => (
               <li
                 key={`${recommendation.pillar}-${recommendation.title}`}

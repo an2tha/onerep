@@ -403,21 +403,29 @@ export function BrainDumpSheet({
   return (
     <MobileSheet onClose={onClose} ariaLabel="Describe your workout">
       <div className="px-6 pt-2 pb-6">
-        <h2 className="text-[20px] font-semibold tracking-tight">
-          What did you do?
-        </h2>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground/80">
-          Say it the way you'd tell a friend — "bench 3x8 at 185, then rows 3x10
-          at 60". Weights are read as {unit === "lbs" ? "pounds" : "kilograms"}.
-        </p>
+        {/* The paragraph here said three times over what the placeholder
+            already demonstrates. The one thing it carried that nothing else
+            did was the unit, so the unit is now a chip you read on your way to
+            the field instead of a clause at the end of a sentence. */}
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-[20px] font-semibold tracking-tight">
+            What did you do?
+          </h2>
+          <span
+            className="shrink-0 rounded-full bg-muted/50 px-2.5 py-1 text-[12px] font-semibold text-muted-foreground"
+            aria-label={`Weights are read as ${unit === "lbs" ? "pounds" : "kilograms"}`}
+          >
+            {unit === "lbs" ? "lb" : "kg"}
+          </span>
+        </div>
         <textarea
           value={text}
           onChange={(event) => setText(event.target.value)}
-          rows={4}
+          rows={3}
           disabled={pending}
           aria-label="Workout description"
-          placeholder="Bench 3x8 at 185, then rows 3x10 at 60..."
-          className="mt-4 w-full resize-none rounded-[20px] bg-muted/40 px-4 py-3 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
+          placeholder="Bench 3x8 at 185, then rows 3x10 at 60"
+          className="mt-3.5 w-full resize-none rounded-[20px] bg-muted/40 px-4 py-3.5 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-60"
         />
         {dictation.interim && (
           <p className="mt-2 px-1 text-[13px] text-muted-foreground">
@@ -462,7 +470,7 @@ export function BrainDumpSheet({
             aria-busy={pending}
             className="h-[52px] flex-1 rounded-[20px] bg-foreground text-[15px] font-semibold tracking-tight text-background transition-opacity active:opacity-80 disabled:opacity-50"
           >
-            {pending ? "Reading..." : "Add these exercises"}
+            {pending ? "Reading…" : "Add exercises"}
           </button>
         </div>
       </div>

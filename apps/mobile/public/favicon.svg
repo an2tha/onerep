@@ -1,5 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="OneRep icon">
-  <rect width="1024" height="1024" rx="220" fill="#f4f4f5"/>
-  <circle cx="512" cy="512" r="300" fill="none" stroke="#d4d4d8" stroke-width="36"/>
-  <text x="512" y="596" text-anchor="middle" font-family="Inter, SF Pro Display, Arial, sans-serif" font-size="300" font-weight="650" letter-spacing="-12" fill="#27272a">1</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 512 512" role="img" aria-label="OneRep">
+  <style>
+    .bg { fill: #f4f3ef }
+    .fg { stroke: #1f2321 }
+    .fill { fill: #1f2321; stroke: #1f2321 }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d0d0c }
+      .fg { stroke: #e8e6df }
+      .fill { fill: #e8e6df; stroke: #e8e6df }
+    }
+  </style>
+  <rect class="bg" width="512" height="512" rx="110"/>
+  <g transform="translate(256 260) scale(0.99) translate(-256 -256)">
+    <g class="fg" fill="none" stroke-width="25" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M152 204 C 146 144 179 120 230 120 C 281 120 313 144 307 204"/>
+      <path d="M224 242 C 208 200 173 180 143 186 C 111 192 89 218 91 256 C 93 296 125 336 179 362 C 203 372 231 360 253 342"/>
+      <path d="M224 242 C 241 202 275 184 305 192 C 329 200 341 220 335 240"/>
+      <path d="M253 342 C 293 320 333 280 393 200"/>
+      <path d="M359 280 C 359 324 343 370 303 404 C 271 430 243 436 227 418 C 213 402 219 382 235 378"/>
+    </g>
+    <path class="fill" d="M426 158 L 409 231 L 356 191 Z" stroke-width="11" stroke-linejoin="round"/>
+  </g>
 </svg>

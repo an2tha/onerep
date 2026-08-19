@@ -4,7 +4,9 @@ const sw = await Bun.file(new URL("../public/sw.js", import.meta.url)).text()
 
 describe("public service worker", () => {
   test("caches the app shell and install assets", () => {
-    expect(sw).toContain('const CACHE_NAME = "onerep-app-v3"')
+    // Bumped with the app icon: the install assets below are precached by name,
+    // so a stale cache name means a stale mark in the tab.
+    expect(sw).toContain('const CACHE_NAME = "onerep-app-v4"')
     expect(sw).toContain('"/index.html"')
     expect(sw).toContain('"/site.webmanifest"')
     expect(sw).toContain('"/icon-512.png"')

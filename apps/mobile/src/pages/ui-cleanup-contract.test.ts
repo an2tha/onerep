@@ -25,7 +25,11 @@ describe("authentication interface cleanup", () => {
     assert.match(LOGIN, /const FIELD_CLASS = "native-field"/)
     assert.match(LOGIN, /Create your account/)
     assert.doesNotMatch(LOGIN, /INTRO_SLIDES|IntroIllustration|OAUTH_PROVIDERS/)
-    assert.doesNotMatch(LOGIN, /app-rail-surface|app-segmented/)
+    // The rail surface stays banned — that was the floating card. The segmented
+    // control does not: sign in and create account are two peer modes, which is
+    // the control's whole job, and it is what the rest of the app now uses.
+    assert.doesNotMatch(LOGIN, /app-rail-surface/)
+    assert.match(LOGIN, /app-segmented-button/)
   })
 
   test("auth handoff states are plain semantic pages rather than floating cards", () => {

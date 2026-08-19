@@ -12,7 +12,7 @@
  * still surfaces as a moment on next open regardless.
  */
 
-import { Capacitor } from "@capacitor/core"
+import { Capacitor, registerPlugin } from "@capacitor/core"
 import { PushNotifications } from "@capacitor/push-notifications"
 import { ensureNotificationChannels } from "./notification-channels"
 
@@ -41,6 +41,30 @@ export function routeForPushLink(link: unknown): string | null {
  */
 function pushSupported() {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("PushNotifications")
+}
+
+const pushSupport = registerPlugin<{
+  isConfigured(): Promise<{ configured: boolean }>
+}>("PushSupport")
+
+/**
+ * Android only: whether the build carries FCM credentials.
+ *
+ * `register()` on a build without `google-services.json` does not reject — it
+ * throws on Capacitor's native plugin thread and kills the process, so the
+ * catch below never runs. This is the one guard standing between a missing
+ * config file and a crash on every sign-in. iOS talks to APNs and needs no
+ * such file; an older Android shell without the check gets the benefit of the
+ * doubt, because there is nothing better to give it.
+ */
+async function pushConfigured(): Promise<boolean> {
+  if (Capacitor.getPlatform() !== "android") return true
+  if (!Capacitor.isPluginAvailable("PushSupport")) return true
+  try {
+    return (await pushSupport.isConfigured()).configured
+  } catch {
+    return false
+  }
 }
 
 /** Set once listeners are attached, so a re-render does not double-subscribe. */
@@ -72,6 +96,9 @@ export async function registerForCoachPush({
   onTapped?: (link: string | null) => void
 }): Promise<PushRegistrationOutcome> {
   if (!pushSupported()) return "unsupported"
+  // Checked before the permission prompt, not just before register(): asking
+  // for notifications this build could never deliver is its own small insult.
+  if (!(await pushConfigured())) return "unsupported"
 
   try {
     await ensureNotificationChannels()

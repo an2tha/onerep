@@ -172,7 +172,7 @@ export default function ResetPassword() {
 
   return (
     <AuthLayout>
-      <header className="mb-7 text-center">
+      <header className="text-center">
         <div className="flex justify-start">
           <button
             type="button"
@@ -184,13 +184,10 @@ export default function ResetPassword() {
           </button>
         </div>
         <AuthMark />
-        <h1
-          id="reset-password-title"
-          className="mt-5 text-[1.9rem] leading-[1.1] font-semibold tracking-[-0.04em]"
-        >
+        <h1 id="reset-password-title" className="app-title mt-7">
           {codeSent ? "Choose a new password" : "Reset your password"}
         </h1>
-        <p className="mt-2 text-[15px] leading-6 text-balance text-muted-foreground">
+        <p className="native-supporting mx-auto mt-2 max-w-[32ch] text-balance">
           {codeSent
             ? "Use the link from your email and enter a new password below."
             : "Enter your account email. We’ll send you a secure reset link."}
@@ -272,7 +269,7 @@ export default function ResetPassword() {
             <button
               type="button"
               onClick={backToSignIn}
-              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99]"
+              className="native-primary-button mt-2 min-h-12 w-full rounded-[0.8rem]"
             >
               Back to sign in
             </button>
@@ -281,7 +278,7 @@ export default function ResetPassword() {
               type="submit"
               disabled={loading}
               aria-busy={loading}
-              className="native-primary-button mt-2 min-h-13 w-full rounded-[0.8rem] transition-[opacity,transform] active:scale-[0.99] disabled:opacity-50"
+              className="native-primary-button mt-2 min-h-12 w-full rounded-[0.8rem] disabled:opacity-50"
             >
               {loading
                 ? codeSent

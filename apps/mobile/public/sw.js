@@ -1,5 +1,8 @@
 const CACHE_PREFIX = "onerep-app-"
-const CACHE_NAME = "onerep-app-v3"
+// v4: the app icon changed, and every one of the assets below is
+// precached by name — without a new cache name an existing install serves the
+// old mark from disk forever.
+const CACHE_NAME = "onerep-app-v4"
 const APP_SHELL = ["/", "/index.html"]
 const INSTALL_ASSETS = [
   "/site.webmanifest",

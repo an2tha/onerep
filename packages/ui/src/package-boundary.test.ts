@@ -111,7 +111,7 @@ describe("@repo/ui package boundary", () => {
       // button does not cost a route change and tear the screen underneath
       // down. A package cannot import an app's pages.
       "fasting-sheet.tsx",
-      "workout-coach-sheet.tsx",
+      "coach-sheet.tsx",
       "meal-category-sync.tsx",
       "mobile-sheet.tsx",
       // Full-screen moments: triggers read Convex history, answers write

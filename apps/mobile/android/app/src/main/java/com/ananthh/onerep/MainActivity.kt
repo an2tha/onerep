@@ -10,6 +10,8 @@ class MainActivity : BridgeActivity() {
         registerPlugin(HealthConnectPlugin::class.java)
         registerPlugin(WorkoutStatusPlugin::class.java)
         registerPlugin(HomeWidgetsPlugin::class.java)
+        registerPlugin(NativeTabBarPlugin::class.java)
+        registerPlugin(PushSupportPlugin::class.java)
         super.onCreate(savedInstanceState)
     }
 }

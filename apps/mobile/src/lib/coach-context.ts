@@ -16,6 +16,15 @@ export type CoachInsight = {
   detail: string
 }
 
+/** One square in the week strip: was there a session on that day. */
+export type CoachWeekDay = {
+  date: string
+  /** Single letter, Monday-agnostic: the strip is anchored on today. */
+  label: string
+  trained: boolean
+  today: boolean
+}
+
 export type CoachContext = {
   goal: string | null
   experienceLevel: string | null
@@ -38,6 +47,13 @@ export type CoachContext = {
   selectedLiftPaceKgPerWeek: number | null
   selectedLiftFrequency: number | null
   dataConfidence: number
+  /** Oldest to newest, today last, so the strip reads left to right. */
+  weekDays: CoachWeekDay[]
+  todayProtein: number
+  todayCalories: number
+  lastWorkout: { name: string; date: string; sets: number } | null
+  /** Nothing logged anywhere. The briefing says so rather than cheering. */
+  hasAnyData: boolean
   existingInsights: CoachInsight[]
 }
 
@@ -108,6 +124,21 @@ function weightPace(entries: BodyMeasurementEntry[]) {
   return (((last.weightKg ?? 0) - (first.weightKg ?? 0)) / days) * 7
 }
 
+const WEEKDAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"] as const
+
+function weekStrip(workouts: CachedWorkoutLog[], timeZone: string) {
+  const trained = new Set(workouts.map((log) => log.date))
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = dateForOffset(index - 6, timeZone)
+    return {
+      date,
+      label: WEEKDAY_LETTERS[new Date(`${date}T12:00:00Z`).getUTCDay()],
+      trained: trained.has(date),
+      today: index === 6,
+    }
+  })
+}
+
 export function buildCoachContext({
   foodLogs,
   workouts,
@@ -175,6 +206,14 @@ export function buildCoachContext({
         )
       : 0
 
+  const todayKey = currentDateKey(timeZone)
+  const todayTotals = sumFood(
+    foodLogs.find((day) => day.date === todayKey)?.entries ?? []
+  )
+  const latestWorkout = [...workouts].sort((a, b) =>
+    a.date < b.date ? 1 : a.date > b.date ? -1 : 0
+  )[0]
+
   const context = {
     goal: goals?.health?.calorieStrategy ?? null,
     experienceLevel: onboarding?.experienceLevel ?? null,
@@ -210,6 +249,17 @@ export function buildCoachContext({
     selectedExerciseName: workouts7[0]?.exercises[0]?.name ?? null,
     selectedLiftPaceKgPerWeek: null,
     selectedLiftFrequency: workouts7.length,
+    weekDays: weekStrip(workouts, timeZone),
+    todayProtein: todayTotals.protein,
+    todayCalories: todayTotals.calories,
+    lastWorkout: latestWorkout
+      ? {
+          name: latestWorkout.exercises[0]?.name ?? "Session",
+          date: latestWorkout.date,
+          sets: countHardSets([latestWorkout]),
+        }
+      : null,
+    hasAnyData: nutrition.length > 0 || workouts.length > 0 || body.length > 0,
     dataConfidence: average([
       Math.min(100, nutrition.length * 14),
       Math.min(100, workouts7.length * 25),

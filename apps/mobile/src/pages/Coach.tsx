@@ -263,6 +263,117 @@ const BEGINNER_SETUP_STARTERS = [
   },
 ] as const
 
+/**
+ * The week as seven marks instead of a sentence. Seven days is small enough
+ * that you read the shape before you read the number, which is the point.
+ */
+function CoachWeekStrip({ days }: { days: CoachContext["weekDays"] }) {
+  return (
+    <div className="mt-2 flex items-end gap-[3px]" aria-hidden="true">
+      {days.map((day) => (
+        <span
+          key={day.date}
+          className={cn(
+            "h-4 flex-1 rounded-[2px] transition-colors",
+            day.trained
+              ? "bg-foreground/80"
+              : day.today
+                ? "bg-foreground/25"
+                : "bg-foreground/12"
+          )}
+        />
+      ))}
+    </div>
+  )
+}
+
+/** A number you can read at arm's length, with the label kept out of its way. */
+function CoachStat({
+  label,
+  value,
+  suffix,
+  children,
+}: {
+  label: string
+  value: string
+  suffix?: string
+  children?: ReactNode
+}) {
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="text-[9.5px] font-bold tracking-[0.13em] text-foreground/45 uppercase">
+        {label}
+      </p>
+      <p className="mt-1.5 text-[26px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
+        {value}
+        {suffix ? (
+          <span className="ml-0.5 text-[13px] font-semibold text-foreground/40">
+            {suffix}
+          </span>
+        ) : null}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+/** A single fact about today, sized so three of them fit a phone. */
+function CoachBriefTile({
+  label,
+  value,
+  detail,
+  fill,
+  onClick,
+}: {
+  label: string
+  value: string
+  detail: string
+  /** 0-1, or null for tiles that are not a proportion of anything. */
+  fill: number | null
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="coach-brief-tile motion-tactile flex min-h-[6.25rem] flex-col justify-between rounded-2xl p-3.5 text-left"
+    >
+      <p className="text-[9.5px] font-bold tracking-[0.13em] text-foreground/45 uppercase">
+        {label}
+      </p>
+      <div className="mt-3">
+        <p className="truncate text-[17px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">
+          {value}
+        </p>
+        <p className="mt-1 truncate text-[11px] leading-4 text-foreground/45">
+          {detail}
+        </p>
+        {fill === null ? null : (
+          <span className="mt-2.5 block h-[3px] w-full overflow-hidden rounded-full bg-foreground/12">
+            <span
+              className="block h-full rounded-full bg-foreground/70"
+              style={{
+                width: `${Math.round(Math.min(1, Math.max(0, fill)) * 100)}%`,
+              }}
+            />
+          </span>
+        )}
+      </div>
+    </button>
+  )
+}
+
+function relativeDay(date: string) {
+  const days = Math.round(
+    (Date.parse(`${currentDateKey()}T12:00:00Z`) -
+      Date.parse(`${date}T12:00:00Z`)) /
+      86400000
+  )
+  if (days <= 0) return "today"
+  if (days === 1) return "yesterday"
+  return `${days} days ago`
+}
+
 function timeGreeting() {
   const hour = new Date().getHours()
   if (hour < 12) return "Good morning."
@@ -574,9 +685,16 @@ export default function Coach({
   embedded = false,
   onClose,
   activeWorkout,
+  initialInput,
 }: {
   embedded?: boolean
   onClose?: () => void
+  /**
+   * What to put in the composer on open, unsent. The route form of this
+   * arrives through `location.state`; a sheet has no navigation to carry it,
+   * so it comes in as a prop and lands in the same place.
+   */
+  initialInput?: string
   /**
    * Present when Coach is open over a running session. It carries the live
    * state (which only this device knows) into the prompt, and takes back any
@@ -781,6 +899,23 @@ export default function Coach({
       }),
     []
   )
+
+  // Seeded once. Re-running it would wipe out whatever the user had started
+  // typing every time the sheet re-rendered.
+  const seededInput = useRef(false)
+  useEffect(() => {
+    if (!initialInput || seededInput.current) return
+    seededInput.current = true
+    setInput(initialInput)
+    requestAnimationFrame(() => {
+      const composer = composerRef.current
+      if (!composer) return
+      composer.focus()
+      // Caret after the prompt, not in front of it: the seed is a lead-in the
+      // user finishes, not something they have to click past.
+      composer.setSelectionRange(initialInput.length, initialInput.length)
+    })
+  }, [initialInput])
 
   useEffect(() => {
     const end = messagesEndRef.current
@@ -2092,7 +2227,17 @@ export default function Coach({
     })()
   }
 
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false)
   const mode = COACH_MODES.find((item) => item.id === activeMode)!
+  /* One row of doors instead of one. Only the starters that carry a prompt:
+     the rest need a host screen this one does not have. */
+  const starters = (
+    activeMode === "chef"
+      ? CHEF_STARTERS
+      : activeMode === "personal_trainer"
+        ? TRAINER_STARTERS
+        : COACH_STARTERS
+  ).filter((starter) => starter.prompt)
   return (
     <main
       className={cn(
@@ -2181,9 +2326,14 @@ export default function Coach({
                   aria-haspopup="listbox"
                   aria-expanded={modelMenuOpen}
                   aria-label="Coach model"
-                  className="coach-header-action flex min-h-10 items-center gap-1 rounded-full px-2.5 text-[11px] font-bold text-muted-foreground active:bg-muted"
+                  className="coach-header-action flex min-h-9 items-center gap-1 rounded-full border border-border/70 bg-card/40 px-2.5 text-[11px] font-bold text-foreground/75 active:bg-muted"
                 >
-                  <span className="max-w-36 truncate">
+                  <Sparkle
+                    size={11}
+                    weight="fill"
+                    className="shrink-0 opacity-60"
+                  />
+                  <span className="max-w-28 truncate">
                     {modelCatalog.find((entry) => entry.id === chatModel)
                       ?.label ?? "Model"}
                   </span>
@@ -2434,49 +2584,145 @@ export default function Coach({
                   )}
                   <div
                     className={cn(
-                      "max-w-2xl px-1",
+                      "w-full px-1",
                       (recipeCustomization || guidedIntent) && "hidden"
                     )}
                   >
                     <p className="text-[12px] font-medium text-foreground/48">
                       {timeGreeting()}
                     </p>
-                    <h2 className="mt-3 text-[30px] leading-[1.06] font-semibold tracking-[-0.035em] text-foreground sm:text-[40px]">
-                      {activeMode === "chef"
-                        ? context.proteinAdherence < 85
-                          ? "Close the protein gap today."
-                          : "Keep today’s food simple."
-                        : activeMode === "personal_trainer"
-                          ? context.workoutDays7 >= 4
-                            ? "You’ve earned a lighter day."
-                            : "Make the next session count."
-                          : context.workoutDays7 >= 3 &&
-                              context.proteinAdherence >= 85
-                            ? "You’re on track. Don’t overcorrect."
-                            : "Do one useful thing well today."}
+                    <h2 className="mt-3 max-w-2xl text-[30px] leading-[1.06] font-semibold tracking-[-0.035em] text-foreground sm:text-[40px]">
+                      {!context.hasAnyData
+                        ? "Nothing logged yet."
+                        : activeMode === "chef"
+                          ? context.proteinAdherence < 85
+                            ? "Close the protein gap today."
+                            : "Keep today’s food simple."
+                          : activeMode === "personal_trainer"
+                            ? context.workoutDays7 >= 4
+                              ? "You’ve earned a lighter day."
+                              : "Make the next session count."
+                            : context.workoutDays7 >= 3 &&
+                                context.proteinAdherence >= 85
+                              ? "You’re on track. Don’t overcorrect."
+                              : "Do one useful thing well today."}
                     </h2>
-                    <p className="mt-4 max-w-lg text-[13px] leading-5 text-foreground/55">
-                      {activeMode === "chef"
-                        ? `${Math.round(context.averageProtein)}g daily protein average · ${Math.round(context.proteinTarget)}g target`
-                        : activeMode === "personal_trainer"
-                          ? `${context.workoutDays7} sessions · ${context.hardSets7} working sets over the last 7 days`
-                          : `${context.workoutDays7} sessions this week · ${Math.round(context.proteinAdherence)}% of protein target`}
-                    </p>
+                    {context.hasAnyData ? (
+                      <div className="mt-6 flex max-w-md items-start gap-5">
+                        <CoachStat
+                          label="This week"
+                          value={String(context.workoutDays7)}
+                          suffix="/ 7 days"
+                        >
+                          <CoachWeekStrip days={context.weekDays} />
+                        </CoachStat>
+                        <span
+                          className="mt-1 w-px self-stretch bg-foreground/12"
+                          aria-hidden="true"
+                        />
+                        <CoachStat
+                          label={
+                            activeMode === "personal_trainer"
+                              ? "Working sets"
+                              : "Protein"
+                          }
+                          value={
+                            activeMode === "personal_trainer"
+                              ? String(context.hardSets7)
+                              : `${Math.round(context.proteinAdherence)}`
+                          }
+                          suffix={
+                            activeMode === "personal_trainer"
+                              ? "in 7 days"
+                              : "% of target"
+                          }
+                        >
+                          <span
+                            className="mt-3 block h-1 w-full overflow-hidden rounded-full bg-foreground/12"
+                            aria-hidden="true"
+                          >
+                            <span
+                              className="block h-full rounded-full bg-foreground/70"
+                              style={{
+                                width: `${Math.min(100, Math.round(activeMode === "personal_trainer" ? (context.hardSets7 / 60) * 100 : context.proteinAdherence))}%`,
+                              }}
+                            />
+                          </span>
+                        </CoachStat>
+                      </div>
+                    ) : (
+                      <p className="mt-4 max-w-lg text-[13px] leading-5 text-foreground/55">
+                        No sessions, no meals, no measurements. Give me one and
+                        I can stop guessing.
+                      </p>
+                    )}
                     <button
                       type="button"
                       onClick={() =>
                         void submit(
-                          activeMode === "chef"
-                            ? "Turn today’s nutrition direction into a practical plan."
-                            : activeMode === "personal_trainer"
-                              ? "Turn today’s training direction into my next workout."
-                              : "Explain today’s direction and give me the single best next action."
+                          !context.hasAnyData
+                            ? "I haven’t logged anything yet. Ask me the few questions you need, then set me up with something for today."
+                            : activeMode === "chef"
+                              ? "Turn today’s nutrition direction into a practical plan."
+                              : activeMode === "personal_trainer"
+                                ? "Turn today’s training direction into my next workout."
+                                : "Explain today’s direction and give me the single best next action."
                         )
                       }
                       className="motion-tactile mt-7 inline-flex min-h-11 items-center gap-2 border-b border-foreground/35 text-[12px] font-semibold text-foreground active:border-foreground"
                     >
-                      See what I’d do <ArrowRight size={14} weight="bold" />
+                      {context.hasAnyData ? "See what I’d do" : "Set me up"}{" "}
+                      <ArrowRight size={14} weight="bold" />
                     </button>
+                    {context.hasAnyData ? (
+                      <div className="coach-brief-tiles mt-8 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                        <CoachBriefTile
+                          label="Protein today"
+                          value={`${Math.max(0, Math.round(context.proteinTarget - context.todayProtein))}g left`}
+                          detail={`${Math.round(context.todayProtein)} of ${Math.round(context.proteinTarget)}g`}
+                          fill={
+                            context.proteinTarget > 0
+                              ? context.todayProtein / context.proteinTarget
+                              : 0
+                          }
+                          onClick={() =>
+                            void submit(
+                              "What should I eat today to land on my protein target?"
+                            )
+                          }
+                        />
+                        <CoachBriefTile
+                          label="Calories today"
+                          value={`${Math.round(context.todayCalories)} kcal`}
+                          detail={`${Math.round(context.calorieTarget)} kcal target`}
+                          fill={
+                            context.calorieTarget > 0
+                              ? context.todayCalories / context.calorieTarget
+                              : 0
+                          }
+                          onClick={() =>
+                            void submit(
+                              "How am I tracking against today’s calorie target, and what should I do about it?"
+                            )
+                          }
+                        />
+                        <CoachBriefTile
+                          label="Last session"
+                          value={context.lastWorkout?.name ?? "Nothing yet"}
+                          detail={
+                            context.lastWorkout
+                              ? `${context.lastWorkout.sets} sets · ${relativeDay(context.lastWorkout.date)}`
+                              : "No workouts logged"
+                          }
+                          fill={null}
+                          onClick={() =>
+                            void submit(
+                              "Look at my last session and tell me what my next one should be."
+                            )
+                          }
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -2642,6 +2888,34 @@ export default function Coach({
               </div>
             </div>
           )}
+          {!loading &&
+          messages.length === 0 &&
+          !guidedIntent &&
+          !recipeCustomization ? (
+            <div
+              className="coach-starter-row z-20 mx-auto -mb-1 flex w-full max-w-3xl shrink-0 gap-2 overflow-x-auto pb-3"
+              aria-label="Suggested questions"
+            >
+              {starters.map((starter) => {
+                const Icon = starter.icon
+                return (
+                  <button
+                    key={starter.title}
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      hapticTap()
+                      void submit(starter.prompt ?? undefined)
+                    }}
+                    className="coach-starter-chip motion-tactile flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-semibold whitespace-nowrap text-foreground/80 disabled:opacity-40"
+                  >
+                    <Icon size={12} weight="bold" className="shrink-0" />
+                    {starter.title}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
           <form
             onSubmit={(event) => {
               event.preventDefault()
@@ -2655,7 +2929,7 @@ export default function Coach({
             >
               <div
                 className={cn(
-                  "coach-composer w-full max-w-full min-w-0 overflow-hidden rounded-xl border border-border/60 bg-card p-2",
+                  "coach-composer w-full max-w-full min-w-0 overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-1.5",
                   mode.composerClass
                 )}
               >
@@ -2667,26 +2941,55 @@ export default function Coach({
                   attachment={attachment}
                   onRemove={() => clearAttachment()}
                 />
-                <div className="flex min-w-0 items-end gap-1 sm:gap-2">
-                  <CoachAttachButton
-                    onClick={openImagePicker}
-                    disabled={loading || busy}
-                  />
-                  {activeMode !== "chef" && (
-                    <button
-                      type="button"
+                {/* Two grey icons pretending to be affordances became one
+                    button that says what it opens when you open it. */}
+                {attachMenuOpen && (
+                  <div className="coach-attach-menu flex gap-1.5 px-1 pb-2">
+                    <CoachAttachButton
                       onClick={() => {
-                        hapticTap()
-                        setShowFormCoach(true)
+                        setAttachMenuOpen(false)
+                        openImagePicker()
                       }}
                       disabled={loading || busy}
-                      aria-label="Check my form"
-                      title="Check my form"
-                      className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35"
-                    >
-                      <VideoCamera size={18} weight="bold" />
-                    </button>
-                  )}
+                      className="w-auto gap-1.5 rounded-full px-3 text-[11.5px] font-semibold"
+                      label="Picture"
+                    />
+                    {activeMode !== "chef" && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          hapticTap()
+                          setAttachMenuOpen(false)
+                          setShowFormCoach(true)
+                        }}
+                        disabled={loading || busy}
+                        aria-label="Check my form"
+                        title="Check my form"
+                        className="motion-tactile flex min-h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11.5px] font-semibold text-muted-foreground hover:bg-muted disabled:opacity-35"
+                      >
+                        <VideoCamera size={16} weight="bold" />
+                        Check my form
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="flex min-w-0 items-end gap-1 sm:gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      hapticTap()
+                      setAttachMenuOpen((open) => !open)
+                    }}
+                    disabled={loading || busy}
+                    aria-label="Add a picture or a form check"
+                    aria-expanded={attachMenuOpen}
+                    className={cn(
+                      "coach-attach-toggle motion-tactile flex size-10 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-35",
+                      attachMenuOpen && "bg-muted text-foreground"
+                    )}
+                  >
+                    <Plus size={18} weight="bold" />
+                  </button>
                   <textarea
                     ref={composerRef}
                     value={input}
@@ -2711,7 +3014,7 @@ export default function Coach({
                             : mode.placeholder
                     }
                     disabled={loading || busy}
-                    className="max-h-32 min-h-11 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-3 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
+                    className="max-h-32 min-h-10 min-w-0 flex-1 resize-none bg-transparent px-1.5 py-2.5 text-[14px] leading-5 outline-none placeholder:text-muted-foreground/45 disabled:opacity-55 sm:px-2.5"
                   />
                   <button
                     type="button"
@@ -2734,7 +3037,7 @@ export default function Coach({
                         : "Voice input is unavailable on this device"
                     }
                     className={cn(
-                      "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
+                      "motion-tactile flex size-10 shrink-0 items-center justify-center rounded-lg disabled:opacity-35",
                       dictation.status === "listening"
                         ? "animate-pulse bg-foreground text-background"
                         : "text-muted-foreground hover:bg-muted"
@@ -2755,7 +3058,7 @@ export default function Coach({
                         attachment?.status !== "ready")
                     }
                     aria-label="Send message"
-                    className="coach-send-button motion-tactile flex size-11 shrink-0 items-center justify-center rounded-lg bg-foreground text-background disabled:bg-muted-foreground/25"
+                    className="coach-send-button motion-tactile flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:bg-foreground/25 disabled:text-background/60"
                   >
                     <PaperPlaneTilt size={17} weight="fill" />
                   </button>

@@ -7,10 +7,17 @@ import {
   Plus,
 } from "@phosphor-icons/react"
 import { useQuery } from "convex/react"
-import { Card, CardTitle, useAnimatedNumber, tint } from "@repo/ui"
+import {
+  Card,
+  CardTitle,
+  useAnimatedNumber,
+  useReplayKey,
+  tint,
+} from "@repo/ui"
 import { api } from "../../../../convex/_generated/api"
 import { useOfflineMutation } from "@/lib/use-offline-mutation"
 import { useSmoothNavigate } from "@/lib/navigation"
+import { hapticRain } from "@/lib/haptics"
 import { useStreakMilestone } from "@/lib/use-streak-milestone"
 import { cn } from "@/lib/utils"
 import {
@@ -51,6 +58,7 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   const totalMl = entries.reduce((s, e) => s + e.amountMl, 0)
   const mlPerGlass = waterGlassTargetMl(goalMl, 1)
   const filledCount = filledWaterGlassCount(totalMl, goalMl)
+  const rain = useReplayKey(1100)
 
   function addWater(amountMl: number) {
     if (amountMl <= 0) return
@@ -63,6 +71,10 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   }
 
   function addGlass() {
+    // The drops and the buzz first, the mutation second: the network can take
+    // its time, the hand cannot.
+    rain.replay()
+    hapticRain()
     if (filledCount >= WATER_GLASS_COUNT) {
       addWater(mlPerGlass)
       return
@@ -79,11 +91,21 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
   }
 
   return (
-    <Card className="dashboard-tile">
+    <Card className="dashboard-tile relative overflow-hidden">
       {/* The same row shape as the quick-log list above it: what it is, where
           it stands, and the button that moves it. The eight-segment bar was a
           third idiom on a screen that already had two. */}
-      <div className="flex min-h-14 items-center gap-3 px-3.5 py-2.5">
+      {/* A short shower across the row when a glass lands — nine drops, out
+          of step with one another, gone before anyone decides to study it. */}
+      {rain.active && (
+        <span key={rain.key} className="water-rain" aria-hidden="true">
+          {Array.from({ length: 9 }, (_, index) => (
+            <span key={index} />
+          ))}
+        </span>
+      )}
+
+      <div className="relative flex min-h-14 items-center gap-3 px-3.5 py-2.5">
         <button
           type="button"
           onClick={() => navigate("/nutrition")}
@@ -125,7 +147,10 @@ export function WaterWidget({ dateKey }: { dateKey: string }) {
           type="button"
           onClick={addGlass}
           aria-label={`Add ${fmtWater(mlPerGlass)} of water`}
-          className="motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full"
+          className={cn(
+            "motion-tactile flex size-11 shrink-0 items-center justify-center rounded-full",
+            rain.active && "water-add-splash"
+          )}
           style={{ backgroundColor: WATER_BG, color: WATER_COLOR }}
         >
           <Plus size={16} weight="bold" />

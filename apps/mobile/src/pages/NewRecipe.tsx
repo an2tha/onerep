@@ -728,7 +728,12 @@ function SearchOverlay({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 bg-background">
+      <div
+        className="fixed inset-0 z-50 bg-background"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add ingredient"
+      >
         <div className="desktop-canvas flex min-h-svh flex-col bg-background">
           <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-4xl">
             <div

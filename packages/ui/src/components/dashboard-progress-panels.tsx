@@ -282,7 +282,7 @@ export function DashboardProgressPanels({
       {muscleRecovery && (
         <Card className="h-full p-4">
           <div>
-            <p className="app-eyebrow">Muscle recovery</p>
+            <p className="app-section-title">Muscle recovery</p>
             <p className="mt-1 text-[13px] text-muted-foreground">
               Recovery distribution across tracked muscle groups
             </p>
@@ -291,6 +291,7 @@ export function DashboardProgressPanels({
             <div className="mt-2 grid grid-cols-[5.5rem_1fr] items-center gap-4">
               <MuscleBodySvg
                 recovery={muscleRecovery}
+                view="front"
                 className="h-36 w-full text-foreground"
               />
               <RecoveryChart

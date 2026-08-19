@@ -548,17 +548,9 @@
   animation-name: onboarding-step-in-back;
 }
 
-.auth-mode-card {
-  transition: height 320ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .auth-mode-panel {
     animation: none;
-  }
-
-  .auth-mode-card {
-    transition: none;
   }
 }
 
@@ -1412,6 +1404,13 @@
     var(--accent-supplement) 8%,
     transparent
   );
+  --hero-wash-tint: 26%;
+  --hero-wash-gain: 0.12%;
+  --hero-wash-crown: 12%;
+  --hero-wash-shade: 5%;
+  /* Home's eight-hue fan only. Lower than a single-accent field: eight of them
+     overlapping add up, and this has to sit under a greeting. */
+  --hero-mesh-tint: 26%;
   --accent-workout: #686a64;
   --accent-training-hero: #6b7a76;
   --accent-workout-bg: color-mix(
@@ -1946,6 +1945,9 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   .coach-generated-content button,
   .coach-generated-content button svg,
   .coach-composer,
+  .coach-brief-tiles > *,
+  .coach-starter-row,
+  .coach-attach-menu,
   .coach-send-button svg,
   [data-slot="accordion-content"],
   [data-slot="accordion-trigger-icon"],
@@ -2429,14 +2431,20 @@ html[data-route-motion="replace"]::view-transition-new(app-route) {
   transform-origin: bottom center;
 }
 
+/* The tab bar has no business sitting under a modal. Every sheet in this app
+   ends up matching one of these three, so the bar slides out of the way on its
+   own instead of every caller remembering to ask. */
+.app-route-chrome {
+  transition:
+    opacity var(--motion-fast) var(--motion-ease-standard),
+    transform var(--motion-fast) var(--motion-ease-standard);
+}
+
 body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   .app-route-chrome {
   opacity: 0;
   pointer-events: none;
   transform: translateY(calc(100% + 1rem));
-  transition:
-    opacity var(--motion-fast) var(--motion-ease-standard),
-    transform var(--motion-fast) var(--motion-ease-standard);
 }
 
 @media (max-width: 639px) {
@@ -2798,6 +2806,16 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
     var(--accent-supplement) 8%,
     transparent
   );
+  /* How much accent the hero field carries. Light mode needs the larger
+     share: the accent sits darker than the surface here, where in dark mode it
+     sits lighter and reads as light rather than as ink. */
+  --hero-wash-tint: 26%;
+  --hero-wash-gain: 0.12%;
+  --hero-wash-crown: 12%;
+  --hero-wash-shade: 5%;
+  /* Home's eight-hue fan only. Lower than a single-accent field: eight of them
+     overlapping add up, and this has to sit under a greeting. */
+  --hero-mesh-tint: 26%;
   --accent-workout: #5b5bd6;
   /* The training hero's wash only. Indigo read as cold and administrative
      under a field that large; jade carries the charge without raising its
@@ -2873,6 +2891,11 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   --accent-food: #ef9a68;
   --accent-water: #66b8ef;
   --accent-supplement: #80c786;
+  --hero-wash-tint: 13%;
+  --hero-wash-gain: 0.08%;
+  --hero-wash-crown: 7%;
+  --hero-wash-shade: 6%;
+  --hero-mesh-tint: 24%;
   --accent-workout: #a6a6ff;
   --accent-training-hero: #4fc9ae;
   --accent-progress: #d69bd1;
@@ -5046,6 +5069,28 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation-fill-mode: both;
 }
 
+.water-add-splash {
+  animation: water-add-splash 520ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
+/* The button takes the hit: a quick compress, then a ring pushed outward the
+   way a drop pushes the surface it lands on. */
+@keyframes water-add-splash {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent-water) 45%, transparent);
+  }
+  30% {
+    transform: scale(0.9);
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--accent-water) 30%, transparent);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
 .streak-milestone {
   animation: streak-milestone 900ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
 }
@@ -5068,6 +5113,7 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 @media (prefers-reduced-motion: reduce) {
   .water-rain-home > span,
+  .water-add-splash,
   .streak-milestone {
     animation: none !important;
   }
@@ -5920,7 +5966,80 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* The gradient stays; the content stops being painted onto it. A blurred
+   pane, a hairline catching the light at the top, and nothing else. */
+.coach-brief-tile,
+.coach-starter-chip {
+  border: 1px solid color-mix(in srgb, var(--foreground) 12%, transparent);
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  transition:
+    background-color 200ms var(--motion-ease-standard),
+    border-color 200ms var(--motion-ease-standard),
+    transform 200ms var(--motion-ease-out);
+}
+
+.coach-brief-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.coach-brief-tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 12%;
+  left: 12%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--foreground) 28%, transparent),
+    transparent
+  );
+}
+
+.coach-brief-tile:active,
+.coach-starter-chip:active:not(:disabled) {
+  transform: scale(0.97);
+  background: color-mix(in srgb, var(--foreground) 11%, transparent);
+}
+
+@media (hover: hover) {
+  .coach-brief-tile:hover,
+  .coach-starter-chip:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--foreground) 22%, transparent);
+    background: color-mix(in srgb, var(--foreground) 9%, transparent);
+  }
+}
+
+.coach-brief-tiles > * {
+  animation: coach-generated-item-in 460ms var(--motion-ease-out) both;
+}
+.coach-brief-tiles > :nth-child(2) {
+  animation-delay: 70ms;
+}
+.coach-brief-tiles > :nth-child(3) {
+  animation-delay: 130ms;
+}
+
+.coach-starter-row {
+  scrollbar-width: none;
+  animation: coach-tabs-in 480ms 60ms var(--motion-ease-out) both;
+}
+
+.coach-starter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.coach-attach-menu {
+  animation: coach-generated-item-in 240ms var(--motion-ease-out) both;
+}
+
 .coach-composer {
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
   box-shadow: 0 8px 28px color-mix(in srgb, black 5%, transparent);
   transition:
     border-color 180ms var(--motion-ease-standard),
@@ -7010,6 +7129,155 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   }
 }
 
+/* The welcome card leaves on its own terms: it fades and lifts while its own
+   height closes, so the diary below rises into the gap instead of jumping into
+   it. Its bottom margin goes with it, or the page would land 1rem short. */
+.welcome-nudge-shell {
+  overflow: hidden;
+  transition:
+    height var(--motion-medium) var(--motion-ease-standard),
+    opacity 200ms var(--motion-ease-standard),
+    transform var(--motion-medium) var(--motion-ease-standard),
+    margin-bottom var(--motion-medium) var(--motion-ease-standard);
+}
+
+.welcome-nudge-shell[data-leaving="true"] {
+  margin-bottom: 0;
+  opacity: 0;
+  transform: translate3d(0, -6px, 0) scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-nudge-shell {
+    transition: none;
+  }
+}
+
+/* ── The coach button, opening and closing ───────────────────────────────
+   Each option springs out of the button, nearest first, and its label follows
+   a beat later so the pill reads as unfurling rather than sliding. The curve
+   overshoots once and settles: a spring's shape without a spring's runtime.
+   Closing is the same move, folded: farthest first, faster, no overshoot,
+   because nothing that is leaving should ask to be watched. */
+@keyframes coach-fab-item-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.82);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes coach-fab-item-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0) scale(0.86);
+  }
+}
+
+@keyframes coach-fab-label-in {
+  from {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes coach-fab-label-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(10px, 0, 0) scale(0.96);
+  }
+}
+
+@keyframes coach-fab-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes coach-fab-scrim-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.coach-fab-scrim {
+  background-color: color-mix(in srgb, #000 22%, transparent);
+  animation: coach-fab-scrim-in 220ms var(--motion-ease-standard) both;
+}
+
+.coach-fab-scrim[data-state="closing"] {
+  animation: coach-fab-scrim-out 200ms var(--motion-ease-standard) both;
+}
+
+.coach-fab-item {
+  /* Out of the button, which is below and to the right of every option. */
+  transform-origin: 100% 120%;
+  animation: coach-fab-item-in 420ms cubic-bezier(0.34, 1.42, 0.52, 1) both;
+  animation-delay: calc(var(--fab-index, 0) * 60ms);
+}
+
+.coach-fab-label {
+  transform-origin: 100% 50%;
+  animation: coach-fab-label-in 340ms cubic-bezier(0.32, 1.28, 0.55, 1) both;
+  animation-delay: calc(var(--fab-index, 0) * 60ms + 70ms);
+}
+
+[data-state="closing"] .coach-fab-item {
+  animation: coach-fab-item-out 180ms var(--motion-ease-standard) both;
+  animation-delay: calc(var(--fab-index-out, 0) * 40ms);
+}
+
+[data-state="closing"] .coach-fab-label {
+  animation: coach-fab-label-out 150ms var(--motion-ease-standard) both;
+  animation-delay: calc(var(--fab-index-out, 0) * 40ms);
+}
+
+/* The trigger turns as it opens, and its icon is swapped underneath the turn,
+   so the same control reads as both the way in and the way out. */
+.coach-fab-trigger svg {
+  transition: transform var(--motion-medium) cubic-bezier(0.34, 1.36, 0.55, 1);
+}
+
+.coach-fab-trigger[data-open="true"] svg {
+  transform: rotate(135deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-fab-item,
+  .coach-fab-label,
+  .coach-fab-scrim,
+  [data-state="closing"] .coach-fab-item,
+  [data-state="closing"] .coach-fab-label,
+  .coach-fab-scrim[data-state="closing"] {
+    animation: none;
+  }
+
+  .coach-fab-trigger svg {
+    transition: none;
+  }
+}
+
 .app-hero-frame {
   min-height: var(--app-hero-min-h);
 }
@@ -7099,9 +7367,126 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
 
 /* Home picks its accent; the geometry, height and bleed come from the shared
    hero-field rule, so both pages open identically. */
-.dashboard-home-wash {
-  --hero-accent: var(--accent-workout);
+/*
+ * Home is the only screen that is not about one thing, so it is the only one
+ * that does not take a single accent. Every other page borrows the colour of
+ * its subject and paints one soft radial with it; this one runs all eight
+ * subjects at once, in spectral order, as a fan struck from a point above the
+ * greeting — food and its warm neighbours on the left, through green, jade,
+ * teal and blue, to the violet of Progress on the right. The page is the whole
+ * day before you have picked a part of it, and that is what it looks like.
+ *
+ * Interpolated in oklab, because eight hues cross-fading in sRGB go through
+ * grey on the way and the seams show. Geometry, mask and drift still come from
+ * the shared hero-field rule, and the warm radial over the top still answers
+ * to `--hero-fill`, so the field deepens as the day gets logged.
+ */
+.app-hero-wash.dashboard-home-wash {
+  background:
+    radial-gradient(
+      58% 40% at 18% 6%,
+      color-mix(
+          in srgb,
+          var(--accent-food)
+            calc(
+              var(--hero-wash-crown) + var(--hero-fill, 0) *
+                var(--hero-wash-gain)
+            ),
+          transparent
+        )
+        0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      52% 36% at 86% 30%,
+      color-mix(
+          in srgb,
+          var(--accent-progress) var(--hero-wash-crown),
+          transparent
+        )
+        0%,
+      transparent 72%
+    ),
+    conic-gradient(
+      in oklab from 0deg at 50% -34%,
+      color-mix(
+          in srgb,
+          var(--accent-progress) var(--hero-mesh-tint),
+          transparent
+        )
+        62deg,
+      color-mix(
+          in srgb,
+          var(--accent-workout) var(--hero-mesh-tint),
+          transparent
+        )
+        96deg,
+      color-mix(in srgb, var(--accent-water) var(--hero-mesh-tint), transparent)
+        130deg,
+      color-mix(
+          in srgb,
+          var(--accent-health) var(--hero-mesh-tint),
+          transparent
+        )
+        160deg,
+      color-mix(
+          in srgb,
+          var(--accent-training-hero) var(--hero-mesh-tint),
+          transparent
+        )
+        190deg,
+      color-mix(
+          in srgb,
+          var(--accent-supplement) var(--hero-mesh-tint),
+          transparent
+        )
+        222deg,
+      color-mix(
+          in srgb,
+          var(--status-warning) var(--hero-mesh-tint),
+          transparent
+        )
+        258deg,
+      color-mix(in srgb, var(--accent-food) var(--hero-mesh-tint), transparent)
+        296deg
+    );
 }
+
+.dashboard-hero-ledger {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .dashboard-hero-header,
+  .dashboard-hero-ledger {
+    max-width: 72rem;
+  }
+}
+
+/* No photograph to hold open, so the hero is only as tall as the greeting and
+   the numbers it carries, plus room to breathe. */
+.dashboard-hero-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
+  padding-bottom: var(--space-8);
+  min-height: var(--app-hero-min-h);
+}
+
+.dashboard-hero-header {
+  padding-top: var(--app-safe-top);
+}
+
+@media (min-width: 768px) {
+  .dashboard-hero-header {
+    padding-top: 2.75rem;
+  }
+}
+
+/* Home picks its accent; the geometry, height and bleed come from the shared
+   hero-field rule, so both pages open identically. */
 
 .dashboard-hero-ledger {
   z-index: 2;
@@ -7599,21 +7984,41 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   /* Past the dials and the button row, into the first rows of the diary. */
   height: var(--app-hero-wash-h, min(38rem, 68svh));
   pointer-events: none;
+  /* The mix is per-scheme because the same percentage does not do the same
+     work in both. On a near-black field an accent is lighter than what is
+     behind it, so 13% already glows; on off-white it is darker than what is
+     behind it, and 13% is a smudge you have to be told is there. Light mode
+     gets roughly double, and a second pass of the accent at the top edge to
+     give the field somewhere to come from. */
   background:
     radial-gradient(
       115% calc(52% + var(--hero-fill, 0) * 0.16%) at 50% 34%,
       color-mix(
           in srgb,
           var(--hero-accent, var(--accent-food))
-            calc(13% + var(--hero-fill, 0) * 0.08%),
+            calc(
+              var(--hero-wash-tint) + var(--hero-fill, 0) *
+                var(--hero-wash-gain)
+            ),
           transparent
         )
         0%,
       transparent 74%
     ),
     radial-gradient(
+      120% 38% at 50% -6%,
+      color-mix(
+          in srgb,
+          var(--hero-accent, var(--accent-food)) var(--hero-wash-crown),
+          transparent
+        )
+        0%,
+      transparent 70%
+    ),
+    radial-gradient(
       74% 46% at 12% 6%,
-      color-mix(in srgb, var(--foreground) 6%, transparent) 0%,
+      color-mix(in srgb, var(--foreground) var(--hero-wash-shade), transparent)
+        0%,
       transparent 78%
     );
   -webkit-mask-image: linear-gradient(
