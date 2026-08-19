@@ -7,7 +7,6 @@ import {
 } from "@/components/auth-shell"
 import { useSearchParams } from "react-router"
 import { useConvexAuth } from "convex/react"
-import { Capacitor } from "@capacitor/core"
 import { CaretDown, Eye, EyeSlash } from "@phosphor-icons/react"
 import { safeAuthRedirectPath } from "@/lib/auth-session"
 import {
@@ -17,6 +16,7 @@ import {
   useAppAuth,
   useSocialProviders,
 } from "@/lib/auth-client"
+import { isNativeOAuthPlatform, openNativeOAuth } from "@/lib/native-oauth"
 import { hapticSelection } from "@/lib/haptics"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { usePostHog } from "@posthog/react"
@@ -131,10 +131,10 @@ export default function Login() {
   const [serverPickerOpen, setServerPickerOpen] = useState(false)
   const authActionRef = useRef(false)
   const socialProviders = useSocialProviders()
-  // Google's OAuth pages refuse to load inside an embedded webview, so the
-  // button stays off in the Capacitor builds until native sign-in lands.
-  const googleAvailable =
-    socialProviders?.google === true && !Capacitor.isNativePlatform()
+  // Google's OAuth pages refuse to load inside an embedded webview, which is
+  // why this button was hidden on native for a while. `native-oauth.ts` now
+  // sends the consent screen to the system browser, so it is offered again.
+  const googleAvailable = socialProviders?.google === true
   // Self-hosted identity providers do not carry Google's webview ban, so the
   // OIDC button stays on everywhere.
   const oidcAvailable = socialProviders?.oidc === true
@@ -197,7 +197,11 @@ export default function Login() {
     setGoogleLoading(true)
 
     try {
-      const { error } = await withAuthActionTimeout(
+      // Google rejects its own consent screen inside an embedded WebView, so
+      // the native shells ask for the URL and hand it to the system browser
+      // instead of following the redirect in place.
+      const native = isNativeOAuthPlatform()
+      const { data, error } = await withAuthActionTimeout(
         "Sign in",
         authClient.signIn.social({
           provider: "google",
@@ -206,11 +210,21 @@ export default function Login() {
             isNewUser: true,
           }),
           errorCallbackURL: getAuthCallbackUrl("/login"),
+          ...(native ? { disableRedirect: true } : {}),
         })
       )
       if (error) {
         setError(betterAuthErrorMessage(error, "Google sign-in failed"))
         return
+      }
+
+      if (native) {
+        const url = (data as { url?: string } | null)?.url
+        if (!url) {
+          setError("Google sign-in failed")
+          return
+        }
+        await openNativeOAuth(url)
       }
 
       // The browser is on its way to Google; keep the button busy so the page
@@ -245,7 +259,8 @@ export default function Login() {
     setOidcLoading(true)
 
     try {
-      const { error } = await withAuthActionTimeout(
+      const native = isNativeOAuthPlatform()
+      const { data, error } = await withAuthActionTimeout(
         "Sign in",
         authClient.signIn.oauth2({
           providerId: "oidc",
@@ -254,11 +269,21 @@ export default function Login() {
             isNewUser: true,
           }),
           errorCallbackURL: getAuthCallbackUrl("/login"),
+          ...(native ? { disableRedirect: true } : {}),
         })
       )
       if (error) {
         setError(betterAuthErrorMessage(error, `${oidcName} sign-in failed`))
         return
+      }
+
+      if (native) {
+        const url = (data as { url?: string } | null)?.url
+        if (!url) {
+          setError(`${oidcName} sign-in failed`)
+          return
+        }
+        await openNativeOAuth(url)
       }
 
       // Same as Google: the browser is leaving for the identity provider, so
