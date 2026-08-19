@@ -230,8 +230,8 @@ new file, checks it, and swaps it in, keeping the previous one for
 `bun src/cli.ts rollback <usda|off|wger>`. Check what landed with
 `docker compose exec datasource bun src/cli.ts stats`.
 
-The install script prints the USDA and wger commands too, in case you closed
-this tab. [`apps/datasource/README.md`](apps/datasource/README.md) documents
+The install script prints all three of these when it finishes, in case you
+closed this tab. [`apps/datasource/README.md`](apps/datasource/README.md) documents
 the ranking, the de-duplication passes, and how search merges the catalogs.
 
 ### Install the iOS and Android Apps

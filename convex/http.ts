@@ -12,6 +12,7 @@ import {
   token,
 } from "./mcp/oauthServer";
 import { restApi } from "./api/rest";
+import { submit as waitlistSubmit } from "./marketing/waitlist";
 import {
   authComponent,
   createAuth,
@@ -125,9 +126,14 @@ for (const [path, handler] of [
 // The REST API, same keys and the same reasoning about CORS. The bare "/v1"
 // has to be spelled out separately: a prefix route only matches what comes
 // after the slash, and the index would otherwise 404.
-for (const method of ["GET", "POST", "OPTIONS"] as const) {
+for (const method of ["GET", "POST", "DELETE", "OPTIONS"] as const) {
   http.route({ path: "/v1", method, handler: restApi });
   http.route({ pathPrefix: "/v1/", method, handler: restApi });
 }
+
+// The marketing site's mobile waitlist. Unauthenticated by necessity — the
+// people using it do not have accounts yet — and shaped for a plain HTML form
+// post, because that site ships no JavaScript.
+http.route({ path: "/waitlist", method: "POST", handler: waitlistSubmit });
 
 export default http;

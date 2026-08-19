@@ -27,6 +27,28 @@ function clampScore(value: number) {
   return Math.max(1, Math.min(5, Math.round(value)));
 }
 
+/**
+ * Records an undoable action against the coach's history.
+ *
+ * Exported because the public API and the MCP tools write through the same
+ * feed: an agent that logs a meal over HTTP should show up in the same list,
+ * behind the same undo button, as one that logged it through chat. A write the
+ * user cannot find is a write the user cannot take back.
+ */
+export async function recordUndoableAction(
+  ctx: MutationCtx,
+  args: {
+    userId: string;
+    kind: string;
+    summary: string;
+    targetType: string;
+    targetId?: string;
+    undoPayload: unknown;
+  },
+) {
+  return await insertActionEvent(ctx, args);
+}
+
 async function insertActionEvent(
   ctx: MutationCtx,
   args: {
@@ -961,6 +983,198 @@ async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
         });
       }
     }
+    return;
+  }
+
+  // ── API and MCP ───────────────────────────────────────────────────────────
+  // Undoing a write means removing exactly the row that write created; undoing
+  // a delete means putting the stored document back as it was. Both are
+  // written against ids captured at the time, so a later edit by the user is
+  // never silently reverted along with the agent's change.
+
+  if (
+    payload.kind === "remove_water_entry" &&
+    typeof payload.date === "string" &&
+    typeof payload.entryId === "string"
+  ) {
+    const log = await ctx.db
+      .query("waterLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).eq("date", payload.date as string),
+      )
+      .unique();
+    if (log) {
+      await ctx.db.patch(log._id, {
+        entries: log.entries.filter(
+          (entry) =>
+            !isRecord(entry) || entry.id !== (payload.entryId as string),
+        ),
+        updatedAt: Date.now(),
+      });
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "restore_water_entry" &&
+    typeof payload.date === "string" &&
+    isRecord(payload.entry)
+  ) {
+    const log = await ctx.db
+      .query("waterLogs")
+      .withIndex("by_userId_date", (q) =>
+        q.eq("userId", userId).eq("date", payload.date as string),
+      )
+      .unique();
+    const entry = payload.entry;
+    if (log) {
+      await ctx.db.patch(log._id, {
+        entries: [
+          ...log.entries.filter(
+            (existing) => !isRecord(existing) || existing.id !== entry.id,
+          ),
+          entry,
+        ],
+        updatedAt: Date.now(),
+      });
+    } else {
+      await ctx.db.insert("waterLogs", {
+        userId,
+        date: payload.date,
+        entries: [entry],
+        updatedAt: Date.now(),
+      });
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "delete_workout_log" &&
+    typeof payload.date === "string" &&
+    typeof payload.sessionId === "string"
+  ) {
+    const log = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_and_date_and_sessionId", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("date", payload.date as string)
+          .eq("sessionId", payload.sessionId as string),
+      )
+      .unique();
+    if (log) await ctx.db.delete(log._id);
+    return;
+  }
+
+  if (payload.kind === "restore_workout_log" && isRecord(payload.body)) {
+    await ctx.db.insert(
+      "workoutLogs",
+      payload.body as Parameters<typeof ctx.db.insert<"workoutLogs">>[1],
+    );
+    return;
+  }
+
+  if (
+    payload.kind === "delete_body_measurement" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("bodyMeasurements", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) await ctx.db.delete(row._id);
+    return;
+  }
+
+  if (
+    payload.kind === "restore_body_measurement_weight" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("bodyMeasurements", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) {
+      await ctx.db.patch(row._id, {
+        weightKg:
+          typeof payload.weightKg === "number" ? payload.weightKg : undefined,
+        updatedAt: Date.now(),
+      });
+    }
+    return;
+  }
+
+  if (payload.kind === "restore_body_measurement" && isRecord(payload.body)) {
+    await ctx.db.insert(
+      "bodyMeasurements",
+      payload.body as Parameters<typeof ctx.db.insert<"bodyMeasurements">>[1],
+    );
+    return;
+  }
+
+  if (payload.kind === "unmark_rest_days" && Array.isArray(payload.dates)) {
+    for (const date of payload.dates) {
+      if (typeof date !== "string") continue;
+      const row = await ctx.db
+        .query("restDays")
+        .withIndex("by_userId_and_date", (q) =>
+          q.eq("userId", userId).eq("date", date),
+        )
+        .unique();
+      if (row) await ctx.db.delete(row._id);
+    }
+    return;
+  }
+
+  if (payload.kind === "restore_rest_days" && Array.isArray(payload.rows)) {
+    for (const raw of payload.rows) {
+      if (!isRecord(raw) || typeof raw.date !== "string") continue;
+      const existing = await ctx.db
+        .query("restDays")
+        .withIndex("by_userId_and_date", (q) =>
+          q.eq("userId", userId).eq("date", raw.date as string),
+        )
+        .unique();
+      if (existing) continue;
+      await ctx.db.insert(
+        "restDays",
+        raw as Parameters<typeof ctx.db.insert<"restDays">>[1],
+      );
+    }
+    return;
+  }
+
+  if (
+    payload.kind === "delete_health_workout" &&
+    typeof payload.id === "string"
+  ) {
+    const id = ctx.db.normalizeId("healthWorkouts", payload.id);
+    const row = id ? await ctx.db.get(id) : null;
+    if (row && row.userId === userId) await ctx.db.delete(row._id);
+    return;
+  }
+
+  if (payload.kind === "restore_health_workout" && isRecord(payload.body)) {
+    await ctx.db.insert(
+      "healthWorkouts",
+      payload.body as Parameters<typeof ctx.db.insert<"healthWorkouts">>[1],
+    );
+    return;
+  }
+
+  if (payload.kind === "restore_health_metrics" && isRecord(payload.body)) {
+    const body = payload.body as { date?: unknown };
+    if (typeof body.date === "string") {
+      const existing = await ctx.db
+        .query("healthMetrics")
+        .withIndex("by_userId_and_date", (q) =>
+          q.eq("userId", userId).eq("date", body.date as string),
+        )
+        .unique();
+      // The phone may have re-synced the day since; the stored read wins,
+      // because it is the one the user asked to have back.
+      if (existing) await ctx.db.delete(existing._id);
+    }
+    await ctx.db.insert(
+      "healthMetrics",
+      payload.body as Parameters<typeof ctx.db.insert<"healthMetrics">>[1],
+    );
     return;
   }
 

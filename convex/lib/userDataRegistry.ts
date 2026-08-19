@@ -83,6 +83,10 @@ export const userDataRegistry = {
   formCoachSessions: "directly_user_owned",
   formCoachReports: "dependent_on_user_content",
   formCoachPins: "dependent_on_user_content",
+  // Not user-owned by construction: a waitlist signup exists precisely because
+  // there is no account to hang it off. Deleting an account cannot reach it,
+  // which is why the unsubscribe path is the email address itself.
+  mobileWaitlist: "global_non_user_data",
 } satisfies Record<TableNamesInDataModel<DataModel>, UserDataClassification>;
 
 export type RegisteredUserDataTable = keyof typeof userDataRegistry;

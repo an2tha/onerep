@@ -9,16 +9,25 @@ import { findFreeWorkoutSlot, upsertWorkoutLog } from "../lib/workoutLogs";
 const MAX_IMPORT_BATCH = 50;
 
 /** Which platform health store a row came from. */
+/** What a device can claim to be. The sync mutation accepts only these. */
 export type HealthProvider = "apple_health" | "health_connect";
+
+/**
+ * What a stored row can be. `api` is only ever written server-side, by the
+ * public API and MCP tools — a phone that claimed it would be forging a
+ * provenance the dedupe key depends on.
+ */
+export type StoredHealthProvider = HealthProvider | "api";
 
 export const healthProviderValidator = v.union(
   v.literal("apple_health"),
   v.literal("health_connect"),
 );
 
-const PROVIDER_LABELS: Record<HealthProvider, string> = {
+const PROVIDER_LABELS: Record<StoredHealthProvider, string> = {
   apple_health: "Apple Health",
   health_connect: "Health Connect",
+  api: "API",
 };
 
 /**
@@ -78,16 +87,17 @@ export function isStrengthActivity(activityType: string): boolean {
   return STRENGTH_ACTIVITY_TYPES.has(activityType);
 }
 
-const SESSION_ID_PREFIX: Record<HealthProvider, string> = {
+const SESSION_ID_PREFIX: Record<StoredHealthProvider, string> = {
   // Unchanged for Apple: existing workoutLogs rows already carry this prefix and
   // the id is the idempotency key for promotion.
   apple_health: "apple-health",
   health_connect: "health-connect",
+  api: "api",
 };
 
 /** The session id a health workout always promotes onto, linked or not. */
 export function healthSessionId(
-  provider: HealthProvider,
+  provider: StoredHealthProvider,
   externalId: string,
 ) {
   return `${SESSION_ID_PREFIX[provider]}:${externalId}`;

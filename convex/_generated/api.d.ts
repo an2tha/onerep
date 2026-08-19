@@ -101,6 +101,7 @@ import type * as logs_supplements from "../logs/supplements.js";
 import type * as logs_water from "../logs/water.js";
 import type * as logs_workouts from "../logs/workouts.js";
 import type * as maintenance_seed from "../maintenance/seed.js";
+import type * as marketing_waitlist from "../marketing/waitlist.js";
 import type * as mcp_data from "../mcp/data.js";
 import type * as mcp_oauth from "../mcp/oauth.js";
 import type * as mcp_oauthServer from "../mcp/oauthServer.js";
@@ -229,6 +230,7 @@ declare const fullApi: ApiFromModules<{
   "logs/water": typeof logs_water;
   "logs/workouts": typeof logs_workouts;
   "maintenance/seed": typeof maintenance_seed;
+  "marketing/waitlist": typeof marketing_waitlist;
   "mcp/data": typeof mcp_data;
   "mcp/oauth": typeof mcp_oauth;
   "mcp/oauthServer": typeof mcp_oauthServer;

@@ -14,7 +14,7 @@ import { RESOURCE_METADATA_URL } from "../mcp/oauthServer";
  * two disagree is the day somebody's diary quietly fills with nonsense — so
  * the route table maps a method and a path onto a tool, and the tool does the
  * work it has always done. Nothing here can reach data the MCP surface could
- * not, and nothing here deletes.
+ * not, and a DELETE needs a key minted with the delete scope.
  *
  * Scope, rate limit, revocation and ownership are all inherited from the key,
  * not reimplemented. If you are adding a capability, add a tool.
@@ -29,7 +29,7 @@ type RouteInput = {
 };
 
 type Route = {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "DELETE";
   /** Segments starting with ":" capture into `params`. */
   path: string;
   /** The tool this route stands in for, or null for routes answered inline. */
@@ -129,6 +129,82 @@ const ROUTES: Route[] = [
     tool: "mark_rest_day",
     summary: "Mark dates as deliberate rest.",
   },
+  {
+    method: "DELETE",
+    path: "/v1/rest-days",
+    tool: "unmark_rest_days",
+    summary: "Remove the rest marking from dates.",
+  },
+  {
+    method: "GET",
+    path: "/v1/health/days",
+    tool: "get_health_days",
+    summary:
+      "Sleep, steps, resting heart rate, HRV and active energy per day between ?start= and ?end=, inclusive. Both required.",
+    args: ({ query }) => ({
+      start: requiredQuery(query, "start"),
+      end: requiredQuery(query, "end"),
+    }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/health/days/:date",
+    tool: "delete_health_day",
+    summary: "Clear the stored health readings for one date.",
+    args: ({ params }) => ({ date: params.date }),
+  },
+  {
+    method: "GET",
+    path: "/v1/health/workouts",
+    tool: "list_health_workouts",
+    summary:
+      "Sessions imported from Apple Health or Health Connect, newest first. Optional ?limit= up to 50.",
+    args: ({ query }) => optional({ limit: query.get("limit") }),
+  },
+  {
+    method: "POST",
+    path: "/v1/health/workouts",
+    tool: "log_health_workout",
+    summary: "Record an activity session the phone cannot see.",
+  },
+  {
+    method: "DELETE",
+    path: "/v1/health/workouts/:id",
+    tool: "delete_health_workout",
+    summary: "Remove an imported health session.",
+    args: ({ params }) => ({ id: params.id }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/food/:date/:entryId",
+    tool: "delete_food_entry",
+    summary: "Remove one entry from a day's food diary.",
+    args: ({ params }) => ({ date: params.date, entryId: params.entryId }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/water/:date/:entryId",
+    tool: "delete_water_entry",
+    summary: "Remove one drink from a day's water log.",
+    args: ({ params }) => ({ date: params.date, entryId: params.entryId }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/workouts/:date/:sessionId",
+    tool: "delete_workout",
+    summary: "Remove a logged training session.",
+    args: ({ params }) => ({
+      date: params.date,
+      sessionId: params.sessionId,
+    }),
+  },
+  {
+    method: "DELETE",
+    path: "/v1/measurements/:id",
+    tool: "delete_body_measurement",
+    summary: "Remove one weigh-in or measurement.",
+    args: ({ params }) => ({ id: params.id }),
+  },
 ];
 
 /** A missing required query parameter reads better as a 400 than as "today". */
@@ -177,7 +253,7 @@ function headers() {
     // The key authorizes the call, not the origin — there is no cookie here to
     // ride along on somebody else's session.
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
     // Somebody's food diary has no business sitting in a proxy cache.
@@ -303,14 +379,21 @@ export const restApi = httpAction(async (ctx, request) => {
   }
 
   let body: Record<string, unknown> = {};
-  if (request.method === "POST") {
+  if (request.method === "POST" || request.method === "DELETE") {
     const declared = Number(request.headers.get("Content-Length") ?? "0");
     if (declared > MAX_BODY_BYTES) {
       return fail(413, "payload_too_large", "That body is over 64 KB.");
     }
 
     const contentType = request.headers.get("Content-Type") ?? "";
-    if (!contentType.toLowerCase().includes("application/json")) {
+    // A DELETE that names its target in the path has nothing to send, and
+    // demanding a Content-Type header for an empty body is rude.
+    const bodyExpected =
+      request.method === "POST" || (declared > 0 && contentType !== "");
+    if (
+      bodyExpected &&
+      !contentType.toLowerCase().includes("application/json")
+    ) {
       return fail(
         415,
         "unsupported_media_type",
@@ -357,14 +440,14 @@ export const restApi = httpAction(async (ctx, request) => {
   try {
     await ctx.runMutation(internal.mcp.tokens.touch, {
       id: key.id,
-      write: scope === "write",
+      scope,
     });
   } catch (error) {
     if (error instanceof Error && error.message.includes(RATE_LIMITED)) {
       return fail(
         429,
         "rate_limited",
-        `This key has used its ${scope} budget for the hour (${scope === "write" ? KEY_RATE_LIMITS.write : KEY_RATE_LIMITS.read} calls). Try later.`,
+        `This key has used its ${scope} budget for the hour (${KEY_RATE_LIMITS[scope]} calls). Try later.`,
         { "Retry-After": String(retryAfterSeconds()) },
       );
     }
@@ -379,6 +462,7 @@ export const restApi = httpAction(async (ctx, request) => {
             limits: {
               readPerHour: KEY_RATE_LIMITS.read,
               writePerHour: KEY_RATE_LIMITS.write,
+              deletePerHour: KEY_RATE_LIMITS.delete,
             },
           }
         : { routes: routeIndex(scopes) },

@@ -531,7 +531,16 @@ export default defineSchema({
    */
   healthWorkouts: defineTable({
     userId: v.string(),
-    provider: v.union(v.literal("apple_health"), v.literal("health_connect")),
+    /**
+     * `api` is a session written through the public API or MCP rather than
+     * read off a phone — a watch the app cannot see, or an import script. It
+     * carries no device dedupe key, so the writer supplies its own external id.
+     */
+    provider: v.union(
+      v.literal("apple_health"),
+      v.literal("health_connect"),
+      v.literal("api"),
+    ),
     /** HealthKit sample UUID or Health Connect record id — the dedupe key. */
     externalId: v.string(),
     activityType: v.string(),
@@ -959,7 +968,14 @@ export default defineSchema({
     tokenHash: v.string(),
     /** First few characters, so a token can be told apart in a list. */
     prefix: v.string(),
-    scopes: v.array(v.union(v.literal("read"), v.literal("write"))),
+    /**
+     * `delete` is deliberately its own scope rather than part of `write`.
+     * Removing a month of logs and adding a meal are not the same risk, and a
+     * key minted before deletes existed must not silently acquire the power.
+     */
+    scopes: v.array(
+      v.union(v.literal("read"), v.literal("write"), v.literal("delete")),
+    ),
     createdAt: v.number(),
     lastUsedAt: v.optional(v.number()),
     revokedAt: v.optional(v.number()),
@@ -1666,6 +1682,22 @@ export default defineSchema({
     .index("by_userId", ["userId"])
     .index("by_sessionId", ["sessionId"])
     .index("by_userId_and_exerciseId", ["userId", "exerciseId"]),
+
+  /**
+   * Mobile app waitlist signups from the marketing site.
+   *
+   * Deliberately not tied to a user: the whole point is that these people do
+   * not have an account yet. Written by an unauthenticated HTTP endpoint, so
+   * every field is length-capped at the door.
+   */
+  mobileWaitlist: defineTable({
+    email: v.string(),
+    /** "ios" | "android" | "either" — what they are actually waiting for. */
+    platform: v.string(),
+    /** Where the form was submitted from, for attribution. */
+    source: v.string(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
 
   /** Form cards the user chose to keep on the Workouts or Progress screen. */
   formCoachPins: defineTable({
