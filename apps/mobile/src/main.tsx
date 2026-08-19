@@ -97,6 +97,7 @@ import { ErrorBoundary } from "./components/error-boundary.tsx"
 import { ThemeProvider, Toaster, toast } from "@repo/ui"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
+import { completeNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
 import { deepLinkToPath } from "./lib/deep-links"
 import { hapticMedium, hapticSelection, hapticTap } from "./lib/haptics"
 import { initializePwaInstallTracking } from "./lib/pwa-install"
@@ -1147,6 +1148,20 @@ const router = createBrowserRouter([
 // is what carries liveAction=complete|skipRest — is only delivered by accident.
 if (Capacitor.isNativePlatform()) {
   void CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+    // OAuth comes back through onerep://auth after a trip through the system
+    // browser, carrying the one-time token that becomes the session. It has to
+    // be redeemed before the router lands on /sso-callback, which waits on a
+    // session that would otherwise never arrive.
+    if (isAuthDeepLink(url)) {
+      void completeNativeOAuth(url).then((authPath) => {
+        // A full load rather than router.navigate: the session now lives in
+        // localStorage, and booting the app is what reliably picks it up.
+        // Nudging the in-place session signal leaves Convex unauthenticated,
+        // because nothing in this WebView ever navigated.
+        if (authPath) window.location.replace(authPath)
+      })
+      return
+    }
     const path = deepLinkToPath(url)
     if (!path) return
     // Replace, not push, when we are already on the target screen. The
