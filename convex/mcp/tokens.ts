@@ -24,7 +24,11 @@ import { claimRateLimit } from "../lib/rateLimits";
  * to an internal mutation, and returns the plaintext exactly once.
  */
 
-const scopeValidator = v.union(v.literal("read"), v.literal("write"));
+const scopeValidator = v.union(
+  v.literal("read"),
+  v.literal("write"),
+  v.literal("delete"),
+);
 
 /** More than this and it stops being a list and starts being an attack surface. */
 const MAX_TOKENS = 10;
@@ -42,6 +46,12 @@ const TOKEN_PREFIX = "onerep_sk_";
 export const KEY_RATE_LIMITS = {
   read: 600,
   write: 60,
+  /**
+   * Half the write budget. A runaway loop that removes a row per call does
+   * more damage per call than one that adds a meal, and no legitimate client
+   * deletes thirty things an hour without a human watching.
+   */
+  delete: 30,
   windowMs: 60 * 60 * 1000,
 } as const;
 
@@ -101,19 +111,23 @@ export const list = query({
       .order("desc")
       .collect();
 
-    return rows
-      // Tokens with a clientId belong to a connected app, and are listed
-      // under connections instead — a key the user never typed has no
-      // business appearing in the list of keys they did.
-      .filter((row) => row.revokedAt === undefined && row.clientId === undefined)
-      .map((row) => ({
-        id: row._id,
-        name: row.name,
-        prefix: row.prefix,
-        scopes: row.scopes,
-        createdAt: row.createdAt,
-        lastUsedAt: row.lastUsedAt ?? null,
-      }));
+    return (
+      rows
+        // Tokens with a clientId belong to a connected app, and are listed
+        // under connections instead — a key the user never typed has no
+        // business appearing in the list of keys they did.
+        .filter(
+          (row) => row.revokedAt === undefined && row.clientId === undefined,
+        )
+        .map((row) => ({
+          id: row._id,
+          name: row.name,
+          prefix: row.prefix,
+          scopes: row.scopes,
+          createdAt: row.createdAt,
+          lastUsedAt: row.lastUsedAt ?? null,
+        }))
+    );
   },
 });
 
@@ -210,16 +224,23 @@ export const resolve = internalQuery({
  * in a loop must not lock the owner out of their own account.
  */
 export const touch = internalMutation({
-  args: { id: v.id("mcpTokens"), write: v.boolean() },
+  args: {
+    id: v.id("mcpTokens"),
+    // `write` is still accepted so a caller mid-deploy does not 500; `scope`
+    // is what new callers pass and what the delete budget needs.
+    write: v.optional(v.boolean()),
+    scope: v.optional(scopeValidator),
+  },
   handler: async (ctx, args) => {
     const row = await ctx.db.get(args.id);
     if (!row || row.revokedAt !== undefined) throw new Error("Token revoked");
 
+    const scope = args.scope ?? (args.write ? "write" : "read");
     await claimRateLimit(
       ctx,
       row.userId,
-      args.write ? `mcp:write:${args.id}` : `mcp:read:${args.id}`,
-      args.write ? KEY_RATE_LIMITS.write : KEY_RATE_LIMITS.read,
+      `mcp:${scope}:${args.id}`,
+      KEY_RATE_LIMITS[scope],
       KEY_RATE_LIMITS.windowMs,
     );
 

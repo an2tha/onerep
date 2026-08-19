@@ -221,14 +221,38 @@ cat <<EOF
   Dashboard:  http://${PUBLIC_HOST}:6791   (paste the admin key below to log in)
   Admin key:  ${ADMIN_KEY}
 
-The food database starts empty. To load it (~3.1 GB download, ~4 min import):
+The food database starts empty, and food search finds nothing until you feed
+it. Each catalog is independent — import one, two, or all three.
+
+USDA FoodData Central: generic whole foods. Start here (~3.1 GB, ~4 min):
 
   curl -O https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_csv_2025-12-18.zip
   unzip -q FoodData_Central_csv_2025-12-18.zip -d usda
   docker compose cp usda datasource:/tmp/usda
   docker compose exec datasource bun src/cli.ts import usda --csv-dir /tmp/usda/FoodData_Central_csv_2025-12-18
-  docker compose exec datasource bun src/cli.ts import wger
   docker compose exec datasource rm -rf /tmp/usda
+
+wger: the exercise catalog, fetched from their API, nothing to download:
+
+  docker compose exec datasource bun src/cli.ts import wger
+
+Open Food Facts: packaged products and barcodes worldwide, with the photos
+USDA has none of. The dump is ~12 GB gzipped and the full import runs about
+20 minutes, so take a slice of it first and see it working:
+
+  curl -O https://static.openfoodfacts.org/data/openfoodfacts-products.jsonl.gz
+  docker compose cp openfoodfacts-products.jsonl.gz datasource:/tmp/off.jsonl.gz
+  docker compose exec datasource bun src/cli.ts import off --file /tmp/off.jsonl.gz --limit 50000
+
+  # ...and then the whole catalog, when you believe it
+  docker compose exec datasource bun src/cli.ts import off --file /tmp/off.jsonl.gz
+  docker compose exec datasource rm -f /tmp/off.jsonl.gz
+
+The gzip is streamed and never unpacked to disk, so it costs the download's
+worth of space and not the ~50 GB it would expand to. Imports never disturb the
+database currently serving requests: each builds a new file, checks it, swaps
+it in, and keeps the old one for `bun src/cli.ts rollback <usda|off|wger>`.
+See what landed with `docker compose exec datasource bun src/cli.ts stats`.
 
 To serve on a real domain: edit CONVEX_CLOUD_ORIGIN, CONVEX_SITE_ORIGIN and
 APP_URL in selfhost/.env, put TLS in front of ports 3210/3211/8081, and re-run

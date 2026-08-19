@@ -28,14 +28,14 @@ API & MCP → Connected apps**, where one tap ends it.
 
 The endpoints, should you need to drive them yourself:
 
-| Path                                          | What it is                                    |
-| --------------------------------------------- | --------------------------------------------- |
-| `/.well-known/oauth-protected-resource`       | RFC 9728 — points at the authorization server |
-| `/.well-known/oauth-authorization-server`     | RFC 8414 — points at everything below         |
-| `/oauth/register`                             | RFC 7591 dynamic client registration          |
-| `/oauth/authorize`                            | Sends the browser to the consent screen       |
-| `/oauth/token`                                | `authorization_code` and `refresh_token`      |
-| `/oauth/revoke`                               | RFC 7009                                      |
+| Path                                      | What it is                                    |
+| ----------------------------------------- | --------------------------------------------- |
+| `/.well-known/oauth-protected-resource`   | RFC 9728 — points at the authorization server |
+| `/.well-known/oauth-authorization-server` | RFC 8414 — points at everything below         |
+| `/oauth/register`                         | RFC 7591 dynamic client registration          |
+| `/oauth/authorize`                        | Sends the browser to the consent screen       |
+| `/oauth/token`                            | `authorization_code` and `refresh_token`      |
+| `/oauth/revoke`                           | RFC 7009                                      |
 
 PKCE is required and only `S256` is accepted. Redirect URIs are matched as
 exact strings, so copy the one the client shows you rather than typing
@@ -57,7 +57,8 @@ among the keys you typed.
 ## Getting a token by hand
 
 1. Open OneRep → **Settings → API & MCP**.
-2. Name it, choose **Read only** or **Read & write**, and create it.
+2. Name it, choose **Read only**, **Read & write** or **Full access**, and
+   create it.
 3. Copy the key. It is shown once and never again — only a SHA-256 hash of
    it is stored, so a key you lose is a key you replace.
 
@@ -70,6 +71,10 @@ label.
 **Read-only means read-only.** The scope is checked on every call, so a
 read-only token cannot be argued into writing: the write tools are not listed
 to it, and calling one anyway is refused.
+
+**The delete scope is separate, and opt-in.** Delete tools are not listed to a
+read or write token and cannot be called by one. A token minted before deletes
+existed does not acquire them.
 
 ## Connecting a client
 
@@ -114,34 +119,63 @@ function would fill a context window without describing what the app is for.
 
 ### Read (scope: `read`)
 
-| Tool                     | What it answers                                                                                                                     |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `get_day`                | Everything on one date — food entries and totals, water, completed workouts, whether it was a rest day.                             |
-| `get_range`              | Per-day nutrition totals, workouts and rest days between two dates. Use this for weekly questions instead of seven `get_day` calls. |
-| `list_workouts`          | Recent sessions, newest first, with exercises, sets, reps and weights.                                                              |
-| `get_goals`              | Calorie and macro targets, water goal, weight unit, stated training goal.                                                           |
+| Tool                     | What it answers                                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_day`                | Everything on one date — food entries and totals, water, completed workouts, whether it was a rest day.                                     |
+| `get_range`              | Per-day nutrition totals, workouts and rest days between two dates. Use this for weekly questions instead of seven `get_day` calls.         |
+| `list_workouts`          | Recent sessions, newest first, with exercises, sets, reps and weights.                                                                      |
+| `get_goals`              | Calorie and macro targets, water goal, weight unit, stated training goal.                                                                   |
 | `get_training_insights`  | The server's conclusions: per-lift progression verdicts over twelve weeks, recovery against the user's own baseline, six monthly summaries. |
-| `list_body_measurements` | Recent weigh-ins, in kilograms and centimetres.                                                                                     |
+| `list_body_measurements` | Recent weigh-ins, in kilograms and centimetres.                                                                                             |
+| `get_health_days`        | Sleep, steps, resting heart rate, HRV and active energy per day, as synced from Apple Health or Health Connect.                             |
+| `list_health_workouts`   | Sessions read out of the platform health store — runs, rides, swims — with duration, distance and heart rate.                               |
 
 ### Write (scope: `write`)
 
-| Tool            | What it does                                                                 |
-| --------------- | ---------------------------------------------------------------------------- |
-| `log_water`     | Adds a drink to a day.                                                       |
-| `log_food`      | Adds one food entry. Calories required; macros default to zero.              |
-| `log_weight`    | Records a weigh-in, replacing that day's if one exists.                      |
-| `log_workout`   | Records a completed session.                                                 |
-| `mark_rest_day` | Marks dates as deliberate rest, so the app stops reading the gap as a lapse. |
+| Tool                 | What it does                                                                                                             |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `log_water`          | Adds a drink to a day.                                                                                                   |
+| `log_food`           | Adds one food entry. Calories required; macros default to zero.                                                          |
+| `log_weight`         | Records a weigh-in, replacing that day's if one exists.                                                                  |
+| `log_workout`        | Records a completed session.                                                                                             |
+| `mark_rest_day`      | Marks dates as deliberate rest, so the app stops reading the gap as a lapse.                                             |
+| `log_health_workout` | Records an activity session the phone cannot see. Pass a stable `externalId` and a retry updates rather than duplicates. |
 
 Dates are `YYYY-MM-DD` and default to today in **UTC**. An assistant that knows
 the user's timezone should pass the date explicitly rather than trust that
 default around midnight.
 
+### Delete (scope: `delete`)
+
+| Tool                      | What it removes                                            |
+| ------------------------- | ---------------------------------------------------------- |
+| `delete_food_entry`       | One entry from a day's diary, by the id `get_day` returns. |
+| `delete_water_entry`      | One drink from a day's water log.                          |
+| `delete_workout`          | One logged training session, by date and `sessionId`.      |
+| `delete_body_measurement` | One weigh-in or measurement.                               |
+| `delete_health_workout`   | One imported health session.                               |
+| `delete_health_day`       | A day of stored health readings, for a sensor that lied.   |
+| `unmark_rest_days`        | The rest marking on one or more dates.                     |
+
+Each is annotated `destructiveHint: true`, so a client that asks before
+destructive calls will ask.
+
+**Every write and every delete is undoable.** Both file an entry against the
+coach's action history, which is the list the undo button in the app reads
+from. "Remove my last month of workouts" is still a sentence an agent can
+produce by accident — the difference now is that the owner can take it back
+with one tap instead of retyping a month.
+
+Deleting health data removes what is stored, not what is on the phone: the next
+device sync may import the same session or the same day over again.
+
 ### What is deliberately absent
 
-**Nothing deletes.** There is no `delete_entry`, no `clear_day`, no bulk
-anything. "Remove my last month of workouts" is a sentence an agent can produce
-by accident, and the app is one tap away for the times a human means it.
+**No writes to daily health readings.** Sleep, steps, heart rate and HRV are a
+cache of the platform health store, keyed on the local day and overwritten by
+every sync — a value written here would be clobbered by a watch a few hours
+later without anybody being told. Reading and deleting them is offered; making
+them up is not.
 
 **No AI-billed operations.** Coach and photo logging are not reachable over
 MCP, because whose quota an agent-invoked coach call should spend has not been
@@ -149,8 +183,9 @@ decided.
 
 ## Limits and behaviour
 
-- **Rate limits are per token, not per account**: 600 reads and 60 writes an
-  hour. One agent stuck in a loop cannot lock its owner out of their own app.
+- **Rate limits are per token, not per account**: 600 reads, 60 writes and
+  30 deletes an hour. One agent stuck in a loop cannot lock its owner out of
+  their own app.
 - **Two sessions per calendar day.** A third `log_workout` on the same date is
   refused with an explanation, not silently dropped.
 - **Values are bounded.** Water 1–5000 ml, weight 20–400 kg, at most 20

@@ -8,12 +8,14 @@ import type { ActionCtx } from "../_generated/server";
  * function would blow the context of anything that connects and would still
  * not describe what this app is for. Eleven tools cover the log.
  *
- * Nothing here deletes. "Remove my last month of workouts" is a sentence an
- * agent can produce by accident, and the app is one tap away for the times a
- * human means it.
+ * Deleting is its own scope, not a flavour of writing. "Remove my last month of
+ * workouts" is a sentence an agent can produce by accident, so a key has to be
+ * minted for it deliberately — and every write and delete here files an undo
+ * against the coach's action history, which means the app's undo button covers
+ * anything an agent did over HTTP.
  */
 
-export type ToolScope = "read" | "write";
+export type ToolScope = "read" | "write" | "delete";
 
 type JsonSchema = {
   type: "object";
@@ -66,7 +68,8 @@ function optionalNumber(value: unknown, field: string) {
   return requireNumber(value, field);
 }
 
-export const MCP_TOOLS: McpTool[] = [
+/** The original log surface: nutrition, training, body, goals. */
+const CORE_TOOLS: McpTool[] = [
   {
     name: "get_day",
     title: "Get one day",
@@ -146,7 +149,9 @@ export const MCP_TOOLS: McpTool[] = [
     scope: "read",
     inputSchema: {
       type: "object",
-      properties: { date: dateProperty("Anchor for the windows. Defaults to today (UTC).") },
+      properties: {
+        date: dateProperty("Anchor for the windows. Defaults to today (UTC)."),
+      },
       additionalProperties: false,
     },
     run: (ctx, userId, args) =>
@@ -350,6 +355,271 @@ export const MCP_TOOLS: McpTool[] = [
   },
 ];
 
+export const HEALTH_TOOLS: McpTool[] = [
+  {
+    name: "get_health_days",
+    title: "Get daily health readings",
+    description:
+      "Sleep, steps, resting heart rate, HRV and active energy per day between two dates, as synced from Apple Health or Health Connect. HRV is SDNN on Apple and RMSSD on Health Connect: never compare the two, only a user against their own baseline.",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start: dateProperty("First day, inclusive."),
+        end: dateProperty("Last day, inclusive."),
+      },
+      required: ["start", "end"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.mcp.data.listHealthDays, {
+        userId,
+        start: requireDate(args.start),
+        end: requireDate(args.end),
+      }),
+  },
+  {
+    name: "list_health_workouts",
+    title: "List health workouts",
+    description:
+      "Sessions read out of the platform health store — runs, rides, swims and the rest — newest first, with duration, distance, heart rate and whether each has been promoted into the training log.",
+    scope: "read",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 50, default: 10 },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runQuery(internal.mcp.data.listHealthWorkouts, {
+        userId,
+        limit: optionalNumber(args.limit, "limit"),
+      }),
+  },
+  {
+    name: "log_health_workout",
+    title: "Log a health workout",
+    description:
+      "Records a cardio or activity session the phone cannot see — a watch the app has no integration with, or a bulk import. Pass a stable `externalId` and a repeated call replaces that session rather than duplicating it: the body describes the session in full, so a field you leave out is cleared. This does not touch the training log; promote it in the app.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        activityType: {
+          type: "string",
+          maxLength: 60,
+          description: "running, cycling, swimming, walking, …",
+        },
+        activityName: { type: "string", maxLength: 80 },
+        durationMinutes: { type: "integer", minimum: 1, maximum: 1440 },
+        date: dateProperty("Local day. Defaults to today (UTC)."),
+        startedAt: {
+          type: "string",
+          description: "ISO 8601 start time. Defaults to midday on `date`.",
+        },
+        externalId: {
+          type: "string",
+          maxLength: 120,
+          description:
+            "Your own stable id, so a retry updates rather than duplicates.",
+        },
+        totalDistanceMeters: { type: "number", minimum: 0 },
+        avgHeartRateBpm: { type: "number", minimum: 0 },
+        activeEnergyKcal: { type: "number", minimum: 0 },
+        sourceName: { type: "string", maxLength: 80 },
+      },
+      required: ["activityType", "durationMinutes"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.logHealthWorkout, {
+        userId,
+        date: requireDate(args.date),
+        activityType: String(args.activityType ?? ""),
+        activityName:
+          args.activityName === undefined
+            ? undefined
+            : String(args.activityName),
+        startedAt:
+          args.startedAt === undefined ? undefined : String(args.startedAt),
+        durationMinutes: requireNumber(args.durationMinutes, "durationMinutes"),
+        externalId:
+          args.externalId === undefined ? undefined : String(args.externalId),
+        totalDistanceMeters: optionalNumber(
+          args.totalDistanceMeters,
+          "totalDistanceMeters",
+        ),
+        avgHeartRateBpm: optionalNumber(
+          args.avgHeartRateBpm,
+          "avgHeartRateBpm",
+        ),
+        activeEnergyKcal: optionalNumber(
+          args.activeEnergyKcal,
+          "activeEnergyKcal",
+        ),
+        sourceName:
+          args.sourceName === undefined ? undefined : String(args.sourceName),
+      }),
+  },
+];
+
+export const DELETE_TOOLS: McpTool[] = [
+  {
+    name: "delete_food_entry",
+    title: "Delete a food entry",
+    description:
+      "Removes one entry from a day's diary by its id, as returned by get_day. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: dateProperty("The day the entry is on."),
+        entryId: { type: "string", maxLength: 120 },
+      },
+      required: ["date", "entryId"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteFoodEntry, {
+        userId,
+        date: requireDate(args.date),
+        entryId: String(args.entryId ?? ""),
+      }),
+  },
+  {
+    name: "delete_water_entry",
+    title: "Delete a water entry",
+    description:
+      "Removes one drink from a day's water log by its id, as returned by get_day. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: dateProperty("The day the drink is on."),
+        entryId: { type: "string", maxLength: 120 },
+      },
+      required: ["date", "entryId"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteWaterEntry, {
+        userId,
+        date: requireDate(args.date),
+        entryId: String(args.entryId ?? ""),
+      }),
+  },
+  {
+    name: "delete_workout",
+    title: "Delete a workout",
+    description:
+      "Removes a logged training session by its date and sessionId, both as returned by get_day or list_workouts. Sessions logged before the app tracked session ids cannot be deleted here. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        date: dateProperty("The day the session is on."),
+        sessionId: { type: "string", maxLength: 120 },
+      },
+      required: ["date", "sessionId"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteWorkout, {
+        userId,
+        date: requireDate(args.date),
+        sessionId: String(args.sessionId ?? ""),
+      }),
+  },
+  {
+    name: "delete_body_measurement",
+    title: "Delete a measurement",
+    description:
+      "Removes one weigh-in or measurement by its id, as returned by list_body_measurements. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", maxLength: 64 } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteBodyMeasurement, {
+        userId,
+        id: String(args.id ?? ""),
+      }),
+  },
+  {
+    name: "delete_health_workout",
+    title: "Delete a health workout",
+    description:
+      "Removes an imported health session by its id, as returned by list_health_workouts. A later device sync may import the same session again. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string", maxLength: 64 } },
+      required: ["id"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteHealthWorkout, {
+        userId,
+        id: String(args.id ?? ""),
+      }),
+  },
+  {
+    name: "delete_health_day",
+    title: "Delete a day's health readings",
+    description:
+      "Removes the stored sleep, steps, heart rate and HRV for one date — for a bad sensor read that is poisoning a baseline. The phone may sync the day again. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: { date: dateProperty("The day to clear.") },
+      required: ["date"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.deleteHealthDay, {
+        userId,
+        date: requireDate(args.date),
+      }),
+  },
+  {
+    name: "unmark_rest_days",
+    title: "Unmark rest days",
+    description:
+      "Removes the deliberate-rest marking from one or more dates. Undoable from the app.",
+    scope: "delete",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dates: {
+          type: "array",
+          minItems: 1,
+          maxItems: 31,
+          items: { type: "string", pattern: DATE_PATTERN },
+        },
+      },
+      required: ["dates"],
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.unmarkRestDays, {
+        userId,
+        dates: (Array.isArray(args.dates) ? args.dates : []).map((date) =>
+          requireDate(date),
+        ),
+      }),
+  },
+];
+
+export const MCP_TOOLS: McpTool[] = [
+  ...CORE_TOOLS,
+  ...HEALTH_TOOLS,
+  ...DELETE_TOOLS,
+];
+
 export function findTool(name: string) {
   return MCP_TOOLS.find((tool) => tool.name === name) ?? null;
 }
@@ -364,7 +634,7 @@ export function toolDescriptors(scopes: ToolScope[]) {
       inputSchema: tool.inputSchema,
       annotations: {
         readOnlyHint: tool.scope === "read",
-        destructiveHint: false,
+        destructiveHint: tool.scope === "delete",
         idempotentHint: tool.scope === "read",
       },
     }),

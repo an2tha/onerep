@@ -401,3 +401,330 @@ export const seedBodyCheckins = internalMutation({
     return { written };
   },
 });
+
+// ── The rest of the screens ──────────────────────────────────────────────
+//
+// The history above fills the charts. What it does not fill is everything a
+// camera actually lingers on: the water row reading zero, the routine grid
+// with seven empty days, a Progress health tab with nothing in it. These
+// write the unglamorous rows that keep a demo from filming as an empty state.
+
+/** Water goal and units, so the dashboard has a target to draw against. */
+export const seedDemoPreferences = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+    const patch = {
+      waterGoalMl: 2500,
+      weightUnit: "kg",
+      lastActiveTimezone: "Europe/Berlin",
+    };
+    if (existing) {
+      await ctx.db.patch(existing._id, patch);
+      return { updated: true };
+    }
+    await ctx.db.insert("userPreferences", {
+      userId: args.userId,
+      ...patch,
+      updatedAt: Date.now(),
+    });
+    return { created: true };
+  },
+});
+
+type PresetSeed = {
+  name: string;
+  focus: string;
+  duration: string;
+  exercises: { id: string; label: string; sets: number; reps: number; weight: number }[];
+};
+
+const DEMO_PRESETS: PresetSeed[] = [
+  {
+    name: "Lower A",
+    focus: "strength",
+    duration: "55 min",
+    exercises: [
+      { id: "Barbell_Squat", label: "Squat", sets: 4, reps: 5, weight: 100 },
+      { id: "Romanian_Deadlift", label: "Romanian deadlift", sets: 3, reps: 8, weight: 75 },
+      { id: "Leg_Press", label: "Leg press", sets: 3, reps: 10, weight: 220 },
+      { id: "Face_Pull", label: "Face pull", sets: 3, reps: 15, weight: 20 },
+    ],
+  },
+  {
+    name: "Upper A",
+    focus: "strength",
+    duration: "50 min",
+    exercises: [
+      { id: "Barbell_Bench_Press_-_Medium_Grip", label: "Bench press", sets: 4, reps: 5, weight: 65 },
+      { id: "Bent_Over_Barbell_Row", label: "Barbell row", sets: 3, reps: 8, weight: 60 },
+      { id: "Wide-Grip_Lat_Pulldown", label: "Lat pulldown", sets: 3, reps: 10, weight: 70 },
+      { id: "Dumbbell_Bicep_Curl", label: "Curl", sets: 3, reps: 12, weight: 12 },
+    ],
+  },
+  {
+    name: "Lower B",
+    focus: "strength",
+    duration: "55 min",
+    exercises: [
+      { id: "Barbell_Deadlift", label: "Deadlift", sets: 3, reps: 5, weight: 140 },
+      { id: "Barbell_Lunge", label: "Lunge", sets: 3, reps: 10, weight: 35 },
+      { id: "Pullups", label: "Pull-up", sets: 3, reps: 8, weight: 0 },
+      { id: "Face_Pull", label: "Face pull", sets: 3, reps: 15, weight: 20 },
+    ],
+  },
+  {
+    name: "Upper B",
+    focus: "strength",
+    duration: "45 min",
+    exercises: [
+      { id: "Standing_Military_Press", label: "Overhead press", sets: 4, reps: 5, weight: 42.5 },
+      { id: "Incline_Dumbbell_Press", label: "Incline press", sets: 3, reps: 10, weight: 60 },
+      { id: "Seated_Cable_Rows", label: "Cable row", sets: 3, reps: 10, weight: 100 },
+      { id: "Triceps_Pushdown", label: "Pushdown", sets: 3, reps: 12, weight: 15 },
+    ],
+  },
+];
+
+/**
+ * The four presets and the Mon/Tue/Thu/Fri routine that the seeded history was
+ * already following. Written in the shape the preset editor writes, so the
+ * cards open and start without complaint.
+ */
+export const seedDemoRoutine = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const ids: string[] = [];
+
+    for (const preset of DEMO_PRESETS) {
+      const items = preset.exercises.map((exercise) => ({
+        kind: "solo" as const,
+        exerciseId: exercise.id,
+      }));
+      const exerciseData: Record<string, unknown> = {};
+      for (const exercise of preset.exercises) {
+        exerciseData[exercise.id] = {
+          sets: Array.from({ length: exercise.sets }, (_, i) => ({
+            id: `seed-${exercise.id}-${i}`,
+            type: "normal",
+            weight: String(exercise.weight),
+            reps: String(exercise.reps),
+            restSeconds: 120,
+            completed: false,
+          })),
+          trackRpe: false,
+          trackUnilateral: false,
+          barWeight: "20",
+          barType: "barbell",
+        };
+      }
+      const id = await ctx.db.insert("presets", {
+        userId: args.userId,
+        name: preset.name,
+        items,
+        exerciseData,
+        focus: preset.focus,
+        duration: preset.duration,
+        steps: preset.exercises.map(
+          (exercise) => `${exercise.label} ${exercise.sets}×${exercise.reps}`,
+        ),
+        createdAt: now,
+        updatedAt: now,
+      });
+      ids.push(id);
+    }
+
+    const routine = {
+      Mon: ids[0]!,
+      Tue: ids[1]!,
+      Wed: null,
+      Thu: ids[2]!,
+      Fri: ids[3]!,
+      Sat: null,
+      Sun: null,
+    };
+
+    const existing = await ctx.db
+      .query("schedules")
+      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .unique();
+    if (existing) {
+      await ctx.db.patch(existing._id, { routine, presetOrder: ids, updatedAt: now });
+    } else {
+      await ctx.db.insert("schedules", {
+        userId: args.userId,
+        routine,
+        presetOrder: ids,
+        updatedAt: now,
+      });
+    }
+
+    return { presets: ids.length };
+  },
+});
+
+/**
+ * Water across the same 13 weeks, logged in glasses the way a person does:
+ * a few in the morning, more after training, and the odd day that quietly
+ * never got past lunch. Today lands deliberately short of the goal — the
+ * demo needs something left to tap on camera.
+ */
+export const seedDemoWater = internalMutation({
+  args: { userId: v.string(), seed: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rng = mulberry32(args.seed ?? 5_512_004);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const totalDays = WEEKS * 7;
+    const startMs = today.getTime() - totalDays * 86_400_000;
+
+    let written = 0;
+    for (let dayIndex = 0; dayIndex <= totalDays; dayIndex++) {
+      const dateMs = startMs + dayIndex * 86_400_000;
+      const dateStr = new Date(dateMs).toISOString().slice(0, 10);
+      const isToday = dayIndex === totalDays;
+
+      // A short day every so often, so the trend has somewhere to recover from.
+      if (!isToday && rng() < 0.09) continue;
+
+      const glasses = isToday ? 3 : rng() < 0.25 ? 5 + Math.floor(rng() * 2) : 8 + Math.floor(rng() * 2);
+      const entries = Array.from({ length: glasses }, (_, i) => ({
+        id: `seed-water-${dateStr}-${i}`,
+        amountMl: 250 + (rng() < 0.3 ? 100 : 0),
+        loggedAt: new Date(
+          dateMs + (7 + i * 1.6) * 3_600_000 + Math.floor(rng() * 1_200_000),
+        ).toISOString(),
+      }));
+
+      await ctx.db.insert("waterLogs", {
+        userId: args.userId,
+        date: dateStr,
+        entries,
+        updatedAt: dateMs + 20 * 3_600_000,
+      });
+      written += 1;
+    }
+
+    return { written };
+  },
+});
+
+/**
+ * Steps, sleep, resting heart rate and HRV — the Progress health tab is a wall
+ * of empty charts without them. Training days walk further and sleep worse,
+ * because that is what training days do.
+ */
+export const seedDemoHealthMetrics = internalMutation({
+  args: { userId: v.string(), seed: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const rng = mulberry32(args.seed ?? 91_337);
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const totalDays = WEEKS * 7;
+    const startMs = today.getTime() - totalDays * 86_400_000;
+
+    let written = 0;
+    for (let dayIndex = 0; dayIndex <= totalDays; dayIndex++) {
+      const dateMs = startMs + dayIndex * 86_400_000;
+      const date = new Date(dateMs);
+      const dateStr = date.toISOString().slice(0, 10);
+      const weekday = date.getUTCDay();
+      const trained = weekday === 1 || weekday === 2 || weekday === 4 || weekday === 5;
+      const progress = dayIndex / totalDays;
+
+      await ctx.db.insert("healthMetrics", {
+        userId: args.userId,
+        date: dateStr,
+        provider: "apple_health" as const,
+        steps: Math.round((trained ? 11_200 : 7_400) + (rng() - 0.5) * 3_000),
+        sleepMinutes: Math.round((trained ? 412 : 441) + (rng() - 0.5) * 55),
+        // Conditioning improves a little across the block; the daily noise
+        // still swamps it, which is the honest picture.
+        restingHeartRateBpm: Math.round(58 - 3 * progress + (rng() - 0.5) * 4),
+        hrvMs: Math.round(52 + 9 * progress + (rng() - 0.5) * 12),
+        activeEnergyKcal: Math.round((trained ? 720 : 430) + (rng() - 0.5) * 180),
+        syncedAt: dateMs + 22 * 3_600_000,
+        updatedAt: dateMs + 22 * 3_600_000,
+      });
+      written += 1;
+    }
+
+    return { written };
+  },
+});
+
+/**
+ * What is already there. Every seeder here inserts rather than upserts, so
+ * running one twice quietly doubles the history — check before you pour.
+ */
+export const demoRowCounts = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const count = async (
+      table: "workoutLogs" | "foodLogs" | "waterLogs" | "healthMetrics" | "bodyMeasurements" | "presets",
+      index: string,
+    ) =>
+      (
+        await ctx.db
+          .query(table)
+          .withIndex(index as never, (q: never) => (q as { eq: (f: string, v: string) => unknown }).eq("userId", args.userId) as never)
+          .collect()
+      ).length;
+
+    return {
+      workoutLogs: await count("workoutLogs", "by_userId_date"),
+      foodLogs: await count("foodLogs", "by_userId_date"),
+      waterLogs: await count("waterLogs", "by_userId_date"),
+      healthMetrics: await count("healthMetrics", "by_userId"),
+      bodyMeasurements: await count("bodyMeasurements", "by_userId"),
+      presets: await count("presets", "by_userId"),
+      healthProfiles: (
+        await ctx.db
+          .query("healthProfiles")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .collect()
+      ).length,
+      onboarding: (
+        await ctx.db
+          .query("onboardingProfiles")
+          .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+          .collect()
+      ).length,
+    };
+  },
+});
+
+/**
+ * Wipes every table these seeders write, for one user id only. Meant for the
+ * demo account when a seed run needs doing again — the inserts above are not
+ * idempotent, and a demo with two of every workout is worse than no demo.
+ */
+export const clearDemoData = internalMutation({
+  args: { userId: v.string(), confirm: v.literal("yes-wipe-this-user") },
+  handler: async (ctx, args) => {
+    const deleted: Record<string, number> = {};
+    const wipe = async (table: string, index: string) => {
+      const rows = await ctx.db
+        .query(table as never)
+        .withIndex(index as never, (q: never) =>
+          (q as { eq: (f: string, v: string) => unknown }).eq("userId", args.userId) as never,
+        )
+        .collect();
+      for (const row of rows) await ctx.db.delete((row as { _id: never })._id);
+      deleted[table] = rows.length;
+    };
+
+    await wipe("workoutLogs", "by_userId_date");
+    await wipe("foodLogs", "by_userId_date");
+    await wipe("waterLogs", "by_userId_date");
+    await wipe("healthMetrics", "by_userId");
+    await wipe("bodyMeasurements", "by_userId");
+    await wipe("presets", "by_userId");
+    await wipe("schedules", "by_userId");
+    return deleted;
+  },
+});

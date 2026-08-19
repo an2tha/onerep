@@ -157,7 +157,7 @@ export const mcpEndpoint = httpAction(async (ctx, request) => {
       try {
         await ctx.runMutation(internal.mcp.tokens.touch, {
           id: token.id,
-          write: tool.scope === "write",
+          scope: tool.scope,
         });
       } catch (error) {
         const message =

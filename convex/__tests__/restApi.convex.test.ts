@@ -29,7 +29,7 @@ type Harness = ReturnType<typeof convexTest>;
 async function grantKey(
   t: Harness,
   plaintext: string,
-  scopes: Array<"read" | "write">,
+  scopes: Array<"read" | "write" | "delete">,
 ) {
   await t
     .withIdentity({ name: `owner-${plaintext}` })
@@ -375,5 +375,279 @@ describe("the REST API", () => {
     expect(paths.some((path) => /delete|remove|clear|reset/.test(path))).toBe(
       false,
     );
+  });
+});
+
+/**
+ * Deleting, and taking it back.
+ *
+ * The undo is the whole argument for letting a key delete at all, so it is
+ * tested end to end rather than by inspecting the row it writes: log something
+ * over HTTP, delete it over HTTP, press the app's undo button, and check the
+ * thing is where it was.
+ */
+describe("the delete scope", () => {
+  const owner = "owner-rest-delete";
+
+  async function seedFoodEntry(t: Harness, key: string) {
+    const logged = await call(t, "POST", "/v1/food", {
+      key,
+      body: { name: "Porridge", calories: 320, date: "2026-04-15" },
+    });
+    expect(logged.status).toBe(200);
+    return logged.body.entryId as string;
+  }
+
+  test("a read & write key is refused, and told what it is short of", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "onerep_sk_writeonly", ["read", "write"]);
+
+    const entryId = await seedFoodEntry(t, "onerep_sk_writeonly");
+    const refused = await call(t, "DELETE", `/v1/food/2026-04-15/${entryId}`, {
+      key: "onerep_sk_writeonly",
+    });
+
+    expect(refused.status).toBe(403);
+    expect(refused.body.error.code).toBe("insufficient_scope");
+    expect(refused.body.error.message).toContain("needs delete");
+  });
+
+  test("a delete key removes the entry, and the coach can put it back", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "onerep_sk_fulldelete";
+    await grantKey(t, plaintext, ["read", "write", "delete"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    const entryId = await seedFoodEntry(t, plaintext);
+    const removed = await call(t, "DELETE", `/v1/food/2026-04-15/${entryId}`, {
+      key: plaintext,
+    });
+    expect(removed.status).toBe(200);
+
+    const afterDelete = await call(t, "GET", "/v1/days/2026-04-15", {
+      key: plaintext,
+    });
+    expect(afterDelete.body.nutrition.entries).toHaveLength(0);
+
+    // The same list the undo button in the app reads from.
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find((entry) => entry.kind === "api_delete_food");
+    expect(event).toBeDefined();
+    expect(event!.summary).toContain("Porridge");
+
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const afterUndo = await call(t, "GET", "/v1/days/2026-04-15", {
+      key: plaintext,
+    });
+    expect(afterUndo.body.nutrition.entries).toHaveLength(1);
+    expect(afterUndo.body.nutrition.entries[0].name).toBe("Porridge");
+    expect(afterUndo.body.nutrition.entries[0].id).toBe(entryId);
+  });
+
+  test("a write over the API is undoable too, not only a delete", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "onerep_sk_undowrite";
+    await grantKey(t, plaintext, ["read", "write"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    await call(t, "POST", "/v1/water", {
+      key: plaintext,
+      body: { amountMl: 500, date: "2026-04-15" },
+    });
+
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find((entry) => entry.kind === "api_log_water");
+    expect(event).toBeDefined();
+
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const day = await call(t, "GET", "/v1/days/2026-04-15", { key: plaintext });
+    expect(day.body.waterMl).toBe(0);
+  });
+
+  test("rest days come back with the marking they had", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "onerep_sk_restdays";
+    await grantKey(t, plaintext, ["read", "write", "delete"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    await call(t, "POST", "/v1/rest-days", {
+      key: plaintext,
+      body: { dates: ["2026-04-14"] },
+    });
+    const unmarked = await call(t, "DELETE", "/v1/rest-days", {
+      key: plaintext,
+      body: { dates: ["2026-04-14"] },
+    });
+    expect(unmarked.body).toEqual({ ok: true, unmarked: 1 });
+
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find(
+      (entry) => entry.kind === "api_delete_rest_days",
+    );
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const day = await call(t, "GET", "/v1/days/2026-04-14", { key: plaintext });
+    expect(day.body.restDay).toBe(true);
+  });
+});
+
+describe("health data over the API", () => {
+  test("reads days, and clears one the sensor got wrong", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "onerep_sk_health";
+    await grantKey(t, plaintext, ["read", "write", "delete"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    // Synced by the phone, which is the only thing that writes these.
+    await asOwner.mutation(api.logs.healthMetrics.sync, {
+      provider: "apple_health",
+      days: [
+        { date: "2026-04-14", sleepMinutes: 421, steps: 8840, hrvMs: 68 },
+        { date: "2026-04-15", sleepMinutes: 390, steps: 5210 },
+      ],
+    });
+
+    const read = await call(
+      t,
+      "GET",
+      "/v1/health/days?start=2026-04-14&end=2026-04-15",
+      { key: plaintext },
+    );
+    expect(read.status).toBe(200);
+    expect(read.body.days).toHaveLength(2);
+    expect(read.body.days[0]).toMatchObject({
+      date: "2026-04-14",
+      sleepMinutes: 421,
+      hrvMs: 68,
+      restingHeartRateBpm: null,
+    });
+
+    const cleared = await call(t, "DELETE", "/v1/health/days/2026-04-14", {
+      key: plaintext,
+    });
+    expect(cleared.status).toBe(200);
+
+    const afterDelete = await call(
+      t,
+      "GET",
+      "/v1/health/days?start=2026-04-14&end=2026-04-15",
+      { key: plaintext },
+    );
+    expect(afterDelete.body.days).toHaveLength(1);
+
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find(
+      (entry) => entry.kind === "api_delete_health_day",
+    );
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const afterUndo = await call(
+      t,
+      "GET",
+      "/v1/health/days?start=2026-04-14&end=2026-04-15",
+      { key: plaintext },
+    );
+    expect(afterUndo.body.days).toHaveLength(2);
+    expect(afterUndo.body.days[0].sleepMinutes).toBe(421);
+  });
+
+  test("there is no way to write a daily reading", async () => {
+    const t = convexTest(schema, modules);
+    await grantKey(t, "onerep_sk_nohealthwrite", ["read", "write", "delete"]);
+
+    const refused = await call(t, "POST", "/v1/health/days", {
+      key: "onerep_sk_nohealthwrite",
+      body: { date: "2026-04-15", sleepMinutes: 400 },
+    });
+
+    // The path exists for GET, so this is a 405 rather than a 404 — the
+    // distinction is the point: reading is offered, writing is not.
+    expect(refused.status).toBe(405);
+  });
+
+  test("records an activity session the phone never saw, and can take it back", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "onerep_sk_healthwork";
+    await grantKey(t, plaintext, ["read", "write", "delete"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    const logged = await call(t, "POST", "/v1/health/workouts", {
+      key: plaintext,
+      body: {
+        activityType: "running",
+        activityName: "Lunch Run",
+        durationMinutes: 38,
+        date: "2026-04-15",
+        totalDistanceMeters: 6800,
+        externalId: "garmin-99213",
+      },
+    });
+    expect(logged.status).toBe(200);
+    expect(logged.body.updated).toBe(false);
+
+    // The same external id again replaces rather than duplicating — and
+    // replacing means what it says: the omitted distance is cleared, not kept.
+    const again = await call(t, "POST", "/v1/health/workouts", {
+      key: plaintext,
+      body: {
+        activityType: "running",
+        durationMinutes: 40,
+        date: "2026-04-15",
+        externalId: "garmin-99213",
+      },
+    });
+    expect(again.body.updated).toBe(true);
+
+    const list = await call(t, "GET", "/v1/health/workouts", {
+      key: plaintext,
+    });
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0]).toMatchObject({
+      provider: "api",
+      durationMinutes: 40,
+      totalDistanceMeters: null,
+    });
+
+    const removed = await call(
+      t,
+      "DELETE",
+      `/v1/health/workouts/${list.body[0].id}`,
+      { key: plaintext },
+    );
+    expect(removed.status).toBe(200);
+    expect(
+      (await call(t, "GET", "/v1/health/workouts", { key: plaintext })).body,
+    ).toHaveLength(0);
+
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find(
+      (entry) => entry.kind === "api_delete_health_workout",
+    );
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const restored = await call(t, "GET", "/v1/health/workouts", {
+      key: plaintext,
+    });
+    expect(restored.body).toHaveLength(1);
+    // As it stood when it was deleted, which is after the replace above
+    // dropped the name — not as it was first written.
+    expect(restored.body[0].activityName).toBe("Workout");
   });
 });

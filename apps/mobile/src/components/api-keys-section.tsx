@@ -33,7 +33,7 @@ type KeyRow = {
   id: Id<"mcpTokens">
   name: string
   prefix: string
-  scopes: Array<"read" | "write">
+  scopes: Array<"read" | "write" | "delete">
   createdAt: number
   lastUsedAt: number | null
 }
@@ -42,7 +42,7 @@ type ConnectionRow = {
   id: Id<"mcpTokens">
   clientId: string
   name: string
-  scopes: Array<"read" | "write">
+  scopes: Array<"read" | "write" | "delete">
   createdAt: number
   expiresAt: number | null
   lastUsedAt: number | null
@@ -56,12 +56,16 @@ type ClientRow = {
   createdAt: number
 }
 
-type Scope = "read" | "write"
+type Scope = "read" | "write" | "delete"
 
 const ARM_WINDOW_MS = 4000
 
 function usedLabel(row: { scopes: Scope[]; lastUsedAt: number | null }) {
-  const scope = row.scopes.includes("write") ? "read & write" : "read only"
+  const scope = row.scopes.includes("delete")
+    ? "full access"
+    : row.scopes.includes("write")
+      ? "read & write"
+      : "read only"
   if (!row.lastUsedAt) return `${scope} · never used`
   const days = Math.floor((Date.now() - row.lastUsedAt) / 86_400_000)
   if (days === 0) return `${scope} · used today`
@@ -141,6 +145,31 @@ function ShownOnce({
   )
 }
 
+/**
+ * A ladder, not a set of switches: nobody wants a key that can delete a
+ * workout but not read one back, and every rung above the first has to be
+ * chosen on purpose.
+ */
+const SCOPE_LADDER: Record<Scope, Scope[]> = {
+  read: ["read"],
+  write: ["read", "write"],
+  delete: ["read", "write", "delete"],
+}
+
+const SCOPE_LABELS: Record<Scope, string> = {
+  read: "Read only",
+  write: "Read & write",
+  delete: "Full access",
+}
+
+const SCOPE_NOTES: Record<Scope, string> = {
+  read: "Sees your log and your health data, and can never change either. Start here.",
+  write:
+    "Also adds food, water, weight, workouts and activity sessions. It cannot remove anything.",
+  delete:
+    "Also removes entries, sessions, measurements and days of health readings. Every change lands in the coach's history, so you can undo it in the app — but a key that can delete is one somebody else can delete with.",
+}
+
 function NewKeySheet({ onClose }: { onClose: () => void }) {
   const createKey = useAction(api.mcp.tokens.create)
   const [name, setName] = useState("")
@@ -154,8 +183,8 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
     setCreating(true)
     try {
       const { token } = await createKey({
-        name: name.trim() || (scope === "write" ? "Read & write" : "Read only"),
-        scopes: scope === "write" ? ["read", "write"] : ["read"],
+        name: name.trim() || SCOPE_LABELS[scope],
+        scopes: SCOPE_LADDER[scope],
       })
       hapticMedium()
       setIssued(token)
@@ -218,17 +247,14 @@ function NewKeySheet({ onClose }: { onClose: () => void }) {
                 onChange={setScope}
                 onInteract={hapticSelection}
                 options={[
-                  { value: "read", label: "Read only" },
-                  { value: "write", label: "Read & write" },
+                  { value: "read", label: "Read" },
+                  { value: "write", label: "Write" },
+                  { value: "delete", label: "Full" },
                 ]}
               />
             </div>
 
-            <p className="native-row-detail mt-2">
-              {scope === "write"
-                ? "Sees your log and can add food, water, weight and workouts to it. Nothing a key holds can delete."
-                : "Sees your log and can never change it. Start here."}
-            </p>
+            <p className="native-row-detail mt-2">{SCOPE_NOTES[scope]}</p>
 
             <PrimaryButton
               type="submit"
@@ -302,9 +328,9 @@ function NewClientSheet({ onClose }: { onClose: () => void }) {
           >
             <h2 className="text-[20px] font-bold">Register an OAuth client</h2>
             <p className="native-row-detail mt-1">
-              Only for a client that asks you for a Client ID and secret
-              instead of registering itself. If yours connected without asking,
-              close this and keep your evening.
+              Only for a client that asks you for a Client ID and secret instead
+              of registering itself. If yours connected without asking, close
+              this and keep your evening.
             </p>
 
             <label className="native-field mt-5">
@@ -367,13 +393,10 @@ export function ApiKeysSection({
   const revokeKey = useMutation(api.mcp.tokens.revoke)
 
   const connections = useQuery(api.mcp.oauth.listConnections) as
-    | ConnectionRow[]
-    | undefined
+    ConnectionRow[] | undefined
   const revokeConnection = useMutation(api.mcp.oauth.revokeConnection)
 
-  const clients = useQuery(api.mcp.oauth.listClients) as
-    | ClientRow[]
-    | undefined
+  const clients = useQuery(api.mcp.oauth.listClients) as ClientRow[] | undefined
   const revokeClient = useMutation(api.mcp.oauth.revokeClient)
 
   const [sheet, setSheet] = useState<"key" | "client" | null>(null)
@@ -396,7 +419,9 @@ export function ApiKeysSection({
         {mcpEndpoint && (
           <ListRow
             title="MCP endpoint"
-            detail={<code className="font-mono text-[12px]">{mcpEndpoint}</code>}
+            detail={
+              <code className="font-mono text-[12px]">{mcpEndpoint}</code>
+            }
             trailing={<Copy size={16} className="text-muted-foreground" />}
             onClick={() => void copy(mcpEndpoint, "MCP endpoint copied")}
           />
@@ -426,11 +451,13 @@ export function ApiKeysSection({
                 title={armed ? "Tap again to disconnect" : row.name}
                 detail={armed ? "It can ask you again later" : usedLabel(row)}
                 onClick={() =>
-                  arm(`connection:${row.id}`, () =>
-                    void run(
-                      () => revokeConnection({ id: row.id }),
-                      `${row.name} disconnected`
-                    )
+                  arm(
+                    `connection:${row.id}`,
+                    () =>
+                      void run(
+                        () => revokeConnection({ id: row.id }),
+                        `${row.name} disconnected`
+                      )
                   )
                 }
                 className={armed ? "text-destructive" : undefined}
@@ -454,15 +481,19 @@ export function ApiKeysSection({
             return (
               <ListRow
                 key={row.id}
-                title={armed ? "Tap again to revoke" : `${row.name} · ${row.prefix}…`}
+                title={
+                  armed ? "Tap again to revoke" : `${row.name} · ${row.prefix}…`
+                }
                 detail={
                   armed
                     ? "Whatever holds it stops working immediately"
                     : usedLabel(row)
                 }
                 onClick={() =>
-                  arm(`key:${row.id}`, () =>
-                    void run(() => revokeKey({ id: row.id }), "Key revoked")
+                  arm(
+                    `key:${row.id}`,
+                    () =>
+                      void run(() => revokeKey({ id: row.id }), "Key revoked")
                   )
                 }
                 className={armed ? "text-destructive" : undefined}
@@ -495,11 +526,13 @@ export function ApiKeysSection({
                     : row.clientId
                 }
                 onClick={() =>
-                  arm(`client:${row.id}`, () =>
-                    void run(
-                      () => revokeClient({ id: row.id }),
-                      "Client removed"
-                    )
+                  arm(
+                    `client:${row.id}`,
+                    () =>
+                      void run(
+                        () => revokeClient({ id: row.id }),
+                        "Client removed"
+                      )
                   )
                 }
                 className={armed ? "text-destructive" : undefined}

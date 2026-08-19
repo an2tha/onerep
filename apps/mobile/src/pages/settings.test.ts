@@ -655,10 +655,6 @@ describe("AI subscription hint", () => {
     assert.match(AI_ACCESS_SOURCE, /usedCount=\{usage\?\.count/)
   })
 
-
-
-
-
   test("the hint clears the desktop sidebar instead of covering it", () => {
     // The sidebar is a fixed 16rem rail at the lg breakpoint.
     assert.match(
@@ -672,9 +668,6 @@ describe("AI subscription hint", () => {
     assert.ok(!AI_ACCESS_SOURCE.includes("Sparkle"))
     assert.ok(!PAYWALL_STYLES.includes(".ai-hint-eyebrow"))
   })
-
-
-
 
   test("developer settings can preview the paywall", () => {
     assert.match(AI_ACCESS_SOURCE, /const showAiPaywall = useCallback/)
@@ -740,12 +733,23 @@ describe("agent access is findable", () => {
     assert.match(KEYS_PANEL, /MCP endpoint/)
   })
 
-  test("both scopes can be minted, and read-only is the default", () => {
+  test("all three scopes can be minted, in order, and read is the default", () => {
     assert.match(KEYS_PANEL, /useState<Scope>\("read"\)/)
-    const readOnly = KEYS_PANEL.indexOf('label: "Read only"')
-    const readWrite = KEYS_PANEL.indexOf('label: "Read & write"')
-    assert.ok(readOnly > -1 && readWrite > -1)
-    assert.ok(readOnly < readWrite)
+    const rungs = ['label: "Read"', 'label: "Write"', 'label: "Full"'].map(
+      (label) => KEYS_PANEL.indexOf(label)
+    )
+    assert.ok(rungs.every((index) => index > -1))
+    // A ladder, least to most: the riskiest option is never the nearest one.
+    assert.deepEqual(
+      rungs,
+      [...rungs].sort((a, b) => a - b)
+    )
+  })
+
+  /** Delete is the rung that needs saying out loud, both ways. */
+  test("says what a full-access key can do, and that it can be undone", () => {
+    assert.match(KEYS_PANEL, /removes entries, sessions, measurements/i)
+    assert.match(KEYS_PANEL, /undo it in the app/i)
   })
 
   test("the plaintext is presented as shown-once, and revocation is one tap", () => {
