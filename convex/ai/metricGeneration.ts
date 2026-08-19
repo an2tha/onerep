@@ -516,7 +516,22 @@ type CoachContext = {
   selectedLiftPaceKgPerWeek: number | null;
   selectedLiftFrequency: number | null;
   dataConfidence: number;
+  /** Oldest to newest, today last, so the strip reads left to right. */
+  weekDays: CoachWeekDay[];
+  todayProtein: number;
+  todayCalories: number;
+  lastWorkout: { name: string; date: string; sets: number } | null;
+  /** Nothing logged anywhere, so the coach opens differently. */
+  hasAnyData: boolean;
   existingInsights: CoachAdvice[];
+};
+
+type CoachWeekDay = {
+  date: string;
+  /** Single letter, Monday-agnostic: the strip is anchored on today. */
+  label: string;
+  trained: boolean;
+  today: boolean;
 };
 
 function clampText(value: unknown, maxLength: number) {
@@ -1743,8 +1758,7 @@ function normalizeCoachChatResponse(value: unknown, message: string) {
     // orienting sentence the shape asks for. Blocks alone are still an answer;
     // borrow the first block's own words rather than discarding the turn.
     const first = uiBlocks[0] as
-      | { title?: string; detail?: string; label?: string }
-      | undefined;
+      { title?: string; detail?: string; label?: string } | undefined;
     reply = clampText(first?.title || first?.detail || first?.label, 280);
   }
   if (!reply) return null;
@@ -2251,9 +2265,9 @@ async function generateCoachChatWithOpenAi({
   const domain = mealPhoto
     ? "nutrition"
     : coachMode === "chef" ||
-    /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(
-      normalizedMessage,
-    )
+        /\b(meal|food|recipe|calorie|macro|protein|cook|nutrition)\b/.test(
+          normalizedMessage,
+        )
       ? "nutrition"
       : coachMode === "personal_trainer" ||
           /\b(workout|exercise|training|routine|preset|set|reps?|superset|strength|cardio)\b/.test(
@@ -2991,6 +3005,28 @@ const coachContextValidator = v.object({
   selectedLiftPaceKgPerWeek: v.union(v.number(), v.null()),
   selectedLiftFrequency: v.union(v.number(), v.null()),
   dataConfidence: v.number(),
+  // Today's own numbers and the week strip. The client has always sent these;
+  // the validator had not caught up, and Convex rejects extra fields outright,
+  // so every coach chat and every advice call failed on the way in.
+  weekDays: v.array(
+    v.object({
+      date: v.string(),
+      label: v.string(),
+      trained: v.boolean(),
+      today: v.boolean(),
+    }),
+  ),
+  todayProtein: v.number(),
+  todayCalories: v.number(),
+  lastWorkout: v.union(
+    v.object({
+      name: v.string(),
+      date: v.string(),
+      sets: v.number(),
+    }),
+    v.null(),
+  ),
+  hasAnyData: v.boolean(),
   existingInsights: v.array(
     v.object({
       label: v.string(),
@@ -3016,6 +3052,19 @@ function sanitizeCoachContext(input: CoachContext): CoachContext {
       .filter(Boolean),
     weightStatus: clampText(input.weightStatus, 40),
     selectedExerciseName: clampText(input.selectedExerciseName, 80) || null,
+    weekDays: input.weekDays.slice(0, 14).map((day) => ({
+      date: clampText(day.date, 10),
+      label: clampText(day.label, 3),
+      trained: day.trained === true,
+      today: day.today === true,
+    })),
+    lastWorkout: input.lastWorkout
+      ? {
+          name: clampText(input.lastWorkout.name, 80),
+          date: clampText(input.lastWorkout.date, 10),
+          sets: clampInteger(input.lastWorkout.sets, 0, 999, 0),
+        }
+      : null,
     existingInsights: input.existingInsights
       .slice(0, 10)
       .map((insight) => ({

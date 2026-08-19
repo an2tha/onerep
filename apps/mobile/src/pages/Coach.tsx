@@ -287,69 +287,46 @@ function CoachWeekStrip({ days }: { days: CoachContext["weekDays"] }) {
   )
 }
 
-/** A number you can read at arm's length, with the label kept out of its way. */
-function CoachStat({
-  label,
-  value,
-  suffix,
-  children,
-}: {
-  label: string
-  value: string
-  suffix?: string
-  children?: ReactNode
-}) {
-  return (
-    <div className="min-w-0 flex-1">
-      <p className="text-[9.5px] font-bold tracking-[0.13em] text-foreground/45 uppercase">
-        {label}
-      </p>
-      <p className="mt-1.5 text-[26px] leading-none font-semibold tracking-[-0.03em] tabular-nums">
-        {value}
-        {suffix ? (
-          <span className="ml-0.5 text-[13px] font-semibold text-foreground/40">
-            {suffix}
-          </span>
-        ) : null}
-      </p>
-      {children}
-    </div>
-  )
-}
-
-/** A single fact about today, sized so three of them fit a phone. */
+/**
+ * One tile, one subject. Two of them is the whole briefing: the same number
+ * printed twice in two sizes is not two facts.
+ */
 function CoachBriefTile({
   label,
   value,
   detail,
   fill,
+  children,
   onClick,
 }: {
   label: string
   value: string
-  detail: string
+  /** Only where the number does not already say it. */
+  detail?: string
   /** 0-1, or null for tiles that are not a proportion of anything. */
   fill: number | null
+  children?: ReactNode
   onClick: () => void
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="coach-brief-tile motion-tactile flex min-h-[6.25rem] flex-col justify-between rounded-2xl p-3.5 text-left"
+      className="coach-brief-tile motion-tactile flex min-h-[6rem] flex-col justify-between rounded-2xl p-4 text-left"
     >
-      <p className="text-[9.5px] font-bold tracking-[0.13em] text-foreground/45 uppercase">
-        {label}
-      </p>
+      <p className="text-[11px] font-medium text-foreground/50">{label}</p>
       <div className="mt-3">
-        <p className="truncate text-[17px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">
+        <p className="truncate text-[19px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">
           {value}
         </p>
-        <p className="mt-1 truncate text-[11px] leading-4 text-foreground/45">
-          {detail}
-        </p>
+        {detail ? (
+          <p className="mt-1 truncate text-[11px] leading-4 text-foreground/45">
+            {detail}
+          </p>
+        ) : null}
+        {children}
         {fill === null ? null : (
-          <span className="mt-2.5 block h-[3px] w-full overflow-hidden rounded-full bg-foreground/12">
+          <span className="mt-3 block h-[3px] w-full overflow-hidden rounded-full bg-foreground/12">
             <span
               className="block h-full rounded-full bg-foreground/70"
               style={{
@@ -2537,8 +2514,8 @@ export default function Coach({
                         />
                         <div className="relative p-4 sm:p-5">
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-[10px] font-bold tracking-[0.1em] text-muted-foreground uppercase">
-                              Customize recipe
+                            <p className="text-[12px] font-medium text-muted-foreground">
+                              Customizing
                             </p>
                             <button
                               type="button"
@@ -2588,10 +2565,10 @@ export default function Coach({
                       (recipeCustomization || guidedIntent) && "hidden"
                     )}
                   >
-                    <p className="text-[12px] font-medium text-foreground/48">
+                    <h2 className="max-w-2xl text-[30px] leading-[1.06] font-semibold tracking-[-0.035em] text-foreground sm:text-[40px]">
                       {timeGreeting()}
-                    </p>
-                    <h2 className="mt-3 max-w-2xl text-[30px] leading-[1.06] font-semibold tracking-[-0.035em] text-foreground sm:text-[40px]">
+                    </h2>
+                    <p className="mt-2 max-w-md text-[14px] leading-5 text-foreground/60">
                       {!context.hasAnyData
                         ? "Nothing logged yet."
                         : activeMode === "chef"
@@ -2606,56 +2583,7 @@ export default function Coach({
                                 context.proteinAdherence >= 85
                               ? "You’re on track. Don’t overcorrect."
                               : "Do one useful thing well today."}
-                    </h2>
-                    {context.hasAnyData ? (
-                      <div className="mt-6 flex max-w-md items-start gap-5">
-                        <CoachStat
-                          label="This week"
-                          value={String(context.workoutDays7)}
-                          suffix="/ 7 days"
-                        >
-                          <CoachWeekStrip days={context.weekDays} />
-                        </CoachStat>
-                        <span
-                          className="mt-1 w-px self-stretch bg-foreground/12"
-                          aria-hidden="true"
-                        />
-                        <CoachStat
-                          label={
-                            activeMode === "personal_trainer"
-                              ? "Working sets"
-                              : "Protein"
-                          }
-                          value={
-                            activeMode === "personal_trainer"
-                              ? String(context.hardSets7)
-                              : `${Math.round(context.proteinAdherence)}`
-                          }
-                          suffix={
-                            activeMode === "personal_trainer"
-                              ? "in 7 days"
-                              : "% of target"
-                          }
-                        >
-                          <span
-                            className="mt-3 block h-1 w-full overflow-hidden rounded-full bg-foreground/12"
-                            aria-hidden="true"
-                          >
-                            <span
-                              className="block h-full rounded-full bg-foreground/70"
-                              style={{
-                                width: `${Math.min(100, Math.round(activeMode === "personal_trainer" ? (context.hardSets7 / 60) * 100 : context.proteinAdherence))}%`,
-                              }}
-                            />
-                          </span>
-                        </CoachStat>
-                      </div>
-                    ) : (
-                      <p className="mt-4 max-w-lg text-[13px] leading-5 text-foreground/55">
-                        No sessions, no meals, no measurements. Give me one and
-                        I can stop guessing.
-                      </p>
-                    )}
+                    </p>
                     <button
                       type="button"
                       onClick={() =>
@@ -2675,26 +2603,11 @@ export default function Coach({
                       <ArrowRight size={14} weight="bold" />
                     </button>
                     {context.hasAnyData ? (
-                      <div className="coach-brief-tiles mt-8 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+                      <div className="coach-brief-tiles mt-8 grid max-w-xl grid-cols-2 gap-2.5">
                         <CoachBriefTile
-                          label="Protein today"
-                          value={`${Math.max(0, Math.round(context.proteinTarget - context.todayProtein))}g left`}
-                          detail={`${Math.round(context.todayProtein)} of ${Math.round(context.proteinTarget)}g`}
-                          fill={
-                            context.proteinTarget > 0
-                              ? context.todayProtein / context.proteinTarget
-                              : 0
-                          }
-                          onClick={() =>
-                            void submit(
-                              "What should I eat today to land on my protein target?"
-                            )
-                          }
-                        />
-                        <CoachBriefTile
-                          label="Calories today"
-                          value={`${Math.round(context.todayCalories)} kcal`}
-                          detail={`${Math.round(context.calorieTarget)} kcal target`}
+                          label="Today"
+                          value={`${Math.round(context.todayCalories)} / ${Math.round(context.calorieTarget)} kcal`}
+                          detail={`${Math.round(context.todayProtein)} of ${Math.round(context.proteinTarget)}g protein`}
                           fill={
                             context.calorieTarget > 0
                               ? context.todayCalories / context.calorieTarget
@@ -2702,25 +2615,27 @@ export default function Coach({
                           }
                           onClick={() =>
                             void submit(
-                              "How am I tracking against today’s calorie target, and what should I do about it?"
+                              "How am I tracking against today’s targets, and what should I eat next?"
                             )
                           }
                         />
                         <CoachBriefTile
-                          label="Last session"
-                          value={context.lastWorkout?.name ?? "Nothing yet"}
+                          label="This week"
+                          value={`${context.workoutDays7} of 7 days`}
                           detail={
                             context.lastWorkout
-                              ? `${context.lastWorkout.sets} sets · ${relativeDay(context.lastWorkout.date)}`
-                              : "No workouts logged"
+                              ? `Last: ${context.lastWorkout.name}, ${relativeDay(context.lastWorkout.date)}`
+                              : "No sessions logged"
                           }
                           fill={null}
                           onClick={() =>
                             void submit(
-                              "Look at my last session and tell me what my next one should be."
+                              "Look at my week so far and tell me what my next session should be."
                             )
                           }
-                        />
+                        >
+                          <CoachWeekStrip days={context.weekDays} />
+                        </CoachBriefTile>
                       </div>
                     ) : null}
                   </div>
