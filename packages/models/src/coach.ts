@@ -266,6 +266,9 @@ export type CoachWeeklyPlanMeal = {
   fat?: number;
 };
 
+/** A Sunday's worth of batch cooking, and no more. */
+export const MAX_RECIPES_PER_TURN = 4;
+
 export const NUTRITION_TARGET_FIELDS = [
   "calories",
   "protein",
@@ -374,6 +377,19 @@ export function validateCoachOperations(
   operations: CoachOperation[],
 ): string[] {
   const errors: string[] = [];
+
+  // A week of batch cooking is several recipes at once; twenty is a model that
+  // lost the plot, and two of the same name is one recipe proposed twice.
+  const recipeNames = operations
+    .filter((operation) => operation.type === "save_recipe")
+    .map((operation) => operation.name.trim().toLowerCase());
+  if (recipeNames.length > MAX_RECIPES_PER_TURN)
+    errors.push(
+      `That is ${recipeNames.length} recipes at once; propose at most ${MAX_RECIPES_PER_TURN}.`,
+    );
+  if (new Set(recipeNames).size !== recipeNames.length)
+    errors.push("Two of those recipes have the same name.");
+
   for (const operation of operations) {
     if (operation.type === "save_recipe") {
       if (!operation.ingredients.length)

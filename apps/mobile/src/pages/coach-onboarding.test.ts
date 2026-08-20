@@ -202,6 +202,18 @@ describe("Coach first-open experience", () => {
     expect(COACH_ACTION_SOURCE).toContain('confirmation: "confirm"')
   })
 
+  test("a batch of recipes previews in full and saves as one set", () => {
+    // Four recipes approved from four one-line summaries is consent without
+    // reading, so the batch preview has to show what the single one shows.
+    expect(COACH_SOURCE).toContain("recipes.length === operations.length")
+    expect(COACH_SOURCE).toContain("recipes · nothing saved yet")
+    expect(COACH_SOURCE).toContain("Cook this set?")
+    expect(COACH_SOURCE).toContain("Save ${recipes.length} recipes")
+    expect(COACH_PROMPT_SOURCE).toContain(
+      "save_recipe operations in a single turn"
+    )
+  })
+
   test("Coach supports previews, undo, memory, check-ins, plans, and read-only analysis", () => {
     expect(COACH_SOURCE).toContain("CoachProposal")
     expect(COACH_SOURCE).toContain("Review changes")

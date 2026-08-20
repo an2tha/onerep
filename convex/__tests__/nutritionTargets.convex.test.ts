@@ -213,4 +213,99 @@ describe("nutrition targets", () => {
       fat: 14,
     });
   });
+
+  test("a Sunday's batch cooking saves as one set of recipes", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ name: "batch-cook" });
+
+    const recipe = (name: string) => ({
+      type: "save_recipe",
+      confirmation: "confirm",
+      summary: `Save ${name}`,
+      assumptions: [],
+      warnings: [],
+      name,
+      description: "Batch cooked on Sunday",
+      servings: 4,
+      prepMinutes: 15,
+      cookMinutes: 25,
+      category: "Dinner",
+      notes: "Keeps four days in the fridge",
+      tags: ["batch"],
+      ingredients: [
+        {
+          name: "Chicken thigh",
+          grams: 800,
+          caloriesPer100: 177,
+          proteinPer100: 24,
+          carbsPer100: 0,
+          fatPer100: 8,
+        },
+      ],
+      steps: ["Roast", "Portion into four"],
+    });
+
+    const results = (await as.action(api.ai.coachOperations.applyApproved, {
+      requestId: "batch-run-1",
+      operations: [
+        recipe("Chicken traybake"),
+        recipe("Lentil chilli"),
+        recipe("Salmon rice bowls"),
+      ],
+    })) as Array<{ recipeId: string }>;
+
+    expect(results).toHaveLength(3);
+    const saved = await as.query(api.logs.recipes.list, {});
+    expect(saved.map((item: { name: string }) => item.name).sort()).toEqual([
+      "Chicken traybake",
+      "Lentil chilli",
+      "Salmon rice bowls",
+    ]);
+  });
+
+  test("five recipes at once, or two with the same name, is refused", async () => {
+    const t = convexTest(schema, modules);
+    const as = t.withIdentity({ name: "batch-cook-guard" });
+
+    const recipe = (name: string) => ({
+      type: "save_recipe",
+      confirmation: "confirm",
+      summary: `Save ${name}`,
+      assumptions: [],
+      warnings: [],
+      name,
+      description: "",
+      servings: 4,
+      prepMinutes: 10,
+      cookMinutes: 10,
+      category: "Dinner",
+      notes: "",
+      tags: [],
+      ingredients: [
+        {
+          name: "Oats",
+          grams: 100,
+          caloriesPer100: 380,
+          proteinPer100: 13,
+          carbsPer100: 60,
+          fatPer100: 7,
+        },
+      ],
+      steps: ["Cook"],
+    });
+
+    await expect(
+      as.action(api.ai.coachOperations.applyApproved, {
+        requestId: "batch-run-2",
+        operations: ["A", "B", "C", "D", "E"].map(recipe),
+      }),
+    ).rejects.toThrow(/at most 4/);
+
+    await expect(
+      as.action(api.ai.coachOperations.applyApproved, {
+        requestId: "batch-run-3",
+        operations: [recipe("Chilli"), recipe("chilli")],
+      }),
+    ).rejects.toThrow(/same name/);
+  });
 });
