@@ -63,7 +63,7 @@ import {
   SET_TYPE_TONES,
 } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
-import { AppleFitnessSetRow } from "@repo/ui"
+import { AppleFitnessSetRow, useBackdropDismiss } from "@repo/ui"
 import {
   WeightSelectorSheet,
   type WeightSelectorChange,
@@ -1113,10 +1113,11 @@ function ExerciseModal({
   onAdd: () => void
   onClose: () => void
 }) {
+  const backdropDismiss = useBackdropDismiss(onClose)
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[4px]"
-      onClick={onClose}
+      {...backdropDismiss}
     >
       <div
         className="sheet-panel w-full max-w-lg overflow-hidden rounded-t-3xl bg-card shadow-2xl"

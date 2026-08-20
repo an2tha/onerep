@@ -103,3 +103,5 @@ scripts/form-JEPA/datasets/
 # Regenerated from apps/mobile/public/models by `cap sync`, so it is a build
 # artifact even though the originals are tracked.
 apps/mobile/ios/App/App/public/models/
+
+ideas.txt

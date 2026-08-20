@@ -2042,6 +2042,16 @@ export default function Coach({
 
   function switchCoachMode(nextMode: CoachMode) {
     if (busy || modeTransitioning || nextMode === activeMode) return
+    // Phones get the short version. The full choreography is a 420ms fade
+    // out, an 860ms page transition and a 380ms fade back in — over a second
+    // and a half of swallowed taps — and on a touch device it is spent
+    // snapshotting a full-screen DOM the WebView then has to composite. The
+    // three-frame clone carousel for a two-tab jump is worse again.
+    const quick =
+      typeof window !== "undefined" &&
+      (window.matchMedia?.("(pointer: coarse)").matches ||
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ||
+        window.matchMedia?.("(max-width: 1023px)").matches)
     const currentIndex = COACH_MODES.findIndex((item) => item.id === activeMode)
     const nextIndex = COACH_MODES.findIndex((item) => item.id === nextMode)
     const direction = nextIndex > currentIndex ? "forward" : "back"
@@ -2178,6 +2188,20 @@ export default function Coach({
     if (embedded) {
       commitModeChange(nextMode)
       setModeTransitioning(false)
+      return
+    }
+
+    if (quick) {
+      document.documentElement.dataset.coachQuick = "true"
+      void (async () => {
+        try {
+          await showMode(nextMode)
+        } finally {
+          delete document.documentElement.dataset.coachSwipe
+          delete document.documentElement.dataset.coachQuick
+          setModeTransitioning(false)
+        }
+      })()
       return
     }
 

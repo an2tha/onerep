@@ -94,6 +94,16 @@ export function MobileSheet({
     []
   )
 
+  // The trap reads `dismiss` through a ref so the effect below can depend on
+  // nothing. It used to depend on `dismiss`, which changes identity whenever
+  // the parent re-renders with a fresh inline `onClose` — every Convex tick,
+  // in practice. Each re-run restored focus to the opener and then re-focused
+  // the panel's first control, which on a phone closes the keyboard mid-word.
+  const dismissRef = React.useRef(dismiss)
+  React.useEffect(() => {
+    dismissRef.current = dismiss
+  }, [dismiss])
+
   React.useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
     const panel = panelRef.current
@@ -107,13 +117,17 @@ export function MobileSheet({
       )
 
     const frame = requestAnimationFrame(() => {
+      // A field with `autoFocus` has already claimed the caret by now, and on
+      // a phone that means the keyboard is up. Moving focus to the first
+      // control — usually the close button — would shut it again.
+      if (panel.contains(document.activeElement)) return
       ;(focusables()[0] ?? panel).focus({ preventScroll: true })
     })
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault()
-        dismiss()
+        dismissRef.current()
         return
       }
       if (event.key !== "Tab") return
@@ -139,9 +153,15 @@ export function MobileSheet({
     return () => {
       cancelAnimationFrame(frame)
       document.removeEventListener("keydown", handleKeyDown)
-      previousFocus?.focus({ preventScroll: true })
+      // Only hand focus back if it is still inside this sheet. Otherwise the
+      // unmount yanks the caret out of whatever the user moved on to.
+      if (panel.contains(document.activeElement)) {
+        previousFocus?.focus({ preventScroll: true })
+      }
     }
-  }, [dismiss])
+    // Mount and unmount only. See `dismissRef` above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   React.useEffect(() => {
     if (!dragging || !panelRef.current) return
