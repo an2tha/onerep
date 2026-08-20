@@ -174,7 +174,7 @@ export type CoachOperation = CoachOperationMeta &
           day: string;
           workoutPresetId?: string;
           workoutLabel?: string;
-          meals: Array<{ label: string; recipeId?: string; note?: string }>;
+          meals: CoachWeeklyPlanMeal[];
           recoveryNote?: string;
         }>;
         planAssumptions: string[];
@@ -230,8 +230,63 @@ export type CoachOperation = CoachOperationMeta &
         schedule: SupplementSchedule;
         nutrientsPerServing: SupplementNutrients;
       }
+    | {
+        type: "set_nutrition_targets";
+        calories?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+        waterMl?: number;
+      }
     | { type: "undo_action"; actionId: string; actionSummary: string }
   );
+
+/**
+ * The daily numbers the diary is scored against.
+ *
+ * Kept in one list because three files have to agree on it: the coach
+ * operation, the MCP tool, and the REST route are the same write wearing
+ * different hats, and a field added to one and not the others is a target the
+ * user can set in one place and not see in another.
+ */
+/**
+ * One meal in a weekly plan, with the numbers it is supposed to hit.
+ *
+ * Macros are optional because a plan can be a rhythm rather than a
+ * prescription — but when a dietitian handed the user figures, this is where
+ * they live, and the day totals are the sum of these.
+ */
+export type CoachWeeklyPlanMeal = {
+  label: string;
+  recipeId?: string;
+  note?: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+};
+
+export const NUTRITION_TARGET_FIELDS = [
+  "calories",
+  "protein",
+  "carbs",
+  "fat",
+  "waterMl",
+] as const;
+
+export type NutritionTargetField = (typeof NUTRITION_TARGET_FIELDS)[number];
+
+/** Inclusive bounds. Wide enough for real athletes, narrow enough to catch a slipped decimal. */
+export const NUTRITION_TARGET_RANGES: Record<
+  NutritionTargetField,
+  [number, number]
+> = {
+  calories: [800, 8000],
+  protein: [0, 500],
+  carbs: [0, 1200],
+  fat: [0, 400],
+  waterMl: [200, 10_000],
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -302,6 +357,10 @@ export function normalizeCoachOperations(value: unknown): CoachOperation[] {
           typeof row.defaultServingQuantity === "number" &&
           isRecord(row.schedule) &&
           isRecord(row.nutrientsPerServing)
+        );
+      case "set_nutrition_targets":
+        return NUTRITION_TARGET_FIELDS.some(
+          (field) => typeof row[field] === "number",
         );
       case "undo_action":
         return typeof row.actionId === "string";
@@ -408,6 +467,47 @@ export function validateCoachOperations(
         )
       )
         errors.push(`${operation.name} has invalid per-serving nutrients.`);
+    }
+    if (operation.type === "save_weekly_plan") {
+      const days = operation.days.map((day) => day.day);
+      if (new Set(days).size !== days.length)
+        errors.push("The weekly plan contains duplicate days.");
+      for (const day of operation.days)
+        for (const meal of day.meals) {
+          const { calories, protein, carbs, fat } = meal;
+          if (
+            calories != null &&
+            protein != null &&
+            carbs != null &&
+            fat != null &&
+            Math.abs(protein * 4 + carbs * 4 + fat * 9 - calories) >
+              Math.max(60, calories * 0.15)
+          )
+            errors.push(`${meal.label} has macros that miss its calories.`);
+        }
+    }
+    if (operation.type === "set_nutrition_targets") {
+      for (const [field, [low, high]] of Object.entries(
+        NUTRITION_TARGET_RANGES,
+      )) {
+        const value = operation[field as NutritionTargetField];
+        if (value == null) continue;
+        if (!Number.isFinite(value) || value < low || value > high)
+          errors.push(
+            `${field} must be between ${low} and ${high} to be a usable target.`,
+          );
+      }
+      // A calorie figure and macros that do not add up to it is not a target,
+      // it is two targets. Whichever the user follows, they miss the other.
+      const { calories, protein, carbs, fat } = operation;
+      if (
+        calories != null &&
+        protein != null &&
+        carbs != null &&
+        fat != null &&
+        Math.abs(protein * 4 + carbs * 4 + fat * 9 - calories) > calories * 0.12
+      )
+        errors.push("Those macros do not add up to the calorie target.");
     }
     if (operation.type === "update_routine") {
       const days = operation.assignments.map((item) => item.day);

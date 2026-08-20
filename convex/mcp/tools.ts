@@ -99,6 +99,26 @@ function measurementFields(args: Record<string, unknown>) {
   return fields;
 }
 
+/**
+ * Target fields as sent: a number sets it, null clears it, absent leaves it.
+ *
+ * The three states matter — an agent that means "stop overriding calories" and
+ * an agent that means "do not touch calories" would otherwise send the same
+ * thing.
+ */
+function nullableTargets(args: Record<string, unknown>) {
+  const fields = ["calories", "protein", "carbs", "fat", "waterMl"] as const;
+  const out: Record<string, number | null> = {};
+  for (const field of fields) {
+    if (args[field] === undefined) continue;
+    out[field] =
+      args[field] === null ? null : requireNumber(args[field], field);
+  }
+  if (Object.keys(out).length === 0)
+    throw new Error("Send at least one target to set");
+  return out;
+}
+
 const CORE_TOOLS: McpTool[] = [
   {
     name: "get_day",
@@ -228,6 +248,54 @@ const CORE_TOOLS: McpTool[] = [
         userId,
         date: requireDate(args.date),
         amountMl: requireNumber(args.amountMl, "amountMl"),
+      }),
+  },
+  {
+    name: "set_nutrition_targets",
+    title: "Set daily nutrition targets",
+    description:
+      "Sets the daily calorie, macro and water goals the diary is scored against. Only the fields you send change; send null to clear one and hand it back to the app's own calculation. This overrides what the app computed from the user's profile, so use the numbers they were actually given rather than your own estimate.",
+    scope: "write",
+    inputSchema: {
+      type: "object",
+      properties: {
+        calories: {
+          type: ["integer", "null"],
+          minimum: 800,
+          maximum: 8000,
+          description: "Daily calorie target in kcal.",
+        },
+        protein: {
+          type: ["integer", "null"],
+          minimum: 0,
+          maximum: 500,
+          description: "Daily protein target in grams.",
+        },
+        carbs: {
+          type: ["integer", "null"],
+          minimum: 0,
+          maximum: 1200,
+          description: "Daily carbohydrate target in grams.",
+        },
+        fat: {
+          type: ["integer", "null"],
+          minimum: 0,
+          maximum: 400,
+          description: "Daily fat target in grams.",
+        },
+        waterMl: {
+          type: ["integer", "null"],
+          minimum: 200,
+          maximum: 10000,
+          description: "Daily water goal in millilitres.",
+        },
+      },
+      additionalProperties: false,
+    },
+    run: (ctx, userId, args) =>
+      ctx.runMutation(internal.mcp.data.setNutritionTargets, {
+        userId,
+        ...nullableTargets(args),
       }),
   },
   {

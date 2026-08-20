@@ -12,6 +12,7 @@ import {
 } from "../lib/healthMetricCatalog";
 import { getHealthProfile } from "../lib/healthProfiles";
 import { buildNutritionPlan } from "../lib/nutritionPlan";
+import { applyNutritionTargets } from "../lib/nutritionTargets";
 import {
   DEFAULT_MEAL_IDS,
   DEFAULT_MEAL_SHARES,
@@ -417,6 +418,29 @@ export const setCustomGoals = mutation({
         updatedAt: Date.now(),
       });
     }
+  },
+});
+
+/**
+ * The whole daily target sheet in one write: calories, macros, water.
+ *
+ * Coach, MCP and the REST API all land here rather than each patching
+ * `userPreferences` their own way, and every one of them needs the previous
+ * values back — an undo that cannot tell "was 2,400" from "was never set"
+ * restores a number the user never chose. Omitted fields are left alone;
+ * passing null clears an override and hands the field back to the calculator.
+ */
+export const setNutritionTargets = mutation({
+  args: {
+    calories: v.optional(v.union(v.number(), v.null())),
+    protein: v.optional(v.union(v.number(), v.null())),
+    carbs: v.optional(v.union(v.number(), v.null())),
+    fat: v.optional(v.union(v.number(), v.null())),
+    waterMl: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+    return await applyNutritionTargets(ctx, user._id, args);
   },
 });
 

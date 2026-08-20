@@ -428,8 +428,22 @@ export async function buildCoachWorkspace(
       }
     : { source: null, ...safety };
 
+  // The numbers the diary is actually scored against, so the coach edits the
+  // user's targets instead of proposing a second set beside them. Overrides
+  // only — an absent field means the app is still computing that one.
+  const nutritionTargets = personalized
+    ? {
+        calories: preferences?.customGoals?.calories ?? null,
+        protein: preferences?.customGoals?.protein ?? null,
+        carbs: preferences?.customGoals?.carbs ?? null,
+        fat: preferences?.customGoals?.fat ?? null,
+        waterMl: preferences?.waterGoalMl ?? null,
+      }
+    : null;
+
   const base = {
     today: args.today,
+    nutritionTargets,
     personalized,
     presets: presets.map((preset) => ({
       id: String(preset._id),

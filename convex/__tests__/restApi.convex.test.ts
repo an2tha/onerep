@@ -651,6 +651,54 @@ describe("health data over the API", () => {
     expect(restored.body[0].activityName).toBe("Workout");
   });
 
+  test("daily targets are set over HTTP and read back from /v1/goals", async () => {
+    const t = convexTest(schema, modules);
+    const plaintext = "rest-targets";
+    await grantKey(t, plaintext, ["read", "write"]);
+    const asOwner = t.withIdentity({ name: `owner-${plaintext}` });
+
+    const set = await call(t, "POST", "/v1/goals", {
+      key: plaintext,
+      body: { calories: 1800, protein: 130, waterMl: 2400 },
+    });
+    expect(set.status).toBe(200);
+    expect(set.body.targets).toMatchObject({
+      calories: 1800,
+      protein: 130,
+      waterMl: 2400,
+      carbs: null,
+    });
+
+    const read = await call(t, "GET", "/v1/goals", { key: plaintext });
+    expect(read.body.customGoals).toMatchObject({
+      calories: 1800,
+      protein: 130,
+    });
+    expect(read.body.waterGoalMl).toBe(2400);
+
+    // Nonsense is refused at the edge rather than stored and puzzled over.
+    const refused = await call(t, "POST", "/v1/goals", {
+      key: plaintext,
+      body: { calories: 120 },
+    });
+    expect(refused.status).toBe(400);
+
+    // And whatever an agent did over HTTP, the app's undo button covers.
+    const history = await asOwner.query(
+      api.ai.coachState.listActionHistory,
+      {},
+    );
+    const event = history.find(
+      (entry) => entry.kind === "api_set_nutrition_targets",
+    );
+    expect(event).toBeDefined();
+    await asOwner.mutation(api.ai.coachState.undoAction, { id: event!._id });
+
+    const undone = await call(t, "GET", "/v1/goals", { key: plaintext });
+    expect(undone.body.customGoals).toBeNull();
+    expect(undone.body.waterGoalMl).toBeNull();
+  });
+
   test("custom metrics go the whole way round over HTTP", async () => {
     const t = convexTest(schema, modules);
     await grantKey(t, "rest-metrics", ["read", "write", "delete"]);

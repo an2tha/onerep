@@ -8,6 +8,10 @@ import { applyManualHealthMetric } from "../logs/healthMetrics";
 import { listCustomMetricsWithEntries } from "../lib/customProgressMetrics";
 import { platformMetric } from "../lib/platformHealthMetrics";
 import {
+  applyNutritionTargets,
+  describeNutritionTargets,
+} from "../lib/nutritionTargets";
+import {
   clampCustomMetricValue,
   sanitizeCustomMetricDefinition,
 } from "../customProgressMetrics";
@@ -426,6 +430,32 @@ export const logWater = internalMutation({
       },
     });
     return { ok: true, amountMl, date: args.date, entryId: entry.id };
+  },
+});
+
+export const setNutritionTargets = internalMutation({
+  args: {
+    userId: v.string(),
+    calories: v.optional(v.union(v.number(), v.null())),
+    protein: v.optional(v.union(v.number(), v.null())),
+    carbs: v.optional(v.union(v.number(), v.null())),
+    fat: v.optional(v.union(v.number(), v.null())),
+    waterMl: v.optional(v.union(v.number(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const { userId, ...input } = args;
+    const saved = await applyNutritionTargets(ctx, userId, input);
+    await recordUndoableAction(ctx, {
+      userId,
+      kind: "api_set_nutrition_targets",
+      summary: `Set daily targets: ${describeNutritionTargets(saved.targets)}`,
+      targetType: "nutrition_targets",
+      undoPayload: {
+        kind: "restore_nutrition_targets",
+        body: saved.previous,
+      },
+    });
+    return { ok: true, targets: saved.targets, changed: saved.changed };
   },
 });
 

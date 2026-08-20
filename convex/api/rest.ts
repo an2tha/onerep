@@ -107,6 +107,13 @@ const ROUTES: Route[] = [
   },
   {
     method: "POST",
+    path: "/v1/goals",
+    tool: "set_nutrition_targets",
+    summary:
+      "Set daily calorie, macro and water targets. Omitted fields are left alone; null clears one.",
+  },
+  {
+    method: "POST",
     path: "/v1/water",
     tool: "log_water",
     summary: "Add a drink to a day's water log.",

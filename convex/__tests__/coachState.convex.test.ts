@@ -394,6 +394,52 @@ describe("coachState Convex functions", () => {
     ).resolves.toBeNull();
   });
 
+  test("carries per-meal macros, rounded and bounded, and drops the ones absent", async () => {
+    const t = convexTest(schema, modules);
+    const owner = t.withIdentity({ tokenIdentifier: "test|weekly-macros" });
+
+    await owner.mutation(api.ai.coachState.saveWeeklyPlan, {
+      weekStart: "2026-07-13",
+      title: "Prescribed week",
+      assumptions: [],
+      days: [
+        {
+          day: "Mon",
+          meals: [
+            {
+              label: "Protein oats",
+              calories: 519.6,
+              protein: 40.2,
+              carbs: 55,
+              fat: 14,
+            },
+            { label: "Whatever is left" },
+            // A slipped decimal is clamped, not stored as written.
+            { label: "Enormous dinner", calories: 99_000, protein: -5 },
+          ],
+        },
+      ],
+    });
+
+    const plan = await owner.query(api.ai.coachState.getWeeklyPlan, {
+      weekStart: "2026-07-13",
+    });
+    const meals = (plan!.days as Array<{ meals: unknown[] }>)[0].meals;
+    expect(meals[0]).toEqual({
+      label: "Protein oats",
+      calories: 520,
+      protein: 40,
+      carbs: 55,
+      fat: 14,
+    });
+    expect(meals[1]).toEqual({ label: "Whatever is left" });
+    expect(meals[2]).toEqual({
+      label: "Enormous dinner",
+      calories: 5000,
+      protein: 0,
+    });
+  });
+
   test("snaps a weekly plan to the Monday that starts its week", async () => {
     const t = convexTest(schema, modules);
     const user = t.withIdentity({ tokenIdentifier: "test|weekly-monday" });

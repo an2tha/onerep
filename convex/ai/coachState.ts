@@ -9,6 +9,10 @@ import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { APP_UPDATE_REQUIRED } from "../lib/uploads";
+import {
+  restoreNutritionTargets,
+  type NutritionTargetSnapshot,
+} from "../lib/nutritionTargets";
 
 const MAX_HISTORY = 40;
 const MAX_MEMORIES = 50;
@@ -338,6 +342,28 @@ export const saveCheckIn = mutation({
   },
 });
 
+/** Per-meal macros, rounded and bounded. Absent stays absent. */
+function clampMealMacros(meal: {
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+}) {
+  const bound = (value: number | undefined, max: number) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.max(0, Math.min(max, Math.round(value)))
+      : undefined;
+  const macros = {
+    calories: bound(meal.calories, 5000),
+    protein: bound(meal.protein, 500),
+    carbs: bound(meal.carbs, 1000),
+    fat: bound(meal.fat, 400),
+  };
+  return Object.fromEntries(
+    Object.entries(macros).filter(([, value]) => value !== undefined),
+  ) as Partial<typeof macros>;
+}
+
 const weeklyPlanDayValidator = v.object({
   day: v.string(),
   workoutPresetId: v.optional(v.string()),
@@ -347,6 +373,13 @@ const weeklyPlanDayValidator = v.object({
       label: v.string(),
       recipeId: v.optional(v.string()),
       note: v.optional(v.string()),
+      // Optional per-meal macros. A plan that names the meals but not their
+      // numbers cannot carry a prescribed intake: the user is left adding the
+      // day up themselves, which is the work the plan was meant to do.
+      calories: v.optional(v.number()),
+      protein: v.optional(v.number()),
+      carbs: v.optional(v.number()),
+      fat: v.optional(v.number()),
     }),
   ),
   recoveryNote: v.optional(v.string()),
@@ -424,6 +457,7 @@ export const saveWeeklyPlan = mutation({
         label: clampText(meal.label, 80),
         ...(meal.recipeId ? { recipeId: clampText(meal.recipeId, 100) } : {}),
         ...(meal.note ? { note: clampText(meal.note, 180) } : {}),
+        ...clampMealMacros(meal),
       })),
       ...(day.recoveryNote
         ? { recoveryNote: clampText(day.recoveryNote, 180) }
@@ -512,6 +546,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function undoPayload(ctx: MutationCtx, userId: string, payload: unknown) {
   if (!isRecord(payload) || typeof payload.kind !== "string") {
     throw new Error("This action cannot be undone");
+  }
+
+  if (
+    payload.kind === "restore_nutrition_targets" &&
+    isRecord(payload.body)
+  ) {
+    const body = payload.body as {
+      customGoals?: unknown;
+      waterGoalMl?: unknown;
+    };
+    await restoreNutritionTargets(ctx, userId, {
+      customGoals: isRecord(body.customGoals)
+        ? (body.customGoals as NutritionTargetSnapshot["customGoals"])
+        : null,
+      waterGoalMl:
+        typeof body.waterGoalMl === "number" ? body.waterGoalMl : null,
+    });
+    return;
   }
 
   if (payload.kind === "delete_recipe" && typeof payload.id === "string") {

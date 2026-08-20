@@ -65,6 +65,7 @@ import type * as lib_history from "../lib/history.js";
 import type * as lib_mealTargets from "../lib/mealTargets.js";
 import type * as lib_memoryConsolidation from "../lib/memoryConsolidation.js";
 import type * as lib_nutritionPlan from "../lib/nutritionPlan.js";
+import type * as lib_nutritionTargets from "../lib/nutritionTargets.js";
 import type * as lib_nutritionValues from "../lib/nutritionValues.js";
 import type * as lib_onboardingProfiles from "../lib/onboardingProfiles.js";
 import type * as lib_outreach from "../lib/outreach.js";
@@ -198,6 +199,7 @@ declare const fullApi: ApiFromModules<{
   "lib/mealTargets": typeof lib_mealTargets;
   "lib/memoryConsolidation": typeof lib_memoryConsolidation;
   "lib/nutritionPlan": typeof lib_nutritionPlan;
+  "lib/nutritionTargets": typeof lib_nutritionTargets;
   "lib/nutritionValues": typeof lib_nutritionValues;
   "lib/onboardingProfiles": typeof lib_onboardingProfiles;
   "lib/outreach": typeof lib_outreach;

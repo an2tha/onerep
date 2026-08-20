@@ -19,7 +19,10 @@ import {
   COACH_SUPPLEMENT_FORMS,
   COACH_SUPPLEMENT_NUTRIENT_KEYS,
   COACH_SUPPLEMENT_SCHEDULE_TYPES,
+  NUTRITION_TARGET_FIELDS,
+  NUTRITION_TARGET_RANGES,
 } from "../../packages/models/src/coach";
+import type { CoachWeeklyPlanMeal } from "../../packages/models/src/coach";
 import type {
   SupplementCategory,
   SupplementForm,
@@ -330,7 +333,7 @@ type CoachOperation = CoachOperationMeta &
           day: string;
           workoutPresetId?: string;
           workoutLabel?: string;
-          meals: Array<{ label: string; recipeId?: string; note?: string }>;
+          meals: CoachWeeklyPlanMeal[];
           recoveryNote?: string;
         }>;
         planAssumptions: string[];
@@ -385,6 +388,14 @@ type CoachOperation = CoachOperationMeta &
         active: boolean;
         schedule: SupplementSchedule;
         nutrientsPerServing: SupplementNutrients;
+      }
+    | {
+        type: "set_nutrition_targets";
+        calories?: number;
+        protein?: number;
+        carbs?: number;
+        fat?: number;
+        waterMl?: number;
       }
     | {
         type: "undo_action";
@@ -1481,6 +1492,14 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
                   const meal = item as Record<string, unknown>;
                   const label = clampText(meal.label, 80);
                   if (!label) return null;
+                  const macro = (field: string, max: number) =>
+                    typeof meal[field] === "number"
+                      ? Math.round(clampNumber(meal[field], 0, max, 0))
+                      : undefined;
+                  const calories = macro("calories", 5000);
+                  const protein = macro("protein", 500);
+                  const carbs = macro("carbs", 1000);
+                  const fat = macro("fat", 400);
                   return {
                     label,
                     ...(clampText(meal.recipeId, 100)
@@ -1489,6 +1508,10 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
                     ...(clampText(meal.note, 180)
                       ? { note: clampText(meal.note, 180) }
                       : {}),
+                    ...(calories == null ? {} : { calories }),
+                    ...(protein == null ? {} : { protein }),
+                    ...(carbs == null ? {} : { carbs }),
+                    ...(fat == null ? {} : { fat }),
                   };
                 })
                 .filter((item): item is NonNullable<typeof item> =>
@@ -1620,6 +1643,25 @@ function normalizeCoachOperations(value: unknown): CoachOperation[] {
             ? { followUpKind }
             : {}),
         };
+      }
+
+      if (type === "set_nutrition_targets") {
+        const target = (field: (typeof NUTRITION_TARGET_FIELDS)[number]) => {
+          const value = row[field];
+          if (typeof value !== "number" || !Number.isFinite(value))
+            return undefined;
+          const [low, high] = NUTRITION_TARGET_RANGES[field];
+          return Math.round(clampNumber(value, low, high, low));
+        };
+        const targets = {
+          ...(target("calories") == null ? {} : { calories: target("calories") }),
+          ...(target("protein") == null ? {} : { protein: target("protein") }),
+          ...(target("carbs") == null ? {} : { carbs: target("carbs") }),
+          ...(target("fat") == null ? {} : { fat: target("fat") }),
+          ...(target("waterMl") == null ? {} : { waterMl: target("waterMl") }),
+        };
+        if (Object.keys(targets).length === 0) return null;
+        return { ...meta, type, ...targets };
       }
 
       if (type === "save_supplement") {
@@ -2649,6 +2691,10 @@ async function generateCoachChatWithOpenAi({
                     label: "meal label",
                     recipeId: "optional exact workspace recipe id",
                     note: "optional meal note",
+                    calories: 520,
+                    protein: 40,
+                    carbs: 55,
+                    fat: 14,
                   },
                 ],
                 recoveryNote: "optional recovery guidance",
@@ -2748,6 +2794,18 @@ async function generateCoachChatWithOpenAi({
             entryId: "exact workspace food entry id",
             date: "YYYY-MM-DD",
             name: "entry name from workspace",
+          },
+          {
+            type: "set_nutrition_targets",
+            confirmation: "auto | confirm",
+            summary: "daily targets being set",
+            assumptions: [],
+            warnings: [],
+            calories: 1800,
+            protein: 130,
+            carbs: 180,
+            fat: 60,
+            waterMl: 2400,
           },
           {
             type: "undo_action",
