@@ -75,8 +75,16 @@ export default function CustomFoods() {
   )
 
   const [query, setQuery] = useState("")
+  // Arriving from a search that found nothing: the name the user typed is the
+  // one thing we already know, so it goes in the field rather than being typed
+  // twice. `log=1` means they were mid-log when the database let them down —
+  // saving hands straight to the log sheet instead of ending on a list.
+  const prefillName = searchParams.get("name")?.slice(0, 80).trim() ?? ""
+  const logAfterSave = searchParams.get("log") === "1"
   const [draft, setDraft] = useState<CustomFoodDraft | null>(() =>
-    searchParams.get("new") === "1" ? emptyCustomFoodDraft() : null
+    searchParams.get("new") === "1" || prefillName
+      ? { ...emptyCustomFoodDraft(), name: prefillName }
+      : null
   )
   const [saving, setSaving] = useState(false)
   const [logTarget, setLogTarget] = useState<CustomFood | null>(null)
@@ -103,7 +111,7 @@ export default function CustomFoods() {
 
     setSaving(true)
     try {
-      await saveFood({
+      const saved = await saveFood({
         id: draft.id ? (draft.id as Id<"customFoods">) : undefined,
         name: draft.name.trim(),
         brand: draft.brand.trim() || undefined,
@@ -117,6 +125,24 @@ export default function CustomFoods() {
         nutrientsPerServing: customFoodNutrientsFromDraft(draft),
       })
       toast.success(draft.id ? "Food updated" : "Custom food saved")
+      if (!draft.id && logAfterSave) {
+        // The offline queue resolves to nothing, so the id may be absent. The
+        // log sheet only needs the nutrition, and logging offline queues too.
+        const savedId =
+          saved && typeof saved === "object" && "id" in saved
+            ? String((saved as { id: unknown }).id)
+            : undefined
+        setLogTarget({
+          ...(savedId ? { _id: savedId } : {}),
+          name: draft.name.trim(),
+          brand: draft.brand.trim() || undefined,
+          servingLabel: draft.servingLabel.trim(),
+          servingGrams: draft.servingGrams.trim()
+            ? Number(draft.servingGrams)
+            : undefined,
+          nutrientsPerServing: customFoodNutrientsFromDraft(draft),
+        })
+      }
       setDraft(null)
     } catch (error) {
       reportOfflineMutationError(error, "Could not save this food")

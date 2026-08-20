@@ -29,6 +29,28 @@ describe("Snap and Log accessibility contract", () => {
     expect(SNAP_SOURCE).toContain('navigate("/foods/search")')
   })
 
+  test("a camera that will not start hands over to the system camera", () => {
+    // The WebView preview failing is not the end of the flow: on a phone with
+    // a camera, the system picker is the recovery, and it fires without the
+    // user having to find a button.
+    expect(SNAP_SOURCE).toContain("autoFallbackAttemptRef")
+    expect(SNAP_SOURCE).toContain("void handleNativeCapture()")
+    expect(SNAP_SOURCE).toContain("Use camera app")
+    expect(SNAP_SOURCE).toContain("const [cameraFailure, setCameraFailure]")
+    expect(SNAP_SOURCE).toContain("function describeCameraError(")
+  })
+
+  test("a cancelled picker and a failed play() are not permission denials", () => {
+    expect(SNAP_SOURCE).toContain("function isCancelledCapture(")
+    expect(SNAP_SOURCE).toContain("if (isCancelledCapture(err)) return")
+    expect(SNAP_SOURCE).toContain("Camera preview did not autoplay")
+    // The generic capture failure must not claim the camera was denied.
+    const nativeCapture = SNAP_SOURCE.slice(
+      SNAP_SOURCE.indexOf("async function handleNativeCapture()")
+    ).slice(0, 1800)
+    expect(nativeCapture).not.toContain('setCameraState("denied")\n      if')
+  })
+
   test("results sheet controls expose names and selected state", () => {
     expect(SNAP_SOURCE).toContain('aria-label="Close capture results"')
     expect(SNAP_SOURCE).toContain("aria-pressed={meal === m.id}")

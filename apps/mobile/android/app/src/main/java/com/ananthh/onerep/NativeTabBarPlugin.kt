@@ -239,6 +239,7 @@ class NativeTabBarPlugin : Plugin() {
 
         container.addView(row)
         container.alpha = if (visible) 1f else 0f
+        container.visibility = if (visible) View.VISIBLE else View.GONE
         host.addView(container)
 
         this.container = container
@@ -385,10 +386,16 @@ class NativeTabBarPlugin : Plugin() {
     private fun applyVisibility(next: Boolean) {
         visible = next
         val container = container ?: return
+        // Alpha alone leaves a fully transparent but still-touchable view on
+        // top of the WebView, silently eating taps on whatever it's hiding.
+        // GONE has to land after the fade out, and before it on fade in, or
+        // the animation has nothing visible to animate.
+        if (next) container.visibility = View.VISIBLE
         container.animate()
             .alpha(if (next) 1f else 0f)
             .translationY(if (next) 0f else dp(16f).toFloat())
             .setDuration(250)
+            .withEndAction { if (!next) container.visibility = View.GONE }
             .start()
     }
 

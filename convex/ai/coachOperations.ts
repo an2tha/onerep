@@ -293,7 +293,15 @@ export const applyApproved = action({
               undoPayload: { kind: "remove_food_entry", date, entryId },
             },
           );
-          results.push({ ...operation, entryId, actionId: String(actionId) });
+          // The date rides along so the app can open the day it landed on
+          // rather than today's diary, which is the wrong day whenever the
+          // coach logged a meal for yesterday.
+          results.push({
+            ...operation,
+            date,
+            entryId,
+            actionId: String(actionId),
+          });
         } else if (operation.type === "delete_nutrition") {
           const existing = recentFoodDays
             .find((day) => day.date === operation.date)

@@ -2719,8 +2719,13 @@ export default function Coach({
                                       motion: "forward",
                                     })
                                   }
-                                  onOpenNutrition={() =>
-                                    navigate("/nutrition", { motion: "switch" })
+                                  onOpenNutrition={(date) =>
+                                    navigate(
+                                      date
+                                        ? `/nutrition?date=${date}`
+                                        : "/nutrition",
+                                      { motion: "switch" }
+                                    )
                                   }
                                   onOpenProgress={() =>
                                     navigate("/progress", { motion: "switch" })

@@ -62,6 +62,29 @@ import { APP_ACCENT_COLORS, MACRO_COLORS, tint } from "@repo/ui"
 import { useAiFeatureGate } from "@/lib/ai-access"
 import { reportOfflineMutationError } from "@/lib/offline-mutation-errors"
 
+/**
+ * Why the camera would not start, in the words the platform used.
+ *
+ * Shown small and last on the failure screen. Two identical "Camera not
+ * available" reports can be a missing permission and a WebView that has no
+ * getUserMedia at all, and without this line there is no way to tell them
+ * apart from a bug report.
+ */
+function describeCameraError(error: unknown) {
+  if (!(error instanceof Error)) return null
+  const name = error.name && error.name !== "Error" ? error.name : ""
+  const message = error.message?.trim() ?? ""
+  const detail = [name, message].filter(Boolean).join(": ")
+  return detail ? detail.slice(0, 140) : null
+}
+
+/** A cancelled picker is a decision, not a fault. */
+function isCancelledCapture(error: unknown) {
+  if (!(error instanceof Error)) return false
+  if (error.name === "UserCancelled" || error.name === "AbortError") return true
+  return /cancel/i.test(error.message ?? "")
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type CameraState = "requesting" | "active" | "denied" | "unsupported"
@@ -94,6 +117,7 @@ export default function SnapAndLog() {
   const scanLoopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [cameraState, setCameraState] = useState<CameraState>("requesting")
+  const [cameraFailure, setCameraFailure] = useState<string | null>(null)
   const [cameraAttempt, setCameraAttempt] = useState(0)
   const [mode, setMode] = useState<ScreenMode>(initialMode)
   const [facingMode, setFacingMode] = useState<"environment" | "user">(
@@ -152,6 +176,7 @@ export default function SnapAndLog() {
         setCameraState("unsupported")
         return
       }
+      let stream: MediaStream
       try {
         if (Capacitor.isNativePlatform()) {
           const permission = await NativeCamera.requestPermissions({
@@ -163,7 +188,7 @@ export default function SnapAndLog() {
           }
         }
 
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: { ideal: facing },
             width: { ideal: 1920 },
@@ -171,24 +196,40 @@ export default function SnapAndLog() {
           },
           audio: false,
         })
-        if (signal.aborted) {
-          stream.getTracks().forEach((t) => t.stop())
-          return
-        }
-        streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          await videoRef.current.play()
-        }
-        if (!signal.aborted) setCameraState("active")
       } catch (err: unknown) {
         if (signal.aborted) return
         const name = err instanceof Error ? err.name : ""
+        setCameraFailure(describeCameraError(err))
         setCameraState(
           name === "NotAllowedError" || name === "PermissionDeniedError"
             ? "denied"
             : "unsupported"
         )
+        return
+      }
+
+      if (signal.aborted) {
+        stream.getTracks().forEach((t) => t.stop())
+        return
+      }
+      streamRef.current = stream
+
+      // The stream is live by this point. play() is a separate hazard —
+      // Android WebViews reject it with NotAllowedError under autoplay rules
+      // even with the camera granted, and treating that as a permission
+      // denial sent people to a Settings screen where nothing was wrong.
+      // `autoPlay` on the element covers us if this rejects.
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        try {
+          await videoRef.current.play()
+        } catch (err: unknown) {
+          console.warn("Camera preview did not autoplay", err)
+        }
+      }
+      if (!signal.aborted) {
+        setCameraFailure(null)
+        setCameraState("active")
       }
     },
     []
@@ -211,9 +252,27 @@ export default function SnapAndLog() {
   }, [cameraAttempt, facingMode, startCamera, useNativeCapture])
 
   function retryCamera() {
+    setCameraFailure(null)
     setCameraState("requesting")
     setCameraAttempt((attempt) => attempt + 1)
   }
+
+  // When the in-app preview cannot start on a phone that plainly has a
+  // camera, hand straight over to the system camera instead of parking the
+  // user on an error screen with a button they have to discover. Once per
+  // attempt: a failing picker must not become a loop.
+  const autoFallbackAttemptRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!hasNativeCameraFallback || useNativeCapture) return
+    if (cameraState !== "denied" && cameraState !== "unsupported") return
+    if (autoFallbackAttemptRef.current === cameraAttempt) return
+    autoFallbackAttemptRef.current = cameraAttempt
+    void handleNativeCapture()
+    // handleNativeCapture is stable enough for this purpose: it reads state
+    // through refs and setters, and re-running on every render would defeat
+    // the once-per-attempt guard above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameraState, cameraAttempt, hasNativeCameraFallback, useNativeCapture])
 
   useEffect(() => {
     const track = streamRef.current?.getVideoTracks()[0]
@@ -400,11 +459,15 @@ export default function SnapAndLog() {
         setBarcodeScanning(false)
       }
     } catch (err) {
-      const name = err instanceof Error ? err.name : ""
-      if (name === "UserCancelled" || name === "AbortError") return
+      // Capacitor rejects a cancelled picker with a plain Error whose message
+      // is the only signal — checking `name` alone made "I changed my mind"
+      // indistinguishable from a hardware failure, and then blamed the user's
+      // permissions for it.
+      if (isCancelledCapture(err)) return
+      console.warn("Native camera capture failed", err)
+      setCameraFailure(describeCameraError(err))
       if (mode === "snap") setSnapPhase("error")
       else setBarcodeError("Scan failed. Try again.")
-      setCameraState("denied")
     }
   }
 
@@ -604,12 +667,18 @@ export default function SnapAndLog() {
               Camera not available
             </p>
           )}
+          {(cameraState === "denied" || cameraState === "unsupported") &&
+            cameraFailure && (
+              <p className="max-w-[280px] text-center text-[12px] leading-4 text-white/45">
+                {cameraFailure}
+              </p>
+            )}
           {(cameraState === "denied" || cameraState === "unsupported") && (
             <div className="mt-2 flex flex-wrap justify-center gap-2">
               <button
                 type="button"
                 onClick={retryCamera}
-                className="min-h-11 rounded-lg bg-white px-4 text-[14px] font-semibold text-black"
+                className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
                 Try camera again
               </button>
@@ -617,7 +686,7 @@ export default function SnapAndLog() {
                 <button
                   type="button"
                   onClick={() => void handleNativeCapture()}
-                  className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
+                  className="min-h-11 rounded-lg bg-white px-4 text-[14px] font-semibold text-black"
                 >
                   Use camera app
                 </button>
@@ -628,6 +697,15 @@ export default function SnapAndLog() {
                 className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
               >
                 Search foods
+              </button>
+              {/* The camera failing and the food being missing from the
+                  database are the same dead end from the user's side. */}
+              <button
+                type="button"
+                onClick={() => navigate("/foods/custom?new=1&log=1")}
+                className="min-h-11 rounded-lg border border-white/25 px-4 text-[14px] font-semibold text-white"
+              >
+                Enter it yourself
               </button>
             </div>
           )}
