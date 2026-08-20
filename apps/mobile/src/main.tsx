@@ -100,7 +100,7 @@ import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
 import { AuthGuard } from "./components/auth-guard.tsx"
 import { ErrorBoundary } from "./components/error-boundary.tsx"
-import { ThemeProvider, Toaster, toast } from "@repo/ui"
+import { ThemeProvider, Toaster, toast, dismissTopmost } from "@repo/ui"
 import { Capacitor } from "@capacitor/core"
 import { App as CapacitorApp } from "@capacitor/app"
 import { completeNativeOAuth, isAuthDeepLink } from "@/lib/native-oauth"
@@ -1010,7 +1010,12 @@ const router = createBrowserRouter([
         path: "/foods/recipe/new",
         element: (
           <AuthGuard>
-            <NewRecipe />
+            {/* Every other route has one. Without it a throw here unmounts
+                to whatever is above, which reads as "the pencil sent me back
+                to Nutrition". */}
+            <ErrorBoundary label="Recipe">
+              <NewRecipe />
+            </ErrorBoundary>
           </AuthGuard>
         ),
       },
@@ -1018,7 +1023,9 @@ const router = createBrowserRouter([
         path: "/foods/recipe/:id",
         element: (
           <AuthGuard>
-            <NewRecipe />
+            <ErrorBoundary label="Recipe">
+              <NewRecipe />
+            </ErrorBoundary>
           </AuthGuard>
         ),
       },
@@ -1198,6 +1205,23 @@ const router = createBrowserRouter([
     ],
   },
 ])
+
+// Android's back gesture, routed through one handler.
+//
+// With no listener at all the plugin sends back straight to the WebView's
+// history, so a gesture made to close an open sheet closed the sheet *and*
+// popped the route — one swipe that lands two screens away. Overlays register
+// on the dismiss stack and get unwound first; only then does back mean back.
+if (Capacitor.getPlatform() === "android") {
+  void CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+    if (dismissTopmost()) return
+    if (canGoBack) {
+      window.history.back()
+      return
+    }
+    void CapacitorApp.exitApp()
+  })
+}
 
 // Widgets, the iOS Live Activity, and the Android ongoing notification all open
 // the app via onerep://. Without an explicit listener the query string — which

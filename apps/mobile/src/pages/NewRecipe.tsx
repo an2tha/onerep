@@ -1156,6 +1156,64 @@ export default function NewRecipe() {
     name.trim().length > 0 &&
     (!editLogTarget || targetFoodLogs !== undefined)
 
+  // An id that resolves to nothing used to render the blank create form under
+  // an "Edit recipe" heading — the entry's pencil looked like it did nothing,
+  // or worse, like editing had silently emptied the recipe. Say what happened.
+  if (id && recipesQuery !== undefined && !initial) {
+    return (
+      <div className="desktop-canvas flex min-h-svh flex-col bg-background">
+        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-3xl">
+          <header
+            className="flex items-center gap-3 px-[var(--app-page-x)] pb-4 md:px-8"
+            style={{
+              paddingTop: "max(1.25rem, env(safe-area-inset-top, 1.25rem))",
+            }}
+          >
+            <button
+              onClick={() => navigate(-1)}
+              className="app-icon-button"
+              aria-label="Back"
+            >
+              <ArrowLeft size={15} weight="bold" />
+            </button>
+            <h1 className="flex-1 text-[17px] font-semibold">Recipe missing</h1>
+          </header>
+          <div className="px-[var(--app-page-x)] md:px-8">
+            <p className="text-[15px] leading-6 font-semibold">
+              This recipe is no longer in your library.
+            </p>
+            <p className="mt-2 text-[14px] leading-6 text-muted-foreground">
+              The diary entry keeps its own numbers, so what you logged is
+              unchanged. Build the recipe again to edit it going forward.
+            </p>
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/foods/recipe/new", {
+                  motion: "forward",
+                  replace: true,
+                  ...(editLogTarget
+                    ? { state: { replaceFoodLogEntry: editLogTarget } }
+                    : {}),
+                })
+              }
+              className="native-primary-button mt-5 w-full"
+            >
+              Build it again
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="native-secondary-button mt-2 min-h-12 w-full rounded-[0.8rem]"
+            >
+              Back to the diary
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="desktop-canvas flex min-h-svh flex-col bg-background">

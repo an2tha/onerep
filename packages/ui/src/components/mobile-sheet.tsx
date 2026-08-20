@@ -1,6 +1,7 @@
 import * as React from "react"
 import { createPortal } from "react-dom"
 import { cn } from "../lib/utils"
+import { pushDismissHandler } from "../lib/dismiss-stack"
 
 export type MobileSheetProps = {
   children: React.ReactNode
@@ -103,6 +104,9 @@ export function MobileSheet({
   React.useEffect(() => {
     dismissRef.current = dismiss
   }, [dismiss])
+
+  // Android's back gesture unwinds this before it touches the route.
+  React.useEffect(() => pushDismissHandler(() => dismissRef.current()), [])
 
   React.useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null
