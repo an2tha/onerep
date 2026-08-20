@@ -78,6 +78,14 @@ describe("@repo/ui package boundary", () => {
       // Convex writes and haptics behind the shared sheet and button
       // primitives; the catalog it edits is app-side.
       "custom-exercise-sheet.tsx",
+      "check-in-history.tsx",
+      "health-metric-picker.tsx",
+      "track-something-new.tsx",
+      "dial-custom-metrics.tsx",
+      "health-readings-sheet.tsx",
+      "custom-metric-log-sheet.tsx",
+      "check-in-readings-sheet.tsx",
+      "custom-metric-builder-sheet.tsx",
       "error-boundary.tsx",
       "food-detail-sheet.tsx",
       // Form coach: camera and MediaRecorder capture, Convex reads and
