@@ -144,3 +144,35 @@ export const backfillHealthSyncEnabled = migrations.define({
 export const runHealthSyncRename = migrations.runner([
   internal.migrations.backfillHealthSyncEnabled,
 ]);
+
+/**
+ * `loggedAt` on a check-in is the day key, `YYYY-MM-DD`. Progress.tsx used to
+ * write a full UTC ISO timestamp into it, so rows written either side of
+ * midnight UTC disagreed with every reader — all of which slice to ten
+ * characters and compare against the user's *local* day.
+ *
+ * The slice is deliberately all this does. Readers already truncate, so
+ * shortening the stored value moves nothing on screen; it only makes the value
+ * match the format the MCP and import paths look up by, so a weigh-in logged
+ * through Gemini and one logged in the app finally land on the same row.
+ *
+ * Re-dating rows into the user's timezone would correct the historical
+ * off-by-one, but it would also move readings using a timezone we only know
+ * today, on evidence we do not have for the day in question. Wrong-but-stable
+ * beats silently rewritten history in a body-weight log.
+ *
+ * Idempotent: rows already ten characters long are skipped.
+ */
+export const normalizeBodyMeasurementLoggedAt = migrations.define({
+  table: "bodyMeasurements",
+  batchSize: 100,
+  migrateOne: async (ctx, measurement) => {
+    const loggedAt = measurement.loggedAt;
+    if (loggedAt.length <= 10) return;
+    await ctx.db.patch(measurement._id, { loggedAt: loggedAt.slice(0, 10) });
+  },
+});
+
+export const runBodyMeasurementDateKey = migrations.runner([
+  internal.migrations.normalizeBodyMeasurementLoggedAt,
+]);

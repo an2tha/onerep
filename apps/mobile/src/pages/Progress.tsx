@@ -420,7 +420,12 @@ export default function Progress() {
     try {
       await saveMeasurement({
         clientId: entryClientId ?? crypto.randomUUID(),
-        loggedAt: new Date().toISOString(),
+        // The local day key, not a UTC timestamp: `loggedAt` is the day this
+        // check-in belongs to, and every reader compares it against
+        // `currentDateKey()`. A UTC ISO string disagrees with that for anyone
+        // logging either side of midnight UTC, which orphaned the row — no
+        // prefill, a duplicate on the next save, and a point on the wrong day.
+        loggedAt: today,
         weightKg: unit === "lbs" ? enteredWeight / 2.20462 : enteredWeight,
         ...(enteredBodyFat !== undefined ? { bodyFatPct: enteredBodyFat } : {}),
         ...(enteredWaist !== undefined ? { waistCm: enteredWaist } : {}),
