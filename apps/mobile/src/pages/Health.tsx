@@ -3,6 +3,7 @@ import {
   CaretRight,
   HeartbeatIcon,
   PencilSimple,
+  Plus,
   SlidersHorizontal,
 } from "@phosphor-icons/react"
 import { useMutation, useQuery } from "convex/react"
@@ -14,6 +15,12 @@ import { hapticSelection } from "@/lib/haptics"
 import { cn } from "@/lib/utils"
 import { MobileSheet } from "@/components/mobile-sheet"
 import { HealthReadingsSheet } from "@/components/health-readings-sheet"
+import { CustomMetricLogSheet } from "@/components/custom-metric-log-sheet"
+import { TrackSomethingNew } from "@/components/track-something-new"
+import {
+  customMetricCaption,
+  useCustomMetricsByDial,
+} from "@/components/dial-custom-metrics"
 import { EmptyState, MetricToggleList, PrimaryButton } from "@repo/ui"
 import {
   HEALTH_DIALS,
@@ -66,6 +73,7 @@ export default function Health() {
   const scored = data?.score ?? null
   const [dialsOpen, setDialsOpen] = useState(false)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [logOpen, setLogOpen] = useState(false)
   const preferences = useQuery(api.users.users.getPreferences)
   const setHealthSync = useMutation(api.users.users.setHealthSync)
   const dialSelection = resolveHealthDialSelection(
@@ -97,7 +105,19 @@ export default function Health() {
           {/* The pair sits tight enough to read as one control cluster; two
               free-floating circles at the usual header gap looked like the
               second one had wandered in from another screen. */}
+          {/* Three verbs, three circles, in the order they get used: add a
+              figure, fix a figure, change what the page shows. Creating a
+              metric is the fourth thing this page can do and it is deliberately
+              not here — see the row above Trends. */}
           <div className="flex shrink-0 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setLogOpen(true)}
+              aria-label="Log a custom metric"
+              className="app-translucent motion-tactile inline-flex size-10 shrink-0 items-center justify-center rounded-full"
+            >
+              <Plus size={17} weight="bold" />
+            </button>
             <button
               type="button"
               onClick={() => setEditorOpen(true)}
@@ -140,6 +160,10 @@ export default function Health() {
           <HealthHub data={data} />
         )}
       </main>
+
+      {logOpen && (
+        <CustomMetricLogSheet today={today} onClose={() => setLogOpen(false)} />
+      )}
 
       {editorOpen && (
         <HealthReadingsSheet
@@ -226,10 +250,21 @@ function HealthHub({ data }: { data: Dashboard }) {
       ?.healthSync?.dials
   )
 
+  const { byDial, scores } = useCustomMetricsByDial()
+
   // Body carries no score: there is no honest target to grade a weight
   // against, so its ring stays empty and the label does the work.
-  const detailFor: Record<string, { score: number | null; detail: string }> = {
+  //
+  // `native` says whether the app measured anything here itself, as opposed to
+  // through a metric the user defined. It is what decides whether a dial gets a
+  // slot: a dial with neither is a door onto an empty room, and five of those
+  // in a row is what the hero looked like the first time all nine were listed.
+  const detailFor: Record<
+    string,
+    { score: number | null; detail: string; native: boolean }
+  > = {
     recovery: {
+      native: recovery?.status !== "unknown",
       score: data.recoveryScore,
       detail:
         recovery?.status === "ready"
@@ -241,12 +276,14 @@ function HealthHub({ data }: { data: Dashboard }) {
               : "needs a week of data",
     },
     sleep: {
+      native: recovery?.sleep != null,
       score: sleep?.score ?? null,
       detail: recovery?.sleep
         ? `${formatHours(recovery.sleep.recent)} a night`
         : "nothing recorded",
     },
     activity: {
+      native: exercise?.value != null,
       score: exercise?.score ?? null,
       detail:
         exercise?.value == null
@@ -254,25 +291,53 @@ function HealthHub({ data }: { data: Dashboard }) {
           : `${Math.round(exercise.value)} of ${exercise.target} minutes`,
     },
     heart: {
+      native: recovery?.restingHeartRate != null,
       score: cardio?.score ?? null,
       detail: recovery?.restingHeartRate
         ? `${Math.round(recovery.restingHeartRate.recent)}bpm resting`
         : "needs a week of data",
     },
     body: {
+      native: latestWeightKg != null,
       score: null,
       detail: latestWeightKg == null ? "nothing recorded" : weightCaption,
     },
   }
 
-  const visibleDials = HEALTH_DIALS.filter((dial) => selection[dial.key]).map(
-    (dial) => ({
-      ...dial,
-      score: detailFor[dial.key]?.score ?? null,
-      detail: detailFor[dial.key]?.detail ?? dial.detail,
+  const visibleDials = HEALTH_DIALS.filter((dial) => selection[dial.key])
+    .map((dial) => {
+      const custom = byDial[dial.key] ?? []
+      const measured = detailFor[dial.key]
+      return {
+        ...dial,
+        custom,
+        // The app's own score wins where it has one. A dial like Nutrition or
+        // Vitals has no maths of its own, so it is graded on the targets the
+        // user set on their own metrics, and left ungraded when they set none.
+        score: measured?.score ?? scores[dial.key] ?? null,
+        detail:
+          measured?.native === true
+            ? (measured.detail ?? dial.detail)
+            : custom.length > 0
+              ? customMetricCaption(custom)
+              : (measured?.detail ?? dial.detail),
+        present: measured?.native === true || custom.length > 0,
+      }
     })
-  )
-  const dialSize = visibleDials.length >= 5 ? 84 : 104
+    .filter((dial) => dial.present)
+
+  // The row is centred, wraps nothing, and every dial carries a label under it
+  // that must stay legible. 84px stopped fitting somewhere around six, and the
+  // flex shrink that rescues five on a 360px phone turns nine into a row of
+  // beads — so the requested size keeps stepping down instead.
+  const dialSize =
+    visibleDials.length >= 8
+      ? 58
+      : visibleDials.length >= 7
+        ? 66
+        : visibleDials.length >= 5
+          ? 84
+          : 104
 
   return (
     <>
@@ -301,9 +366,10 @@ function HealthHub({ data }: { data: Dashboard }) {
         </p>
 
         {/*
-          Five dials do not fit at the four-dial size on a 360px phone, so the
-          size falls out of how many are actually shown rather than being fixed:
-          somebody who switches two off gets the bigger, more readable ring back.
+          The size falls out of how many are actually shown rather than being
+          fixed: somebody tracking one custom metric and nothing else gets the
+          big readable ring, and somebody running all nine still gets a row that
+          fits a 360px phone.
         */}
         <div
           className="relative mt-9 flex items-end justify-center gap-1.5 pb-1 sm:mt-12 sm:gap-4"
@@ -386,13 +452,21 @@ function HealthHub({ data }: { data: Dashboard }) {
         </section>
       )}
 
+      {/* Above Trends rather than in the header: creating a metric is a rare,
+          considered act, and it earns words instead of a fourth glyph. */}
+      <TrackSomethingNew
+        className="mt-5"
+        tab="body"
+        detail="A metric of your own, filed under the dial it belongs to"
+      />
+
       <button
         type="button"
         onClick={() => {
           hapticSelection()
           navigate("/health/trends", { motion: "forward" })
         }}
-        className="mt-5 flex min-h-14 w-full items-center justify-between gap-3 border-y border-border px-1 py-3.5 text-left transition-colors active:bg-muted/45"
+        className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-border px-1 py-3.5 text-left transition-colors active:bg-muted/45"
         aria-label="Open trends and history"
       >
         <div className="min-w-0">

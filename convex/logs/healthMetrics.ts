@@ -12,7 +12,11 @@
 import { v } from "convex/values";
 import { internalQuery, mutation, query } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
-import { HEALTH_METRICS, saneHealthMetric } from "../lib/healthMetricCatalog";
+import {
+  HEALTH_DIALS,
+  HEALTH_METRICS,
+  saneHealthMetric,
+} from "../lib/healthMetricCatalog";
 import { sanePlatformReading } from "../lib/platformHealthMetrics";
 import { getAuthUser, safeGetAuthUser } from "../lib/auth";
 import { RECOVERY_WINDOW_DAYS, summarizeRecovery } from "../lib/recovery";
@@ -24,6 +28,7 @@ import {
   HEALTH_SCORE_WINDOW_DAYS,
   computeHealthScore,
 } from "../lib/healthScore";
+import { buildCustomMetricDials } from "../lib/customProgressMetrics";
 import {
   RANGE_DAYS,
   buildHealthSeries,
@@ -469,6 +474,19 @@ export const dashboard = query({
       today: args.today,
       windowDays: HEALTH_SCORE_WINDOW_DAYS,
       recovery,
+      /**
+       * Custom metrics, filed under the dial their catalogue group belongs to
+       * and scored against the user's own baseline or their stated target.
+       *
+       * Sent whole rather than as a score per dial because the page needs
+       * `hasData` to decide what to draw: a dial with readings gets a ring, one
+       * without belongs in Trends where an empty series is honest rather than
+       * embarrassing. A `score` of null there means "no reading" and must never
+       * be rendered as a zero.
+       */
+      customDials: await buildCustomMetricDials(ctx, user._id, args.today),
+      /** Labels and routes for the dials above, so the page holds no copy. */
+      dials: HEALTH_DIALS,
       /** Oldest first, for the sparklines. */
       days: scoringDays,
       ...computeHealthScore({

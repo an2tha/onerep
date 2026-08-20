@@ -13,6 +13,8 @@ import {
   formatCount,
   formatHours,
 } from "./shared"
+import { DialCustomMetrics } from "@/components/dial-custom-metrics"
+import { TrackSomethingNew } from "@/components/track-something-new"
 
 const STATUS_CAPTION: Record<string, string> = {
   ready: "recovered",
@@ -182,6 +184,12 @@ export default function HealthRecovery() {
                 </ul>
               </section>
             )}
+          <DialCustomMetrics dial="recovery" tone={AREA_TONES.recovery} />
+
+          <TrackSomethingNew
+            tab="body"
+            detail="Soreness, mood, whatever you judge a day by."
+          />
         </>
       )}
     </HealthDetailShell>

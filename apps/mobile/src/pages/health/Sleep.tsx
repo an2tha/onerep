@@ -13,6 +13,8 @@ import {
   StatGrid,
   formatHours,
 } from "./shared"
+import { DialCustomMetrics } from "@/components/dial-custom-metrics"
+import { TrackSomethingNew } from "@/components/track-something-new"
 
 /**
  * Sleep, which is the pillar that moves everything else.
@@ -108,6 +110,12 @@ export default function HealthSleep() {
           {advice && (
             <AdviceBlock title={advice.title} detail={advice.detail} />
           )}
+          <DialCustomMetrics dial="sleep" tone={AREA_TONES.sleep} />
+
+          <TrackSomethingNew
+            tab="body"
+            detail="Bedtime, wake-ups, or a night you want counted."
+          />
         </>
       )}
     </HealthDetailShell>

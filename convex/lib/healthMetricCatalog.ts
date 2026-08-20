@@ -20,6 +20,8 @@
  * not be able to poison a baseline. Out of range drops the field, never the day.
  */
 
+import { platformMetric } from "./platformHealthMetrics";
+
 export type HealthMetricGroup = "activity" | "recovery" | "body";
 
 export type HealthMetricDefinition = {
@@ -276,9 +278,124 @@ export const HEALTH_DIALS: HealthDialDefinition[] = [
     route: "/health/body",
     defaultEnabled: true,
   },
+  {
+    key: "nutrition",
+    label: "Nutrition",
+    detail: "What you ate, against what you asked for",
+    route: "/health/nutrition",
+    defaultEnabled: true,
+  },
+  {
+    key: "vitals",
+    label: "Vitals",
+    detail: "Glucose, pressure, oxygen, temperature",
+    route: "/health/vitals",
+    defaultEnabled: true,
+  },
+  {
+    key: "mindfulness",
+    label: "Mindfulness",
+    detail: "Time spent deliberately doing nothing",
+    route: "/health/mindfulness",
+    defaultEnabled: true,
+  },
+  {
+    /**
+     * Off by default, like the intimate rows in the metric catalogue above.
+     * A cycle dial that appears on the home screen of a phone someone else
+     * might glance at is a disclosure the app made on their behalf.
+     */
+    key: "reproductive",
+    label: "Cycle",
+    detail: "Cycle tracking, in your own hand",
+    route: "/health/reproductive",
+    defaultEnabled: false,
+  },
 ];
 
 export const HEALTH_DIAL_KEYS = HEALTH_DIALS.map((dial) => dial.key);
+
+export const HEALTH_DIAL_BY_KEY = new Map(
+  HEALTH_DIALS.map((dial) => [dial.key, dial]),
+);
+
+/**
+ * Which dial a platform-catalogue group belongs to.
+ *
+ * The five original dials were written for the handful of signals the app
+ * scores itself, and three whole groups of the platform catalogue had nowhere
+ * to land: a custom metric bound to blood glucose or mindful minutes was synced
+ * faithfully and then shown nowhere, which is the failure this map exists to
+ * fix. Every group in `PlatformMetricGroup` must appear here — a missing one
+ * means a metric that syncs into a void.
+ *
+ * `vitals` gets its own dial rather than folding into `heart`. The heart dial
+ * is a screen about resting rate and variability; putting a finger-prick
+ * glucose reading behind a ring labelled "Heart" would be a filing error the
+ * user has to mentally undo every time they open it. The heart-rate family is
+ * pulled back out by `HEART_KEYS` below, because splitting walking heart rate
+ * away from the resting rate it is a companion to would be the same mistake in
+ * the other direction.
+ */
+const DIAL_BY_GROUP: Record<string, string> = {
+  activity: "activity",
+  vitals: "vitals",
+  body: "body",
+  nutrition: "nutrition",
+  sleep: "sleep",
+  reproductive: "reproductive",
+  mindfulness: "mindfulness",
+};
+
+/** Vitals that are about the heart specifically, and belong on its dial. */
+const HEART_KEYS = new Set([
+  "restingHeartRateBpm",
+  "heartRateBpm",
+  "hrvMs",
+  "walkingHeartRateAvgBpm",
+  "heartRateRecoveryBpm",
+]);
+
+/**
+ * The dial a catalogue key files under, or null when the key is not one.
+ *
+ * Null rather than a fallback dial on purpose: a key the catalogue has never
+ * heard of is a typo or a metric bound against an older build, and quietly
+ * filing it under "Body" would hide both.
+ */
+export function healthDialForMetricKey(key: string | undefined): string | null {
+  if (!key) return null;
+  if (HEART_KEYS.has(key)) return "heart";
+  const metric = platformMetric(key);
+  if (!metric) return null;
+  return DIAL_BY_GROUP[metric.group] ?? null;
+}
+
+/**
+ * Where an unbound custom metric goes.
+ *
+ * It has no catalogue key and therefore no group, so there is nothing to
+ * classify it by except what the user already told us when they made it: the
+ * Progress tab they filed it under. That is a stated intent rather than a
+ * guess, which makes it better evidence than anything the app could infer from
+ * a title. Training maps onto Activity because the app has no separate
+ * training dial and one of those two names is the user's word for it.
+ */
+const DIAL_BY_TAB: Record<string, string> = {
+  body: "body",
+  nutrition: "nutrition",
+  training: "activity",
+};
+
+export function healthDialForCustomMetric(metric: {
+  healthMetricKey?: string;
+  tab?: string;
+}): string | null {
+  const bound = healthDialForMetricKey(metric.healthMetricKey);
+  if (bound) return bound;
+  return metric.tab ? (DIAL_BY_TAB[metric.tab] ?? null) : null;
+}
+
 
 export function resolveHealthDialSelection(
   stored: Record<string, boolean> | undefined,

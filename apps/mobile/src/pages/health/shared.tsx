@@ -18,6 +18,7 @@ import { useQuery } from "convex/react"
 import { api } from "../../../../../convex/_generated/api"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { hapticSelection } from "@/lib/haptics"
+import { offsetDateKey } from "@/lib/food-log"
 import { cn } from "@/lib/utils"
 
 /**
@@ -95,6 +96,13 @@ export const AREA_TONES: Record<string, string> = {
   activity: "var(--accent-workout)",
   heart: "var(--accent-health)",
   body: "var(--accent-food)",
+  // The app ships six accents and the hero now draws up to nine dials, so the
+  // last four repeat. Repeats are placed far apart in the row on purpose: two
+  // neighbouring rings in the same colour read as one wide ring.
+  nutrition: "var(--accent-supplement)",
+  vitals: "var(--accent-health)",
+  mindfulness: "var(--accent-water)",
+  reproductive: "var(--accent-progress)",
 }
 
 /** The app's dial, wearing a health score. */
@@ -967,17 +975,84 @@ export function MetricTrend({
   const range = controlledRange ?? ownRange
   const data = useQuery(api.logs.healthMetrics.series, { today, range })
   const series = data?.metrics?.[metric]
-  const suffix =
-    range === "W" ? "past week" : range === "M" ? "past month" : "past year"
   const empty = data !== undefined && (!series || series.average === null)
   // Only once the query has resolved: bailing while `data` is undefined would
   // pop the chart in after load rather than reserving its space.
   if (empty && hideWhenEmpty) return null
 
   return (
+    <TrendCard
+      title={title ?? series?.label}
+      kind={kind}
+      tone={tone}
+      format={format}
+      range={range}
+      onRangeChange={controlledRange ? undefined : setRange}
+      loading={data === undefined}
+      summary={
+        empty || !series
+          ? null
+          : {
+              average: series.average,
+              min: series.min,
+              max: series.max,
+              deltaPercent: series.deltaPercent,
+              betterWhen: series.betterWhen,
+              points: series.points,
+            }
+      }
+    />
+  )
+}
+
+type TrendSummary = {
+  average: number | null
+  min: number | null
+  max: number | null
+  deltaPercent: number | null
+  betterWhen: "higher" | "lower"
+  points: ChartPoint[]
+}
+
+/**
+ * The chart card itself, with no idea where its numbers came from.
+ *
+ * Split out of `MetricTrend` when custom metrics arrived. They are read from a
+ * different query and summarised on the client, and the alternative was a
+ * second copy of this markup that would have drifted from the first the moment
+ * either one was touched.
+ */
+function TrendCard({
+  title,
+  kind = "bars",
+  tone,
+  format,
+  range,
+  onRangeChange,
+  loading,
+  summary,
+  emptyNote,
+}: {
+  title?: string
+  kind?: "bars" | "line"
+  tone?: string
+  format: (value: number) => string
+  range: RangeKey
+  /** Omit to hide the switch, for screens that drive the range themselves. */
+  onRangeChange?: (range: RangeKey) => void
+  loading: boolean
+  /** Null once loaded means the range holds no readings. */
+  summary: TrendSummary | null
+  emptyNote?: string
+}) {
+  const suffix =
+    range === "W" ? "past week" : range === "M" ? "past month" : "past year"
+  const empty = !loading && summary === null
+
+  return (
     <section
       className="progress-tab-enter break-inside-avoid border-t border-border py-4 lg:mb-5"
-      aria-label={title ?? series?.label ?? "Trend"}
+      aria-label={title ?? "Trend"}
     >
       <div className="mb-3 flex items-start justify-between gap-3 px-1">
         <div className="min-w-0">
@@ -990,13 +1065,14 @@ export function MetricTrend({
           */}
           {empty ? (
             <p className="mt-1.5 text-[13px] text-muted-foreground">
-              Nothing recorded {suffix.replace("past ", "this ")}.
+              {emptyNote ??
+                `Nothing recorded ${suffix.replace("past ", "this ")}.`}
             </p>
           ) : (
             <>
               <p className="mt-1.5 flex items-baseline gap-1.5">
                 <span className="text-[1.7rem] leading-none font-extrabold tracking-tight tabular-nums">
-                  {series?.average == null ? "—" : format(series.average)}
+                  {summary?.average == null ? "—" : format(summary.average)}
                 </span>
                 <span className="text-[13px] font-semibold text-muted-foreground">
                   {range === "W"
@@ -1007,11 +1083,11 @@ export function MetricTrend({
                   average
                 </span>
               </p>
-              {series && (
+              {summary && (
                 <p className="mt-1.5">
                   <DeltaChip
-                    deltaPercent={series.deltaPercent}
-                    betterWhen={series.betterWhen}
+                    deltaPercent={summary.deltaPercent}
+                    betterWhen={summary.betterWhen}
                     suffix={suffix}
                   />
                 </p>
@@ -1019,44 +1095,46 @@ export function MetricTrend({
             </>
           )}
         </div>
-        {!controlledRange && <RangeToggle range={range} onChange={setRange} />}
+        {onRangeChange && (
+          <RangeToggle range={range} onChange={onRangeChange} />
+        )}
       </div>
 
-      {data === undefined ? (
+      {loading ? (
         <div
           className="mx-1 h-[132px] animate-pulse rounded-xl bg-muted"
           data-route-loading="true"
         />
-      ) : empty ? null : (
+      ) : !summary ? null : (
         <>
           <div className="px-1">
             {kind === "line" ? (
               <MetricLine
-                points={series.points}
+                points={summary.points}
                 format={format}
                 tone={tone ?? "var(--accent-water)"}
               />
             ) : (
               <MetricBars
-                points={series.points}
+                points={summary.points}
                 format={format}
                 tone={tone ?? "var(--accent-health)"}
               />
             )}
           </div>
 
-          {series.min !== null && series.max !== null && (
+          {summary.min !== null && summary.max !== null && (
             <div className="mt-3 flex gap-5 px-1">
               <p className="text-[12px] text-muted-foreground">
                 Low{" "}
                 <span className="font-semibold text-foreground tabular-nums">
-                  {format(series.min)}
+                  {format(summary.min)}
                 </span>
               </p>
               <p className="text-[12px] text-muted-foreground">
                 High{" "}
                 <span className="font-semibold text-foreground tabular-nums">
-                  {format(series.max)}
+                  {format(summary.max)}
                 </span>
               </p>
             </div>
@@ -1064,5 +1142,148 @@ export function MetricTrend({
         </>
       )}
     </section>
+  )
+}
+
+/** How many days each range covers, matching `convex/lib/healthSeries.ts`. */
+const RANGE_DAY_COUNT: Record<RangeKey, number> = { W: 7, M: 30, Y: 364 }
+
+/** A year of daily bars is 364 slivers; the server buckets it too. */
+const WEEKLY_BUCKET_FROM_DAYS = 90
+
+export type CustomMetricEntry = { date: string; value: number }
+
+export type CustomMetricDefinition = {
+  id: string
+  title: string
+  unit: string
+  kind: "counter" | "number" | "toggle"
+  accent: "food" | "water" | "workout" | "progress"
+  /** Set when the metric is filled by the phone rather than by hand. */
+  healthMetricKey?: string
+  /** Falls back to deciding which dial an unbound metric belongs under. */
+  tab?: string
+  entries: CustomMetricEntry[]
+}
+
+/**
+ * A custom metric's entries, folded into the same shape the server returns for
+ * built-in series.
+ *
+ * Done on the client because there is no server-side series for these — the
+ * entries already arrive whole with the definition, and asking for a second
+ * subscription to re-derive an average over thirty numbers would be a round
+ * trip to avoid a loop.
+ *
+ * Day keys come from `offsetDateKey`, never from `toISOString().slice(0, 10)`:
+ * entries are stored under the local day, and slicing a UTC timestamp puts an
+ * evening reading on tomorrow for anyone east of Greenwich.
+ */
+export function buildCustomMetricSeries({
+  entries,
+  today,
+  range,
+}: {
+  entries: CustomMetricEntry[]
+  today: string
+  range: RangeKey
+}): TrendSummary | null {
+  const days = RANGE_DAY_COUNT[range]
+  const bucketDays = days >= WEEKLY_BUCKET_FROM_DAYS ? 7 : 1
+  const start = offsetDateKey(today, -(days - 1))
+  const previousStart = offsetDateKey(start, -days)
+
+  const byDate = new Map<string, number>()
+  for (const entry of entries) byDate.set(entry.date, entry.value)
+
+  const points: ChartPoint[] = []
+  const inRange: number[] = []
+  for (let offset = 0; offset < days; offset += bucketDays) {
+    const date = offsetDateKey(start, offset)
+    const readings: number[] = []
+    for (let step = 0; step < bucketDays && offset + step < days; step += 1) {
+      const value = byDate.get(offsetDateKey(start, offset + step))
+      if (value !== undefined) readings.push(value)
+    }
+    inRange.push(...readings)
+    points.push({
+      date,
+      span: bucketDays,
+      value:
+        readings.length === 0
+          ? null
+          : readings.reduce((sum, value) => sum + value, 0) / readings.length,
+    })
+  }
+
+  if (inRange.length === 0) return null
+
+  const previous = entries
+    .filter((entry) => entry.date >= previousStart && entry.date < start)
+    .map((entry) => entry.value)
+  const average =
+    inRange.reduce((sum, value) => sum + value, 0) / inRange.length
+  const previousAverage =
+    previous.length === 0
+      ? null
+      : previous.reduce((sum, value) => sum + value, 0) / previous.length
+
+  return {
+    average,
+    min: Math.min(...inRange),
+    max: Math.max(...inRange),
+    deltaPercent:
+      previousAverage === null || previousAverage === 0
+        ? null
+        : ((average - previousAverage) / previousAverage) * 100,
+    // Nobody told us which way is good for a metric someone invented, and
+    // guessing from the title is how "resting heart rate" ends up congratulated
+    // for going up. The chip only tips the arrow, so "higher" here means the
+    // direction is shown without being judged.
+    betterWhen: "higher",
+    points,
+  }
+}
+
+/** A custom metric's unit tacked on, with the decimals the values need. */
+export function formatCustomMetricValue(value: number, unit: string) {
+  const rounded =
+    Math.abs(value - Math.round(value)) < 0.05
+      ? formatCount(value)
+      : value.toFixed(1)
+  return unit ? `${rounded} ${unit}` : rounded
+}
+
+/**
+ * A custom metric drawn as a trend.
+ *
+ * Counters and toggles are bars because they are things that happened and were
+ * added up; a plain number is a level someone read off a device, so it gets a
+ * line, the same distinction sleep and resting heart rate already make.
+ */
+export function CustomMetricTrend({
+  metric,
+  today,
+  range,
+}: {
+  metric: CustomMetricDefinition
+  today: string
+  range: RangeKey
+}) {
+  const summary = useMemo(
+    () => buildCustomMetricSeries({ entries: metric.entries, today, range }),
+    [metric.entries, today, range]
+  )
+
+  return (
+    <TrendCard
+      title={metric.title}
+      kind={metric.kind === "number" ? "line" : "bars"}
+      tone={`var(--accent-${metric.accent})`}
+      format={(value) => formatCustomMetricValue(value, metric.unit)}
+      range={range}
+      loading={false}
+      summary={summary}
+    />
   )
 }

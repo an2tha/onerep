@@ -13,6 +13,8 @@ import {
   StatGrid,
   formatCount,
 } from "./shared"
+import { DialCustomMetrics } from "@/components/dial-custom-metrics"
+import { TrackSomethingNew } from "@/components/track-something-new"
 
 /**
  * The cardiovascular pillar, which is the only one graded on a curve.
@@ -130,6 +132,12 @@ export default function HealthHeart() {
           {advice && (
             <AdviceBlock title={advice.title} detail={advice.detail} />
           )}
+          <DialCustomMetrics dial="heart" tone={AREA_TONES.heart} />
+
+          <TrackSomethingNew
+            tab="body"
+            detail="Anything else you want counted against your heart."
+          />
         </>
       )}
     </HealthDetailShell>
