@@ -5,9 +5,9 @@ installable PWA, and Capacitor shells for iOS and Android. If a user touches
 it, it lives here.
 
 Setup, environment variables, and the development loop are documented in the
-[repository README](../../README.md); the system it fits into is in
-[`docs/architecture.md`](../../docs/architecture.md). What follows is only
-what is specific to this workspace.
+[repository README](../../README.md), and the rest lives at
+[docs.onerep.life](https://docs.onerep.life). What follows is only what is
+specific to this workspace.
 
 ## Boundaries
 
@@ -15,8 +15,8 @@ what is specific to this workspace.
   This app owns routing, Convex calls, auth, platform APIs, storage, and
   feature state; the package owns how things look. Keep it that way.
 - The payment UI is a seam: `src/components/billing/index.tsx` is generated
-  (gitignored) and defaults to the stub. See
-  [`docs/billing.md`](../../docs/billing.md).
+  (gitignored) and defaults to the stub: billing is Stripe on the web, and
+  nothing at all until you wire it.
 
 ## Native work
 
@@ -34,6 +34,5 @@ to your dev database.
 ## Tests
 
 Run from `src/` (`cd src && bun test`) to stay under the file-descriptor
-limit, and read [`docs/testing.md`](../../docs/testing.md) before trusting a
-green run — this suite has opinions, including source-contract tests that
-assert the actual words on the screen.
+limit, and do not trust a green run on faith — this suite has opinions,
+including source-contract tests that assert the actual words on the screen.

@@ -18,7 +18,7 @@ import { join } from "node:path"
 const BASE = process.env.SHOT_BASE_URL ?? "http://localhost:5177"
 const EMAIL = process.env.SHOT_EMAIL ?? "demo-marketing@onerep.test"
 const PASSWORD = process.env.SHOT_PASSWORD
-const OUT = process.env.SHOT_OUT ?? join(import.meta.dir, "../docs/media/marketing")
+const OUT = process.env.SHOT_OUT ?? join(import.meta.dir, "../assets/marketing")
 
 const ROUTES = [
   { path: "/", name: "01-today" },

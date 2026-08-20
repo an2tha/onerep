@@ -20,7 +20,7 @@
   <p align="center">
     Training, nutrition, recovery, and progress in one place, with an AI coach that does the bookkeeping.
     <br />
-    <a href="docs/architecture.md"><strong>Explore the docs »</strong></a>
+    <a href="https://docs.onerep.life"><strong>Explore the docs »</strong></a>
     <br />
     <br />
     <a href="https://app.onerep.life">Use the app</a>
@@ -83,7 +83,7 @@ What's implemented, in the order you'd hit it:
 - **Coach**: text, image, and voice input; personalized briefings; recipes and meal logging; workout and weekly-plan changes; goals, check-ins, memory, and reversible operations. Every AI write carries an undo payload.
 - **Photo logging**: food detection with a review step that matches detections to food records before anything is logged.
 - **Bring your own key**: paste your own OpenRouter key in Settings and Coach runs on your credential instead of the deployment's. It gets validated against OpenRouter before it saves, stored server-side only, shown as its last four characters, and it's exempt from the monthly allowance, because you're the one paying for the inference.
-- **Your data, over the wire**: a [REST API](docs/api.md) and an [MCP endpoint](docs/mcp.md) on keys you mint in the app, so your scripts and your assistant read the same log you do.
+- **Your data, over the wire**: a [REST API](https://docs.onerep.life/api/overview) and an [MCP endpoint](https://docs.onerep.life/api/mcp/overview) on keys you mint in the app, so your scripts and your assistant read the same log you do.
 - **Accounts and privacy**: email/password accounts with verification, analytics opt-in (off by default), full data export, account deletion.
 
 Everything here runs on your own hardware: the Convex backend, the food datasource, and the app itself, brought up by one script. AI, food lookup, email, and analytics each switch on with their own environment variables and stay quiet without them. A deployment without an `OPENROUTER_API_KEY` isn't even AI-less; any user can supply their own key in Settings and Coach works for them alone.
@@ -96,7 +96,7 @@ A run through the app as it actually looks: the daily dashboard, nutrition,
 training, progress, and the Coach.
 
 <div align="center">
-  <img src="docs/media/onerep-tour.gif" alt="A walkthrough of OneRep: daily dashboard with calorie and macro rings, nutrition logging, training, progress charts, and the AI Coach" width="900">
+  <img src="assets/onerep-tour.gif" alt="A walkthrough of OneRep: daily dashboard with calorie and macro rings, nutrition logging, training, progress charts, and the AI Coach" width="900">
 </div>
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -126,8 +126,7 @@ training, progress, and the Coach.
 │   ├── models/       # Shared TypeScript models and Coach operation contracts
 │   └── ui/           # Shared presentation components and Tailwind styles
 ├── scripts/          # Prompt generation, exercise-catalog prep, mirror publishing
-├── selfhost/         # One-command Docker self-hosting: install.sh + docker-compose.yml
-└── docs/             # Architecture, testing, API, and feature docs
+└── selfhost/         # One-command Docker self-hosting: install.sh + docker-compose.yml
 ```
 
 The mobile app talks directly to Convex; there is no API server in the middle. Secrets stay in the Convex deployment and are never exposed as `VITE_*` variables. `@repo/ui` is the presentation boundary: it renders props and raises callbacks, and does not know Convex exists.
@@ -381,13 +380,13 @@ Point `VITE_CONVEX_URL` at a hostname your phone can actually reach (`127.0.0.1`
 
 ## Documentation
 
-- [`docs/architecture.md`](docs/architecture.md): how the pieces fit together, and where the seams are
+The documentation lives at [docs.onerep.life](https://docs.onerep.life), which is where it is written, maintained, and actually current.
+
+- [Introduction](https://docs.onerep.life/introduction) and [Quickstart](https://docs.onerep.life/quickstart): what OneRep tracks, and your first logged day
+- [Self-hosting](https://docs.onerep.life/selfhost/overview): [install](https://docs.onerep.life/selfhost/install), [food databases](https://docs.onerep.life/selfhost/food-database), [mobile builds](https://docs.onerep.life/selfhost/mobile-apps), [optional integrations](https://docs.onerep.life/selfhost/integrations)
+- [REST API](https://docs.onerep.life/api/rest/read-endpoints) and [MCP](https://docs.onerep.life/api/mcp/overview): every endpoint, every tool, scopes, errors, OAuth
+- [AI Coach](https://docs.onerep.life/features/coach): what it does, and what it is allowed to do on your behalf
 - [`selfhost/docker-compose.yml`](selfhost/docker-compose.yml): every service, port, and volume the installer brings up
-- [`docs/testing.md`](docs/testing.md): which test commands exist, what each one actually runs
-- [`docs/api.md`](docs/api.md): the HTTP API for your own scripts and devices
-- [`docs/mcp.md`](docs/mcp.md): the same data over Model Context Protocol
-- [`docs/coach-features.md`](docs/coach-features.md) / [`docs/ai-upgrade.md`](docs/ai-upgrade.md): what the Coach does and what it still owes us
-- [`docs/backlog.md`](docs/backlog.md): known debts, kept short on purpose
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -397,10 +396,10 @@ Point `VITE_CONVEX_URL` at a hostname your phone can actually reach (`127.0.0.1`
 
 - [ ] A Coach with initiative: briefings and check-ins that arrive without being summoned
 - [ ] A real progression engine: deloads, periodization, adaptation from logged results
-- [ ] Turning on the ~130 Convex test blocks that currently assert nothing (see the backlog; it's a story)
+- [ ] Turning on the ~130 Convex test blocks that currently assert nothing, which is a story in itself
 - [ ] Android parity for the iOS widgets and Live Activities
 
-The longer, more honest versions live in [`docs/ai-upgrade.md`](docs/ai-upgrade.md) and [`docs/backlog.md`](docs/backlog.md). See the [open issues](https://github.com/an2tha/onerep/issues) for everything else.
+See the [open issues](https://github.com/an2tha/onerep/issues) for everything else.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -415,7 +414,7 @@ Contributions are welcome, with one logistical honesty: this repository is a mir
 3. Run the honest minimum before pushing: `bun run typecheck && bun run test && bun run test:convex`
 4. Push and open a pull request
 
-Read [`docs/testing.md`](docs/testing.md) first: this codebase has source-contract tests that assert the actual words on the screen, and they will find you.
+This codebase has source-contract tests that assert the actual words on the screen, and they will find you. Run them.
 
 By submitting a contribution you agree it may be used in the Software under the project license and in the official OneRep deployment, which is a commercial service. Your authorship stays in the history either way.
 
