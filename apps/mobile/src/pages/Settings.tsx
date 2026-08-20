@@ -9,6 +9,7 @@ import {
   ForkKnife,
   GearFine,
   HardDrives,
+  Info,
   Heartbeat,
   Key,
   Moon,
@@ -45,6 +46,7 @@ import {
   healthMetricGroups,
   resolveHealthMetricSelection,
 } from "../../../../convex/lib/healthMetricCatalog"
+import { AboutApp } from "@/components/about-app"
 import { useTour } from "@/components/walkthrough/tour-context"
 import { WALKTHROUGH_CHAPTERS } from "@/lib/walkthrough/chapters"
 import { walkthroughStatusLabel } from "@/lib/walkthrough/resolve"
@@ -208,6 +210,7 @@ type SettingsView =
   | "agents"
   | "server"
   | "walkthrough"
+  | "about"
   | "developer"
 
 const SHOW_DEV_SETTINGS = import.meta.env.DEV
@@ -227,6 +230,7 @@ const SETTINGS_VIEW_TITLE_KEYS: Record<SettingsView, string> = {
   agents: "settings.titles.agents",
   server: "settings.titles.server",
   walkthrough: "settings.titles.walkthrough",
+  about: "settings.titles.about",
   developer: "settings.titles.developer",
 }
 
@@ -1283,6 +1287,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     detail="Replay the guided tour of each area"
                     leading={<Compass size={20} weight="regular" />}
                     onClick={() => showView("walkthrough")}
+                  />
+                  <DisclosureRow
+                    title="About"
+                    detail="Version, updates, and what is installed"
+                    leading={<Info size={20} weight="regular" />}
+                    onClick={() => showView("about")}
                   />
                   {SHOW_DEV_SETTINGS && (
                     <DisclosureRow
@@ -2711,6 +2721,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
                     Replay everything
                   </button>
                 </div>
+              </>
+            )}
+
+            {activeView === "about" && (
+              <>
+                <SettingsSectionIntro>
+                  OneRep updates itself in the background. This is what is
+                  running right now.
+                </SettingsSectionIntro>
+                <AboutApp />
               </>
             )}
 

@@ -3,11 +3,11 @@
  * total. Lives in its own module because NewPreset reuses it verbatim.
  */
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
-import { useBackdropDismiss } from "@repo/ui"
+import { pushDismissHandler, useBackdropDismiss } from "@repo/ui"
 import {
   BAR_PROFILES,
   KG_TO_LBS,
@@ -97,6 +97,11 @@ export function WeightSelectorSheet({
   }
 
   const backdropDismiss = useBackdropDismiss(dismiss)
+
+  // Android back closes this sheet before it leaves the workout.
+  const dismissRef = useRef(dismiss)
+  dismissRef.current = dismiss
+  useEffect(() => pushDismissHandler(() => dismissRef.current()), [])
 
   function emitChange(change: WeightSelectorChange) {
     onChange({
