@@ -1,0 +1,45 @@
+/index.html
+  Cache-Control: no-cache, must-revalidate
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+/site.webmanifest
+  Cache-Control: no-cache, must-revalidate
+  Content-Type: application/manifest+json; charset=utf-8
+
+/assets/*
+  Cache-Control: public, max-age=0, must-revalidate
+  X-Content-Type-Options: nosniff
+
+/version.json
+  Cache-Control: no-cache, must-revalidate
+  Content-Type: application/json; charset=utf-8
+
+# The native WebView origin is https://localhost, so the OTA manifest is a
+# cross-origin read and needs CORS. The zip is fetched by native code, which
+# does not, but the header is harmless and keeps both debuggable from a browser.
+/ota/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+  Content-Type: application/json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+# Filenames carry the version, so these are safe to cache forever.
+/ota/bundles/*
+  Cache-Control: public, max-age=31536000, immutable
+  Access-Control-Allow-Origin: *
+
+# These names never change, so a plain max-age lets the CDN keep serving an old
+# mark for a week after a rebrand. Revalidate instead; the ETag makes it cheap.
+/icon-*.png
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/apple-touch-icon.png
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/favicon-*.png
+  Cache-Control: public, max-age=604800, must-revalidate
+
+/favicon.ico
+  Cache-Control: public, max-age=604800, must-revalidate

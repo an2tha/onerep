@@ -701,12 +701,33 @@ export function DailyLedgerHero({
   )
 }
 
+export type WeeklyPlanMealView = {
+  label: string
+  recipeId?: string
+  note?: string
+  calories?: number
+  protein?: number
+  carbs?: number
+  fat?: number
+}
+
 export type WeeklyPlanDayView = {
   day: string
   workoutPresetId?: string
   workoutLabel?: string
-  meals: Array<{ label: string; recipeId?: string; note?: string }>
+  meals: WeeklyPlanMealView[]
   recoveryNote?: string
+}
+
+/** Day totals, but only over the meals that actually carry a number. */
+function planDayTotals(meals: WeeklyPlanMealView[]) {
+  const sum = (field: "calories" | "protein") =>
+    meals.reduce((total, meal) => total + (meal[field] ?? 0), 0)
+  const calories = sum("calories")
+  const protein = sum("protein")
+  const partial = meals.some((meal) => meal.calories == null)
+  if (calories === 0 && protein === 0) return null
+  return { calories, protein, partial }
 }
 
 /**
@@ -745,6 +766,7 @@ export function WeeklyPlanCard({
         {days.map((day, index) => {
           const isToday = day.day.slice(0, 3).toLowerCase() === todayKey
           const mealCount = day.meals.length
+          const totals = planDayTotals(day.meals)
 
           if (!isToday) {
             return (
@@ -762,6 +784,7 @@ export function WeeklyPlanCard({
                   {day.workoutLabel ?? "Rest"}
                   {mealCount > 0 &&
                     ` · ${mealCount} meal${mealCount === 1 ? "" : "s"}`}
+                  {totals && ` · ${totals.calories} kcal`}
                 </span>
               </div>
             )
@@ -822,9 +845,28 @@ export function WeeklyPlanCard({
                           <span className="truncate">{meal.label}</span>
                         </span>
                       )}
+                      {meal.calories != null && (
+                        <span className="native-row-detail ml-[18px] block tabular-nums">
+                          {meal.calories} kcal
+                          {meal.protein != null && ` · ${meal.protein} g protein`}
+                        </span>
+                      )}
                     </li>
                   ))}
+                  {day.meals.length > 3 && (
+                    <li className="native-row-detail">
+                      +{day.meals.length - 3} more
+                    </li>
+                  )}
                 </ul>
+              )}
+
+              {totals && (
+                <p className="native-row-detail mt-2 ml-12 tabular-nums">
+                  {totals.calories} kcal
+                  {totals.protein > 0 && ` · ${totals.protein} g protein`}
+                  {totals.partial && " so far"}
+                </p>
               )}
 
               {day.recoveryNote && (

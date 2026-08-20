@@ -211,7 +211,15 @@ export type CoachOperation = CoachOperationMeta &
           day: string
           workoutPresetId?: string
           workoutLabel?: string
-          meals: Array<{ label: string; recipeId?: string; note?: string }>
+          meals: Array<{
+            label: string
+            recipeId?: string
+            note?: string
+            calories?: number
+            protein?: number
+            carbs?: number
+            fat?: number
+          }>
           recoveryNote?: string
         }>
         planAssumptions: string[]
@@ -268,6 +276,14 @@ export type CoachOperation = CoachOperationMeta &
         nutrientsPerServing: SupplementNutrients
       }
     | {
+        type: "set_nutrition_targets"
+        calories?: number
+        protein?: number
+        carbs?: number
+        fat?: number
+        waterMl?: number
+      }
+  | {
         type: "undo_action"
         actionId: string
         actionSummary: string
@@ -348,6 +364,7 @@ export type CoachOperationResult =
         | "forget_memory"
         | "save_check_in"
         | "save_weekly_plan"
+        | "set_nutrition_targets"
         | "undo_action"
       label: string
       actionId?: string

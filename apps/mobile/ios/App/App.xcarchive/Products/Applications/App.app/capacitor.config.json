@@ -1,0 +1,49 @@
+{
+	"appId": "com.ananthh.onerep",
+	"appName": "OneRep",
+	"webDir": "dist",
+	"server": {
+		"hostname": "localhost",
+		"iosScheme": "https",
+		"androidScheme": "https"
+	},
+	"ios": {},
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		},
+		"CapacitorCookies": {
+			"enabled": true
+		},
+		"LocalNotifications": {
+			"smallIcon": "ic_stat_onerep",
+			"iconColor": "#09090B"
+		},
+		"CapacitorUpdater": {
+			"autoUpdate": false,
+			"updateUrl": "",
+			"statsUrl": "",
+			"appReadyTimeout": 20000,
+			"responseTimeout": 30,
+			"resetWhenUpdate": true,
+			"autoDeleteFailed": true,
+			"autoDeletePrevious": true,
+			"keepUrlPathAfterReload": true,
+			"allowModifyUrl": false,
+			"directUpdate": false
+		}
+	},
+	"packageClassList": [
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"FilesystemPlugin",
+		"HapticsPlugin",
+		"LocalNotificationsPlugin",
+		"PreferencesPlugin",
+		"PushNotificationsPlugin",
+		"SharePlugin",
+		"SpeechRecognitionPlugin",
+		"CapacitorUpdaterPlugin"
+	]
+}

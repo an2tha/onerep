@@ -9,6 +9,7 @@ import {
   type CoachOperation,
   type CoachWorkoutPresetDraft,
 } from "../../packages/models/src/coach";
+import { describeNutritionTargets } from "../lib/nutritionTargets";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const colors = ["#8b5cf6", "#0ea5e9", "#f97316", "#10b981"];
@@ -645,6 +646,40 @@ export const applyApproved = action({
           results.push({
             ...operation,
             goalId: String(saved.goalId),
+            actionId: String(actionId),
+          });
+        } else if (operation.type === "set_nutrition_targets") {
+          const saved = await ctx.runMutation(
+            api.users.users.setNutritionTargets,
+            {
+              ...(operation.calories == null
+                ? {}
+                : { calories: operation.calories }),
+              ...(operation.protein == null
+                ? {}
+                : { protein: operation.protein }),
+              ...(operation.carbs == null ? {} : { carbs: operation.carbs }),
+              ...(operation.fat == null ? {} : { fat: operation.fat }),
+              ...(operation.waterMl == null
+                ? {}
+                : { waterMl: operation.waterMl }),
+            },
+          );
+          const actionId = await ctx.runMutation(
+            api.ai.coachState.recordAction,
+            {
+              kind: "set_nutrition_targets",
+              summary: operation.summary,
+              targetType: "nutrition_targets",
+              undoPayload: {
+                kind: "restore_nutrition_targets",
+                body: saved.previous,
+              },
+            },
+          );
+          results.push({
+            type: operation.type,
+            label: `Daily targets: ${describeNutritionTargets(saved.targets)}`,
             actionId: String(actionId),
           });
         } else if (operation.type === "undo_action") {
