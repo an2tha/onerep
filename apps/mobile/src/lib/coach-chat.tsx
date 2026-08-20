@@ -1431,38 +1431,60 @@ export function CoachProposal({
   onDismiss: () => void
 }) {
   if (!operations?.length) return null
-  const recipe =
-    operations.length === 1 && operations[0]?.type === "save_recipe"
-      ? operations[0]
-      : null
+  // A Sunday of batch cooking arrives as several recipes at once, and they are
+  // approved together — so the preview shows every one of them in full rather
+  // than four lines of summary the user has to take on trust.
+  const recipes = operations.filter(
+    (operation): operation is Extract<CoachOperation, { type: "save_recipe" }> =>
+      operation.type === "save_recipe"
+  )
 
-  if (recipe) {
-    const isEdit = Boolean(recipe.recipeId)
+  if (recipes.length > 0 && recipes.length === operations.length) {
+    const single = recipes.length === 1 ? recipes[0] : null
+    const isEdit = Boolean(single?.recipeId)
+    const assumptions = [...new Set(recipes.flatMap((item) => item.assumptions))]
+    const warnings = [...new Set(recipes.flatMap((item) => item.warnings))]
     return (
       <section className="coach-generated-content mt-5 border-y border-border/55 py-5">
         <p className="text-[10px] font-medium text-muted-foreground">
-          Recipe preview · nothing saved yet
+          {single
+            ? "Recipe preview · nothing saved yet"
+            : `${recipes.length} recipes · nothing saved yet`}
         </p>
-        <h3 className="mt-1 text-[18px] leading-tight font-bold tracking-tight">
-          {recipe.name}
-        </h3>
-        {recipe.description ? (
-          <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
-            {recipe.description}
-          </p>
-        ) : null}
-        <RecipeBreakdown recipe={recipe} />
-        {recipe.assumptions.length > 0 ? (
+        {recipes.map((recipe, index) => (
+          <div
+            key={`${recipe.name}-${index}`}
+            className={index > 0 ? "mt-6" : undefined}
+          >
+            <h3 className="mt-1 text-[18px] leading-tight font-bold tracking-tight">
+              {recipe.name}
+            </h3>
+            {recipe.description ? (
+              <p className="mt-2 text-[12px] leading-relaxed text-foreground/65">
+                {recipe.description}
+              </p>
+            ) : null}
+            <RecipeBreakdown recipe={recipe} />
+            {recipe.logMeal ? (
+              <p className="mt-3 text-[10px] text-muted-foreground">
+                Saving will also log {recipe.servingsToLog ?? 1} serving
+                {(recipe.servingsToLog ?? 1) === 1 ? "" : "s"} to{" "}
+                {recipe.logMeal}.
+              </p>
+            ) : null}
+          </div>
+        ))}
+        {assumptions.length > 0 ? (
           <div className="mt-5 border-l border-border/70 pl-3">
             <p className="text-[10px] font-medium">Based on</p>
-            {recipe.assumptions.map((item) => (
+            {assumptions.map((item) => (
               <p key={item} className="mt-1 text-[10px] text-muted-foreground">
                 {item}
               </p>
             ))}
           </div>
         ) : null}
-        {recipe.warnings.map((warning) => (
+        {warnings.map((warning) => (
           <p
             key={warning}
             className="mt-3 flex gap-1.5 text-[10px] text-amber-700 dark:text-amber-300"
@@ -1470,20 +1492,20 @@ export function CoachProposal({
             <WarningCircle size={13} className="shrink-0" /> {warning}
           </p>
         ))}
-        {recipe.logMeal ? (
-          <p className="mt-3 text-[10px] text-muted-foreground">
-            Saving will also log {recipe.servingsToLog ?? 1} serving
-            {(recipe.servingsToLog ?? 1) === 1 ? "" : "s"} to {recipe.logMeal}.
-          </p>
-        ) : null}
         <div className="mt-5 border-t border-border/45 pt-4">
           <p className="text-[13px] font-semibold">
-            {isEdit ? "Does this update look right?" : "Like this recipe?"}
+            {single
+              ? isEdit
+                ? "Does this update look right?"
+                : "Like this recipe?"
+              : "Cook this set?"}
           </p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            {isEdit
-              ? "Your existing recipe changes only after you confirm."
-              : "Add it to Recipes only if it fits what you wanted."}
+            {single
+              ? isEdit
+                ? "Your existing recipe changes only after you confirm."
+                : "Add it to Recipes only if it fits what you wanted."
+              : "They save together. Ask for changes instead if one of them is wrong."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -1494,9 +1516,11 @@ export function CoachProposal({
             >
               {applying
                 ? "Saving…"
-                : isEdit
-                  ? "Update recipe"
-                  : "Save to Recipes"}
+                : single
+                  ? isEdit
+                    ? "Update recipe"
+                    : "Save to Recipes"
+                  : `Save ${recipes.length} recipes`}
             </button>
             <button
               type="button"
@@ -1563,6 +1587,17 @@ export function CoachProposal({
                     </span>
                   ))}
                 </span>
+              </div>
+            )
+          }
+          // A plan turn carries its recipes alongside the targets and the
+          // week. Summarising them here would ask for approval on four
+          // recipes nobody has read.
+          if (operation.type === "save_recipe") {
+            return (
+              <div key={`${operation.type}-${index}`} className="pt-1">
+                <p className="text-[13px] font-bold">{operation.name}</p>
+                <RecipeBreakdown recipe={operation} />
               </div>
             )
           }
