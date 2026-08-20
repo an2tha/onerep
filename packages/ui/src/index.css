@@ -6537,6 +6537,20 @@ body:has(.sheet-overlay, .app-sheet-panel, [aria-modal="true"])
   animation-timing-function: cubic-bezier(0.22, 0.72, 0.18, 1);
 }
 
+/* Touch devices take the short pass: one slide, no waypoint, no background
+   choreography. 860ms of transform on a snapshot of the whole page is a
+   phone's worst frame budget and it reads as a stutter, not a flourish. */
+:root[data-coach-quick="true"]::view-transition-group(coach-page),
+:root[data-coach-quick="true"]::view-transition-old(coach-page),
+:root[data-coach-quick="true"]::view-transition-new(coach-page) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0.24, 1);
+}
+
+:root[data-coach-quick="true"] .coach-swoosh-backdrop {
+  animation: none;
+}
+
 /* A two-tab jump is one constant-speed pass split across two real page
    snapshots. Linear timing prevents the Nutrition waypoint from feeling like
    a destination or pause. */

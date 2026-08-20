@@ -4,6 +4,7 @@
  */
 
 import { useMemo } from "react"
+import { useBackdropDismiss } from "@repo/ui"
 import { useQuery } from "convex/react"
 import { ArrowLeft, ChartLine } from "@phosphor-icons/react"
 import { api } from "../../../../../convex/_generated/api"
@@ -67,6 +68,8 @@ export function ExerciseHistorySheet({
     return `${kg}`
   }
 
+  const backdropDismiss = useBackdropDismiss(onClose)
+
   function fmtSets(sets: HistorySession["sets"]) {
     return sets.map((s) => `${fmtWeight(s.weight)}×${s.reps}`).join(", ")
   }
@@ -74,7 +77,7 @@ export function ExerciseHistorySheet({
   return (
     <div
       className="sheet-overlay fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-[8px]"
-      onClick={onClose}
+      {...backdropDismiss}
     >
       <div
         role="dialog"

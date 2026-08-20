@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import { Minus, Plus, X } from "@phosphor-icons/react"
 import { cn } from "@/lib/utils"
+import { useBackdropDismiss } from "@repo/ui"
 import {
   BAR_PROFILES,
   KG_TO_LBS,
@@ -94,6 +95,8 @@ export function WeightSelectorSheet({
     setIsClosing(true)
     window.setTimeout(onClose, 190)
   }
+
+  const backdropDismiss = useBackdropDismiss(dismiss)
 
   function emitChange(change: WeightSelectorChange) {
     onChange({
@@ -252,7 +255,10 @@ export function WeightSelectorSheet({
           ? "weight-selector-overlay-exit"
           : "weight-selector-overlay-enter"
       )}
-      onClick={dismiss}
+      // Picking a bar changes what this sheet renders, so the button under the
+      // finger can be gone before the tap completes and the click lands here
+      // instead. See `useBackdropDismiss`.
+      {...backdropDismiss}
     >
       <div
         role="dialog"
