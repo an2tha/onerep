@@ -142,6 +142,9 @@ describe("@repo/ui package boundary", () => {
       // Renders null; drives the native OTA plugin's check/apply/rollback
       // lifecycle.
       "ota-lifecycle.tsx",
+      // Reads the shell's version from Capacitor and the bundle's from the
+      // OTA plugin, and can force an update check. The rows are @repo/ui's.
+      "about-app.tsx",
       // Imperative three.js renderer driving a WebGL canvas and OrbitControls.
       "pose-viewer.tsx",
       "tooltips.tsx",
