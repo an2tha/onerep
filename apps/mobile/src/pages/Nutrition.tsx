@@ -1326,6 +1326,218 @@ function DescribeMealSheet({
   )
 }
 
+/**
+ * One logged entry, in full, with the numbers editable.
+ *
+ * The diary row shows a name, a time and a calorie count, which is enough to
+ * recognise a meal and not enough to check one. Anything logged from a photo
+ * or by the coach arrived with macros nobody could see and quantities nobody
+ * could correct — the reason people were reading their own food log through
+ * an API client to verify it.
+ */
+function FoodEntrySheet({
+  entry,
+  saving,
+  onSave,
+  onDelete,
+  onEditRecipe,
+  onClose,
+}: {
+  entry: FoodLogEntry
+  saving: boolean
+  onSave: (entry: FoodLogEntry) => void
+  onDelete: () => void
+  onEditRecipe?: () => void
+  onClose: () => void
+}) {
+  const [name, setName] = useState(entry.name)
+  const [meal, setMeal] = useState<string>(entry.meal)
+  const [macros, setMacros] = useState({
+    calories: String(Math.round(entry.calories)),
+    protein: String(Math.round(entry.protein)),
+    carbs: String(Math.round(entry.carbs)),
+    fat: String(Math.round(entry.fat)),
+  })
+
+  const number = (value: string) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0
+  }
+  const trimmedName = name.trim()
+  const changed =
+    trimmedName !== entry.name ||
+    meal !== entry.meal ||
+    number(macros.calories) !== Math.round(entry.calories) ||
+    number(macros.protein) !== Math.round(entry.protein) ||
+    number(macros.carbs) !== Math.round(entry.carbs) ||
+    number(macros.fat) !== Math.round(entry.fat)
+
+  const micros = FOOD_MICRONUTRIENT_KEYS.filter(
+    (key) => (entry[key] ?? 0) > 0
+  ).slice(0, 8)
+
+  const servingLine = [
+    entry.servingLabel,
+    entry.quantityGrams ? `${Math.round(entry.quantityGrams)} g` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ")
+
+  const sourceLine = entry.recipeId
+    ? "From a saved recipe"
+    : entry.recipeDraft
+      ? "From a coach recipe"
+      : entry.source === "openfoodfacts"
+        ? "Matched in the food database"
+        : "Entered manually"
+
+  return (
+    <MobileSheet
+      onClose={saving ? () => {} : onClose}
+      overlayClassName="bg-black/35 backdrop-blur-[3px]"
+      panelClassName="mx-auto w-full max-w-sm rounded-t-[26px] bg-card px-4 pt-4 shadow-[0_-16px_50px_rgba(0,0,0,0.2)]"
+      panelStyle={{
+        paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 1.5rem))",
+      }}
+    >
+      <div className="mb-3 flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[15px] leading-snug font-semibold">Entry details</p>
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            {mealLabel(entry.meal)} · {timeLabel(entry.loggedAt)} · {sourceLine}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          disabled={saving}
+          className="app-icon-button h-9 w-9 disabled:opacity-40"
+          aria-label="Close entry details"
+        >
+          <X size={13} weight="bold" />
+        </button>
+      </div>
+
+      <input
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        aria-label="Entry name"
+        className="h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[15px] outline-none focus:border-foreground/40"
+      />
+
+      <select
+        value={meal}
+        onChange={(event) => setMeal(event.target.value)}
+        aria-label="Meal"
+        className="mt-2 h-11 w-full rounded-xl border border-border bg-transparent px-3 text-[14px] font-medium outline-none"
+      >
+        {DEFAULT_MEAL_CATEGORIES.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.label}
+          </option>
+        ))}
+      </select>
+
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {(
+          [
+            ["calories", "kcal"],
+            ["protein", "Protein"],
+            ["carbs", "Carbs"],
+            ["fat", "Fat"],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="block">
+            <span className="native-row-detail block">{label}</span>
+            <input
+              value={macros[key]}
+              onChange={(event) =>
+                setMacros((current) => ({
+                  ...current,
+                  [key]: event.target.value.replace(/[^0-9.]/g, ""),
+                }))
+              }
+              inputMode="decimal"
+              aria-label={`${label} for ${entry.name}`}
+              className="mt-1 h-11 w-full rounded-xl border border-border bg-transparent px-2 text-center text-[15px] tabular-nums outline-none focus:border-foreground/40"
+            />
+          </label>
+        ))}
+      </div>
+
+      {servingLine && (
+        <p className="native-row-detail mt-3">Logged as {servingLine}</p>
+      )}
+
+      {micros.length > 0 && (
+        <div className="mt-3 border-t border-border/45 pt-3">
+          <p className="app-section-title">Also in this entry</p>
+          <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1">
+            {micros.map((key) => {
+              const detail = MICRO_DETAILS[key]
+              return (
+                <p
+                  key={key}
+                  className="native-row-detail flex justify-between gap-2 tabular-nums"
+                >
+                  <span>{detail?.label ?? key}</span>
+                  <span>
+                    {Math.round((entry[key] ?? 0) * 10) / 10}
+                    {detail?.unit ?? ""}
+                  </span>
+                </p>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        disabled={saving || !changed || trimmedName.length === 0}
+        aria-busy={saving}
+        onClick={() =>
+          onSave({
+            ...entry,
+            name: trimmedName,
+            meal: meal as MealType,
+            calories: number(macros.calories),
+            protein: number(macros.protein),
+            carbs: number(macros.carbs),
+            fat: number(macros.fat),
+          })
+        }
+        className="mt-4 flex min-h-12 w-full items-center justify-center rounded-2xl bg-foreground px-4 text-[14px] font-bold text-background transition-opacity active:opacity-80 disabled:opacity-35"
+      >
+        {saving ? "Saving…" : changed ? "Save changes" : "Nothing to save"}
+      </button>
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        {onEditRecipe ? (
+          <button
+            type="button"
+            onClick={onEditRecipe}
+            disabled={saving}
+            className="min-h-11 px-1 text-[13px] font-semibold disabled:opacity-40"
+          >
+            Edit the recipe
+          </button>
+        ) : (
+          <span />
+        )}
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={saving}
+          className="min-h-11 px-1 text-[13px] font-semibold text-destructive disabled:opacity-40"
+        >
+          Remove entry
+        </button>
+      </div>
+    </MobileSheet>
+  )
+}
+
 function RecipeLogSheet({
   recipe,
   savingMeal,
@@ -1869,6 +2081,10 @@ export default function Nutrition() {
     string[]
   >([])
   const [smartMealBusyKey, setSmartMealBusyKey] = useState<string | null>(null)
+  // Held by id, not by value: the sheet must follow the entry as the day's
+  // query updates underneath it rather than showing a frozen copy.
+  const [entryDetail, setEntryDetail] = useState<string | null>(null)
+  const [savingEntry, setSavingEntry] = useState(false)
   const { requireAiAccess, aiAccessModal } = useAiFeatureGate()
   useBottomBarAction(() => setAddOpen(true))
 
@@ -2439,6 +2655,26 @@ export default function Nutrition() {
     })
   }
 
+  async function saveFoodEntry(updated: FoodLogEntry) {
+    setSavingEntry(true)
+    try {
+      await setFoodDay({
+        date: dateKey,
+        entries: entries.map((entry) =>
+          entry.id === updated.id ? stripUndefined(updated) : entry
+        ),
+      })
+      hapticTap()
+      setEntryDetail(null)
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save this entry"
+      )
+    } finally {
+      setSavingEntry(false)
+    }
+  }
+
   function removeWaterEntry(entryId: string) {
     void setWaterDay({
       date: dateKey,
@@ -2867,15 +3103,24 @@ export default function Nutrition() {
                         key={entry.id}
                         className="flex min-h-14 items-center justify-between gap-2 px-1 py-2.5"
                       >
-                        <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            hapticTap()
+                            setEntryDetail(entry.id)
+                          }}
+                          className="min-w-0 flex-1 text-left"
+                          aria-label={`Details for ${entry.name}`}
+                        >
                           <p className="native-row-title truncate">
                             {entry.name}
                           </p>
                           <p className="native-row-detail mt-0.5">
                             {timeLabel(entry.loggedAt)} · {fmt(entry.calories)}{" "}
-                            kcal
+                            kcal · {fmt(entry.protein)}P {fmt(entry.carbs)}C{" "}
+                            {fmt(entry.fat)}F
                           </p>
-                        </div>
+                        </button>
                         {(entry.recipeId || entry.recipeDraft) && (
                           <button
                             type="button"
@@ -3573,6 +3818,31 @@ export default function Nutrition() {
         />
       )}
 
+      {(() => {
+        const entry = entries.find((item) => item.id === entryDetail)
+        if (!entry) return null
+        return (
+          <FoodEntrySheet
+            entry={entry}
+            saving={savingEntry}
+            onSave={(updated) => void saveFoodEntry(updated)}
+            onDelete={() => {
+              removeFoodEntry(entry.id)
+              setEntryDetail(null)
+            }}
+            onEditRecipe={
+              entry.recipeId || entry.recipeDraft
+                ? () => {
+                    setEntryDetail(null)
+                    editRecipeFromLogEntry(entry)
+                  }
+                : undefined
+            }
+            onClose={() => setEntryDetail(null)}
+          />
+        )
+      })()}
+
       {describeOpen && (
         <DescribeMealSheet
           busy={describeBusy}
@@ -3711,6 +3981,12 @@ export default function Nutrition() {
                   Icon: Sparkle,
                   requiresAiAccess: true,
                   action: openDescribeMeal,
+                },
+                {
+                  label: "Custom food",
+                  detail: "Enter one the database is missing",
+                  Icon: PencilSimple,
+                  action: () => navigate("/foods/custom?new=1&log=1"),
                 },
               ]
                 .filter((item) => isToday || item.supportsHistory)

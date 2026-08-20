@@ -49,6 +49,21 @@ export function getAuthCallbackUrl(path: string) {
 }
 
 /**
+ * For links a mail client has to open, not the app itself. `onerep://auth`
+ * only works when our own code hands the URL to the system browser (the
+ * OAuth flow in `native-oauth.ts`); tapped from inside Mail or Gmail, iOS
+ * mail clients routinely refuse to open a bare custom scheme. These links
+ * must always resolve to the hosted web app, which serves the same
+ * reset/verify screens and works with no native app involved.
+ */
+export function getEmailCallbackUrl(path: string) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`
+  const configured = import.meta.env.VITE_APP_URL as string | undefined
+
+  return `${trimTrailingSlash(configured || DEFAULT_APP_URL)}${normalizedPath}`
+}
+
+/**
  * Where an OAuth provider drops the user back. Everything lands on
  * `/sso-callback` so one screen waits out the Better Auth to Convex handoff
  * before forwarding to `path`.
@@ -64,7 +79,7 @@ export function getSocialCallbackUrl(
 }
 
 export function getEmailVerificationCallbackUrl() {
-  return getAuthCallbackUrl("/email-verified?source=email")
+  return getEmailCallbackUrl("/email-verified?source=email")
 }
 
 export function rememberPendingVerification(email: string, next?: string) {

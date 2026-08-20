@@ -114,6 +114,14 @@ function interleaveSearchResults(
 
 export default function SearchFoods() {
   const navigate = useSmoothNavigate()
+  // The database not having a drink is not the end of the log. Carry the name
+  // across so the entry the user came here to make is one screen away, not a
+  // second search for a page they have never seen.
+  const createCustomFood = (name: string) =>
+    navigate(
+      `/foods/custom?new=1&log=1${name ? `&name=${encodeURIComponent(name)}` : ""}`,
+      { motion: "forward" }
+    )
   const [searchParams] = useSearchParams()
   const posthog = usePostHog()
 
@@ -447,8 +455,17 @@ export default function SearchFoods() {
                   No foods found for “{completedQuery}”
                 </p>
                 <p className="mt-1 text-[14px] text-muted-foreground">
-                  Check the spelling or try a shorter, more general name.
+                  Check the spelling, or enter it yourself once and it is there
+                  for good.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => createCustomFood(completedQuery)}
+                  className="native-toolbar-button mt-3 border border-border bg-card"
+                >
+                  <Plus size={15} weight="bold" />
+                  Add “{completedQuery}” yourself
+                </button>
               </div>
             )}
 
@@ -467,9 +484,13 @@ export default function SearchFoods() {
                       for “{completedQuery}”
                     </p>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    Tap a result for details
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => createCustomFood(completedQuery)}
+                    className="min-h-11 shrink-0 text-[11px] font-semibold text-muted-foreground"
+                  >
+                    Not here? Add it
+                  </button>
                 </div>
                 <div className="grid gap-2.5 md:auto-rows-[5.5rem] md:grid-cols-2 md:gap-3">
                   {mixedResults.map((result) => {

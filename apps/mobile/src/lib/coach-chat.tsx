@@ -313,6 +313,7 @@ export type CoachOperationResult =
       type: "log_nutrition"
       entryId?: string
       actionId?: string
+      date?: string
       name: string
       meal: string
       calories: number
@@ -948,7 +949,7 @@ export function CoachOperationResults({
   onOpenRecipe: (id: string) => void
   onOpenWorkouts: () => void
   onStartWorkout: (presetId: string) => void
-  onOpenNutrition: () => void
+  onOpenNutrition: (date?: string) => void
   onOpenProgress: () => void
   onOpenSupplements: () => void
   onUndo: (id: string) => void
@@ -1345,7 +1346,11 @@ export function CoachOperationResults({
             result.type === "delete_nutrition" ? (
               <button
                 type="button"
-                onClick={onOpenNutrition}
+                onClick={() =>
+                  onOpenNutrition(
+                    result.type === "log_nutrition" ? result.date : undefined
+                  )
+                }
                 className="ml-auto min-h-8 px-2 text-[9px] font-black"
               >
                 Open

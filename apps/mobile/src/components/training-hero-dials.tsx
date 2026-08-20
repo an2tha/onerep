@@ -229,7 +229,6 @@ export function HoldToStartDial({
       }}
       onPointerUp={cancel}
       onPointerCancel={cancel}
-      onPointerLeave={cancel}
       onKeyDown={(event) => {
         if (event.key !== " " && event.key !== "Enter") return
         event.preventDefault()

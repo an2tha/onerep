@@ -4,7 +4,7 @@ import { CaretLeft, Eye, EyeSlash } from "@phosphor-icons/react"
 import { authClient, betterAuthErrorMessage } from "@/lib/auth-client"
 import { useSmoothNavigate } from "@/lib/navigation"
 import { AUTH_CARD_CLASS, AuthLayout, AuthMark } from "@/components/auth-shell"
-import { getAuthCallbackUrl } from "@/lib/auth-redirects"
+import { getEmailCallbackUrl } from "@/lib/auth-redirects"
 
 const FIELD_CLASS = "native-field"
 const LABEL_CLASS = "native-field-label"
@@ -103,7 +103,7 @@ export default function ResetPassword() {
     try {
       const sent = await authClient.requestPasswordReset({
         email: trimmedEmail,
-        redirectTo: getAuthCallbackUrl("/reset-password"),
+        redirectTo: getEmailCallbackUrl("/reset-password"),
       })
       if (sent.error) {
         setError(
