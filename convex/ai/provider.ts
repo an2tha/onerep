@@ -506,6 +506,15 @@ export async function requestOpenAiJson({
       result = await chat.invoke(messages);
     }
     logUsage(label, result, config.model);
+    // A model that ran out of room mid-object leaves JSON that cannot parse,
+    // and the caller's catch-all turns that into a canned reply. Name the
+    // real cause here: "invalid JSON" sends whoever reads the log hunting a
+    // formatting bug that does not exist.
+    if (finishReasonOf(result) === "length") {
+      throw new Error(
+        `Model output hit the ${maxTokens}-token ceiling before finishing its JSON`,
+      );
+    }
     const output = extractJsonObject(messageText(result.content));
     return JSON.stringify(output);
   } catch (error) {

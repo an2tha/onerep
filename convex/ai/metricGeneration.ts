@@ -1912,6 +1912,14 @@ function fallbackCoachUiBlocks(context: CoachContext): CoachUiBlock[] {
   return blocks;
 }
 
+/** Like clampText, but never mid-word: "…within the heal" reads as a bug. */
+function clampWords(value: string, max: number) {
+  const text = clampText(value, max);
+  if (text.length < max) return text;
+  const cut = text.slice(0, text.lastIndexOf(" "));
+  return `${(cut || text).replace(/[,;:]$/, "")}…`;
+}
+
 function makeFallbackUiFirst(
   response: Pick<CoachChatResult, "reply" | "uiBlocks" | "operations">,
   message: string,
@@ -1932,7 +1940,7 @@ function makeFallbackUiFirst(
         type: "card",
         label: "Coach recommendation",
         title: "What to do next",
-        detail: clampText(response.reply, 280),
+        detail: clampWords(response.reply, 280),
       },
     ],
   };
@@ -2831,7 +2839,11 @@ async function generateCoachChatWithOpenAi({
     }),
     ...(imageUrl ? { image: { url: imageUrl, detail: "high" as const } } : {}),
     temperature: 0.3,
-    maxTokens: 3200,
+    // A week of meals with their macros, a batch recipe and a set of targets
+    // is a large object, and 3200 cut it off mid-JSON — which surfaced as the
+    // canned fallback card, the one failure that looks like a feature. This
+    // is a ceiling, not a spend: short answers still cost what they cost.
+    maxTokens: 8000,
   });
   const normalized = normalizeCoachChatResponse(JSON.parse(content), message);
   if (!normalized) {
