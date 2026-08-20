@@ -252,12 +252,25 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
          Whether HealthKit will accept a sample of this type from us.
 
          Apple's own derived types are read-only, and asking to *share* one does
-         not fail quietly on that type alone — `requestAuthorization` rejects the
-         entire request, so a single unwritable entry in this table costs the
-         user every permission in the app. Exercise time and sleeping wrist
-         temperature are computed by watchOS and belong to it.
+         not fail quietly on that type alone — `requestAuthorization` raises an
+         `NSInvalidArgumentException`, which is an Objective-C exception Swift
+         cannot catch, so the app terminates on the spot. One wrong row here is
+         a launch crash for every user, not a missing feature.
+
+         Hence opt-in, not opt-out. `WalkingHeartRateAverage` shipped as
+         writable because the default said so and nobody had a reason to think
+         about it; the app died the first time it asked for permission. With the
+         default the other way round the cost of the same mistake is a write
+         path that quietly does nothing, which is a bug you fix on Tuesday
+         rather than a crash you ship on Monday.
+
+         Only add `writable: true` for a type you have seen a third-party app
+         write. Anything Apple computes — exercise time, walking heart rate
+         average, heart rate recovery, wrist temperature, the mobility metrics —
+         belongs to watchOS and will take the whole authorization request down
+         with it.
          */
-        var writable: Bool = true
+        var writable: Bool = false
 
         var statisticsOptions: HKStatisticsOptions {
             switch rollup {
@@ -305,84 +318,84 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
 
         return [
             // Activity
-            DailyQuantity(key: "steps", identifier: "StepCount", unit: .count(), rollup: .sum),
-            DailyQuantity(key: "activeEnergyKcal", identifier: "ActiveEnergyBurned", unit: .kilocalorie(), rollup: .sum),
-            DailyQuantity(key: "exerciseMinutes", identifier: "AppleExerciseTime", unit: .minute(), rollup: .sum, writable: false),
-            DailyQuantity(key: "distanceWalkingRunningM", identifier: "DistanceWalkingRunning", unit: .meter(), rollup: .sum),
-            DailyQuantity(key: "distanceCyclingM", identifier: "DistanceCycling", unit: .meter(), rollup: .sum),
-            DailyQuantity(key: "distanceSwimmingM", identifier: "DistanceSwimming", unit: .meter(), rollup: .sum),
-            DailyQuantity(key: "floorsClimbed", identifier: "FlightsClimbed", unit: .count(), rollup: .sum),
-            DailyQuantity(key: "wheelchairPushes", identifier: "PushCount", unit: .count(), rollup: .sum),
-            DailyQuantity(key: "vo2Max", identifier: "VO2Max", unit: vo2Unit, rollup: .latest),
+            DailyQuantity(key: "steps", identifier: "StepCount", unit: .count(), rollup: .sum, writable: true),
+            DailyQuantity(key: "activeEnergyKcal", identifier: "ActiveEnergyBurned", unit: .kilocalorie(), rollup: .sum, writable: true),
+            DailyQuantity(key: "exerciseMinutes", identifier: "AppleExerciseTime", unit: .minute(), rollup: .sum),
+            DailyQuantity(key: "distanceWalkingRunningM", identifier: "DistanceWalkingRunning", unit: .meter(), rollup: .sum, writable: true),
+            DailyQuantity(key: "distanceCyclingM", identifier: "DistanceCycling", unit: .meter(), rollup: .sum, writable: true),
+            DailyQuantity(key: "distanceSwimmingM", identifier: "DistanceSwimming", unit: .meter(), rollup: .sum, writable: true),
+            DailyQuantity(key: "floorsClimbed", identifier: "FlightsClimbed", unit: .count(), rollup: .sum, writable: true),
+            DailyQuantity(key: "wheelchairPushes", identifier: "PushCount", unit: .count(), rollup: .sum, writable: true),
+            DailyQuantity(key: "vo2Max", identifier: "VO2Max", unit: vo2Unit, rollup: .latest, writable: true),
             DailyQuantity(key: "cyclingCadenceRpm", identifier: "CyclingCadence", unit: perMinute, rollup: .average),
             DailyQuantity(key: "powerWatts", identifier: "CyclingPower", unit: .watt(), rollup: .average),
             DailyQuantity(key: "speedMps", identifier: "RunningSpeed", unit: HKUnit.meter().unitDivided(by: .second()), rollup: .average),
 
             // Vitals. Averaged, because a day carries several readings and none
             // of them is more true than the others.
-            DailyQuantity(key: "restingHeartRateBpm", identifier: "RestingHeartRate", unit: perMinute, rollup: .average),
-            DailyQuantity(key: "heartRateBpm", identifier: "HeartRate", unit: perMinute, rollup: .average),
-            DailyQuantity(key: "hrvMs", identifier: "HeartRateVariabilitySDNN", unit: HKUnit.secondUnit(with: .milli), rollup: .average),
-            DailyQuantity(key: "bloodGlucoseMmolL", identifier: "BloodGlucose", unit: mmolPerLitre, rollup: .average),
+            DailyQuantity(key: "restingHeartRateBpm", identifier: "RestingHeartRate", unit: perMinute, rollup: .average, writable: true),
+            DailyQuantity(key: "heartRateBpm", identifier: "HeartRate", unit: perMinute, rollup: .average, writable: true),
+            DailyQuantity(key: "hrvMs", identifier: "HeartRateVariabilitySDNN", unit: HKUnit.secondUnit(with: .milli), rollup: .average, writable: true),
+            DailyQuantity(key: "bloodGlucoseMmolL", identifier: "BloodGlucose", unit: mmolPerLitre, rollup: .average, writable: true),
             // Apple keeps systolic and diastolic as two independent quantities
             // where Health Connect keeps one record with both numbers. Two rows
             // here, one read on the other side; the catalogue keys match.
-            DailyQuantity(key: "bloodPressureSystolic", identifier: "BloodPressureSystolic", unit: .millimeterOfMercury(), rollup: .average),
-            DailyQuantity(key: "bloodPressureDiastolic", identifier: "BloodPressureDiastolic", unit: .millimeterOfMercury(), rollup: .average),
-            DailyQuantity(key: "oxygenSaturationPct", identifier: "OxygenSaturation", unit: .percent(), rollup: .average, scale: 100),
-            DailyQuantity(key: "respiratoryRateBpm", identifier: "RespiratoryRate", unit: perMinute, rollup: .average),
-            DailyQuantity(key: "bodyTemperatureC", identifier: "BodyTemperature", unit: .degreeCelsius(), rollup: .latest),
-            DailyQuantity(key: "basalBodyTemperatureC", identifier: "BasalBodyTemperature", unit: .degreeCelsius(), rollup: .latest),
+            DailyQuantity(key: "bloodPressureSystolic", identifier: "BloodPressureSystolic", unit: .millimeterOfMercury(), rollup: .average, writable: true),
+            DailyQuantity(key: "bloodPressureDiastolic", identifier: "BloodPressureDiastolic", unit: .millimeterOfMercury(), rollup: .average, writable: true),
+            DailyQuantity(key: "oxygenSaturationPct", identifier: "OxygenSaturation", unit: .percent(), rollup: .average, scale: 100, writable: true),
+            DailyQuantity(key: "respiratoryRateBpm", identifier: "RespiratoryRate", unit: perMinute, rollup: .average, writable: true),
+            DailyQuantity(key: "bodyTemperatureC", identifier: "BodyTemperature", unit: .degreeCelsius(), rollup: .latest, writable: true),
+            DailyQuantity(key: "basalBodyTemperatureC", identifier: "BasalBodyTemperature", unit: .degreeCelsius(), rollup: .latest, writable: true),
             DailyQuantity(key: "walkingHeartRateAvgBpm", identifier: "WalkingHeartRateAverage", unit: perMinute, rollup: .average),
             DailyQuantity(key: "heartRateRecoveryBpm", identifier: "HeartRateRecoveryOneMinute", unit: perMinute, rollup: .max),
             // iOS 16 and a Series 8 or later; on anything older the identifier
             // resolves to nil and the row drops out on its own, which is the
             // same path a declined permission takes.
-            DailyQuantity(key: "wristTemperatureC", identifier: "AppleSleepingWristTemperature", unit: .degreeCelsius(), rollup: .latest, writable: false),
+            DailyQuantity(key: "wristTemperatureC", identifier: "AppleSleepingWristTemperature", unit: .degreeCelsius(), rollup: .latest),
 
             // Body. Point measurements off a scale or a tape, so the day's last
             // reading wins: someone who weighs twice wants the second number,
             // not the mean of a shoe-on and a shoe-off attempt.
-            DailyQuantity(key: "weightKg", identifier: "BodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest),
-            DailyQuantity(key: "bodyFatPct", identifier: "BodyFatPercentage", unit: .percent(), rollup: .latest, scale: 100),
-            DailyQuantity(key: "leanBodyMassKg", identifier: "LeanBodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest),
-            DailyQuantity(key: "heightCm", identifier: "Height", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
-            DailyQuantity(key: "waistCircumferenceCm", identifier: "WaistCircumference", unit: HKUnit.meterUnit(with: .centi), rollup: .latest),
+            DailyQuantity(key: "weightKg", identifier: "BodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest, writable: true),
+            DailyQuantity(key: "bodyFatPct", identifier: "BodyFatPercentage", unit: .percent(), rollup: .latest, scale: 100, writable: true),
+            DailyQuantity(key: "leanBodyMassKg", identifier: "LeanBodyMass", unit: HKUnit.gramUnit(with: .kilo), rollup: .latest, writable: true),
+            DailyQuantity(key: "heightCm", identifier: "Height", unit: HKUnit.meterUnit(with: .centi), rollup: .latest, writable: true),
+            DailyQuantity(key: "waistCircumferenceCm", identifier: "WaistCircumference", unit: HKUnit.meterUnit(with: .centi), rollup: .latest, writable: true),
             // A real stored type, so it is read rather than divided out of the
             // day's height and weight. A number nobody measured, appearing on a
             // day nobody stepped on a scale, reads as a measurement and is not.
             // HealthKit files it as dimensionless, hence `count()`.
-            DailyQuantity(key: "bodyMassIndex", identifier: "BodyMassIndex", unit: .count(), rollup: .latest),
+            DailyQuantity(key: "bodyMassIndex", identifier: "BodyMassIndex", unit: .count(), rollup: .latest, writable: true),
             // Summed rather than treated as a rate: HealthKit reports resting
             // energy as kilocalories accumulated across the day, not as the
             // per-day figure Health Connect hands back.
-            DailyQuantity(key: "basalMetabolicRateKcal", identifier: "BasalEnergyBurned", unit: .kilocalorie(), rollup: .sum),
+            DailyQuantity(key: "basalMetabolicRateKcal", identifier: "BasalEnergyBurned", unit: .kilocalorie(), rollup: .sum, writable: true),
 
             // Nutrition, whatever another app wrote.
-            DailyQuantity(key: "dietaryEnergyKcal", identifier: "DietaryEnergyConsumed", unit: .kilocalorie(), rollup: .sum),
-            DailyQuantity(key: "dietaryProteinG", identifier: "DietaryProtein", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietaryCarbsG", identifier: "DietaryCarbohydrates", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietaryFatG", identifier: "DietaryFatTotal", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "hydrationMl", identifier: "DietaryWater", unit: HKUnit.literUnit(with: .milli), rollup: .sum),
-            DailyQuantity(key: "caffeineMg", identifier: "DietaryCaffeine", unit: milligram, rollup: .sum),
+            DailyQuantity(key: "dietaryEnergyKcal", identifier: "DietaryEnergyConsumed", unit: .kilocalorie(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryProteinG", identifier: "DietaryProtein", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryCarbsG", identifier: "DietaryCarbohydrates", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryFatG", identifier: "DietaryFatTotal", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "hydrationMl", identifier: "DietaryWater", unit: HKUnit.literUnit(with: .milli), rollup: .sum, writable: true),
+            DailyQuantity(key: "caffeineMg", identifier: "DietaryCaffeine", unit: milligram, rollup: .sum, writable: true),
             // One cumulative type per nutrient, where Health Connect has a
             // single record with a field each. Note the noun-first spelling of
             // the fat breakdown: `DietaryFatSaturated`, not `DietarySaturatedFat`
             // — the obvious guess resolves to nil and the metric never arrives,
             // silently, which is how the last three went missing for a release.
-            DailyQuantity(key: "dietaryFiberG", identifier: "DietaryFiber", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietarySugarG", identifier: "DietarySugar", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietarySodiumMg", identifier: "DietarySodium", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietaryCholesterolMg", identifier: "DietaryCholesterol", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietarySaturatedFatG", identifier: "DietaryFatSaturated", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietaryMonounsaturatedFatG", identifier: "DietaryFatMonounsaturated", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietaryPolyunsaturatedFatG", identifier: "DietaryFatPolyunsaturated", unit: .gram(), rollup: .sum),
-            DailyQuantity(key: "dietaryPotassiumMg", identifier: "DietaryPotassium", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietaryCalciumMg", identifier: "DietaryCalcium", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietaryIronMg", identifier: "DietaryIron", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietaryVitaminAMcg", identifier: "DietaryVitaminA", unit: microgram, rollup: .sum),
-            DailyQuantity(key: "dietaryVitaminCMg", identifier: "DietaryVitaminC", unit: milligram, rollup: .sum),
-            DailyQuantity(key: "dietaryVitaminDMcg", identifier: "DietaryVitaminD", unit: microgram, rollup: .sum)
+            DailyQuantity(key: "dietaryFiberG", identifier: "DietaryFiber", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietarySugarG", identifier: "DietarySugar", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietarySodiumMg", identifier: "DietarySodium", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryCholesterolMg", identifier: "DietaryCholesterol", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietarySaturatedFatG", identifier: "DietaryFatSaturated", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryMonounsaturatedFatG", identifier: "DietaryFatMonounsaturated", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryPolyunsaturatedFatG", identifier: "DietaryFatPolyunsaturated", unit: .gram(), rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryPotassiumMg", identifier: "DietaryPotassium", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryCalciumMg", identifier: "DietaryCalcium", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryIronMg", identifier: "DietaryIron", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryVitaminAMcg", identifier: "DietaryVitaminA", unit: microgram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryVitaminCMg", identifier: "DietaryVitaminC", unit: milligram, rollup: .sum, writable: true),
+            DailyQuantity(key: "dietaryVitaminDMcg", identifier: "DietaryVitaminD", unit: microgram, rollup: .sum, writable: true)
         ]
     }
 
@@ -866,8 +879,28 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /**
+     Identifiers the running OS did not recognise.
+
+     `quantityType(forIdentifier:)` returns nil for a name that does not exist
+     — a typo and an iOS-17-only type look identical — and the row then drops
+     out of the request in silence. The symptom is a metric that is switchable
+     in Settings, bindable as a custom metric, and simply absent from Apple's
+     permission sheet, with nothing anywhere saying why.
+
+     So the misses are collected and logged rather than discarded. On a device
+     this is the difference between "some toggles are missing" and knowing
+     which three strings to fix.
+     */
+    private func logUnresolved(_ unresolved: [String]) {
+        guard !unresolved.isEmpty else { return }
+        NSLog("[health] %d identifier(s) unknown to this iOS: %@",
+              unresolved.count, unresolved.joined(separator: ", "))
+    }
+
     private func healthReadTypes() -> Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
+        var unresolved: [String] = []
 
         // Everything the daily tables can read, asked for in one go. HealthKit
         // will not say which of these the user granted — `requestAuthorization`
@@ -876,13 +909,18 @@ public class AppleHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         dailyQuantities().forEach { quantity in
             if let type = quantityType(quantity.identifier) {
                 types.insert(type)
+            } else {
+                unresolved.append(quantity.identifier)
             }
         }
         dailyCategories().forEach { category in
             if let type = categoryType(category.identifier) {
                 types.insert(type)
+            } else {
+                unresolved.append(category.identifier)
             }
         }
+        logUnresolved(unresolved)
 
         // Read for workout serialisation rather than for the daily rollup.
         [
