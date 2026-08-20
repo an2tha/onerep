@@ -1279,6 +1279,21 @@ export default defineSchema({
     .index("by_userId_and_sentAt", ["userId", "sentAt"])
     .index("by_userId_and_kind_and_dedupeKey", ["userId", "kind", "dedupeKey"]),
 
+  // Which celebrations this account has already had. Confetti is a
+  // once-per-achievement thing, and the localStorage flag that used to enforce
+  // that made "once" mean "once per device" — finish a fast on the phone, open
+  // the iPad, watch it all again.
+  celebrations: defineTable({
+    userId: v.string(),
+    /** CelebrationKind on the client. */
+    kind: v.string(),
+    /** The scope one showing covers: a date key, or a fasting session id. */
+    dedupeKey: v.string(),
+    celebratedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_kind_and_dedupeKey", ["userId", "kind", "dedupeKey"]),
+
   // The Sunday review: what the coach made of the week, and what it proposes
   // doing about it. Operations are stored as proposals and applied only when
   // the user taps, so this table holds intent, never a completed write.

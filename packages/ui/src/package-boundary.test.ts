@@ -161,6 +161,9 @@ describe("@repo/ui package boundary", () => {
       // The coach's computed lift verdicts and recovery read-out on Progress,
       // straight from a Convex query.
       "training-insights-panel.tsx",
+      // Renders null; reads the account age from Convex and emits the daily
+      // retention event against Capacitor's app-state listener.
+      "retention-tracking.tsx",
       // Renders null; syncs Convex data into the iOS widget extension.
       "widget-data-sync.tsx",
     ])

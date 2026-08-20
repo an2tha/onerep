@@ -65,6 +65,7 @@ export const userDataRegistry = {
   coachUploads: "directly_user_owned",
   coachReviews: "directly_user_owned",
   coachTouches: "directly_user_owned",
+  celebrations: "directly_user_owned",
   pushTokens: "directly_user_owned",
   fileUploads: "directly_user_owned",
   aiUsage: "directly_user_owned",
