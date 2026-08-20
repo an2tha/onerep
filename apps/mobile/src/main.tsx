@@ -90,6 +90,10 @@ import HealthRecovery from "./pages/health/Recovery.tsx"
 import HealthActivity from "./pages/health/Activity.tsx"
 import HealthBody from "./pages/health/Body.tsx"
 import HealthHeart from "./pages/health/Heart.tsx"
+import HealthNutrition from "./pages/health/Nutrition.tsx"
+import HealthVitals from "./pages/health/Vitals.tsx"
+import HealthMindfulness from "./pages/health/Mindfulness.tsx"
+import HealthReproductive from "./pages/health/Reproductive.tsx"
 import HealthTrends from "./pages/health/Trends.tsx"
 import Coach from "./pages/Coach.tsx"
 import Settings from "./pages/Settings.tsx"
@@ -1083,6 +1087,46 @@ const router = createBrowserRouter([
           <AuthGuard>
             <ErrorBoundary label="Health body">
               <HealthBody />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/nutrition",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health nutrition">
+              <HealthNutrition />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/vitals",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health vitals">
+              <HealthVitals />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/mindfulness",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health mindfulness">
+              <HealthMindfulness />
+            </ErrorBoundary>
+          </AuthGuard>
+        ),
+      },
+      {
+        path: "/health/reproductive",
+        element: (
+          <AuthGuard>
+            <ErrorBoundary label="Health cycle">
+              <HealthReproductive />
             </ErrorBoundary>
           </AuthGuard>
         ),

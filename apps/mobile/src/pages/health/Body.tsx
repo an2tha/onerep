@@ -11,6 +11,8 @@ import {
   StatCell,
   StatGrid,
 } from "./shared"
+import { DialCustomMetrics } from "@/components/dial-custom-metrics"
+import { TrackSomethingNew } from "@/components/track-something-new"
 
 function formatKg(value: number) {
   return `${value.toFixed(1)}kg`
@@ -148,6 +150,13 @@ export default function HealthBody() {
           )}
         </StatGrid>
       )}
+
+      <DialCustomMetrics dial="body" tone={AREA_TONES.body} />
+
+      <TrackSomethingNew
+        tab="body"
+        detail="Measurements or habits the check-in form has no field for."
+      />
 
       <button
         type="button"

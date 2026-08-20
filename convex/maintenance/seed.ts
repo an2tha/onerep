@@ -1147,6 +1147,197 @@ export const seedManualFieldOverrides = internalMutation({
 });
 
 /**
+ * The same sessions, seen from the phone's side.
+ *
+ * `workoutLogs` is what the user typed in; `healthWorkouts` is what the watch
+ * filed independently — and the activity score reads only the second one, so a
+ * demo account with fifty logged sessions and an empty health store scores
+ * zero exercise minutes and draws a flat line to prove it.
+ *
+ * Mirrors every existing training log onto a strength session at the same
+ * hour, then adds the runs, rides and classes the training log never hears
+ * about, because that gap is the entire reason the health store is read
+ * separately in the first place. Run it after `seedDemoHistory`: it reads that
+ * table rather than re-deriving the program, so the two cannot drift apart.
+ * Safe to run twice — it removes the rows it wrote last time first.
+ */
+export const seedDemoHealthWorkouts = internalMutation({
+  args: { ...targetArgs, seed: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const userId = await resolveUserId(ctx, args);
+    const rng = mulberry32(args.seed ?? 44_119);
+
+    const logs = await ctx.db
+      .query("workoutLogs")
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
+      .collect();
+    logs.sort((a, b) => a.date.localeCompare(b.date));
+
+    // Alone among the seeders here this one clears up after itself: it is the
+    // late addition to an already-poured demo account, and re-pouring the
+    // whole thing to fix a heart rate is a poor trade. Only rows it wrote go.
+    const stale = await ctx.db
+      .query("healthWorkouts")
+      .withIndex("by_userId_and_date", (q) => q.eq("userId", userId))
+      .collect();
+    let replaced = 0;
+    for (const row of stale) {
+      if (!row.externalId.startsWith("demo-")) continue;
+      await ctx.db.delete(row._id);
+      replaced += 1;
+    }
+
+    const now = Date.now();
+    const liftingDays = new Set(logs.map((log) => log.date));
+    let written = 0;
+
+    const insert = async (row: {
+      externalId: string;
+      activityType: string;
+      activityName: string;
+      date: string;
+      startedAt: number;
+      durationSeconds: number;
+      totalDistanceMeters?: number;
+      avgHeartRateBpm: number;
+      maxHeartRateBpm: number;
+      activeEnergyKcal: number;
+      hasRoute?: boolean;
+      routeName?: string;
+    }) => {
+      await ctx.db.insert("healthWorkouts", {
+        userId,
+        // The watch is the only device in this story, so one provider — a
+        // demo account syncing from two phones raises questions nobody asked.
+        provider: "apple_health" as const,
+        sourceName: "Apple Watch",
+        sourceBundleId: "com.apple.health",
+        endedAt: row.startedAt + row.durationSeconds * 1000,
+        importedAt: now,
+        updatedAt: now,
+        ...row,
+      });
+      written += 1;
+    };
+
+    // A watch rounds the gym down: the log counts the walk to the water
+    // fountain, the ring does not.
+    let mirrored = 0;
+    for (const log of logs) {
+      const durationSeconds = Math.round(log.durationSeconds * (0.86 + rng() * 0.1));
+      await insert({
+        externalId: `demo-strength-${log.date}-${log.slot ?? 1}`,
+        activityType: "traditionalStrengthTraining",
+        activityName: "Traditional Strength Training",
+        date: log.date,
+        startedAt: log.completedAt - durationSeconds * 1000,
+        durationSeconds,
+        avgHeartRateBpm: Math.round(121 + rng() * 12),
+        maxHeartRateBpm: Math.round(158 + rng() * 16),
+        activeEnergyKcal: Math.round((durationSeconds / 60) * (6.4 + rng() * 1.6)),
+      });
+      mirrored += 1;
+    }
+
+    // Everything the training log never sees. Wednesday is the midweek run,
+    // Saturday the long one, Sunday a spin class or a recovery ride — the
+    // pattern someone actually keeps, not dice.
+    let cardioOnly = 0;
+    // Which weeks the midweek run, the long run and the Sunday ride get
+    // skipped is decided by a counter rather than a die: a coin flip per day
+    // is free to leave the last three weeks of the chart empty, which is the
+    // one thing this seeder exists to prevent.
+    const slotCounts: Record<number, number> = { 0: 0, 3: 0, 6: 0 };
+    if (logs.length > 0) {
+      const firstMs = Date.parse(`${logs[0]!.date}T00:00:00Z`);
+      const lastMs = Date.parse(`${logs[logs.length - 1]!.date}T00:00:00Z`);
+      for (let dateMs = firstMs; dateMs <= lastMs; dateMs += 86_400_000) {
+        const date = new Date(dateMs).toISOString().slice(0, 10);
+        if (liftingDays.has(date)) continue;
+        const weekday = new Date(dateMs).getUTCDay();
+
+        const occurrence = slotCounts[weekday];
+        if (occurrence !== undefined) slotCounts[weekday] = occurrence + 1;
+
+        // Missed sessions happen to cardio too, and rather more often.
+        if (weekday === 3 && occurrence! % 6 !== 5) {
+          const durationSeconds = Math.round(1_920 + rng() * 660);
+          await insert({
+            externalId: `demo-run-${date}`,
+            activityType: "running",
+            activityName: "Outdoor Run",
+            date,
+            startedAt: dateMs + 18 * 3_600_000 + Math.floor(rng() * 3_600_000),
+            durationSeconds,
+            totalDistanceMeters: Math.round(durationSeconds * (2.9 + rng() * 0.35)),
+            avgHeartRateBpm: Math.round(152 + rng() * 8),
+            maxHeartRateBpm: Math.round(172 + rng() * 10),
+            activeEnergyKcal: Math.round((durationSeconds / 60) * (11.5 + rng() * 2)),
+            hasRoute: true,
+            routeName: "Riverside loop",
+          });
+          cardioOnly += 1;
+        } else if (weekday === 6 && occurrence! % 5 !== 4) {
+          const durationSeconds = Math.round(3_300 + rng() * 1_500);
+          await insert({
+            externalId: `demo-long-run-${date}`,
+            activityType: "running",
+            activityName: "Outdoor Run",
+            date,
+            startedAt: dateMs + 9 * 3_600_000 + Math.floor(rng() * 5_400_000),
+            durationSeconds,
+            totalDistanceMeters: Math.round(durationSeconds * (2.7 + rng() * 0.3)),
+            avgHeartRateBpm: Math.round(144 + rng() * 7),
+            maxHeartRateBpm: Math.round(166 + rng() * 9),
+            activeEnergyKcal: Math.round((durationSeconds / 60) * (10.8 + rng() * 1.8)),
+            hasRoute: true,
+            routeName: "Canal path",
+          });
+          cardioOnly += 1;
+        } else if (weekday === 0 && occurrence! % 4 !== 3) {
+          const spin = occurrence! % 2 === 0;
+          const durationSeconds = Math.round(spin ? 2_700 + rng() * 300 : 3_600 + rng() * 1_800);
+          await insert({
+            externalId: `demo-${spin ? "spin" : "ride"}-${date}`,
+            activityType: spin ? "indoorCycling" : "cycling",
+            activityName: spin ? "Spin Class" : "Outdoor Cycle",
+            date,
+            startedAt: dateMs + 10 * 3_600_000 + Math.floor(rng() * 3_600_000),
+            durationSeconds,
+            totalDistanceMeters: spin
+              ? undefined
+              : Math.round(durationSeconds * (6.2 + rng() * 0.8)),
+            avgHeartRateBpm: Math.round((spin ? 148 : 128) + rng() * 9),
+            maxHeartRateBpm: Math.round((spin ? 174 : 154) + rng() * 10),
+            activeEnergyKcal: Math.round((durationSeconds / 60) * (spin ? 10.2 : 7.8)),
+            hasRoute: !spin,
+            routeName: spin ? undefined : "Hill route",
+          });
+          cardioOnly += 1;
+        } else if (weekday === 4 && rng() > 0.6) {
+          // The odd mobility session on a day the lift was skipped.
+          const durationSeconds = Math.round(1_500 + rng() * 600);
+          await insert({
+            externalId: `demo-yoga-${date}`,
+            activityType: "yoga",
+            activityName: "Yoga",
+            date,
+            startedAt: dateMs + 19 * 3_600_000,
+            durationSeconds,
+            avgHeartRateBpm: Math.round(92 + rng() * 8),
+            maxHeartRateBpm: Math.round(112 + rng() * 10),
+            activeEnergyKcal: Math.round((durationSeconds / 60) * 3.4),
+          });
+          cardioOnly += 1;
+        }
+      }
+    }
+
+    return { written, mirrored, cardioOnly, replaced };
+  },
+});
+
+/**
  * What is already there. Every seeder here inserts rather than upserts, so
  * running one twice quietly doubles the history — check before you pour.
  */
@@ -1155,7 +1346,14 @@ export const demoRowCounts = internalQuery({
   handler: async (ctx, args) => {
     const userId = await resolveUserId(ctx, args);
     const count = async (
-      table: "workoutLogs" | "foodLogs" | "waterLogs" | "healthMetrics" | "bodyMeasurements" | "presets",
+      table:
+        | "workoutLogs"
+        | "foodLogs"
+        | "waterLogs"
+        | "healthMetrics"
+        | "healthWorkouts"
+        | "bodyMeasurements"
+        | "presets",
       index: string,
     ) =>
       (
@@ -1179,6 +1377,7 @@ export const demoRowCounts = internalQuery({
       foodLogs: await count("foodLogs", "by_userId_date"),
       waterLogs: await count("waterLogs", "by_userId_date"),
       healthMetrics: await count("healthMetrics", "by_userId"),
+      healthWorkouts: await count("healthWorkouts", "by_userId_and_date"),
       bodyMeasurements: await count("bodyMeasurements", "by_userId"),
       presets: await count("presets", "by_userId"),
       healthProfiles: (
@@ -1244,6 +1443,7 @@ export const clearDemoData = internalMutation({
     await wipe("foodLogs", "by_userId_date");
     await wipe("waterLogs", "by_userId_date");
     await wipe("healthMetrics", "by_userId");
+    await wipe("healthWorkouts", "by_userId_and_date");
     await wipe("bodyMeasurements", "by_userId");
     await wipe("presets", "by_userId");
     await wipe("schedules", "by_userId");

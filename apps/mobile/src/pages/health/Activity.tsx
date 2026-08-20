@@ -12,6 +12,8 @@ import {
   formatCount,
   formatHours,
 } from "./shared"
+import { DialCustomMetrics } from "@/components/dial-custom-metrics"
+import { TrackSomethingNew } from "@/components/track-something-new"
 
 /**
  * Movement: the minutes that count, and the ones that merely accumulate.
@@ -153,6 +155,12 @@ export default function HealthActivity() {
               </ul>
             </section>
           )}
+          <DialCustomMetrics dial="activity" tone={AREA_TONES.activity} />
+
+          <TrackSomethingNew
+            tab="training"
+            detail="A session, a distance, a habit OneRep does not count yet."
+          />
         </>
       )}
     </HealthDetailShell>

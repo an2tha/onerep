@@ -213,6 +213,47 @@ export const setValue = mutation({
   },
 });
 
+/**
+ * Removes a logged value for one day.
+ *
+ * Separate from `setValue` rather than a nullable argument on it, because the
+ * app's inputs cannot express "no value" — an emptied box is indistinguishable
+ * from a box someone is halfway through typing in, and treating it as a delete
+ * loses a reading to a stray backspace.
+ *
+ * Deleting the row takes the `manual` flag with it, so a bound metric refills
+ * from the health store on the next sync. That is the point: it is how you undo
+ * a fat-fingered figure that would otherwise sit in your baseline forever.
+ */
+export const clearValue = mutation({
+  args: {
+    metricId: v.id("customProgressMetrics"),
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthUser(ctx);
+    const metric = await ctx.db.get(args.metricId);
+    if (!metric || metric.userId !== user._id)
+      throw new Error("Metric not found");
+
+    const existing = await ctx.db
+      .query("customProgressMetricEntries")
+      .withIndex("by_userId_and_metricId_and_date", (q) =>
+        q
+          .eq("userId", user._id)
+          .eq("metricId", args.metricId)
+          .eq("date", args.date),
+      )
+      .unique();
+
+    // Clearing an empty day is what happens when someone opens the sheet and
+    // saves without touching a row, so it is a no-op rather than an error.
+    if (!existing) return { cleared: false };
+    await ctx.db.delete(existing._id);
+    return { cleared: true };
+  },
+});
+
 export const remove = mutation({
   args: { metricId: v.id("customProgressMetrics") },
   handler: async (ctx, args) => {
