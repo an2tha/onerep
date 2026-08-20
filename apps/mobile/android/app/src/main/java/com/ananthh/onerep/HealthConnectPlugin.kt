@@ -16,6 +16,7 @@ import androidx.health.connect.client.records.BloodGlucoseRecord
 import androidx.health.connect.client.records.BloodPressureRecord
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.BodyTemperatureRecord
+import androidx.health.connect.client.records.BodyWaterMassRecord
 import androidx.health.connect.client.records.BoneMassRecord
 import androidx.health.connect.client.records.CervicalMucusRecord
 import androidx.health.connect.client.records.CyclingPedalingCadenceRecord
@@ -31,6 +32,7 @@ import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.IntermenstrualBleedingRecord
 import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.MenstruationFlowRecord
+import androidx.health.connect.client.records.MenstruationPeriodRecord
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.records.OvulationTestRecord
 import androidx.health.connect.client.records.OxygenSaturationRecord
@@ -38,8 +40,11 @@ import androidx.health.connect.client.records.PowerRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
+import androidx.health.connect.client.records.SexualActivityRecord
+import androidx.health.connect.client.records.SkinTemperatureRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.SpeedRecord
+import androidx.health.connect.client.records.StepsCadenceRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
@@ -145,6 +150,16 @@ class HealthConnectPlugin : Plugin() {
         HealthPermission.getReadPermission(CervicalMucusRecord::class),
         HealthPermission.getReadPermission(OvulationTestRecord::class),
         HealthPermission.getReadPermission(IntermenstrualBleedingRecord::class),
+        HealthPermission.getReadPermission(MenstruationPeriodRecord::class),
+        HealthPermission.getReadPermission(SexualActivityRecord::class),
+        HealthPermission.getReadPermission(StepsCadenceRecord::class),
+        HealthPermission.getReadPermission(BodyWaterMassRecord::class),
+        // Skin temperature arrived in a later Health Connect release than the
+        // rest of this list. Older providers do not know the permission string
+        // and simply never grant it, which the per-type runCatching in the
+        // reader already survives; the alternative was a second consent screen
+        // for one row.
+        HealthPermission.getReadPermission(SkinTemperatureRecord::class),
     )
 
     /**
@@ -196,6 +211,7 @@ class HealthConnectPlugin : Plugin() {
         HealthPermission.getWritePermission(BoneMassRecord::class),
         HealthPermission.getWritePermission(BasalMetabolicRateRecord::class),
         HealthPermission.getWritePermission(HeightRecord::class),
+        HealthPermission.getWritePermission(BodyWaterMassRecord::class),
     )
 
     /** Written by `saveWorkout`; the only write the app performs unprompted. */
@@ -613,20 +629,135 @@ class HealthConnectPlugin : Plugin() {
                     total("hydrationMl", HydrationRecord.VOLUME_TOTAL) {
                         it[HydrationRecord.VOLUME_TOTAL]?.inMilliliters
                     }
-                    total("dietaryEnergyKcal", NutritionRecord.ENERGY_TOTAL) {
-                        it[NutritionRecord.ENERGY_TOTAL]?.inKilocalories
-                    }
-                    total("dietaryProteinG", NutritionRecord.PROTEIN_TOTAL) {
-                        it[NutritionRecord.PROTEIN_TOTAL]?.inGrams
-                    }
-                    total("dietaryCarbsG", NutritionRecord.TOTAL_CARBOHYDRATE_TOTAL) {
-                        it[NutritionRecord.TOTAL_CARBOHYDRATE_TOTAL]?.inGrams
-                    }
-                    total("dietaryFatG", NutritionRecord.TOTAL_FAT_TOTAL) {
-                        it[NutritionRecord.TOTAL_FAT_TOTAL]?.inGrams
-                    }
-                    total("caffeineMg", NutritionRecord.CAFFEINE_TOTAL) {
-                        it[NutritionRecord.CAFFEINE_TOTAL]?.inMilligrams
+                    // Nineteen catalogue rows, one record type, one permission.
+                    // Every other total gets a request of its own because a
+                    // declined type throws and would take the rest down with it,
+                    // but the nutrients all sit on the same `NutritionRecord` and
+                    // stand or fall together — nineteen round trips to re-read the
+                    // same rows nineteen times is a cost with nothing bought.
+                    //
+                    // The unit is read off per nutrient: Health Connect returns a
+                    // `Mass` for all of them and the catalogue wants grams for the
+                    // macros, milligrams for the minerals and micrograms for the
+                    // fat-soluble vitamins.
+                    val nutrients: List<Triple<String, AggregateMetric<*>, (AggregationResult) -> Double?>> =
+                        listOf(
+                            Triple(
+                                "dietaryEnergyKcal",
+                                NutritionRecord.ENERGY_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.ENERGY_TOTAL]?.inKilocalories },
+                            ),
+                            Triple(
+                                "dietaryProteinG",
+                                NutritionRecord.PROTEIN_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.PROTEIN_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryCarbsG",
+                                NutritionRecord.TOTAL_CARBOHYDRATE_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.TOTAL_CARBOHYDRATE_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryFatG",
+                                NutritionRecord.TOTAL_FAT_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.TOTAL_FAT_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "caffeineMg",
+                                NutritionRecord.CAFFEINE_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.CAFFEINE_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryFiberG",
+                                NutritionRecord.DIETARY_FIBER_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.DIETARY_FIBER_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietarySugarG",
+                                NutritionRecord.SUGAR_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.SUGAR_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietarySodiumMg",
+                                NutritionRecord.SODIUM_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.SODIUM_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryCholesterolMg",
+                                NutritionRecord.CHOLESTEROL_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.CHOLESTEROL_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietarySaturatedFatG",
+                                NutritionRecord.SATURATED_FAT_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.SATURATED_FAT_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryMonounsaturatedFatG",
+                                NutritionRecord.MONOUNSATURATED_FAT_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.MONOUNSATURATED_FAT_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryPolyunsaturatedFatG",
+                                NutritionRecord.POLYUNSATURATED_FAT_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.POLYUNSATURATED_FAT_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryTransFatG",
+                                NutritionRecord.TRANS_FAT_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.TRANS_FAT_TOTAL]?.inGrams },
+                            ),
+                            Triple(
+                                "dietaryPotassiumMg",
+                                NutritionRecord.POTASSIUM_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.POTASSIUM_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryCalciumMg",
+                                NutritionRecord.CALCIUM_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.CALCIUM_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryIronMg",
+                                NutritionRecord.IRON_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.IRON_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryVitaminAMcg",
+                                NutritionRecord.VITAMIN_A_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.VITAMIN_A_TOTAL]?.inMicrograms },
+                            ),
+                            Triple(
+                                "dietaryVitaminCMg",
+                                NutritionRecord.VITAMIN_C_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.VITAMIN_C_TOTAL]?.inMilligrams },
+                            ),
+                            Triple(
+                                "dietaryVitaminDMcg",
+                                NutritionRecord.VITAMIN_D_TOTAL,
+                                { r: AggregationResult -> r[NutritionRecord.VITAMIN_D_TOTAL]?.inMicrograms },
+                            ),
+                        )
+                    val wantedNutrients = nutrients.filter { wants(it.first) }
+                    if (wantedNutrients.isNotEmpty()) {
+                        runCatching {
+                            hc.aggregateGroupByPeriod(
+                                AggregateGroupByPeriodRequest(
+                                    metrics = wantedNutrients.map { it.second }.toSet(),
+                                    timeRangeFilter = localRange,
+                                    timeRangeSlicer = Period.ofDays(1),
+                                ),
+                            ).forEach { slice ->
+                                val day = slice.startTime.toLocalDate().toString()
+                                wantedNutrients.forEach { (key, _, value) ->
+                                    // Only touch the day's bucket once something
+                                    // is actually there: calling it eagerly
+                                    // invents a dated entry with no fields for
+                                    // every day nobody logged a meal.
+                                    value(slice.result)?.let { bucket(day)[key] = it }
+                                }
+                            }
+                        }
                     }
 
                     // ── Averaged ─────────────────────────────────────────────
@@ -649,6 +780,9 @@ class HealthConnectPlugin : Plugin() {
                     }
                     average("speedMps", SpeedRecord::class) { record ->
                         record.samples.map { it.time to it.speed.inMetersPerSecond }
+                    }
+                    average("stepsCadenceSpm", StepsCadenceRecord::class) { record ->
+                        record.samples.map { it.time to it.rate }
                     }
                     average("bloodGlucoseMmolL", BloodGlucoseRecord::class) {
                         listOf(it.time to it.level.inMillimolesPerLiter)
@@ -685,6 +819,9 @@ class HealthConnectPlugin : Plugin() {
                         it.time to it.mass.inKilograms
                     }
                     newest("boneMassKg", BoneMassRecord::class) { it.time to it.mass.inKilograms }
+                    newest("bodyWaterMassKg", BodyWaterMassRecord::class) {
+                        it.time to it.mass.inKilograms
+                    }
                     // A rate, not an accumulation: Health Connect states BMR as
                     // kcal per day, which is already the number the targets are
                     // sanity-checked against. Summing the day's records would
@@ -704,6 +841,18 @@ class HealthConnectPlugin : Plugin() {
                     newest("basalBodyTemperatureC", BasalBodyTemperatureRecord::class) {
                         it.time to it.temperature.inCelsius
                     }
+                    // A signed distance from a baseline Health Connect works out
+                    // itself, not a temperature. It shares nothing but a name
+                    // with Apple's sleeping wrist temperature, which is absolute,
+                    // and the catalogue keeps them as two rows for that reason —
+                    // so it lands here in Celsius of *change*, unconverted, and
+                    // never in `wristTemperatureC`. The record is a series, so
+                    // the day's last sample wins the way a weigh-in does.
+                    read("skinTemperatureDeltaC", SkinTemperatureRecord::class) { record ->
+                        record.deltas.forEach {
+                            offerLatest("skinTemperatureDeltaC", it.time, it.delta.inCelsius)
+                        }
+                    }
                     // Reproductive readings arrive as enum levels. They are
                     // passed through as the platform's own numbers rather than
                     // rescaled, the way HRV is: a level means what the store
@@ -721,6 +870,24 @@ class HealthConnectPlugin : Plugin() {
                     newest("intermenstrualBleeding", IntermenstrualBleedingRecord::class) {
                         it.time to 1.0
                     }
+                    // The period is one interval record covering several days,
+                    // not a reading per day, so every day it spans is flagged.
+                    // Without the loop a five-day period shows up on its first
+                    // day only and the chart says the period lasted an evening.
+                    read("menstruationPeriod", MenstruationPeriodRecord::class) { record ->
+                        var day = record.startTime.atZone(zone).toLocalDate()
+                        val last = record.endTime.atZone(zone).toLocalDate()
+                        while (!day.isAfter(last)) {
+                            bucket(day.toString())["menstruationPeriod"] = 1.0
+                            day = day.plusDays(1)
+                        }
+                    }
+                    // Counted, not levelled: the catalogue sums these, and twice
+                    // in a day is two.
+                    read("sexualActivity", SexualActivityRecord::class) { record ->
+                        val day = bucket(dayOf(record.time))
+                        day["sexualActivity"] = (day["sexualActivity"] ?: 0.0) + 1.0
+                    }
 
                     // Merge overlapping sessions before attributing them. A phone
                     // and a watch recording the same night must not add up to
@@ -730,24 +897,93 @@ class HealthConnectPlugin : Plugin() {
                     // who goes to bed at 23:30 and wakes at 07:00 slept for the
                     // second day, which is the one the coach will be talking
                     // about.
+                    val sleepKeys = listOf(
+                        "sleepMinutes",
+                        "sleepDeepMinutes",
+                        "sleepRemMinutes",
+                        "sleepLightMinutes",
+                        "sleepAwakeMinutes",
+                    )
                     val sessions = mutableListOf<SleepSessionRecord>()
-                    read("sleepMinutes", SleepSessionRecord::class) { sessions.add(it) }
+                    // One read feeds all five keys — the stages are fields on
+                    // the session, not records of their own — so the read
+                    // happens if *any* of them is wanted, under whichever of
+                    // them asked.
+                    sleepKeys.firstOrNull { wants(it) }?.let { key ->
+                        read(key, SleepSessionRecord::class) { sessions.add(it) }
+                    }
                     sessions.sortBy { it.startTime }
 
-                    val merged = mutableListOf<Pair<Instant, Instant>>()
-                    sessions.forEach { record ->
-                        val last = merged.lastOrNull()
-                        if (last != null && !record.startTime.isAfter(last.second)) {
-                            merged[merged.size - 1] =
-                                last.first to maxOf(last.second, record.endTime)
-                        } else {
-                            merged.add(record.startTime to record.endTime)
+                    fun mergeSpans(
+                        spans: List<Pair<Instant, Instant>>,
+                    ): List<Pair<Instant, Instant>> {
+                        val merged = mutableListOf<Pair<Instant, Instant>>()
+                        spans.sortedBy { it.first }.forEach { span ->
+                            val last = merged.lastOrNull()
+                            if (last != null && !span.first.isAfter(last.second)) {
+                                merged[merged.size - 1] =
+                                    last.first to maxOf(last.second, span.second)
+                            } else {
+                                merged.add(span)
+                            }
+                        }
+                        return merged
+                    }
+
+                    val merged = mergeSpans(sessions.map { it.startTime to it.endTime })
+                    if (wants("sleepMinutes")) {
+                        merged.forEach { (from, to) ->
+                            val day = bucket(dayOf(to))
+                            day["sleepMinutes"] = (day["sleepMinutes"] ?: 0.0) +
+                                Duration.between(from, to).toMinutes()
                         }
                     }
-                    merged.forEach { (from, to) ->
-                        val day = bucket(dayOf(to))
-                        day["sleepMinutes"] =
-                            (day["sleepMinutes"] ?: 0.0) + Duration.between(from, to).toMinutes()
+
+                    // A stage is credited to the night it belongs to rather than
+                    // the day it fell on, or a 02:00 REM block would land on the
+                    // day before the sleep it was part of and the stages would
+                    // not add up to the session above them.
+                    fun sleepDay(at: Instant): String {
+                        val owner = merged.firstOrNull {
+                            !at.isBefore(it.first) && !at.isAfter(it.second)
+                        }
+                        return dayOf(owner?.second ?: at)
+                    }
+
+                    // Stages get the same union treatment as the sessions, per
+                    // stage type: a phone and a watch that both scored the night
+                    // produce two overlapping deep-sleep blocks, and adding them
+                    // gave four hours of deep sleep out of a seven-hour night.
+                    // Overlaps *between* types are left alone — when two devices
+                    // disagree about whether 03:00 was light or REM there is no
+                    // arbiter, and inventing one would be worse than the
+                    // inflation.
+                    //
+                    // Health Connect distinguishes awake in bed from out of bed;
+                    // the catalogue row is "awake in bed", so out-of-bed time is
+                    // dropped rather than counted as restless sleep.
+                    val stageKeys = mapOf(
+                        SleepSessionRecord.STAGE_TYPE_DEEP to "sleepDeepMinutes",
+                        SleepSessionRecord.STAGE_TYPE_REM to "sleepRemMinutes",
+                        SleepSessionRecord.STAGE_TYPE_LIGHT to "sleepLightMinutes",
+                        SleepSessionRecord.STAGE_TYPE_AWAKE to "sleepAwakeMinutes",
+                        SleepSessionRecord.STAGE_TYPE_AWAKE_IN_BED to "sleepAwakeMinutes",
+                    )
+                    val stageSpans = mutableMapOf<String, MutableList<Pair<Instant, Instant>>>()
+                    sessions.forEach { session ->
+                        session.stages.forEach { stage ->
+                            val key = stageKeys[stage.stage] ?: return@forEach
+                            if (!wants(key)) return@forEach
+                            stageSpans.getOrPut(key) { mutableListOf() }
+                                .add(stage.startTime to stage.endTime)
+                        }
+                    }
+                    stageSpans.forEach { (key, spans) ->
+                        mergeSpans(spans).forEach { (from, to) ->
+                            val day = bucket(sleepDay(from))
+                            day[key] = (day[key] ?: 0.0) +
+                                Duration.between(from, to).toMinutes()
+                        }
                     }
 
                     sums.forEach { (key, entry) ->
@@ -992,10 +1228,22 @@ class HealthConnectPlugin : Plugin() {
                 at, offset, Power.kilocaloriesPerDay(value), meta,
             )
             "heightCm" -> HeightRecord(at, offset, Length.meters(value / 100), meta)
+            "bodyWaterMassKg" -> BodyWaterMassRecord(at, offset, Mass.kilograms(value), meta)
             // Deliberately unwritable. Nutrition needs a meal to hang off,
             // blood pressure is one record holding two numbers so half of it
             // cannot be corrected on its own, and the sleep and reproductive
             // records carry structure a single number cannot reconstruct.
+            //
+            // The newer keys refuse for the same reasons, one variety each:
+            // the sleep stages are a list inside a session and there is no
+            // session to put a corrected forty minutes of REM into; the period
+            // is an interval whose start and end a single day's flag cannot
+            // reconstruct, and sexual activity a count of occurrences rather
+            // than a number; steps cadence is a sample series, like power and
+            // speed, and one figure is not a series; and a skin temperature is
+            // a delta from a baseline Health Connect computed, so writing one
+            // without that baseline files a number against a reference nobody
+            // knows.
             else -> null
         }
 
