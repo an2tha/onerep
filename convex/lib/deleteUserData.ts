@@ -146,6 +146,7 @@ export async function deleteUserDataBatch(
     ["coachMonthlySummaries", "by_userId"],
     ["coachReviews", "by_userId"],
     ["coachTouches", "by_userId"],
+    ["celebrations", "by_userId"],
     // The device rows go with the account: a token left behind is a phone that
     // keeps getting coached for someone who deleted themselves.
     ["pushTokens", "by_userId"],

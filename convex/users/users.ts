@@ -46,6 +46,31 @@ export const getPreferences = query({
   },
 });
 
+/**
+ * When this account first showed up, for the retention cohort.
+ *
+ * `userPreferences` is written on the first `syncTimezone`, which the app fires
+ * on its first authenticated render — so the row's creation time is the first
+ * session, which is what a retention curve actually wants to count from. The
+ * auth identity carries no timestamp, and adding a second one to the schema
+ * would mean two answers to the same question.
+ *
+ * Returns a millisecond epoch and nothing else. The client turns it into a
+ * bucket before it goes anywhere.
+ */
+export const getSignupAt = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await safeGetAuthUser(ctx);
+    if (!user) return null;
+    const preferences = await ctx.db
+      .query("userPreferences")
+      .withIndex("by_userId", (q) => q.eq("userId", user._id))
+      .unique();
+    return preferences?._creationTime ?? null;
+  },
+});
+
 export const syncTimezone = mutation({
   args: { timeZone: v.string() },
   handler: async (ctx, args) => {

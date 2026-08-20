@@ -182,7 +182,7 @@ export default function Fasting({
       writeCachedActiveFast(null)
       if (completed) {
         setFastCelebration(true)
-        celebrateOnce("fast-complete", String(id))
+        void celebrateOnce("fast-complete", String(id))
         window.setTimeout(() => setFastCelebration(false), 2600)
       } else {
         hapticSelection()

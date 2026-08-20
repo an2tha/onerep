@@ -35,7 +35,7 @@ const REMINDER_COPY: Record<
   water: {
     id: 9201,
     title: "Hydration check",
-    body: "Log a glass and keep today’s water streak alive.",
+    body: "Log a glass. Today’s total is still short.",
   },
   meal: {
     id: 9202,

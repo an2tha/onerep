@@ -123,6 +123,7 @@ import type * as sharing_emails from "../sharing/emails.js";
 import type * as sharing_sharedDiary from "../sharing/sharedDiary.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as uploads from "../uploads.js";
+import type * as users_celebrations from "../users/celebrations.js";
 import type * as users_checkIn from "../users/checkIn.js";
 import type * as users_devEmails from "../users/devEmails.js";
 import type * as users_moments from "../users/moments.js";
@@ -255,6 +256,7 @@ declare const fullApi: ApiFromModules<{
   "sharing/sharedDiary": typeof sharing_sharedDiary;
   subscriptions: typeof subscriptions;
   uploads: typeof uploads;
+  "users/celebrations": typeof users_celebrations;
   "users/checkIn": typeof users_checkIn;
   "users/devEmails": typeof users_devEmails;
   "users/moments": typeof users_moments;

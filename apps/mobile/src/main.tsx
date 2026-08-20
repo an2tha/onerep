@@ -32,6 +32,7 @@ import { WidgetDataSync } from "@/components/widget-data-sync"
 import { HealthSync } from "@/components/health-sync"
 import { CoachPushRegistration } from "@/components/coach-push-registration"
 import { MealCategorySync } from "@/components/meal-category-sync"
+import { RetentionTracking } from "@/components/retention-tracking"
 
 import "./index.css"
 import "./i18n"
@@ -1247,6 +1248,7 @@ createRoot(document.getElementById("root")!).render(
             <HealthSync />
             <CoachPushRegistration />
             <MealCategorySync />
+            <RetentionTracking />
             <RouterProvider router={router} />
             <Toaster
               position="top-center"
